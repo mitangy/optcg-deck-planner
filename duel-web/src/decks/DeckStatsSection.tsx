@@ -4,6 +4,7 @@ import type { DeckHint, DeckStatsCard } from "@optcg/deck-analytics";
 import { DeckStatsPanel, useDeckHints } from "@optcg/deck-analytics/ui";
 import "@optcg/deck-analytics/ui/deckAnalytics.css";
 import type { SavedDeck } from "./storage";
+import { readStored, writeStored } from "@optcg/ui/storage";
 
 const OPEN_KEY = "optcg-duel:deck-stats-open";
 
@@ -15,11 +16,7 @@ export function deckStatsCards(cards: readonly string[]): DeckStatsCard[] {
 }
 
 function readOpen(): boolean {
-  try {
-    return localStorage.getItem(OPEN_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return readStored(OPEN_KEY) === "1";
 }
 
 /**
@@ -46,11 +43,7 @@ export function DeckStatsSection({ deck }: { deck: SavedDeck }) {
       onToggle={(e) => {
         const next = e.currentTarget.open;
         setOpen(next);
-        try {
-          localStorage.setItem(OPEN_KEY, next ? "1" : "0");
-        } catch {
-          /* ignore */
-        }
+        writeStored(OPEN_KEY, next ? "1" : "0");
       }}
     >
       <summary className="deck-collapsible-summary">

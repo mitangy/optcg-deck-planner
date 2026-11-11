@@ -1,4 +1,5 @@
 import { lookupCard } from "../cards/atlas";
+import { readStored, writeStored } from "@optcg/ui/storage";
 
 /** How the Decks page orders your saved decks. */
 export type DeckSort = "recent" | "name" | "leader";
@@ -21,19 +22,12 @@ export function parseDeckSort(raw: string | null | undefined): DeckSort {
 
 /** The sort picked last time, or Recently updated when nothing (valid) is stored or storage is blocked. */
 export function loadDeckSort(): DeckSort {
-  try {
-    return parseDeckSort(localStorage.getItem(SORT_KEY));
-  } catch {
-    return DEFAULT_DECK_SORT;
-  }
+  return parseDeckSort(readStored(SORT_KEY));
 }
 
 export function saveDeckSort(sort: DeckSort): void {
-  try {
-    localStorage.setItem(SORT_KEY, sort);
-  } catch {
-    // Storage blocked: the pick just lasts until the page closes.
-  }
+  // Storage blocked: the pick just lasts until the page closes.
+  writeStored(SORT_KEY, sort);
 }
 
 const leaderName = (deck: ListedDeck) => lookupCard(deck.leaderId).name;

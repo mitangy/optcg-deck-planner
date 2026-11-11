@@ -5,6 +5,7 @@ export const LAYOUT_RESET = {
   panelLayout: "",
   panelSizes: "",
   panelSizesBig: "",
+  panelSizesPhone: "",
   handFanPos: "",
   oppHandSpot: "",
   spectatorNearFanPos: "",

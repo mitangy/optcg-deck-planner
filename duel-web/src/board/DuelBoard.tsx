@@ -58,6 +58,7 @@ import { sideSkins } from "./layout/seatSkins";
 import { updateSettings, useDuelSettings } from "../settings";
 import { PANEL_LABELS, collapsedColumns, type PanelColumn, type PanelId } from "./panels/panelLayout";
 import { SidePanel } from "./panels/SidePanels";
+import { usePhoneResize } from "./panels/usePhoneResize";
 import { fanDocked, farFanPosForDrop, parseFanPos, serializeFanPos, spectatorNearFanPosForDrop } from "./hand/handFanPos";
 import { fanCornerFor } from "./hand/fanCorner";
 import { type LoadMatchRecord } from "./match/MatchOverFacts";
@@ -288,6 +289,7 @@ export function DuelBoard({
   const playmatRef = useRef<HTMLDivElement | null>(null);
   const { singleSide, logPoseSide, setLogPoseHostL, setLogPoseHostR, panelLayout, panelDrag, panelResize, lpPanel, setLpPanel } =
     useBoardPanels({ prefs, wide, lp, dragPayload, arenaBodyRef });
+  const phoneResize = usePhoneResize(prefs.panelSizesPhone, (next) => updateSettings({ panelSizesPhone: next }));
   const [promptSlot, setPromptSlot] = useState<HTMLElement | null>(null);
   const promptSlotValue = useMemo(() => ({ slot: promptSlot, setSlot: setPromptSlot }), [promptSlot]);
   /**
@@ -1500,7 +1502,9 @@ export function DuelBoard({
           ...(noLeftCol ? { "--left-w": "0px" } : null),
           ...(noRightCol ? { "--rail-w": "0px" } : null),
         } as CSSProperties)
-      : undefined;
+      : lp
+        ? phoneResize.style
+        : undefined;
   const docked = wide && !lp && !spectating && !over && !sideActions;
   const mulliganBody =
     mulliganPhase && !spectating ? (
@@ -1667,7 +1671,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter && !fanCorner ? " arena-fan-center" : ""}${fanCorner ? " arena-fan-corner" : ""}${specFans === "desktop" ? ` arena-spec-fans${farTop ? " arena-fan-top" : ""}` : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter && !fanCorner ? " arena-fan-center" : ""}${fanCenter && !fanCorner && !specFans && prefs.keepHandOpen ? " arena-fan-kept" : ""}${fanCorner ? " arena-fan-corner" : ""}${specFans === "desktop" ? ` arena-spec-fans${farTop ? " arena-fan-top" : ""}` : ""}${
         specFans === "landscape" ? " arena-spec-lp" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
@@ -1988,6 +1992,7 @@ export function DuelBoard({
             )}
             {defendTray ?? sidePanels.hand}
             {intentPanel}
+            {prefs.layoutGrips ? <div className="phone-resize phone-resize-rail" {...phoneResize.handleProps("rail")} /> : null}
           </div>
         ) : (
           <div className="arena-rail">
@@ -2067,6 +2072,7 @@ export function DuelBoard({
         <LandscapeOverlay
           panel={lpPanel}
           onClose={() => setLpPanel(null)}
+          resizeProps={prefs.layoutGrips ? phoneResize.handleProps("overlay") : undefined}
         >
           {lpPanel === "log" ? (
             <BattleLogPanel

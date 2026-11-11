@@ -127,6 +127,8 @@ export type DuelSettings = {
   panelSizes: string;
   /** Desktop, Bigger playing area: its own column widths (same format, only "L=" / "R=" are read). */
   panelSizesBig: string;
+  /** Landscape phones: the right column and the log / chat overlay widths, e.g. "R=220;O=320"; "" keeps both defaults. Stays on this device. */
+  panelSizesPhone: string;
   /** Desktop: show the grips that drag side panels and the fanned hand around. */
   layoutGrips: boolean;
   /**
@@ -261,6 +263,7 @@ const DEFAULTS: DuelSettings = {
   sideColumns: "right",
   panelSizes: "",
   panelSizesBig: "",
+  panelSizesPhone: "",
   layoutGrips: true,
   oneTapActions: false,
   dimUnplayable: true,
@@ -382,6 +385,7 @@ function sanitize(
 
 /** Fields that stay on this device (dev keys, pixel offsets); everything else follows the account. */
 const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
+  "panelSizesPhone",
   "useDevKey",
   "previewPopupPos",
   "previewPopupPinned",
