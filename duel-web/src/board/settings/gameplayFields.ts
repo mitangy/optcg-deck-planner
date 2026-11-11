@@ -8,6 +8,8 @@ export type FieldDevice = {
   finePointer: boolean;
   /** Portrait phone layout (PORTRAIT_MAT_QUERY): the tall board with the hand under it. */
   portrait: boolean;
+  /** Tall enough for the fanned hand when held sideways (SIDEWAYS_FAN_QUERY): tablets, foldables, big phones. */
+  sidewaysFan?: boolean;
 };
 
 /** The "Show on screen" switches: each hides one non-core element (the Battle log has none). */
@@ -268,7 +270,7 @@ export function rowDisabledNote(
   const sideways = !d.desktop && !d.portrait;
   switch (key) {
     case "handLayout":
-      return sideways ? "Sideways, your hand is always the grid on the right." : null;
+      return sideways && !d.sidewaysFan ? "Sideways, your hand is always the grid on the right." : null;
     case "compactOwnBoard":
       return sideways ? "Only for phones held upright." : null;
     case "lifeFan":

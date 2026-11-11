@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
 import { updateSettings, type DuelSettings } from "../../settings";
 import { GameplaySettingsFields } from "./GameplaySettings";
-import { DESKTOP_BOARD_QUERY, PORTRAIT_MAT_QUERY } from "../layout/useMediaQuery";
+import { DESKTOP_BOARD_QUERY, PORTRAIT_MAT_QUERY, SIDEWAYS_FAN_QUERY } from "../layout/useMediaQuery";
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
@@ -67,6 +67,13 @@ describe("Gameplay rows that do nothing in this layout (#790)", () => {
     await mount([PORTRAIT_MAT_QUERY], { compactOwnBoard: false });
     expect(select("life-fan").disabled).toBe(false);
     expect(notes()).toHaveLength(0);
+  });
+
+  it("keeps Hand layout usable on a big screen held sideways, where Fan works, and still grays Simple board (#1262)", async () => {
+    await mount([SIDEWAYS_FAN_QUERY], { handLayout: "fan", compactOwnBoard: true });
+    expect(select("hand-layout").disabled).toBe(false);
+    expect(notes().some((n) => /grid on the right/.test(n))).toBe(false);
+    expect(simpleBoard().disabled).toBe(true);
   });
 
   it("disables nothing on a desktop window (#790)", async () => {

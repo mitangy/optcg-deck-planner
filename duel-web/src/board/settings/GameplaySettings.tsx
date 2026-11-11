@@ -32,6 +32,7 @@ import {
   DESKTOP_BOARD_QUERY,
   FINE_POINTER_QUERY,
   PORTRAIT_MAT_QUERY,
+  SIDEWAYS_FAN_QUERY,
   TILT_BOARD_QUERY,
   useMediaQuery,
 } from "../layout/useMediaQuery";
@@ -262,7 +263,9 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
   const finePointer = useMediaQuery(FINE_POINTER_QUERY);
   // Upright phone: some rows do nothing in one orientation, so they are disabled with a note.
   const portrait = useMediaQuery(PORTRAIT_MAT_QUERY);
-  const device: FieldDevice = { desktop, tiltFits, finePointer, portrait };
+  // Sideways tablets and foldables can fan the hand; shorter phones keep it in the right column.
+  const sidewaysFan = useMediaQuery(SIDEWAYS_FAN_QUERY);
+  const device: FieldDevice = { desktop, tiltFits, finePointer, portrait, sidewaysFan };
   const noteFor = (key: RowKey) => rowDisabledNote(key, device, settings);
   const disabledNote = (note: string | null) =>
     note ? (
@@ -376,7 +379,9 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
             <p className="field-hint">
               {desktop
                 ? "Automatic uses Grid on tall windows and Fan elsewhere. Fan tucks under the board; Grid is a side panel you can move."
-                : "Fan overlaps the cards so they all fit; Grid lays them out and scrolls."}
+                : !portrait && sidewaysFan
+                  ? "Held sideways, Fan tucks under the board; Automatic and Grid keep your hand in the right column."
+                  : "Fan overlaps the cards so they all fit; Grid lays them out and scrolls."}
             </p>
             {disabledNote(noteFor("handLayout"))}
           </div>

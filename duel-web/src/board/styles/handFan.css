@@ -33,6 +33,18 @@
   padding-bottom: calc(var(--fan-ch) * 1.06 + 0.5rem + 18px + var(--safe-b) + 4px);
 }
 
+/* Sideways tablets and foldables (#1262): the landscape layout's own mat padding
+   (and the bigger playing area's) would win, so the strip is reserved again. */
+.arena.arena-lp.arena-fan-center .playmat,
+.arena.arena-big.arena-lp.arena-fan-center .playmat {
+  padding-bottom: calc(var(--fan-ch) * var(--fan-peek-center) + var(--safe-b) + 4px);
+}
+
+.arena.arena-lp.arena-fan-center.arena-fan-kept .playmat,
+.arena.arena-big.arena-lp.arena-fan-center.arena-fan-kept .playmat {
+  padding-bottom: calc(var(--fan-ch) * 1.06 + 0.5rem + 18px + var(--safe-b) + 4px);
+}
+
 .arena.arena-spec-fans.arena-fan-top .playmat {
   padding-top: calc(var(--fan-ch) * var(--fan-peek-center) + 4px);
 }

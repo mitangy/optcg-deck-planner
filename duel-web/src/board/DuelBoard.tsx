@@ -31,7 +31,7 @@ import { blockIntentFor, cardActionText, counterIntentForCard, counterIntentForH
 import { beginAttach, donIdsForTarget, quickAttachCounts } from "./don/donSelection";
 import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./hand/handPrompt";
 import { isHandPick } from "./prompts/fieldTargets";
-import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./hand/handLayout";
+import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand, usesWideFan } from "./hand/handLayout";
 import { SpectatorFarHand } from "./hand/SpectatorFarHand";
 import { HandLabel } from "./hand/HandLabel";
 import { IntentBar } from "./prompts/IntentBar";
@@ -281,7 +281,7 @@ export function DuelBoard({
   /** An effect asks me to pick cards from my hand: they are tapped in the hand, so it stays in view. */
   const handPick = !spectator && !view?.spectator && isHandPick(view?.pendingChoices?.[0], seat ?? view?.seat ?? null);
   const handHidden = handHiddenRaw && prefs.keepHandOpen && !handPick;
-  const { wide, compactHud, portraitMat, simpleOwnBoard, lp, railHandTall, handLayout, tilted } = useBoardLayout(prefs, isReplay);
+  const { wide, compactHud, portraitMat, simpleOwnBoard, lp, lpFan, railHandTall, handLayout, tilted } = useBoardLayout(prefs, isReplay);
   const rootRef = useRef<HTMLDivElement | null>(null);
   useHudHeight(rootRef, wide, view != null);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
@@ -299,8 +299,11 @@ export function DuelBoard({
   const specFans = spectatorFans(Boolean((spectator || view?.spectator) && view?.revealedHands), wide, lp);
   /** Phones: both hands are grids of small upright cards, so the mats get the height the fans took. */
   const specGrid = spectatorHandGrid(specFans);
-  /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
-  const fanHand = wide && !lp && (specFans != null || handLayout !== "grid");
+  /**
+   * Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). Sideways tablets and
+   * foldables too when Fan is picked (spectators there keep the right column's grids).
+   */
+  const fanHand = usesWideFan(wide, lp, lpFan, specFans, handLayout);
   /** Desktop fan: where the player dragged it (null = bottom centre of the board). */
   const fanPos = useMemo(() => parseFanPos(prefs.handFanPos), [prefs.handFanPos]);
   /** Desktop spectators: where each of the two fans was dragged (null = its default spot). */
@@ -1986,7 +1989,8 @@ export function DuelBoard({
                 compact
               />
             )}
-            {defendTray ?? sidePanels.hand}
+            {/* With the hand fanned off the board, a filler keeps the actions at the column's bottom. */}
+            {defendTray ?? sidePanels.hand ?? (fanHand ? <div className="lp-rail-fill" aria-hidden /> : null)}
             {intentPanel}
             {prefs.layoutGrips ? <div className="phone-resize phone-resize-rail" {...phoneResize.handleProps("rail")} /> : null}
           </div>

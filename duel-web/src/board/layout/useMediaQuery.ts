@@ -50,6 +50,13 @@ export const DESKTOP_BOARD_QUERY = DESKTOP;
 export const RAIL_HAND_QUERY = "(min-height: 680px)";
 
 /**
+ * Sideways (landscape rail layout) screens tall enough for the fanned hand: tablets, unfolded foldables
+ * (iPhone Duo) and big phones. Shorter phones held sideways keep the hand in the right column: a fan's
+ * tucked strip would take a fifth of their height from the mats.
+ */
+export const SIDEWAYS_FAN_QUERY = "(min-height: 500px)";
+
+/**
  * Decks page and deck editor desktop layout (side-by-side lists, card search
  * beside the deck). Must match the 1024px blocks in styles.css; phones and
  * small tablets keep the single column.
