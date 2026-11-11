@@ -33,6 +33,12 @@ const NO_TCGPLAYER_PRODUCT_YET: string[] = [
   "OP18-112",
   "OP18-113",
   "OP18-117",
+  // OP18 Baroque Works cards added from the Limitless English pages (#1248).
+  "OP18-049",
+  "OP18-050",
+  "OP18-053",
+  "OP18-054",
+  "OP18-057",
 ];
 
 function hasTcgplayerArt(id: string): boolean {
