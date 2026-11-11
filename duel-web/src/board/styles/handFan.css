@@ -211,7 +211,8 @@
   flex-direction: row;
   align-items: center;
   transform: none;
-  margin-top: 0.15rem;
+  /* Clear of the first card's tilted corner. */
+  margin: 0.15rem 0.5rem 0 0;
 }
 
 .arena:not(.arena-spec-fans) .hand-fan-center:not(.hand-fan-top) .hand-fan-cards {
