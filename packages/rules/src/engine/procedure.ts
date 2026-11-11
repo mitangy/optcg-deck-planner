@@ -7,7 +7,7 @@ import { abilitiesFor, abilityById } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { MatchState, PendingChoice, Seat } from "../types.js";
 import { expireBattle, expireEndOfTurn, expireStartOfTurn } from "./modifiers.js";
-import { hasKeyword, hasRestriction, powerOf, protectedFromBattleKoBy, restrictionValue } from "./queries.js";
+import { hasKeyword, hasRestriction, isNegated, powerOf, protectedFromBattleKoBy, restrictionValue } from "./queries.js";
 import { addModifier } from "./modifiers.js";
 import {
   abilityGateOpen, dispatchEvent, findDamageReplacement, findReplacement, newBatch, performKo, pushReplacementFrame, queueWindow, resolveGateOpen, runFrames, startAbility, takeLifeToHand, type Sim,
@@ -99,6 +99,9 @@ function startNextTrigger(sim: Sim): boolean {
   const loc = locate(state, next.sourceInstanceId);
   // Once-per-turn may have been consumed by an earlier copy of the same trigger.
   if (entry.ability.oncePerTurn && loc?.card?.usedAbilities?.[entry.ability.id] === state.turnNumber) return true;
+  // A card negated after its trigger queued cannot activate it: an earlier [When Attacking] that negates (P-100 Teach,
+  // EB05-021 Alvida) stops a simultaneous [On Your Opponent's Attack] or "when …" effect of the negated card.
+  if (loc?.card && isOnField(loc) && isNegated(state, loc.card)) return true;
   // Gates that must hold when the trigger resolves, not when it was queued (an earlier [When Attacking] may change them, #609).
   if (!resolveGateOpen(state, next.seat, { id: next.sourceInstanceId, defId: next.sourceDefId }, entry.ability, next.eventCardId)) return true;
   startAbility(sim, next.seat, { id: next.sourceInstanceId, defId: next.sourceDefId }, entry.ability, next.window, next.eventCardId ? { [B.event]: next.eventCardId } : {});

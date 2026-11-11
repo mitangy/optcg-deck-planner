@@ -48,7 +48,7 @@ describe("Est. cost split (#1182)", () => {
           { still_need: 1, remaining_cost: 1997, deck_need: 2, collector_wants: [] },
         ],
       }),
-    ).toEqual(["Decks $2.0k", "Added $2.4k", "Extra $3.5k"]);
+    ).toEqual(["Decks $2K", "Added $2.4K", "Extra $3.5K"]);
     expect(
       shoppingCostParts({
         remaining_market: 140,

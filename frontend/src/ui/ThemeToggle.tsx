@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
 import { THEME_STORAGE_KEY } from "../storage/keys";
 
 export type ThemePref = "auto" | "light" | "dark";
@@ -11,24 +12,17 @@ const LABEL: Record<ThemePref, string> = {
 };
 
 export function readThemePref(): ThemePref {
-  try {
-    const v = localStorage.getItem(THEME_STORAGE_KEY);
-    return v === "light" || v === "dark" ? v : "auto";
-  } catch {
-    return "auto";
-  }
+  const v = readStored(THEME_STORAGE_KEY);
+  return v === "light" || v === "dark" ? v : "auto";
 }
 
 export function applyThemePref(pref: ThemePref) {
   const root = document.documentElement;
   if (pref === "auto") delete root.dataset.theme;
   else root.dataset.theme = pref;
-  try {
-    if (pref === "auto") localStorage.removeItem(THEME_STORAGE_KEY);
-    else localStorage.setItem(THEME_STORAGE_KEY, pref);
-  } catch {
-    // Private mode / blocked storage: the choice still applies for this visit.
-  }
+  // Blocked storage: the choice still applies for this visit.
+  if (pref === "auto") removeStored(THEME_STORAGE_KEY);
+  else writeStored(THEME_STORAGE_KEY, pref);
 }
 
 function ThemeIcon({ pref }: { pref: ThemePref }) {
