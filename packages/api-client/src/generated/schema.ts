@@ -2970,6 +2970,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/group-buys/{group_id}/extras/{card_id}/{product_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Put Group Buy Extra Skip */
+        put: operations["put_group_buy_extra_skip_group_buys__group_id__extras__card_id___product_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/group-buys/{group_id}/leave": {
         parameters: {
             query?: never;
@@ -7023,6 +7040,11 @@ export interface components {
             /** With Product Id */
             with_product_id: number;
         };
+        /** GroupBuyExtraSkipUpdate */
+        GroupBuyExtraSkipUpdate: {
+            /** Skip */
+            skip: number;
+        };
         /** GroupBuyInvitePreview */
         GroupBuyInvitePreview: {
             /** Host Name */
@@ -7086,10 +7108,20 @@ export interface components {
             /** Members */
             members: components["schemas"]["GroupBuyMemberQtyOut"][];
             /**
+             * My Deck Qty
+             * @default 0
+             */
+            my_deck_qty: number;
+            /**
              * My Excluded
              * @default false
              */
             my_excluded: boolean;
+            /**
+             * My Extras
+             * @default []
+             */
+            my_extras: components["schemas"]["GroupBuyMyExtraOut"][];
             /**
              * My Is Custom
              * @default false
@@ -7209,6 +7241,31 @@ export interface components {
             suggested_qty: number;
             /** User Id */
             user_id: number;
+        };
+        /**
+         * GroupBuyMyExtraOut
+         * @description One of the viewer's Extra copies on a card, and how many they leave out of this buy (#1269).
+         */
+        GroupBuyMyExtraOut: {
+            /** Market Price */
+            market_price?: number | null;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /** Product Id */
+            product_id: number;
+            /**
+             * Skipped
+             * @default 0
+             */
+            skipped: number;
+            /**
+             * Wanted
+             * @default 0
+             */
+            wanted: number;
         };
         /** GroupBuyOrderUpdate */
         GroupBuyOrderUpdate: {
@@ -15045,6 +15102,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GroupBuyExport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_group_buy_extra_skip_group_buys__group_id__extras__card_id___product_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                card_id: string;
+                product_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyExtraSkipUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
                 };
             };
             /** @description Validation Error */

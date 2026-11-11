@@ -172,14 +172,19 @@
 
   .deck-stack {
     display: grid;
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: 56px minmax(0, 1fr);
     align-items: center;
     column-gap: 0.6rem;
     padding: 0.3rem 0.5rem 0.3rem 0.3rem;
   }
 
   .deck-stack-art-btn {
-    width: 48px;
+    width: 56px;
+  }
+
+  .deck-stack-pile {
+    --stack-step-y: 3px;
+    --stack-step-x: 3px;
   }
 
   .deck-stack-badge {

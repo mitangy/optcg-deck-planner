@@ -66,6 +66,20 @@ class GroupBuyMemberQtyOut(BaseModel):
     is_custom: bool = False
 
 
+class GroupBuyExtraSkipUpdate(BaseModel):
+    skip: int = Field(ge=0, le=999)
+
+
+class GroupBuyMyExtraOut(BaseModel):
+    """One of the viewer's Extra copies on a card, and how many they leave out of this buy (#1269)."""
+
+    product_id: int
+    name: str = ""
+    market_price: float | None = None
+    wanted: int = 0
+    skipped: int = 0
+
+
 class GroupBuyLineOut(BaseModel):
     card_id: str
     name: str
@@ -100,6 +114,10 @@ class GroupBuyLineOut(BaseModel):
     my_need: int = 0
     # Viewer's own selected decks that use the card (never other members' decks, #1266).
     my_used_in: list[str] = []
+    # Viewer's deck/single still-need part of my_suggested_qty (#1269).
+    my_deck_qty: int = 0
+    # Viewer's Extra copies on this card, with the copies skipped in this group buy.
+    my_extras: list[GroupBuyMyExtraOut] = []
 
 
 class GroupBuySummary(BaseModel):

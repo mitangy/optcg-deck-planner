@@ -17,6 +17,7 @@ from app.group_buy.settlement import SHIPPING_SPLIT_MODES, build_settlements, ro
 from app.core.models import User
 from app.group_buy.models import (
     GroupBuy,
+    GroupBuyExtraSkip,
     GroupBuyMember,
     GroupBuyQtyOverride,
     GroupBuyReceiptApply,
@@ -31,6 +32,7 @@ from app.group_buy.schemas import (
     GroupBuyLineOut,
     GroupBuyMemberOut,
     GroupBuyMemberQtyOut,
+    GroupBuyMyExtraOut,
     GroupBuyOrderUpdate,
     GroupBuyReceiptApplyRequest,
     GroupBuyReceiptLineOut,
@@ -94,6 +96,7 @@ def _get_group(db: Session, group_id: int) -> GroupBuy:
             selectinload(GroupBuy.host),
             selectinload(GroupBuy.snapshot_lines),
             selectinload(GroupBuy.qty_overrides),
+            selectinload(GroupBuy.extra_skips),
             selectinload(GroupBuy.receipt_applies).selectinload(GroupBuyReceiptApply.lines),
         )
     )
@@ -115,21 +118,90 @@ def _member_shopping(db: Session, member: GroupBuyMember):
     )
 
 
-def _suggested_qty(item) -> int:
-    """Copies to buy for a card: deck/single still-need plus any Extra copies still missing."""
-    return item.still_need + sum(c.still_need for c in item.collector_wants)
+# (user_id, card_id upper, product_id) -> Extra copies skipped in this group buy (#1269).
+ExtraSkips = dict[tuple[int, str, int], int]
 
 
-def _member_alt_inputs(item) -> list[tuple[int, int, float | None]]:
-    """Alt allocation order: Extra copies first (they are the alts the member asked for), then deck picks."""
-    extra = [
-        (c.product_id, c.still_need, c.market_price)
-        for c in item.collector_wants
-        if c.still_need > 0
-    ]
+def _extra_skip_map(group: GroupBuy) -> ExtraSkips:
+    return {
+        (row.user_id, row.card_id.upper(), row.product_id): int(row.qty)
+        for row in group.extra_skips
+        if row.qty > 0
+    }
+
+
+def _effective_extras(item, skips: dict[int, int] | None = None) -> list[tuple[int, int, float | None]]:
+    """(product_id, copies still wanted after this group buy's skips, price) per Extra copy."""
+    skips = skips or {}
+    out = []
+    for c in item.collector_wants:
+        left = max(0, c.still_need - skips.get(c.product_id, 0))
+        if left > 0:
+            out.append((c.product_id, left, c.market_price))
+    return out
+
+
+def _card_skips(skips: ExtraSkips | None, user_id: int, card_id: str) -> dict[int, int]:
+    if not skips:
+        return {}
+    card_id = card_id.upper()
+    return {pid: q for (uid, cid, pid), q in skips.items() if uid == user_id and cid == card_id}
+
+
+def _suggested_qty(item, skips: dict[int, int] | None = None) -> int:
+    """Copies to buy for a card: deck/single still-need plus Extra copies still missing and not skipped."""
+    return item.still_need + sum(q for _pid, q, _price in _effective_extras(item, skips))
+
+
+def _member_alt_inputs(
+    item, skips: dict[int, int] | None = None, qty: int | None = None
+) -> list[tuple[int, int, float | None]]:
+    """Alt allocation order: Extra copies first (they are the alts the member asked for), then deck picks.
+
+    With ``qty`` below the suggestion, Extra copies are the first to go: only what is left
+    after the deck copies is spent on them (#1269).
+    """
+    extra = _effective_extras(item, skips)
+    if qty is not None:
+        budget = max(0, min(qty - item.still_need, sum(q for _p, q, _pr in extra)))
+        capped = []
+        for pid, q, price in extra:
+            take = min(q, budget)
+            if take > 0:
+                capped.append((pid, take, price))
+                budget -= take
+        extra = capped
     # Owned copies a collector want does not claim already cover the deck (#1216).
     usable = {a.product_id: a.owned - min(a.owned, a.collector) for a in item.alt_arts}
     return extra + deck_alt_buy_inputs(item.alt_arts, usable)
+
+
+def _alt_inputs_for(
+    member_items: dict[int, dict[str, object]],
+    skips: ExtraSkips,
+    user_id: int,
+    card_id: str,
+    qty: int,
+) -> list[tuple[int, int, float | None]]:
+    item = member_items.get(user_id, {}).get(card_id.upper())
+    if item is None:
+        return []
+    return _member_alt_inputs(item, _card_skips(skips, user_id, card_id), qty)
+
+
+def _my_extras(item, skips: dict[int, int]) -> list[GroupBuyMyExtraOut]:
+    names = {a.product_id: a.name for a in item.alt_arts}
+    return [
+        GroupBuyMyExtraOut(
+            product_id=c.product_id,
+            name=names.get(c.product_id) or c.label,
+            market_price=c.market_price,
+            wanted=c.still_need,
+            skipped=min(c.still_need, skips.get(c.product_id, 0)),
+        )
+        for c in item.collector_wants
+        if c.still_need > 0
+    ]
 
 
 def _require_member(group: GroupBuy, user: User) -> GroupBuyMember:
@@ -154,6 +226,7 @@ def _qty_override_map(group: GroupBuy) -> dict[tuple[int, str], int]:
 def _member_needs_live(db: Session, group: GroupBuy) -> list[MemberNeed]:
     """Shopping still-need as default, with per-member qty overrides applied."""
     overrides = _qty_override_map(group)
+    skips = _extra_skip_map(group)
     needs: list[MemberNeed] = []
     for member in group.members:
         shopping = _member_shopping(db, member)
@@ -164,7 +237,9 @@ def _member_needs_live(db: Session, group: GroupBuy) -> list[MemberNeed]:
         }
         for card_id in sorted(card_ids):
             item = shop_by_id.get(card_id)
-            suggested = _suggested_qty(item) if item else 0
+            suggested = (
+                _suggested_qty(item, _card_skips(skips, member.user_id, card_id)) if item else 0
+            )
             key = (member.user_id, card_id)
             is_custom = key in overrides
             qty = overrides[key] if is_custom else suggested
@@ -240,6 +315,7 @@ def _viewer_zero_customs(
     shopping = _member_shopping(db, member)
     shop_by_id = {item.card_id.upper(): item for item in shopping.items}
     name = _display_name(member.user)
+    skips = _extra_skip_map(group)
     out: dict[str, MergedMemberQty] = {}
     for (uid, card_id), qty in _qty_override_map(group).items():
         if uid != viewer_user_id or qty > 0:
@@ -249,7 +325,9 @@ def _viewer_zero_customs(
             user_id=viewer_user_id,
             display_name=name,
             qty=0,
-            suggested_qty=_suggested_qty(item) if item else 0,
+            suggested_qty=(
+                _suggested_qty(item, _card_skips(skips, viewer_user_id, card_id)) if item else 0
+            ),
             is_custom=True,
         )
     return out
@@ -305,17 +383,19 @@ def _build_lines(
     viewer_used_in: dict[str, list[str]] = {}
     # Per-member alt wants for pricing (allocate AA qty, rest at preferred).
     member_shop_alts: dict[int, dict[str, list]] = {}
-    # Same, as allocation inputs: Extra copies first, then deck picks (#1177).
-    member_alt_inputs: dict[int, dict[str, list]] = {}
+    # Each member's shopping items by card: allocation inputs are built per qty (#1177, #1269).
+    member_items: dict[int, dict[str, object]] = {}
+    skips = _extra_skip_map(group)
+    viewer_items: dict[str, object] = {}
     # Each member's explicit Show pick per card (#893).
     member_display: dict[int, dict[str, int]] = {}
     for member in group.members:
         shop = _member_shopping(db, member)
         by_card: dict[str, list] = {}
-        by_card_inputs: dict[str, list] = {}
+        by_card_items: dict[str, object] = {}
         for item in shop.items:
             by_card[item.card_id.upper()] = item.alt_arts
-            by_card_inputs[item.card_id.upper()] = _member_alt_inputs(item)
+            by_card_items[item.card_id.upper()] = item
             if item.display_art is not None:
                 member_display.setdefault(member.user_id, {})[item.card_id.upper()] = item.display_art
             if member.user_id == viewer_user_id:
@@ -326,8 +406,9 @@ def _build_lines(
                 viewer_shop_alts[item.card_id] = item.alt_arts
                 viewer_display[item.card_id] = item.display_art
                 viewer_used_in[item.card_id] = list(item.used_in)
+                viewer_items[item.card_id.upper()] = item
         member_shop_alts[member.user_id] = by_card
-        member_alt_inputs[member.user_id] = by_card_inputs
+        member_items[member.user_id] = by_card_items
 
     catalog, primary_ids, alts, printings = _catalog_bundle(
         db, card_ids, wanted=viewer_wants or None
@@ -380,7 +461,7 @@ def _build_lines(
             if mem.qty <= 0:
                 continue
             any_buy = True
-            alt_inputs = member_alt_inputs.get(mem.user_id, {}).get(card_id, [])
+            alt_inputs = _alt_inputs_for(member_items, skips, mem.user_id, card_id, mem.qty)
             buys = shopping_svc.allocate_still_need_buys(
                 mem.qty,
                 alt_inputs,
@@ -418,6 +499,10 @@ def _build_lines(
         mine = next((m for m in members if m.user_id == viewer_user_id), None)
         my_qty = mine.qty if mine else 0
         my_is_custom = mine.is_custom if mine else False
+        my_item = viewer_items.get(card_id)
+        my_extras = (
+            _my_extras(my_item, _card_skips(skips, viewer_user_id, card_id)) if my_item else []
+        )
         lines_out.append(
             GroupBuyLineOut(
                 card_id=card_id,
@@ -455,6 +540,8 @@ def _build_lines(
                 my_excluded=bool(my_is_custom and my_qty == 0),
                 my_need=viewer_need.get(card_id, 0),
                 my_used_in=viewer_used_in.get(card_id, []),
+                my_deck_qty=my_item.still_need if my_item else 0,
+                my_extras=my_extras,
             )
         )
 
@@ -807,8 +894,13 @@ def set_member_qty(
 
     # Default (no override) is shopping still-need. If qty matches that, clear override.
     shopping = _member_shopping(db, member)
+    my_skips = _card_skips(_extra_skip_map(group), user.id, card_id)
     suggested = next(
-        (_suggested_qty(item) for item in shopping.items if item.card_id.upper() == card_id),
+        (
+            _suggested_qty(item, my_skips)
+            for item in shopping.items
+            if item.card_id.upper() == card_id
+        ),
         0,
     )
     existing = db.scalar(
@@ -837,6 +929,78 @@ def set_member_qty(
         )
     else:
         existing.qty = qty
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def set_extra_skip(
+    db: Session,
+    user: User,
+    group_id: int,
+    card_id: str,
+    product_id: int,
+    skip: int,
+) -> GroupBuyDetail:
+    """Leave Extra copies of one alt out of this group buy (#1269). Shopping is untouched."""
+    group = _get_group(db, group_id)
+    member = _require_member(group, user)
+    if group.status != GroupBuyStatus.OPEN:
+        raise Forbidden("Group buy is locked; quantities cannot change")
+    card_id = card_id.upper().strip()
+    shopping = _member_shopping(db, member)
+    item = next((i for i in shopping.items if i.card_id.upper() == card_id), None)
+    extra = next(
+        (c for c in (item.collector_wants if item else []) if c.product_id == product_id), None
+    )
+    if item is None or extra is None or extra.still_need <= 0:
+        raise Invalid("No Extra copy of that printing on this card")
+    new_skip = max(0, min(int(skip), extra.still_need))
+
+    row = next(
+        (
+            r
+            for r in group.extra_skips
+            if r.user_id == user.id and r.card_id.upper() == card_id and r.product_id == product_id
+        ),
+        None,
+    )
+    old_skip = min(row.qty, extra.still_need) if row is not None else 0
+    if new_skip == old_skip:
+        return get_group_buy(db, user, group_id)
+    if new_skip == 0:
+        if row is not None:
+            db.delete(row)
+    elif row is None:
+        db.add(
+            GroupBuyExtraSkip(
+                group_buy_id=group.id,
+                user_id=user.id,
+                card_id=card_id,
+                product_id=product_id,
+                qty=new_skip,
+            )
+        )
+    else:
+        row.qty = new_skip
+
+    # A custom qty follows the change: skipping one copy lowers it by one (an excluded line stays out).
+    override = next(
+        (
+            r
+            for r in group.qty_overrides
+            if r.user_id == user.id and r.card_id.upper() == card_id
+        ),
+        None,
+    )
+    if override is not None and override.qty > 0:
+        skips = _card_skips(_extra_skip_map(group), user.id, card_id)
+        skips[product_id] = new_skip
+        new_suggested = _suggested_qty(item, skips)
+        shifted = max(0, override.qty - (new_skip - old_skip))
+        if shifted == new_suggested and shifted > 0:
+            db.delete(override)
+        else:
+            override.qty = shifted
     db.commit()
     return get_group_buy(db, user, group_id)
 
@@ -1036,14 +1200,13 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
     _require_member(group, user)
     lines, _ = _build_lines(db, group, viewer_user_id=user.id)
 
-    member_alt_inputs: dict[int, dict[str, list]] = {}
+    skips = _extra_skip_map(group)
+    member_items: dict[int, dict[str, object]] = {}
     for member in group.members:
         shop = _member_shopping(db, member)
         # Uppercase keys — line.card_id is uppercased in merge; mismatched case
         # silently dropped AA wants and fell back to whole-line printing.
-        member_alt_inputs[member.user_id] = {
-            item.card_id.upper(): _member_alt_inputs(item) for item in shop.items
-        }
+        member_items[member.user_id] = {item.card_id.upper(): item for item in shop.items}
 
     product_parts: list[str] = []
     fallback: list[str] = []
@@ -1064,7 +1227,7 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
         for mem in line.members:
             if mem.qty <= 0:
                 continue
-            alt_inputs = member_alt_inputs.get(mem.user_id, {}).get(line.card_id, [])
+            alt_inputs = _alt_inputs_for(member_items, skips, mem.user_id, line.card_id, mem.qty)
             buys = shopping_svc.allocate_still_need_buys(
                 mem.qty,
                 alt_inputs,

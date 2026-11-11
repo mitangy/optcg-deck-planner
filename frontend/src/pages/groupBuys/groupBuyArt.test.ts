@@ -148,3 +148,46 @@ describe("groupBuyShownPrice", () => {
     expect(groupBuyShownPrice(line(2, [alt(2, "Manga", null, 1)]))).toBeNull();
   });
 });
+
+describe("myArtSplit with Extra copies (#1269)", () => {
+  const extra = (product_id: number, name: string, price: number, wanted: number, skipped = 0) => ({
+    product_id,
+    name,
+    market_price: price,
+    wanted,
+    skipped,
+  });
+  const withExtras = (my_qty: number, my_deck_qty: number, my_extras: ReturnType<typeof extra>[]) => ({
+    ...line(my_qty, []),
+    my_deck_qty,
+    my_extras,
+  });
+
+  it("an included Extra copy is bought as its alt on top of the deck copies (#1269)", () => {
+    const s = myArtSplit(withExtras(5, 4, [extra(9, "Manga", 180, 1)]));
+    expect(s.base).toBe(4);
+    expect(s.alts).toEqual([{ product_id: 9, name: "Manga", qty: 1, price: 180 }]);
+  });
+
+  it("a skipped Extra copy is not bought (#1269)", () => {
+    // A custom buy of 5 leaves room for the Manga, but it is skipped: the 5th copy is base.
+    const l = withExtras(5, 4, [extra(9, "Manga", 180, 1, 1)]);
+    expect(myArtSplit(l)).toEqual({ base: 5, alts: [] });
+    expect(mySelectedArtsTotal(l).total).toBe(5);
+  });
+
+  it("a lower buy qty drops the Extra copy before a deck copy (#1269)", () => {
+    const s = myArtSplit(withExtras(4, 4, [extra(9, "Manga", 180, 1)]));
+    expect(s.base).toBe(4);
+    expect(s.alts).toEqual([]);
+  });
+
+  it("partly skipped Extra copies keep the rest, in order (#1269)", () => {
+    const s = myArtSplit(withExtras(6, 4, [extra(9, "Manga", 180, 2, 1), extra(8, "Gold", 20, 1)]));
+    expect(s.alts.map((a) => [a.product_id, a.qty])).toEqual([
+      [9, 1],
+      [8, 1],
+    ]);
+    expect(s.base).toBe(4);
+  });
+});
