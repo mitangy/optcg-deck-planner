@@ -42,7 +42,7 @@ for (const [w, h] of [[1280, 720], [1440, 900]]) {
 }
 for (const [w, h] of [[1280, 720], [1440, 900]]) {
   const page = await open(w, h, {}, "/settings");
-  await page.getByLabel("Big card preview").scrollIntoViewIfNeeded();
+  await page.getByLabel("Show card text beneath card").scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${OUT}/settings-desktop-${w}x${h}.png` });
   await page.context().close();
 }
@@ -53,7 +53,7 @@ for (const [w, h, n] of [[375, 812, "phone-portrait"], [812, 375, "phone-landsca
   page = await open(w, h, {}, "/settings");
   await page.getByLabel("Gray out unplayable cards").scrollIntoViewIfNeeded();
   await page.screenshot({ path: `${OUT}/${n}-settings.png` });
-  console.log(n, "switch count", await page.getByLabel("Big card preview").count());
+  console.log(n, "switch count", await page.getByLabel("Show card text beneath card").count());
   await page.context().close();
 }
 await browser.close();
