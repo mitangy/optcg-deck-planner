@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-10
+  { date: "2026-11-10", app: "planner", pr: 1231, title: "Prices show thousands separators", text: "Prices of a thousand dollars or more now read $1,234.56 instead of $1234.56, and the short totals under Est. cost read $2K instead of $2.0k." },
   { date: "2026-11-10", app: "planner", pr: 1230, title: "Copy buttons work on more browsers", text: "Copy list, Copy invite link, Share and Copy log now also work in browsers that block the clipboard, instead of showing an error." },
   { date: "2026-11-10", app: "duel", pr: 1232, title: "Faster deck editor search on phones", text: "Searching for cards in the deck editor now stays responsive while you type, and card pictures load as you scroll to them instead of all at once, so broad searches no longer make phones lag." },
   { date: "2026-11-10", app: "planner", pr: 1217, title: "Group buy totals match Master Shopping", text: "When you already own an alt art you picked in a deck, a group buy no longer prices it again, so its total matches Master Shopping. Unticking Extra copies in a group buy also keeps the alt arts you own for them from counting toward your decks, like Master Shopping." },
