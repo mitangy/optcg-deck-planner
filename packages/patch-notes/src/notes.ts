@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-11
+  { date: "2026-11-11", app: "duel", pr: 1239, title: "New OP18 alt arts", text: "You can now pick the Alternate Art for Franky and Monkey.D.Luffy (OP18-022), the Alternate Art and Special Art for Saint Gunko, and the new Special Art for Lilith and Nefeltari Vivi in your decks, in the duel app and the planner." },
   // 2026-11-10
   { date: "2026-11-10", app: "duel", pr: 1239, title: "OP18 cards show in English", text: "17 OP18 cards, including Mr.0 & Ms. All Sunday and Mr.1 & Miss Doublefinger, showed Japanese or French card pictures. They now show the official English reveal cards, in the duel app and the planner." },
   { date: "2026-11-10", app: "planner", pr: 1230, title: "Copy buttons work on more browsers", text: "Copy list, Copy invite link, Share and Copy log now also work in browsers that block the clipboard, instead of showing an error." },
