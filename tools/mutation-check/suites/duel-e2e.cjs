@@ -903,6 +903,15 @@ module.exports = {
     // The confirm grows with its font; at a fixed 250px the OK label spilled out of its button (#493)
     { id: "e2e-don-attach-confirm-fixed-width", args: "don-popover -g \"fits its label\"", file: "duel-web/src/interactions.css", from: "  width: min(max(250px, 18.5em), calc(100vw - 16px));\n", to: "  width: min(250px, calc(100vw - 16px));\n", kills: ["don-popover.spec.ts > the Attach DON!! button fits its label on a big screen with Extra large text (#493) [desktop-1280]", "don-popover.spec.ts > the Attach DON!! button fits its label on a big screen with Extra large text (#493) [phone-375]"] },
 
+    // Attached DON!! goes under the cards next to it (#1249)
+    { id: "e2e-don-under-row-not-isolated", args: "don-under-neighbors --project=desktop-1280 -g 1920x1080", file: "duel-web/src/styles/donUnder.css", from: ".characters-row {\n  isolation: isolate;\n}\n", to: "", kills: ["don-under-neighbors.spec.ts > DON!! goes under the cards next to it: standing + rested Characters, desktop 1920x1080 (#1249) [desktop-1280]"] },
+    { id: "e2e-don-under-no-fan-order", args: "don-under-neighbors --project=desktop-1280 -g 1920x1080", edits: [
+      { file: "duel-web/src/styles/donUnder.css", from: "z-index: var(--fan-z-top, auto);", to: "z-index: auto;" },
+      { file: "duel-web/src/styles/donUnder.css", from: ".side-opp .characters-row > .card-tile.has-don-under.rested {\n  z-index: var(--fan-z-next, auto);", to: ".side-opp .characters-row > .card-tile.has-don-under.rested {\n  z-index: auto;" },
+      { file: "duel-web/src/styles/donUnder.css", from: ".don-upright .side-opp .characters-row > .card-tile.has-don-under.rested {\n  z-index: var(--fan-z-prev, auto);", to: ".don-upright .side-opp .characters-row > .card-tile.has-don-under.rested {\n  z-index: auto;" },
+    ], kills: ["don-under-neighbors.spec.ts > DON!! goes under the cards next to it: standing + rested Characters, desktop 1920x1080 (#1249) [desktop-1280]", "don-under-neighbors.spec.ts > DON!! goes under the cards next to it: two rested Characters, desktop 1920x1080 (#1249) [desktop-1280]"] },
+    { id: "e2e-don-under-opp-leader-over-row-portrait", args: "don-under-neighbors --project=desktop-1280 -g 375x812", file: "duel-web/src/styles/donUnder.css", from: "  .side-opp .characters-row {\n    position: relative;\n    z-index: var(--z-raise-1);\n  }\n", to: "", kills: ["don-under-neighbors.spec.ts > DON!! goes under the cards next to it: standing + rested Characters, phone portrait 375x812 (#1249) [desktop-1280]"] },
+
     // Docked fan: menu, Hand and Sort stack at the fan's left (#449)
     { id: "e2e-hand-menu-row", args: "hand-menu --project=desktop-1280", file: "duel-web/src/board/styles/handFan.css", from: "  justify-self: end;\n  flex-direction: row;", to: "  justify-self: end;\n  flex-direction: column;", kills: ["hand-menu.spec.ts > docked fan: menu, Hand and Sort sit in a row beside the cards, tucked (#1244) [desktop-1280]", "hand-menu.spec.ts > docked fan: menu, Hand and Sort sit in a row beside the cards, shown (#1244) [desktop-1280]"] },
 
