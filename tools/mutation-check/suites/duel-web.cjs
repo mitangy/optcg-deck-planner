@@ -5,6 +5,9 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Deck editor stacks draw a pile of copies behind the front card (#1272)
+    {"id": "stack1272-layers-off-by-one", "file": "duel-web/src/decks/groupStacks.ts", "from": "Math.max(0, Math.min(count, MAX_STACK_LAYERS) - 1)", "to": "Math.max(0, Math.min(count, MAX_STACK_LAYERS))", "kills": ["deck editor draws one stacked layer behind the front card per extra copy, capped at four cards (#1272)"], "args": "src/deckEditorLazyArt1227"},
+    {"id": "stack1272-cap-removed", "file": "duel-web/src/decks/groupStacks.ts", "from": "Math.max(0, Math.min(count, MAX_STACK_LAYERS) - 1)", "to": "Math.max(0, count - 1)", "kills": ["deck editor draws one stacked layer behind the front card per extra copy, capped at four cards (#1272)"], "args": "src/deckEditorLazyArt1227"},
     // The action button is the turn indicator; the Turn card's big heading is for spectators and Match over (#1247)
     {"id": "turnhead1247-players-get-heading", "file": "duel-web/src/board/panels/TurnStatusPanel.tsx", "from": "const showTitle = spectating || over;", "to": "const showTitle = true;", "kills": ["a player on the opponent's turn gets no big heading, the button says it (#1247)"], "args": "src/board/panels/turnStatusTitle"},
     {"id": "turnhead1247-spectator-loses-heading", "file": "duel-web/src/board/panels/TurnStatusPanel.tsx", "from": "const showTitle = spectating || over;", "to": "const showTitle = over;", "kills": ["a spectator, who has no button, still gets the whose-turn heading (#1247)"], "args": "src/board/panels/turnStatusTitle"},
