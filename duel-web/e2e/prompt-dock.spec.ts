@@ -81,6 +81,24 @@ test.describe("desktop", () => {
     expect(after.y).toBeGreaterThan(h.y + 100);
   });
 
+  test("a pop-up can be dragged to the far left edge when only the right column is open, and does not jump into the right column (#1245)", async ({ page }) => {
+    // The fixtures open both columns; the app's default is one combined column on the right.
+    await page.addInitScript((key) => {
+      const cur = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, unknown>;
+      localStorage.setItem(key, JSON.stringify({ ...cur, sideColumns: "right" }));
+    }, SETTINGS);
+    await open(page, "confirm");
+    await expect(page.locator(`[data-panel-col="left"][data-col-off]`)).toHaveCount(1);
+    await dragHeaderTo(page, 5, 300);
+    await expect(page.locator("[data-prompt-dock-host]")).toHaveCount(0);
+    expect((await stored(page)).promptDock ?? "").toBe("");
+    const p = await box(page, PROMPT);
+    expect(p.x).toBeLessThan(20);
+    expect(await page.locator(`[data-panel-col="right"] ${PROMPT}`).count()).toBe(0);
+    const right = await box(page, `[data-panel-col="right"]`);
+    expect(p.x + p.width).toBeLessThan(right.x + 1);
+  });
+
   test("the dock buttons dock and undock, and the picks made so far are kept (#449)", async ({ page }) => {
     await open(page);
     const bottom = page.getByRole("group", { name: "Place Jesus Burgess" }).getByRole("button", { name: "Bottom" });

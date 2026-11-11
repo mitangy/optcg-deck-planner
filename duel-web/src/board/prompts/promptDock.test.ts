@@ -9,10 +9,25 @@ describe("dockAt (#449)", () => {
     expect(dockAt(1100, 1280, COLUMNS)).toBe("right");
   });
 
-  it("docks at the screen's edge strip even with no column there, and stays floating over the board (#449)", () => {
+  it("the screen's edge strip docks only toward a side with a column (#1245)", () => {
+    const onlyRight = { left: null, right: COLUMNS.right };
+    const onlyLeft = { left: COLUMNS.left, right: null };
+    expect(dockAt(10, 1280, onlyRight)).toBeNull();
+    expect(dockAt(1270, 1280, onlyRight)).toBe("right");
+    expect(dockAt(1270, 1280, onlyLeft)).toBeNull();
+    expect(dockAt(10, 1280, onlyLeft)).toBe("left");
+    expect(dockAt(10, 1280, COLUMNS)).toBe("left");
+    expect(dockAt(1270, 1280, COLUMNS)).toBe("right");
+    // Columns set in from the screen's edge: the strip still docks to them.
+    const inset = { left: { left: 30, right: 260 }, right: { left: 940, right: 1250 } };
+    expect(dockAt(10, 1280, inset)).toBe("left");
+    expect(dockAt(1270, 1280, inset)).toBe("right");
+  });
+
+  it("stays floating over the board and with no column at all (#449)", () => {
     const none = { left: null, right: null };
-    expect(dockAt(10, 1280, none)).toBe("left");
-    expect(dockAt(1270, 1280, none)).toBe("right");
+    expect(dockAt(10, 1280, none)).toBeNull();
+    expect(dockAt(1270, 1280, none)).toBeNull();
     expect(dockAt(640, 1280, COLUMNS)).toBeNull();
     expect(dockAt(640, 1280, none)).toBeNull();
   });
