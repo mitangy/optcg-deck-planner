@@ -133,7 +133,7 @@ describe("Master Shopping main row price leaves out Extra copies (#1187)", () =>
     expect(shoppingRowAmount(item({ still_need: 0, remaining_cost: 0, collector_wants: [line({ remaining_cost: 1000 }), line({ product_id: 203, remaining_cost: 530 })] }))).toBe(1530);
     const covered = view([item({ card_id: "EB05-055", still_need: 0, remaining_cost: 0, collector_wants: [line({ remaining_cost: 1530 })] })]);
     const btn = covered.querySelector("button[data-buy-split]")!;
-    expect(btn.querySelector(".buy-split-amount")?.textContent).toContain("$1530.00");
+    expect(btn.querySelector(".buy-split-amount")?.textContent).toContain("$1,530.00");
     expect(btn.querySelector(".buy-split-action")?.textContent).toBe("★ Extra copy");
   });
 

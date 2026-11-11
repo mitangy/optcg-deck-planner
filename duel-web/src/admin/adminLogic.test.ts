@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun, EventFlag } from "./adminApi";
-import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel } from "./adminLogic";
+import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, spendText, formatCount, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -284,6 +284,12 @@ describe("user detail helpers (#988)", () => {
     expect(usd(0)).toBe("$0.00");
     expect(usd(0.004)).toBe("$0.004");
     expect(usd(1.256)).toBe("$1.26");
+  });
+
+  it("groups thousands in dollar amounts and counts (#1223)", () => {
+    expect(usd(1234.5)).toBe("$1,234.50");
+    expect(spendText(2500)).toBe("$2,500.00");
+    expect(formatCount(1234567)).toBe("1,234,567");
   });
 });
 

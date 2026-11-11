@@ -5,6 +5,8 @@
  * node. Browser-specific pieces (IndexedDB, canvas encode) are injected.
  */
 
+import { createStore } from "../lib/createStore";
+
 /** Minimal async key/value store for Blobs. */
 export type BlobBackend = {
   get(key: string): Promise<Blob | undefined>;
@@ -170,14 +172,14 @@ export function memoryBackend(): BlobBackend & { data: Map<string, Blob> } {
 export function createImageSlot(opts: ImageSlotOptions): ImageSlot {
   const toUrl = opts.toUrl ?? ((b: Blob) => URL.createObjectURL(b));
   const revoke = opts.revokeUrl ?? ((u: string) => URL.revokeObjectURL(u));
-  const listeners = new Set<() => void>();
+  const changed = createStore<number>(0);
   let cached: string | null | undefined;
   let loading: Promise<string | null> | null = null;
 
   function emit(url: string | null) {
     if (cached) revoke(cached);
     cached = url;
-    for (const l of listeners) l();
+    changed.set((n) => n + 1);
   }
 
   return {
@@ -234,9 +236,6 @@ export function createImageSlot(opts: ImageSlotOptions): ImageSlot {
         emit(null);
       }
     },
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
+    subscribe: changed.subscribe,
   };
 }

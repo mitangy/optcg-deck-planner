@@ -1,3 +1,4 @@
+import { formatMoney } from "@optcg/card-core";
 import type { AdminEvent, AdminEventSummary, EventFields, EventFormat, EventPrizeMethod, SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role, GameCounts, GameMode, AdminUserDetail, AdminUserMatch } from "./adminApi";
 
 export type AdminTab = "players" | "bots" | "traffic" | "hosting" | "event" | "reports" | "uploads" | "users";
@@ -325,9 +326,16 @@ export function runRowId(suite: string, run: Pick<EvalRun, "run_at" | "label">):
   return `adm-run-${suite}-${Date.parse(run.run_at)}-${run.label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 }
 
+const COUNT = new Intl.NumberFormat("en-US");
+
+/** "12,345": a count with thousands separators, the same for every viewer. */
+export function formatCount(v: number): string {
+  return COUNT.format(v);
+}
+
 /** "$0.42", or a dash for a run with no recorded spend. */
 export function spendText(usd: number | null | undefined): string {
-  return usd == null ? "—" : `$${usd.toFixed(2)}`;
+  return usd == null ? "—" : formatMoney(usd);
 }
 
 /** A link a hosting row may open: http(s) only, with https:// added to a bare host ("app.vercel.app"). Null when there is none. */
@@ -708,5 +716,5 @@ export function presenceText(online: AdminUserDetail["online"]): string | null {
 /** "$1.25"; sub-cent spend keeps a third decimal so a few questions do not read as free. */
 export function usd(v: number): string {
   if (v > 0 && v < 0.01) return `$${v.toFixed(3)}`;
-  return `$${v.toFixed(2)}`;
+  return formatMoney(v);
 }
