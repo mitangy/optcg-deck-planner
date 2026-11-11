@@ -302,6 +302,7 @@ def _build_lines(
     viewer_need: dict[str, int] = {}
     viewer_shop_alts: dict[str, list] = {}
     viewer_display: dict[str, int | None] = {}
+    viewer_used_in: dict[str, list[str]] = {}
     # Per-member alt wants for pricing (allocate AA qty, rest at preferred).
     member_shop_alts: dict[int, dict[str, list]] = {}
     # Same, as allocation inputs: Extra copies first, then deck picks (#1177).
@@ -324,6 +325,7 @@ def _build_lines(
                 }
                 viewer_shop_alts[item.card_id] = item.alt_arts
                 viewer_display[item.card_id] = item.display_art
+                viewer_used_in[item.card_id] = list(item.used_in)
         member_shop_alts[member.user_id] = by_card
         member_alt_inputs[member.user_id] = by_card_inputs
 
@@ -452,6 +454,7 @@ def _build_lines(
                 my_is_custom=my_is_custom,
                 my_excluded=bool(my_is_custom and my_qty == 0),
                 my_need=viewer_need.get(card_id, 0),
+                my_used_in=viewer_used_in.get(card_id, []),
             )
         )
 

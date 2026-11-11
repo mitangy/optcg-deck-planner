@@ -146,3 +146,21 @@ def test_group_buy_owned_alt_reserved_by_an_extra_copy_does_not_cover_the_deck_1
     line = _line(created, LUFFY)
     assert _mine(line, user) == 2
     assert line.remaining_cost == item.remaining_cost == 5.0
+
+
+def test_group_buy_line_lists_only_the_viewers_selected_decks_for_the_card_1266(db):
+    add_catalog(db, LUFFY, name="Luffy", product_id=BASE, market=2.5)
+    host = make_user(db, email="h1266@example.com", name="Host", sub="sub-h1266")
+    guest = make_user(db, email="g1266@example.com", name="Guest", sub="sub-g1266")
+    pudding = add_deck_with_cards(db, host, "Pudding", {LUFFY: 1})
+    add_deck_with_cards(db, host, "Unpicked deck", {LUFFY: 1})
+    add_deck_with_cards(db, guest, "Guest secret deck", {LUFFY: 2})
+
+    created = group_buy.create_group_buy(db, host, "Decks")
+    group_buy.join_group_buy(db, guest, created.invite_token)
+    group_buy.update_contribution(db, host, created.id, [pudding.id])
+
+    mine = _line(group_buy.get_group_buy(db, host, created.id), LUFFY)
+    assert mine.my_used_in == ["Pudding"]
+    theirs = _line(group_buy.get_group_buy(db, guest, created.id), LUFFY)
+    assert theirs.my_used_in == ["Guest secret deck"]
