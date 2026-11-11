@@ -20,6 +20,7 @@ import {
   type AccountDeckBody,
 } from "../net/prefsApi";
 import { planDeckSync } from "./deckSyncPlan";
+import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
 
 const OWNER_KEY = "optcg.duel.savedDecks.owner.v1";
 const PENDING_KEY = "optcg.duel.savedDecks.pending.v1";
@@ -38,25 +39,17 @@ let flushNow: (() => Promise<void>) | null = null;
 let syncGen = 0;
 
 export function getDeckCacheOwner(): number | null {
-  try {
-    const n = Number(localStorage.getItem(OWNER_KEY));
-    return Number.isInteger(n) && n > 0 ? n : null;
-  } catch {
-    return null;
-  }
+  const n = Number(readStored(OWNER_KEY));
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 function setDeckCacheOwner(id: number) {
-  try {
-    localStorage.setItem(OWNER_KEY, String(id));
-  } catch {
-    /* storage unavailable */
-  }
+  writeStored(OWNER_KEY, String(id));
 }
 
 function readPending(): Pending {
   try {
-    const parsed = JSON.parse(localStorage.getItem(PENDING_KEY) ?? "{}") as unknown;
+    const parsed = JSON.parse(readStored(PENDING_KEY) ?? "{}") as unknown;
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Pending) : {};
   } catch {
     return {};
@@ -64,12 +57,8 @@ function readPending(): Pending {
 }
 
 function writePending(p: Pending) {
-  try {
-    if (Object.keys(p).length === 0) localStorage.removeItem(PENDING_KEY);
-    else localStorage.setItem(PENDING_KEY, JSON.stringify(p));
-  } catch {
-    /* storage unavailable */
-  }
+  if (Object.keys(p).length === 0) removeStored(PENDING_KEY);
+  else writeStored(PENDING_KEY, JSON.stringify(p));
 }
 
 function markPending(id: string, value: number) {
@@ -248,12 +237,8 @@ export function stopDeckSync(): void {
 export function clearAccountDecks(): void {
   stopDeckSync();
   const unsent = new Set(Object.keys(readPending()).filter((id) => readPending()[id] === 0));
-  try {
-    localStorage.removeItem(OWNER_KEY);
-    localStorage.removeItem(PENDING_KEY);
-  } catch {
-    /* storage unavailable */
-  }
+  removeStored(OWNER_KEY);
+  removeStored(PENDING_KEY);
   const keep = listSavedDecks().filter((d) => unsent.has(d.id));
   clearLocalDecks();
   if (keep.length > 0) applyRemoteDecks({ upsert: keep, remove: [] });

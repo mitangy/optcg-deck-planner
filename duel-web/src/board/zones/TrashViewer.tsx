@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Dialog } from "@optcg/ui/popups";
 import type { Seat } from "../../net/protocol";
 import { CardTile } from "./CardTile";
+import { readStored, writeStored } from "@optcg/ui/storage";
 
 type Props = {
   /** Def ids, newest-first (top of trash first). */
@@ -22,19 +23,12 @@ export type TrashSort = "newest" | "card";
 export const TRASH_SORT_KEY = "duel.trashSort";
 
 export function readTrashSort(): TrashSort {
-  try {
-    return localStorage.getItem(TRASH_SORT_KEY) === "card" ? "card" : "newest";
-  } catch {
-    return "newest";
-  }
+  return readStored(TRASH_SORT_KEY) === "card" ? "card" : "newest";
 }
 
 export function writeTrashSort(sort: TrashSort): void {
-  try {
-    localStorage.setItem(TRASH_SORT_KEY, sort);
-  } catch {
-    /* private mode / blocked storage: the choice just won't persist */
-  }
+  // Private mode / blocked storage: the choice just won't persist.
+  writeStored(TRASH_SORT_KEY, sort);
 }
 
 /**

@@ -1,3 +1,4 @@
+import { readStored, writeStored } from "@optcg/ui/storage";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api";
 import { SHOPPING_DECKS_KEY } from "../../storage/keys";
@@ -9,7 +10,7 @@ const NO_DECKS = "none";
 
 export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
   try {
-    const raw = localStorage.getItem(SHOPPING_DECKS_KEY);
+    const raw = readStored(SHOPPING_DECKS_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
     // An empty pick is kept: no decks ticked, only the Other chips (#1208).
@@ -24,11 +25,8 @@ export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
 }
 
 export function saveShoppingDeckFilter(ids: number[]): void {
-  try {
-    localStorage.setItem(SHOPPING_DECKS_KEY, JSON.stringify(ids.length ? ids : NO_DECKS));
-  } catch {
-    /* private mode / blocked storage: the choice still applies for this visit */
-  }
+  // Blocked storage: the choice still applies for this visit.
+  writeStored(SHOPPING_DECKS_KEY, JSON.stringify(ids.length ? ids : NO_DECKS));
 }
 
 /**

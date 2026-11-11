@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { createStore } from "../lib/createStore";
 
 /**
  * The two card JSON files (about 3 MB raw) live in their own chunk, `cardDataSource.ts`, and arrive through
@@ -16,22 +16,20 @@ export type CardData = {
 const EMPTY: CardData = { curated: {}, catalog: {} };
 
 let data: CardData = EMPTY;
-let ready = false;
-const listeners = new Set<() => void>();
+const readyStore = createStore(false);
 
 export function getCardData(): CardData {
   return data;
 }
 
 export function cardDataReady(): boolean {
-  return ready;
+  return readyStore.get();
 }
 
 /** Installs the card data and wakes every component waiting on `useCardDataReady`. */
 export function setCardData(next: CardData): void {
   data = next;
-  ready = true;
-  for (const fn of listeners) fn();
+  readyStore.set(true);
 }
 
 /**
@@ -53,14 +51,9 @@ export function createCardDataLoader(importer: () => Promise<CardData>, apply: (
 
 export const loadCardData = createCardDataLoader(() => import("./cardDataSource").then((m) => m.cardData));
 
-function subscribe(fn: () => void): () => void {
-  listeners.add(fn);
-  return () => listeners.delete(fn);
-}
-
 /** True once the card data is installed. Starts the load itself, so a page that only reads this still gets its data. */
 export function useCardDataReady(): boolean {
-  const isReady = useSyncExternalStore(subscribe, cardDataReady, () => false);
+  const isReady = readyStore.use();
   if (!isReady) void loadCardData().catch(() => undefined);
   return isReady;
 }
