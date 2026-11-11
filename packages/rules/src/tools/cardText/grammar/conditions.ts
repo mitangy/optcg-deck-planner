@@ -1,6 +1,6 @@
 /** Condition grammar: "if ..." clauses → `Cond`. */
 import type { Cond, Filter } from "../../../effects/types.js";
-import { and, or, cmp, count as countCards, countOf, eq, exists, ge, none, sel } from "../../../effects/builders.js";
+import { and, or, cmp, count as countCards, countOf, eq, exists, ge, le, none, sel } from "../../../effects/builders.js";
 import { nameList, num, parseCardPhrase, parseCountPhrase, quote, traitList, withCostAreaDon, type Ctx } from "../phrases.js";
 import { firstMatch, rel, rule, type Rule } from "./shared.js";
 
@@ -81,6 +81,14 @@ const COND_RULES: Rule<Cond>[] = [
   rule(/^you only have (§T\d+§) type characters$/i, (m, ctx) => {
     const t = traitList(m[1]!, ctx);
     return t ? onlyCharacters({ notTraits: t }) : null;
+  }),
+  rule(/^you only have characters with a cost of (\d+) or (more|less)$/i, (m) =>
+    onlyCharacters({ cost: m[2]!.toLowerCase() === "more" ? le(num(m[1]!) - 1) : ge(num(m[1]!) + 1) }),
+  ),
+  // OP18-071 prints "If your Leader is {Sugar}" with the type brackets, but no card has a {Sugar} type: Sugar is the name.
+  rule(/^your leader is (§T\d+§)$/i, (m, ctx) => {
+    const t = traitList(m[1]!, ctx);
+    return t ? or({ c: "leader_name", names: t }, { c: "leader_trait", traits: t }) : null;
   }),
   rule(/^(?:the trashed card) (?:is|has) (.+)$/i, (m, ctx) => {
     const body = m[1]!;
