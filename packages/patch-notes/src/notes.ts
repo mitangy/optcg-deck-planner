@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-11
+  { date: "2026-11-11", app: "planner", pr: 1269, title: "Skip an Extra copy in one group buy", text: "On a group buy card, untick an Extra copy to leave it out of that group buy only; it stays on your Shopping list. Lowering Your buy now drops Extra copies before your deck copies." },
   { date: "2026-11-11", app: "planner", pr: 1267, title: "Group buy cards show your decks", text: "On the group buy page, each card now shows which of your selected decks use it, as the same deck chips Master Shopping has. Only you see your decks; other members never do." },
   { date: "2026-11-11", app: "planner", pr: 1267, title: "Group buy counts alt copies you own", text: "On the group buy page, the Base Buy count and your price now count alt copies you already own, so they match the who-wants tags." },
   { date: "2026-11-11", app: "duel", pr: 1259, title: "DON!! tucks under the cards next to it", text: "DON!! given to a Leader or Character now always peeks out from under the cards beside it instead of covering them, on both sides of the board, rested or not." },

@@ -74,6 +74,19 @@ export function ArtWantChips({
   );
 }
 
+/** Passive note on an alt tile whose Extra copy the viewer left out of this group buy (#1269). */
+export function SkippedBadge({ line, productId }: { line: GroupBuyLine; productId: number }) {
+  const skipped = (line.my_extras ?? []).some((e) => e.product_id === productId && e.skipped > 0);
+  if (!skipped) return null;
+  return (
+    <span className="alt-art-wants">
+      <span className="group-buy-who-chip group-buy-skipped-chip" data-testid="gb-skipped-badge">
+        Skipped this buy
+      </span>
+    </span>
+  );
+}
+
 /** View-only alt row: Base plus the alts somebody wants, with who wants each; no steppers or Show. */
 export function readOnlyAltRow(line: GroupBuyLine, members: GroupBuyMember[]) {
   const wanted = new Set((line.art_wants ?? []).map((w) => w.product_id));

@@ -18,6 +18,7 @@ from app.group_buy.schemas import (
     GroupBuyContributionUpdate,
     GroupBuyCreate,
     GroupBuyDetail,
+    GroupBuyExtraSkipUpdate,
     GroupBuyExport,
     GroupBuyInvitePreview,
     GroupBuyOrderUpdate,
@@ -245,6 +246,20 @@ def put_group_buy_qty(
     db: Annotated[Session, Depends(get_db)],
 ):
     return group_buy.set_member_qty(db, user, group_id, card_id, body.qty)
+
+
+@router.put(
+    "/group-buys/{group_id}/extras/{card_id}/{product_id}", response_model=GroupBuyDetail
+)
+def put_group_buy_extra_skip(
+    group_id: int,
+    card_id: str,
+    product_id: int,
+    body: GroupBuyExtraSkipUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return group_buy.set_extra_skip(db, user, group_id, card_id, product_id, body.skip)
 
 
 @router.delete("/group-buys/{group_id}/quantities/{card_id}", response_model=GroupBuyDetail)
