@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-11
+  { date: "2026-11-11", app: "duel", pr: 1252, title: "Resize columns on phones", text: "Held sideways, you can now drag the grip on the right column's edge, or on the Battle log and Chat panel's edge, to make it wider or narrower. Double-tap a grip to reset it, and Reset layout clears it too." },
   { date: "2026-11-11", app: "duel", pr: 1239, title: "New OP18 alt arts", text: "You can now pick the Alternate Art for Franky and Monkey.D.Luffy (OP18-022), the Alternate Art and Special Art for Saint Gunko, and the new Special Art for Lilith and Nefeltari Vivi in your decks, in the duel app and the planner." },
   { date: "2026-11-11", app: "duel", pr: 1261, title: "Drag pop-ups all the way to the left", text: "You can now drag an effect pop-up all the way to the left edge of the screen. With one side column, letting go there used to throw the pop-up into the column on the right instead." },
   { date: "2026-11-11", app: "duel", pr: 1258, title: "One turn indicator, not two", text: "Whose turn it is now shows on the button beside the board (End turn, or Opponent's turn while you wait), so the Turn card in the side column no longer repeats it in big letters. The card still shows the turn number, the phase and the clocks. Spectators still see the big heading." },

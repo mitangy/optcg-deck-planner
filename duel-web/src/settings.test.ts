@@ -229,6 +229,12 @@ describe("account settings", () => {
     expect(mergeRemoteSettings(loadSettings(), { promptPos: "9,9" }).promptPos).toBe("-40,-200");
   });
 
+  it("keeps the landscape phone column widths on this device, not the account (#1246)", () => {
+    stubStored({ panelSizesPhone: "R=220;O=320" });
+    expect(syncedSettings(loadSettings())).not.toHaveProperty("panelSizesPhone");
+    expect(mergeRemoteSettings(loadSettings(), { panelSizesPhone: "R=150" }).panelSizesPhone).toBe("R=220;O=320");
+  });
+
   it("keeps where the card preview pop-up was dragged on this device, and syncs the Bigger playing area widths (#529)", () => {
     stubStored({ previewPopupPos: "640,72", previewPopupPinned: true, panelSizesBig: "L=200" });
     const synced = syncedSettings(loadSettings());
