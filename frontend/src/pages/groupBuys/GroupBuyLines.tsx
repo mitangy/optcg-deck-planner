@@ -2,6 +2,7 @@ import { type CardLayout } from "../../ui/CardLayout";
 import { CardThumb } from "../../ui/CardThumb";
 import { MarketPrice } from "../../cards/MarketPrice";
 import { GridCard, MobileCard } from "../../ui/PlannerCard";
+import { UsedInCell } from "../../ui/UsedInCell";
 import { shownProductId } from "../../cards/altArt";
 import { GroupBuyLine, GroupBuyMember, money } from "../../api";
 import { SortableTh, useColumnSort, type ColumnSort } from "../../ui/columnSort";
@@ -76,6 +77,11 @@ export function GroupBuyLines({
               <div className="group-buy-who-row">
                 <MemberBreakdown line={line} members={members} />
               </div>
+              {line.my_used_in?.length ? (
+                <div className="grid-card-used-in">
+                  <UsedInCell decks={line.my_used_in} />
+                </div>
+              ) : null}
               <div className="grid-card-price">
                 <GroupBuyCardPrice line={line} />
               </div>
@@ -127,6 +133,7 @@ export function GroupBuyLines({
                   <div className="group-buy-who-row">
                     <MemberBreakdown line={line} members={members} />
                   </div>
+                  {line.my_used_in?.length ? <UsedInCell className="mobile-used-in" decks={line.my_used_in} /> : null}
                   <div className="mobile-card-price-row">
                     <GroupBuyCardPrice line={line} />
                     {line.tcgplayer_url ? (
@@ -192,6 +199,7 @@ export function GroupBuyLines({
                     <div>
                       <div className="card-id">{line.card_id}</div>
                       <div>{line.name}</div>
+                      {line.my_used_in?.length ? <UsedInCell decks={line.my_used_in} /> : null}
                       {excluded ? <div className="muted">Excluded</div> : null}
                       {line.tcgplayer_url ? (
                         <a href={line.tcgplayer_url} target="_blank" rel="noreferrer">

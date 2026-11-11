@@ -11,6 +11,8 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-11
+  { date: "2026-11-11", app: "planner", pr: 1267, title: "Group buy cards show your decks", text: "On the group buy page, each card now shows which of your selected decks use it, as the same deck chips Master Shopping has. Only you see your decks; other members never do." },
+  { date: "2026-11-11", app: "planner", pr: 1267, title: "Group buy counts alt copies you own", text: "On the group buy page, the Base Buy count and your price now count alt copies you already own, so they match the who-wants tags." },
   { date: "2026-11-11", app: "duel", pr: 1259, title: "DON!! tucks under the cards next to it", text: "DON!! given to a Leader or Character now always peeks out from under the cards beside it instead of covering them, on both sides of the board, rested or not." },
   { date: "2026-11-11", app: "duel", pr: 1251, title: "Recent plays is now part of the Battle log", text: "Cards played, countered, triggered or activated now show a small picture in the Battle log; click it to inspect the card. A new Plays button above the log shows only the cards played. The separate Recent plays panel and its Settings switch are gone." },
   { date: "2026-11-11", app: "duel", pr: 1252, title: "Resize columns on phones", text: "Held sideways, you can now drag the grip on the right column's edge, or on the Battle log and Chat panel's edge, to make it wider or narrower. Double-tap a grip to reset it, and Reset layout clears it too." },
