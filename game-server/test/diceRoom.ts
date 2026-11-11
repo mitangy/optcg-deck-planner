@@ -274,27 +274,30 @@ export function diceRoomTests(getServer: () => ColyseusTestServer) {
       assert.equal(rollers.size, 2);
     });
 
-    it("a seat that leaves mid-roll ends it; the seat that stays is told, and a fresh roll starts when the room fills again", () =>
-      withFakeTime(async (time) => {
-        const { room, c, b } = await seated([0, 4]);
-        c[1].send("dice", msg({ action: "call", call: "high" }));
-        await waitUntil(() => last(b[0]).step === "roll");
-        await c[1].leave(true);
-        await waitUntil(() => last(b[0]).step === "cancelled");
-        assert.equal(room.dice.active, false);
-        // Nothing the old roll queued fires.
-        await time.advance(DICE_STEP_SECONDS * 1000 * 2);
-        assert.equal(room.game.matchStarted, false);
-        assert.equal(b[0].welcomes.length, 0);
-
-        script(room, [1]);
-        const again = await getServer().connectTo(room, join("carol", 1));
-        const ab = attach(again);
-        await waitUntil(() => last(b[0]).step === "call" && ab.dice.length > 0);
-        assert.equal(last(b[0]).roller, 1, "a fresh roll picks its own roller");
-        assert.equal(last(b[0]).call, null);
-        assert.deepEqual(last(ab).players, [{ name: "alice" }, { name: "carol" }]);
-      }));
+    it("leaving during the opening dice roll forfeits the match to the player who stayed (#0)", () =>
+      withFakeTime(async (time) =>
+        withRoomEnv({ requireGameToken: true, rankedNoShowSeconds: 600 }, async () => {
+          const room = await create({ diceRoll: undefined, seatUserIds: [921, 922] });
+          const persisted: { winner: number; reason: string }[] = [];
+          room.persistence.writebackResult = async (winner: number, reason: string) => {
+            persisted.push({ winner, reason });
+          };
+          const c0 = await getServer().connectTo(room, msg({ gameToken: gameToken(921), preferredSeat: 0 }));
+          const c1 = await getServer().connectTo(room, msg({ gameToken: gameToken(922), preferredSeat: 1 }));
+          const [b0, b1] = [attach(c0), attach(c1)];
+          const over: { result: { winner: number; reason: string } }[] = [];
+          c0.onMessage("match_over", (m: (typeof over)[number]) => over.push(m));
+          await waitUntil(() => b0.dice.length > 0 && b1.dice.length > 0);
+          assert.equal(room.dice.active, true);
+          await c1.leave(true);
+          await waitUntil(() => room.game.matchStarted);
+          assert.equal(room.dice.active, false);
+          await time.advance(2000);
+          await waitUntil(() => over.length > 0);
+          assert.deepEqual(over[0].result, { winner: 0, reason: "abandoned" });
+          assert.deepEqual(persisted, [{ winner: 0, reason: "abandoned" }]);
+        }),
+      ));
 
     it("a room that did not ask for the dice starts at once with a coin flip", async () => {
       const room = await create({ diceRoll: undefined });
@@ -348,7 +351,7 @@ export function diceRoomTests(getServer: () => ColyseusTestServer) {
 
     it("a ranked room whose opponent leaves mid-roll after the no-show timer still closes with opponent_no_show (#1206)", () =>
       withFakeTime(async (time) =>
-        withRoomEnv({ requireGameToken: true, rankedNoShowSeconds: 5 }, async () => {
+        withRoomEnv({ requireGameToken: true, rankedNoShowSeconds: 5, reconnectGraceSeconds: 1 }, async () => {
           const room = await create({ diceRoll: undefined, seatUserIds: [921, 922] });
           const c0 = await getServer().connectTo(room, msg({ gameToken: gameToken(921), preferredSeat: 0 }));
           const c1 = await getServer().connectTo(room, msg({ gameToken: gameToken(922), preferredSeat: 1 }));
@@ -357,9 +360,10 @@ export function diceRoomTests(getServer: () => ColyseusTestServer) {
           // The timer fires while the roll runs and must not close the room.
           await time.advance(6000);
           assert.equal(room.dice.active, true);
-          // The opponent leaves by consent: the roll is cancelled and the room waits again.
-          await c1.leave(true);
-          await waitUntil(() => last(b0).step === "cancelled");
+          // The opponent drops and misses the reconnect grace (a consented leave forfeits instead): the roll is cancelled and the room waits again.
+          const serverSide = room.clients.find((c) => c.sessionId === c1.sessionId)!;
+          (serverSide.ref as unknown as { terminate(): void }).terminate();
+          await waitUntil(() => last(b0).step === "cancelled", 5000);
           assert.equal(room.game.matchStarted, false);
           await time.advance(5000 + 1000);
           await waitUntil(() => b0.errors.some((e) => e.code === "opponent_no_show"));
