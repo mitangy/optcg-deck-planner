@@ -59,6 +59,10 @@
   border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.2);
 }
+/* The phone sheet's top-left corner sits under the floating Chat chip, so the switch goes right there. */
+.battle-log:not(.battle-log-fixed) .battle-log-filter {
+  align-self: flex-end;
+}
 .battle-log-filter-btn {
   min-width: 2.6rem;
   padding: 0.18rem 0.6rem;
