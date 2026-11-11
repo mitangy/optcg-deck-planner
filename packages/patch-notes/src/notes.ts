@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-11
+  { date: "2026-11-11", app: "duel", pr: 0, title: "Drag pop-ups all the way to the left", text: "You can now drag an effect pop-up all the way to the left edge of the screen. With one side column, letting go there used to throw the pop-up into the column on the right instead." },
   // 2026-11-10
   { date: "2026-11-10", app: "planner", pr: 1230, title: "Copy buttons work on more browsers", text: "Copy list, Copy invite link, Share and Copy log now also work in browsers that block the clipboard, instead of showing an error." },
   { date: "2026-11-10", app: "duel", pr: 1232, title: "Faster deck editor search on phones", text: "Searching for cards in the deck editor now stays responsive while you type, and card pictures load as you scroll to them instead of all at once, so broad searches no longer make phones lag." },

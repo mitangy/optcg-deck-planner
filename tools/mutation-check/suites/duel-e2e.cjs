@@ -32,6 +32,11 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // A pop-up dragged to the far left of the screen floats there instead of jumping into the right column (#1245): the edge strip only docks toward a side with a column, and a folded-away column reports no span. Both layers are reverted.
+    { id: "e2e-prompt-edge-drop-jumps-to-open-column", args: "prompt-dock.spec --project=desktop-1280 -g far.left", edits: [
+      { file: "duel-web/src/board/prompts/promptDock.ts", from: "  if (x <= EDGE_PX && columns.left) return \"left\";\n  if (x >= viewWidth - EDGE_PX && columns.right) return \"right\";\n", to: "  if (x <= EDGE_PX) return \"left\";\n  if (x >= viewWidth - EDGE_PX) return \"right\";\n" },
+      { file: "duel-web/src/board/prompts/promptDock.ts", from: "    const col = document.querySelector<HTMLElement>(`.arena [data-panel-col=\"${side}\"]`);\n    if (!col || col.hasAttribute(\"data-col-off\")) return null;\n    const r = col.getBoundingClientRect();\n    return { left: r.left, right: r.right };", to: "    const r = dockColumn(side)?.getBoundingClientRect();\n    return r ? { left: r.left, right: r.right } : null;" },
+    ], kills: ["prompt-dock.spec.ts > desktop > a pop-up can be dragged to the far left edge when only the right column is open, and does not jump into the right column (#1245) [desktop-1280]"] },
     // Users tab column titles stay in their own column (#1018): the Source column keeps a minimum width, the titles clip, and the stacked list takes over before the grid stops fitting. Every layer is reverted.
     { id: "e2e-admin-users-columns-overlap", args: "admin-users-columns.spec", edits: [
       { file: "duel-web/src/admin/admin/users.css", from: "7.5rem minmax(4.5rem, 0.9fr) repeat", to: "7.5rem minmax(0, 0.9fr) repeat" },
@@ -727,7 +732,7 @@ module.exports = {
     { id: "e2e-credit-waitlist-never", args: "log-pose-credit --project=desktop-1280", file: "packages/analyst-client/src/AccessViews.tsx", from: "spotsLeft !== undefined && spotsLeft <= 0", to: "false", kills: ["log-pose-credit.spec.ts > with every free spot taken the form offers the waitlist (#446) [desktop-1280]"] },
     { id: "e2e-credit-topup-wrong-path", args: "log-pose-credit --project=desktop-1280", file: "packages/analyst-client/src/access.ts", from: "/topup`", to: "/topupx`", kills: ["log-pose-credit.spec.ts > owners switch between Requests and Usage and answer a top-up (#446) [desktop-1280]"] },
     // docking the pop-up into a side column (#449)
-    { id: "e2e-prompt-dock-at-never", args: "prompt-dock --project=desktop-1280 -g \"dragging the header|screen's edge\"", file: "duel-web/src/board/prompts/promptDock.ts", from: "  if (x <= EDGE_PX) return \"left\";\n  if (x >= viewWidth - EDGE_PX) return \"right\";\n  const over = (c: Span | null) => c != null && x >= c.left && x <= c.right;\n  if (over(columns.left)) return \"left\";\n  if (over(columns.right)) return \"right\";\n  return null;", to: "  return null;", kills: [
+    { id: "e2e-prompt-dock-at-never", args: "prompt-dock --project=desktop-1280 -g \"dragging the header|screen's edge\"", file: "duel-web/src/board/prompts/promptDock.ts", from: "  if (x <= EDGE_PX && columns.left) return \"left\";\n  if (x >= viewWidth - EDGE_PX && columns.right) return \"right\";\n  const over = (c: Span | null) => c != null && x >= c.left && x <= c.right;\n  if (over(columns.left)) return \"left\";\n  if (over(columns.right)) return \"right\";\n  return null;", to: "  return null;", kills: [
       "prompt-dock.spec.ts > dragging the header onto the right column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
       "prompt-dock.spec.ts > dragging the header onto the left column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449) [desktop-1280]",
       "prompt-dock.spec.ts > the screen's edge docks too, and dragging a docked pop-up out floats it where it was dropped (#449) [desktop-1280]",
