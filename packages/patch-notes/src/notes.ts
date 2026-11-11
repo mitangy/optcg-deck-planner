@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-11
+  { date: "2026-11-11", app: "duel", pr: 1258, title: "One turn indicator, not two", text: "Whose turn it is now shows on the button beside the board (End turn, or Opponent's turn while you wait), so the Turn card in the side column no longer repeats it in big letters. The card still shows the turn number, the phase and the clocks. Spectators still see the big heading." },
   // 2026-11-10
   { date: "2026-11-10", app: "planner", pr: 1230, title: "Copy buttons work on more browsers", text: "Copy list, Copy invite link, Share and Copy log now also work in browsers that block the clipboard, instead of showing an error." },
   { date: "2026-11-10", app: "duel", pr: 1232, title: "Faster deck editor search on phones", text: "Searching for cards in the deck editor now stays responsive while you type, and card pictures load as you scroll to them instead of all at once, so broad searches no longer make phones lag." },
