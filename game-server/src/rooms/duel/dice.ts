@@ -192,6 +192,25 @@ export class FirstSeatDice {
     this.core.startMatch(firstSeat, winner);
   }
 
+  /**
+   * A seat left by consent while the roll ran. Both leaders are already revealed, so the leaver does not get a free
+   * exit: the roll ends with the seat that stayed going first and the match starts, for the caller to forfeit the
+   * leaver's seat (a loss, like leaving a live match). False when there is no roll.
+   */
+  abandon(stayer: Seat): boolean {
+    const p = this.phase;
+    if (!p) return false;
+    const { game, io } = this.core;
+    this.clearTimers();
+    p.step = "done";
+    p.deadline = null;
+    this.broadcast();
+    this.phase = null;
+    io.log("info", "dice_abandoned", { matchId: game.matchId, stayer });
+    this.core.startMatch(stayer, null);
+    return true;
+  }
+
   /** A seat left for good: stop the roll and send the clients back to waiting for an opponent. */
   cancel() {
     const p = this.phase;

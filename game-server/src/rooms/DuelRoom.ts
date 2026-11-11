@@ -508,6 +508,9 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
     const seat = this.seats.seatForClient(client);
     if (seat === null) return;
+    // Leaving mid-roll after both leaders were revealed is a loss: start the match so the forfeit below can end it.
+    const other = (seat === 0 ? 1 : 0) as Seat;
+    if (this.dice.active && this.seats.slot(other)) this.dice.abandon(other);
     this.clearSeat(client.sessionId);
     this.rematch.broadcast();
     // Leaving a live match forfeits it, so the other player isn't stranded.

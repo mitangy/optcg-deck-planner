@@ -212,6 +212,17 @@
   justify-self: center;
 }
 
+/* Narrow grid cards (2 per row on phones): the button wraps instead of poking out of the card. */
+.grid-card-owned .group-buy-qty {
+  max-width: 100%;
+  grid-template-columns: minmax(0, max-content);
+}
+
+.grid-card-owned .group-buy-exclude-btn.btn {
+  max-width: 100%;
+  white-space: normal;
+}
+
 .group-buy-contribution-actions {
   margin-top: 0.75rem;
 }
