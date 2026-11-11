@@ -4,16 +4,20 @@ import { api } from "../../api";
 import { SHOPPING_DECKS_KEY } from "../../storage/keys";
 import { qk } from "../../cache/queryKeys";
 
+// A deliberate empty pick is stored as this marker, so a bare [] (written by older builds
+// while there were no decks to pick) reads as all decks (#1211).
+const NO_DECKS = "none";
+
 export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
   try {
     const raw = readStored(SHOPPING_DECKS_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as number[];
-    if (!Array.isArray(parsed)) return null;
+    const parsed = JSON.parse(raw) as unknown;
     // An empty pick is kept: no decks ticked, only the Other chips (#1208).
-    if (parsed.length === 0) return [];
+    if (parsed === NO_DECKS) return [];
+    if (!Array.isArray(parsed)) return null;
     const allowed = new Set(allIds);
-    const filtered = parsed.filter((id) => allowed.has(id));
+    const filtered = (parsed as number[]).filter((id) => allowed.has(id));
     return filtered.length ? filtered : null;
   } catch {
     return null;
@@ -22,7 +26,7 @@ export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
 
 export function saveShoppingDeckFilter(ids: number[]): void {
   // Blocked storage: the choice still applies for this visit.
-  writeStored(SHOPPING_DECKS_KEY, JSON.stringify(ids));
+  writeStored(SHOPPING_DECKS_KEY, JSON.stringify(ids.length ? ids : NO_DECKS));
 }
 
 /**

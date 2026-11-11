@@ -82,9 +82,10 @@ export function ShoppingPage() {
   }, [decksQ.data]);
 
   useEffect(() => {
-    if (!filterReady || selectedDeckIds === null) return;
+    // With no decks there is nothing to pick: saving [] would untick decks imported later (#1211).
+    if (!filterReady || selectedDeckIds === null || allDeckIds.length === 0) return;
     saveShoppingDeckFilter(selectedDeckIds);
-  }, [selectedDeckIds, filterReady]);
+  }, [selectedDeckIds, filterReady, allDeckIds.length]);
 
   const activeDeckIds = selectedDeckIds ?? allDeckIds;
   const shoppingKey = useMemo(
