@@ -1,3 +1,4 @@
+import { formatMoney } from "@optcg/card-core";
 import { readFirstTouch } from "@optcg/ui/firstTouch";
 import { API_URL, LONG_TIMEOUT_MS, request } from "./apiClient";
 
@@ -365,6 +366,15 @@ export type GroupBuyOrderUpdate = {
 
 export type GroupBuyArtWant = { product_id: number; user_id: number; qty: number };
 
+/** One of the viewer's Extra copies on a card and how many they leave out of this buy (#1269). */
+export type GroupBuyMyExtra = {
+  product_id: number;
+  name: string;
+  market_price: number | null;
+  wanted: number;
+  skipped: number;
+};
+
 export type GroupBuyLine = {
   card_id: string;
   name: string;
@@ -394,6 +404,12 @@ export type GroupBuyLine = {
   my_excluded?: boolean;
   /** Viewer's play Need for this card — caps alt want steppers. */
   my_need?: number;
+  /** The viewer's own selected decks that use the card (#1266). */
+  my_used_in?: string[];
+  /** The viewer's deck/single still-need part of my_suggested_qty (#1269). */
+  my_deck_qty?: number;
+  /** The viewer's Extra copies on this card (#1269). */
+  my_extras?: GroupBuyMyExtra[];
 };
 
 export type GroupBuySummary = {
@@ -883,6 +899,11 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ qty }),
     }),
+  setGroupBuyExtraSkip: (id: number, cardId: string, productId: number, skip: number) =>
+    request<GroupBuyDetail>(
+      `/group-buys/${id}/extras/${encodeURIComponent(cardId)}/${productId}`,
+      { method: "PUT", body: JSON.stringify({ skip }) },
+    ),
   clearGroupBuyQty: (id: number, cardId: string) =>
     request<GroupBuyDetail>(`/group-buys/${id}/quantities/${encodeURIComponent(cardId)}`, {
       method: "DELETE",
@@ -895,5 +916,5 @@ export const api = {
 
 export function money(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
-  return `$${n.toFixed(2)}`;
+  return formatMoney(n);
 }

@@ -14,13 +14,15 @@ const LOOSE_PX = 32;
 const DOCK_PAD_PX = 6;
 
 /**
- * Which side a pop-up dropped with the pointer at `x` docks to: the screen's
- * edge strip or anywhere over a side column. `columns` are the columns' spans
- * (null where there is none); null = it stays floating.
+ * Which side a pop-up dropped with the pointer at `x` docks to: anywhere over
+ * a side column, or the screen's edge strip on a side that has a column (a
+ * folded-away side has none, so the strip there leaves the pop-up floating and
+ * it can sit at the screen's edge). `columns` are the columns' spans (null
+ * where there is none); null = it stays floating.
  */
 export function dockAt(x: number, viewWidth: number, columns: { left: Span | null; right: Span | null }): "left" | "right" | null {
-  if (x <= EDGE_PX) return "left";
-  if (x >= viewWidth - EDGE_PX) return "right";
+  if (x <= EDGE_PX && columns.left) return "left";
+  if (x >= viewWidth - EDGE_PX && columns.right) return "right";
   const over = (c: Span | null) => c != null && x >= c.left && x <= c.right;
   if (over(columns.left)) return "left";
   if (over(columns.right)) return "right";
@@ -46,11 +48,13 @@ export function dockColumn(side: "left" | "right"): HTMLElement | null {
   return col;
 }
 
-/** Both columns' horizontal spans, for `dockAt`. */
+/** Both columns' horizontal spans, for `dockAt`; null for a column that is folded away. */
 export function columnSpans(): { left: Span | null; right: Span | null } {
   const span = (side: "left" | "right") => {
-    const r = dockColumn(side)?.getBoundingClientRect();
-    return r ? { left: r.left, right: r.right } : null;
+    const col = document.querySelector<HTMLElement>(`.arena [data-panel-col="${side}"]`);
+    if (!col || col.hasAttribute("data-col-off")) return null;
+    const r = col.getBoundingClientRect();
+    return { left: r.left, right: r.right };
   };
   return { left: span("left"), right: span("right") };
 }

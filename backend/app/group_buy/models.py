@@ -68,6 +68,9 @@ class GroupBuy(Base):
     qty_overrides: Mapped[list[GroupBuyQtyOverride]] = relationship(
         back_populates="group_buy", cascade="all, delete-orphan"
     )
+    extra_skips: Mapped[list[GroupBuyExtraSkip]] = relationship(
+        back_populates="group_buy", cascade="all, delete-orphan"
+    )
     receipt_applies: Mapped[list[GroupBuyReceiptApply]] = relationship(
         back_populates="group_buy", cascade="all, delete-orphan"
     )
@@ -160,6 +163,29 @@ class GroupBuyQtyOverride(Base):
     qty: Mapped[int] = mapped_column(Integer, default=0)
 
     group_buy: Mapped[GroupBuy] = relationship(back_populates="qty_overrides")
+
+
+class GroupBuyExtraSkip(Base):
+    """Extra copies a member leaves out of one group buy (#1269); their Shopping list is untouched."""
+
+    __tablename__ = "group_buy_extra_skips"
+    __table_args__ = (
+        UniqueConstraint(
+            "group_buy_id", "user_id", "card_id", "product_id", name="uq_group_buy_extra_skip"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_buy_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    product_id: Mapped[int] = mapped_column(Integer)
+    # Copies of this Extra skipped in this group buy.
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+
+    group_buy: Mapped[GroupBuy] = relationship(back_populates="extra_skips")
 
 
 class GroupBuyReceiptApply(Base):

@@ -1,4 +1,5 @@
 /** The player's monthly Log Pose credit and the limits that can stop them: what the panel's meter and notices say (#446). */
+import { formatMoney } from "@optcg/card-core";
 import { isRefusalCode, type RefusalCode } from "@optcg/analyst-contract";
 import type { DonePayload } from "./client";
 
@@ -49,7 +50,7 @@ export async function fetchCredit(apiBase: string, fetchImpl: typeof fetch = fet
   }
 }
 
-export const formatUsd = (n: number): string => `$${Math.max(0, n).toFixed(2)}`;
+export const formatUsd = (n: number): string => formatMoney(Math.max(0, n));
 
 /** Dollars left this month; null for an owner. */
 export function creditLeft(c: Credit): number | null {

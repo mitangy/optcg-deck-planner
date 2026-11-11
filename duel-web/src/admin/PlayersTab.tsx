@@ -4,9 +4,8 @@ import { lookupCard } from "../cards/atlas";
 import { useAsyncResource } from "../lib/useAsyncResource";
 import { type AdminDayMatches, type AdminOverview, type DayMatch, fetchAdminMatches } from "./adminApi";
 import { BarChart, RangePicker, Tile } from "./charts";
-import { ariaSort, dayLabel, type LeaderRow, type LeaderSortKey, nextSort, percent, type RangeDays, type SortState, sortLeaders, spendText, timeOf } from "./adminLogic";
+import { ariaSort, dayLabel, formatCount as n, type LeaderRow, type LeaderSortKey, nextSort, percent, type RangeDays, type SortState, sortLeaders, spendText, timeOf } from "./adminLogic";
 
-const n = (v: number) => v.toLocaleString("en-US");
 
 const LEADERS_SHOWN = 10;
 

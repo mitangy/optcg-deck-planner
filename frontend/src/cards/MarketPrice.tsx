@@ -301,7 +301,7 @@ export function AltArtsRow({
                 />
               ) : editable && onWantChange ? (
                 <AltStepper
-                  caption="Want"
+                  caption={owned > 0 ? `Want · own ${owned}` : "Want"}
                   verb="want"
                   name={alt.name}
                   value={wanted}

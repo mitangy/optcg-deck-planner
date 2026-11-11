@@ -59,3 +59,31 @@ describe("deck editor art loading (#1227)", () => {
     expect(html).not.toContain("decoding=");
   });
 });
+
+describe("deck editor stacks (#1272)", () => {
+  it("deck editor draws one stacked layer behind the front card per extra copy, capped at four cards (#1272)", () => {
+    const cards = [
+      ...Array(4).fill("OP01-016"),
+      ...Array(2).fill("OP01-025"),
+      "OP01-013",
+      ...Array(6).fill("OP01-075"), // Pacifista: any number of copies
+    ];
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    act(() => root!.render(<DeckEditor deck={{ ...deck, cards } as unknown as SavedDeck} onChange={() => {}} />));
+    const layers = (id: string) => {
+      const tile = [...host!.querySelectorAll(".deck-stack")].find((t) => t.textContent?.includes(id))!;
+      expect(tile).toBeTruthy();
+      return {
+        copies: tile.querySelectorAll(".deck-stack-copy").length,
+        badge: tile.querySelector(".deck-stack-badge")?.textContent,
+      };
+    };
+    expect(layers("OP01-016")).toEqual({ copies: 3, badge: "×4" });
+    expect(layers("OP01-025")).toEqual({ copies: 1, badge: "×2" });
+    expect(layers("OP01-013")).toEqual({ copies: 0, badge: "×1" });
+    expect(layers("OP01-075")).toEqual({ copies: 3, badge: "×6" });
+    expect(layers("OP01-001")).toEqual({ copies: 0, badge: "×1" });
+  });
+});

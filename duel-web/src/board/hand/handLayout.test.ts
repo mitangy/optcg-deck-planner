@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./handLayout";
+import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand, usesSidewaysFan, usesWideFan } from "./handLayout";
 
 describe("hand layout (#271)", () => {
   it("portrait phones keep the fan when the hand grows past 8 cards (#445)", () => {
@@ -14,7 +14,35 @@ describe("hand layout (#271)", () => {
 
   it("landscape phones keep the hand in the right column, even in a short window (#271)", () => {
     expect(usesRailHand(true, true, false, false)).toBe(true);
-    expect(usesRailHand(true, true, false, true)).toBe(true);
+    expect(usesRailHand(true, true, true, false)).toBe(true);
+  });
+
+  it("a big screen held sideways with the fan leaves the right column to the turn card and actions (#1262)", () => {
+    expect(usesRailHand(true, true, false, true)).toBe(false);
+  });
+
+  it("a big screen held sideways fans the hand only when Fan is picked (#1262)", () => {
+    expect(usesSidewaysFan(true, true, "fan")).toBe(true);
+    // Automatic keeps the right column, which has room for the hand there.
+    expect(usesSidewaysFan(true, true, "auto")).toBe(false);
+    expect(usesSidewaysFan(true, true, "grid")).toBe(false);
+  });
+
+  it("a short phone held sideways keeps the right column even with Fan picked (#1262)", () => {
+    expect(usesSidewaysFan(true, false, "fan")).toBe(false);
+  });
+
+  it("the sideways fan draws the fan off the board, but spectators there keep the compact grids (#1262)", () => {
+    expect(usesWideFan(true, true, true, null, "grid")).toBe(true);
+    expect(usesWideFan(true, true, false, null, "fan")).toBe(false);
+    expect(usesWideFan(true, true, true, "landscape", "fan")).toBe(false);
+  });
+
+  it("desktop windows fan unless Grid is picked, and spectators always get the fans (#346)", () => {
+    expect(usesWideFan(true, false, false, null, "fan")).toBe(true);
+    expect(usesWideFan(true, false, false, null, "grid")).toBe(false);
+    expect(usesWideFan(true, false, false, "desktop", "grid")).toBe(true);
+    expect(usesWideFan(false, false, false, null, "fan")).toBe(false);
   });
 
   it("desktop only uses the rail hand when tall and not fanned (#271)", () => {

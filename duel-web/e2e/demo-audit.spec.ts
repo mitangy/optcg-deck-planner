@@ -360,7 +360,7 @@ test("the Grid hand drags into the left column, stays after a reload, and Reset 
   await page.locator(".board-root").waitFor();
   const column = (col: "left" | "right") =>
     page.$$eval(`[data-panel-col="${col}"] > [data-panel]`, (els) => els.map((e) => (e as HTMLElement).dataset.panel));
-  expect(await column("left")).toEqual(["preview", "recent", "log"]);
+  expect(await column("left")).toEqual(["preview", "log"]);
 
   await page.locator('[data-panel="hand"]').hover();
   const grip = (await page.locator('[data-panel="hand"] > .panel-grip').boundingBox())!;
@@ -370,7 +370,7 @@ test("the Grid hand drags into the left column, stays after a reload, and Reset 
   await page.mouse.move(log.x + log.width / 2, log.y + 8, { steps: 6 });
   await expect(page.locator(".panel-drop-line")).toBeVisible();
   await page.mouse.up();
-  await expect.poll(() => column("left")).toEqual(["preview", "recent", "hand", "log"]);
+  await expect.poll(() => column("left")).toEqual(["preview", "hand", "log"]);
   expect(await column("right")).not.toContain("hand");
 
   // The hand still works from its new column and nothing overlaps.
@@ -380,12 +380,12 @@ test("the Grid hand drags into the left column, stays after a reload, and Reset 
 
   await page.reload();
   await page.locator(".board-root").waitFor();
-  await expect.poll(() => column("left")).toEqual(["preview", "recent", "hand", "log"]);
+  await expect.poll(() => column("left")).toEqual(["preview", "hand", "log"]);
 
   await page.getByRole("button", { name: "Gameplay settings" }).click();
   await page.getByRole("button", { name: "Reset layout" }).click();
   await page.keyboard.press("Escape");
-  await expect.poll(() => column("left")).toEqual(["preview", "recent", "log"]);
+  await expect.poll(() => column("left")).toEqual(["preview", "log"]);
   expect(await column("right")).toContain("hand");
   expect(duel.errors).toEqual([]);
 });
@@ -407,18 +407,18 @@ test("the right rail and the preview divider drag to resize, stay after a reload
     await page.mouse.move(x + dx, y + dy, { steps: 8 });
     await page.mouse.up();
   };
-  const divider = '[role="separator"][aria-label="Resize Card preview and Recent plays"]';
+  const divider = '[role="separator"][aria-label="Resize Card preview and Battle log"]';
 
   const w0 = await width();
   const preview0 = await height("preview");
-  const recent0 = await height("recent");
+  const log0 = await height("log");
   await drag(".col-resize-right", -80, 0);
   await expect.poll(width).toBeGreaterThan(w0 + 70);
   // The left column keeps its width; the board gave the room.
   await drag(divider, 0, -40, 12);
   await expect.poll(() => height("preview")).toBeLessThan(preview0 - 30);
   // Height moved to the panel below; the pair's total did not change.
-  expect((await height("preview")) + (await height("recent"))).toBeCloseTo(preview0 + recent0, 0);
+  expect((await height("preview")) + (await height("log"))).toBeCloseTo(preview0 + log0, 0);
   const w1 = await width();
   const preview1 = await height("preview");
 
@@ -528,15 +528,20 @@ for (const side of ["left", "right"] as const) {
   });
 }
 
-// Phones and landscape phones have no side columns to resize.
-test("phones show no panel resize handles (#347)", async ({ page }, info) => {
+// Portrait phones have no side columns to resize; sideways phones get only their own
+// right-column grip (#1246), never the desktop column or panel handles.
+test("phones show no desktop panel resize handles (#347, #1246)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "the phone project only");
-  for (const size of [{ width: 375, height: 812 }, { width: 812, height: 375 }]) {
-    await page.setViewportSize(size);
-    await page.goto("/demo?full");
-    await page.locator(".board-root").waitFor();
-    await expect(page.locator('[role="separator"]')).toHaveCount(0);
-  }
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator('[role="separator"]')).toHaveCount(0);
+  await page.setViewportSize({ width: 812, height: 375 });
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".col-resize, .panel-divider")).toHaveCount(0);
+  await expect(page.locator('[role="separator"]')).toHaveCount(1);
+  await expect(page.locator(".phone-resize-rail")).toHaveCount(1);
 });
 
 // One fan, moved by its grip anywhere on the screen; Drag handles off hides
@@ -767,13 +772,10 @@ test("the mulligan explainer leaves the board its size on a 320px phone (#262)",
 const LIGHT_THEMES = ["nightSea", "strawHat", "donquixote", "marines", "wano", "heart", "fishMan", "thrillerBark", "disco"];
 const LIGHT_TEXT: Record<string, string[]> = {
   "/demo?full": [
-    ".recent-play-meta",
     ".card-preview-caption",
     ".card-preview-traits",
     ".battle-log-turn-title",
     ".turn-order-badge:not(.first)",
-    ".recent-play-you .recent-play-who",
-    ".recent-play-opp .recent-play-who",
     ".log-phase .log-text",
   ],
   // The wordmark kicker is hidden on a wide window; the deck hero and the side column are what shows.
@@ -1483,13 +1485,12 @@ test("trash viewer By card groups duplicates under a count badge (#380)", async 
   await expect(tiles).toHaveCount(8);
 });
 
-// Only a card's owner may change its alt art: the opponent's Guard Point from
-// Recent plays has no Artwork row, your own Guard Point in your trash does (#287).
-test("an opponent's card opened from Recent plays offers no art change (#287)", async ({ page }) => {
-  test.skip(test.info().project.name !== "desktop-1280", "Recent plays is a desktop side panel");
+// The Battle log's card picture has no Artwork row for the opponent's card, your own Guard Point in your trash does (#287).
+test("an opponent's card opened from the Battle log offers no art change (#287)", async ({ page }) => {
+  test.skip(test.info().project.name !== "desktop-1280", "right-click is a mouse gesture");
   await page.goto("/demo?full");
   await page.locator(".board-root").waitFor();
-  await page.locator(".recent-play-opp", { hasText: "Guard Point" }).first().click({ button: "right" });
+  await page.locator(".log-thumb[aria-label^='Opponent'][aria-label*='Guard Point']").first().click({ button: "right" });
   await expect(page.locator(".card-inspect-name")).toHaveText("Guard Point");
   await expect(page.locator(".card-inspect-alts")).toHaveCount(0);
   await page.keyboard.press("Escape");

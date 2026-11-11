@@ -3,7 +3,6 @@ import type { ChatLine, DiceAction, DiceResult, DiceStateMessage, Intent, MatchO
 import { BattleLogPanel } from "./panels/BattleLogPanel";
 import { CardPreviewPanel } from "./preview/CardPreviewPanel";
 import { CardPreviewPopup } from "./preview/CardPreviewPopup";
-import { RecentPlaysStrip } from "./panels/RecentPlaysStrip";
 import { MatchViewerSeatContext } from "./zones/artOwnership";
 import { PromptSlotContext } from "./prompts/promptSlot";
 import { ChatPanel } from "./panels/ChatPanel";
@@ -32,7 +31,7 @@ import { blockIntentFor, cardActionText, counterIntentForCard, counterIntentForH
 import { beginAttach, donIdsForTarget, quickAttachCounts } from "./don/donSelection";
 import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./hand/handPrompt";
 import { isHandPick } from "./prompts/fieldTargets";
-import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand } from "./hand/handLayout";
+import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand, usesWideFan } from "./hand/handLayout";
 import { SpectatorFarHand } from "./hand/SpectatorFarHand";
 import { HandLabel } from "./hand/HandLabel";
 import { IntentBar } from "./prompts/IntentBar";
@@ -58,6 +57,7 @@ import { sideSkins } from "./layout/seatSkins";
 import { updateSettings, useDuelSettings } from "../settings";
 import { PANEL_LABELS, collapsedColumns, type PanelColumn, type PanelId } from "./panels/panelLayout";
 import { SidePanel } from "./panels/SidePanels";
+import { usePhoneResize } from "./panels/usePhoneResize";
 import { fanDocked, farFanPosForDrop, parseFanPos, serializeFanPos, spectatorNearFanPosForDrop } from "./hand/handFanPos";
 import { fanCornerFor } from "./hand/fanCorner";
 import { type LoadMatchRecord } from "./match/MatchOverFacts";
@@ -281,13 +281,14 @@ export function DuelBoard({
   /** An effect asks me to pick cards from my hand: they are tapped in the hand, so it stays in view. */
   const handPick = !spectator && !view?.spectator && isHandPick(view?.pendingChoices?.[0], seat ?? view?.seat ?? null);
   const handHidden = handHiddenRaw && prefs.keepHandOpen && !handPick;
-  const { wide, compactHud, portraitMat, simpleOwnBoard, lp, railHandTall, handLayout, tilted } = useBoardLayout(prefs, isReplay);
+  const { wide, compactHud, portraitMat, simpleOwnBoard, lp, lpFan, railHandTall, handLayout, tilted } = useBoardLayout(prefs, isReplay);
   const rootRef = useRef<HTMLDivElement | null>(null);
   useHudHeight(rootRef, wide, view != null);
   const arenaBodyRef = useRef<HTMLDivElement | null>(null);
   const playmatRef = useRef<HTMLDivElement | null>(null);
   const { singleSide, logPoseSide, setLogPoseHostL, setLogPoseHostR, panelLayout, panelDrag, panelResize, lpPanel, setLpPanel } =
     useBoardPanels({ prefs, wide, lp, dragPayload, arenaBodyRef });
+  const phoneResize = usePhoneResize(prefs.panelSizesPhone, (next) => updateSettings({ panelSizesPhone: next }));
   const [promptSlot, setPromptSlot] = useState<HTMLElement | null>(null);
   const promptSlotValue = useMemo(() => ({ slot: promptSlot, setSlot: setPromptSlot }), [promptSlot]);
   /**
@@ -298,8 +299,11 @@ export function DuelBoard({
   const specFans = spectatorFans(Boolean((spectator || view?.spectator) && view?.revealedHands), wide, lp);
   /** Phones: both hands are grids of small upright cards, so the mats get the height the fans took. */
   const specGrid = spectatorHandGrid(specFans);
-  /** Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). */
-  const fanHand = wide && !lp && (specFans != null || handLayout !== "grid");
+  /**
+   * Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). Sideways tablets and
+   * foldables too when Fan is picked (spectators there keep the right column's grids).
+   */
+  const fanHand = usesWideFan(wide, lp, lpFan, specFans, handLayout);
   /** Desktop fan: where the player dragged it (null = bottom centre of the board). */
   const fanPos = useMemo(() => parseFanPos(prefs.handFanPos), [prefs.handFanPos]);
   /** Desktop spectators: where each of the two fans was dragged (null = its default spot). */
@@ -1385,9 +1389,6 @@ export function DuelBoard({
   const sidePanels: Record<PanelId, React.ReactNode> = {
     // Hidden panels are null: they keep their place in panelLayout and come back in it.
     preview: prefs.showCardPreview && !previewPopup ? <CardPreviewPanel /> : null,
-    recent: prefs.showRecentPlays ? (
-      <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />
-    ) : null,
     log: (
       <BattleLogPanel
         entries={battleLog}
@@ -1500,7 +1501,9 @@ export function DuelBoard({
           ...(noLeftCol ? { "--left-w": "0px" } : null),
           ...(noRightCol ? { "--rail-w": "0px" } : null),
         } as CSSProperties)
-      : undefined;
+      : lp
+        ? phoneResize.style
+        : undefined;
   const docked = wide && !lp && !spectating && !over && !sideActions;
   const mulliganBody =
     mulliganPhase && !spectating ? (
@@ -1667,7 +1670,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter && !fanCorner ? " arena-fan-center" : ""}${fanCorner ? " arena-fan-corner" : ""}${specFans === "desktop" ? ` arena-spec-fans${farTop ? " arena-fan-top" : ""}` : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter && !fanCorner ? " arena-fan-center" : ""}${fanCenter && !fanCorner && !specFans && prefs.keepHandOpen ? " arena-fan-kept" : ""}${fanCorner ? " arena-fan-corner" : ""}${specFans === "desktop" ? ` arena-spec-fans${farTop ? " arena-fan-top" : ""}` : ""}${
         specFans === "landscape" ? " arena-spec-lp" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
@@ -1986,8 +1989,10 @@ export function DuelBoard({
                 compact
               />
             )}
-            {defendTray ?? sidePanels.hand}
+            {/* With the hand fanned off the board, a filler keeps the actions at the column's bottom. */}
+            {defendTray ?? sidePanels.hand ?? (fanHand ? <div className="lp-rail-fill" aria-hidden /> : null)}
             {intentPanel}
+            {prefs.layoutGrips ? <div className="phone-resize phone-resize-rail" {...phoneResize.handleProps("rail")} /> : null}
           </div>
         ) : (
           <div className="arena-rail">
@@ -2067,6 +2072,7 @@ export function DuelBoard({
         <LandscapeOverlay
           panel={lpPanel}
           onClose={() => setLpPanel(null)}
+          resizeProps={prefs.layoutGrips ? phoneResize.handleProps("overlay") : undefined}
         >
           {lpPanel === "log" ? (
             <BattleLogPanel

@@ -25,6 +25,26 @@
   padding-bottom: calc(var(--fan-ch) * var(--fan-peek-center) + var(--safe-b) + 4px);
 }
 
+/* Keep hand open: the fan stays raised, so the board makes room for the whole
+   raised fan (its height, the raise, the selected card's lift) instead of only
+   the tucked strip. Follows the setting, not H / Hide, so toggling never moves
+   the board. Extra specificity beats the bigger playing area's own padding. */
+.arena.arena-fan-center.arena-fan-kept:not(.arena-spec-fans) .playmat {
+  padding-bottom: calc(var(--fan-ch) * 1.06 + 0.5rem + 18px + var(--safe-b) + 4px);
+}
+
+/* Sideways tablets and foldables (#1262): the landscape layout's own mat padding
+   (and the bigger playing area's) would win, so the strip is reserved again. */
+.arena.arena-lp.arena-fan-center .playmat,
+.arena.arena-big.arena-lp.arena-fan-center .playmat {
+  padding-bottom: calc(var(--fan-ch) * var(--fan-peek-center) + var(--safe-b) + 4px);
+}
+
+.arena.arena-lp.arena-fan-center.arena-fan-kept .playmat,
+.arena.arena-big.arena-lp.arena-fan-center.arena-fan-kept .playmat {
+  padding-bottom: calc(var(--fan-ch) * 1.06 + 0.5rem + 18px + var(--safe-b) + 4px);
+}
+
 .arena.arena-spec-fans.arena-fan-top .playmat {
   padding-top: calc(var(--fan-ch) * var(--fan-peek-center) + 4px);
 }
@@ -184,6 +204,32 @@
 .hand-fan-center .hand-fan-cards {
   grid-column: 2;
   grid-row: 1;
+}
+
+/* The player's fan (#1244): the buttons are one row right beside the cards
+   (not a column at the far left). The middle column is as wide as the spread
+   cards, so the row stays put when the fan rises. The row sits at the top of
+   the tucked strip; the strip is shorter than the row only by the card tops,
+   and Hide keeps the top 1.75rem of the fan on screen. */
+.arena:not(.arena-spec-fans) .hand-fan-center:not(.hand-fan-top) {
+  grid-template-columns:
+    minmax(max-content, 1fr)
+    var(--fan-open-w, calc(var(--fan-cw) * (0.8 * var(--n) + 0.2)))
+    minmax(0, 1fr);
+}
+
+.arena:not(.arena-spec-fans) .hand-fan-center:not(.hand-fan-top) .hand-fan-head {
+  justify-self: end;
+  flex-direction: row;
+  align-items: center;
+  transform: none;
+  /* Clear of the first card's tilted corner. */
+  margin: 0.15rem 0.5rem 0 0;
+}
+
+.arena:not(.arena-spec-fans) .hand-fan-center:not(.hand-fan-top) .hand-fan-cards {
+  /* Left edge fixed next to the buttons: the cards grow rightwards when raised. */
+  justify-self: start;
 }
 
 .hand-fan-center .hand-fan-cards {

@@ -268,7 +268,7 @@
     top: var(--safe-t);
     bottom: 0;
     left: var(--lp-rail-w);
-    width: min(300px, 46vw);
+    width: var(--lp-overlay-w, min(300px, 46vw));
     display: flex;
     flex-direction: column;
     min-height: 0;
@@ -299,7 +299,69 @@
 
   /* Right column: opponent hand count, whose turn, then the actions. */
   .arena.arena-lp .arena-rail {
+    position: relative;
+    /* Keeps the card rows clear of the width handle on this edge. */
+    padding-left: 12px;
     padding-right: var(--safe-r);
+  }
+
+  /* Hand fanned off the board (sideways tablets, foldables): the column's free
+     space sits above the actions, so End turn stays at the bottom. */
+  .arena.arena-lp .lp-rail-fill {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  /* Width handles (right column, log / chat overlay): a touch-sized strip on the
+     edge with a small always-visible grip. Absolute, so it never moves layout. */
+  .phone-resize {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: var(--z-col-handle);
+    width: 20px;
+    touch-action: none;
+    cursor: col-resize;
+    user-select: none;
+  }
+
+  .phone-resize::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    width: 4px;
+    height: 28px;
+    margin-top: -14px;
+    border-radius: 2px;
+    background: var(--chrome-bright);
+    opacity: 0.5;
+    transition: opacity 120ms ease;
+  }
+
+  .phone-resize-rail {
+    left: 0;
+  }
+
+  .phone-resize-rail::after {
+    left: 4px;
+  }
+
+  .phone-resize-overlay {
+    right: -10px;
+  }
+
+  .phone-resize-overlay::after {
+    left: 8px;
+  }
+
+  .phone-resize:focus-visible,
+  body.is-panel-resize-col .phone-resize {
+    outline: none;
+  }
+
+  .phone-resize:focus-visible::after,
+  body.is-panel-resize-col .phone-resize::after {
+    opacity: 0.95;
   }
 
   .opp-hand-compact {

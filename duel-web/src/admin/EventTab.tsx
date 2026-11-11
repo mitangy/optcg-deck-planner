@@ -32,11 +32,11 @@ import {
   type ParticipantSortKey,
   type SortState,
   sortParticipants,
+  formatCount as n,
 } from "./adminLogic";
 import { eventStyleLabel } from "../events/eventLogic";
 import { EventForm } from "./EventForm";
 
-const n = (v: number) => v.toLocaleString("en-US");
 
 function when(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—";

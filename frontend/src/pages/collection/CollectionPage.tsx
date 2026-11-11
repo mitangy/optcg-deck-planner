@@ -42,7 +42,7 @@ import {
   COLLECTION_TYPE_KEY,
   OWNED_SORTS_KEY,
 } from "../../storage/keys";
-import { jsonArrayCodec, usePersistedState } from "../../storage/persisted";
+import { jsonArrayCodec, usePersistedState } from "@optcg/ui/storage";
 import { CollectionAddPanel, CollectionOwnedControl } from "./CollectionAddPanel";
 import { CollectionItemsView } from "./CollectionItemsView";
 import { qk } from "../../cache/queryKeys";

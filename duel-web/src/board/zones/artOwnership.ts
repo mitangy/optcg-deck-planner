@@ -11,7 +11,7 @@ export const MatchViewerSeatContext = createContext<Seat | null | undefined>(und
  * The seat whose art prefs an inspect sheet may change, or null when it can't.
  * Only a card's owner picks its alt art: in a match the viewer is always the
  * match seat, whatever seat the opener passed, so an opponent's card opened
- * from Recent plays, the preview or their trash never offers Artwork.
+ * from the Battle log, the preview or their trash never offers Artwork.
  */
 export function artEditSeat(opts: {
   ownerSeat?: Seat;

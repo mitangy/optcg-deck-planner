@@ -23,7 +23,7 @@ import { GroupBuyLines } from "./GroupBuyLines";
 import { GroupBuyMembersList, GroupBuyOrderDetails, GroupBuySettlement, hasOrderPanel } from "./GroupBuyPanels";
 import { groupBuyOweValue } from "./lineRows";
 import { MemberSwatch } from "./memberColors";
-import { ArtWantChips } from "./memberParts";
+import { ArtWantChips, SkippedBadge } from "./memberParts";
 import { SHIPPING_SPLIT_LABELS, ShippingSplit } from "./shipping";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_CARDS_KEY, COLSORT_GB_OWE_KEY } from "../../storage/keys";
@@ -258,6 +258,17 @@ export function GroupBuyDetailPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const setExtraSkip = useMutation({
+    mutationFn: ({ cardId, productId, skip }: { cardId: string; productId: number; skip: number }) =>
+      api.setGroupBuyExtraSkip(groupId, cardId, productId, skip),
+    onMutate: ({ cardId }) => keepCardVisible(cardId),
+    onSuccess: async (d) => {
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const clearQty = useMutation({
     mutationFn: (cardId: string) => api.clearGroupBuyQty(groupId, cardId),
     onSuccess: async (d) => {
@@ -390,7 +401,8 @@ export function GroupBuyDetailPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
-  const qtyBusy = setQty.isPending || clearQty.isPending || syncQty.isPending;
+  const qtyBusy =
+    setQty.isPending || clearQty.isPending || syncQty.isPending || setExtraSkip.isPending;
 
   const groupBuyAltRow = (line: GroupBuyLine) => {
     const alts = line.alt_arts ?? [];
@@ -426,7 +438,12 @@ export function GroupBuyDetailPage() {
                 })
             : undefined
         }
-        tileExtra={(productId) => <ArtWantChips line={line} productId={productId} members={members} />}
+        tileExtra={(productId) => (
+          <>
+            <ArtWantChips line={line} productId={productId} members={members} />
+            <SkippedBadge line={line} productId={productId} />
+          </>
+        )}
         shownProductId={shownProductId(line)}
         onShow={(productId) => setDisplayArt.mutate({ cardId: line.card_id, productId })}
         busyProductId={
@@ -983,6 +1000,11 @@ export function GroupBuyDetailPage() {
                         onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
                         onReset={() => clearQty.mutate(line.card_id)}
                         onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
+                        deckQty={line.my_deck_qty ?? 0}
+                        extras={line.my_extras ?? []}
+                        onExtraSkip={(productId, skip) =>
+                          setExtraSkip.mutate({ cardId: line.card_id, productId, skip })
+                        }
                       />
                     )
                   : undefined

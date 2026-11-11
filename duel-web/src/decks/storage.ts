@@ -5,7 +5,7 @@ import {
   maxCopiesFor,
   registerAtlasStub,
 } from "../cards/atlas";
-import { safeGetItem, safeRemoveItem, safeSetItem } from "../lib/safeStorage";
+import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
 import { cardDataReady } from "../cards/cardData";
 
 const STORAGE_KEY = "optcg.duel.savedDecks.v1";
@@ -191,7 +191,7 @@ export function leaderDeckRuleErrors(leaderId: string, cards: readonly string[])
 
 function readAll(): SavedDeck[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = readStored(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as SavedDeck[];
     return Array.isArray(parsed) ? parsed : [];
@@ -201,7 +201,7 @@ function readAll(): SavedDeck[] {
 }
 
 function writeAll(decks: SavedDeck[]): boolean {
-  return safeSetItem(STORAGE_KEY, JSON.stringify(decks));
+  return writeStored(STORAGE_KEY, JSON.stringify(decks));
 }
 
 export function listSavedDecks(): SavedDeck[] {
@@ -313,7 +313,7 @@ export function applyRemoteDecks(change: { upsert: SavedDeck[]; remove: string[]
 
 /** Forget every deck in this browser (sign-out: they belonged to the account). */
 export function clearLocalDecks() {
-  safeRemoveItem(STORAGE_KEY);
+  removeStored(STORAGE_KEY);
   setSelectedDeckId(null);
   announceChanged();
 }
@@ -462,12 +462,12 @@ export function upsertPlannerDeck(input: {
 }
 
 export function getSelectedDeckId(): string | null {
-  return safeGetItem(SELECTED_KEY);
+  return readStored(SELECTED_KEY);
 }
 
 export function setSelectedDeckId(id: string | null) {
-  if (!id) safeRemoveItem(SELECTED_KEY);
-  else safeSetItem(SELECTED_KEY, id);
+  if (!id) removeStored(SELECTED_KEY);
+  else writeStored(SELECTED_KEY, id);
 }
 
 export function getSelectedDeck(): SavedDeck | null {
@@ -479,7 +479,7 @@ export function getSelectedDeck(): SavedDeck | null {
 /** Global art prefs (cardId → alt id). Merged with per-deck prefs at resolve time. */
 export function getArtPrefs(): Record<string, string> {
   try {
-    const raw = localStorage.getItem(ART_PREFS_KEY);
+    const raw = readStored(ART_PREFS_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as Record<string, string>;
     return parsed && typeof parsed === "object" ? parsed : {};
@@ -492,7 +492,7 @@ export function setArtPref(cardId: string, altId: string | null) {
   const prefs = getArtPrefs();
   if (!altId) delete prefs[cardId];
   else prefs[cardId] = altId;
-  safeSetItem(ART_PREFS_KEY, JSON.stringify(prefs));
+  writeStored(ART_PREFS_KEY, JSON.stringify(prefs));
 }
 
 /**

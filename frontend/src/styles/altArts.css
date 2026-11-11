@@ -212,6 +212,17 @@
   justify-self: center;
 }
 
+/* Narrow grid cards (2 per row on phones): the button wraps instead of poking out of the card. */
+.grid-card-owned .group-buy-qty {
+  max-width: 100%;
+  grid-template-columns: minmax(0, max-content);
+}
+
+.grid-card-owned .group-buy-exclude-btn.btn {
+  max-width: 100%;
+  white-space: normal;
+}
+
 .group-buy-contribution-actions {
   margin-top: 0.75rem;
 }
@@ -397,6 +408,95 @@
   padding: 0;
   font-size: 0.8rem;
   min-height: 0;
+}
+
+/* Extra copies in the Your buy editor (#1269). Same width rule as the meta block: the rows
+   wrap inside the stepper's width and never widen it. */
+.group-buy-extras {
+  gap: 0.2rem;
+  align-items: stretch;
+}
+
+.group-buy-extras-deck {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.group-buy-extra-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.1rem 0.4rem;
+  min-height: 2rem;
+  min-width: 0;
+  max-width: 100%;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.group-buy-extra-row input[type="checkbox"] {
+  flex: 0 0 auto;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+.group-buy-extra-text {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.group-buy-extra-title {
+  font-weight: 600;
+}
+
+.group-buy-extra-sub {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.group-buy-extra-price {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.group-buy-extra-stepper {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.group-buy-extra-stepper .owned-btn {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.group-buy-extra-count {
+  min-width: 1rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.group-buy-extra-skipped {
+  font-size: 0.75rem;
+}
+
+.group-buy-skipped-chip {
+  color: var(--muted);
+  font-style: italic;
+}
+
+@media (max-width: 640px) {
+  .group-buy-extra-row {
+    min-height: 44px;
+  }
 }
 
 .group-buy-footnote {

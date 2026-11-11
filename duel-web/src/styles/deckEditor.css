@@ -246,8 +246,39 @@
   border-radius: var(--radius-4);
 }
 
+/* Copies peek out up and to the right. The reserve is always the full three steps, so a tile never
+   moves when a copy is added or removed; the leader (one copy) reserves nothing. */
+.deck-stack-pile {
+  position: relative;
+  --stack-step-y: 8px;
+  --stack-step-x: 5px;
+  padding-top: calc(var(--stack-step-y) * 3);
+  padding-right: calc(var(--stack-step-x) * 3);
+}
+
+.deck-editor-leader .deck-stack-pile {
+  padding: 0;
+}
+
+.deck-stack-copy {
+  position: absolute;
+  left: calc(var(--layer) * var(--stack-step-x));
+  top: calc((3 - var(--layer)) * var(--stack-step-y));
+  width: calc(100% - 3 * var(--stack-step-x));
+  aspect-ratio: 63 / 88;
+  border-radius: var(--radius-6);
+  overflow: hidden;
+  background: var(--arena-mid);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
+  filter: brightness(calc(1 - var(--layer) * 0.12));
+  z-index: calc(10 - var(--layer));
+  pointer-events: none;
+}
+
 .deck-stack-art {
   position: relative;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.5);
   aspect-ratio: 63 / 88;
   border-radius: var(--radius-6);
   overflow: hidden;

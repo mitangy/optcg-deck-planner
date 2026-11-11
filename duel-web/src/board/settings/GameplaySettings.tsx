@@ -32,6 +32,7 @@ import {
   DESKTOP_BOARD_QUERY,
   FINE_POINTER_QUERY,
   PORTRAIT_MAT_QUERY,
+  SIDEWAYS_FAN_QUERY,
   TILT_BOARD_QUERY,
   useMediaQuery,
 } from "../layout/useMediaQuery";
@@ -41,6 +42,8 @@ type Toggle = {
   key: ToggleKey;
   label: string;
   hint: string;
+  /** The switch shows the opposite of the stored boolean (on = setting false). */
+  invert?: boolean;
 };
 
 const TOGGLES: Toggle[] = [
@@ -96,8 +99,9 @@ const TOGGLES: Toggle[] = [
   },
   {
     key: "previewBigCard",
-    label: "Big card preview",
-    hint: "Shows just the card, as big as it fits. Off adds its stats and text.",
+    label: "Show card text beneath card",
+    hint: "Adds the card's stats and effect text under the art. Off shows just the card, as big as it fits.",
+    invert: true,
   },
   {
     key: "previewPopup",
@@ -186,11 +190,6 @@ const SHOW_TOGGLES: ShowToggle[] = [
     hint: "The hovered card's art and text, at the top of the left column.",
   },
   {
-    key: "showRecentPlays",
-    label: "Recent plays",
-    hint: "The latest plays and attacks. The Battle log keeps the full record.",
-  },
-  {
     key: "showChat",
     label: "Chat",
     hint: "The chat panel or Chat button in online matches.",
@@ -264,7 +263,9 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
   const finePointer = useMediaQuery(FINE_POINTER_QUERY);
   // Upright phone: some rows do nothing in one orientation, so they are disabled with a note.
   const portrait = useMediaQuery(PORTRAIT_MAT_QUERY);
-  const device: FieldDevice = { desktop, tiltFits, finePointer, portrait };
+  // Sideways tablets and foldables can fan the hand; shorter phones keep it in the right column.
+  const sidewaysFan = useMediaQuery(SIDEWAYS_FAN_QUERY);
+  const device: FieldDevice = { desktop, tiltFits, finePointer, portrait, sidewaysFan };
   const noteFor = (key: RowKey) => rowDisabledNote(key, device, settings);
   const disabledNote = (note: string | null) =>
     note ? (
@@ -286,7 +287,11 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
             <input
               type="checkbox"
               checked={
-                t.key === "oppHandTopRight" ? settings.oppHandSpot === "right" : settings[t.key]
+                t.key === "oppHandTopRight"
+                  ? settings.oppHandSpot === "right"
+                  : t.invert
+                    ? !settings[t.key]
+                    : settings[t.key]
               }
               disabled={note !== null}
               onChange={(e) => {
@@ -294,7 +299,7 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
                   updateSettings({ oppHandSpot: e.target.checked ? "right" : "" });
                   return;
                 }
-                updateSettings({ [t.key]: e.target.checked });
+                updateSettings({ [t.key]: t.invert ? !e.target.checked : e.target.checked });
                 // Preview (and unlock audio on mobile with this tap).
                 if (t.key === "turnSound" && e.target.checked) playTurnChime();
               }}
@@ -374,7 +379,9 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
             <p className="field-hint">
               {desktop
                 ? "Automatic uses Grid on tall windows and Fan elsewhere. Fan tucks under the board; Grid is a side panel you can move."
-                : "Fan overlaps the cards so they all fit; Grid lays them out and scrolls."}
+                : !portrait && sidewaysFan
+                  ? "Held sideways, Fan tucks under the board; Automatic and Grid keep your hand in the right column."
+                  : "Fan overlaps the cards so they all fit; Grid lays them out and scrolls."}
             </p>
             {disabledNote(noteFor("handLayout"))}
           </div>

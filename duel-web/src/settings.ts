@@ -127,6 +127,8 @@ export type DuelSettings = {
   panelSizes: string;
   /** Desktop, Bigger playing area: its own column widths (same format, only "L=" / "R=" are read). */
   panelSizesBig: string;
+  /** Landscape phones: the right column and the log / chat overlay widths, e.g. "R=220;O=320"; "" keeps both defaults. Stays on this device. */
+  panelSizesPhone: string;
   /** Desktop: show the grips that drag side panels and the fanned hand around. */
   layoutGrips: boolean;
   /**
@@ -190,8 +192,6 @@ export type DuelSettings = {
    * Off: they float in a strip between the mats.
    */
   actionsBeside: boolean;
-  /** Desktop: the Recent plays panel (the Battle log has no switch). */
-  showRecentPlays: boolean;
   /** Match chat: desktop panel, phone pill, landscape rail button. */
   showChat: boolean;
   /** Desktop: the Card preview panel (the hovered card's art and text, top of the left column). */
@@ -261,6 +261,7 @@ const DEFAULTS: DuelSettings = {
   sideColumns: "right",
   panelSizes: "",
   panelSizesBig: "",
+  panelSizesPhone: "",
   layoutGrips: true,
   oneTapActions: false,
   dimUnplayable: true,
@@ -281,7 +282,6 @@ const DEFAULTS: DuelSettings = {
   bigBoard: true,
   bigBoardChosen: false,
   actionsBeside: true,
-  showRecentPlays: true,
   showChat: true,
   showCardPreview: true,
   turnSplash: true,
@@ -329,6 +329,7 @@ function sanitize(
     serverUrl?: unknown;
     joinSecret?: unknown;
     floatingCards?: unknown;
+    showRecentPlays?: unknown;
   },
 ): DuelSettings {
   // serverUrl / joinSecret were dropped with the Connection panel; the build sets both.
@@ -339,6 +340,8 @@ function sanitize(
     serverUrl: _serverUrl,
     joinSecret: _joinSecret,
     floatingCards: _floatingCards,
+    // showRecentPlays was dropped when Recent plays merged into the Battle log (#1243).
+    showRecentPlays: _showRecentPlays,
     ...rest
   } = parsed;
   const next = { ...DEFAULTS, ...rest };
@@ -382,6 +385,7 @@ function sanitize(
 
 /** Fields that stay on this device (dev keys, pixel offsets); everything else follows the account. */
 const DEVICE_ONLY_KEYS: readonly (keyof DuelSettings)[] = [
+  "panelSizesPhone",
   "useDevKey",
   "previewPopupPos",
   "previewPopupPinned",

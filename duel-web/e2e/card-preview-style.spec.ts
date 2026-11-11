@@ -1,6 +1,6 @@
 /**
  * The desktop card preview panel has two looks (#348): a small card with stat
- * badges and keyword-chip text (default), or just a big card (Big card preview).
+ * badges and keyword-chip text (default), or just a big card (the Show card text beneath card switch off).
  */
 import { test, expect, formatIssues } from "./fixtures";
 import { isKnown } from "./known-issues";
@@ -35,7 +35,7 @@ async function previewImgHeight(page: Page, settings: Record<string, unknown>) {
   return (await page.locator(".card-preview-img").boundingBox())!.height;
 }
 
-test("Big card preview shows only the art, larger than the small card, with no text block (#348)", async ({ page, context }) => {
+test("Card text off shows only the art, larger than the small card, with no text block (#348)", async ({ page, context }) => {
   desktopOnly();
   const small = await previewImgHeight(page, {});
   const bigPage = await context.newPage();
@@ -45,29 +45,29 @@ test("Big card preview shows only the art, larger than the small card, with no t
   await expect(panel).toHaveClass(/card-preview-big/);
   await expect(panel.locator(".card-preview-effect")).toHaveCount(0);
   await expect(panel.locator(".card-preview-name")).toHaveCount(0);
-  // The art stays inside the block and the recent plays below it keep their place.
+  // The art stays inside the block and the battle log below it keeps its place.
   const art = (await panel.locator(".card-preview-img").boundingBox())!;
   const box = (await panel.boundingBox())!;
   expect(art.y + art.height).toBeLessThanOrEqual(box.y + box.height + 1);
 });
 
-test("the Big card preview switch shows on desktop only and turns the big look on (#348)", async ({ page }) => {
+test("the Show card text beneath card switch shows on desktop only, starts on, and turning it off shows the big card (#1260)", async ({ page }) => {
   await page.goto("/settings");
-  const toggle = page.getByLabel("Big card preview");
+  const toggle = page.getByLabel("Show card text beneath card");
   if (test.info().project.name !== "desktop-1280") {
     await expect(page.getByLabel("Gray out unplayable cards")).toBeVisible();
     await expect(toggle).toHaveCount(0);
     return;
   }
-  await expect(toggle).not.toBeChecked();
-  await toggle.check();
+  await expect(toggle).toBeChecked();
+  await toggle.uncheck();
   await page.goto("/demo");
   await page.locator(".board-root").waitFor();
   await hoverLeader(page);
   await expect(page.locator(".card-preview")).toHaveClass(/card-preview-big/);
 });
 
-test("a hovered card in the Big card preview passes the UI audit (#348)", async ({ page, duel }) => {
+test("a hovered card with card text off passes the UI audit (#348)", async ({ page, duel }) => {
   desktopOnly();
   await openDemo(page, { previewBigCard: true });
   await hoverLeader(page);

@@ -9,6 +9,7 @@ import { DonStrip } from "../don/DonStrip";
 import { useDuelSettings } from "../../settings";
 import type { DonPiles } from "../don/donPiles";
 import { donTotal } from "../don/donTotals";
+import { donFanOrder } from "../don/donUnder";
 import { TrashViewer, trashNewestFirst } from "./TrashViewer";
 import type { LifeFan } from "../../settings";
 import { ZonePile, lifeFanForSide, zonePileCountLabel } from "./ZonePile";
@@ -332,7 +333,7 @@ export function SideField({
             className="card-row characters-row"
             style={characterRowVars(data.characters)}
           >
-            {data.characters.map((c) => {
+            {data.characters.map((c, i) => {
               const giveHl = Boolean(interactive && drag?.giveDonHighlightIds?.has(c.id));
               const trashHl = Boolean(interactive && drag?.playTrashHighlightIds?.has(c.id));
               let dropAttr: string | null = null;
@@ -381,6 +382,7 @@ export function SideField({
                   {...attackDragProps(c.id)}
                   ownerSeat={ownerSeat}
                   viewingSeat={viewingSeat}
+                  style={donFanOrder(i, data.characters.length, Boolean(c.rested))}
                 />
               );
             })}

@@ -71,11 +71,9 @@ describe("gameplay rows by device", () => {
 });
 
 describe("Show on screen rows by device (#449)", () => {
-  it("lists Card preview and Recent plays only where those panels exist, and Chat everywhere", () => {
+  it("lists Card preview only where that panel exists, and Chat everywhere", () => {
     expect(showToggleShown("showCardPreview", desktop)).toBe(true);
-    expect(showToggleShown("showRecentPlays", desktop)).toBe(true);
     expect(showToggleShown("showCardPreview", phone)).toBe(false);
-    expect(showToggleShown("showRecentPlays", phone)).toBe(false);
     expect(showToggleShown("showChat", phone)).toBe(true);
     expect(showToggleShown("showChat", desktop)).toBe(true);
   });

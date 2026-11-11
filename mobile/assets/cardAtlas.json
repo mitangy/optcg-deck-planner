@@ -42897,11 +42897,11 @@
     "imageUrl": "/cards/OP18-027.png",
     "effectText": "[Opponent's Turn] The base power of your active [Monkey.D.Luffy] Leader with 3 or more DON!! cards given becomes 7000. [On Play] Set up to 2 of your DON!! cards as active. Then, up to 1 of your opponent's Characters with a cost of 6 or less cannot be rested until the end of your opponent's next End Phase.",
     "traits": [
-      "Straw Hat Crew",
+      "Sniper Island",
       "Water Seven",
-      "Sniper Island"
+      "Straw Hat Crew"
     ],
-    "attribute": "Ranged/Slash",
+    "attribute": "Slash/Ranged",
     "abilitySupport": "ok"
   },
   "OP18-028": {
@@ -43151,6 +43151,43 @@
     "attribute": "Slash",
     "abilitySupport": "ok"
   },
+  "OP18-049": {
+    "id": "OP18-049",
+    "name": "Mr.2.Bon.Kurei(Bentham)",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-049.png",
+    "effectText": "[On Play] Look at 5 cards from the top of your deck; reveal up to 1 card with a type including \"Baroque Works\", add it to your hand and place the rest at the bottom of your deck in any order. Then, give up to 1 rested DON!! card to your Leader or 1 of your Characters.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-050": {
+    "id": "OP18-050",
+    "name": "Mr.3 & Miss.Goldenweek",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "blocker": true,
+    "imageUrl": "/cards/OP18-050.png",
+    "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On Play] If your Leader's type includes \"Baroque Works\", up to 1 of your opponent's Characters with a cost of 7 or less cannot attack until the end of your opponent's next End Phase.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Special/Wisdom",
+    "abilitySupport": "ok"
+  },
   "OP18-051": {
     "id": "OP18-051",
     "name": "Mr. 4 & Miss.Merry Christmas",
@@ -43185,6 +43222,42 @@
       "Baroque Works"
     ],
     "attribute": "Special/Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-053": {
+    "id": "OP18-053",
+    "name": "Mr.7 & Miss.Father'sDay",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-053.png",
+    "effectText": "[DON!!×1] This Character gains +1000 power. [On Play] Look at 3 cards from the top of your deck, reorganize them in any order and place them at the top or bottom of your deck.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Ranged",
+    "abilitySupport": "ok"
+  },
+  "OP18-054": {
+    "id": "OP18-054",
+    "name": "Mr.8 & Ms. Monday",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 2,
+    "power": 3000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-054.png",
+    "effectText": "[DON!!×1] This Character gains +1000 power. [Opponent's Turn] [Once Per Turn] If your Character with a type including \"Baroque Works\" would be removed from the field by your opponent's effect, you may trash 1 card from your hand instead.",
+    "traits": [
+      "Baroque Works"
+    ],
+    "attribute": "Strike/Ranged",
     "abilitySupport": "ok"
   },
   "OP18-055": {
@@ -43222,6 +43295,21 @@
       "Baroque Works"
     ],
     "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-057": {
+    "id": "OP18-057",
+    "name": "Atomic Dicer",
+    "type": "event",
+    "colors": [
+      "blue"
+    ],
+    "cost": 1,
+    "imageUrl": "/cards/OP18-057.png",
+    "effectText": "[Main] You may rest 3 of your DON!! cards: Return up to 1 Character with a cost of 5 or less to the owner's hand. [Counter] Your Leader gains +3000 power during this battle.",
+    "traits": [
+      "Baroque Works"
+    ],
     "abilitySupport": "ok"
   },
   "OP18-058": {

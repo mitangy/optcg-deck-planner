@@ -229,6 +229,12 @@ describe("account settings", () => {
     expect(mergeRemoteSettings(loadSettings(), { promptPos: "9,9" }).promptPos).toBe("-40,-200");
   });
 
+  it("keeps the landscape phone column widths on this device, not the account (#1246)", () => {
+    stubStored({ panelSizesPhone: "R=220;O=320" });
+    expect(syncedSettings(loadSettings())).not.toHaveProperty("panelSizesPhone");
+    expect(mergeRemoteSettings(loadSettings(), { panelSizesPhone: "R=150" }).panelSizesPhone).toBe("R=220;O=320");
+  });
+
   it("keeps where the card preview pop-up was dragged on this device, and syncs the Bigger playing area widths (#529)", () => {
     stubStored({ previewPopupPos: "640,72", previewPopupPinned: true, panelSizesBig: "L=200" });
     const synced = syncedSettings(loadSettings());
@@ -323,6 +329,20 @@ describe("hand, one-tap and text size settings", () => {
   });
 });
 
+describe("retired Recent plays switch (#1243)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("a stored showRecentPlays from before the merge is ignored (#1243)", () => {
+    stubStored({ showRecentPlays: false, showChat: false });
+    const loaded = loadSettings();
+    expect(loaded).not.toHaveProperty("showRecentPlays");
+    expect(loaded.showChat).toBe(false);
+    expect(mergeRemoteSettings(loadSettings(), { showRecentPlays: false })).not.toHaveProperty("showRecentPlays");
+  });
+});
+
 describe("Show on screen and Bigger playing area (#449)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -331,15 +351,14 @@ describe("Show on screen and Bigger playing area (#449)", () => {
   it("follow the account: saved with it and applied from it", () => {
     stubStored({});
     const synced = syncedSettings(loadSettings());
-    expect(synced).toMatchObject({ bigBoard: true, showChat: true, showRecentPlays: true, showCardPreview: true });
+    expect(synced).toMatchObject({ bigBoard: true, showChat: true, showCardPreview: true });
     const merged = mergeRemoteSettings(loadSettings(), {
       bigBoard: true,
       bigBoardChosen: true,
       showChat: false,
-      showRecentPlays: false,
       showCardPreview: false,
     });
-    expect(merged).toMatchObject({ bigBoard: true, showChat: false, showRecentPlays: false, showCardPreview: false });
+    expect(merged).toMatchObject({ bigBoard: true, showChat: false, showCardPreview: false });
   });
 });
 

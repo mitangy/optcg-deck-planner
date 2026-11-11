@@ -3,7 +3,7 @@ import { money, type GroupBuyLine } from "../../api";
 /** The slice of a group-buy line the art split needs. */
 type ArtLine = Pick<
   GroupBuyLine,
-  "my_qty" | "alt_arts" | "preferred_market_price" | "name"
+  "my_qty" | "alt_arts" | "preferred_market_price" | "name" | "my_deck_qty" | "my_extras"
 >;
 
 export type MyArtSplit = {
@@ -16,13 +16,32 @@ export type MyArtSplit = {
 /**
  * How the viewer's buy qty splits across arts. Mirrors the backend
  * (`allocate_still_need_buys`): alt wants are filled first, in alt-list order,
- * each capped by what is left of the buy qty; the remainder is the base art.
+ * each reduced by the copies of that alt you own (minus those an Extra copy
+ * claims) and capped by what is left of the buy qty; the remainder is the base art (#1263).
+ * Extra copies go first, minus the ones skipped in this buy, but only with what the buy
+ * qty has left after the deck copies: a lower Your buy drops Extra copies first (#1269).
  */
 export function myArtSplit(line: ArtLine): MyArtSplit {
   let left = Math.max(0, line.my_qty);
   const alts: MyArtSplit["alts"] = [];
+  const extras = (line.my_extras ?? [])
+    .map((e) => ({ ...e, included: Math.max(0, e.wanted - e.skipped) }))
+    .filter((e) => e.included > 0);
+  let budget = Math.max(
+    0,
+    Math.min(left - Math.max(0, line.my_deck_qty ?? 0), extras.reduce((s, e) => s + e.included, 0)),
+  );
+  for (const e of extras) {
+    const qty = Math.min(e.included, budget);
+    if (qty <= 0) continue;
+    budget -= qty;
+    left -= qty;
+    alts.push({ product_id: e.product_id, name: e.name, qty, price: e.market_price });
+  }
   for (const alt of line.alt_arts ?? []) {
-    const qty = Math.min(Math.max(0, alt.wanted ?? 0), left);
+    const owned = Math.max(0, alt.owned ?? 0);
+    const usableOwned = owned - Math.min(owned, Math.max(0, alt.collector ?? 0));
+    const qty = Math.min(Math.max(0, (alt.wanted ?? 0) - usableOwned), left);
     if (qty <= 0) continue;
     left -= qty;
     alts.push({ product_id: alt.product_id, name: alt.name, qty, price: alt.market_price });

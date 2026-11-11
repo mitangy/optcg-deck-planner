@@ -1,5 +1,12 @@
-import { lazy } from "react";
+import { lazy as reactLazy, type ComponentType } from "react";
+import { reloadOnStaleChunk } from "./lib/staleChunk";
 import { loadCardData } from "./cards/cardData";
+
+/** `React.lazy` that reloads the page once when a deploy has replaced the chunk it asks for (see staleChunk.ts). */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazy<T extends ComponentType<any>>(load: () => Promise<{ default: T }>) {
+  return reactLazy(reloadOnStaleChunk(load));
+}
 
 /**
  * Route modules that load on demand (B-01). The lobby, the SEO landings and the legal pages stay in the entry

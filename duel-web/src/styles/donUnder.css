@@ -81,6 +81,56 @@
   }
 }
 
+/* —— DON!! slides under the neighbouring cards ——
+   The fan sticks out past the card, so it would paint over the Character next
+   to it (or the Leader below) whenever that card comes earlier in the page.
+   The Characters row is its own stacking layer, painted before the Leader and
+   Stage zones, so a fan reaching down or sideways out of the row goes under
+   them. Inside the row, SideField gives each tile three slots (donFanOrder):
+   a card with nothing under it sits on top, and a card with DON!! sits below
+   the neighbour its fan points at: next in the row when the fan points right,
+   previous when it points left. The fan points right for your standing cards
+   and left for your rested ones (they turn clockwise), the other way round on
+   the opponent's mat (turned 180 degrees), and Upright DON!! keeps a rested
+   card's fan pointing the way it would if the card stood. */
+.characters-row {
+  isolation: isolate;
+}
+
+.characters-row > .card-tile {
+  z-index: var(--fan-z-top, auto);
+}
+
+.characters-row > .card-tile.has-don-under,
+.don-upright .side-you .characters-row > .card-tile.has-don-under.rested,
+.side-opp .characters-row > .card-tile.has-don-under.rested {
+  z-index: var(--fan-z-next, auto);
+}
+
+.side-you .characters-row > .card-tile.has-don-under.rested,
+.side-opp .characters-row > .card-tile.has-don-under,
+.don-upright .side-opp .characters-row > .card-tile.has-don-under.rested {
+  z-index: var(--fan-z-prev, auto);
+}
+
+/* Portrait phones fan the opponent's DON!! like yours (see .don-under above),
+   down out of their Leader onto their Characters, so their row goes on top. */
+@media (max-width: 899px) and (orientation: portrait) {
+  .side-opp .characters-row {
+    position: relative;
+    z-index: var(--z-raise-1);
+  }
+
+  .side-opp .characters-row > .card-tile.has-don-under,
+  .don-upright .side-opp .characters-row > .card-tile.has-don-under.rested {
+    z-index: var(--fan-z-next, auto);
+  }
+
+  .side-opp .characters-row > .card-tile.has-don-under.rested {
+    z-index: var(--fan-z-prev, auto);
+  }
+}
+
 /* Picker tiles are tiny and sit right on top of their caption: the "×n" badge
    carries the count there, so skip the peeking cards. */
 .choice-option .don-under {
@@ -122,14 +172,19 @@
 
   .deck-stack {
     display: grid;
-    grid-template-columns: 48px minmax(0, 1fr);
+    grid-template-columns: 56px minmax(0, 1fr);
     align-items: center;
     column-gap: 0.6rem;
     padding: 0.3rem 0.5rem 0.3rem 0.3rem;
   }
 
   .deck-stack-art-btn {
-    width: 48px;
+    width: 56px;
+  }
+
+  .deck-stack-pile {
+    --stack-step-y: 3px;
+    --stack-step-x: 3px;
   }
 
   .deck-stack-badge {
