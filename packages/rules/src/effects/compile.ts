@@ -317,7 +317,7 @@ export function compileEffect(effect: Effect, out: Instr[], ctx: CompileCtx = { 
       withResolvedTarget(effect, out);
       return;
     }
-    case "activate_event": case "reveal": case "attribute":
+    case "activate_event": case "activate_trigger": case "reveal": case "attribute":
       withResolvedTarget(effect, out);
       return;
     default:

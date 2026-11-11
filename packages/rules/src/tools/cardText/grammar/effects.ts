@@ -936,6 +936,11 @@ const EFFECT_RULES: EffectRule[] = [
     target: v("_last"),
     ...(m[1] ? { rested: true } : {}),
   })),
+  rule(/^reveal (up to \d+ .+?) from your hand$/i, (m, ctx) => {
+    const target = zoneTarget(m[1]!, "hand", ctx);
+    return target?.ref === "choose" ? { do: "reveal", target } : null;
+  }),
+  rule(/^activate the \[Trigger\] effect of (?:the revealed card|that card)$/i, () => ({ do: "activate_trigger", target: v("_last") })),
   rule(/^add (?:the revealed card|that card|it) to your hand$/i, () => ({ do: "to_hand", target: v("_last") })),
   rule(/^trash (?:the revealed card|that card)$/i, () => ({ do: "to_trash", target: v("_last") })),
   rule(new RegExp("^(.+?) gains? ([+-]\\d+) power " + DUR + " for every card trashed$", "i"), (m, ctx) => {
