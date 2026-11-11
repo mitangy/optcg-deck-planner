@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-11
-  { date: "2026-11-11", app: "duel", title: "Resize columns on phones", text: "Held sideways, you can now drag the grip on the right column's edge, or on the Battle log and Chat panel's edge, to make it wider or narrower. Double-tap a grip to reset it, and Reset layout clears it too." },
+  { date: "2026-11-11", app: "duel", pr: 1252, title: "Resize columns on phones", text: "Held sideways, you can now drag the grip on the right column's edge, or on the Battle log and Chat panel's edge, to make it wider or narrower. Double-tap a grip to reset it, and Reset layout clears it too." },
   // 2026-11-10
   { date: "2026-11-10", app: "planner", pr: 1230, title: "Copy buttons work on more browsers", text: "Copy list, Copy invite link, Share and Copy log now also work in browsers that block the clipboard, instead of showing an error." },
   { date: "2026-11-10", app: "duel", pr: 1232, title: "Faster deck editor search on phones", text: "Searching for cards in the deck editor now stays responsive while you type, and card pictures load as you scroll to them instead of all at once, so broad searches no longer make phones lag." },
