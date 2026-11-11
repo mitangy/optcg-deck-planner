@@ -189,6 +189,7 @@ const effect: V = tagged("do", {
   set_cost: variant("do", "set_cost", { target, value, duration }),
   damage: variant("do", "damage", { player: rel, count: int(1) }),
   activate_event: variant("do", "activate_event", { target }),
+  activate_trigger: variant("do", "activate_trigger", { target }),
   keyword: variant("do", "keyword", { target, keyword, duration }),
   restrict: variant("do", "restrict", { target, restriction, duration }, { value: int(), attribute: str, filter }),
   player_restrict: variant("do", "player_restrict", { player: rel, restriction: playerRestriction, duration }, { filter }),

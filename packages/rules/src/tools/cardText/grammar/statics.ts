@@ -7,7 +7,8 @@ import { parseCondition } from "./conditions.js";
 
 function staticTarget(text: string, ctx: Ctx): StaticTarget | null {
   const t = text.trim();
-  if (/^this (?:character|leader|stage|card)$/i.test(t)) return "self";
+  // "this Characters" is a printed typo on OP18-071.
+  if (/^this (?:character|leader|stage|card)s?$/i.test(t)) return "self";
   if (/^your leader$/i.test(t)) return { all: sel("you", "leader") };
   if (/^your opponent's leader$/i.test(t)) return { all: sel("opponent", "leader") };
   const p = parseCardPhrase(t.replace(/^all of /i, "all of ").replace(/^(your|your opponent's) (?!leader$)/i, "all of $1 "), ctx);
@@ -173,6 +174,12 @@ const STATIC_RULES: Rule<(Static & { when?: Cond[] })[]>[] = [
     const target = staticTarget(m[1]!, ctx);
     const k = keywordOf(m[2]!);
     return target && k ? [{ s: "keyword", target, keyword: k }] : null;
+  }),
+  rule(/^(.+?) gains? \[(Blocker|Rush|Double Attack|Banish|Unblockable)\] and \[(Blocker|Rush|Double Attack|Banish|Unblockable)\]$/i, (m, ctx) => {
+    const target = staticTarget(m[1]!, ctx);
+    const a = keywordOf(m[2]!);
+    const b = keywordOf(m[3]!);
+    return target && a && b ? [{ s: "keyword", target, keyword: a }, { s: "keyword", target, keyword: b }] : null;
   }),
   rule(/^(.+?) gains? \[(Blocker|Rush|Double Attack|Banish|Unblockable)\] and ([+-]\d+) (power|cost)$/i, (m, ctx) => {
     const target = staticTarget(m[1]!, ctx);
