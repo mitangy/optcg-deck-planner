@@ -1,5 +1,5 @@
 /**
- * "Show on screen" switches (#449): Card preview, Recent plays and Chat can be
+ * "Show on screen" switches (#449): Card preview and Chat can be
  * hidden; the Battle log always stays and has no switch. Everything is shown
  * by default. Hidden desktop panels keep their place in the saved layout, the
  * rest of the column takes the room, and a column with nothing left collapses.
@@ -29,18 +29,17 @@ test.describe("desktop panels", () => {
 
   test("every panel is shown by default (#449)", async ({ page }) => {
     await openDemo(page, {});
-    for (const id of ["preview", "recent", "log", "chat"]) await expect(panel(page, id), id).toBeVisible();
+    for (const id of ["preview", "log", "chat"]) await expect(panel(page, id), id).toBeVisible();
   });
 
   for (const [key, id] of [
     ["showCardPreview", "preview"],
-    ["showRecentPlays", "recent"],
     ["showChat", "chat"],
   ] as const) {
     test(`${key} off removes only the ${id} panel and the Battle log stays (#449)`, async ({ page }) => {
       await openDemo(page, { [key]: false });
       await expect(panel(page, id)).toHaveCount(0);
-      for (const other of ["preview", "recent", "chat"].filter((p) => p !== id)) {
+      for (const other of ["preview", "chat"].filter((p) => p !== id)) {
         await expect(panel(page, other), other).toBeVisible();
       }
       await expect(panel(page, "log")).toBeVisible();
@@ -50,7 +49,7 @@ test.describe("desktop panels", () => {
   test("the Battle log stays with everything hidden, and takes the freed height (#449)", async ({ page }) => {
     await openDemo(page, {});
     const before = (await panel(page, "log").boundingBox())!;
-    await openDemo(page, { showCardPreview: false, showRecentPlays: false, showChat: false });
+    await openDemo(page, { showCardPreview: false, showChat: false });
     const log = panel(page, "log");
     await expect(log).toBeVisible();
     expect((await log.boundingBox())!.height).toBeGreaterThan(before.height * 1.5);
@@ -66,7 +65,6 @@ test.describe("desktop panels", () => {
 
     for (const [name, id] of [
       ["Card preview", "preview"],
-      ["Recent plays", "recent"],
       ["Chat", "chat"],
     ] as const) {
       const box = sheet.getByRole("checkbox", { name, exact: true });
@@ -80,7 +78,7 @@ test.describe("desktop panels", () => {
   });
 
   test("a hidden panel keeps its place in the saved layout and returns to it (#449)", async ({ page }) => {
-    const layout = "preview,recent,log,chat|oppHand,turn,hand";
+    const layout = "preview,log,chat|oppHand,turn,hand";
     await openDemo(page, { panelLayout: layout, showChat: false });
     await expect(panel(page, "chat")).toHaveCount(0);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem("optcg-duel:settings")!).panelLayout)).toBe(layout);
@@ -93,14 +91,14 @@ test.describe("desktop panels", () => {
   });
 
   test("a column with nothing left to show collapses and the playmat area gets its width (#449)", async ({ page }) => {
-    const layout = "preview,recent|log,oppHand,turn,hand,chat";
+    const layout = "preview|log,oppHand,turn,hand,chat";
     const matWidth = () => page.locator(".playmat").evaluate((el) => el.getBoundingClientRect().width);
     const leftWidth = () => page.locator(".arena-left").evaluate((el) => el.getBoundingClientRect().width);
     await openDemo(page, { panelLayout: layout });
     const shown = { mat: await matWidth(), left: await leftWidth() };
     expect(shown.left).toBeGreaterThan(150);
 
-    await openDemo(page, { panelLayout: layout, showCardPreview: false, showRecentPlays: false });
+    await openDemo(page, { panelLayout: layout, showCardPreview: false });
     expect(await leftWidth()).toBeLessThan(2);
     expect(await matWidth()).toBeGreaterThan(shown.mat);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1280);
@@ -125,7 +123,6 @@ test.describe("phones", () => {
     const sheet = page.getByRole("dialog", { name: "Gameplay settings" });
     await expect(sheet.getByRole("checkbox", { name: "Chat", exact: true })).toBeChecked();
     await expect(sheet.getByRole("checkbox", { name: "Card preview", exact: true })).toHaveCount(0);
-    await expect(sheet.getByRole("checkbox", { name: "Recent plays", exact: true })).toHaveCount(0);
     await expect(sheet.getByRole("checkbox", { name: /battle log/i })).toHaveCount(0);
     await sheet.getByRole("checkbox", { name: "Chat", exact: true }).uncheck();
     await expect(page.locator(".chat-panel")).toHaveCount(0);

@@ -29,9 +29,9 @@ describe("panel sizes (#347)", () => {
   });
 
   it("drops unknown panels, junk and out-of-range values (#347)", () => {
-    const sizes = parsePanelSizes("L=50;R=9999;L=abc;bogus=0.4,preview=2,log=0.01,recent=0.5,chat=x");
+    const sizes = parsePanelSizes("L=50;R=9999;L=abc;bogus=0.4,preview=2,log=0.01,recent=0.5,hand=0.5,chat=x");
     expect(sizes.widths).toEqual({});
-    expect(sizes.heights).toEqual({ recent: 0.5 });
+    expect(sizes.heights).toEqual({ hand: 0.5 });
   });
 
   it("keeps the good values next to a bad one (#347)", () => {
@@ -69,7 +69,7 @@ describe("panel sizes (#347)", () => {
   });
 
   it("a column is never narrower than the widest panel in it (#370)", () => {
-    expect(columnMinPx(["preview", "recent", "log"])).toBe(200);
+    expect(columnMinPx(["preview", "log"])).toBe(200);
     expect(columnMinPx(["oppHand", "turn", "hand"])).toBe(250);
     expect(columnMinPx([])).toBe(180);
     expect(clampColumnWidth(100, 1440, 250)).toBe(250);
