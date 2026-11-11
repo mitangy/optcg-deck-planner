@@ -528,15 +528,20 @@ for (const side of ["left", "right"] as const) {
   });
 }
 
-// Phones and landscape phones have no side columns to resize.
-test("phones show no panel resize handles (#347)", async ({ page }, info) => {
+// Portrait phones have no side columns to resize; sideways phones get only their own
+// right-column grip (#1246), never the desktop column or panel handles.
+test("phones show no desktop panel resize handles (#347, #1246)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "the phone project only");
-  for (const size of [{ width: 375, height: 812 }, { width: 812, height: 375 }]) {
-    await page.setViewportSize(size);
-    await page.goto("/demo?full");
-    await page.locator(".board-root").waitFor();
-    await expect(page.locator('[role="separator"]')).toHaveCount(0);
-  }
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator('[role="separator"]')).toHaveCount(0);
+  await page.setViewportSize({ width: 812, height: 375 });
+  await page.goto("/demo?full");
+  await page.locator(".board-root").waitFor();
+  await expect(page.locator(".col-resize, .panel-divider")).toHaveCount(0);
+  await expect(page.locator('[role="separator"]')).toHaveCount(1);
+  await expect(page.locator(".phone-resize-rail")).toHaveCount(1);
 });
 
 // One fan, moved by its grip anywhere on the screen; Drag handles off hides

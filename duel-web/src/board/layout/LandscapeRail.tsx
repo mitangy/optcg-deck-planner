@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, type HTMLAttributes, type ReactNode } from "react";
 import { CopilotGlyph } from "../copilot/LogPoseMatchButton";
 
 export type LandscapePanel = "log" | "chat" | "brief";
@@ -78,12 +78,15 @@ export function LandscapeOverlay({
   panel,
   onClose,
   backdrop = true,
+  resizeProps,
   children,
 }: {
   panel: LandscapePanel;
   onClose: () => void;
   /** Outside taps close the panel (default). Off: the board stays tappable underneath. */
   backdrop?: boolean;
+  /** Props for the width handle on the panel's right edge (off when the drag handles are). */
+  resizeProps?: HTMLAttributes<HTMLDivElement>;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -98,6 +101,7 @@ export function LandscapeOverlay({
       {backdrop ? <div className="lp-overlay-backdrop" onPointerDown={onClose} /> : null}
       <div className={`lp-overlay lp-overlay-${panel}`} role="region" aria-label={LABEL[panel]}>
         {children}
+        {resizeProps ? <div className="phone-resize phone-resize-overlay" {...resizeProps} /> : null}
       </div>
     </>
   );

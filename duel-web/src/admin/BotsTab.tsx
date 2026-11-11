@@ -17,10 +17,10 @@ import {
   spendText,
   suiteSummary,
   type SuiteInfo,
+  formatCount as n,
 } from "./adminLogic";
 import { FeedbackSection } from "./FeedbackSection";
 
-const n = (v: number) => v.toLocaleString("en-US");
 
 const ARROW = { better: "\u2191", worse: "\u2193", same: "\u2192", first: "" } as const;
 

@@ -1,3 +1,4 @@
+import { formatMoneyCompact } from "@optcg/card-core";
 import { CollectorLine, money } from "../../api";
 import { collectorCostTotal, collectorStatNote, collectorStillTotal, itemNeedsCopies } from "../collection/collectorLines";
 
@@ -27,9 +28,9 @@ export function shoppingCostSplit(data: ShoppingStatsData | null | undefined) {
   return { decks, added, extra };
 }
 
-/** "$850" or "$2.0k": short enough for three parts to fit under the total on a phone. */
+/** "$850" or "$2K": short enough for three parts to fit under the total on a phone. */
 function compactMoney(n: number): string {
-  return n >= 1000 ? `$${(n / 1000).toFixed(1)}k` : `$${Math.round(n)}`;
+  return formatMoneyCompact(n);
 }
 
 /** The parts of the Est. cost worth naming; empty when one part (or none) is the whole total. */

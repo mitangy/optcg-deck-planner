@@ -4,13 +4,12 @@ import "./admin.css";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { type AdminUser, type AdminUserDetail, type AdminUserMatch, fetchAdminUser } from "./adminApi";
-import { GAME_MODES, dateOf, formatSignupSource, modeLabel, percent, presenceText, resultOf, soloNote, stampOf, totalGames, usd } from "./adminLogic";
+import { GAME_MODES, dateOf, formatCount as n, formatSignupSource, modeLabel, percent, presenceText, resultOf, soloNote, stampOf, totalGames, usd } from "./adminLogic";
 import { staffAgo } from "../lib/relativeTime";
 import { Gate, useAdminWho } from "./AdminGate";
 import { Tile } from "./charts";
 import { type Actor, RoleControl, UserButtons, useUserActions, userLabel } from "./UserActions";
 
-const n = (v: number) => v.toLocaleString("en-US");
 const leaderName = (id: string | null) => (id ? lookupCard(id).name : "Unknown leader");
 const BACK = { to: "/admin", label: "Admin", ariaLabel: "Back to admin" };
 

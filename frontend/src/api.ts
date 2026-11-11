@@ -1,3 +1,4 @@
+import { formatMoney } from "@optcg/card-core";
 import { readFirstTouch } from "@optcg/ui/firstTouch";
 import { API_URL, LONG_TIMEOUT_MS, request } from "./apiClient";
 
@@ -895,5 +896,5 @@ export const api = {
 
 export function money(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return "—";
-  return `$${n.toFixed(2)}`;
+  return formatMoney(n);
 }

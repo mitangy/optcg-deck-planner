@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { type AdminUser, type AdminUsers, fetchAdminUsers } from "./adminApi";
-import { GAME_MODES, dateOf, formatSignupSource } from "./adminLogic";
+import { GAME_MODES, dateOf, formatCount, formatSignupSource } from "./adminLogic";
 import { type Actor, RoleControl, UserButtons, useUserActions, userLabel } from "./UserActions";
 
 const PAGE = 50;
@@ -59,7 +59,7 @@ export function UsersTab({ actor }: { actor: Actor }) {
           Show guests
         </label>
         <span className="adm-count" aria-live="polite">
-          {state.status === "ready" ? `${state.total.toLocaleString("en-US")} ${state.total === 1 ? "user" : "users"}` : " "}
+          {state.status === "ready" ? `${formatCount(state.total)} ${state.total === 1 ? "user" : "users"}` : " "}
         </span>
       </div>
       {notice ? (

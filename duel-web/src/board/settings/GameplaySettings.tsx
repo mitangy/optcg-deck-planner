@@ -41,6 +41,8 @@ type Toggle = {
   key: ToggleKey;
   label: string;
   hint: string;
+  /** The switch shows the opposite of the stored boolean (on = setting false). */
+  invert?: boolean;
 };
 
 const TOGGLES: Toggle[] = [
@@ -96,8 +98,9 @@ const TOGGLES: Toggle[] = [
   },
   {
     key: "previewBigCard",
-    label: "Big card preview",
-    hint: "Shows just the card, as big as it fits. Off adds its stats and text.",
+    label: "Show card text beneath card",
+    hint: "Adds the card's stats and effect text under the art. Off shows just the card, as big as it fits.",
+    invert: true,
   },
   {
     key: "previewPopup",
@@ -281,7 +284,11 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
             <input
               type="checkbox"
               checked={
-                t.key === "oppHandTopRight" ? settings.oppHandSpot === "right" : settings[t.key]
+                t.key === "oppHandTopRight"
+                  ? settings.oppHandSpot === "right"
+                  : t.invert
+                    ? !settings[t.key]
+                    : settings[t.key]
               }
               disabled={note !== null}
               onChange={(e) => {
@@ -289,7 +296,7 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
                   updateSettings({ oppHandSpot: e.target.checked ? "right" : "" });
                   return;
                 }
-                updateSettings({ [t.key]: e.target.checked });
+                updateSettings({ [t.key]: t.invert ? !e.target.checked : e.target.checked });
                 // Preview (and unlock audio on mobile with this tap).
                 if (t.key === "turnSound" && e.target.checked) playTurnChime();
               }}
