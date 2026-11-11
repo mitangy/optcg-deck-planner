@@ -1,10 +1,12 @@
 import type { DuelSettings } from "../../settings";
 import { resolveHandLayout } from "../../settings";
+import { usesSidewaysFan } from "../hand/handLayout";
 import {
   COMPACT_HUD_QUERY,
   LANDSCAPE_PHONE_QUERY,
   PORTRAIT_MAT_QUERY,
   RAIL_HAND_QUERY,
+  SIDEWAYS_FAN_QUERY,
   TILT_BOARD_QUERY,
   WIDE_BOARD_QUERY,
   useMediaQuery,
@@ -24,10 +26,12 @@ export function useBoardLayout(prefs: DuelSettings, isReplay: boolean) {
   const railHandTall = useMediaQuery(RAIL_HAND_QUERY);
   /** "auto" (never chosen) is the Grid on a tall desktop window and the fan elsewhere. */
   const resolvedHandLayout = resolveHandLayout(prefs.handLayout, wide && !lp && railHandTall);
+  /** Sideways tablets, foldables and big phones (500px+ tall) fan the hand when Fan is picked. */
+  const lpFan = usesSidewaysFan(lp, useMediaQuery(SIDEWAYS_FAN_QUERY), prefs.handLayout);
   /** A replay's controls take the right rail's free space, so its hand is the fan, never the rail's grid. */
   const handLayout = isReplay && resolvedHandLayout === "grid" ? "fan" : resolvedHandLayout;
   /** Desktop / landscape tablet: the board leans back in perspective, seen from your seat. */
   const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
   const tilted = wide && !lp && tiltFits && prefs.tiltedBoard;
-  return { wide, compactHud, portraitMat, simpleOwnBoard, lp, railHandTall, handLayout, tilted };
+  return { wide, compactHud, portraitMat, simpleOwnBoard, lp, lpFan, railHandTall, handLayout, tilted };
 }

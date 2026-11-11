@@ -7110,6 +7110,11 @@ export interface components {
              * @default 0
              */
             my_suggested_qty: number;
+            /**
+             * My Used In
+             * @default []
+             */
+            my_used_in: string[];
             /** Name */
             name: string;
             /** Preferred Market Price */

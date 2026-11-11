@@ -14,6 +14,7 @@ import {
 import { type CardLayout } from "../../ui/CardLayout";
 import { CardThumb } from "../../ui/CardThumb";
 import { GridCard, MobileCard } from "../../ui/PlannerCard";
+import { UsedInCell } from "../../ui/UsedInCell";
 import { mainImageUrl, shownMarket, shownProductId } from "../../cards/altArt";
 import { MarketPrice } from "../../cards/MarketPrice";
 import { OwnedCell, StillNeededCell, ownedCellIsTotal, stillNeededText, totalOwned } from "../collection/OwnedCells";
@@ -35,35 +36,6 @@ export function sharedUsedIn(item: ShoppingItem): string {
   ]
     .filter(Boolean)
     .join(" · ");
-}
-
-/** Deck names as small chips (one per deck), then an optional note and action. */
-function UsedInCell({
-  decks,
-  note = "",
-  action = null,
-  className = "",
-}: {
-  decks: string[];
-  note?: string;
-  action?: ReactNode;
-  className?: string;
-}) {
-  return (
-    <div className={`used-in-cell${className ? ` ${className}` : ""}`}>
-      {decks.length > 0 && (
-        <ul className="used-in-chips" aria-label="Used in decks">
-          {decks.map((name) => (
-            <li key={name} className="used-in-chip" title={name}>
-              {name}
-            </li>
-          ))}
-        </ul>
-      )}
-      {note && <span className="used-in-note">{note}</span>}
-      {action}
-    </div>
-  );
 }
 
 export const usedInSortValue = (decks: string[]) => decks.join(", ");

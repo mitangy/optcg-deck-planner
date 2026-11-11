@@ -58,6 +58,8 @@ test("you call and lose the roll: the bot rolls, picks first, and the banner nam
   await expect(card).toBeVisible({ timeout: 30_000 });
   await expect(card.getByRole("status")).toHaveText("You call it: High or Low?");
   await expectFits(page);
+  // Both Leaders are revealed, so the button no longer says Cancel: leaving now takes the loss.
+  await expect(page.getByRole("button", { name: "Leave (counts as a loss)" })).toBeVisible();
   await card.getByRole("button", { name: "High (4-6)" }).click();
 
   // The bot rolls a 1 (Low): the roller wins, and the winner is the bot, so there is nothing to click.
