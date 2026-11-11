@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-11
+  { date: "2026-11-11", app: "duel", pr: 0, title: "Every OP18 card is in", text: "The other 44 OP18 cards are now in the duel app and the planner with their official English text and pictures, so the whole set is playable, including Monkey.D.Luffy (OP18-118), Kaku, Senor Pink, Trebol, Catarina Devon, Oars and Abyss Pentagram." },
   { date: "2026-11-11", app: "duel", pr: 1268, title: "Fanned hand on tablets and foldables held sideways", text: "On a tablet, foldable or other big screen held sideways, picking Fan in Hand layout now fans your hand under the board like on a computer. Automatic and Grid keep it in the right column, and smaller phones held sideways are unchanged. Keep hand open now shows on those screens too, grayed out when it does nothing." },
   { date: "2026-11-11", app: "duel", pr: 1268, title: "Settings opens after an update", text: "If the app was left open while we shipped an update, tapping Settings (or another page) could leave a blank screen. It now reloads once and opens the page." },
   { date: "2026-11-11", app: "duel", pr: 1265, title: "Leaving during the dice roll counts as a loss", text: "Once the opening dice roll starts, both Leaders are already revealed, so leaving then now counts as a loss for the player who leaves, the same as leaving a game in progress. Your opponent wins, and in ranked the result updates ratings and match history." },
