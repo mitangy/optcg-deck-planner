@@ -86,6 +86,7 @@ export function DuelPage() {
   }
 
   // Until the first view arrives the board is already up, empty, saying what it waits on.
+  const rolling = !view && !(launching && launch) && !resuming && Boolean(dice);
   const waiting: BoardWaiting | undefined = view
     ? undefined
     : launching && launch
@@ -168,7 +169,8 @@ export function DuelPage() {
         seatSkins={seatSkins}
         opponentAwayUntil={seat === 0 || seat === 1 ? awayUntil[seat === 0 ? 1 : 0] : null}
         waiting={waiting}
-        leaveLabel={view ? undefined : "Cancel"}
+        // Both Leaders are revealed once the dice roll starts, so a player who leaves then takes the loss.
+        leaveLabel={view ? undefined : role === "player" && rolling ? "Leave (counts as a loss)" : "Cancel"}
         onLeave={() => {
           void leave();
           navigate("/", { replace: true });

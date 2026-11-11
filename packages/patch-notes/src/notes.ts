@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-11
+  { date: "2026-11-11", app: "duel", pr: 1265, title: "Leaving during the dice roll counts as a loss", text: "Once the opening dice roll starts, both Leaders are already revealed, so leaving then now counts as a loss for the player who leaves, the same as leaving a game in progress. Your opponent wins, and in ranked the result updates ratings and match history." },
   { date: "2026-11-11", app: "planner", pr: 1267, title: "Group buy cards show your decks", text: "On the group buy page, each card now shows which of your selected decks use it, as the same deck chips Master Shopping has. Only you see your decks; other members never do." },
   { date: "2026-11-11", app: "planner", pr: 1267, title: "Group buy counts alt copies you own", text: "On the group buy page, the Base Buy count and your price now count alt copies you already own, so they match the who-wants tags." },
   { date: "2026-11-11", app: "duel", pr: 1259, title: "DON!! tucks under the cards next to it", text: "DON!! given to a Leader or Character now always peeks out from under the cards beside it instead of covering them, on both sides of the board, rested or not." },
