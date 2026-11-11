@@ -47,6 +47,38 @@
   padding: 0 0.55rem 0.55rem;
   min-height: 0;
 }
+/* All / Plays switch: a fixed-height strip above the scrolling lines, so the header never moves. */
+.battle-log-filter {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 1px;
+  margin: 0 0.55rem 0.25rem;
+  padding: 1px;
+  align-self: flex-start;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.2);
+}
+.battle-log-filter-btn {
+  min-width: 2.6rem;
+  padding: 0.18rem 0.6rem;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.battle-log-filter-btn[aria-pressed="true"] {
+  background: rgb(var(--chrome-bright-rgb) / 0.2);
+  color: var(--chrome-bright);
+}
+.battle-log-filter-btn:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+  outline-offset: 1px;
+}
 .battle-log-empty {
   margin: 0.25rem 0;
   color: var(--muted);
@@ -81,6 +113,36 @@
   align-items: baseline;
   column-gap: var(--space-1);
   min-width: 0;
+}
+/* Card-use lines add a fixed-size picture column (63:88 card), so lines never jump as art loads. */
+.log-line-use {
+  grid-template-columns: 1rem 1.5rem minmax(0, 1fr);
+  align-items: center;
+}
+.log-thumb {
+  width: 1.5rem;
+  aspect-ratio: 63 / 88;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-2);
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.3);
+  color: var(--muted);
+  font-size: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.log-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.log-thumb:focus-visible {
+  outline: 2px solid var(--chrome-bright);
+  outline-offset: 1px;
 }
 .log-icon {
   color: var(--log-accent);

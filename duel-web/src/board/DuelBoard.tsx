@@ -3,7 +3,6 @@ import type { ChatLine, DiceAction, DiceResult, DiceStateMessage, Intent, MatchO
 import { BattleLogPanel } from "./panels/BattleLogPanel";
 import { CardPreviewPanel } from "./preview/CardPreviewPanel";
 import { CardPreviewPopup } from "./preview/CardPreviewPopup";
-import { RecentPlaysStrip } from "./panels/RecentPlaysStrip";
 import { MatchViewerSeatContext } from "./zones/artOwnership";
 import { PromptSlotContext } from "./prompts/promptSlot";
 import { ChatPanel } from "./panels/ChatPanel";
@@ -1385,9 +1384,6 @@ export function DuelBoard({
   const sidePanels: Record<PanelId, React.ReactNode> = {
     // Hidden panels are null: they keep their place in panelLayout and come back in it.
     preview: prefs.showCardPreview && !previewPopup ? <CardPreviewPanel /> : null,
-    recent: prefs.showRecentPlays ? (
-      <RecentPlaysStrip entries={battleLog} youSeat={previewOppSeat === 0 ? 1 : 0} />
-    ) : null,
     log: (
       <BattleLogPanel
         entries={battleLog}

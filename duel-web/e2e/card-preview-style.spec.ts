@@ -45,7 +45,7 @@ test("Big card preview shows only the art, larger than the small card, with no t
   await expect(panel).toHaveClass(/card-preview-big/);
   await expect(panel.locator(".card-preview-effect")).toHaveCount(0);
   await expect(panel.locator(".card-preview-name")).toHaveCount(0);
-  // The art stays inside the block and the recent plays below it keep their place.
+  // The art stays inside the block and the battle log below it keeps its place.
   const art = (await panel.locator(".card-preview-img").boundingBox())!;
   const box = (await panel.boundingBox())!;
   expect(art.y + art.height).toBeLessThanOrEqual(box.y + box.height + 1);

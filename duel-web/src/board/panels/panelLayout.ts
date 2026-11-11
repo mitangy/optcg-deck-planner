@@ -7,7 +7,6 @@
 
 export type PanelId =
   | "preview"
-  | "recent"
   | "log"
   | "oppHand"
   | "turn"
@@ -21,7 +20,6 @@ export type PanelLayout = { left: PanelId[]; right: PanelId[] };
 
 export const PANEL_LABELS: Record<PanelId, string> = {
   preview: "Card preview",
-  recent: "Recent plays",
   log: "Battle log",
   oppHand: "Opponent hand",
   turn: "Turn and clocks",
@@ -31,7 +29,7 @@ export const PANEL_LABELS: Record<PanelId, string> = {
 };
 
 export const DEFAULT_PANEL_LAYOUT: PanelLayout = {
-  left: ["preview", "recent", "log"],
+  left: ["preview", "log"],
   // Log Pose has a slot only while it is docked and open; it sits at the top of the right column, where a docked panel always was.
   right: ["logpose", "oppHand", "turn", "hand", "chat"],
 };

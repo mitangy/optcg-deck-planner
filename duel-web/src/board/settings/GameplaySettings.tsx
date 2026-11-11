@@ -186,11 +186,6 @@ const SHOW_TOGGLES: ShowToggle[] = [
     hint: "The hovered card's art and text, at the top of the left column.",
   },
   {
-    key: "showRecentPlays",
-    label: "Recent plays",
-    hint: "The latest plays and attacks. The Battle log keeps the full record.",
-  },
-  {
     key: "showChat",
     label: "Chat",
     hint: "The chat panel or Chat button in online matches.",

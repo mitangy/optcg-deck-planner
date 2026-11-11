@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { artEditSeat } from "./artOwnership";
 
 describe("who may change a card's art", () => {
-  it("an opponent's card opened with no viewing seat (Recent plays, preview) offers no art change (#287)", () => {
+  it("an opponent's card opened with no viewing seat (Battle log, preview) offers no art change (#287)", () => {
     expect(artEditSeat({ ownerSeat: 1, matchSeat: 0 })).toBeNull();
   });
 

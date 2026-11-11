@@ -13,7 +13,7 @@
 }
 
 /* The preview is a fixed-size block (a share of the column), so a card with a
-   long ability never moves the recent plays or battle log under it: the art
+   long ability never moves the battle log under it: the art
    keeps its size and the text scrolls inside the block. */
 .arena.arena-wide .board-col .card-preview {
   display: flex;
@@ -322,65 +322,10 @@
   scrollbar-width: thin;
 }
 
-/* Recent plays: a fixed-height list (about four rows, scrolls for the rest) so
-   the log below never jumps. Each row is a card thumbnail, its name and who
-   used it when. */
-.recent-plays {
-  flex: 0 0 auto;
-  height: clamp(7rem, 21dvh, 14rem);
-  box-sizing: border-box;
-  border-top: 1px solid var(--line);
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-.recent-plays-heading {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 0.4rem 0.8rem 0.2rem;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.recent-plays-empty {
-  margin: 0;
-  padding: 0.3rem 0.8rem;
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.recent-plays-row {
-  list-style: none;
-  margin: 0;
-  padding: 0 0.5rem 0.4rem;
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  scrollbar-width: thin;
-}
-
-.recent-plays-row li {
-  flex: 0 0 auto;
-}
-
 /* Short windows (a 720 px laptop, or 150 % zoom): the card preview comes first.
-   Recent plays shrinks to its heading and one row (the list still scrolls), the
-   art gets smaller and the preview takes a bigger share than the log, so the
+   The art gets smaller and the preview takes a bigger share than the log, so the
    effect text reads instead of showing a line or two. */
 @media (max-height: 760px) {
-  .recent-plays {
-    height: 5.3rem;
-  }
-
   .arena.arena-wide .board-col .card-preview {
     flex-grow: 2;
   }
@@ -431,97 +376,6 @@
     font-size: 0.85rem;
     line-height: 1.4;
   }
-}
-
-.recent-play {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.6rem;
-  width: 100%;
-  padding: 0.2rem 0.4rem 0.2rem 0.2rem;
-  border: 1px solid transparent;
-  border-left: 3px solid var(--line);
-  border-radius: var(--radius-6);
-  background: rgba(0, 0, 0, 0.18);
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.recent-play:hover {
-  background: rgb(var(--chrome-bright-rgb) / 0.1);
-}
-
-.recent-play-thumb {
-  flex: 0 0 auto;
-  width: 1.75rem;
-  aspect-ratio: 5 / 7;
-  border-radius: var(--radius-3);
-  overflow: hidden;
-  background: rgba(0, 0, 0, 0.3);
-  color: var(--muted);
-  font-size: 0.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.recent-play-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.recent-play-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 0.1rem;
-}
-
-.recent-play-name {
-  font-size: 0.9rem;
-  font-weight: 600;
-  line-height: 1.2;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.recent-play-meta {
-  font-size: 0.75rem;
-  color: var(--muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.recent-play-you {
-  border-left-color: #4fb3ff;
-}
-
-.recent-play-opp {
-  border-left-color: #ff6b5e;
-}
-
-.recent-play-you .recent-play-who {
-  color: #4fb3ff;
-}
-
-.recent-play-opp .recent-play-who {
-  color: #ff6b5e;
-}
-
-.recent-play-who {
-  font-weight: 700;
-}
-
-.recent-play:focus-visible {
-  outline: 2px solid var(--chrome-bright);
-  outline-offset: 1px;
 }
 
 .arena.arena-wide .board-col .battle-log {

@@ -11,7 +11,7 @@ export type FieldDevice = {
 };
 
 /** The "Show on screen" switches: each hides one non-core element (the Battle log has none). */
-export type ShowKey = "showCardPreview" | "showRecentPlays" | "showChat";
+export type ShowKey = "showCardPreview" | "showChat";
 
 export type ToggleKey =
   | "sortHandByCost"

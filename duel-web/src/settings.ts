@@ -190,8 +190,6 @@ export type DuelSettings = {
    * Off: they float in a strip between the mats.
    */
   actionsBeside: boolean;
-  /** Desktop: the Recent plays panel (the Battle log has no switch). */
-  showRecentPlays: boolean;
   /** Match chat: desktop panel, phone pill, landscape rail button. */
   showChat: boolean;
   /** Desktop: the Card preview panel (the hovered card's art and text, top of the left column). */
@@ -281,7 +279,6 @@ const DEFAULTS: DuelSettings = {
   bigBoard: true,
   bigBoardChosen: false,
   actionsBeside: true,
-  showRecentPlays: true,
   showChat: true,
   showCardPreview: true,
   turnSplash: true,
@@ -329,6 +326,7 @@ function sanitize(
     serverUrl?: unknown;
     joinSecret?: unknown;
     floatingCards?: unknown;
+    showRecentPlays?: unknown;
   },
 ): DuelSettings {
   // serverUrl / joinSecret were dropped with the Connection panel; the build sets both.
@@ -339,6 +337,8 @@ function sanitize(
     serverUrl: _serverUrl,
     joinSecret: _joinSecret,
     floatingCards: _floatingCards,
+    // showRecentPlays was dropped when Recent plays merged into the Battle log (#1243).
+    showRecentPlays: _showRecentPlays,
     ...rest
   } = parsed;
   const next = { ...DEFAULTS, ...rest };

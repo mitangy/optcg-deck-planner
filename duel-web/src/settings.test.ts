@@ -323,6 +323,20 @@ describe("hand, one-tap and text size settings", () => {
   });
 });
 
+describe("retired Recent plays switch (#1243)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("a stored showRecentPlays from before the merge is ignored (#1243)", () => {
+    stubStored({ showRecentPlays: false, showChat: false });
+    const loaded = loadSettings();
+    expect(loaded).not.toHaveProperty("showRecentPlays");
+    expect(loaded.showChat).toBe(false);
+    expect(mergeRemoteSettings(loadSettings(), { showRecentPlays: false })).not.toHaveProperty("showRecentPlays");
+  });
+});
+
 describe("Show on screen and Bigger playing area (#449)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -331,15 +345,14 @@ describe("Show on screen and Bigger playing area (#449)", () => {
   it("follow the account: saved with it and applied from it", () => {
     stubStored({});
     const synced = syncedSettings(loadSettings());
-    expect(synced).toMatchObject({ bigBoard: true, showChat: true, showRecentPlays: true, showCardPreview: true });
+    expect(synced).toMatchObject({ bigBoard: true, showChat: true, showCardPreview: true });
     const merged = mergeRemoteSettings(loadSettings(), {
       bigBoard: true,
       bigBoardChosen: true,
       showChat: false,
-      showRecentPlays: false,
       showCardPreview: false,
     });
-    expect(merged).toMatchObject({ bigBoard: true, showChat: false, showRecentPlays: false, showCardPreview: false });
+    expect(merged).toMatchObject({ bigBoard: true, showChat: false, showCardPreview: false });
   });
 });
 
