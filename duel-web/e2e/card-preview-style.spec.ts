@@ -51,7 +51,7 @@ test("Card text off shows only the art, larger than the small card, with no text
   expect(art.y + art.height).toBeLessThanOrEqual(box.y + box.height + 1);
 });
 
-test("the Show card text beneath card switch shows on desktop only, starts on, and turning it off shows the big card (#1241)", async ({ page }) => {
+test("the Show card text beneath card switch shows on desktop only, starts on, and turning it off shows the big card (#1260)", async ({ page }) => {
   await page.goto("/settings");
   const toggle = page.getByLabel("Show card text beneath card");
   if (test.info().project.name !== "desktop-1280") {
