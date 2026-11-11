@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-11
+  { date: "2026-11-11", app: "duel", pr: 1250, title: "5 more OP18 Baroque Works cards", text: "Mr.2.Bon.Kurei(Bentham), Mr.3 & Miss.Goldenweek, Mr.7 & Miss.Father'sDay, Mr.8 & Ms. Monday and Atomic Dicer are now playable in the duel app. Negating Mr.0 & Ms. All Sunday with a [When Attacking] effect now also stops its [On Your Opponent's Attack]." },
   // 2026-11-10
   { date: "2026-11-10", app: "planner", pr: 1231, title: "Prices show thousands separators", text: "Prices of a thousand dollars or more now read $1,234.56 instead of $1234.56, and the short totals under Est. cost read $2K instead of $2.0k." },
   { date: "2026-11-10", app: "planner", pr: 1230, title: "Copy buttons work on more browsers", text: "Copy list, Copy invite link, Share and Copy log now also work in browsers that block the clipboard, instead of showing an error." },
