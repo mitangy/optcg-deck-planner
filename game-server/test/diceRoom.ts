@@ -346,6 +346,26 @@ export function diceRoomTests(getServer: () => ColyseusTestServer) {
         }),
       ));
 
+    it("a ranked room whose opponent leaves mid-roll after the no-show timer still closes with opponent_no_show (#1206)", () =>
+      withFakeTime(async (time) =>
+        withRoomEnv({ requireGameToken: true, rankedNoShowSeconds: 5 }, async () => {
+          const room = await create({ diceRoll: undefined, seatUserIds: [921, 922] });
+          const c0 = await getServer().connectTo(room, msg({ gameToken: gameToken(921), preferredSeat: 0 }));
+          const c1 = await getServer().connectTo(room, msg({ gameToken: gameToken(922), preferredSeat: 1 }));
+          const [b0, b1] = [attach(c0), attach(c1)];
+          await waitUntil(() => b0.dice.length > 0 && b1.dice.length > 0);
+          // The timer fires while the roll runs and must not close the room.
+          await time.advance(6000);
+          assert.equal(room.dice.active, true);
+          // The opponent leaves by consent: the roll is cancelled and the room waits again.
+          await c1.leave(true);
+          await waitUntil(() => last(b0).step === "cancelled");
+          assert.equal(room.game.matchStarted, false);
+          await time.advance(5000 + 1000);
+          await waitUntil(() => b0.errors.some((e) => e.code === "opponent_no_show"));
+        }),
+      ));
+
     it("a rematch does not roll the dice: the loser chooses and the welcome carries no dice", async () => {
       const { c, b } = await seated([0, 4]);
       c[1].send("dice", msg({ action: "call", call: "high" }));

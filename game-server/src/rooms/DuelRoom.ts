@@ -278,7 +278,13 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   /** Ranked: the paired opponent never claimed their seat, so close the room. */
   private expireNoShow() {
     const { game } = this;
-    if (game.matchStarted || this.dice.active) return;
+    if (game.matchStarted) return;
+    // Mid-roll: not a no-show yet. Check again later, because a seat leaving cancels the roll and
+    // would otherwise leave the room waiting with no timer (#1206).
+    if (this.dice.active) {
+      this.time.setTimeout(() => this.expireNoShow(), this.config.rankedNoShowSeconds * 1000);
+      return;
+    }
     this.log("warn", "opponent_no_show", {
       matchId: game.matchId,
       seats: [this.seats.slot(0)?.userId ?? null, this.seats.slot(1)?.userId ?? null],

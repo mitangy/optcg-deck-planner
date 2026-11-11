@@ -1671,7 +1671,7 @@ export function DuelBoard({
     <div
       className={`board-root arena${yourTurn ? " your-turn" : ""}${oppActive ? " opp-turn" : ""}${
         dragPayload ? " is-dnd" : ""
-      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter && !fanCorner ? " arena-fan-center" : ""}${fanCorner ? " arena-fan-corner" : ""}${specFans === "desktop" ? ` arena-spec-fans${farTop ? " arena-fan-top" : ""}` : ""}${
+      }${wide ? " arena-wide" : ""}${lp ? " arena-lp" : ""}${docked ? " arena-docked" : ""}${sideActions ? " arena-side-actions" : ""}${logPoseSide ? ` arena-lp-dock-${logPoseSide}` : ""}${fanCenter && !fanCorner ? " arena-fan-center" : ""}${fanCenter && !fanCorner && !specFans && prefs.keepHandOpen ? " arena-fan-kept" : ""}${fanCorner ? " arena-fan-corner" : ""}${specFans === "desktop" ? ` arena-spec-fans${farTop ? " arena-fan-top" : ""}` : ""}${
         specFans === "landscape" ? " arena-spec-lp" : ""
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
