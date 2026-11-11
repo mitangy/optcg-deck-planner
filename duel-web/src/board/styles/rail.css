@@ -140,10 +140,6 @@
   min-height: min-content;
 }
 
-.arena.arena-wide .board-panel[data-panel="recent"] {
-  min-height: 4.5rem;
-}
-
 /* Fixed share, so a long ability never moves the panels below it. It only
    gives way (down to a third) when the Grid hand shares its column. */
 .arena.arena-wide .board-panel[data-panel="preview"] {

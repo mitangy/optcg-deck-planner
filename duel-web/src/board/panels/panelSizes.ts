@@ -45,7 +45,6 @@ export const PANEL_MIN_PX = 72;
  */
 export const PANEL_MIN_HEIGHT_PX: Record<PanelId, number> = {
   preview: 140,
-  recent: PANEL_MIN_PX,
   log: 96,
   oppHand: PANEL_MIN_PX,
   turn: PANEL_MIN_PX,
@@ -60,7 +59,6 @@ export const CONTENT_SIZED_PANELS: readonly PanelId[] = ["turn", "oppHand"];
 /** The narrowest each panel reads at: the Turn panel's four stat columns need the most. */
 export const PANEL_MIN_WIDTH_PX: Record<PanelId, number> = {
   preview: 200,
-  recent: 200,
   log: 200,
   oppHand: 200,
   turn: 250,
