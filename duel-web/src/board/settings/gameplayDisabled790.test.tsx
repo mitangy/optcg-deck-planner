@@ -43,6 +43,11 @@ const simpleBoard = () =>
     /Simple board/.test(i.closest("label")?.textContent ?? ""),
   )!;
 
+const keepOpen = () =>
+  Array.from(document.querySelectorAll<HTMLInputElement>(".switch input")).find((i) =>
+    /Keep hand open/.test(i.closest("label")?.textContent ?? ""),
+  );
+
 describe("Gameplay rows that do nothing in this layout (#790)", () => {
   it("grays out Hand layout and Simple board with a note on a phone held sideways, keeping the saved values (#790)", async () => {
     await mount([], { handLayout: "fan", compactOwnBoard: true });
@@ -74,6 +79,34 @@ describe("Gameplay rows that do nothing in this layout (#790)", () => {
     expect(select("hand-layout").disabled).toBe(false);
     expect(notes().some((n) => /grid on the right/.test(n))).toBe(false);
     expect(simpleBoard().disabled).toBe(true);
+  });
+
+  it("lists Keep hand open on a big screen held sideways and keeps it usable with Fan picked (#1262)", async () => {
+    await mount([SIDEWAYS_FAN_QUERY], { handLayout: "fan", keepHandOpen: true });
+    expect(keepOpen()).toBeDefined();
+    expect(keepOpen()!.disabled).toBe(false);
+  });
+
+  it("grays out Keep hand open on a big screen held sideways while Hand layout is not Fan (#1262)", async () => {
+    await mount([SIDEWAYS_FAN_QUERY], { handLayout: "auto", keepHandOpen: true });
+    expect(keepOpen()!.disabled).toBe(true);
+    expect(keepOpen()!.checked).toBe(true);
+    expect(notes().some((n) => /Pick Fan/.test(n))).toBe(true);
+  });
+
+  it("grays out Keep hand open on a big screen held upright (#1262)", async () => {
+    await mount([SIDEWAYS_FAN_QUERY, PORTRAIT_MAT_QUERY], { handLayout: "fan" });
+    expect(keepOpen()!.disabled).toBe(true);
+    expect(notes().some((n) => /held sideways/.test(n))).toBe(true);
+  });
+
+  it("does not list Keep hand open on a phone too small to fan the hand sideways (#1262)", async () => {
+    await mount([], { handLayout: "fan" });
+    expect(keepOpen()).toBeUndefined();
+    await act(async () => root!.unmount());
+    root = null;
+    await mount([PORTRAIT_MAT_QUERY], { handLayout: "fan" });
+    expect(keepOpen()).toBeUndefined();
   });
 
   it("disables nothing on a desktop window (#790)", async () => {

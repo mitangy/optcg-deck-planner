@@ -77,3 +77,28 @@ test("Automatic keeps the hand in the right column on a big screen held sideways
   expect(m.fanCards).toBeNull();
   await context.close();
 });
+
+async function keepOpenRow(browser: Browser, baseURL: string | undefined, width: number, height: number) {
+  const context = await browser.newContext({ baseURL, viewport: { width, height }, hasTouch: true, isMobile: true });
+  const page = await context.newPage();
+  await page.addInitScript(() => localStorage.setItem("optcg-duel:settings", JSON.stringify({ handLayout: "fan" })));
+  await page.goto("/settings");
+  await page.locator("#hand-layout").waitFor();
+  const row = page.locator(".switch", { hasText: "Keep hand open" });
+  const r = { count: await row.count(), disabled: (await row.count()) ? await row.locator("input").isDisabled() : null };
+  await context.close();
+  return r;
+}
+
+test("Settings lists Keep hand open grayed out on an unfolded iPhone Duo held upright (#1262)", async ({ browser, baseURL }) => {
+  expect(await keepOpenRow(browser, baseURL, 669, 825)).toEqual({ count: 1, disabled: true });
+});
+
+test("Settings keeps Keep hand open usable on an unfolded iPhone Duo held sideways with Fan picked (#1262)", async ({ browser, baseURL }) => {
+  expect(await keepOpenRow(browser, baseURL, 890, 626)).toEqual({ count: 1, disabled: false });
+});
+
+test("Settings leaves Keep hand open off a phone too small to fan the hand, upright or sideways (#1262)", async ({ browser, baseURL }) => {
+  expect((await keepOpenRow(browser, baseURL, 375, 812)).count).toBe(0);
+  expect((await keepOpenRow(browser, baseURL, 812, 375)).count).toBe(0);
+});

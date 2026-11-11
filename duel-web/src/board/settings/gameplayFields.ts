@@ -8,7 +8,10 @@ export type FieldDevice = {
   finePointer: boolean;
   /** Portrait phone layout (PORTRAIT_MAT_QUERY): the tall board with the hand under it. */
   portrait: boolean;
-  /** Tall enough for the fanned hand when held sideways (SIDEWAYS_FAN_QUERY): tablets, foldables, big phones. */
+  /**
+   * A big screen that fans the hand when held sideways (SIDEWAYS_FAN_QUERY: tablets, foldables, big phones),
+   * in either orientation, so turning it never makes rows appear or vanish.
+   */
   sidewaysFan?: boolean;
 };
 
@@ -71,8 +74,8 @@ export function toggleShown(key: ToggleKey, d: FieldDevice): boolean {
   if (key === "previewBigCard") return d.desktop;
   // The pop-up replaces that same panel.
   if (key === "previewPopup") return d.desktop;
-  // The tucked-away fan / corner dock only exists on desktop windows.
-  if (key === "keepHandOpen") return d.desktop;
+  // The tucked-away fan / corner dock: desktop windows, and big screens held sideways (#1262).
+  if (key === "keepHandOpen") return d.desktop || d.sidewaysFan === true;
   // Key tabs are only drawn with a mouse and keyboard.
   if (key === "shortcutTags") return d.finePointer;
   // The simplified own mat is the portrait phone layout; a desktop window has no count row.
@@ -265,7 +268,7 @@ export function rowShown(key: RowKey, d: FieldDevice): boolean {
 export function rowDisabledNote(
   key: RowKey,
   d: FieldDevice,
-  s: { compactOwnBoard: boolean },
+  s: { compactOwnBoard: boolean; handLayout?: string },
 ): string | null {
   const sideways = !d.desktop && !d.portrait;
   switch (key) {
@@ -273,6 +276,11 @@ export function rowDisabledNote(
       return sideways && !d.sidewaysFan ? "Sideways, your hand is always the grid on the right." : null;
     case "compactOwnBoard":
       return sideways ? "Only for phones held upright." : null;
+    // Listed on big screens (#1262): the fan that tucks away is only drawn there sideways, with Fan picked.
+    case "keepHandOpen":
+      if (d.desktop) return null;
+      if (d.portrait) return "Only when the screen is held sideways.";
+      return s.handLayout === "fan" ? null : "Pick Fan in Hand layout to use this.";
     case "lifeFan":
       return d.portrait && s.compactOwnBoard
         ? "Simple board shows Life as a count. Turn it off to use this."
