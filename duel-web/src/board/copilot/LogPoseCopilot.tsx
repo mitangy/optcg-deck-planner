@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { createStore } from "../../lib/createStore";
 import { ticketGameKey, useLogPose, useLogPoseGame, type ChoiceAnswer, type GameAskResult, type GameChatContext, type LogPoseGame, type TurnPlan } from "@optcg/analyst-client";
 import { lookupCard } from "../../cards/atlas";
 import { setBoardCopilot } from "../../logPose";
@@ -50,25 +51,23 @@ type CopilotSnap = {
   auto: "waiting" | "asking" | null;
 };
 
-function createStore() {
-  let snap: CopilotSnap = { view: null, run: null, finished: {}, auto: null };
-  const listeners = new Set<() => void>();
+function createCopilotStore() {
+  const base = createStore<CopilotSnap>({ view: null, run: null, finished: {}, auto: null });
   return {
-    get: () => snap,
+    get: base.get,
     set(patch: Partial<CopilotSnap>) {
-      snap = { ...snap, ...patch };
-      // A run that ended is remembered under its plan, whatever ended it.
-      const run = snap.run;
-      if (run && (run.state === "done" || run.state === "stopped") && snap.finished[run.plan.id] !== run) snap = { ...snap, finished: { ...snap.finished, [run.plan.id]: run } };
-      for (const l of listeners) l();
+      base.set((prev) => {
+        let snap = { ...prev, ...patch };
+        // A run that ended is remembered under its plan, whatever ended it.
+        const run = snap.run;
+        if (run && (run.state === "done" || run.state === "stopped") && snap.finished[run.plan.id] !== run) snap = { ...snap, finished: { ...snap.finished, [run.plan.id]: run } };
+        return snap;
+      });
     },
-    subscribe(l: () => void) {
-      listeners.add(l);
-      return () => listeners.delete(l);
-    },
+    subscribe: base.subscribe,
   };
 }
-type Store = ReturnType<typeof createStore>;
+type Store = ReturnType<typeof createCopilotStore>;
 
 type Actions = { play: (plan: TurnPlan) => void; stop: () => void; skip: () => void };
 
@@ -254,7 +253,7 @@ export function useLogPoseCopilot(o: {
   const attached = gameAttached({ ...gate, briefSetting: settings.matchBrief });
   const shown = copilotShown({ ...gate, viewSeat: view?.seat });
 
-  const store = useMemo(createStore, []);
+  const store = useMemo(createCopilotStore, []);
   const ticketRef = useRef<string | null>(null);
   ticketRef.current = brief?.ticket ?? null;
   const gameKeyNow = () => (ticketRef.current ? ticketGameKey(ticketRef.current) : null);

@@ -1,5 +1,5 @@
 /** Where duel-web shows the Log Pose chat, and what each page tells it. */
-import { useSyncExternalStore } from "react";
+import { createStore } from "./lib/createStore";
 import type { DeckContext, LogPosePage, ParsedSource, SourceHooks } from "@optcg/analyst-client";
 import { lookupCard } from "./cards/atlas";
 
@@ -23,13 +23,13 @@ export function logPoseChromeFor(pathname: string, boardBrief: boolean): { hidde
 
 /** Why the board on screen lets Log Pose's panel open over it: a matchup brief, the copilot, or both. */
 const boardReasons = new Set<"brief" | "copilot">();
-const boardBriefListeners = new Set<() => void>();
+const boardOpens = createStore(false);
 
 function setBoardReason(reason: "brief" | "copilot", on: boolean): void {
   if (boardReasons.has(reason) === on) return;
   if (on) boardReasons.add(reason);
   else boardReasons.delete(reason);
-  for (const l of boardBriefListeners) l();
+  boardOpens.set(boardReasons.size > 0);
 }
 
 /** A board with a matchup brief mounted says so here, so the app can let Log Pose's panel open over it. */
@@ -48,14 +48,7 @@ export function boardOpensLogPose(): boolean {
 }
 
 export function useBoardBrief(): boolean {
-  return useSyncExternalStore(
-    (l) => {
-      boardBriefListeners.add(l);
-      return () => boardBriefListeners.delete(l);
-    },
-    boardOpensLogPose,
-    () => false,
-  );
+  return boardOpens.use();
 }
 
 /** Starter prompts and page id for routes whose page doesn't register its own context. */

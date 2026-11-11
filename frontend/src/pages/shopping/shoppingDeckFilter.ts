@@ -1,3 +1,4 @@
+import { readStored, writeStored } from "@optcg/ui/storage";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../api";
 import { SHOPPING_DECKS_KEY } from "../../storage/keys";
@@ -5,7 +6,7 @@ import { qk } from "../../cache/queryKeys";
 
 export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
   try {
-    const raw = localStorage.getItem(SHOPPING_DECKS_KEY);
+    const raw = readStored(SHOPPING_DECKS_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as number[];
     if (!Array.isArray(parsed)) return null;
@@ -20,11 +21,8 @@ export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
 }
 
 export function saveShoppingDeckFilter(ids: number[]): void {
-  try {
-    localStorage.setItem(SHOPPING_DECKS_KEY, JSON.stringify(ids));
-  } catch {
-    /* private mode / blocked storage: the choice still applies for this visit */
-  }
+  // Blocked storage: the choice still applies for this visit.
+  writeStored(SHOPPING_DECKS_KEY, JSON.stringify(ids));
 }
 
 /**

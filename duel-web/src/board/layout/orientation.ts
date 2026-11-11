@@ -1,5 +1,6 @@
-import { useSyncExternalStore } from "react";
+import { createStore } from "../../lib/createStore";
 import type { ScreenOrientationPref } from "../../settings";
+import { readStored, writeStored } from "@optcg/ui/storage";
 
 /** The lock to ask the browser for, or null (follow the phone / nothing to lock with). */
 export function orientationLockTarget(
@@ -49,18 +50,10 @@ export function lockApiAvailable(): boolean {
   return lockable() != null;
 }
 
-let lockFailed = false;
-const listeners = new Set<() => void>();
+const lockFailed = createStore(false);
 
 function setLockFailed(v: boolean) {
-  if (lockFailed === v) return;
-  lockFailed = v;
-  for (const l of listeners) l();
-}
-
-function subscribe(cb: () => void): () => void {
-  listeners.add(cb);
-  return () => listeners.delete(cb);
+  lockFailed.set(v);
 }
 
 /** Free the orientation (leaving the match, or back to "follow my phone"). */
@@ -94,28 +87,17 @@ export async function syncOrientationLock(setting: ScreenOrientationPref): Promi
 
 /** True when the settings should tell the player the lock is unavailable. */
 export function useLockNote(setting: ScreenOrientationPref): boolean {
-  const failed = useSyncExternalStore(
-    subscribe,
-    () => lockFailed,
-    () => false,
-  );
+  const failed = lockFailed.use();
   return lockNoteVisible(setting, lockApiAvailable(), failed);
 }
 
 const SEEN_KEY = "optcg-duel:rotate-hint-seen";
 
 export function rotateHintSeen(): boolean {
-  try {
-    return localStorage.getItem(SEEN_KEY) === "1";
-  } catch {
-    return false;
-  }
+  return readStored(SEEN_KEY) === "1";
 }
 
 export function markRotateHintSeen(): void {
-  try {
-    localStorage.setItem(SEEN_KEY, "1");
-  } catch {
-    // Private mode: the hint may show again next visit.
-  }
+  // Private mode: the hint may show again next visit.
+  writeStored(SEEN_KEY, "1");
 }

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { CardView, money } from "../../api";
 import { deckRemainingMarket } from "../shopping/deckCost";
 import { DECK_PROGRESS_MODE_KEY } from "../../storage/keys";
-import { choiceCodec, usePersistedState } from "../../storage/persisted";
+import { choiceCodec, usePersistedState } from "@optcg/ui/storage";
 
 type DeckProgressMode = "copies" | "uniques";
 
