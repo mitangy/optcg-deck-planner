@@ -285,11 +285,7 @@
   white-space: nowrap;
 }
 
-/* Collector toggle on alt tiles (#1035): same footprint pressed or not. It adds a row to each tile, so the scroll box grows with it. */
-.alt-arts.alt-arts-collect {
-  --alt-tile-h: 146px;
-}
-
+/* Collector toggle on alt tiles (#1035): same footprint pressed or not. */
 .alt-collector-btn {
   box-sizing: border-box;
   display: inline-flex;
