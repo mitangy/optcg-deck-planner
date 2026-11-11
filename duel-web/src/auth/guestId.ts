@@ -1,3 +1,4 @@
+import { readStored, writeStored } from "@optcg/ui/storage";
 /** Stable browser guest id for duel rating continuity (localStorage). */
 
 const KEY = "optcg.duel.guestId.v1";
@@ -21,22 +22,14 @@ function randomId(): string {
 
 export function getOrCreateGuestId(): string {
   if (isAutomatedBrowser()) return AUTOMATION_GUEST_ID;
-  try {
-    const existing = localStorage.getItem(KEY);
-    if (existing && /^[a-zA-Z0-9_-]{8,64}$/.test(existing)) return existing;
-    const next = randomId();
-    localStorage.setItem(KEY, next);
-    return next;
-  } catch {
-    return randomId();
-  }
+  const existing = readStored(KEY);
+  if (existing && /^[a-zA-Z0-9_-]{8,64}$/.test(existing)) return existing;
+  const next = randomId();
+  writeStored(KEY, next);
+  return next;
 }
 
 export function peekGuestId(): string | null {
   if (isAutomatedBrowser()) return AUTOMATION_GUEST_ID;
-  try {
-    return localStorage.getItem(KEY);
-  } catch {
-    return null;
-  }
+  return readStored(KEY);
 }
