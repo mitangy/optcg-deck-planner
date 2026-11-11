@@ -274,7 +274,7 @@ export function diceRoomTests(getServer: () => ColyseusTestServer) {
       assert.equal(rollers.size, 2);
     });
 
-    it("leaving during the opening dice roll forfeits the match to the player who stayed (#0)", () =>
+    it("leaving during the opening dice roll forfeits the match to the player who stayed (#1264)", () =>
       withFakeTime(async (time) =>
         withRoomEnv({ requireGameToken: true, rankedNoShowSeconds: 600 }, async () => {
           const room = await create({ diceRoll: undefined, seatUserIds: [921, 922] });
