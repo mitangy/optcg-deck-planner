@@ -5,6 +5,10 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // The action button is the turn indicator; the Turn card's big heading is for spectators and Match over (#1247)
+    {"id": "turnhead1247-players-get-heading", "file": "duel-web/src/board/panels/TurnStatusPanel.tsx", "from": "const showTitle = spectating || over;", "to": "const showTitle = true;", "kills": ["a player on the opponent's turn gets no big heading, the button says it (#1247)"], "args": "src/board/panels/turnStatusTitle"},
+    {"id": "turnhead1247-spectator-loses-heading", "file": "duel-web/src/board/panels/TurnStatusPanel.tsx", "from": "const showTitle = spectating || over;", "to": "const showTitle = over;", "kills": ["a spectator, who has no button, still gets the whose-turn heading (#1247)"], "args": "src/board/panels/turnStatusTitle"},
+    {"id": "turnhead1247-over-loses-heading", "file": "duel-web/src/board/panels/TurnStatusPanel.tsx", "from": "const showTitle = spectating || over;", "to": "const showTitle = spectating;", "kills": ["a finished match still says Match over (#1247)"], "args": "src/board/panels/turnStatusTitle"},
     {"id": "auth1119-5xx-is-signed-out", "file": "duel-web/src/net/api.ts", "from": "    if (e instanceof ApiError && (e.status === 401 || e.status === 403)) return null;\n    throw e;\n", "to": "    return null;\n", "kills": ["a 502 on re-check keeps a signed-in player signed in (#1119)", "a 502 on first load is not cached: the next ensureAuth asks again (#1119)"], "args": "src/auth/sessionHttp"},
     {"id": "art1002-label-reads-deck-only", "file": "duel-web/src/decks/artPrefs.ts", "from": "const id = deck.artPrefs?.[defId] ?? getArtPrefs()[defId];", "to": "const id = deck.artPrefs?.[defId];", "kills": ["the Artwork label follows an alt picked in a game when the deck has no pref (#1002)"]},
     {"id": "art1002-standard-deletes-pref", "file": "duel-web/src/decks/artPrefs.ts", "from": "if (!altId && getArtPrefs()[defId]) {", "to": "if (false) {", "kills": ["choosing Standard in a deck beats a global alt for the label and the image (#1002)"]},
