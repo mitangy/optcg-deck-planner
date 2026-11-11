@@ -395,6 +395,8 @@ export type GroupBuyLine = {
   my_excluded?: boolean;
   /** Viewer's play Need for this card — caps alt want steppers. */
   my_need?: number;
+  /** The viewer's own selected decks that use the card (#1266). */
+  my_used_in?: string[];
 };
 
 export type GroupBuySummary = {

@@ -45,6 +45,25 @@ describe("myArtSplit", () => {
   });
 });
 
+describe("myArtSplit with owned alt copies", () => {
+  const owned = (a: PrintingView, o: number, collector = 0): PrintingView => ({ ...a, owned: o, collector });
+
+  it("an owned alt copy covers part of the Want (#1263)", () => {
+    const l = line(5, [owned(alt(2, "Manga", 9, 4), 1)]);
+    const s = myArtSplit(l);
+    expect(s.base).toBe(2);
+    expect(s.alts.map((a) => [a.product_id, a.qty])).toEqual([[2, 3]]);
+    expect(mySelectedArtsTotal(l).total).toBe(2 * 1 + 3 * 9);
+  });
+
+  it("an owned copy claimed by an Extra copy does not cover the Want (#1263)", () => {
+    const l = line(5, [owned(alt(2, "Manga", 9, 4), 1, 1)]);
+    const s = myArtSplit(l);
+    expect(s.base).toBe(1);
+    expect(s.alts.map((a) => [a.product_id, a.qty])).toEqual([[2, 4]]);
+  });
+});
+
 describe("mySelectedArtsTotal", () => {
   it("sums base at the preferred price plus each picked alt (#850)", () => {
     const t = mySelectedArtsTotal(line(3, [alt(2, "Manga", 9, 1)]));

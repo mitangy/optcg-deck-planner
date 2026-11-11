@@ -98,6 +98,8 @@ class GroupBuyLineOut(BaseModel):
     my_excluded: bool = False
     # Viewer's play Need for this card (max across their contribution decks) — alt want cap.
     my_need: int = 0
+    # Viewer's own selected decks that use the card (never other members' decks, #1266).
+    my_used_in: list[str] = []
 
 
 class GroupBuySummary(BaseModel):

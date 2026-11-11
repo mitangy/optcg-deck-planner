@@ -16,13 +16,16 @@ export type MyArtSplit = {
 /**
  * How the viewer's buy qty splits across arts. Mirrors the backend
  * (`allocate_still_need_buys`): alt wants are filled first, in alt-list order,
- * each capped by what is left of the buy qty; the remainder is the base art.
+ * each reduced by the copies of that alt you own (minus those an Extra copy
+ * claims) and capped by what is left of the buy qty; the remainder is the base art (#1263).
  */
 export function myArtSplit(line: ArtLine): MyArtSplit {
   let left = Math.max(0, line.my_qty);
   const alts: MyArtSplit["alts"] = [];
   for (const alt of line.alt_arts ?? []) {
-    const qty = Math.min(Math.max(0, alt.wanted ?? 0), left);
+    const owned = Math.max(0, alt.owned ?? 0);
+    const usableOwned = owned - Math.min(owned, Math.max(0, alt.collector ?? 0));
+    const qty = Math.min(Math.max(0, (alt.wanted ?? 0) - usableOwned), left);
     if (qty <= 0) continue;
     left -= qty;
     alts.push({ product_id: alt.product_id, name: alt.name, qty, price: alt.market_price });
