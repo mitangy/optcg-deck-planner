@@ -55,7 +55,6 @@ const NO_TCGPLAYER_PRODUCT_YET: string[] = [
   "OP18-033",
   "OP18-035",
   "OP18-037",
-  "OP18-038",
   "OP18-039",
   "OP18-042",
   "OP18-043",
