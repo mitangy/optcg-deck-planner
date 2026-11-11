@@ -5,7 +5,7 @@ import { clearColumnSort } from "./columnSort";
 import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 
 import { CARD_SORTS_KEY, FILTERS_OPEN_KEY, SHOW_ALT_ARTS_KEY } from "../storage/keys";
-import { bool01, choiceCodec, usePersistedState, type PersistedCodec } from "../storage/persisted";
+import { bool01, choiceCodec, readStored, usePersistedState, writeStored, type PersistedCodec } from "@optcg/ui/storage";
 
 /** Alt arts are shown unless the visitor turned them off. */
 export function showAltArtsFromStored(raw: string | null): boolean {
@@ -111,7 +111,7 @@ type CardSortOptions = {
 
 function loadCardSorts(storageKey: string, keys: SortKey[], defaults: SortKey[]): SortKey[] {
   try {
-    const raw = localStorage.getItem(storageKey);
+    const raw = readStored(storageKey);
     if (!raw) return defaults;
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return defaults;
@@ -135,11 +135,7 @@ export function useCardSorts(
   }, [onlyNeed]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(storageKey, JSON.stringify(sorts));
-    } catch {
-      /* ignore */
-    }
+    writeStored(storageKey, JSON.stringify(sorts));
   }, [sorts, storageKey]);
 
   const effectiveSorts = useMemo(

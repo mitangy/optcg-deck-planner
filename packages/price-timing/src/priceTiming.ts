@@ -1,3 +1,5 @@
+import { formatMoney } from "@optcg/card-core";
+
 /** Dates are ISO "YYYY-MM-DD" strings, read as UTC. */
 export type PricePoint = { date: string; price: number };
 
@@ -64,7 +66,7 @@ const SETTLED_DAY = 180;
 const WAIT_DROP = 0.15;
 const SOON_DROP = 0.1;
 
-const money = (x: number) => `$${x.toFixed(2)}`;
+const money = formatMoney;
 
 function lastDays(points: PricePoint[], today: string, days: number): PricePoint[] {
   const to = dayNumber(today);
