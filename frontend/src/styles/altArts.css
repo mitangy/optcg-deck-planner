@@ -9,9 +9,22 @@
   --alt-tile-h: 122px;
 }
 
+/* A grid, not a wrapping flex row (#1280): every row is as tall as the tallest tile in the list, so tiles
+   match even when each sits on its own row (phone list) and Show lines up across the list. It sits inside
+   .alt-arts so the #877 scroll cap's max-height never squeezes the rows (fr rows shrink to fit a max-height). */
+.alt-arts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, min(var(--alt-tile-w), 100%));
+  grid-auto-rows: 1fr;
+  gap: 0.55rem;
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+}
+
 /* Planner tiles with the Extra copy toggle (#1035) carry one more row. */
 .alt-arts.alt-arts-collect {
-  --alt-tile-h: 150px;
+  --alt-tile-h: 152px;
 }
 
 .alt-art {
@@ -19,7 +32,7 @@
   flex-direction: column;
   align-items: stretch;
   gap: 0.3rem;
-  width: min(var(--alt-tile-w), 100%);
+  width: 100%;
   min-height: var(--alt-tile-h);
   min-width: 0;
   padding: 0.3rem 0.35rem;
@@ -52,12 +65,22 @@
   max-width: 100%;
 }
 
-/* Footer across the tile: who-wants chips / Skipped badge, then Show. Pinned to the tile's bottom edge. */
+/* The price, labels and Owned / Want caption all start at one left edge (#1280). */
+.alt-art .alt-want-controls {
+  align-items: flex-start;
+}
+
+.alt-art .alt-meta .market-price-btn {
+  padding-left: 0;
+}
+
+/* Footer across the tile: Extra copy, who-wants chips / Skipped badge, then Show. Pinned to the tile's bottom
+   edge. Its buttons all take the tile's full width, so they match and never spill past the tile (#1280). */
 .alt-art-foot {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
   gap: 0.2rem 0.35rem;
   margin-top: auto;
   min-width: 0;
@@ -75,8 +98,20 @@
   display: none;
 }
 
-.alt-art-foot > :is(.alt-show-btn, .alt-shown-chip) {
+.alt-art-foot > :is(.alt-show-btn, .alt-shown-chip, .alt-collector-btn, .alt-extra-pop, .alt-collector) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
   margin-top: 0;
+}
+
+.alt-art-foot > .alt-extra-pop > .alt-collector-btn {
+  width: 100%;
+  max-width: none;
+}
+
+.alt-art-foot > .alt-collector {
+  text-align: center;
 }
 
 /* The page content is capped near 1160px at every viewport, so Master Shopping (the widest table) always

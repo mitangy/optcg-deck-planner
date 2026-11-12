@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-12
+  { date: "2026-11-12", app: "planner", pr: 1280, title: "Alt art tiles line up", text: "Every alt art tile for a card is now the same height, also on phones where each tile has its own row. + Extra copy and Show are the same full width on every tile, so ★ Extra copy no longer spills past the edge, and the price, labels and Owned or Want all start at one left edge." },
   // 2026-11-11
   { date: "2026-11-11", app: "planner", pr: 1242, title: "Shoot Down That Flag. in the planner, and a new Karoo alt art", text: "OP18-038 Shoot Down That Flag. now has its TCGPlayer price in the planner, and the new Karoo (OP18-001) alt art is available." },
   { date: "2026-11-11", app: "duel", pr: 1278, title: "Every OP18 card is in", text: "The other 44 OP18 cards are now in the duel app and the planner with their official English text and pictures, so the whole set is playable, including Monkey.D.Luffy (OP18-118), Kaku, Senor Pink, Trebol, Catarina Devon, Oars and Abyss Pentagram." },
