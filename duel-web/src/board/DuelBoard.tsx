@@ -1706,15 +1706,6 @@ export function DuelBoard({
 
       {copilot.pill}
 
-      {mulliganBody && !sideActions ? (
-        <div
-          className={`mulligan-banner${view.you.mulliganDone ? "" : " mulligan-banner-explainer"}`}
-          role="status"
-        >
-          {mulliganBody}
-        </div>
-      ) : null}
-
       <div className="arena-body" ref={arenaBodyRef}>
         {panelDrag.overlay}
         {lp ? (
@@ -1747,6 +1738,15 @@ export function DuelBoard({
         ) : null}
 
         <div className="playmat" ref={playmatRef} data-mat-drop={wide && !lp ? "" : undefined}>
+          {/* Floats over the top of the board, so it never pushes the mats down. */}
+          {mulliganBody && !sideActions ? (
+            <div
+              className={`mulligan-banner${view.you.mulliganDone ? "" : " mulligan-banner-explainer"}`}
+              role="status"
+            >
+              {mulliganBody}
+            </div>
+          ) : null}
           <div className="playmat-inner">
             {farHand && specFans === "portrait" ? (
               <SpectatorFarHand cards={farHand} ownerSeat={oppSeat} mode="portrait" name={seatLabel(players, oppSeat)} />
