@@ -1,20 +1,36 @@
 /* —— Mulligan —— */
+/* Overlays the top of the playmat instead of sitting in flow above it, so the
+   board does not jump down at the start of a game and back up after Keep. */
 .mulligan-banner {
-  margin: 0.5rem 0.75rem 0;
+  position: absolute;
+  top: 0.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(calc(100% - 1.5rem), 46rem);
+  box-sizing: border-box;
+  /* Above the board's own controls (Battle log toggle), under the hand and dock. */
+  z-index: calc(var(--z-log) + 1);
+  pointer-events: none;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
   padding: 0.65rem 0.85rem;
   border: 1px solid rgb(var(--chrome-rgb) / 0.45);
   border-radius: var(--radius-8);
-  background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.16), rgba(20, 28, 24, 0.9));
+  background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.16), rgba(20, 28, 24, 0.94)), var(--arena-panel);
   color: var(--ink);
   font-size: 0.82rem;
   line-height: 1.35;
+}
+
+/* Phone portrait: start under the opponent hand / Battle log row so neither is covered. */
+.arena:not(.arena-wide):not(.arena-lp) .mulligan-banner {
+  top: calc(var(--hint-h, 1.35rem) + 0.85rem);
 }
 
 .mulligan-banner strong {
   color: var(--chrome-bright);
 }
 
-/* Small phones: the explainer would squeeze the board to a thumbnail. The
+/* Small phones: the explainer would cover most of the board. The
    turn-order splash, the "Going 1st" badge and the Mulligan / Keep buttons
    already say it, so it is left out there. */
 @media (max-width: 359px) {

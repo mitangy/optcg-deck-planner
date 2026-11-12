@@ -267,12 +267,14 @@ export function AltArtsRow({
       )
     ) : null;
 
-  /* One footer on every tile (#1270): who-wants chips / Skipped badge, then Show, across the tile's width. */
-  const tileFoot = (productId: number, name: string) => {
+  /* One footer on every tile (#1270): Extra copy, who-wants chips / Skipped badge, then Show, each across the
+     tile's full width so the buttons match and never spill past the tile edge (#1280). */
+  const tileFoot = (productId: number, name: string, collector: ReactNode = null) => {
     const show = showControl(productId, name);
-    if (!tileExtra && !show) return null;
+    if (!tileExtra && !show && !collector) return null;
     return (
       <div className="alt-art-foot">
+        {collector}
         {tileExtra ? <div className="alt-art-extra">{tileExtra(productId)}</div> : null}
         {show}
       </div>
@@ -281,123 +283,126 @@ export function AltArtsRow({
 
   return (
     <div className={onCollectorChange ? "alt-arts alt-arts-collect" : "alt-arts"}>
-      {base && (
-        <div className="alt-art alt-art-base">
-          <div className="alt-art-main">
-            <CardThumb src={base.image_url || undefined} cardId={cardId} alt={`${base.name} base art`} productId={0} />
-            <div className="alt-meta">
-              <MarketPrice price={base.market_price} productId={base.product_id} />
-              <span className="alt-base-label">Base</span>
-              {baseOwnedControl}
-            </div>
-          </div>
-          {tileFoot(0, `${base.name} base art`)}
-        </div>
-      )}
-      {list.map((alt) => {
-        const wanted = alt.wanted ?? 0;
-        const owned = alt.owned ?? 0;
-        const busy = busyProductId === alt.product_id;
-        return (
-          <div key={alt.product_id} className="alt-art">
+      <div className="alt-arts-grid">
+        {base && (
+          <div className="alt-art alt-art-base">
             <div className="alt-art-main">
-              <CardThumb src={alt.image_url || undefined} cardId={cardId} alt={alt.name} productId={alt.product_id} />
+              <CardThumb src={base.image_url || undefined} cardId={cardId} alt={`${base.name} base art`} productId={0} />
               <div className="alt-meta">
-                <MarketPrice price={alt.market_price} productId={alt.product_id} />
-                {showBuyPicks && wanted > 0 ? (
-                  <span className="alt-want-label" title="Copies on your list that you buy as this art">
-                    Buying ×{wanted}
-                  </span>
-                ) : null}
-                {alt.tcgplayer_url ? (
-                  <a href={alt.tcgplayer_url} target="_blank" rel="noreferrer" title={alt.name}>
-                    Alt
-                  </a>
-                ) : (
-                  <span className="muted" title={alt.name}>
-                    Alt
-                  </span>
-                )}
-                {editable && onOwnedChange ? (
-                  <AltStepper
-                    caption="Owned"
-                    verb="owned"
-                    name={alt.name}
-                    value={owned}
-                    busy={busy}
-                    onChange={(qty) => onOwnedChange(alt.product_id, qty)}
-                  />
-                ) : editable && onWantChange ? (
-                  <AltStepper
-                    caption={owned > 0 ? `Want · own ${owned}` : "Want"}
-                    verb="want"
-                    name={alt.name}
-                    value={wanted}
-                    busy={busy}
-                    disableInc={atCap || blockWantInc}
-                    incTitle={
-                      blockWantInc
-                        ? blockWantIncTitle
-                        : atCap
-                          ? `Cannot exceed Need (${cardNeeded})`
-                          : undefined
-                    }
-                    onChange={(qty) => onWantChange(alt.product_id, qty)}
-                  />
-                ) : onWantChange ? (
-                  wanted > 0 ? (
-                    <span className="alt-want-label" title="Wanted for play in deck">
-                      Want ×{wanted}
-                    </span>
-                  ) : null
-                ) : owned > 0 ? (
-                  <span className="alt-want-label" title="Copies of this alt you own">
-                    Own ×{owned}
-                  </span>
-                ) : null}
-                {onCollectorChange ? (
-                  (alt.collector ?? 0) > 0 ? (
-                    <button
-                      type="button"
-                      className="alt-collector-btn is-on"
-                      aria-pressed={true}
-                      aria-label={`Remove extra ${alt.name}`}
-                      title="Remove the extra copy"
-                      disabled={collectorBusyProductId === alt.product_id}
-                      onClick={() => onCollectorChange(alt.product_id, 0)}
-                    >
-                      ★ Extra copy{(alt.collector ?? 0) > 1 ? ` ×${alt.collector}` : ""}
-                    </button>
-                  ) : wanted > 0 ? (
-                    <ExtraCopyConfirm
-                      name={alt.name}
-                      disabled={collectorBusyProductId === alt.product_id}
-                      onConfirm={() => onCollectorChange(alt.product_id, 1)}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="alt-collector-btn"
-                      aria-pressed={false}
-                      aria-label={`Want an extra ${alt.name} on top of your decks`}
-                      title="Want one more copy of this art, on top of what your decks need"
-                      disabled={collectorBusyProductId === alt.product_id}
-                      onClick={() => onCollectorChange(alt.product_id, 1)}
-                    >
-                      + Extra copy
-                    </button>
-                  )
-                ) : (alt.collector ?? 0) > 0 ? (
-                  <span className="alt-collector" title="You want one more copy of this art, on top of your decks">
-                    ★ Extra copy
-                  </span>
-                ) : null}
+                <MarketPrice price={base.market_price} productId={base.product_id} />
+                <span className="alt-base-label">Base</span>
+                {baseOwnedControl}
               </div>
             </div>
-            {tileFoot(alt.product_id, alt.name)}
+            {tileFoot(0, `${base.name} base art`)}
           </div>
-        );
-      })}
+        )}
+        {list.map((alt) => {
+          const wanted = alt.wanted ?? 0;
+          const owned = alt.owned ?? 0;
+          const busy = busyProductId === alt.product_id;
+          const collector =
+            onCollectorChange ? (
+              (alt.collector ?? 0) > 0 ? (
+                <button
+                  type="button"
+                  className="alt-collector-btn is-on"
+                  aria-pressed={true}
+                  aria-label={`Remove extra ${alt.name}`}
+                  title="Remove the extra copy"
+                  disabled={collectorBusyProductId === alt.product_id}
+                  onClick={() => onCollectorChange(alt.product_id, 0)}
+                >
+                  ★ Extra copy{(alt.collector ?? 0) > 1 ? ` ×${alt.collector}` : ""}
+                </button>
+              ) : wanted > 0 ? (
+                <ExtraCopyConfirm
+                  name={alt.name}
+                  disabled={collectorBusyProductId === alt.product_id}
+                  onConfirm={() => onCollectorChange(alt.product_id, 1)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  className="alt-collector-btn"
+                  aria-pressed={false}
+                  aria-label={`Want an extra ${alt.name} on top of your decks`}
+                  title="Want one more copy of this art, on top of what your decks need"
+                  disabled={collectorBusyProductId === alt.product_id}
+                  onClick={() => onCollectorChange(alt.product_id, 1)}
+                >
+                  + Extra copy
+                </button>
+              )
+            ) : (alt.collector ?? 0) > 0 ? (
+              <span className="alt-collector" title="You want one more copy of this art, on top of your decks">
+                ★ Extra copy
+              </span>
+            ) : null;
+          return (
+            <div key={alt.product_id} className="alt-art">
+              <div className="alt-art-main">
+                <CardThumb src={alt.image_url || undefined} cardId={cardId} alt={alt.name} productId={alt.product_id} />
+                <div className="alt-meta">
+                  <MarketPrice price={alt.market_price} productId={alt.product_id} />
+                  {showBuyPicks && wanted > 0 ? (
+                    <span className="alt-want-label" title="Copies on your list that you buy as this art">
+                      Buying ×{wanted}
+                    </span>
+                  ) : null}
+                  {alt.tcgplayer_url ? (
+                    <a href={alt.tcgplayer_url} target="_blank" rel="noreferrer" title={alt.name}>
+                      Alt
+                    </a>
+                  ) : (
+                    <span className="muted" title={alt.name}>
+                      Alt
+                    </span>
+                  )}
+                  {editable && onOwnedChange ? (
+                    <AltStepper
+                      caption="Owned"
+                      verb="owned"
+                      name={alt.name}
+                      value={owned}
+                      busy={busy}
+                      onChange={(qty) => onOwnedChange(alt.product_id, qty)}
+                    />
+                  ) : editable && onWantChange ? (
+                    <AltStepper
+                      caption={owned > 0 ? `Want · own ${owned}` : "Want"}
+                      verb="want"
+                      name={alt.name}
+                      value={wanted}
+                      busy={busy}
+                      disableInc={atCap || blockWantInc}
+                      incTitle={
+                        blockWantInc
+                          ? blockWantIncTitle
+                          : atCap
+                            ? `Cannot exceed Need (${cardNeeded})`
+                            : undefined
+                      }
+                      onChange={(qty) => onWantChange(alt.product_id, qty)}
+                    />
+                  ) : onWantChange ? (
+                    wanted > 0 ? (
+                      <span className="alt-want-label" title="Wanted for play in deck">
+                        Want ×{wanted}
+                      </span>
+                    ) : null
+                  ) : owned > 0 ? (
+                    <span className="alt-want-label" title="Copies of this alt you own">
+                      Own ×{owned}
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              {tileFoot(alt.product_id, alt.name, collector)}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
