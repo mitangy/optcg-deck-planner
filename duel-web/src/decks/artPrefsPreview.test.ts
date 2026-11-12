@@ -15,9 +15,9 @@ import { resolveCardImageUrl } from "./artPrefs";
 
 describe("resolveCardImageUrl preview art", () => {
   it("a card with no image URL uses its preview as the primary art (#575)", () => {
-    expect(resolveCardImageUrl("OP18-021", null)).toBe("/cards/preview/OP18-021.webp");
-    expect(resolveCardImageUrl("OP18-021", { deck: null, size: "large" })).toBe(
-      "/cards/preview/OP18-021.webp",
+    expect(resolveCardImageUrl("OP18-003", null)).toBe("/cards/preview/OP18-003.webp");
+    expect(resolveCardImageUrl("OP18-003", { deck: null, size: "large" })).toBe(
+      "/cards/preview/OP18-003.webp",
     );
   });
 

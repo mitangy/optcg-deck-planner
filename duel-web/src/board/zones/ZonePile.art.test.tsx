@@ -4,13 +4,14 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { isPreviewArtPath } from "@optcg/ui/cardArt";
 import previewIds from "../../../../packages/ui/src/cardArt/previewArt.json";
+import catalog from "../../assets/cardCatalog.json";
 import { resolveCardImageUrl } from "../../decks/artPrefs";
 import { lifeFaceArt, ZonePile } from "./ZonePile";
 
 // A card with preview art and a TCGPlayer image in the catalog: the first try is the
 // TCGPlayer CDN (which can 403 for new cards), then the thumbnail falls back to the preview.
 // Taken from the preview list, so it follows sync_preview_art.py as previews come and go.
-const PREVIEWED = previewIds[0]!;
+const PREVIEWED = previewIds.find((id) => (catalog as Record<string, { imageUrl?: string }>)[id]?.imageUrl)!;
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;

@@ -1,8 +1,117 @@
-/* Alt tiles in the table's last column (#877): same on Shopping, Collection, deck and group buys.
-   Up to ~5 tiles show, then the column scrolls inside the row instead of stretching it. */
-.data-table td.alt-arts-cell .alt-art .thumb {
-  width: 52px;
-  height: 72px;
+/* One standard alt tile (#1270): Base and every alt, on Shopping, decks, Collection, the card page, share pages
+   and group buys, in List and Grid, share one width, one thumbnail size and one control order
+   (thumbnail + price/labels, stepper, Extra copy, then a footer with who-wants chips and Show).
+   Tiles in one row stretch to the same height; --alt-tile-h is that standard height and sizes the #877 scroll cap. */
+.alt-arts {
+  --alt-tile-w: 148px;
+  --alt-thumb-w: 48px;
+  --alt-thumb-h: 67px;
+  --alt-tile-h: 122px;
+}
+
+/* A grid, not a wrapping flex row (#1280): every row is as tall as the tallest tile in the list, so tiles
+   match even when each sits on its own row (phone list) and Show lines up across the list. It sits inside
+   .alt-arts so the #877 scroll cap's max-height never squeezes the rows (fr rows shrink to fit a max-height). */
+.alt-arts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, min(var(--alt-tile-w), 100%));
+  grid-auto-rows: 1fr;
+  gap: 0.55rem;
+  flex: 1 1 100%;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Planner tiles with the Extra copy toggle (#1035) carry one more row. */
+.alt-arts.alt-arts-collect {
+  --alt-tile-h: 152px;
+}
+
+.alt-art {
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+  width: 100%;
+  min-height: var(--alt-tile-h);
+  min-width: 0;
+  padding: 0.3rem 0.35rem;
+}
+
+.alt-art .thumb {
+  width: var(--alt-thumb-w);
+  height: var(--alt-thumb-h);
+  flex: none;
+}
+
+.alt-art-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.alt-art .alt-meta {
+  flex: 1 1 0;
+  min-width: 0;
+  align-content: start;
+  justify-items: start;
+  overflow-wrap: anywhere;
+}
+
+/* Price, labels, stepper and Extra copy all start at the thumbnail's right edge, in the same order everywhere. */
+.alt-art .alt-meta > * {
+  justify-self: start;
+  max-width: 100%;
+}
+
+/* The price, labels and Owned / Want caption all start at one left edge (#1280). */
+.alt-art .alt-want-controls {
+  align-items: flex-start;
+}
+
+.alt-art .alt-meta .market-price-btn {
+  padding-left: 0;
+}
+
+/* Footer across the tile: Extra copy, who-wants chips / Skipped badge, then Show. Pinned to the tile's bottom
+   edge. Its buttons all take the tile's full width, so they match and never spill past the tile (#1280). */
+.alt-art-foot {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 0.2rem 0.35rem;
+  margin-top: auto;
+  min-width: 0;
+}
+
+.alt-art-extra {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  min-width: 0;
+}
+
+.alt-art-extra:empty {
+  display: none;
+}
+
+.alt-art-foot > :is(.alt-show-btn, .alt-shown-chip, .alt-collector-btn, .alt-extra-pop, .alt-collector) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin-top: 0;
+}
+
+.alt-art-foot > .alt-extra-pop > .alt-collector-btn {
+  width: 100%;
+  max-width: none;
+}
+
+.alt-art-foot > .alt-collector {
+  text-align: center;
 }
 
 /* The page content is capped near 1160px at every viewport, so Master Shopping (the widest table) always
@@ -10,11 +119,6 @@
    and no Cost column (grid and phone cards still show it) (#892). */
 .shopping-table:has(td.alt-arts-cell) :is(th, td) {
   padding-inline: 0.45rem;
-}
-
-.shopping-table td.alt-arts-cell .alt-art .thumb {
-  width: 44px;
-  height: 62px;
 }
 
 .shopping-table:has(td.alt-arts-cell) .col-cost {
@@ -48,11 +152,6 @@
     padding-inline: 0.5rem;
   }
 
-  :is(.deck-table, .collection-table) td.alt-arts-cell .alt-art .thumb {
-    width: 44px;
-    height: 62px;
-  }
-
   .deck-table:has(td.alt-arts-cell) .col-type {
     display: none;
   }
@@ -84,8 +183,6 @@
 .grid-card-alts .alt-arts,
 .data-table td.alt-arts-cell .alt-arts,
 .mobile-card-alts .alt-arts {
-  /* Tiles with an Owned stepper are ~116px tall; group buy tiles (no stepper) set --alt-tile-h smaller
-     on their wrapper (.alt-arts-short). */
   --alt-rows: 5;
   max-height: calc(var(--alt-rows) * var(--alt-tile-h, 116px) + (var(--alt-rows) - 1) * 0.55rem);
   overflow-x: hidden;
@@ -94,10 +191,6 @@
   /* Keep the scrollbar off the tile controls. */
   scrollbar-gutter: stable;
   scrollbar-width: thin;
-}
-
-.alt-arts-short {
-  --alt-tile-h: 84px;
 }
 
 /* Who wants this art (#891): member-coloured chips under the tile's price/label, wrapping inside it. */
@@ -114,15 +207,15 @@
   gap: var(--space-1);
 }
 
-/* One line per chip (#902): the chips get their own row across the whole tile, under the
-   thumbnail; a very long name ends in "…" (full text in the tooltip). */
-.alt-art:has(> .alt-art-wants) {
-  flex-wrap: wrap;
+/* One line per chip (#902): the chips sit in the tile's footer; a very long name ends in "…"
+   (full text in the tooltip). */
+.alt-art-extra > .alt-art-wants {
+  margin-top: 0;
 }
 
-.alt-art > .alt-art-wants {
-  flex: 1 0 100%;
-  margin-top: 0;
+.alt-art-wants .group-buy-skipped-chip {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .alt-art-wants .group-buy-who-chip {
@@ -140,18 +233,6 @@
 /* Phone list: tiles sit two (or more) per row, so three rows is already six tiles. */
 .mobile-card-alts .alt-arts {
   --alt-rows: 3;
-}
-
-.grid-card-alts .alt-art {
-  box-sizing: border-box;
-  min-width: 0;
-  max-width: 100%;
-}
-
-.grid-card-alts .alt-art .thumb {
-  width: 48px;
-  height: 67px;
-  flex-shrink: 0;
 }
 
 .group-buy-merged-heading {

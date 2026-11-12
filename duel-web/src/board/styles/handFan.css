@@ -206,11 +206,11 @@
   grid-row: 1;
 }
 
-/* The player's fan (#1244): the buttons are one row right beside the cards
-   (not a column at the far left). The middle column is as wide as the spread
-   cards, so the row stays put when the fan rises. The row sits at the top of
-   the tucked strip; the strip is shorter than the row only by the card tops,
-   and Hide keeps the top 1.75rem of the fan on screen. */
+/* The player's fan (#1244): the buttons sit right beside the cards (not at
+   the far left). The middle column is as wide as the spread cards, so the
+   buttons stay put when the fan rises. Tucked (Keep hand open off) they are
+   one row at the top of the strip, which is shorter than the row only by the
+   card tops; a column wouldn't fit without covering the mat. */
 .arena:not(.arena-spec-fans) .hand-fan-center:not(.hand-fan-top) {
   grid-template-columns:
     minmax(max-content, 1fr)
@@ -225,6 +225,56 @@
   transform: none;
   /* Clear of the first card's tilted corner. */
   margin: 0.15rem 0.5rem 0 0;
+}
+
+/* Keep hand open (#1283): the board leaves room for the whole raised fan, so
+   the buttons stack in a column on the cards' left instead of sticking out
+   in a row. The one grid row is exactly the card height and the column hangs
+   from its bottom (it may overflow upwards), so it doesn't make the fan taller. */
+.arena.arena-fan-kept .hand-fan-center:not(.hand-fan-top) {
+  grid-template-rows: var(--fan-ch);
+}
+
+/* The column stands 4px above the window's bottom edge in every state: its
+   offset is always minus the fan's own offset (same timing), so the buttons
+   stay still while the cards rise, tuck, drag or hide under them. */
+.arena.arena-fan-kept .hand-fan-center:not(.hand-fan-top) .hand-fan-head {
+  align-self: end;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+  margin-top: 0;
+  transform: translateY(calc(var(--fan-ch) * (var(--fan-peek) - 1) - 4px));
+  transition: transform 200ms ease 140ms;
+}
+
+.arena.arena-fan-kept .hand-fan-center:not(.hand-fan-top):is(.is-open, :has(:focus-visible)) .hand-fan-head {
+  transform: translateY(calc(-1 * var(--fan-raise) - 4px));
+  transition-delay: 0s;
+}
+
+@media (hover: hover) {
+  .arena.arena-fan-kept .hand-fan-center:not(.hand-fan-top).is-hover-up .hand-fan-head {
+    transform: translateY(calc(-1 * var(--fan-raise) - 4px));
+    transition-delay: 0s;
+  }
+
+  .arena.arena-fan-kept .hand-fan-center:not(.hand-fan-top).is-tucking:hover:not(:has(:focus-visible)) .hand-fan-head {
+    transform: translateY(calc(var(--fan-ch) * (var(--fan-peek) - 1) - 4px));
+  }
+}
+
+.arena.arena-fan-kept .hand-fan-center:not(.hand-fan-top).is-dragging .hand-fan-head {
+  transform: translateY(calc(var(--fan-ch) * (var(--fan-peek) / 2 - 1) - 4px));
+}
+
+.arena.arena-fan-kept .hand-fan-center:not(.hand-fan-top).is-hidden .hand-fan-head {
+  transform: translateY(calc(1.75rem - var(--fan-ch)));
+  transition-delay: 0s;
+}
+
+.arena.arena-fan-kept .hand-fan-center:not(.hand-fan-top).is-moving .hand-fan-head {
+  transition: none;
 }
 
 .arena:not(.arena-spec-fans) .hand-fan-center:not(.hand-fan-top) .hand-fan-cards {

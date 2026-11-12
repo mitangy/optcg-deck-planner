@@ -42624,6 +42624,24 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "OP18-002": {
+    "id": "OP18-002",
+    "name": "Igaram",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-002.png",
+    "effectText": "[On Play] You may trash 1 {Alabasta} type card from your hand: Draw 2 cards.",
+    "traits": [
+      "Alabasta"
+    ],
+    "attribute": "Ranged",
+    "abilitySupport": "ok"
+  },
   "OP18-003": {
     "id": "OP18-003",
     "name": "Sea Cat",
@@ -42655,6 +42673,99 @@
     "counter": 1000,
     "imageUrl": "/cards/OP18-004.png",
     "effectText": "Apply each of the following effects based on this Character's power: • If it has 5000 power or more, this Character gains [Rush]. • If it has 6000 power or more, this Character gains [Banish]. • If it has 7000 power or more, this Character gains [Unblockable].",
+    "traits": [
+      "Animal",
+      "Alabasta"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-005": {
+    "id": "OP18-005",
+    "name": "Kung Fu Jugon",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-005.png",
+    "effectText": "[Your Turn] This Character gains +1000 power for every [Kung Fu Jugon].",
+    "traits": [
+      "Animal",
+      "Alabasta"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-006": {
+    "id": "OP18-006",
+    "name": "Koza",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-006.png",
+    "effectText": "If you have [Nefeltari Vivi], this Character gains [Rush] and +1000 power. (This card can attack on the turn in which it is played.)",
+    "traits": [
+      "Alabasta"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-007": {
+    "id": "OP18-007",
+    "name": "Smoker",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-007.png",
+    "effectText": "If your Leader has the {Navy} type, this Character gains [Banish] and +1000 power. (When this card deals damage, the target card is trashed without activating its Trigger.)",
+    "traits": [
+      "Alabasta",
+      "Navy"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok"
+  },
+  "OP18-008": {
+    "id": "OP18-008",
+    "name": "Chaka",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-008.png",
+    "effectText": "If your Leader has the {Alabasta} type, this Character gains [Rush]. [On Play] You may trash 1 Character card with 5000 power or less from your hand: Draw 2 cards and this Character gains [Banish] during this turn.",
+    "traits": [
+      "Alabasta"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-009": {
+    "id": "OP18-009",
+    "name": "Super Spot-Billed Duck Troops",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "rush": true,
+    "imageUrl": "/cards/OP18-009.png",
+    "effectText": "[Rush] (This card can attack on the turn in which it is played.) [Activate: Main] You may trash this Character: If you have 9 or more DON!! cards on your field, play up to 1 [Karoo] from your hand.",
     "traits": [
       "Animal",
       "Alabasta"
@@ -42700,6 +42811,25 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "OP18-012": {
+    "id": "OP18-012",
+    "name": "Pincers",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-012.png",
+    "effectText": "[When Attacking] Up to 1 of your Characters with both the {Animal} and {Alabasta} types gains +1000 power during this turn.",
+    "traits": [
+      "Animal",
+      "Alabasta"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
   "OP18-013": {
     "id": "OP18-013",
     "name": "Pell",
@@ -42716,6 +42846,24 @@
       "Alabasta"
     ],
     "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-014": {
+    "id": "OP18-014",
+    "name": "Portgas.D.Ace",
+    "type": "character",
+    "colors": [
+      "red"
+    ],
+    "cost": 3,
+    "power": 5000,
+    "imageUrl": "/cards/OP18-014.png",
+    "effectText": "[When Attacking] Up to 1 of your {Alabasta} type Characters gains [Rush] during this turn. (This card can attack on the turn in which it is played.)",
+    "traits": [
+      "Alabasta",
+      "Whitebeard Pirates"
+    ],
+    "attribute": "Special",
     "abilitySupport": "ok"
   },
   "OP18-015": {
@@ -42791,6 +42939,22 @@
     "hasTrigger": true,
     "abilitySupport": "ok"
   },
+  "OP18-019": {
+    "id": "OP18-019",
+    "name": "Quack!!!",
+    "type": "event",
+    "colors": [
+      "red"
+    ],
+    "cost": 1,
+    "imageUrl": "/cards/OP18-019.png",
+    "effectText": "[Main] If you have no Characters with 7000 base power or more, give up to 1 of your opponent's Characters −3000 power during this turn. [Counter] Your Leader gains +3000 power during this battle.",
+    "traits": [
+      "Animal",
+      "Alabasta"
+    ],
+    "abilitySupport": "ok"
+  },
   "OP18-020": {
     "id": "OP18-020",
     "name": "Stop Fighting!!!",
@@ -42846,6 +43010,24 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "OP18-023": {
+    "id": "OP18-023",
+    "name": "Gaimon",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 1,
+    "power": 0,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-023.png",
+    "effectText": "[On Play] Up to 1 of your {East Blue} type Leader or Characters gains [Banish] during this turn. (When this card deals damage, the target card is trashed without activating its Trigger.)",
+    "traits": [
+      "East Blue"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
   "OP18-024": {
     "id": "OP18-024",
     "name": "Kokoro",
@@ -42883,6 +43065,25 @@
       "Water Seven"
     ],
     "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-026": {
+    "id": "OP18-026",
+    "name": "Sanji",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 2,
+    "power": 2000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-026.png",
+    "effectText": "If your {Straw Hat Crew} type Character would be removed from the field by your opponent's effect, you may trash this Character instead.",
+    "traits": [
+      "Water Seven",
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "OP18-027": {
@@ -42943,6 +43144,25 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "OP18-030": {
+    "id": "OP18-030",
+    "name": "Nami",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "power": 6000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-030.png",
+    "effectText": "[Opponent's Turn] If this Character is rested, give this Character −2000 power.",
+    "traits": [
+      "Water Seven",
+      "Straw Hat Crew"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
   "OP18-031": {
     "id": "OP18-031",
     "name": "Nico Robin",
@@ -42988,6 +43208,25 @@
     "attribute": "Slash",
     "abilitySupport": "ok"
   },
+  "OP18-033": {
+    "id": "OP18-033",
+    "name": "Banban",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 2,
+    "power": 0,
+    "counter": 1000,
+    "blocker": true,
+    "imageUrl": "/cards/OP18-033.png",
+    "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [End of Your Turn] You may trash this Character: Set up to 1 of your Characters as active.",
+    "traits": [
+      "Water Seven"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
   "OP18-034": {
     "id": "OP18-034",
     "name": "Franky",
@@ -43007,6 +43246,24 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "OP18-035": {
+    "id": "OP18-035",
+    "name": "Michael & Hoichael",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 3,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-035.png",
+    "effectText": "—",
+    "traits": [
+      "Water Seven"
+    ],
+    "attribute": "Wisdom",
+    "abilitySupport": "unverified"
+  },
   "OP18-036": {
     "id": "OP18-036",
     "name": "Monkey.D.Luffy",
@@ -43024,6 +43281,59 @@
       "Water Seven"
     ],
     "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-037": {
+    "id": "OP18-037",
+    "name": "Yokozuna",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 4,
+    "power": 2000,
+    "counter": 1000,
+    "blocker": true,
+    "imageUrl": "/cards/OP18-037.png",
+    "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On K.O.] Rest up to 1 of your opponent's cards.",
+    "traits": [
+      "Animal",
+      "Water Seven"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-038": {
+    "id": "OP18-038",
+    "name": "Shoot Down That Flag.",
+    "type": "event",
+    "colors": [
+      "green"
+    ],
+    "cost": 1,
+    "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/731759_400w.jpg",
+    "effectText": "[Main] Look at 5 cards from the top of your deck; reveal up to 1 [Sogeking] or {Straw Hat Crew} type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Draw 1 card.",
+    "traits": [
+      "Water Seven",
+      "Straw Hat Crew"
+    ],
+    "hasTrigger": true,
+    "abilitySupport": "ok"
+  },
+  "OP18-039": {
+    "id": "OP18-039",
+    "name": "Gum-Gum Giant Axe",
+    "type": "event",
+    "colors": [
+      "green"
+    ],
+    "cost": 1,
+    "imageUrl": "/cards/OP18-039.png",
+    "effectText": "[Counter] Up to 1 of your [Monkey.D.Luffy] gains +2000 power during this battle. Then, if your Leader is active, draw 1 card.",
+    "traits": [
+      "Water Seven",
+      "Straw Hat Crew"
+    ],
     "abilitySupport": "ok"
   },
   "OP18-040": {
@@ -43061,6 +43371,45 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "OP18-042": {
+    "id": "OP18-042",
+    "name": "Hack",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "imageUrl": "/cards/OP18-042.png",
+    "effectText": "[On K.O.] Draw 1 card. [Activate: Main] [Once Per Turn] Give up to 1 rested DON!! card to 1 of your {Dressrosa} type Leader or Characters.",
+    "traits": [
+      "Fish-Man",
+      "Dressrosa",
+      "Revolutionary Army"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-043": {
+    "id": "OP18-043",
+    "name": "Accelegator",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 4,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-043.png",
+    "effectText": "—",
+    "traits": [
+      "Animal",
+      "Alabasta",
+      "Baroque Works"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "unverified"
+  },
   "OP18-044": {
     "id": "OP18-044",
     "name": "Mr.Beans & Miss.Katherina",
@@ -43077,6 +43426,25 @@
       "Baroque Works"
     ],
     "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-045": {
+    "id": "OP18-045",
+    "name": "Mr.Prince",
+    "type": "character",
+    "colors": [
+      "blue"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-045.png",
+    "effectText": "Also treat this card's name as [Sanji] according to the rules. This Character gains +1000 power for every 5 Events in your trash.",
+    "traits": [
+      "Alabasta",
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "OP18-046": {
@@ -43367,6 +43735,25 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "OP18-062": {
+    "id": "OP18-062",
+    "name": "Oimo & Kashii",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 8,
+    "power": 10000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-062.png",
+    "effectText": "—",
+    "traits": [
+      "Giant",
+      "World Government"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "unverified"
+  },
   "OP18-063": {
     "id": "OP18-063",
     "name": "Kiwi & Mozu",
@@ -43443,6 +43830,41 @@
     "attribute": "Slash",
     "abilitySupport": "ok"
   },
+  "OP18-067": {
+    "id": "OP18-067",
+    "name": "Charlotte Smoothie",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 1,
+    "power": 2000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-067.png",
+    "effectText": "[On Play] You may trash 1 {Big Mom Pirates} type card from your hand: Draw 2 cards.",
+    "traits": [
+      "Big Mom Pirates"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-068": {
+    "id": "OP18-068",
+    "name": "Senor Pink",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 8,
+    "power": 9000,
+    "imageUrl": "/cards/OP18-068.png",
+    "effectText": "[Once Per Turn] If this Character would be K.O.'d, you may DON!! −1 instead. [On Play] DON!! −1: Up to 1 of your opponent's Characters with a cost of 7 or less cannot be rested until the end of your opponent's next End Phase.",
+    "traits": [
+      "Donquixote Pirates"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok"
+  },
   "OP18-069": {
     "id": "OP18-069",
     "name": "Sodomu & Gomora",
@@ -43480,6 +43902,80 @@
       "Water Seven"
     ],
     "attribute": "Wisdom",
+    "abilitySupport": "ok"
+  },
+  "OP18-071": {
+    "id": "OP18-071",
+    "name": "Trebol",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-071.png",
+    "effectText": "[Once Per Turn] If your {Donquixote Pirates} type Character would be removed from the field by your opponent's effect, you may DON!! −1 instead. [Opponent's Turn] If your Leader is {Sugar}, this Characters gains [Blocker] and +2000 power.",
+    "traits": [
+      "Donquixote Pirates"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok"
+  },
+  "OP18-072": {
+    "id": "OP18-072",
+    "name": "The Franky Family",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "power": 6000,
+    "counter": 1000,
+    "blocker": true,
+    "imageUrl": "/cards/OP18-072.png",
+    "effectText": "[Blocker] [Activate: Main] [Once Per Turn] You may K.O. 1 of your Stages with a cost of 5 or less: If this Character was played on this turn, give up to 1 of your opponent's Characters −3000 power during this turn.",
+    "traits": [
+      "Water Seven",
+      "The Franky Family"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-073": {
+    "id": "OP18-073",
+    "name": "T-Bone",
+    "type": "character",
+    "colors": [
+      "purple"
+    ],
+    "cost": 5,
+    "power": 7000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-073.png",
+    "effectText": "—",
+    "traits": [
+      "Water Seven",
+      "Navy"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "unverified"
+  },
+  "OP18-074": {
+    "id": "OP18-074",
+    "name": "Can You Please Sail on the Ship I Made?!",
+    "type": "event",
+    "colors": [
+      "purple"
+    ],
+    "cost": 1,
+    "imageUrl": "/cards/OP18-074.png",
+    "effectText": "[Counter] If you have a Stage with a cost of 5 or more, up to 1 of your Leader or Characters gains +4000 power during this battle.\n\n[Trigger] DON!! −1: Add up to 2 Stage cards from your trash to your hand.",
+    "traits": [
+      "Water Seven",
+      "The Franky Family"
+    ],
+    "hasTrigger": true,
     "abilitySupport": "ok"
   },
   "OP18-075": {
@@ -43561,6 +44057,63 @@
     "attribute": "Slash",
     "abilitySupport": "ok"
   },
+  "OP18-080": {
+    "id": "OP18-080",
+    "name": "Van Augur",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 4,
+    "power": 5000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-080.png",
+    "effectText": "[Your Turn] [Once Per Turn] When a card is trashed from your hand by your [Marshall.D.Teach] Leader's effect, if you have no other [Van Augur], draw 1 card. [On K.O.] Draw 1 Card.",
+    "traits": [
+      "Egghead",
+      "Blackbeard Pirates"
+    ],
+    "attribute": "Ranged",
+    "abilitySupport": "ok"
+  },
+  "OP18-081": {
+    "id": "OP18-081",
+    "name": "Oars",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 10,
+    "power": 11000,
+    "imageUrl": "/cards/OP18-081.png",
+    "effectText": "If you have a [Gecko Moria] Character, this Character gains [Double Attack] and [Blocker].\n\n[Trigger] Play up to 1 {Thriller Bark Pirates} type Character card with a cost of 4 or less from your trash rested.",
+    "traits": [
+      "Giant",
+      "Thriller Bark Pirates"
+    ],
+    "hasTrigger": true,
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-082": {
+    "id": "OP18-082",
+    "name": "Catarina Devon",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 5,
+    "power": 3000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-082.png",
+    "effectText": "[When Attacking] This Character's base power becomes the same as your opponent's Leader's power during this turn. [On K.O.] You may trash 1 card from your hand: If your Leader has the {Blackbeard Pirates} type, play this Character card from your trash rested.",
+    "traits": [
+      "Egghead",
+      "Blackbeard Pirates"
+    ],
+    "attribute": "Special",
+    "abilitySupport": "ok"
+  },
   "OP18-083": {
     "id": "OP18-083",
     "name": "Saint Killingham",
@@ -43636,6 +44189,26 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "OP18-087": {
+    "id": "OP18-087",
+    "name": "Stansen",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-087.png",
+    "effectText": "This Character gains +12 cost. If you only have Characters with a cost of 12 or more, this Character gains +2000 power.",
+    "traits": [
+      "Giant",
+      "Elbaph",
+      "New Giant Pirates"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
   "OP18-088": {
     "id": "OP18-088",
     "name": "Saint Sommers",
@@ -43674,6 +44247,24 @@
     ],
     "attribute": "Slash",
     "abilitySupport": "ok"
+  },
+  "OP18-090": {
+    "id": "OP18-090",
+    "name": "Brook",
+    "type": "character",
+    "colors": [
+      "black"
+    ],
+    "cost": 7,
+    "power": 9000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-090.png",
+    "effectText": "—",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "unverified"
   },
   "OP18-091": {
     "id": "OP18-091",
@@ -43754,6 +44345,23 @@
     "hasTrigger": true,
     "abilitySupport": "ok"
   },
+  "OP18-095": {
+    "id": "OP18-095",
+    "name": "I'm Late, I'm Very Late!!",
+    "type": "event",
+    "colors": [
+      "black"
+    ],
+    "cost": 1,
+    "imageUrl": "/cards/OP18-095.png",
+    "effectText": "[Main] If your Leader has the {Celestial Dragons} type, look at 5 cards from the top of your deck; reveal up to 1 [Sleeptids] or {Holy Knights of God} type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Activate this card's [Main] effect.",
+    "traits": [
+      "Celestial Dragons",
+      "Holy Knights of God"
+    ],
+    "hasTrigger": true,
+    "abilitySupport": "ok"
+  },
   "OP18-096": {
     "id": "OP18-096",
     "name": "I'll Make the Call",
@@ -43768,6 +44376,60 @@
       "Celestial Dragons",
       "Holy Knights of God"
     ],
+    "abilitySupport": "ok"
+  },
+  "OP18-097": {
+    "id": "OP18-097",
+    "name": "Abyss Pentagram",
+    "type": "stage",
+    "colors": [
+      "black"
+    ],
+    "cost": 1,
+    "imageUrl": "/cards/OP18-097.png",
+    "effectText": "If your Leader has the {Celestial Dragons} type, the cost of playing {Holy Knights of God} or {Five Elders} type Character cards with a cost of 2 or more from your hand will be reduced by 1. [On Play] Draw 1 card and trash 2 cards from the top of your deck.",
+    "traits": [
+      "Celestial Dragons",
+      "Holy Knights of God",
+      "Five Elders"
+    ],
+    "abilitySupport": "ok"
+  },
+  "OP18-098": {
+    "id": "OP18-098",
+    "name": "Onigumo",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 7,
+    "power": 7000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-098.png",
+    "effectText": "[Unblockable] (This card cannot be blocked.)",
+    "traits": [
+      "Vice Admiral",
+      "Navy"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "keywords"
+  },
+  "OP18-099": {
+    "id": "OP18-099",
+    "name": "Kaku",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 7,
+    "power": 9000,
+    "imageUrl": "/cards/OP18-099.png",
+    "effectText": "[On Play] Add up to 1 card with a type including \"CP\" from your hand to the top or bottom of your Life cards face-up.\n\n[Trigger] If your Leader's type includes \"CP\", draw 1 card and place up to 1 Character with a cost of 8 or less at the bottom of the owner's deck.",
+    "traits": [
+      "CP9"
+    ],
+    "hasTrigger": true,
+    "attribute": "Slash",
     "abilitySupport": "ok"
   },
   "OP18-100": {
@@ -43807,6 +44469,24 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "OP18-102": {
+    "id": "OP18-102",
+    "name": "Jerry",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "power": 6000,
+    "counter": 1000,
+    "imageUrl": "/cards/OP18-102.png",
+    "effectText": "—",
+    "traits": [
+      "CP6"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "unverified"
+  },
   "OP18-103": {
     "id": "OP18-103",
     "name": "Jabra",
@@ -43823,6 +44503,44 @@
     ],
     "hasTrigger": true,
     "attribute": "Strike",
+    "abilitySupport": "ok"
+  },
+  "OP18-104": {
+    "id": "OP18-104",
+    "name": "Strawberry",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 7,
+    "power": 7000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-104.png",
+    "effectText": "[Banish] (When this card deals damage, the target card is trashed without activating its Trigger.)",
+    "traits": [
+      "Vice Admiral",
+      "Navy"
+    ],
+    "attribute": "Slash",
+    "abilitySupport": "keywords"
+  },
+  "OP18-105": {
+    "id": "OP18-105",
+    "name": "Spandam",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 1,
+    "power": 1000,
+    "counter": 2000,
+    "imageUrl": "/cards/OP18-105.png",
+    "effectText": "[Trigger] If your Leader's type includes \"CP\", reveal up to 1 card with a type including \"CP\" other than [Spandam] from your hand. Activate the [Trigger] effect of the revealed card.",
+    "traits": [
+      "CP9"
+    ],
+    "hasTrigger": true,
+    "attribute": "Slash",
     "abilitySupport": "ok"
   },
   "OP18-106": {
@@ -43844,6 +44562,26 @@
     "attribute": "Slash",
     "abilitySupport": "keywords"
   },
+  "OP18-107": {
+    "id": "OP18-107",
+    "name": "Nero",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "power": 4000,
+    "counter": 1000,
+    "blocker": true,
+    "imageUrl": "/cards/OP18-107.png",
+    "effectText": "[Blocker]\n\n[Trigger] If your Leader's type includes \"CP\", place up to 1 Character with a cost of 5 or less at the bottom of the owner's deck.",
+    "traits": [
+      "CP9"
+    ],
+    "hasTrigger": true,
+    "attribute": "Ranged",
+    "abilitySupport": "ok"
+  },
   "OP18-108": {
     "id": "OP18-108",
     "name": "Funkfreed",
@@ -43860,6 +44598,26 @@
       "CP9"
     ],
     "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-109": {
+    "id": "OP18-109",
+    "name": "Fukurou",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 5,
+    "power": 4000,
+    "counter": 2000,
+    "blocker": true,
+    "imageUrl": "/cards/OP18-109.png",
+    "effectText": "[Blocker]\n\n[Trigger] If your Leader's type includes \"CP\", K.O. or rest up to 1 of your opponent's Characters with a cost of 6 or less.",
+    "traits": [
+      "CP9"
+    ],
+    "hasTrigger": true,
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "OP18-110": {
@@ -43939,6 +44697,40 @@
     "attribute": "Strike",
     "abilitySupport": "ok"
   },
+  "OP18-114": {
+    "id": "OP18-114",
+    "name": "Wanze",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 3,
+    "power": 4000,
+    "imageUrl": "/cards/OP18-114.png",
+    "effectText": "[On Play] Look at all of your Life cards and place them back in your Life area in any order.\n\n[Trigger] If your Leader's type includes \"CP\", place up to 1 Character with a cost of 5 or less at the bottom of the owner's deck.",
+    "traits": [
+      "CP7"
+    ],
+    "hasTrigger": true,
+    "attribute": "Slash",
+    "abilitySupport": "ok"
+  },
+  "OP18-115": {
+    "id": "OP18-115",
+    "name": "Ten Finger Pistol",
+    "type": "event",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 4,
+    "imageUrl": "/cards/OP18-115.png",
+    "effectText": "[Main] K.O. up to 1 of your opponent's Characters with a cost of 5 or less.\n\n[Trigger] If your Leader's type includes \"CP\", draw 1 card and place up to 1 Character with a cost of 7 or less at the bottom of the owner's deck.",
+    "traits": [
+      "CP9"
+    ],
+    "hasTrigger": true,
+    "abilitySupport": "ok"
+  },
   "OP18-116": {
     "id": "OP18-116",
     "name": "Iron Body Empty Tree",
@@ -43969,6 +44761,24 @@
       "Navy",
       "CP9"
     ],
+    "abilitySupport": "ok"
+  },
+  "OP18-118": {
+    "id": "OP18-118",
+    "name": "Monkey.D.Luffy",
+    "type": "character",
+    "colors": [
+      "green"
+    ],
+    "cost": 9,
+    "power": 10000,
+    "imageUrl": "/cards/OP18-118.png",
+    "effectText": "[On Play] Set up to 3 of your DON!! cards as active. Then, up to 1 of your opponent's Characters cannot be rested until the end of your opponent's next End Phase. [End of Your Turn] Set up to 1 of your {Water Seven} type cards as active.",
+    "traits": [
+      "Water Seven",
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
     "abilitySupport": "ok"
   },
   "OP18-119": {
