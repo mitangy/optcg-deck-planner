@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-12
-  { date: "2026-11-12", app: "planner", pr: 0, title: "Group buy: unticking an Extra copy no longer drops a deck copy", text: "If you set Your buy to a number your Extra copy was not part of, unticking that Extra copy now leaves your buy alone instead of removing a deck copy. Leaving a group buy and joining again also forgets which Extra copies you had unticked." },
+  { date: "2026-11-12", app: "planner", pr: 1290, title: "Group buy: unticking an Extra copy no longer drops a deck copy", text: "If you set Your buy to a number your Extra copy was not part of, unticking that Extra copy now leaves your buy alone instead of removing a deck copy. Leaving a group buy and joining again also forgets which Extra copies you had unticked." },
   // 2026-11-11
   { date: "2026-11-11", app: "planner", pr: 1242, title: "Shoot Down That Flag. in the planner, and a new Karoo alt art", text: "OP18-038 Shoot Down That Flag. now has its TCGPlayer price in the planner, and the new Karoo (OP18-001) alt art is available." },
   { date: "2026-11-11", app: "duel", pr: 1278, title: "Every OP18 card is in", text: "The other 44 OP18 cards are now in the duel app and the planner with their official English text and pictures, so the whole set is playable, including Monkey.D.Luffy (OP18-118), Kaku, Senor Pink, Trebol, Catarina Devon, Oars and Abyss Pentagram." },
