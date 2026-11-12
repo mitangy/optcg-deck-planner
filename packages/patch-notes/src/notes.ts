@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-12
-  { date: "2026-11-12", app: "duel", pr: 1283, title: "Mulligan message floats over the board", text: "At the start of a game, the opening hand message now floats over the top of the board instead of pushing it down, so the board no longer jumps when both players have decided." },
+  { date: "2026-11-12", app: "duel", pr: 1288, title: "Mulligan message floats over the board", text: "At the start of a game, the opening hand message now floats over the top of the board instead of pushing it down, so the board no longer jumps when both players have decided." },
   // 2026-11-11
   { date: "2026-11-11", app: "planner", pr: 1242, title: "Shoot Down That Flag. in the planner, and a new Karoo alt art", text: "OP18-038 Shoot Down That Flag. now has its TCGPlayer price in the planner, and the new Karoo (OP18-001) alt art is available." },
   { date: "2026-11-11", app: "duel", pr: 1278, title: "Every OP18 card is in", text: "The other 44 OP18 cards are now in the duel app and the planner with their official English text and pictures, so the whole set is playable, including Monkey.D.Luffy (OP18-118), Kaku, Senor Pink, Trebol, Catarina Devon, Oars and Abyss Pentagram." },
