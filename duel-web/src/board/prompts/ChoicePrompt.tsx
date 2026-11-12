@@ -8,10 +8,11 @@ import { arrangementAnswer, arrangementRows, groupAnswer, initialArrangement, me
 import { indexLiveCards, LiveCardsContext, readinessLabel, useLiveCard } from "../combat/liveTargets";
 import { promptSourceName, PromptHideButton } from "./HideablePrompt";
 import { promptBody } from "./promptText";
-import { answersAtPick, boardPickSpots, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
+import { answersAtPick, boardPickSpots, createDoubleTap, doublePick, doubleTapBoardSpot, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo, type BoardPick, type BoardSpot } from "./fieldTargets";
 import { FieldTargetBar } from "./FieldTargetBar";
 import { useDuelSettings } from "../../settings";
 import { useConfirmKeys } from "../input/useBoardHotkeys";
+import { DOUBLE_CLICK_DELAY_MS } from "../preview/inspectGestures";
 
 /** True while the pop-up is tucked away (see `HideablePrompt`). */
 const PromptHiddenContext = createContext(false);
@@ -51,12 +52,14 @@ function cardName(option: ChoiceOptionView): string | null {
 }
 
 /** Card art tile (or labeled chip) for one choice option. */
-export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge, lookOnly = false, disabledNote = "not eligible" }: {
+export function OptionTile({ option, mySeat, selected, disabled, onToggle, onDouble, badge, lookOnly = false, disabledNote = "not eligible" }: {
   option: ChoiceOptionView;
   mySeat: Seat;
   selected: boolean;
   disabled: boolean;
   onToggle: () => void;
+  /** Double click / double tap (#1287): pick it and confirm in one go. */
+  onDouble?: () => void;
   badge?: string;
   /** Pure look (nothing can be taken): don't label cards "not eligible". */
   lookOnly?: boolean;
@@ -69,6 +72,9 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
   // Field targets: read the card's live state off the board.
   const live = useLiveCard(option.instanceId);
   const [hovered, setHovered] = useState(false);
+  // Plain buttons click at once, so a second click is told apart here; a card tile times its own.
+  const doubleTap = useMemo(() => createDoubleTap(DOUBLE_CLICK_DELAY_MS), []);
+  const onPlainClick = () => (onDouble && doubleTap.isDouble(option.id) ? onDouble() : onToggle());
   if (option.zone === "don") {
     // DON!! are interchangeable cards: show where each one sits (active,
     // rested, or attached to which card) so the player picks the right one.
@@ -80,7 +86,7 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
           aria-pressed={selected}
           aria-label={option.label ?? "DON!!"}
           disabled={disabled}
-          onClick={onToggle}
+          onClick={onPlainClick}
         >
           <img src={donArt(option.ownerSeat)} alt="" draggable={false} onError={fallbackToDefaultDon} />
         </button>
@@ -93,7 +99,7 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
   }
   if (!option.defId || option.defId === "HIDDEN") {
     return (
-      <button type="button" className={`ability-chip choice-chip${selected ? " selected" : ""}`} disabled={disabled} aria-pressed={selected} onClick={onToggle}>
+      <button type="button" className={`ability-chip choice-chip${selected ? " selected" : ""}`} disabled={disabled} aria-pressed={selected} onClick={onPlainClick}>
         {optionName(option)}
       </button>
     );
@@ -123,6 +129,7 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, badge
         selected={selected}
         inspectGestures
         onClick={disabled ? undefined : onToggle}
+        onDoubleActivate={disabled ? undefined : onDouble}
         ownerSeat={option.ownerSeat}
         viewingSeat={mySeat}
       />
@@ -323,22 +330,43 @@ export function boardTargetOption(options: readonly ChoiceOptionView[], instance
  * prompt. Listens on the document in the capture phase so the board's own
  * click (select card / show actions) never sees these clicks.
  */
-export function useBoardTargetClicks(options: readonly ChoiceOptionView[], onPick: (optionId: string) => void) {
+export function useBoardTargetClicks(
+  options: readonly ChoiceOptionView[],
+  onPick: (optionId: string) => void,
+  /** A second click on the same card within the double-click window (#1287); also keeps `dblclick` from opening inspect. */
+  onDouble?: (optionId: string) => void,
+) {
   const hidden = useContext(PromptHiddenContext);
-  const live = useRef({ options, onPick, hidden });
-  live.current = { options, onPick, hidden };
+  const live = useRef({ options, onPick, onDouble, hidden });
+  live.current = { options, onPick, onDouble, hidden };
   useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (live.current.hidden) return;
+    const doubleTap = createDoubleTap(DOUBLE_CLICK_DELAY_MS);
+    const targetAt = (e: MouseEvent) => {
+      if (live.current.hidden) return null;
       const tile = (e.target as Element | null)?.closest?.<HTMLElement>(".side-field .card-tile[data-instance-id]");
-      const optionId = boardTargetOption(live.current.options, tile?.dataset.instanceId);
+      return boardTargetOption(live.current.options, tile?.dataset.instanceId);
+    };
+    const onClick = (e: MouseEvent) => {
+      const optionId = targetAt(e);
       if (!optionId) return;
       e.preventDefault();
       e.stopPropagation();
-      live.current.onPick(optionId);
+      const { onPick: pick, onDouble: double } = live.current;
+      if (double && doubleTap.isDouble(optionId)) double(optionId);
+      else pick(optionId);
+    };
+    // The board tile's own double-click inspect must not open for a prompt target.
+    const onDblClick = (e: MouseEvent) => {
+      if (!live.current.onDouble || !targetAt(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
     };
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    document.addEventListener("dblclick", onDblClick, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("dblclick", onDblClick, true);
+    };
   }, []);
 }
 
@@ -346,7 +374,12 @@ export function useBoardTargetClicks(options: readonly ChoiceOptionView[], onPic
 function useSelectPicks(request: Extract<ChoiceRequestView, { type: "select" }>, onSend: (i: Intent) => void) {
   const oneTap = useDuelSettings().oneTapActions;
   const [selected, setSelected] = useState<string[]>([]);
-  const answer = (ids: string[]) => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
+  // Set once the answer is out: a double tap after a one-tap answer must not send a second one.
+  const sent = useRef(false);
+  const answer = (ids: string[]) => {
+    sent.current = true;
+    onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
+  };
   // "With different card names": a card whose name is already picked can't be added.
   const taken = nameTakenIds(request.options, selected, request.distinctNames, cardName);
   const toggle = (id: string) => {
@@ -356,15 +389,22 @@ function useSelectPicks(request: Extract<ChoiceRequestView, { type: "select" }>,
     if (!selected.includes(id) && answersAtPick(oneTap, request.min, request.max, next.length)) return answer(next);
     setSelected(next);
   };
+  // Double click / tap (#1287): pick it (never un-pick) and confirm when the picks are valid.
+  const doubleToggle = (id: string) => {
+    if (taken.has(id) || sent.current) return;
+    const next = doublePick(selected, id, request.min, request.max);
+    setSelected(next.selected);
+    if (next.answer) answer(next.selected);
+  };
   const valid = selected.length >= request.min && selected.length <= request.max;
   const boardIds = request.options.filter((o) => o.eligible && o.instanceId && !taken.has(o.id)).map((o) => o.instanceId!);
   const selectedBoardIds = request.options.filter((o) => o.instanceId && selected.includes(o.id)).map((o) => o.instanceId!);
-  useBoardTargetClicks(request.options, toggle);
-  return { selected, taken, toggle, valid, boardIds, selectedBoardIds, answer };
+  useBoardTargetClicks(request.options, toggle, doubleToggle);
+  return { selected, taken, toggle, doubleToggle, valid, boardIds, selectedBoardIds, answer };
 }
 
 function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<ChoiceRequestView, { type: "select" }>; choice: PendingChoiceView; mySeat: Seat; onSend: (i: Intent) => void }) {
-  const { selected, taken, toggle, valid, boardIds, selectedBoardIds, answer } = useSelectPicks(request, onSend);
+  const { selected, taken, toggle, doubleToggle, valid, boardIds, selectedBoardIds, answer } = useSelectPicks(request, onSend);
   const range = request.min === request.max ? `${request.max}` : request.min === 0 ? `up to ${request.max}` : `${request.min}–${request.max}`;
   // A hidden-zone pick with no candidate is still asked, so the opponent cannot tell it was empty (#369).
   const none = request.options.length === 0;
@@ -387,6 +427,7 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
               disabled={!option.eligible || taken.has(option.id)}
               disabledNote={option.eligible ? "same name picked" : undefined}
               onToggle={() => toggle(option.id)}
+              onDouble={() => doubleToggle(option.id)}
             />
           ))}
         </div>
@@ -435,21 +476,38 @@ function spotAtClick(target: Element | null, spots: ReadonlySet<BoardSpot>): { s
  * Taps on the board's targets (cards, DON!! chips) pick them. Capture phase,
  * so the board's own click (select card / show actions) never sees them.
  */
-function useBoardSpotClicks(spots: ReadonlyMap<string, BoardSpot>, onTap: (spot: BoardSpot, chipId?: string) => void) {
+function useBoardSpotClicks(
+  spots: ReadonlyMap<string, BoardSpot>,
+  onTap: (spot: BoardSpot, chipId?: string) => void,
+  /** A second tap on the same spot (and chip) within the double-click window (#1287). */
+  onDouble: (spot: BoardSpot, chipId?: string) => void,
+) {
   const hidden = useContext(PromptHiddenContext);
-  const live = useRef({ spots, onTap, hidden });
-  live.current = { spots, onTap, hidden };
+  const live = useRef({ spots, onTap, onDouble, hidden });
+  live.current = { spots, onTap, onDouble, hidden };
   useEffect(() => {
+    const doubleTap = createDoubleTap(DOUBLE_CLICK_DELAY_MS);
+    const hitAt = (e: MouseEvent) => (live.current.hidden ? null : spotAtClick(e.target as Element | null, new Set(live.current.spots.values())));
     const onClick = (e: MouseEvent) => {
-      if (live.current.hidden) return;
-      const hit = spotAtClick(e.target as Element | null, new Set(live.current.spots.values()));
+      const hit = hitAt(e);
       if (!hit) return;
       e.preventDefault();
       e.stopPropagation();
-      live.current.onTap(hit.spot, hit.chipId);
+      if (doubleTap.isDouble(`${hit.spot}|${hit.chipId ?? ""}`)) live.current.onDouble(hit.spot, hit.chipId);
+      else live.current.onTap(hit.spot, hit.chipId);
+    };
+    // The board tile's own double-click inspect must not open for a prompt target.
+    const onDblClick = (e: MouseEvent) => {
+      if (!hitAt(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
     };
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    document.addEventListener("dblclick", onDblClick, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("dblclick", onDblClick, true);
+    };
   }, []);
 }
 
@@ -491,18 +549,33 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
 }) {
   const oneTapSetting = useDuelSettings().oneTapActions;
   const [pick, setPick] = useState<BoardPick>({ selected: [], chips: {} });
-  const answer = (ids: string[]) => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
+  // Set once the answer is out: a double tap after a one-tap answer must not send a second one.
+  const sent = useRef(false);
+  const answer = (ids: string[]) => {
+    sent.current = true;
+    onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
+  };
   const oneTap = resolvesOnPick(oneTapSetting, request.min, request.max);
   // "With different card names": cards whose name is already picked drop out of the targets.
   const taken = nameTakenIds(request.options, pick.selected, request.distinctNames, cardName);
   const open = taken.size ? new Map([...spots].filter(([id]) => !taken.has(id))) : spots;
-  useBoardSpotClicks(open, (spot, chipId) => {
-    const next = tapBoardSpot(pick, open, spot, request.max, chipId);
-    // One-tap: with exactly N picks wanted, the Nth pick is the answer.
-    const added = next.selected.some((id) => !pick.selected.includes(id));
-    if (added && answersAtPick(oneTapSetting, request.min, request.max, next.selected.length)) return answer(next.selected);
-    setPick(next);
-  });
+  useBoardSpotClicks(
+    open,
+    (spot, chipId) => {
+      const next = tapBoardSpot(pick, open, spot, request.max, chipId);
+      // One-tap: with exactly N picks wanted, the Nth pick is the answer.
+      const added = next.selected.some((id) => !pick.selected.includes(id));
+      if (added && answersAtPick(oneTapSetting, request.min, request.max, next.selected.length)) return answer(next.selected);
+      setPick(next);
+    },
+    // Double tap (#1287): keep the spot picked (never drop it) and confirm when the picks are valid.
+    (spot, chipId) => {
+      if (sent.current) return;
+      const next = doubleTapBoardSpot(pick, open, spot, request.min, request.max, chipId);
+      setPick(next.pick);
+      if (next.answer) answer(next.pick.selected);
+    },
+  );
   const { selected } = pick;
   const valid = selected.length >= request.min && selected.length <= request.max;
   const all = [...open.values()];
@@ -550,6 +623,22 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
   const remaining = [...rest.top, ...rest.bottom];
   const eligible = (id: string) => request.groups.some((g) => g.eligibleIds.includes(id));
   const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : request.maxSelect === 1 ? [id] : cur.length >= request.maxSelect ? cur : [...cur, id]));
+  // What Confirm sends, and what a double click / tap on a card sends (#1287).
+  const lookAnswer = (picked: string[]): Intent => {
+    const rest = withoutIds(arrangement, picked);
+    const left = [...rest.top, ...rest.bottom];
+    return { type: "resolve_pending_choice", accept: true, selectedOptionIds: picked, ...(request.rest === "top_or_bottom" ? groupAnswer(left, side) : { orderedOptionIds: left }) };
+  };
+  const sent = useRef(false);
+  const doubleToggle = (id: string) => {
+    if (sent.current) return;
+    const next = doublePick(selected, id, request.minSelect, request.maxSelect);
+    setSelected(next.selected);
+    if (next.answer) {
+      sent.current = true;
+      onSend(lookAnswer(next.selected));
+    }
+  };
   const needsOrder = request.rest === "deck_bottom" || request.rest === "deck_top" || request.rest === "top_or_bottom";
   const groupLabel = (id: string) => request.groups.find((g) => g.eligibleIds.includes(id))?.label;
   return (
@@ -572,6 +661,7 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
             badge={selected.includes(option.id) ? "Take" : undefined}
             lookOnly={request.maxSelect === 0}
             onToggle={() => toggle(option.id)}
+            onDouble={() => doubleToggle(option.id)}
           />
         ))}
       </div>
@@ -611,7 +701,7 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
           data-confirm-key
           aria-keyshortcuts="Y Space"
           disabled={selected.length < request.minSelect}
-          onClick={() => onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: selected, ...(request.rest === "top_or_bottom" ? groupAnswer(remaining, side) : { orderedOptionIds: remaining }) })}
+          onClick={() => onSend(lookAnswer(selected))}
         >
           {request.maxSelect === 0 ? "Done" : selected.length ? "Confirm" : "Take none & finish"}
         </button>

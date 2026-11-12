@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChoiceOptionView, PendingChoiceView } from "../../net/protocol";
-import { answersAtPick, boardPickSpots, isHandPick, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo } from "./fieldTargets";
+import { answersAtPick, boardPickSpots, createDoubleTap, doublePick, doubleTapBoardSpot, isHandPick, nameTakenIds, pickCaption, resolvesOnPick, tapBoardSpot, toggleSelection, type BoardCardInfo } from "./fieldTargets";
 
 const board = new Map<string, BoardCardInfo>([
   ["c1", { seat: 0, name: "Karoo" }],
@@ -183,5 +183,116 @@ describe("different card names picks", () => {
 
   it("leaves every copy pickable when the effect has no name rule (#298)", () => {
     expect(nameTakenIds(trash, ["o0"], undefined, nameOf).size).toBe(0);
+  });
+});
+
+describe("double pick (#1287)", () => {
+  it("a double on an already picked single pick keeps it and answers, it does not un-pick (#1287)", () => {
+    expect(doublePick(["b"], "b", 1, 1)).toEqual({ selected: ["b"], answer: true });
+  });
+
+  it("a double on an unpicked option picks it and answers when that makes the picks valid (#1287)", () => {
+    expect(doublePick([], "b", 1, 1)).toEqual({ selected: ["b"], answer: true });
+    expect(doublePick(["a"], "b", 1, 1)).toEqual({ selected: ["b"], answer: true });
+  });
+
+  it("a double where more picks are still needed picks but does not answer (#1287)", () => {
+    expect(doublePick([], "a", 2, 2)).toEqual({ selected: ["a"], answer: false });
+    expect(doublePick(["a"], "a", 2, 2)).toEqual({ selected: ["a"], answer: false });
+  });
+
+  it("a double completing the picks answers with all of them (#1287)", () => {
+    expect(doublePick(["a"], "b", 2, 2)).toEqual({ selected: ["a", "b"], answer: true });
+  });
+
+  it("an up-to-N pick (min 0) answers with one pick (#1287)", () => {
+    expect(doublePick([], "a", 0, 3)).toEqual({ selected: ["a"], answer: true });
+  });
+
+  it("a double on an option the full pick can't take does not answer (#1287)", () => {
+    expect(doublePick(["a", "b"], "c", 1, 2)).toEqual({ selected: ["a", "b"], answer: false });
+  });
+});
+
+describe("double tap on a board spot (#1287)", () => {
+  const spots = new Map([
+    ["a1", "don:you:active"],
+    ["a2", "don:you:active"],
+    ["h1", "host:L1"],
+    ["h2", "host:L1"],
+    ["c1", "card:c1"],
+    ["c2", "card:c2"],
+  ]);
+  const empty = { selected: [], chips: {} };
+
+  it("a double on a picked card keeps the pick and answers, it does not drop it (#1287)", () => {
+    const one = { selected: ["c1"], chips: {} };
+    expect(doubleTapBoardSpot(one, spots, "card:c1", 1, 1)).toEqual({ pick: one, answer: true });
+  });
+
+  it("a double on a card with 2 DON!! under it, 2 wanted, adds the second and answers (#1287)", () => {
+    const one = tapBoardSpot(empty, spots, "host:L1", 2);
+    expect(one.selected).toEqual(["h1"]);
+    const r = doubleTapBoardSpot(one, spots, "host:L1", 2, 2);
+    expect(r.pick.selected).toEqual(["h1", "h2"]);
+    expect(r.answer).toBe(true);
+  });
+
+  it("a double on that card with 1 wanted keeps the one pick and answers (#1287)", () => {
+    const one = tapBoardSpot(empty, spots, "host:L1", 1);
+    expect(doubleTapBoardSpot(one, spots, "host:L1", 1, 1)).toEqual({ pick: one, answer: true });
+  });
+
+  it("a double that leaves too few picks does not answer (#1287)", () => {
+    const r = doubleTapBoardSpot(empty, spots, "card:c1", 2, 2);
+    expect(r.pick.selected).toEqual(["c1"]);
+    expect(r.answer).toBe(false);
+  });
+
+  it("a double on a cost-area chip keeps that chip picked and answers (#1287)", () => {
+    const one = tapBoardSpot(empty, spots, "don:you:active", 1, "chipA");
+    const r = doubleTapBoardSpot(one, spots, "don:you:active", 1, 1, "chipA");
+    expect(r).toEqual({ pick: one, answer: true });
+  });
+
+  it("a double on a spot the full pick can't take does not answer (#1287)", () => {
+    const full = { selected: ["c1", "c2"], chips: {} };
+    const r = doubleTapBoardSpot(full, spots, "host:L1", 1, 2);
+    expect(r).toEqual({ pick: full, answer: false });
+  });
+});
+
+describe("double tap timing (#1287)", () => {
+  const clock = () => {
+    let t = 1000;
+    return { now: () => t, advance: (ms: number) => void (t += ms) };
+  };
+
+  it("the same key twice within the window is a double (#1287)", () => {
+    const c = clock();
+    const d = createDoubleTap(280, c.now);
+    expect(d.isDouble("a")).toBe(false);
+    c.advance(280);
+    expect(d.isDouble("a")).toBe(true);
+  });
+
+  it("a second tap beyond the window, or on another key, is not a double (#1287)", () => {
+    const c = clock();
+    const d = createDoubleTap(280, c.now);
+    d.isDouble("a");
+    c.advance(281);
+    expect(d.isDouble("a")).toBe(false);
+    c.advance(100);
+    expect(d.isDouble("b")).toBe(false);
+  });
+
+  it("a third quick tap starts over instead of being another double (#1287)", () => {
+    const c = clock();
+    const d = createDoubleTap(280, c.now);
+    d.isDouble("a");
+    c.advance(50);
+    expect(d.isDouble("a")).toBe(true);
+    c.advance(50);
+    expect(d.isDouble("a")).toBe(false);
   });
 });
