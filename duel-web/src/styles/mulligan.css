@@ -21,6 +21,11 @@
   line-height: 1.35;
 }
 
+/* Phone portrait: start under the opponent hand / Battle log row so neither is covered. */
+.arena:not(.arena-wide):not(.arena-lp) .mulligan-banner {
+  top: calc(var(--hint-h, 1.35rem) + 0.85rem);
+}
+
 .mulligan-banner strong {
   color: var(--chrome-bright);
 }
