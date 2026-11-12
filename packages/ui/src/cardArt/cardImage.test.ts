@@ -56,12 +56,12 @@ describe("artAfterError", () => {
   });
 
   it("OP18 card whose local /cards art fails falls back to its preview, once (#575)", () => {
-    const preview = artAfterError("/cards/OP18-021.png", "OP18-021");
-    expect(preview).toBe("/cards/preview/OP18-021.webp");
-    expect(artAfterError(preview!, "OP18-021")).toBeNull();
+    const preview = artAfterError("/cards/OP18-003.png", "OP18-003");
+    expect(preview).toBe("/cards/preview/OP18-003.webp");
+    expect(artAfterError(preview!, "OP18-003")).toBeNull();
     // Cards with no preview end at the text fallback, and other URLs never retry.
     expect(artAfterError("/cards/OP01-016.png", "OP01-016")).toBeNull();
-    expect(artAfterError("https://example.com/a.jpg", "OP18-021")).toBeNull();
+    expect(artAfterError("https://example.com/a.jpg", "OP18-003")).toBeNull();
   });
 
   it("a failed alt printing shows its own preview, not the card's (#581)", () => {

@@ -5,6 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { lookupCard } from "../../cards/atlas";
 import { isPreviewArtPath } from "@optcg/ui/cardArt";
 import previewIds from "../../../../packages/ui/src/cardArt/previewArt.json";
+import catalog from "../../assets/cardCatalog.json";
 import { resolveCardImageUrl } from "../../decks/artPrefs";
 import type { BattleLogEntry, LogTone } from "../match/battleLog";
 import { BattleLogPanel } from "./BattleLogPanel";
@@ -12,7 +13,7 @@ import { BattleLogPanel } from "./BattleLogPanel";
 // A card with preview art and a TCGPlayer image in the catalog: the first try is the
 // TCGPlayer CDN (which can 403 for new cards), then the thumbnail falls back to the preview.
 // Taken from the preview list, so it follows sync_preview_art.py as previews come and go.
-const PREVIEWED = previewIds[0]!;
+const PREVIEWED = previewIds.find((id) => (catalog as Record<string, { imageUrl?: string }>)[id]?.imageUrl)!;
 
 function line(id: string, tone: LogTone, turn: number, defId: string, ownerSeat: 0 | 1, text = "x"): BattleLogEntry {
   return {
