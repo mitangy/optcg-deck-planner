@@ -80,10 +80,48 @@ def test_skipping_an_extra_in_a_locked_group_buy_is_refused_1269(db, member, gro
         group_buy.set_extra_skip(db, member, group.id, SHANKS, SHANKS_MANGA, 1)
 
 
-def test_skipping_an_extra_lowers_an_existing_custom_qty_by_the_same_copies_1269(db, member, group):
-    group_buy.set_member_qty(db, member, group.id, SHANKS, 3)  # custom, below the suggested 5
+def test_skipping_an_extra_keeps_a_custom_qty_the_extra_never_funded_1289(db, member, group):
+    group_buy.set_member_qty(db, member, group.id, SHANKS, 3)  # custom, below the 4 deck copies + Manga
     after = group_buy.set_extra_skip(db, member, group.id, SHANKS, SHANKS_MANGA, 1)
     line = _line(after, SHANKS)
 
-    assert line.my_qty == 2
+    assert line.my_qty == 3  # the Manga was never in a 3-copy buy, so no deck copy goes
     assert line.my_suggested_qty == 4
+
+
+def test_unticking_an_extra_keeps_a_custom_qty_equal_to_the_deck_copies_1289(db, member, group):
+    group_buy.set_member_qty(db, member, group.id, SHANKS, 4)
+    after = group_buy.set_extra_skip(db, member, group.id, SHANKS, SHANKS_MANGA, 1)
+    line = _line(after, SHANKS)
+
+    assert line.my_qty == 4
+    assert _wants(line) == [(SHANKS_BASE, 4)]
+    assert line.remaining_cost == 10.0
+
+
+def test_skipping_an_extra_lowers_a_custom_qty_that_funded_it_by_the_same_copies_1269(db, member, group):
+    owned_svc.set_collector_want(db, member, SHANKS, SHANKS_MANGA, 2)  # suggested 6: 4 deck + 2 Manga
+    group_buy.set_member_qty(db, member, group.id, SHANKS, 5)  # custom: 4 deck + 1 Manga
+    after = group_buy.set_extra_skip(db, member, group.id, SHANKS, SHANKS_MANGA, 1)
+    line = _line(after, SHANKS)
+
+    assert line.my_suggested_qty == 5
+    assert line.my_qty == 4  # the funded Manga copy leaves the buy; still a custom qty below the suggestion
+
+
+def test_leaving_a_group_buy_forgets_skipped_extras_on_rejoin_1289(db, member, group):
+    friend = make_user(db, email="friend@example.com", name="Friend", sub="sub-friend")
+    add_deck_with_cards(db, friend, "Friend deck", {SHANKS: 4})
+    owned_svc.set_collector_want(db, friend, SHANKS, SHANKS_MANGA, 1)
+    group_buy.join_group_buy(db, friend, group.invite_token)
+    group_buy.update_contribution(db, friend, group.id, deck_ids=None, include_extra_copies=True)
+    skipped = group_buy.set_extra_skip(db, friend, group.id, SHANKS, SHANKS_MANGA, 1)
+    assert _line(skipped, SHANKS).my_qty == 4
+
+    group_buy.leave_group_buy(db, friend, group.id)
+    group_buy.join_group_buy(db, friend, group.invite_token)
+    group_buy.update_contribution(db, friend, group.id, deck_ids=None, include_extra_copies=True)
+    line = _line(group_buy.get_group_buy(db, friend, group.id), SHANKS)
+
+    assert line.my_qty == 5
+    assert [(e.product_id, e.skipped) for e in line.my_extras] == [(SHANKS_MANGA, 0)]

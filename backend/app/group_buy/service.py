@@ -153,6 +153,23 @@ def _suggested_qty(item, skips: dict[int, int] | None = None) -> int:
     return item.still_need + sum(q for _pid, q, _price in _effective_extras(item, skips))
 
 
+def _funded_extras(
+    item, skips: dict[int, int] | None = None, qty: int | None = None
+) -> list[tuple[int, int, float | None]]:
+    """Extra copies a buy of ``qty`` copies actually pays for: deck copies come first (#1269)."""
+    extra = _effective_extras(item, skips)
+    if qty is None:
+        return extra
+    budget = max(0, min(qty - item.still_need, sum(q for _p, q, _pr in extra)))
+    capped = []
+    for pid, q, price in extra:
+        take = min(q, budget)
+        if take > 0:
+            capped.append((pid, take, price))
+            budget -= take
+    return capped
+
+
 def _member_alt_inputs(
     item, skips: dict[int, int] | None = None, qty: int | None = None
 ) -> list[tuple[int, int, float | None]]:
@@ -161,16 +178,7 @@ def _member_alt_inputs(
     With ``qty`` below the suggestion, Extra copies are the first to go: only what is left
     after the deck copies is spent on them (#1269).
     """
-    extra = _effective_extras(item, skips)
-    if qty is not None:
-        budget = max(0, min(qty - item.still_need, sum(q for _p, q, _pr in extra)))
-        capped = []
-        for pid, q, price in extra:
-            take = min(q, budget)
-            if take > 0:
-                capped.append((pid, take, price))
-                budget -= take
-        extra = capped
+    extra = _funded_extras(item, skips, qty)
     # Owned copies a collector want does not claim already cover the deck (#1216).
     usable = {a.product_id: a.owned - min(a.owned, a.collector) for a in item.alt_arts}
     return extra + deck_alt_buy_inputs(item.alt_arts, usable)
@@ -996,7 +1004,18 @@ def set_extra_skip(
         skips = _card_skips(_extra_skip_map(group), user.id, card_id)
         skips[product_id] = new_skip
         new_suggested = _suggested_qty(item, skips)
-        shifted = max(0, override.qty - (new_skip - old_skip))
+        # Unticking only frees the copies of this Extra the custom qty actually paid for; a qty at or
+        # below the deck copies never had it, so no deck copy goes with it.
+        if new_skip > old_skip:
+            before = dict(skips)
+            before[product_id] = old_skip
+            funded = sum(
+                q for pid, q, _pr in _funded_extras(item, before, override.qty) if pid == product_id
+            )
+            freed = min(new_skip - old_skip, funded)
+        else:
+            freed = new_skip - old_skip
+        shifted = max(0, override.qty - freed)
         if shifted == new_suggested and shifted > 0:
             db.delete(override)
         else:
@@ -1284,6 +1303,9 @@ def leave_group_buy(db: Session, user: User, group_id: int) -> None:
     for row in list(group.qty_overrides):
         if row.user_id == user.id:
             db.delete(row)
+    for skip_row in list(group.extra_skips):
+        if skip_row.user_id == user.id:
+            db.delete(skip_row)
     db.delete(member)
     db.commit()
 
