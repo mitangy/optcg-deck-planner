@@ -4,6 +4,7 @@ import type { ChoiceRequestView, Intent, PendingChoiceView, Seat } from "../../n
 import { CardTile } from "../zones/CardTile";
 import { useClickCopy } from "../input/clickCopy";
 import { floatLookAnswer, moveId, nearestSlot, tapInOrder } from "./floatOrder";
+import { doublePick } from "./fieldTargets";
 import "./float.css";
 import { BackPill, promptSourceName } from "./HideablePrompt";
 import { captureHideShrink } from "./hideShrink";
@@ -247,6 +248,17 @@ function FloatLook({ choice, request, mySeat, onSend }: {
   const eligible = (id: string) => request.maxSelect > 0 && request.groups.some((g) => g.eligibleIds.includes(id));
   const toggle = (id: string) =>
     setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : request.maxSelect === 1 ? [id] : cur.length >= request.maxSelect ? cur : [...cur, id]));
+  // Double click / tap on a card (#1287): take it (never drop it) and confirm when the picks are valid.
+  const sent = useRef(false);
+  const doubleToggle = (id: string) => {
+    if (sent.current) return;
+    const next = doublePick(picked, id, request.minSelect, request.maxSelect);
+    setPicked(next.selected);
+    if (next.answer) {
+      sent.current = true;
+      onSend({ type: "resolve_pending_choice", accept: true, ...floatLookAnswer(request, row, next.selected, side) });
+    }
+  };
   const remaining = row.filter((id) => !picked.includes(id));
   const needsOrder = request.rest === "deck_bottom" || request.rest === "deck_top" || request.rest === "top_or_bottom";
   const onTop = request.rest === "deck_top" || (request.rest === "top_or_bottom" && side === "top");
@@ -310,6 +322,7 @@ function FloatLook({ choice, request, mySeat, onSend }: {
                   inspectGestures
                   instantClick
                   onClick={canTake ? () => toggle(id) : undefined}
+                  onDoubleActivate={canTake ? () => doubleToggle(id) : undefined}
                   ownerSeat={option.ownerSeat}
                   viewingSeat={mySeat}
                 />
