@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-12
+  { date: "2026-11-12", app: "planner", pr: 1281, title: "Alt art tiles line up", text: "Every alt art tile for a card is now the same height, also on phones where each tile has its own row. + Extra copy and Show are the same full width on every tile, so ★ Extra copy no longer spills past the edge, and the price, labels and Owned or Want all start at one left edge." },
   { date: "2026-11-12", app: "duel", pr: 1284, title: "Hand buttons stack beside the bottom-middle hand", text: "With Keep hand open on, the bottom-middle hand's buttons (menu, Hand, Sort, Hide) now stack in a column right at the left edge of your cards instead of sticking out in a row, and they stay still when the hand rises, tucks or hides." },
   { date: "2026-11-12", app: "duel", pr: 1288, title: "Mulligan message floats over the board", text: "At the start of a game, the opening hand message now floats over the top of the board instead of pushing it down, so the board no longer jumps when both players have decided." },
   // 2026-11-11

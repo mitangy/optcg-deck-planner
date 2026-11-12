@@ -1,7 +1,8 @@
 /**
  * One standard alt-art tile (#1270): on Shopping and a group buy, the Base tile and every alt tile have the same
- * width, tiles in one row are the same height, and every thumbnail is the same size. List and Grid, at
- * desktop-1200 and phone-375.
+ * width, every tile in a card's list is the same height (#1280: not just tiles sharing a row), every thumbnail
+ * is the same size, and Extra copy / Show share one width inside the tile. List and Grid, at desktop-1200 and
+ * phone-375.
  */
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
@@ -91,13 +92,26 @@ async function setLayout(page: Page, layout: "List" | "Grid") {
   await page.getByRole("group", { name: "Card layout" }).getByRole("button", { name: layout, exact: true }).click();
 }
 
-/** Size of every alt tile on screen (and its thumbnail), plus which tiles share a row. */
+/** Size of every alt tile on screen (and its thumbnail), which list it is in, and its buttons' boxes. */
 async function tileSizes(page: Page) {
   return page.locator(".alt-art:visible").evaluateAll((tiles) =>
     tiles.map((t) => {
       const r = t.getBoundingClientRect();
       const th = t.querySelector(".thumb")!.getBoundingClientRect();
-      return { base: t.classList.contains("alt-art-base"), w: r.width, h: r.height, top: Math.round(r.top), tw: th.width, th: th.height };
+      const list = t.closest(".alt-arts")!;
+      const buttons = [...t.querySelectorAll(":is(.alt-collector-btn, .alt-show-btn, .alt-shown-chip)")].map((b) => {
+        const br = b.getBoundingClientRect();
+        return { text: b.textContent ?? "", w: br.width, left: br.left - r.left, right: r.right - br.right, bottom: r.bottom - br.bottom };
+      });
+      return {
+        base: t.classList.contains("alt-art-base"),
+        list: [...document.querySelectorAll(".alt-arts")].indexOf(list),
+        w: r.width,
+        h: r.height,
+        tw: th.width,
+        th: th.height,
+        buttons,
+      };
     }),
   );
 }
@@ -110,23 +124,34 @@ function expectOneSize(tiles: Awaited<ReturnType<typeof tileSizes>>) {
     expect(Math.abs(t.w - tiles[0].w), `tile width ${t.w} vs ${tiles[0].w}`).toBeLessThanOrEqual(1);
     expect(Math.abs(t.tw - 48), `thumb width ${t.tw}`).toBeLessThanOrEqual(1);
     expect(Math.abs(t.th - 67), `thumb height ${t.th}`).toBeLessThanOrEqual(1);
-    const row = tiles.filter((o) => Math.abs(o.top - t.top) <= 1);
-    for (const o of row) expect(Math.abs(o.h - t.h), `row tile height ${o.h} vs ${t.h}`).toBeLessThanOrEqual(1);
+    // Every tile in one card's list is the same height, also when each sits on its own row (#1280).
+    const list = tiles.filter((o) => o.list === t.list);
+    for (const o of list) expect(Math.abs(o.h - t.h), `tile height ${o.h} vs ${t.h} in one list`).toBeLessThanOrEqual(1);
+    // Extra copy, Show and Shown share one width and stay inside the tile (#1280).
+    for (const b of t.buttons) {
+      expect(Math.abs(b.w - t.buttons[0].w), `${b.text} width ${b.w} vs ${t.buttons[0].w}`).toBeLessThanOrEqual(1);
+      expect(b.left, `${b.text} spills past the tile's left edge`).toBeGreaterThanOrEqual(0);
+      expect(b.right, `${b.text} spills past the tile's right edge`).toBeGreaterThanOrEqual(0);
+      expect(b.bottom, `${b.text} spills past the tile's bottom edge`).toBeGreaterThanOrEqual(0);
+    }
   }
 }
 
 for (const layout of ["List", "Grid"] as const) {
-  test(`Shopping ${layout}: Base and alt tiles share one width, row height and thumbnail size (#1270)`, async ({ page, planner }) => {
-    planner.manyAlts(IZO, 2);
-    planner.collectors.set(`${IZO}:202`, 1);
-    planner.altWants.set(`${IZO}:202`, 1);
+  test(`Shopping ${layout}: Base and alt tiles share one width, height and thumbnail size (#1270, #1280)`, async ({ page, planner }) => {
+    // Base, a bought alt with ★ Extra copy (the tallest tile), and plain alts: on phone each row holds only
+    // some of them, so this also checks heights across rows, and on phone the list overflows the #877 scroll cap
+    // so a cap that squeezed the rows would push buttons out of their tiles (#1280).
+    planner.manyAlts(IZO, 6);
+    planner.collectors.set(`${IZO}:201`, 1);
+    planner.altWants.set(`${IZO}:201`, 1);
     await planner.open("/");
     await setLayout(page, layout);
     await expect(page.locator(".alt-art-base:visible").first()).toBeVisible();
     expectOneSize(await tileSizes(page));
   });
 
-  test(`Group buy ${layout}: Base and alt tiles share one width, row height and thumbnail size (#1270)`, async ({ page, planner }) => {
+  test(`Group buy ${layout}: Base and alt tiles share one width, height and thumbnail size (#1270, #1280)`, async ({ page, planner }) => {
     await page.route(`**/api/group-buys/${GB}`, (route) => route.fulfill({ json: gbDetail() }));
     await planner.open(`/group-buys/${GB}`);
     await expect(page.getByRole("heading", { name: "OP09 restock", level: 1 })).toBeVisible();
