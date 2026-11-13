@@ -46,6 +46,35 @@ const botPicker = (decks: SavedDeck[], value = BOT_DECK_RANDOM_META) => (
   <DeckPicker id="bot-deck" label="Bot's deck" decks={decks} value={value} onChange={() => {}} botMeta />
 );
 
+const withLeader = (id: string, name: string, leaderId: string): SavedDeck => ({ ...mine(id, name), leaderId });
+
+describe("Deck pickers group by Leader (#1294)", () => {
+  it("puts a later deck of the same Leader right after the first one, under one header (#1294)", async () => {
+    const rows = await openPicker(
+      <DeckPicker id="bot-deck" label="Deck" decks={[withLeader("d1", "Alpha", "OP09-001"), withLeader("d2", "Beta", "ST01-001"), withLeader("d3", "Gamma", "OP09-001")]} value="d1" onChange={() => {}} />,
+    );
+    const text = rows.map((r) => r.textContent ?? "");
+    expect(text).toHaveLength(5);
+    expect(text[0]).toContain("OP09-001");
+    expect(rows[0]!.hasAttribute("data-disabled")).toBe(true);
+    expect(text[1]).toContain("Alpha");
+    expect(text[2]).toContain("Gamma");
+    expect(text[3]).toContain("ST01-001");
+    expect(text[4]).toContain("Beta");
+  });
+
+  it("nests the Leader headers under Your decks in the bot picker (#1294)", async () => {
+    const rows = await openPicker(botPicker([withLeader("d1", "Alpha", "OP09-001"), withLeader("d2", "Beta", "ST01-001"), withLeader("d3", "Gamma", "OP09-001")]));
+    const text = rows.slice(11).map((r) => r.textContent ?? "");
+    expect(text[0]).toContain("Your decks");
+    expect(text[1]).toContain("OP09-001");
+    expect(text[2]).toContain("Alpha");
+    expect(text[3]).toContain("Gamma");
+    expect(text[4]).toContain("ST01-001");
+    expect(text[5]).toContain("Beta");
+  });
+});
+
 describe("Bot's deck picker (#1180)", () => {
   it("lists Random meta deck, the 10 meta decks, then Your decks with each saved deck, and no longer mirrors yours (#1180)", async () => {
     const rows = await openPicker(botPicker([mine("d1", "Alpha"), mine("d2", "Beta")]));
@@ -54,9 +83,10 @@ describe("Bot's deck picker (#1180)", () => {
     BOT_META_DECKS.forEach((m, i) => expect(text[1 + i]).toContain(m.name));
     expect(text[11]).toContain("Your decks");
     expect(rows[11]!.hasAttribute("data-disabled")).toBe(true);
-    expect(text[12]).toContain("Alpha");
-    expect(text[13]).toContain("Beta");
-    expect(rows).toHaveLength(14);
+    expect(text[12]).toContain("ST01-001");
+    expect(text[13]).toContain("Alpha");
+    expect(text[14]).toContain("Beta");
+    expect(rows).toHaveLength(15);
     expect(text.join("|")).not.toMatch(/Same as your deck|Random deck/);
   });
 

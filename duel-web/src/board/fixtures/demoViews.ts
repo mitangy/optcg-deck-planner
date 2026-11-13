@@ -875,8 +875,8 @@ export function demoUndoState(kind: string | null): UndoState {
 
 /** Saved decks offered on the demo rematch panel (`?over`). */
 export const DEMO_REMATCH_DECKS: RematchDeckOption[] = [
-  { id: "demo-zoro", name: "Zoro Aggro", leaderName: "Roronoa Zoro", cards: 50, wire: { leaderId: "OP01-001", deck: [] } },
-  { id: "demo-luffy", name: "Straw Hat Midrange with a Very Long Deck Name", leaderName: "Monkey.D.Luffy", cards: 48, wire: { leaderId: "ST01-001", deck: [] } },
+  { id: "demo-zoro", name: "Zoro Aggro", leaderId: "OP01-001", leaderName: "Roronoa Zoro", cards: 50, wire: { leaderId: "OP01-001", deck: [] } },
+  { id: "demo-luffy", name: "Straw Hat Midrange with a Very Long Deck Name", leaderId: "ST01-001", leaderName: "Monkey.D.Luffy", cards: 48, wire: { leaderId: "ST01-001", deck: [] } },
 ];
 
 const svgUrl = (svg: string) => `data:image/svg+xml,${encodeURIComponent(svg)}`;

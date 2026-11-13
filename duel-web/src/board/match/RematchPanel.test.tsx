@@ -7,8 +7,8 @@ import type { RematchDeckOption } from "../../decks/rematchDecks";
 import type { RematchState } from "../../net/protocol";
 import { RematchPanel, decksFromPicks } from "./RematchPanel";
 
-const zoro: RematchDeckOption = { id: "zoro", name: "Zoro Aggro", leaderName: "Roronoa Zoro", cards: 50, wire: { leaderId: "OP01-001", deck: ["A"] } };
-const luffy: RematchDeckOption = { id: "luffy", name: "Luffy Mid", leaderName: "Monkey.D.Luffy", cards: 48, wire: { leaderId: "ST01-001", deck: ["B"] } };
+const zoro: RematchDeckOption = { id: "zoro", name: "Zoro Aggro", leaderId: "OP01-001", leaderName: "Roronoa Zoro", cards: 50, wire: { leaderId: "OP01-001", deck: ["A"] } };
+const luffy: RematchDeckOption = { id: "luffy", name: "Luffy Mid", leaderId: "ST01-001", leaderName: "Monkey.D.Luffy", cards: 48, wire: { leaderId: "ST01-001", deck: ["B"] } };
 const options = [zoro, luffy];
 
 const state = (over: Partial<RematchState> = {}): RematchState => ({
@@ -84,17 +84,38 @@ describe("rematch deck pick", () => {
     const { button, labels } = openPicker(0);
     expect(labels()).toEqual([
       "Keep same deck✓",
-      "Zoro Aggro" + "Roronoa Zoro · 50 cards",
-      "Luffy Mid" + "Monkey.D.Luffy · 48 cards",
+      "Roronoa Zoro · OP01-001",
+      "Zoro Aggro" + "50 cards",
+      "Monkey.D.Luffy · ST01-001",
+      "Luffy Mid" + "48 cards",
     ]);
     const names = button().getAttribute("aria-labelledby")!.split(" ").map((id) => document.getElementById(id)?.textContent);
     expect(names).toContain("Deck for the rematch");
   });
 
+  it("lists a later deck of the same Leader right after the first, under one header (#1294)", () => {
+    const zoro2: RematchDeckOption = { ...zoro, id: "zoro2", name: "Zoro Control" };
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    act(() => root!.render(<RematchPanel state={state()} mySeat={0} players={null} deckOptions={[zoro, luffy, zoro2]} onAction={onAction} />));
+    act(() => host!.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"]')!.click());
+    const rows = [...document.querySelectorAll<HTMLElement>('[role="option"]')];
+    expect(rows.map((r) => r.textContent)).toEqual([
+      "Keep same deck✓",
+      "Roronoa Zoro · OP01-001",
+      "Zoro Aggro" + "50 cards",
+      "Zoro Control" + "50 cards",
+      "Monkey.D.Luffy · ST01-001",
+      "Luffy Mid" + "48 cards",
+    ]);
+    expect(rows[1]!.hasAttribute("data-disabled")).toBe(true);
+  });
+
   it("picking a deck updates the trigger and sends that deck with the request (#479, #772)", () => {
     const { button, rows } = openPicker(0);
     expect(button().textContent).toContain("Keep same deck");
-    act(() => rows()[2]!.click());
+    act(() => rows()[4]!.click());
     expect(button().textContent).toContain("Luffy Mid");
     expect(document.querySelector('[role="listbox"]')).toBeNull();
     act(() => [...host!.querySelectorAll("button")].find((b) => b.textContent === "Ask for a rematch")!.click());
