@@ -703,6 +703,21 @@ export const api = {
         body: JSON.stringify({ qty }),
       },
     ),
+  /** "One of each art" (#1292): spreads this deck's copies evenly over the base art and every alt. */
+  spreadDeckCardArts: (deckId: number, cardId: string) =>
+    request<DeckDetail>(
+      `/decks/${deckId}/cards/${encodeURIComponent(cardId)}/printings/spread`,
+      { method: "PUT" },
+    ),
+  /** Same across the decks holding the card (and a Master Shopping extra); `deckIds` narrows to the decks shown. */
+  spreadCardArts: (cardId: string, deckIds?: number[]) =>
+    request<{ card_id: string; decks_updated: number }>(
+      `/cards/${encodeURIComponent(cardId)}/printings/spread`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ deck_ids: deckIds }),
+      },
+    ),
   setCardPrinting: (cardId: string, productId: number, qty: number, deckIds?: number[]) =>
     request<{ card_id: string; product_id: number; qty: number; decks_updated: number }>(
       `/cards/${encodeURIComponent(cardId)}/printings/${productId}`,

@@ -63,6 +63,8 @@ export function CardTable({
   altOwnedBusyKey = null,
   onDisplayArtChange,
   onAltBuyChange,
+  onSpreadArts,
+  spreadBusyId = null,
   onCollectorChange,
   collectorBusyKey = null,
 }: {
@@ -80,6 +82,10 @@ export function CardTable({
   onDisplayArtChange?: (cardId: string, productId: number) => void;
   /** Owner pages only: saves how many still-needed copies are bought as one alt art (#906). */
   onAltBuyChange?: (cardId: string, productId: number, qty: number) => void;
+  /** Owner pages only: "One of each art" for any-number cards (#1292). */
+  onSpreadArts?: (cardId: string) => void;
+  /** Card whose spread is saving. */
+  spreadBusyId?: string | null;
   /** Owner pages only: want an alt art as a collector copy on top of the deck's copies (#1035). */
   onCollectorChange?: (cardId: string, productId: number, qty: number) => void;
   /** `${cardId}:${productId}` while a collector save is in flight. */
@@ -97,6 +103,8 @@ export function CardTable({
         busyProductId={busyProductFor(altOwnedBusyKey, c.card_id)}
         plainWhenIdle={false}
         onCollectorPick={onCollectorChange ? (productId, qty) => onCollectorChange(c.card_id, productId, qty) : undefined}
+        onSpread={onSpreadArts ? () => onSpreadArts(c.card_id) : undefined}
+        spreadBusy={spreadBusyId === c.card_id}
       />
     ) : null;
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);

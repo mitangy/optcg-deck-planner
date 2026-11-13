@@ -17,6 +17,8 @@ from app.core.rate_limit import RateLimiter, client_ip
 from app.planner.recent_sales import fetch_recent_sales, is_cached
 from app.core.schemas import UserOut, UserPreferencesUpdate
 from app.planner.schemas import (
+    CardArtSpreadResult,
+    CardArtSpreadUpdate,
     CardPrintingResult,
     CardPrintingUpdate,
     CatalogCardResult,
@@ -167,6 +169,37 @@ def delete_deck_card(
     return deck_svc.upsert_deck_card(
         db, user, deck_id, card_id, 0, confirm_oversize=True
     )
+
+
+@router.put(
+    "/decks/{deck_id}/cards/{card_id}/printings/spread",
+    response_model=DeckDetail,
+)
+def put_deck_card_art_spread(
+    deck_id: int,
+    card_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """One of each art (#1292): spread this deck's copies over the base art and every alt."""
+    return deck_svc.spread_deck_card_arts(db, user, deck_id, card_id)
+
+
+@router.put(
+    "/cards/{card_id}/printings/spread",
+    response_model=CardArtSpreadResult,
+)
+def put_card_art_spread(
+    card_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    body: CardArtSpreadUpdate | None = None,
+):
+    """One of each art (#1292) across the decks (and shopping extra) holding the card."""
+    updated = owned_svc.spread_user_card_arts(
+        db, user, card_id, deck_ids=body.deck_ids if body else None
+    )
+    return CardArtSpreadResult(card_id=card_id.strip().upper(), decks_updated=updated)
 
 
 @router.put(

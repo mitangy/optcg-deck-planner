@@ -15,10 +15,16 @@ import { applyAltBuyOptimistic, applyAltOwnedOptimistic, applyCollectorOptimisti
  */
 export function useCardEdits({
   saveAltBuy,
-}: { saveAltBuy?: (cardId: string, productId: number, qty: number) => Promise<void> } = {}) {
+  saveSpread,
+}: {
+  saveAltBuy?: (cardId: string, productId: number, qty: number) => Promise<void>;
+  /** "One of each art" (#1292): spreads the card's copies over every art; the server answer replaces the cached views. */
+  saveSpread?: (cardId: string) => Promise<void>;
+} = {}) {
   const qc = useQueryClient();
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [collectorBusyKey, setCollectorBusyKey] = useState<string | null>(null);
+  const [spreadBusyId, setSpreadBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const changeAltOwned = async (cardId: string, productId: number, qty: number) => {
     setError(null);
@@ -45,6 +51,18 @@ export function useCardEdits({
     } finally {
       invalidateAltWantViews(qc);
       setBusyKey(null);
+    }
+  };
+  const spreadArts = async (cardId: string) => {
+    setError(null);
+    setSpreadBusyId(cardId);
+    try {
+      await saveSpread?.(cardId);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      invalidateAltWantViews(qc);
+      setSpreadBusyId(null);
     }
   };
   const changeCollector = async (cardId: string, productId: number, qty: number) => {
@@ -83,6 +101,8 @@ export function useCardEdits({
     setError,
     changeAltOwned,
     changeAltBuy,
+    spreadArts,
+    spreadBusyId,
     changeCollector,
     changeDisplayArt,
     busyProductId,

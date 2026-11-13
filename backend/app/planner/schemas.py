@@ -146,6 +146,17 @@ class CardPrintingUpdate(BaseModel):
     deck_ids: list[int] | None = None
 
 
+class CardArtSpreadUpdate(BaseModel):
+    """"One of each art" across the user's decks that include the card (#1292)."""
+
+    deck_ids: list[int] | None = None
+
+
+class CardArtSpreadResult(BaseModel):
+    card_id: str
+    decks_updated: int
+
+
 class CardPrintingResult(BaseModel):
     card_id: str
     product_id: int

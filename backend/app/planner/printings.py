@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.errors import Invalid
+from app.planner.catalog_repo import alt_arts_map
 from app.planner.models import (
     CardDisplayChoice,
     CatalogPrinting,
@@ -248,3 +249,51 @@ def _leader_group_id(deck: Deck) -> str:
     if deck.leader_card_id:
         return deck.leader_card_id
     return f"__deck_{deck.id}"
+
+
+def even_art_split(needed: int, alt_count: int) -> list[int]:
+    """Alt quantities for "One of each art" (#1292); the base art takes ``needed - sum``.
+
+    Copies spread evenly over the base art and ``alt_count`` alts. Any remainder goes
+    base first, then alts in order: 8 over 3 arts is base 3, alt 3, alt 2.
+    """
+    if alt_count <= 0:
+        return []
+    arts = alt_count + 1
+    share, extra = divmod(max(0, needed), arts)
+    # Index 0 is the base art, so alt i (0-based) sits at slot i + 1.
+    return [share + (1 if i + 1 < extra else 0) for i in range(alt_count)]
+
+
+def _spread_alt_product_ids(db: Session, card_id: str) -> list[int]:
+    """Alt arts of a card in the order the UI lists them (alt_arts_map's sort)."""
+    return [a.product_id for a in alt_arts_map(db, {card_id}).get(card_id, [])]
+
+
+def _spread_deck_card_rows(
+    db: Session, deck_id: int, card_id: str, needed: int, product_ids: list[int]
+) -> None:
+    """Replace a deck card's alt wants with the even split of ``needed`` over its arts."""
+    _clear_deck_card_printings(db, deck_id, card_id)
+    db.flush()
+    for pid, qty in zip(product_ids, even_art_split(needed, len(product_ids))):
+        _write_deck_printing_qty(
+            db, deck_id=deck_id, card_id=card_id, product_id=pid,
+            qty=qty, needed=needed, strict=False,
+        )
+
+
+def _spread_extra_rows(
+    db: Session, user_id: int, card_id: str, extra_qty: int, product_ids: list[int]
+) -> None:
+    """Same split for a Master Shopping extra's alt wants."""
+    for row in db.scalars(
+        select(ShoppingExtraPrinting).where(
+            ShoppingExtraPrinting.user_id == user_id,
+            ShoppingExtraPrinting.card_id == card_id,
+        )
+    ).all():
+        db.delete(row)
+    db.flush()
+    for pid, qty in zip(product_ids, even_art_split(extra_qty, len(product_ids))):
+        _write_extra_printing_qty(db, user_id, card_id, pid, qty, extra_qty)

@@ -47,6 +47,7 @@ export function GroupBuyDetailPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
+  const [spreadBusyId, setSpreadBusyId] = useState<string | null>(null);
   // Cards edited on this page stay listed even at 0, so you can still pick an alt (#868).
   const [keepVisible, setKeepVisible] = useState<ReadonlySet<string>>(() => new Set());
   const keepCardVisible = (cardId: string) =>
@@ -358,6 +359,25 @@ export function GroupBuyDetailPage() {
     onSettled: () => setAltWantBusyKey(null),
   });
 
+  /** "One of each art" (#1292): spreads each of your decks' copies of a card over every art. */
+  const spreadArts = useMutation({
+    mutationFn: ({ cardId }: { cardId: string }) =>
+      api.spreadCardArts(cardId, activeDeckIds && activeDeckIds.length ? activeDeckIds : undefined),
+    onMutate: ({ cardId }) => {
+      keepCardVisible(cardId);
+      setSpreadBusyId(cardId);
+    },
+    onError: (e: Error) => setMsg(e.message),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: qk.groupBuy.detail(groupId) });
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
+      await qc.invalidateQueries({ queryKey: qk.shopping.all() });
+      await qc.invalidateQueries({ queryKey: qk.deck.all() });
+      await qc.invalidateQueries({ queryKey: qk.decks() });
+    },
+    onSettled: () => setSpreadBusyId(null),
+  });
+
   /** Which art each card displays is your own view choice: saved like Master Shopping (#874). */
   const setDisplayArt = useMutation({
     mutationFn: ({ cardId, productId }: { cardId: string; productId: number }) =>
@@ -444,6 +464,8 @@ export function GroupBuyDetailPage() {
             <SkippedBadge line={line} productId={productId} />
           </>
         )}
+        onSpread={canEditWants ? () => spreadArts.mutate({ cardId: line.card_id }) : undefined}
+        spreadBusy={spreadBusyId === line.card_id}
         shownProductId={shownProductId(line)}
         onShow={(productId) => setDisplayArt.mutate({ cardId: line.card_id, productId })}
         busyProductId={

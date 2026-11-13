@@ -107,6 +107,50 @@
   font-size: 1rem;
 }
 
+/* "One of each art" (#1292): a full-width action under the title; the label is fixed, so a save never resizes it. */
+.buy-split-spread {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1rem 0.5rem;
+  width: 100%;
+  min-height: 2.25rem;
+  margin: 0 0 0.6rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-10);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.buy-split-spread:hover {
+  border-color: var(--accent);
+}
+
+.buy-split-spread[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.buy-split-spread-text {
+  color: var(--accent-ink, var(--accent));
+  font-weight: 650;
+}
+
+.buy-split-spread-hint {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.buy-split-sheet .buy-split-spread {
+  min-height: 2.75rem;
+}
+
 .buy-split-rows {
   display: grid;
   gap: var(--space-2);

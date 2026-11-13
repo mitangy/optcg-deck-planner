@@ -40,6 +40,8 @@ from app.planner.printings import (
     _display_choice_map,
     _leader_group_id,
     _printing_wants_for_decks,
+    _spread_alt_product_ids,
+    _spread_deck_card_rows,
     _write_deck_printing_qty,
 )
 
@@ -713,5 +715,26 @@ def set_deck_card_printing(
         needed=deck_card.needed,
         strict=True,
     )
+    db.commit()
+    return get_deck_detail(db, user, deck_id)
+
+
+def spread_deck_card_arts(db: Session, user: User, deck_id: int, card_id: str) -> DeckDetail:
+    """"One of each art" (#1292): spread this deck's copies evenly over the base art and every alt."""
+    card_id = card_id.strip().upper()
+    deck = db.scalar(
+        select(Deck)
+        .where(Deck.id == deck_id, Deck.user_id == user.id)
+        .options(selectinload(Deck.cards))
+    )
+    if deck is None:
+        raise NotFound("Deck not found")
+    deck_card = next((c for c in deck.cards if c.card_id == card_id), None)
+    if deck_card is None:
+        raise NotFound("Card not in deck")
+    product_ids = _spread_alt_product_ids(db, card_id)
+    if not product_ids:
+        raise Invalid("This card has no alt arts")
+    _spread_deck_card_rows(db, deck.id, card_id, deck_card.needed, product_ids)
     db.commit()
     return get_deck_detail(db, user, deck_id)

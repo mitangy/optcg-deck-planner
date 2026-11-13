@@ -1720,6 +1720,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/cards/{card_id}/printings/spread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Card Art Spread
+         * @description One of each art (#1292) across the decks (and shopping extra) holding the card.
+         */
+        put: operations["put_card_art_spread_cards__card_id__printings_spread_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/cards/{card_id}/printings/{product_id}": {
         parameters: {
             query?: never;
@@ -1912,6 +1932,26 @@ export interface paths {
         post?: never;
         /** Delete Deck Card */
         delete: operations["delete_deck_card_decks__deck_id__cards__card_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/decks/{deck_id}/cards/{card_id}/printings/spread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Deck Card Art Spread
+         * @description One of each art (#1292): spread this deck's copies over the base art and every alt.
+         */
+        put: operations["put_deck_card_art_spread_decks__deck_id__cards__card_id__printings_spread_put"];
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -5232,6 +5272,21 @@ export interface components {
             win_rate?: number | null;
             /** Wins */
             wins?: number | null;
+        };
+        /** CardArtSpreadResult */
+        CardArtSpreadResult: {
+            /** Card Id */
+            card_id: string;
+            /** Decks Updated */
+            decks_updated: number;
+        };
+        /**
+         * CardArtSpreadUpdate
+         * @description "One of each art" across the user's decks that include the card (#1292).
+         */
+        CardArtSpreadUpdate: {
+            /** Deck Ids */
+            deck_ids?: number[] | null;
         };
         /** CardPrintingResult */
         CardPrintingResult: {
@@ -12725,6 +12780,41 @@ export interface operations {
             };
         };
     };
+    put_card_art_spread_cards__card_id__printings_spread_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["CardArtSpreadUpdate"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CardArtSpreadResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     put_card_printing_cards__card_id__printings__product_id__put: {
         parameters: {
             query?: never;
@@ -13137,6 +13227,38 @@ export interface operations {
         };
     };
     delete_deck_card_decks__deck_id__cards__card_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: number;
+                card_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeckDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_deck_card_art_spread_decks__deck_id__cards__card_id__printings_spread_put: {
         parameters: {
             query?: never;
             header?: never;

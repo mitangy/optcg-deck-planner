@@ -6,6 +6,8 @@ import { CardThumb } from "../../ui/CardThumb";
 import { canOpenBuyPopover, collectorChoices } from "../collection/collectorLines";
 import { altBuyCopies, splitStillNeed } from "./deckCost";
 import { useMediaQuery } from "@optcg/ui/hooks";
+import { loadStatsAtlas } from "@optcg/deck-analytics/ui";
+import { SpreadArtsAction } from "../../cards/SpreadArtsAction";
 
 /** Phone layout: the list view's breakpoint (styles.css `max-width: 800px`). */
 const PHONE_QUERY = "(max-width: 800px)";
@@ -79,10 +81,15 @@ export function BuySplitEditor({
   busyProductId = null,
   onPick,
   onCollectorPick,
+  onSpread,
+  spreadBusy = false,
 }: {
   card: BuySplitCard;
   busyProductId?: number | null;
   onPick: (productId: number, qty: number) => void;
+  /** "One of each art" (#1292): shown for any-number cards with alt arts. */
+  onSpread?: () => void;
+  spreadBusy?: boolean;
   /** Planner pages (#1031): adds the "Want an extra copy too" art picker under the split. */
   onCollectorPick?: (productId: number, qty: number) => void;
 }) {
@@ -99,6 +106,7 @@ export function BuySplitEditor({
       <h3 className="buy-split-title" id={titleId}>
         Buy your {card.still_need} {card.still_need === 1 ? "copy" : "copies"} as…
       </h3>
+      {onSpread ? <SpreadArtsAction card={card} busy={spreadBusy} onSpread={onSpread} /> : null}
       {/* Steppers use aria-disabled, not disabled: a disabled button drops focus, and Escape would stop closing the panel. */}
       <ul className="buy-split-rows">
         <li className="buy-split-row">
@@ -259,6 +267,8 @@ export function BuySplit({
   busyProductId = null,
   plainWhenIdle = true,
   onCollectorPick,
+  onSpread,
+  spreadBusy = false,
 }: {
   card: BuySplitCard;
   /** The formatted remaining cost, e.g. "$2.50". */
@@ -271,6 +281,9 @@ export function BuySplit({
   plainWhenIdle?: boolean;
   /** Planner pages (#1031): with this the price opens even when nothing is left to buy, for the collector picker. */
   onCollectorPick?: (productId: number, qty: number) => void;
+  /** "One of each art" (#1292): spreads the deck's copies over every art. Only any-number cards show it. */
+  onSpread?: () => void;
+  spreadBusy?: boolean;
 }) {
   const phone = useMediaQuery(PHONE_QUERY);
   const eligible = Boolean(onPick) && canOpenBuyPopover(card, Boolean(onCollectorPick));
@@ -295,6 +308,9 @@ export function BuySplit({
           className="buy-split-box buy-split-btn"
           title={collectorOnly ? `Add an extra copy of ${card.name}` : `Choose which arts to buy for ${card.name}`}
           data-buy-split={card.card_id}
+          // Card stats decide whether "One of each art" shows; start the (shared, once) download before the panel opens.
+          onPointerEnter={onSpread ? loadStatsAtlas : undefined}
+          onFocus={onSpread ? loadStatsAtlas : undefined}
         >
           <span className="buy-split-amount">
             {prefix}
@@ -320,7 +336,14 @@ export function BuySplit({
           aria-label={`Buy ${card.name} as`}
           className={`buy-split-panel${phone ? " buy-split-sheet" : ""}`}
         >
-          <BuySplitEditor card={card} busyProductId={busyProductId} onPick={onPick} onCollectorPick={onCollectorPick} />
+          <BuySplitEditor
+            card={card}
+            busyProductId={busyProductId}
+            onPick={onPick}
+            onCollectorPick={onCollectorPick}
+            onSpread={onSpread}
+            spreadBusy={spreadBusy}
+          />
         </PopoverPanel>
       </Popover>
     </span>

@@ -217,6 +217,8 @@ export function DeckDetailPage() {
     error: altOwnedErr,
     changeAltOwned,
     changeAltBuy,
+    spreadArts,
+    spreadBusyId,
     changeCollector,
     collectorBusyKey,
     changeDisplayArt,
@@ -224,6 +226,9 @@ export function DeckDetailPage() {
     saveAltBuy: async (cardId, productId, qty) => {
       const detail = await api.setDeckCardPrinting(deckId, cardId, productId, qty);
       applyDeckUpdate(detail);
+    },
+    saveSpread: async (cardId) => {
+      applyDeckUpdate(await api.spreadDeckCardArts(deckId, cardId));
     },
   });
 
@@ -641,6 +646,8 @@ export function DeckDetailPage() {
         onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
         altOwnedBusyKey={altOwnedBusyKey}
         onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
+        onSpreadArts={(cardId) => void spreadArts(cardId)}
+        spreadBusyId={spreadBusyId}
         onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
         collectorBusyKey={collectorBusyKey}
       />
@@ -661,6 +668,8 @@ export function DeckDetailPage() {
             onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
             altOwnedBusyKey={altOwnedBusyKey}
             onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
+            onSpreadArts={(cardId) => void spreadArts(cardId)}
+            spreadBusyId={spreadBusyId}
             onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
             collectorBusyKey={collectorBusyKey}
           />
@@ -691,6 +700,8 @@ export function DeckDetailPage() {
           onDisplayArtChange={(cardId, productId) => void changeDisplayArt(cardId, productId)}
           altOwnedBusyKey={altOwnedBusyKey}
           onAltBuyChange={(cardId, productId, qty) => void changeAltBuy(cardId, productId, qty)}
+          onSpreadArts={(cardId) => void spreadArts(cardId)}
+          spreadBusyId={spreadBusyId}
           onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
           collectorBusyKey={collectorBusyKey}
         />

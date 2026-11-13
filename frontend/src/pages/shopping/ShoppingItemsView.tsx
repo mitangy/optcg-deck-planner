@@ -93,6 +93,8 @@ export function ShoppingItemsView({
   altRow,
   onBuyPick,
   buyBusyKey = null,
+  onSpreadArts,
+  spreadBusyId = null,
   usedInNote,
   onOwnedSaved,
   onRemoveExtra,
@@ -112,6 +114,10 @@ export function ShoppingItemsView({
   onBuyPick?: (cardId: string, productId: number, qty: number) => void;
   /** `${cardId}:${productId}` while a buy pick is saving. */
   buyBusyKey?: string | null;
+  /** Owner pages: "One of each art" for any-number cards (#1292). */
+  onSpreadArts?: (cardId: string) => void;
+  /** Card whose spread is saving. */
+  spreadBusyId?: string | null;
   usedInNote: (item: ShoppingItem) => string;
   onOwnedSaved: () => void;
   onRemoveExtra: (cardId: string) => void;
@@ -183,6 +189,8 @@ export function ShoppingItemsView({
       onPick={onBuyPick ? (productId, qty) => onBuyPick(item.card_id, productId, qty) : undefined}
       busyProductId={busyProductFor(buyBusyKey, item.card_id)}
       onCollectorPick={collector ? (productId, qty) => collector.onChange(item.card_id, productId, qty) : undefined}
+      onSpread={onSpreadArts ? () => onSpreadArts(item.card_id) : undefined}
+      spreadBusy={spreadBusyId === item.card_id}
     />
   );
 

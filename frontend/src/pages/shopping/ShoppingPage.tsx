@@ -171,6 +171,8 @@ export function ShoppingPage() {
     setError: setAltOwnedErr,
     changeAltOwned: changeShoppingAltOwned,
     changeAltBuy: changeShoppingAltBuy,
+    spreadArts: spreadShoppingArts,
+    spreadBusyId,
     changeCollector,
     collectorBusyKey,
     collectorBusyProductId,
@@ -182,6 +184,10 @@ export function ShoppingPage() {
       const deckIds = activeDeckIds.length === allDeckIds.length ? undefined : activeDeckIds;
       const res = await api.setCardPrinting(cardId, productId, qty, deckIds);
       applyAltBuyOptimistic(qc, cardId, productId, res.qty);
+    },
+    saveSpread: async (cardId) => {
+      const deckIds = activeDeckIds.length === allDeckIds.length ? undefined : activeDeckIds;
+      await api.spreadCardArts(cardId, deckIds);
     },
   });
   const sortingByDeck = effectiveSorts.includes("deck");
@@ -788,6 +794,8 @@ export function ShoppingPage() {
         altRow={shoppingAltRow}
         onBuyPick={(cardId, productId, qty) => void changeShoppingAltBuy(cardId, productId, qty)}
         buyBusyKey={altOwnedBusyKey}
+        onSpreadArts={(cardId) => void spreadShoppingArts(cardId)}
+        spreadBusyId={spreadBusyId}
         usedInNote={usedInNote}
         onOwnedSaved={() => invalidateOwnedViews(qc)}
         onRemoveExtra={(id) => removeExtra.mutate(id)}

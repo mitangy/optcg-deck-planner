@@ -40,6 +40,9 @@ from app.planner.printings import (
     _collector_map,
     _display_choice_map,
     _leader_group_id,
+    _spread_alt_product_ids,
+    _spread_deck_card_rows,
+    _spread_extra_rows,
     _write_deck_printing_qty,
     _write_extra_printing_qty,
 )
@@ -137,6 +140,52 @@ def set_user_card_printing(
 
     db.commit()
     return shown, updated
+
+
+def spread_user_card_arts(
+    db: Session, user: User, card_id: str, deck_ids: list[int] | None = None
+) -> int:
+    """"One of each art" (#1292) for Master Shopping and group buys.
+
+    Every selected deck holding the card spreads its own Need over the base art and
+    each alt, and a Master Shopping extra of the card does the same with its qty.
+    Returns decks_updated.
+    """
+    card_id = card_id.strip().upper()
+    if not card_id:
+        raise Invalid("card_id is required")
+    product_ids = _spread_alt_product_ids(db, card_id)
+    if not product_ids:
+        raise Invalid("This card has no alt arts")
+
+    decks = db.scalars(
+        select(Deck)
+        .where(Deck.user_id == user.id)
+        .options(selectinload(Deck.cards))
+        .order_by(Deck.sort_order, Deck.id)
+    ).all()
+    if deck_ids is not None:
+        wanted = set(deck_ids)
+        decks = [d for d in decks if d.id in wanted]
+    updated = 0
+    for deck in decks:
+        deck_card = next((c for c in deck.cards if c.card_id == card_id), None)
+        if deck_card is not None:
+            _spread_deck_card_rows(db, deck.id, card_id, deck_card.needed, product_ids)
+            updated += 1
+    extra = db.scalar(
+        select(ShoppingExtra).where(
+            ShoppingExtra.user_id == user.id,
+            ShoppingExtra.card_id == card_id,
+            ShoppingExtra.qty > 0,
+        )
+    )
+    if updated == 0 and extra is None:
+        raise NotFound("Card not in any selected deck")
+    if extra is not None:
+        _spread_extra_rows(db, user.id, card_id, extra.qty, product_ids)
+    db.commit()
+    return updated
 
 
 def owned_collection(

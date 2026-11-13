@@ -2,9 +2,20 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { PrintingView } from "../../api";
 import { BuySplit, BuySplitEditor, buySplitActionLabel, buySplitCaption, type BuySplitCard } from "./BuySplit";
+
+// Card stats load lazily in the app; here two cards stand in for the atlas: one prints "any number", one does not.
+vi.mock("@optcg/deck-analytics/ui", () => ({
+  loadStatsAtlas: () => {},
+  useStatsAtlas: () => ({
+    data: {
+      "OP18-093": { t: "character", col: [], rules: ["any_number"] },
+      "EB01-002": { t: "character", col: [] },
+    },
+  }),
+}));
 
 beforeAll(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -160,5 +171,43 @@ describe("BuySplit trigger (#906)", () => {
     const panel = document.querySelector("[role='dialog']");
     expect(panel?.getAttribute("aria-label")).toBe("Buy Izo as");
     expect(panel?.querySelector(".buy-split-editor")).not.toBeNull();
+  });
+});
+
+describe("One of each art (#1292)", () => {
+  const sleeptids = (still: number, alts: PrintingView[]): BuySplitCard => ({ ...card(still, alts), card_id: "OP18-093", name: "Sleeptids" });
+  const spreadBtn = (host: ParentNode) => [...host.querySelectorAll("button")].find((b) => b.textContent?.includes("One of each art"));
+
+  it("an any-number card with alt arts offers it and clicking spreads (#1292)", () => {
+    let spread = 0;
+    const host = mount(<BuySplitEditor card={sleeptids(8, [alt(1, 10), alt(2, 20)])} onPick={() => {}} onSpread={() => spread++} />);
+    const btn = spreadBtn(host)!;
+    expect(btn.textContent).toContain("Spread your copies across all 3 arts");
+    act(() => btn.click());
+    expect(spread).toBe(1);
+  });
+
+  it("a normal card with alt arts does not offer it (#1292)", () => {
+    const host = mount(<BuySplitEditor card={card(3, [alt(1, 10), alt(2, 20)])} onPick={() => {}} onSpread={() => {}} />);
+    expect(spreadBtn(host)).toBeUndefined();
+  });
+
+  it("an any-number card without alt arts does not offer it (#1292)", () => {
+    const host = mount(<BuySplitEditor card={sleeptids(3, [])} onPick={() => {}} onSpread={() => {}} />);
+    expect(spreadBtn(host)).toBeUndefined();
+  });
+
+  it("a save in flight ignores clicks without changing the label (#1292)", () => {
+    let spread = 0;
+    const host = mount(<BuySplitEditor card={sleeptids(8, [alt(1, 10)])} onPick={() => {}} onSpread={() => spread++} spreadBusy />);
+    const btn = spreadBtn(host)!;
+    act(() => btn.click());
+    expect(spread).toBe(0);
+    expect(btn.textContent).toContain("One of each art");
+  });
+
+  it("the action is absent when the page cannot save it (#1292)", () => {
+    const host = mount(<BuySplitEditor card={sleeptids(8, [alt(1, 10)])} onPick={() => {}} />);
+    expect(spreadBtn(host)).toBeUndefined();
   });
 });

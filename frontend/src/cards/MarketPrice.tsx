@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { api, money, type PrintingView } from "../api";
 import { CardThumb } from "../ui/CardThumb";
+import { SpreadArtsAction } from "./SpreadArtsAction";
 import { InlineSkeleton } from "../ui/Skeleton";
 import { qk } from "../cache/queryKeys";
 
@@ -215,6 +216,8 @@ export function AltArtsRow({
   tileExtra,
   onCollectorChange,
   collectorBusyProductId = null,
+  onSpread,
+  spreadBusy = false,
 }: {
   alts: PrintingView[] | null | undefined;
   /** Group buys only: the want cap. */
@@ -245,6 +248,9 @@ export function AltArtsRow({
   /** Planner pages (#1035): turns each alt tile's read-only "★ Extra copy" label into a toggle (#1165). */
   onCollectorChange?: (productId: number, qty: number) => void;
   collectorBusyProductId?: number | null;
+  /** "One of each art" (#1292): spreads the copies over every art. Shown only for any-number cards. */
+  onSpread?: () => void;
+  spreadBusy?: boolean;
 }) {
   const list = alts ?? [];
   if (!list.length) return <span className="muted">—</span>;
@@ -283,6 +289,7 @@ export function AltArtsRow({
 
   return (
     <div className={onCollectorChange ? "alt-arts alt-arts-collect" : "alt-arts"}>
+      {onSpread ? <SpreadArtsAction card={{ card_id: cardId ?? "", alt_arts: list }} busy={spreadBusy} onSpread={onSpread} /> : null}
       <div className="alt-arts-grid">
         {base && (
           <div className="alt-art alt-art-base">
