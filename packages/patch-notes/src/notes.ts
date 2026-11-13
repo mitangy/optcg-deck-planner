@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-13
+  { date: "2026-11-13", app: "duel", pr: 1295, title: "Deck lists are grouped by Leader", text: "The Change deck menu, the play setup pickers and the rematch picker now show each Leader's decks together under its name." },
   { date: "2026-11-13", app: "duel", pr: 1296, title: "One of each art for Sleeptids", text: "Sleeptids (OP18-093) has two more arts now, and in the deck editor you can pick One of each art for it, so every copy you draw shows a different art (a deck of 8 shows them 3, 3 and 2). Your opponent and spectators see the same arts." },
   // 2026-11-12
   { date: "2026-11-12", app: "planner", pr: 1290, title: "Group buy: unticking an Extra copy no longer drops a deck copy", text: "If you set Your buy to a number your Extra copy was not part of, unticking that Extra copy now leaves your buy alone instead of removing a deck copy. Leaving a group buy and joining again also forgets which Extra copies you had unticked." },
