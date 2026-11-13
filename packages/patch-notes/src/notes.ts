@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-13
-  { date: "2026-11-13", app: "planner", pr: 1292, title: "One of each art for any-number cards", text: "For cards like Sleeptids (OP18-093) that let you run any number of copies and come in several arts, the price pop-up on a deck, Master Shopping and group buy now has One of each art. It spreads your copies evenly over the base art and every alt art, with any leftover going to the base art first." },
+  { date: "2026-11-13", app: "planner", pr: 1293, title: "One of each art for any-number cards", text: "For cards like Sleeptids (OP18-093) that let you run any number of copies and come in several arts, the price pop-up on a deck, Master Shopping and group buy now has One of each art. It spreads your copies evenly over the base art and every alt art, with any leftover going to the base art first." },
   // 2026-11-12
   { date: "2026-11-12", app: "duel", pr: 1291, title: "Double-click a card to choose it and confirm", text: "When an effect asks you to choose a card, double-click it (or double-tap on a phone) to pick it and confirm in one go. If more picks are still needed, it is just picked." },
   { date: "2026-11-12", app: "planner", pr: 1281, title: "Alt art tiles line up", text: "Every alt art tile for a card is now the same height, also on phones where each tile has its own row. + Extra copy and Show are the same full width on every tile, so ★ Extra copy no longer spills past the edge, and the price, labels and Owned or Want all start at one left edge." },
