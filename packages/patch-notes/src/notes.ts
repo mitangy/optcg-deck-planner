@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-13
-  { date: "2026-11-13", app: "duel", pr: 0, title: "Buster Call and Stop Fighting!!! need a Life card", text: "Buster Call (OP18-117) and Stop Fighting!!! (OP18-020) now do nothing when you have no Life cards, as in Bandai's official Q&A. Buster Call still goes to the trash." },
+  { date: "2026-11-13", app: "duel", pr: 1298, title: "Buster Call and Stop Fighting!!! need a Life card", text: "Buster Call (OP18-117) and Stop Fighting!!! (OP18-020) now do nothing when you have no Life cards, as in Bandai's official Q&A. Buster Call still goes to the trash." },
   // 2026-11-12
   { date: "2026-11-12", app: "duel", pr: 1291, title: "Double-click a card to choose it and confirm", text: "When an effect asks you to choose a card, double-click it (or double-tap on a phone) to pick it and confirm in one go. If more picks are still needed, it is just picked." },
   { date: "2026-11-12", app: "planner", pr: 1281, title: "Alt art tiles line up", text: "Every alt art tile for a card is now the same height, also on phones where each tile has its own row. + Extra copy and Show are the same full width on every tile, so ★ Extra copy no longer spills past the edge, and the price, labels and Owned or Want all start at one left edge." },
