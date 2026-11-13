@@ -120,7 +120,7 @@ test("the deck editor offers One of each art on an any-number card and spreads t
       // Saved on the deck, and the pile of copies shows a different art on each layer.
       const saved = await page.evaluate(([key]) => JSON.parse(localStorage.getItem(key!) ?? "[]")[0].artPrefs, [DECKS_KEY]);
       expect(saved).toEqual({ [SLEEPTIDS]: "each" });
-      await expect.poll(async () => (await srcs(page, `article.deck-stack:has-text("${SLEEPTIDS}") .deck-stack-copy img`)).slice(0, 3).map((s) => [ALT_2, ALT_3, STANDARD].findIndex((re) => re.test(s)))).toEqual([0, 1, 2]);
+      await expect.poll(async () => (await srcs(page, `article.deck-stack:has-text("${SLEEPTIDS}") .card-stack-copy img`)).slice(0, 3).map((s) => [ALT_2, ALT_3, STANDARD].findIndex((re) => re.test(s)))).toEqual([0, 1, 2]);
       await sleeptids.scrollIntoViewIfNeeded();
       await shot(page, "deck-editor-selected", size);
     });

@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, type ComponentProps, type ReactNode } from "react";
 import { CardArtImg as SharedCardArtImg, useCardArt as useSharedCardArt, type CardImageSize } from "@optcg/ui/cardArt";
+import { CardStack } from "@optcg/ui/cardStack";
 import { Dialog } from "@optcg/ui/popups";
 import { DUEL_URL } from "../app/duelLink";
 import { useLogPoseLayer } from "@optcg/analyst-client";
@@ -110,6 +111,38 @@ export function CardThumb({
   );
 }
 
+/**
+ * A thumb that, given `copies`, is drawn as a pile of that many cards (up to four) with the
+ * space always reserved, so a row of tiles stays aligned. Without `copies` it is a plain thumb.
+ * The layers are lazy plain images; only the front card is clickable.
+ */
+export function StackedThumb({
+  copies,
+  src,
+  cardId,
+  alt = "",
+  productId,
+}: {
+  copies?: number;
+  src?: string;
+  cardId?: string | null;
+  alt?: string;
+  productId?: number;
+}) {
+  const thumb = <CardThumb src={src} cardId={cardId} alt={alt} productId={productId} />;
+  if (copies == null) return thumb;
+  return (
+    <CardStack
+      className="deck-copies"
+      count={copies}
+      reserve
+      copy={<CardArtImg src={src} cardId={cardId} size="thumb" loading="lazy" decoding="async" />}
+    >
+      {thumb}
+    </CardStack>
+  );
+}
+
 export function MobileCardMedia({
   src,
   productId,
@@ -117,6 +150,7 @@ export function MobileCardMedia({
   alt,
   cost,
   rarity,
+  copies,
 }: {
   src?: string;
   productId?: number;
@@ -124,10 +158,12 @@ export function MobileCardMedia({
   alt: string;
   cost: number | string | null;
   rarity?: string;
+  /** Deck page: copies in the deck, drawn as a stack. */
+  copies?: number;
 }) {
   return (
     <div className="mobile-card-media">
-      <CardThumb src={src} cardId={cardId} alt={alt} productId={productId} />
+      <StackedThumb copies={copies} src={src} cardId={cardId} alt={alt} productId={productId} />
       <div className="mobile-card-media-meta">
         <span className="mobile-card-cost">Cost {cost ?? "—"}</span>
         {rarity ? <span className="mobile-card-rarity">{rarity}</span> : null}

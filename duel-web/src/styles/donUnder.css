@@ -182,9 +182,9 @@
     width: 56px;
   }
 
-  .deck-stack-pile {
-    --stack-step-y: 3px;
-    --stack-step-x: 3px;
+  .card-stack.deck-stack-pile {
+    --card-stack-step-y: 3px;
+    --card-stack-step-x: 3px;
   }
 
   .deck-stack-badge {

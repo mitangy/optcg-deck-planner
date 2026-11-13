@@ -1,0 +1,49 @@
+/* Copies peek out up and to the right of the front card. With [data-reserve] the full three steps
+   are always reserved, so a tile never moves when a copy is added or removed.
+   Tune with --card-stack-step-x / -step-y / -radius / -bg on the stack or an ancestor. */
+.card-stack {
+  position: relative;
+  --card-stack-step-x: 5px;
+  --card-stack-step-y: 8px;
+  --card-stack-radius: 6px;
+  --card-stack-bg: #1a1d24;
+  --card-stack-reserve-x: 0px;
+  --card-stack-reserve-y: 0px;
+}
+
+.card-stack[data-reserve] {
+  --card-stack-reserve-x: calc(var(--card-stack-step-x) * 3);
+  --card-stack-reserve-y: calc(var(--card-stack-step-y) * 3);
+  padding-top: var(--card-stack-reserve-y);
+  padding-right: var(--card-stack-reserve-x);
+}
+
+.card-stack-front {
+  position: relative;
+  z-index: var(--z-raise-5);
+  border-radius: var(--card-stack-radius);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.5);
+}
+
+/* Layers are siblings of the front, so an overflow:hidden wrapper inside the front never clips them. */
+.card-stack-copy {
+  position: absolute;
+  left: calc(var(--layer) * var(--card-stack-step-x));
+  top: calc(var(--card-stack-reserve-y) - var(--layer) * var(--card-stack-step-y));
+  width: calc(100% - var(--card-stack-reserve-x));
+  aspect-ratio: 63 / 88;
+  border-radius: var(--card-stack-radius);
+  overflow: hidden;
+  background: var(--card-stack-bg);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.45);
+  filter: brightness(calc(1 - var(--layer) * 0.12));
+  z-index: calc(var(--z-raise-5) - var(--layer));
+  pointer-events: none;
+}
+
+.card-stack-copy > img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
