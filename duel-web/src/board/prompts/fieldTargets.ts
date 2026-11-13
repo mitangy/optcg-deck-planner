@@ -150,3 +150,57 @@ function dropPicks(pick: BoardPick, ids: readonly string[]): BoardPick {
   for (const id of ids) delete chips[id];
   return { selected: pick.selected.filter((id) => !ids.includes(id)), chips };
 }
+
+/**
+ * Double tap (#1287) on an option of an id-list pick: make sure it is picked
+ * (the second tap never un-picks it), then answer when the picks are valid.
+ * Not yet valid (more picks wanted), or the pick could not be added (the limit
+ * is held by others): it is left as it is and nothing is answered.
+ */
+export function doublePick(
+  selected: readonly string[],
+  id: string,
+  min: number,
+  max: number,
+): { selected: string[]; answer: boolean } {
+  const next = selected.includes(id) ? [...selected] : toggleSelection(selected, id, max);
+  return { selected: next, answer: next.includes(id) && next.length >= min && next.length <= max };
+}
+
+/**
+ * Double tap (#1287) on a board spot: like `tapBoardSpot`, but the second tap
+ * never drops what the spot holds. A tap that would add another pick (a card
+ * with 2 DON!! under it counting up) is taken; a tap that would drop leaves the
+ * picks alone. `answer` is true once the spot holds a pick and the count is valid.
+ */
+export function doubleTapBoardSpot(
+  pick: BoardPick,
+  spots: ReadonlyMap<string, BoardSpot>,
+  spot: BoardSpot,
+  min: number,
+  max: number,
+  chipId?: string,
+): { pick: BoardPick; answer: boolean } {
+  const tapped = tapBoardSpot(pick, spots, spot, max, chipId);
+  const added = tapped.selected.some((id) => !pick.selected.includes(id));
+  const next = added ? tapped : pick;
+  const holds = [...spots].some(([id, s]) => s === spot && next.selected.includes(id));
+  return { pick: next, answer: holds && next.selected.length >= min && next.selected.length <= max };
+}
+
+/**
+ * Our own double-tap timing: iOS doesn't reliably fire `dblclick`. `isDouble(key)`
+ * is true when the same key came in within `windowMs` of the previous one; a
+ * double resets, so a third tap starts over. `now` is injectable for tests.
+ */
+export function createDoubleTap(windowMs: number, now: () => number = Date.now) {
+  let last: { key: string; at: number } | null = null;
+  return {
+    isDouble(key: string): boolean {
+      const at = now();
+      const double = last != null && last.key === key && at - last.at <= windowMs;
+      last = double ? null : { key, at };
+      return double;
+    },
+  };
+}
