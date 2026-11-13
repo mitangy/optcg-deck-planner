@@ -18,6 +18,8 @@ export type PreviewLive = {
 export type PreviewCard = {
   defId: string;
   ownerSeat?: Seat;
+  /** Copy rank of an any-number card (engine view `artCopy`), for "One of each art" (#1292). */
+  artCopy?: number;
   /** Field instance id — lets later renders refresh `live` in place. */
   instanceId?: string;
   live?: PreviewLive;
@@ -55,6 +57,7 @@ function sameCard(a: PreviewCard | null, b: PreviewCard | null): boolean {
   return (
     a.defId === b.defId &&
     a.ownerSeat === b.ownerSeat &&
+    a.artCopy === b.artCopy &&
     a.instanceId === b.instanceId &&
     a.caption === b.caption &&
     liveKey(a.live) === liveKey(b.live)

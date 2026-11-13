@@ -10,8 +10,12 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-13
+  { date: "2026-11-13", app: "planner", pr: 1277, title: "Deck page shows copies as a stack", text: "On a deck page, a card you run more than once now shows as a pile of cards, up to four deep, in the grid, the list and on phones. The In deck count still gives the exact number." },
+  { date: "2026-11-13", app: "duel", pr: 1296, title: "One of each art for Sleeptids", text: "Sleeptids (OP18-093) has two more arts now, and in the deck editor you can pick One of each art for it, so every copy you draw shows a different art (a deck of 8 shows them 3, 3 and 2). Your opponent and spectators see the same arts." },
   // 2026-11-12
-  { date: "2026-11-12", app: "planner", pr: 1277, title: "Deck page shows copies as a stack", text: "On a deck page, a card you run more than once now shows as a pile of cards, up to four deep, in the grid, the list and on phones. The In deck count still gives the exact number." },
+  { date: "2026-11-12", app: "planner", pr: 1290, title: "Group buy: unticking an Extra copy no longer drops a deck copy", text: "If you set Your buy to a number your Extra copy was not part of, unticking that Extra copy now leaves your buy alone instead of removing a deck copy. Leaving a group buy and joining again also forgets which Extra copies you had unticked." },
+  { date: "2026-11-12", app: "duel", pr: 1291, title: "Double-click a card to choose it and confirm", text: "When an effect asks you to choose a card, double-click it (or double-tap on a phone) to pick it and confirm in one go. If more picks are still needed, it is just picked." },
   { date: "2026-11-12", app: "planner", pr: 1281, title: "Alt art tiles line up", text: "Every alt art tile for a card is now the same height, also on phones where each tile has its own row. + Extra copy and Show are the same full width on every tile, so ★ Extra copy no longer spills past the edge, and the price, labels and Owned or Want all start at one left edge." },
   { date: "2026-11-12", app: "duel", pr: 1284, title: "Hand buttons stack beside the bottom-middle hand", text: "With Keep hand open on, the bottom-middle hand's buttons (menu, Hand, Sort, Hide) now stack in a column right at the left edge of your cards instead of sticking out in a row, and they stay still when the hand rises, tucks or hides." },
   { date: "2026-11-12", app: "duel", pr: 1288, title: "Mulligan message floats over the board", text: "At the start of a game, the opening hand message now floats over the top of the board instead of pushing it down, so the board no longer jumps when both players have decided." },

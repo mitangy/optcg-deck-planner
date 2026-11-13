@@ -233,7 +233,7 @@ export function TurnStatusPanel({
   );
 }
 
-type HandCard = { id: string; defId: string };
+type HandCard = { id: string; defId: string; artCopy?: number };
 
 /** Opponent's hand size as a number, so nobody has to count the backs. */
 export function OppHandCount({ count }: { count: number }) {
@@ -277,6 +277,7 @@ export function OppHandHint({
               <CardTile
                 key={c.id}
                 defId={c.defId}
+                artCopy={c.artCopy}
                 ownerSeat={ownerSeat}
                 inspectOnClick
                 classNameExtra="opp-hand-face"
@@ -346,6 +347,7 @@ export function OppHandCorner({
               <CardTile
                 key={card.id}
                 defId={card.defId}
+                artCopy={card.artCopy}
                 ownerSeat={ownerSeat}
                 inspectOnClick
                 classNameExtra="opp-corner-card opp-corner-face"
@@ -401,6 +403,7 @@ export function OppHandFan({
               <CardTile
                 key={c.id}
                 defId={c.defId}
+                artCopy={c.artCopy}
                 ownerSeat={ownerSeat}
                 inspectOnClick
                 classNameExtra="opp-compact-face"
@@ -438,6 +441,7 @@ export function OppHandFan({
                 <CardTile
                   key={c.id}
                   defId={c.defId}
+                  artCopy={c.artCopy}
                   ownerSeat={ownerSeat}
                   inspectOnClick
                   classNameExtra="opp-fan-card opp-fan-face"

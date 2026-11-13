@@ -212,7 +212,7 @@ export function CardActionPopover({
 
 export type GhostPayload =
   | { type: "give_don"; count: number }
-  | { type: "play_card" | "counter"; defId: string; ownerSeat?: Seat };
+  | { type: "play_card" | "counter"; defId: string; artCopy?: number; ownerSeat?: Seat };
 
 /**
  * Card that follows the pointer while a drag is in flight (mouse or touch),
@@ -238,7 +238,7 @@ export function DragGhost({ payload }: { payload: GhostPayload | null }) {
   const src =
     payload.type === "give_don"
       ? donArt()
-      : resolveCardImageUrl(payload.defId, { ownerSeat: payload.ownerSeat, size: "thumb" });
+      : resolveCardImageUrl(payload.defId, { ownerSeat: payload.ownerSeat, artCopy: payload.artCopy, size: "thumb" });
   const label = payload.type === "give_don" ? "DON!!" : lookupCard(payload.defId).name;
 
   return createPortal(

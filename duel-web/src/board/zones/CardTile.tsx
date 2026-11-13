@@ -23,6 +23,7 @@ import { counterValueFor, formatCounter } from "../../cards/counterValue";
 import { costBreakdown, formatPowerDelta, powerBreakdown, tileStatusLabels } from "../preview/powerDisplay";
 import {
   createClickDeferController,
+  DOUBLE_CLICK_DELAY_MS,
   createLongPressController,
   inspectOnContextMenu,
   isInspectKey,
@@ -62,6 +63,13 @@ type Props = {
    * Leave off for one-shot actions (e.g. declaring an attack on a target).
    */
   instantClick?: boolean;
+  /**
+   * Prompt targets (#1287): a second click within the double-click window cancels
+   * the deferred single click and calls this instead, and a `dblclick` no longer
+   * opens inspect. Timed here, not from `dblclick`: iOS doesn't reliably fire it.
+   * Unset: a double-click inspects, as everywhere else.
+   */
+  onDoubleActivate?: () => void;
   /** When true, single click opens inspect instead of onClick (trash viewer only). */
   inspectOnClick?: boolean;
   /** Long-press / double-click inspect when true (field cards without onClick). */
@@ -80,6 +88,8 @@ type Props = {
   classNameExtra?: string;
   /** Seat that owns this card instance (art resolution). */
   ownerSeat?: Seat;
+  /** Copy rank of an any-number card (engine view `artCopy`): which art "One of each art" shows (#1292). */
+  artCopy?: number;
   /** Seat controlling the UI (alt-art picker writes here). */
   viewingSeat?: Seat;
   /** Server-authoritative play cost (Teach tax, etc.) when in Main. */
@@ -111,6 +121,7 @@ export function CardTile({
   statusLabels,
   onClick,
   instantClick = false,
+  onDoubleActivate,
   instanceId,
   motionId,
   inspectOnClick = false,
@@ -125,6 +136,7 @@ export function CardTile({
   dropHighlight = false,
   classNameExtra,
   ownerSeat,
+  artCopy,
   viewingSeat,
   playCost,
   blocked,
@@ -145,8 +157,8 @@ export function CardTile({
   );
   const primaryUrl = useMemo(() => {
     void artTick;
-    return resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
-  }, [defId, artTick, ownerSeat]);
+    return resolveCardImageUrl(defId, { ownerSeat, artCopy, size: "thumb" });
+  }, [defId, artTick, ownerSeat, artCopy]);
   const imageUrl =
     localFallbackFor === primaryUrl ? (primaryUrl ? artAfterError(primaryUrl, defId) : null) : primaryUrl;
   const imgFailed = failedSrc != null && failedSrc === imageUrl;
@@ -185,6 +197,9 @@ export function CardTile({
   );
   const onClickRef = useRef(onClick);
   onClickRef.current = onClick;
+  const onDoubleRef = useRef(onDoubleActivate);
+  onDoubleRef.current = onDoubleActivate;
+  const lastClickAtRef = useRef(0);
 
   const openInspectRef = useRef(() => setInspectOpen(true));
   openInspectRef.current = () => setInspectOpen(true);
@@ -255,6 +270,16 @@ export function CardTile({
       return;
     }
     if (onClick) {
+      if (onDoubleRef.current) {
+        const now = Date.now();
+        const double = lastClickAtRef.current > 0 && now - lastClickAtRef.current <= DOUBLE_CLICK_DELAY_MS;
+        lastClickAtRef.current = double ? 0 : now;
+        if (double) {
+          clickDeferRef.current?.cancel();
+          onDoubleRef.current();
+          return;
+        }
+      }
       if (instantClick) onClickRef.current?.();
       else clickDeferRef.current?.onClick();
     }
@@ -264,6 +289,7 @@ export function CardTile({
     e.preventDefault();
     e.stopPropagation();
     clickDeferRef.current?.cancel();
+    if (onDoubleRef.current) return;
     setInspectOpen(true);
   }
 
@@ -290,7 +316,7 @@ export function CardTile({
   function handlePointerEnter(e: PointerEvent) {
     if (e.pointerType !== "mouse") return;
     hoveredRef.current = true;
-    hoverPreviewCard({ defId, ownerSeat, instanceId, live }, e.currentTarget);
+    hoverPreviewCard({ defId, ownerSeat, artCopy, instanceId, live }, e.currentTarget);
   }
 
   function handlePointerLeave(e: PointerEvent) {
@@ -510,6 +536,7 @@ export function CardTile({
         open={inspectOpen}
         onClose={() => setInspectOpen(false)}
         ownerSeat={ownerSeat}
+        artCopy={artCopy}
         viewingSeat={viewingSeat}
         live={live}
       />

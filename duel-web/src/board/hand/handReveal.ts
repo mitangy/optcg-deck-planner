@@ -1,5 +1,5 @@
 /** Hand cards an effect revealed (e.g. "reveal 2 Events from your hand") stay face up for the rest of the turn (#491). */
-type HandCard = { id: string; defId: string };
+type HandCard = { id: string; defId: string; artCopy?: number };
 
 /** Placeholder defId for an unrevealed card inside a far hand that is partly face up. Rendered as a card back. */
 export const HIDDEN_HAND_DEF = "HIDDEN";

@@ -7,6 +7,8 @@ import { readStored, writeStored } from "@optcg/ui/storage";
 type Props = {
   /** Def ids, newest-first (top of trash first). */
   cards: readonly string[];
+  /** Copy rank per card, same order as `cards` (any-number cards, #1292). "By card" groups use their newest copy. */
+  copies?: ReadonlyArray<number | null | undefined>;
   title: string;
   onClose: () => void;
   ownerSeat?: Seat;
@@ -73,6 +75,7 @@ export function TrashViewerPanel(props: Props) {
 
 function TrashViewerContent({
   cards,
+  copies,
   title,
   onClose,
   ownerSeat,
@@ -130,6 +133,7 @@ function TrashViewerContent({
                 <div key={defId} className="trash-viewer-cell">
                   <CardTile
                     defId={defId}
+                    artCopy={copies?.[cards.indexOf(defId)] ?? undefined}
                     compact
                     inspectOnClick
                     ownerSeat={ownerSeat}
@@ -146,6 +150,7 @@ function TrashViewerContent({
                 <CardTile
                   key={`${defId}-${i}`}
                   defId={defId}
+                  artCopy={copies?.[i] ?? undefined}
                   compact
                   inspectOnClick
                   ownerSeat={ownerSeat}
@@ -159,7 +164,7 @@ function TrashViewerContent({
 }
 
 /** Chronological trash (oldest→newest) → display order (newest first). */
-export function trashNewestFirst(trash: readonly string[]): string[] {
+export function trashNewestFirst<T>(trash: readonly T[]): T[] {
   if (!trash.length) return [];
   return [...trash].reverse();
 }
