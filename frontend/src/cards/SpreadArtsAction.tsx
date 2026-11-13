@@ -17,15 +17,17 @@ export function SpreadArtsAction({
 }) {
   const eligible = useCanSpreadArts(card);
   if (!eligible) return null;
+  const arts = (card.alt_arts?.length ?? 0) + 1;
   return (
     <button
       type="button"
       className="buy-split-spread"
       aria-disabled={busy}
+      title={`Spread your copies evenly across all ${arts} arts`}
       onClick={() => !busy && onSpread()}
     >
       <span className="buy-split-spread-text">One of each art</span>
-      <span className="buy-split-spread-hint">Spread your copies across all {(card.alt_arts?.length ?? 0) + 1} arts</span>
+      <span className="buy-split-spread-hint">Split over all {arts} arts</span>
     </button>
   );
 }

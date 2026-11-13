@@ -182,7 +182,7 @@ describe("One of each art (#1292)", () => {
     let spread = 0;
     const host = mount(<BuySplitEditor card={sleeptids(8, [alt(1, 10), alt(2, 20)])} onPick={() => {}} onSpread={() => spread++} />);
     const btn = spreadBtn(host)!;
-    expect(btn.textContent).toContain("Spread your copies across all 3 arts");
+    expect(btn.textContent).toContain("Split over all 3 arts");
     act(() => btn.click());
     expect(spread).toBe(1);
   });

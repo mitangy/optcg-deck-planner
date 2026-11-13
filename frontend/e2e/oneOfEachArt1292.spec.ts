@@ -35,7 +35,7 @@ async function openAndSpread(page: Page, testInfo: { project: { name: string } }
   await expect(dialog(page).getByLabel("Base copies to buy", { exact: true })).toHaveText("×8");
   // The card stats load lazily; the action appears once they are in.
   await expect(spreadBtn(page)).toBeVisible();
-  await expect(spreadBtn(page)).toContainText("Spread your copies across all 3 arts");
+  await expect(spreadBtn(page)).toContainText("Split over all 3 arts");
   // Opening the panel does not move the trigger, and the page does not scroll sideways.
   expect(await trigger(page).boundingBox()).toEqual(before);
   expect(await noHorizontalScroll(page)).toBe(true);

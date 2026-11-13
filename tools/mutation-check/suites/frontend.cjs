@@ -654,7 +654,7 @@ module.exports = {
     {"id": "art-spread1292-offered-without-alts", "file": "frontend/src/cards/artSet.ts", "from": "(card.alt_arts?.length ?? 0) > 0 && isArtSetCard(atlas, card.card_id)", "to": "isArtSetCard(atlas, card.card_id)", "kills": ["an any-number card without alt arts does not offer it (#1292)"]},
     {"id": "art-spread1292-click-does-nothing", "file": "frontend/src/cards/SpreadArtsAction.tsx", "from": "onClick={() => !busy && onSpread()}", "to": "onClick={() => undefined}", "kills": ["an any-number card with alt arts offers it and clicking spreads (#1292)"]},
     {"id": "art-spread1292-busy-click-still-saves", "file": "frontend/src/cards/SpreadArtsAction.tsx", "from": "onClick={() => !busy && onSpread()}", "to": "onClick={() => onSpread()}", "kills": ["a save in flight ignores clicks without changing the label (#1292)"]},
-    {"id": "art-spread1292-hint-skips-base-art", "file": "frontend/src/cards/SpreadArtsAction.tsx", "from": "(card.alt_arts?.length ?? 0) + 1} arts", "to": "(card.alt_arts?.length ?? 0)} arts", "kills": ["an any-number card with alt arts offers it and clicking spreads (#1292)"]},
+    {"id": "art-spread1292-hint-skips-base-art", "file": "frontend/src/cards/SpreadArtsAction.tsx", "from": "const arts = (card.alt_arts?.length ?? 0) + 1;", "to": "const arts = card.alt_arts?.length ?? 0;", "kills": ["an any-number card with alt arts offers it and clicking spreads (#1292)"]},
     {"id": "art-spread1292-offered-without-handler", "file": "frontend/src/pages/shopping/BuySplit.tsx", "from": "{onSpread ? <SpreadArtsAction", "to": "{true ? <SpreadArtsAction", "kills": ["the action is absent when the page cannot save it (#1292)"]},
 ],
 };
