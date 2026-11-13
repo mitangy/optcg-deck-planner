@@ -49,8 +49,9 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
     case "trash_cards": case "return_cards_to_hand": case "cards_to_deck_bottom": return candidates(state, ctx, cost.selector).length >= cost.count;
     case "trash_to_deck_bottom": return candidates(state, ctx, { player: "you", zone: "trash", ...(cost.filter ? { filter: cost.filter } : {}) }).length >= cost.count;
     case "life_to_hand": case "trash_life": return p.life.length >= cost.count;
-    // "All of your Life cards" is paid with however many there are, none included.
-    case "life_to_hand_all": case "trash_life_all": return true;
+    // "All of your Life cards" needs at least 1 Life card (Bandai's official Q&A, #1297).
+    case "life_to_hand_all": return p.life.length >= 1;
+    case "trash_life_all": return p.life.length >= 1;
     case "return_active_don": return activeDon(p).length >= cost.count;
     case "ko_cards": return candidates(state, ctx, cost.selector).filter((l) => l.card && !hasRestriction(state, l.seat, l.card, "cannot_be_ko") && !hasRestriction(state, l.seat, l.card, "cannot_be_ko_by_effect")).length >= cost.count;
     case "give_don": return activeDon(p).length >= cost.count && candidates(state, ctx, cost.selector).length > 0;

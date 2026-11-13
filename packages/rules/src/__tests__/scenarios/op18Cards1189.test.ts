@@ -50,14 +50,6 @@ const rows: CardScenario[] = [
       opp: { power: { [LUFFY_LEADER]: 5000, [KOMACHIYO]: 3000 } },
     },
   },
-  {
-    card: "OP18-020", name: "can be paid with no Life cards left, since all of nothing is nothing (#1189)",
-    leaders: { me: VIVI_LEADER },
-    me: { hand: ["OP18-020"], life: [], don: { active: 1 } },
-    opp: { field: [KOMACHIYO] },
-    steps: [{ endTurn: true }, { attack: { seat: 1, card: KOMACHIYO }, at: "leader" }, { passBlock: true }, { counter: "OP18-020" }, { accept: true }],
-    expect: { me: { hand: [], life: 0 }, opp: { power: { [LUFFY_LEADER]: 0, [KOMACHIYO]: -2000 } } },
-  },
 
   // OP18-078 Mini-Merry: [Activate: Main] You may rest this Stage: Give up to 1 rested DON!! card each to a total of up to 4 of your Leader and Characters.
   {
@@ -74,6 +66,24 @@ const rows: CardScenario[] = [
 ];
 
 runScenarios("OP18 cards added from Japanese text (#1189)", rows);
+
+describe("OP18-020 Stop Fighting!!! with no Life cards", () => {
+  it("Stop Fighting!!! does nothing when you have no Life cards (#1297)", () => {
+    const h = new Harness({ leaders: [VIVI_LEADER, LUFFY_LEADER] });
+    h.don(0, 1, 0);
+    h.hand(0, "OP18-020");
+    h.life(0);
+    h.field(1, KOMACHIYO);
+    h.act(0, { type: "end_turn" });
+    h.attack(h.find(1, KOMACHIYO)!, "leader");
+    h.act(0, { type: "pass_block" });
+    h.act(0, { type: "counter_event", handIndex: 0 });
+    // Life counts are public, so a cost that can't be paid is skipped without asking.
+    expect(h.choice).toBeUndefined();
+    expect(powerOf(h.state, 1, h.state.players[1].leader)).toBe(5000);
+    expect(powerOf(h.state, 1, h.find(1, KOMACHIYO)!)).toBe(3000);
+  });
+});
 
 describe("OP18-078 Mini-Merry picks at most 4 cards", () => {
   it("OP18-078 rejects a fifth target for the rested DON!! (#1189)", () => {
@@ -281,5 +291,24 @@ describe("OP18-117 Buster Call", () => {
     expect(me!.characters.map((c) => c.defId)).toEqual([ROBIN]);
     expect(opp!.characters.map((c) => c.defId).sort()).toEqual([KOMACHIYO, BASE_8000].sort());
     expect(me!.deck[0]).toBe(MOMONGA);
+  });
+
+  it("Buster Call does nothing when you have no Life cards (#1297)", () => {
+    const h = new Harness({ leaders: [SPANDAM, LUFFY_LEADER] });
+    h.don(0, 10, 0);
+    h.hand(0, "OP18-117");
+    h.life(0);
+    h.field(0, ROBIN);
+    h.field(1, KOMACHIYO, BASE_8000);
+    h.trash(0, YAMAKAJI, DOBERMAN);
+    h.deckTop(0, MOMONGA, ...MARKERS);
+    h.play(0, "OP18-117");
+    // Life counts are public, so a cost that can't be paid is skipped without asking.
+    expect(h.choice).toBeUndefined();
+    const [me, opp] = h.state.players;
+    expect(me!.characters.map((c) => c.defId)).toEqual([ROBIN]);
+    expect(opp!.characters.map((c) => c.defId).sort()).toEqual([KOMACHIYO, BASE_8000].sort());
+    expect(me!.trash).toContain("OP18-117");
+    expect(me!.trash.filter((c) => c === YAMAKAJI || c === DOBERMAN).length).toBe(2);
   });
 });
