@@ -5,14 +5,14 @@ import type { Seat } from "../../net/protocol";
 import type { DefendModel } from "./defendModel";
 import { usePointerDrag } from "../input/usePointerDrag";
 
-function Thumb({ defId, ownerSeat }: { defId: string; ownerSeat: Seat }) {
+function Thumb({ defId, artCopy, ownerSeat }: { defId: string; artCopy?: number; ownerSeat: Seat }) {
   const [failed, setFailed] = useState(false);
   const [local, setLocal] = useState(false);
   useEffect(() => {
     setFailed(false);
     setLocal(false);
   }, [defId]);
-  const primary = resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
+  const primary = resolveCardImageUrl(defId, { ownerSeat, artCopy, size: "thumb" });
   const src = local ? (primary ? artAfterError(primary, defId) : null) : primary;
   return (
     <span className="defend-chip-thumb" aria-hidden>
@@ -196,7 +196,7 @@ export function DefendTray({
                   aria-label={`Block with ${b.name}, power ${power(b.power)}`}
                   onClick={() => onToggleBlocker(b.id)}
                 >
-                  <Thumb defId={b.defId} ownerSeat={ownerSeat} />
+                  <Thumb defId={b.defId} artCopy={b.artCopy} ownerSeat={ownerSeat} />
                   <span className="defend-chip-text">
                     <span className="defend-chip-main">{power(b.power)}</span>
                     <span className="defend-chip-sub">{b.name}</span>
@@ -217,7 +217,7 @@ export function DefendTray({
                   onClick={() => onSkipBlockCounter?.(c.id)}
                   drag={counterDrag}
                 >
-                  <Thumb defId={c.defId} ownerSeat={ownerSeat} />
+                  <Thumb defId={c.defId} artCopy={c.artCopy} ownerSeat={ownerSeat} />
                   <span className="defend-chip-text">
                     <span className="defend-chip-main">{c.label}</span>
                     <span className="defend-chip-sub">{c.name}</span>
@@ -238,7 +238,7 @@ export function DefendTray({
                 onClick={() => onToggleCounter(c.id)}
                 drag={counterDrag}
               >
-                <Thumb defId={c.defId} ownerSeat={ownerSeat} />
+                <Thumb defId={c.defId} artCopy={c.artCopy} ownerSeat={ownerSeat} />
                 <span className="defend-chip-text">
                   <span className="defend-chip-main">{c.value != null ? `+${c.value}` : "+?"}</span>
                   <span className="defend-chip-sub">{c.name}</span>
@@ -254,7 +254,7 @@ export function DefendTray({
                 onClick={() => onCounterEvent(i)}
                 drag={counterDrag}
               >
-                <Thumb defId={e.defId} ownerSeat={ownerSeat} />
+                <Thumb defId={e.defId} artCopy={e.artCopy} ownerSeat={ownerSeat} />
                 <span className="defend-chip-text">
                   <span className="defend-chip-main">{e.valueLabel}</span>
                   <span className="defend-chip-sub">
