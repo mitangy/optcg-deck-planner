@@ -251,3 +251,10 @@
   text-transform: uppercase;
   color: var(--muted);
 }
+
+/* Leader headers (#1294): under "Your decks" they sit a step in and smaller so the nesting reads. */
+.deck-picker-leader.nested {
+  padding-left: 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
