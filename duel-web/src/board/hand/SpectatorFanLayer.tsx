@@ -35,7 +35,7 @@ export function SpectatorFanLayer({
   fanMove: ReturnType<typeof useFanMove>;
   farMove: ReturnType<typeof useFanMove>;
   playmatRef: RefObject<HTMLDivElement | null>;
-  farHand: readonly { id: string; defId: string }[] | undefined;
+  farHand: readonly { id: string; defId: string; artCopy?: number }[] | undefined;
   farRef: RefObject<HTMLDivElement | null>;
   shownFarPos: ReturnType<typeof parseFanPos>;
   farUp: boolean;
@@ -99,6 +99,7 @@ export function SpectatorFanLayer({
             <CardTile
               key={c.id}
               defId={c.defId}
+              artCopy={c.artCopy}
               ownerSeat={oppSeat}
               inspectOnClick
               style={fanPoseStyle(i, farHand.length)}

@@ -6,6 +6,7 @@ import {
   withAttachedDon,
   withBattleDrag,
   withBlockedCharacters,
+  withEachArt,
   withFullBoard,
   withManyStatuses,
   withOneActiveDon,
@@ -104,7 +105,7 @@ export function buildDemoView(params: URLSearchParams): PlayerView {
       }
     : base;
   const field = withRestedField(params.has("full") ? withFullBoard(attacked) : attacked, params);
-  const withStatuses = params.has("statuses") ? withManyStatuses(field) : field;
+  const withStatuses = params.has("statuses") ? withManyStatuses(field) : params.has("eachart") ? withEachArt(field) : field;
   const board = withBattleDrag(
     params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,
     params,

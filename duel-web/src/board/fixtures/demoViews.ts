@@ -556,6 +556,26 @@ export function withHandReveals(base: PlayerView): PlayerView {
   return { ...base, handReveals: reveals };
 }
 
+/**
+ * `?eachart`: three Sleeptids on your field (copies 0-2), two in your hand (copies 3-4), one on top of your trash and
+ * one on the opponent's field, with the copy ranks the engine view carries for "One of each art" (#1292).
+ */
+export function withEachArt(base: PlayerView): PlayerView {
+  const sleeptids = (id: string, artCopy: number) =>
+    stubCard({ id, defId: "OP18-093", artCopy, power: 3000, printedPower: 3000, statusLabels: [] });
+  return {
+    ...base,
+    you: {
+      ...base.you,
+      characters: [sleeptids("y-s0", 0), sleeptids("y-s1", 1), sleeptids("y-s2", 2), ...base.you.characters.slice(0, 2)],
+      hand: [{ id: "y-s3", defId: "OP18-093", artCopy: 3 }, { id: "y-s4", defId: "OP18-093", artCopy: 4 }, ...base.you.hand.slice(0, 3)],
+      trash: [...base.you.trash, "OP18-093"],
+      trashCopies: [...base.you.trash.map(() => null), 5],
+    },
+    opponent: { ...base.opponent, characters: [sleeptids("o-s0", 0), ...base.opponent.characters.slice(0, 2)] },
+  };
+}
+
 /** `?full`: a full board, so playing a Character asks which one to replace. */
 export function withFullBoard(base: PlayerView): PlayerView {
   const extra = [
