@@ -58,6 +58,7 @@ export function CardPreviewContent({ preview, popup = false }: { preview: Previe
   const entry = lookupCard(preview.defId);
   const tcgSrc = resolveCardImageUrl(preview.defId, {
     ownerSeat: preview.ownerSeat,
+    artCopy: preview.artCopy,
     size: "large",
   });
   const { src, fail } = useArtFallback(tcgSrc, preview.defId);
@@ -128,6 +129,7 @@ export function CardPreviewContent({ preview, popup = false }: { preview: Previe
         open={inspectOpen}
         onClose={() => setInspectOpen(false)}
         ownerSeat={preview.ownerSeat}
+        artCopy={preview.artCopy}
         live={preview.live}
       />
     </aside>
