@@ -10,7 +10,7 @@ import { buildFilterSummary, CardSearchInput, CollapsibleFilters, SortMenu, useC
 import { CardWorkspace } from "../../ui/CardWorkspace";
 import { SortableTh, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "../../cards/displayArtViews";
-import { altIncBlocked, myArtSplit } from "./groupBuyArt";
+import { altIncBlocked, myAltBuyQty, myArtSplit } from "./groupBuyArt";
 import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { blankMassEntryUrl } from "../shopping/tcgplayerMassEntry";
 import { useNarrowLayout } from "../../hooks/useNarrowLayout";
@@ -429,6 +429,7 @@ export function GroupBuyDetailPage() {
         editable={canEditWants}
         blockWantInc={altIncBlocked(line)}
         blockWantIncTitle="No Base copies left; raise Your buy first"
+        altBuyQty={(productId) => myAltBuyQty(line, productId)}
         onWantChange={
           canEditWants
             ? (productId, qty) => setAltWant.mutate({

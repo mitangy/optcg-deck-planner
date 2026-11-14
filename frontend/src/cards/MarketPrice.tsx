@@ -205,6 +205,7 @@ export function AltArtsRow({
   editable = false,
   onOwnedChange,
   onWantChange,
+  altBuyQty,
   showBuyPicks = false,
   busyProductId = null,
   base = null,
@@ -225,6 +226,11 @@ export function AltArtsRow({
   editable?: boolean;
   onOwnedChange?: (productId: number, qty: number) => void;
   onWantChange?: (productId: number, qty: number) => void;
+  /**
+   * Group buys (#1305): copies you buy as this art, shown as "Buy ×N · own M" above the Want stepper
+   * (owned copies count first, so Want 1 with 1 owned buys 0).
+   */
+  altBuyQty?: (productId: number) => number;
   /**
    * Planner pages (#906): tag every alt tile whose copies the user picked to buy
    * with a read-only "Buying ×N" label. Picking happens in the buy-split popover.
@@ -301,6 +307,7 @@ export function AltArtsRow({
           const wanted = alt.wanted ?? 0;
           const owned = alt.owned ?? 0;
           const busy = busyProductId === alt.product_id;
+          const showBuyLine = Boolean(altBuyQty && editable && onWantChange && !onOwnedChange && (wanted > 0 || owned > 0));
           const collector =
             onCollectorChange ? (
               (alt.collector ?? 0) > 0 ? (
@@ -359,6 +366,22 @@ export function AltArtsRow({
                       Alt
                     </span>
                   )}
+                  {showBuyLine && altBuyQty ? (
+                    <span
+                      className="alt-want-label alt-buy-label"
+                      title="Copies you buy as this art (copies you own count first)"
+                    >
+                      <span className="alt-buy-own">Buy ×{altBuyQty(alt.product_id)}</span>
+                      {owned > 0 ? (
+                        <>
+                          <span className="alt-buy-sep" aria-hidden="true">
+                            {" · "}
+                          </span>
+                          <span className="alt-buy-own alt-buy-owned">own {owned}</span>
+                        </>
+                      ) : null}
+                    </span>
+                  ) : null}
                   {editable && onOwnedChange ? (
                     <AltStepper
                       caption="Owned"
@@ -370,7 +393,7 @@ export function AltArtsRow({
                     />
                   ) : editable && onWantChange ? (
                     <AltStepper
-                      caption={owned > 0 ? `Want · own ${owned}` : "Want"}
+                      caption={owned > 0 && !showBuyLine ? `Want · own ${owned}` : "Want"}
                       verb="want"
                       name={alt.name}
                       value={wanted}
