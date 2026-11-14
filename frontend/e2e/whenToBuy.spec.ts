@@ -155,10 +155,10 @@ test("Collection: an alt art a month after release says wait and how far similar
   await buy.getByRole("button", { name: "Why this read?" }).click();
   await expect(page.getByRole("tooltip").getByRole("listitem")).toHaveText([
     "Similar cards fell another ~26% by 6 months.",
-    "Similar cards reached a buyable price about 6 weeks after release and older cards have usually been cheaper around Aug, around 25% below today's price.",
+    "Similar cards reached a buyable price about 6 weeks after release and older cards have usually been cheaper around Aug, around 25% below today's price. Half of similar cards landed in this range.",
   ]);
   // Released Dec 16: buyable Jan 26, but the February peak makes the summer lows the better window (#1311).
-  await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Jul 2026 – Sep 2026 · est. $8.08–$9.87");
+  await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Jul 2026 – Sep 2026 · est. $5.56–$13.91");
   await expectFits(page, panel);
   if (SHOTS) await panel.screenshot({ path: `${SHOTS}/alt-wait-open-${test.info().project.name}.png` });
 });
@@ -169,7 +169,7 @@ test("On a 320px phone the best-time estimate moves to a second line instead of 
   await altHistory(page, { name: "Izo (Alternate Art)", released: "2025-12-16", current: 12, days: 30, price: (i) => 20 - i * 0.25 });
   const { panel } = await openAltPanel(page, planner);
   const best = panel.getByLabel("When to buy").locator(".ph-buy-best");
-  await expect(best).toHaveText("Best time: Jul 2026 – Sep 2026 · est. $8.08–$9.87");
+  await expect(best).toHaveText("Best time: Jul 2026 – Sep 2026 · est. $5.56–$13.91");
   const label = (await best.locator("strong").boundingBox())!;
   const est = (await best.locator(".ph-buy-est").boundingBox())!;
   expect(est.y).toBeGreaterThan(label.y);
@@ -205,7 +205,7 @@ test("Collection: an alt art with no price points yet still gets the read from i
   await expect(buy.locator(".ph-pill")).toHaveText("Almost");
   await expect(buy).toContainText("Close to a good price");
   // Mid-January is the seasonal peak, so the window is the autumn lows, with a lower estimate than today's $15 (#1311).
-  await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Sep 2026 – Nov 2026 · est. $11–$14");
+  await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Sep 2026 – Nov 2026 · est. $8.47–$18.93");
   await expectFits(page, panel);
 });
 

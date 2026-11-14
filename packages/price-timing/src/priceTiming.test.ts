@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { artKind, bestTimeToBuy, buyableDay, buyTiming, expectedRatio, SEASON_PCT, seasonFactor, settledRatio, typicalCurve, type ArtKind, type PricePoint } from "./priceTiming";
+import { artKind, bestTimeToBuy, estimateBand, buyableDay, buyTiming, expectedRatio, SEASON_PCT, seasonFactor, settledRatio, typicalCurve, type ArtKind, type PricePoint } from "./priceTiming";
 
 /** `today` minus `days`, as an ISO day. */
 function ago(today: string, days: number): string {
@@ -252,9 +252,10 @@ describe("bestTimeToBuy (#952)", () => {
       from: "2026-11-10",
       to: "2027-01-09",
       label: "Nov 2026 – Jan 2027",
-      estLow: 32.24,
-      estHigh: 39.4,
-      basis: "Similar cards reached a buyable price about 6 weeks after release and older cards have usually been cheaper around Nov, around 28% below today's price.",
+      estLow: 23.57,
+      estHigh: 52.79,
+      estMid: 35.82,
+      basis: "Similar cards reached a buyable price about 6 weeks after release and older cards have usually been cheaper around Nov, around 28% below today's price. Half of similar cards landed in this range.",
     });
   });
 
@@ -376,8 +377,8 @@ describe("season in the buy timing (#1311)", () => {
     expect(feb.best.when).toBe("window");
     expect(feb.best.from >= "2026-08-01" && feb.best.from <= "2026-11-30").toBe(true);
     expect(feb.best.label).toBe("Sep 2026 – Nov 2026");
-    expect(feb.best.estHigh!).toBeLessThan(96);
-    expect(feb.best.basis).toBe("Older cards have usually been cheaper around Sep, around 13% below today's price.");
+    expect(feb.best.estMid!).toBeLessThan(96);
+    expect(feb.best.basis).toBe("Older cards have usually been cheaper around Sep, around 13% below today's price. Half of similar cards landed in this range.");
 
     const oct = view("2026-10-15");
     expect(oct.timing.verdict).toBe("good");
@@ -422,8 +423,7 @@ describe("season in the buy timing (#1311)", () => {
     expect(withReprint.timing.reasons[0]).toBe("A reprint releases Dec 5, 2026; older printings have usually dropped ~10% in the two months after a reprint.");
     expect(withReprint.best.when).toBe("window");
     expect(withReprint.best.from >= "2027-01-04").toBe(true);
-    expect(withReprint.best.estLow).toBe(84.13);
-    expect(withReprint.best.estHigh).toBe(102.82);
+    expect(withReprint.best.estMid).toBe(93.47);
     expect(withReprint.best.basis).toMatch(/reprint/);
   });
 
@@ -469,5 +469,34 @@ describe("season in the buy timing (#1311)", () => {
     expect(high.label).toBe("Now, on a dip");
     expect(high.basis).toMatch(/run high at this time of year/);
     expect(view("2026-10-15", { kind: "chase" }).best.basis).not.toMatch(/run high/);
+  });
+});
+
+describe("estimate band (#1311)", () => {
+  it("interpolates linearly between the month marks and is exactly 1 now (#1311)", () => {
+    expect(estimateBand("alt", 200, 0)).toEqual([1, 1]);
+    // 45 days is half way from the 1 month mark (0.88-1.13) to the 2 month mark (0.81-1.22).
+    const [lo, hi] = estimateBand("alt", 200, 45);
+    expect(lo).toBeCloseTo(0.845, 9);
+    expect(hi).toBeCloseTo(1.175, 9);
+    // 3 months is half way from 2 to 4 months.
+    expect(estimateBand("alt", 200, 90)[0]).toBeCloseTo(0.77, 9);
+    // Past 6 months it stays at the 6 month mark.
+    expect(estimateBand("alt", 200, 400)).toEqual([0.68, 1.52]);
+  });
+
+  it("is wider for a card under 60 days old and for chase differently (#1311)", () => {
+    expect(estimateBand("alt", 59, 60)).toEqual([0.75, 1.31]);
+    expect(estimateBand("alt", 60, 60)).toEqual([0.81, 1.22]);
+    expect(estimateBand("chase", 200, 60)).toEqual([0.89, 1.15]);
+  });
+
+  it("builds a window's estimate from the band around the middle estimate (#1311)", () => {
+    const b = bestTimeToBuy({ kind: "alt", released: "2025-03-01", today: "2026-02-10", points: [], current: 100 })!;
+    // The window starts Sep 8, so its middle is 240 days out: past the 6 month mark.
+    expect(b.estMid).toBe(86.78);
+    expect(b.estLow).toBe(59.01);
+    expect(b.estHigh).toBe(131.91);
+    expect(b.basis).toMatch(/Half of similar cards landed in this range\.$/);
   });
 });

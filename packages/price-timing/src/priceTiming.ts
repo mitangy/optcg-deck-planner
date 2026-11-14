@@ -276,9 +276,11 @@ export type BestBuy = {
   to: string;
   /** Short, e.g. "Now", "Now, on a dip", "Dec 2026 – Jan 2027". */
   label: string;
-  /** Estimated price range in USD; left out when the price now says little about it. */
+  /** Estimated price range in USD (the middle half of outcomes for similar cards); left out when the price now says little about it. */
   estLow?: number;
   estHigh?: number;
+  /** The estimate the range is built around. */
+  estMid?: number;
   basis: string;
 };
 
@@ -293,6 +295,25 @@ export function buyableDay(kind: ArtKind): number {
   const target = settledRatio(kind) * (1 + SOON_DROP);
   for (let d = 0; d < 365; d++) if (expectedRatio(kind, d) <= target) return d;
   return 364;
+}
+
+/** Middle half (25th to 75th percentile) of how far real prices landed from the estimate, by months ahead (0, 1, 2, 4, 6; 30-day months). Measured from our price history, monthly averages of cards worth $1 or more, 2024-02 to 2026-11. */
+const BAND_MONTHS = [0, 1, 2, 4, 6];
+export const ESTIMATE_BAND = {
+  chase: [[1, 1], [0.94, 1.08], [0.89, 1.15], [0.82, 1.3], [0.77, 1.45]],
+  young: [[1, 1], [0.84, 1.17], [0.75, 1.31], [0.68, 1.43], [0.62, 1.55]],
+  settled: [[1, 1], [0.88, 1.13], [0.81, 1.22], [0.73, 1.39], [0.68, 1.52]],
+} as const;
+
+/** Multipliers [low, high] on the estimate for a price `horizonDays` ahead: linear between the month marks, flat past 6 months. Cards under 60 days old are less predictable than older ones. */
+export function estimateBand(kind: ArtKind, ageDays: number, horizonDays: number): [number, number] {
+  const rows = ESTIMATE_BAND[kind === "chase" ? "chase" : ageDays < 60 ? "young" : "settled"];
+  const m = Math.min(Math.max(horizonDays / 30, 0), BAND_MONTHS[BAND_MONTHS.length - 1]!);
+  let i = 0;
+  while (i < BAND_MONTHS.length - 2 && m > BAND_MONTHS[i + 1]!) i++;
+  const t = (m - BAND_MONTHS[i]!) / (BAND_MONTHS[i + 1]! - BAND_MONTHS[i]!);
+  const mix = (k: 0 | 1) => rows[i]![k] + (rows[i + 1]![k] - rows[i]![k]) * t;
+  return [mix(0), mix(1)];
 }
 
 const cents = (x: number) => Math.round(x * 100) / 100;
@@ -391,14 +412,18 @@ export function bestTimeToBuy({ kind, released, today, points, current, reprints
   if (reprint) parts.push("older printings have usually dropped ~10% in the two months after a reprint");
   if (!parts.length) parts.push("the typical curve and season put the lowest price around then");
   const out: BestBuy = { when: "window", from, to, label: windowLabel(from, to), basis: "" };
+  let halfNote = "";
   let sentence = parts.join(" and ");
   sentence = sentence[0]!.toUpperCase() + sentence.slice(1);
   if (age >= 0) {
     const est = (current * best.score) / todayP;
-    out.estLow = cents(est * 0.9);
-    out.estHigh = cents(est * 1.1);
+    const [lo, hi] = estimateBand(kind, age, dayNumber(from) + 30 - dayNumber(today));
+    out.estLow = cents(est * lo);
+    out.estHigh = cents(est * hi);
+    out.estMid = cents(est);
+    halfNote = " Half of similar cards landed in this range.";
     if (est < current) sentence += `, around ${Math.round((1 - est / current) * 100)}% below today's price`;
   }
-  out.basis = `${sentence}.`;
+  out.basis = `${sentence}.${halfNote}`;
   return out;
 }

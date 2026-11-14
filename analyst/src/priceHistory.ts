@@ -120,7 +120,7 @@ export async function priceHistory(api: PlannerApi, q: { card_id: string; produc
     reprints,
     buy_timing: timing,
     best_time_to_buy: best
-      ? { when: best.when, from: best.from, to: best.to, label: best.label, est_low: best.estLow ?? null, est_high: best.estHigh ?? null, basis: best.basis }
+      ? { when: best.when, from: best.from, to: best.to, label: best.label, est_low: best.estLow ?? null, est_high: best.estHigh ?? null, est_mid: best.estMid ?? null, range_basis: best.estMid != null ? "middle half of outcomes for similar cards, 2024–2026" : null, basis: best.basis }
       : null,
     notes,
   };
