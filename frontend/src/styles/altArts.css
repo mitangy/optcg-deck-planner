@@ -937,3 +937,8 @@
     justify-content: center;
   }
 }
+
+/* Group buys (#1305): "Buy ×N · own M" wraps between the two parts, not inside them. */
+.alt-art .alt-buy-own {
+  white-space: nowrap;
+}

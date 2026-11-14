@@ -49,6 +49,16 @@ export function myArtSplit(line: ArtLine): MyArtSplit {
   return { base: left, alts };
 }
 
+/**
+ * Copies you buy as one alt art (#1305): the split qty, summed because an Extra copy
+ * and a deck want can both hit the same alt. 0 when your owned copies cover its want.
+ */
+export function myAltBuyQty(line: ArtLine, productId: number): number {
+  return myArtSplit(line)
+    .alts.filter((a) => a.product_id === productId)
+    .reduce((s, a) => s + a.qty, 0);
+}
+
 export type MyArtsTotal = {
   /** Null when any picked art has no market price. */
   total: number | null;

@@ -90,7 +90,8 @@ for (const layout of ["List", "Grid"] as const) {
     await expect(base.locator(".alt-want-label")).toHaveText("Buy ×2");
     await expect(base.locator(".alt-art-want-text")).toHaveText("Mikosaur ×2");
     const alt = page.locator(".alt-art").filter({ has: page.getByText("$16.03") }).first();
-    await expect(alt.locator(".alt-want-caption")).toHaveText("Want · own 1");
+    await expect(alt.locator(".alt-buy-label")).toHaveText("Buy ×3 · own 1");
+    await expect(alt.locator(".alt-want-caption")).toHaveText("Want");
     await expect(alt.locator(".alt-art-want-text")).toHaveText("Mikosaur ×3");
     if (SHOTS) {
       await base.scrollIntoViewIfNeeded();
