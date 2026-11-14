@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-14
-  { date: "2026-11-14", app: "duel", pr: 0, title: "Card art no longer hints how many copies a deck runs", text: "With One of each art, your opponent and spectators used to see art choices that could hint at how many copies of a card were in your hidden deck. They now only see the art of cards that are on the table, and you still see your own cards spread evenly." },
+  { date: "2026-11-14", app: "duel", pr: 1302, title: "Card art no longer hints how many copies a deck runs", text: "With One of each art, your opponent and spectators used to see art choices that could hint at how many copies of a card were in your hidden deck. They now only see the art of cards that are on the table, and you still see your own cards spread evenly." },
   // 2026-11-13
   { date: "2026-11-13", app: "planner", pr: 1277, title: "Deck page shows copies as a stack", text: "On a deck page, a card you run more than once now shows as a pile of cards, up to four deep, in the grid, the list and on phones. The In deck count still gives the exact number." },
   { date: "2026-11-13", app: "duel", pr: 1295, title: "Deck lists are grouped by Leader", text: "The Change deck menu, the play setup pickers and the rematch picker now show each Leader's decks together under its name." },
