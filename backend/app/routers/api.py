@@ -515,6 +515,7 @@ def catalog_price_history(
         rarity=(card.rarity or None) if card else None,
         current=printing.market_price,
         points=price_history.history_points(db, printing.product_id),
+        reprints=price_history.later_reprints(db, printing, released),
     )
 
 

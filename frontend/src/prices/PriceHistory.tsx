@@ -192,7 +192,7 @@ function WhenToBuy({ timing, best, loading, onAsk }: { timing: BuyTiming | null;
         )}
       </div>
       <div className="ph-buy-foot">
-        <p className="ph-buy-note">Based on how similar cards moved after release, 2024–2026</p>
+        <p className="ph-buy-note">Based on how similar cards moved after release and through the year, 2024–2026</p>
         {onAsk ? (
           <button type="button" className="ph-buy-ask" onClick={onAsk}>
             Ask Log Pose
