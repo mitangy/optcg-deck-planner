@@ -2,10 +2,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { PrintingView } from "../api";
 import { AltArtsRow } from "./MarketPrice";
 import previewIds from "../../../packages/ui/src/cardArt/previewArt.json";
+
+// Every card currently has official art, so the card preview list can be empty: use a fixed one (#1299).
+vi.mock("../../../packages/ui/src/cardArt/previewArt.json", () => ({ default: ["OP18-003", "OP18-031"] }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

@@ -13,9 +13,9 @@ describe("card data", () => {
     const ids = listCardDataIds();
     expect(ids.length).toBe(2995);
     const official = listCardDefs().filter((d) => d.dataSource === "bandai");
-    expect(official.length).toBe(2850);
+    expect(official.length).toBe(2969);
     expect(listCardDefs().filter((d) => d.dataSource === "bundled").length).toBe(0);
-    expect(listCardDefs().filter((d) => d.dataSource === "tcgplayer").length).toBe(145);
+    expect(listCardDefs().filter((d) => d.dataSource === "tcgplayer").length).toBe(26);
   });
 
   it("carries the confirmed ST01 and Teach corrections from official data", () => {
@@ -65,7 +65,7 @@ describe("card data", () => {
   it("records provenance for every card", () => {
     expect(Object.keys(CARD_SOURCE_RECORDS).length).toBe(2995);
     expect(cardSourceRecord("ST01-005")?.fields).toMatchObject({ identity: "verified", counter: "verified", errata: "unknown" });
-    expect(cardSourceRecord("OP18-015")?.fields.identity).toBe("unverified");
+    expect(cardSourceRecord("P-160")?.fields.identity).toBe("unverified");
   });
 });
 

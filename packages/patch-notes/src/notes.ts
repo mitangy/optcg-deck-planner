@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-14
+  { date: "2026-11-14", app: "planner", pr: 0, title: "Every OP18 card has its price and official art", text: "All OP18 cards now have TCGPlayer prices in the planner, and every OP18 card shows its official picture and Bandai's official English text in the planner and the duel app, replacing the early preview scans." },
   // 2026-11-13
   { date: "2026-11-13", app: "planner", pr: 1277, title: "Deck page shows copies as a stack", text: "On a deck page, a card you run more than once now shows as a pile of cards, up to four deep, in the grid, the list and on phones. The In deck count still gives the exact number." },
   { date: "2026-11-13", app: "duel", pr: 1295, title: "Deck lists are grouped by Leader", text: "The Change deck menu, the play setup pickers and the rematch picker now show each Leader's decks together under its name." },
