@@ -34,7 +34,7 @@ export function lifePileFaceCount(count: number): number {
  */
 export function lifePileFaces(
   count: number,
-  faceUp: ReadonlyArray<{ index: number; defId: string }> = [],
+  faceUp: ReadonlyArray<{ index: number; defId: string; artCopy?: number }> = [],
 ): Array<string | null> {
   const deepest = faceUp.reduce((m, c) => (c.index < count ? Math.max(m, c.index + 1) : m), 0);
   const n = Math.max(lifePileFaceCount(count), deepest);
@@ -57,8 +57,8 @@ export function stackPileFaceCount(count: number): number {
  * second layer that shows through when the first fails. Cards without preview
  * art get a single layer (no extra request per Life card).
  */
-export function lifeFaceArt(defId: string, ownerSeat?: Seat): string {
-  const primary = resolveCardImageUrl(defId, { ownerSeat, size: "thumb" });
+export function lifeFaceArt(defId: string, ownerSeat?: Seat, artCopy?: number): string {
+  const primary = resolveCardImageUrl(defId, { ownerSeat, artCopy, size: "thumb" });
   if (!primary) return "none";
   const next = artAfterError(primary, defId);
   const layers = [primary];
@@ -73,9 +73,11 @@ type Props = {
   /** Leader printed life — shown as a hint when count is still 0 (pre-mulligan). */
   expectedCount?: number;
   /** Life only: cards lying face up, by Life index (0 = top). */
-  faceUp?: ReadonlyArray<{ index: number; defId: string }>;
+  faceUp?: ReadonlyArray<{ index: number; defId: string; artCopy?: number }>;
   /** Optional top-face art (trash top card). */
   topDefId?: string | null;
+  /** Copy rank of the trash top card (any-number cards, #1292). */
+  topArtCopy?: number | null;
   ownerSeat?: Seat;
   /** Life only: which way the faces fan (default down). */
   lifeFan?: LifeFan;
@@ -84,7 +86,7 @@ type Props = {
   /** Right-click (mouse) opens the top card's details instead of the browser menu. */
   onInspectTop?: () => void;
   /** Life only: right-click (mouse) on a face-up Life card opens that card's details. */
-  onInspectFace?: (defId: string) => void;
+  onInspectFace?: (defId: string, artCopy?: number) => void;
 };
 
 export function ZonePile({
@@ -93,6 +95,7 @@ export function ZonePile({
   variant = "deck",
   expectedCount,
   topDefId,
+  topArtCopy,
   faceUp,
   ownerSeat,
   lifeFan = "down",
@@ -107,32 +110,34 @@ export function ZonePile({
   // art from CSS (`--card-back-art` / `--don-back-art`). Only trash shows a face.
   const topArt =
     faces > 0 && variant === "trash" && topDefId
-      ? resolveCardImageUrl(topDefId, { ownerSeat, size: "thumb" })
+      ? resolveCardImageUrl(topDefId, { ownerSeat, artCopy: topArtCopy ?? undefined, size: "thumb" })
       : null;
 
   const stack =
     variant === "life" ? (
       <div className={`zone-pile-stack${lifeFan === "up" ? " is-fan-up" : ""}`} aria-hidden>
-        {lifePileFaces(count, faceUp).map((defId, i) =>
-          defId ? (
+        {lifePileFaces(count, faceUp).map((defId, i, all) => {
+          // Face i of n shows Life index n - 1 - i (see lifePileFaces).
+          const artCopy = faceUp?.find((c) => c.index === all.length - 1 - i)?.artCopy;
+          return defId ? (
             <span
               key={i}
               className="zone-pile-face is-face-up"
               data-def-id={defId}
               // Hovering a face-up Life card shows it in the preview, like a field card (#529).
               onPointerEnter={(e) => {
-                if (e.pointerType === "mouse") hoverPreviewCard({ defId, ownerSeat }, e.currentTarget);
+                if (e.pointerType === "mouse") hoverPreviewCard({ defId, ownerSeat, artCopy }, e.currentTarget);
               }}
               onPointerLeave={(e) => {
                 if (e.pointerType === "mouse") endPreviewHover();
               }}
-              onContextMenu={onInspectFace ? (e) => inspectOnContextMenu(e, () => onInspectFace(defId)) : undefined}
-              style={{ "--life-face-art": lifeFaceArt(defId, ownerSeat) } as CSSProperties}
+              onContextMenu={onInspectFace ? (e) => inspectOnContextMenu(e, () => onInspectFace(defId, artCopy)) : undefined}
+              style={{ "--life-face-art": lifeFaceArt(defId, ownerSeat, artCopy) } as CSSProperties}
             />
           ) : (
             <span key={i} className="zone-pile-face" />
-          ),
-        )}
+          );
+        })}
       </div>
     ) : faces === 0 ? (
       // Empty pile: dashed slot outline only — never a card face / DON!! art.

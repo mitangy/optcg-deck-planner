@@ -5,7 +5,8 @@ import { BuySplit, canSplitBuy } from "../shopping/BuySplit";
 import { CollectorDeckChip } from "../collection/CollectorLine";
 import { type CardLayout } from "../../ui/CardLayout";
 import { nameWithBreaks } from "../../ui/cardName";
-import { CardThumb } from "../../ui/CardThumb";
+import { StackedThumb } from "../../ui/CardThumb";
+import { isDonCardType } from "../../cards/donCards";
 import { GridCard, MobileCard } from "../../ui/PlannerCard";
 import { baseTileFor, mainImageUrl, shownProductId } from "../../cards/altArt";
 import { AltArtsRow, MarketPrice } from "../../cards/MarketPrice";
@@ -30,6 +31,11 @@ function OwnedClaimNote({ card }: { card: CardView }) {
       {claimed} go to {leaders} first
     </span>
   );
+}
+
+/** Copies drawn as a stack: the deck's count, except DON!! (it runs up to ten identical cards). */
+function stackCopies(c: CardView): number | undefined {
+  return c.section === "don" || isDonCardType(c.card_type) ? undefined : c.needed;
 }
 
 function deckColumnValue(c: CardView, key: string) {
@@ -151,6 +157,7 @@ export function CardTable({
             name={c.name}
             imageSrc={mainImageUrl(c)}
             imageProductId={shownProductId(c)}
+            copies={stackCopies(c)}
             meta={
               <>
                 {[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
@@ -214,7 +221,7 @@ export function CardTable({
               <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
                 <td className="card-cell">
                   <div className="card-cell-inner">
-                    <CardThumb src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} productId={shownProductId(c)} />
+                    <StackedThumb copies={stackCopies(c)} src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} productId={shownProductId(c)} />
                     <div>
                       <div className="card-id">{c.card_id}</div>
                       <div>{nameWithBreaks(c.name)}</div>
@@ -272,6 +279,7 @@ export function CardTable({
             name={c.name}
             imageSrc={mainImageUrl(c)}
             imageProductId={shownProductId(c)}
+            copies={stackCopies(c)}
             cost={c.cost}
             rarity={c.rarity}
             meta={

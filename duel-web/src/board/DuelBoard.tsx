@@ -962,6 +962,7 @@ export function DuelBoard({
         ? {
             type: dragPayload.type,
             defId: you.hand[dragPayload.handIndex]!.defId,
+            artCopy: you.hand[dragPayload.handIndex]!.artCopy,
             ownerSeat: mySeat ?? view.seat,
           }
         : // An attack drag shows the aim arrow instead of a carried card.
@@ -1111,6 +1112,7 @@ export function DuelBoard({
           key={c.id}
           motionId={c.id}
           defId={c.defId}
+          artCopy={c.artCopy}
           showCounter={prefs.handCounters}
           inspectOnClick
           ownerSeat={boardSeat}
@@ -1158,6 +1160,7 @@ export function DuelBoard({
           key={c.id}
           motionId={c.id}
           defId={c.defId}
+          artCopy={c.artCopy}
           playCost={c.playCost}
           blocked={yourTurn && view?.phase === "main" ? c.blocked : undefined}
           showCounter={prefs.handCounters}

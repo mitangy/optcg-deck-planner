@@ -23,11 +23,3 @@ export function groupDeckStacks(leaderId: string, cards: string[]): DeckStacks {
     main,
   };
 }
-
-/** Most cards a stack is drawn as in the deck editor; the badge still shows the exact count. */
-export const MAX_STACK_LAYERS = 4;
-
-/** Copy layers drawn behind the front card: one per extra copy, up to the cap. */
-export function stackLayerCount(count: number): number {
-  return Math.max(0, Math.min(count, MAX_STACK_LAYERS) - 1);
-}

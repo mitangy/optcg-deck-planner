@@ -1,13 +1,29 @@
 /** Per-viewer projections. Hidden cards and private choice options never reach other viewers. */
 import { getCardDef } from "../cards/definitions.js";
 import type { CardInstance, GameEvent, Intent, MatchState, PendingChoice, Seat } from "../types.js";
+import { visibleArtCopies } from "./artCopies.js";
 import { listLegalIntents } from "./intents.js";
 import { costOf, counterOf, hasRestriction, isNegated, keywordsOf, playCostOf, playerRestricted, powerOf, withQueryCache } from "./queries.js";
 import { activeDon, otherSeat } from "./zones.js";
 
 const KEYWORD_LABELS: Record<string, string> = { blocker: "Blocker", rush: "Rush", rush_character: "Rush: Character", double_attack: "Double Attack", banish: "Banish", unblockable: "Unblockable" };
 
-function cardView(state: MatchState, seat: Seat, c: CardInstance) {
+type ArtCopies = ReadonlyMap<string, number>;
+
+/** `{ artCopy }` for a copy of an any-number card, nothing otherwise (the key stays absent for ordinary cards). */
+function copyOf(copies: ArtCopies, id: string): { artCopy?: number } {
+  const n = copies.get(id);
+  return n === undefined ? {} : { artCopy: n };
+}
+
+/** Per trash card, its copy rank (null for ordinary cards); undefined when the trash has no any-number card. */
+function trashCopies(p: MatchState["players"][Seat], copies: ArtCopies): { trashCopies?: (number | null)[] } {
+  if (!copies.size) return {};
+  const ranks = p.zoneInstanceIds.trash.map((id) => copies.get(id) ?? null);
+  return ranks.some((n) => n !== null) ? { trashCopies: ranks } : {};
+}
+
+function cardView(state: MatchState, seat: Seat, c: CardInstance, copies: ArtCopies) {
   const def = getCardDef(c.defId);
   const statuses: string[] = [];
   const keywords = [...keywordsOf(state, seat, c)];
@@ -27,6 +43,7 @@ function cardView(state: MatchState, seat: Seat, c: CardInstance) {
   return {
     id: c.id,
     defId: c.defId,
+    ...copyOf(copies, c.id),
     rested: c.rested,
     attachedDonCount: c.attachedDonIds.length,
     power: powerOf(state, seat, c),
@@ -79,13 +96,13 @@ export function projectPendingChoice(choice: PendingChoice, viewerSeat: Seat | n
   return projected;
 }
 
-type HandCard = { id: string; defId: string };
+type HandCard = { id: string; defId: string; artCopy?: number };
 
 /** Each seat's hand cards an effect revealed this turn, in hand order, indexed by seat. Public information (#491). */
-function handReveals(state: MatchState): { handReveals: [HandCard[], HandCard[]] } | null {
+function handReveals(state: MatchState, copies: [ArtCopies, ArtCopies]): { handReveals: [HandCard[], HandCard[]] } | null {
   const of = (seat: Seat): HandCard[] => {
     const ids = state.players[seat].revealedHandIds;
-    return ids?.length ? state.players[seat].hand.filter((c) => ids.includes(c.id)).map((c) => ({ id: c.id, defId: c.defId })) : [];
+    return ids?.length ? state.players[seat].hand.filter((c) => ids.includes(c.id)).map((c) => ({ id: c.id, defId: c.defId, ...copyOf(copies[seat], c.id) })) : [];
   };
   const reveals: [HandCard[], HandCard[]] = [of(0), of(1)];
   return reveals[0].length || reveals[1].length ? { handReveals: reveals } : null;
@@ -95,25 +112,30 @@ function handReveals(state: MatchState): { handReveals: [HandCard[], HandCard[]]
  * What `seat` may see of `state`. Static-ability results are memoized for the
  * duration of the call (the state is only read), which is most of its cost.
  */
-export function getPlayerView(state: MatchState, seat: Seat) {
-  return withQueryCache(state, () => buildPlayerView(state, seat));
+export function getPlayerView(state: MatchState, seat: Seat, spectator?: { revealHands: boolean }) {
+  return withQueryCache(state, () => buildPlayerView(state, seat, spectator));
 }
 
-function buildPlayerView(state: MatchState, seat: Seat) {
+function buildPlayerView(state: MatchState, seat: Seat, spectator?: { revealHands: boolean }) {
   const you = state.players[seat];
   const oppSeat = otherSeat(seat);
   const opp = state.players[oppSeat];
+  // Ranks over hidden copies would leak deck size, so only the owner's own view gets the full rank (#1301).
+  const viewer = spectator ? null : seat;
+  const copiesBySeat: [ArtCopies, ArtCopies] = [visibleArtCopies(state, viewer, 0, spectator?.revealHands), visibleArtCopies(state, viewer, 1, spectator?.revealHands)];
+  const youCopies = copiesBySeat[seat];
+  const oppCopies = copiesBySeat[oppSeat];
   // Block step too: dragging a Counter onto the defender there skips the block (duel-web).
   const defending = (state.phase === "block" || state.phase === "counter") && state.battle != null && otherSeat(state.battle.attackerSeat) === seat;
   return {
     seat,
     you: {
-      leader: cardView(state, seat, you.leader),
-      characters: you.characters.map((c) => cardView(state, seat, c)),
-      stage: you.stage ? cardView(state, seat, you.stage) : null,
+      leader: cardView(state, seat, you.leader, youCopies),
+      characters: you.characters.map((c) => cardView(state, seat, c, youCopies)),
+      stage: you.stage ? cardView(state, seat, you.stage, youCopies) : null,
       hand: you.hand.map((c) => {
         const def = getCardDef(c.defId);
-        const row: { id: string; defId: string; playCost?: number; counter?: number; blocked?: "characters" | "events" | "from_hand" } = { id: c.id, defId: c.defId };
+        const row: { id: string; defId: string; artCopy?: number; playCost?: number; counter?: number; blocked?: "characters" | "events" | "from_hand" } = { id: c.id, defId: c.defId, ...copyOf(youCopies, c.id) };
         if (state.phase === "main" && state.activeSeat === seat && def.type !== "leader") {
           row.playCost = playCostOf(state, seat, c);
           // Why an effect stops you playing it this turn (mirrors characterPlayable in intents.ts).
@@ -127,9 +149,10 @@ function buildPlayerView(state: MatchState, seat: Seat) {
       }),
       deckCount: you.deck.length,
       trash: [...you.trash],
+      ...trashCopies(you, youCopies),
       lifeCount: you.life.length,
-      faceUpLife: you.life.flatMap((defId, index) => (you.faceUpLife[index] ? [{ index, defId }] : [])),
-      resolving: you.resolving.map((c) => ({ id: c.id, defId: c.defId })),
+      faceUpLife: you.life.flatMap((defId, index) => (you.faceUpLife[index] ? [{ index, defId, ...copyOf(youCopies, you.zoneInstanceIds.life[index]!) }] : [])),
+      resolving: you.resolving.map((c) => ({ id: c.id, defId: c.defId, ...copyOf(youCopies, c.id) })),
       donDeckCount: you.donDeck.length,
       costArea: you.costArea.map((d) => ({ id: d.id, rested: d.rested })),
       activeDonCount: activeDon(you).length,
@@ -137,15 +160,16 @@ function buildPlayerView(state: MatchState, seat: Seat) {
       turnsStarted: you.turnsStarted,
     },
     opponent: {
-      leader: cardView(state, oppSeat, opp.leader),
-      characters: opp.characters.map((c) => cardView(state, oppSeat, c)),
-      stage: opp.stage ? cardView(state, oppSeat, opp.stage) : null,
+      leader: cardView(state, oppSeat, opp.leader, oppCopies),
+      characters: opp.characters.map((c) => cardView(state, oppSeat, c, oppCopies)),
+      stage: opp.stage ? cardView(state, oppSeat, opp.stage, oppCopies) : null,
       handCount: opp.hand.length,
       deckCount: opp.deck.length,
       trash: [...opp.trash],
+      ...trashCopies(opp, oppCopies),
       lifeCount: opp.life.length,
-      faceUpLife: opp.life.flatMap((defId, index) => (opp.faceUpLife[index] ? [{ index, defId }] : [])),
-      resolving: opp.resolving.map((c) => ({ id: c.id, defId: c.defId })),
+      faceUpLife: opp.life.flatMap((defId, index) => (opp.faceUpLife[index] ? [{ index, defId, ...copyOf(oppCopies, opp.zoneInstanceIds.life[index]!) }] : [])),
+      resolving: opp.resolving.map((c) => ({ id: c.id, defId: c.defId, ...copyOf(oppCopies, c.id) })),
       donDeckCount: opp.donDeck.length,
       costAreaCount: opp.costArea.length,
       activeDonCount: activeDon(opp).length,
@@ -165,12 +189,12 @@ function buildPlayerView(state: MatchState, seat: Seat) {
     winReason: state.winReason,
     legalIntents: listLegalIntents(state, seat),
     // Hand cards revealed by an effect stay face up for the rest of the turn; both seats ride along for everyone (#491).
-    ...handReveals(state),
+    ...handReveals(state, copiesBySeat),
     // Once the match is over nothing is left to protect (#482): both hands and every Life card
     // ride along, indexed by seat. Absent entirely while the game is live.
     ...(state.winner !== null
       ? {
-          revealedHands: [0, 1].map((s) => state.players[s as Seat].hand.map((c): HandCard => ({ id: c.id, defId: c.defId }))) as [HandCard[], HandCard[]],
+          revealedHands: [0, 1].map((s) => state.players[s as Seat].hand.map((c): HandCard => ({ id: c.id, defId: c.defId, ...copyOf(copiesBySeat[s as Seat], c.id) }))) as [HandCard[], HandCard[]],
           revealedLife: [[...state.players[0].life], [...state.players[1].life]] as [string[], string[]],
         }
       : null),
@@ -197,8 +221,9 @@ export type PlayerView = ReturnType<typeof getPlayerView> & {
  * `handReveals` (cards revealed from hand this turn) when any exist (#491).
  */
 export function getSpectatorView(state: MatchState, cameraSeat: Seat = 0, opts: { revealHands?: boolean } = {}) {
-  const base = getPlayerView(state, cameraSeat);
-  const handOf = (seat: Seat): HandCard[] => state.players[seat].hand.map((c) => ({ id: c.id, defId: c.defId }));
+  const base = getPlayerView(state, cameraSeat, { revealHands: Boolean(opts.revealHands) });
+  const copies = [visibleArtCopies(state, null, 0, opts.revealHands), visibleArtCopies(state, null, 1, opts.revealHands)] as const;
+  const handOf = (seat: Seat): HandCard[] => state.players[seat].hand.map((c) => ({ id: c.id, defId: c.defId, ...copyOf(copies[seat], c.id) }));
   return {
     ...base,
     spectator: true as const,

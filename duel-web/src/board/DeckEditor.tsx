@@ -1,5 +1,6 @@
+import { CardStack } from "@optcg/ui/cardStack";
 import { Select, type SelectOption } from "@optcg/ui/popups";
-import { useDeferredValue, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useDeferredValue, useMemo, useState, type ReactNode } from "react";
 import { CardArt } from "../cards/CardArt";
 import { CardInspect } from "./preview/CardInspect";
 import { DESKTOP_DECKS_QUERY } from "./layout/useMediaQuery";
@@ -11,7 +12,7 @@ import {
   listAtlasTypes,
   searchAtlas,
 } from "../cards/searchAtlas";
-import { resolveCardImageUrl, resolveDeckAltId, setDeckArtChoice } from "../decks/artPrefs";
+import { canUseEachArt, EACH_ART_ID, resolveCardImageUrl, resolveDeckArtChoice, setDeckArtChoice } from "../decks/artPrefs";
 import {
   addCard,
   countCardInDeck,
@@ -22,7 +23,7 @@ import {
   type DeckDraft,
 } from "../decks/editDeck";
 import { DeckStatsSection } from "../decks/DeckStatsSection";
-import { groupDeckStacks, stackLayerCount } from "../decks/groupStacks";
+import { groupDeckStacks } from "../decks/groupStacks";
 import { type SavedDeck } from "../decks/storage";
 import { useDuelSettings } from "../settings";
 
@@ -58,7 +59,11 @@ function StackCard({
   const entry = lookupCard(defId);
   const imageUrl = resolveCardImageUrl(defId, deck) ?? entry.imageUrl;
   const alts = entry.altArts ?? [];
-  const selectedAlt = resolveDeckAltId(defId, deck);
+  const selectedAlt = resolveDeckArtChoice(defId, deck);
+  const eachArt = selectedAlt === EACH_ART_ID;
+  /** "One of each art": the front copy shows art 1, each copy stacked behind it the next (#1292). */
+  const copyUrl = (copy: number) =>
+    (eachArt ? resolveCardImageUrl(defId, { deck, artCopy: copy }) : undefined) ?? imageUrl;
   const [editError, setEditError] = useState<string | null>(null);
 
   function bump(delta: -1 | 1) {
@@ -85,25 +90,22 @@ function StackCard({
         aria-pressed={selected}
         aria-label={`View details for ${entry.name}`}
       >
-        <div className="deck-stack-pile">
-          {Array.from({ length: stackLayerCount(count) }, (_, i) => (
-            <div
-              key={i}
-              className="deck-stack-copy"
-              aria-hidden="true"
-              style={{ "--layer": i + 1 } as CSSProperties}
-            >
-              <CardArt
-                src={imageUrl}
-                defId={defId}
-                className="deck-stack-img"
-                fallback={<div className="deck-stack-fallback">{defId}</div>}
-              />
-            </div>
-          ))}
+        <CardStack
+          className="deck-stack-pile"
+          count={count}
+          reserve
+          copy={(layer) => (
+            <CardArt
+              src={copyUrl(layer)}
+              defId={defId}
+              className="deck-stack-img"
+              fallback={<div className="deck-stack-fallback">{defId}</div>}
+            />
+          )}
+        >
           <div className="deck-stack-art">
             <CardArt
-              src={imageUrl}
+              src={copyUrl(0)}
               defId={defId}
               className="deck-stack-img"
               fallback={<div className="deck-stack-fallback">{defId}</div>}
@@ -112,7 +114,7 @@ function StackCard({
               ×{count}
             </span>
           </div>
-        </div>
+        </CardStack>
       </button>
       <div className="deck-stack-meta">
         <button type="button" className="deck-stack-name-btn" onClick={onSelect}>
@@ -166,7 +168,11 @@ function StackCard({
                 setDeckArtChoice(deck.id, defId, id || null);
                 onChanged();
               }}
-              options={[{ value: "", label: "Standard" }, ...alts.map((a) => ({ value: a.id, label: a.label }))]}
+              options={[
+                { value: "", label: "Standard" },
+                ...alts.map((a) => ({ value: a.id, label: a.label })),
+                ...(canUseEachArt(defId) ? [{ value: EACH_ART_ID, label: "One of each art" }] : []),
+              ]}
             />
           </label>
         ) : (

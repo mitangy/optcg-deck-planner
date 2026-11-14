@@ -5,6 +5,7 @@ import { lookupCard } from "../../cards/atlas";
 import { useCardDataReady } from "../../cards/cardData";
 import { useArtFallback } from "../../cards/useArtFallback";
 import { resolveCardImageUrl } from "../../decks/artPrefs";
+import { groupByLeader } from "../../decks/groupByLeader";
 import { isIncompleteDeck } from "../../decks/deckStatus";
 import type { SavedDeck } from "../../decks/storage";
 import { BOT_META_DECKS } from "@optcg/rules/botMetaDecks";
@@ -19,8 +20,31 @@ function leaderName(leaderId: string, ready: boolean): string {
 /** The non-selectable "Your decks" header row of the bot picker. */
 const BOT_YOUR_DECKS_GROUP = "__your-decks__";
 
+/** Value prefix of the non-selectable Leader header rows of the pickers (#1294). */
+const LEADER_GROUP = "__leader__:";
+
 function deckLabel(d: SavedDeck, ready: boolean): string {
   return `${d.name} — ${leaderName(d.leaderId, ready)} (${d.cards.length}${isIncompleteDeck(d) ? "/50" : ""})`;
+}
+
+/** A Leader's decks under its header row: disabled options, so the picker skips them. */
+function leaderGroupOptions(decks: SavedDeck[], ready: boolean, nested: boolean) {
+  return groupByLeader(decks, (d) => d.leaderId).flatMap((g) => [
+    {
+      value: `${LEADER_GROUP}${g.leaderId}`,
+      label: (
+        <span className={`deck-picker-group deck-picker-leader${nested ? " nested" : ""}`}>
+          {leaderName(g.leaderId, ready)} · {g.leaderId}
+        </span>
+      ),
+      disabled: true,
+    },
+    ...g.items.map((d) => ({
+      value: d.id,
+      label: `${d.name} (${d.cards.length}${isIncompleteDeck(d) ? "/50" : ""})`,
+      buttonLabel: deckLabel(d, ready),
+    })),
+  ]);
 }
 
 function IncompleteBadge({ deck }: { deck: SavedDeck }) {
@@ -103,14 +127,14 @@ export function DeckPicker({
                           label: <span className="deck-picker-group">Your decks</span>,
                           disabled: true,
                         },
-                        ...decks.map((d) => ({ value: d.id, label: deckLabel(d, cardsReady) })),
+                        ...leaderGroupOptions(decks, cardsReady, true),
                       ]
                     : []),
                 ]
               : [
                   ...(mirror ? [{ value: "", label: mirror.label }] : []),
                   ...(random ? [{ value: BOT_DECK_RANDOM, label: random.label }] : []),
-                  ...decks.map((d) => ({ value: d.id, label: deckLabel(d, cardsReady) })),
+                  ...leaderGroupOptions(decks, cardsReady, false),
                 ]
           }
         />
@@ -199,43 +223,50 @@ export function DeckSwitcher({
 
           <ListboxList anchor={{ to: "bottom start", gap: 6, padding: 8 }} className="deck-menu">
             <div className="deck-menu-list">
-              {decks.map((d) => {
-                const active = d.id === selectedDeck.id;
-                return (
-                  <ListboxOption
-                    as="div"
-                    key={d.id}
-                    value={d.id}
-                    className={`deck-menu-row${active ? " active" : ""}`}
-                  >
-                    <div className="deck-menu-pick">
-                      <LeaderThumb deck={d} className="deck-menu-art" />
-                      <span className="deck-menu-text">
-                        <span className="deck-menu-name">{d.name}</span>
-                        <span className="deck-menu-sub">
-                          {leaderName(d.leaderId, cardsReady)} · {d.cards.length} cards <IncompleteBadge deck={d} />
-                        </span>
-                      </span>
-                      <span className="deck-menu-check" aria-hidden>
-                        {active ? "✓" : ""}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      className="deck-menu-edit"
-                      aria-label={`Edit ${d.name}`}
-                      title="Edit deck"
-                      tabIndex={-1}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/decks/${d.id}/configure`);
-                      }}
-                    >
-                      Edit
-                    </button>
-                  </ListboxOption>
-                );
-              })}
+              {groupByLeader(decks, (d) => d.leaderId).map((g) => (
+                <div key={g.leaderId} role="group" aria-label={leaderName(g.leaderId, cardsReady)}>
+                  <div className="deck-menu-leader" aria-hidden>
+                    {leaderName(g.leaderId, cardsReady)} · {g.leaderId}
+                  </div>
+                  {g.items.map((d) => {
+                    const active = d.id === selectedDeck.id;
+                    return (
+                      <ListboxOption
+                        as="div"
+                        key={d.id}
+                        value={d.id}
+                        className={`deck-menu-row${active ? " active" : ""}`}
+                      >
+                        <div className="deck-menu-pick">
+                          <LeaderThumb deck={d} className="deck-menu-art" />
+                          <span className="deck-menu-text">
+                            <span className="deck-menu-name">{d.name}</span>
+                            <span className="deck-menu-sub">
+                              {d.cards.length} cards <IncompleteBadge deck={d} />
+                            </span>
+                          </span>
+                          <span className="deck-menu-check" aria-hidden>
+                            {active ? "✓" : ""}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="deck-menu-edit"
+                          aria-label={`Edit ${d.name}`}
+                          title="Edit deck"
+                          tabIndex={-1}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/decks/${d.id}/configure`);
+                          }}
+                        >
+                          Edit
+                        </button>
+                      </ListboxOption>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
             <div className="deck-menu-foot">
               <ListboxOption as="div" value={NEW_DECK} className="btn btn-secondary btn-sm">

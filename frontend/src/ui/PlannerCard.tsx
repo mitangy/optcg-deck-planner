@@ -1,5 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
-import { CardThumb, MobileCardMedia } from "./CardThumb";
+import { MobileCardMedia, StackedThumb } from "./CardThumb";
 
 type Root = Omit<HTMLAttributes<HTMLElement>, "className" | "children">;
 
@@ -21,6 +21,7 @@ export function GridCard({
   before,
   meta,
   onMediaClick,
+  copies,
   children,
 }: {
   cardId: string;
@@ -39,6 +40,8 @@ export function GridCard({
   /** Muted line under the name; omitted when null/undefined. */
   meta?: ReactNode;
   onMediaClick?: HTMLAttributes<HTMLDivElement>["onClick"];
+  /** Deck page: copies in the deck, drawn as a stack behind the art. Omit elsewhere. */
+  copies?: number;
   children?: ReactNode;
 }) {
   return (
@@ -49,7 +52,7 @@ export function GridCard({
     >
       {before}
       <div className="grid-card-media" onClick={onMediaClick}>
-        <CardThumb src={imageSrc} cardId={cardId} alt={name} productId={imageProductId} />
+        <StackedThumb copies={copies} src={imageSrc} cardId={cardId} alt={name} productId={imageProductId} />
       </div>
       <div className="grid-card-body">
         <div className="card-id">{cardId}</div>
@@ -79,6 +82,7 @@ export function MobileCard({
   meta,
   info,
   mediaWrapProps,
+  copies,
   children,
 }: {
   cardId: string;
@@ -99,10 +103,12 @@ export function MobileCard({
   info?: ReactNode;
   /** Wraps the media in a div with these handlers (Shopping stops tap-to-select there). */
   mediaWrapProps?: Pick<HTMLAttributes<HTMLDivElement>, "onClick" | "onKeyDown">;
+  /** Deck page: copies in the deck, drawn as a stack behind the art. Omit elsewhere. */
+  copies?: number;
   children?: ReactNode;
 }) {
   const media = (
-    <MobileCardMedia src={imageSrc} productId={imageProductId} cardId={cardId} alt={name} cost={cost} rarity={rarity} />
+    <MobileCardMedia src={imageSrc} productId={imageProductId} cardId={cardId} alt={name} cost={cost} rarity={rarity} copies={copies} />
   );
   return (
     <article

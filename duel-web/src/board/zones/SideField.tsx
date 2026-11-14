@@ -20,8 +20,10 @@ type SideData = {
   stage: CardView | null;
   deckCount: number;
   trash: string[];
+  /** Copy rank per trash card (null for ordinary cards); absent when no any-number card is in the trash (#1292). */
+  trashCopies?: (number | null)[];
   lifeCount: number;
-  faceUpLife?: Array<{ index: number; defId: string }>;
+  faceUpLife?: Array<{ index: number; defId: string; artCopy?: number }>;
   donDeckCount: number;
   costArea?: { id: string; rested: boolean }[];
   costAreaCount?: number;
@@ -229,12 +231,13 @@ export function SideField({
   const [trashTopInspect, setTrashTopInspect] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
   /** A face-up Life card opened by right-click on the pile. */
-  const [lifeFaceInspect, setLifeFaceInspect] = useState<string | null>(null);
+  const [lifeFaceInspect, setLifeFaceInspect] = useState<{ defId: string; artCopy?: number } | null>(null);
   /** Count row instead of piles: the opponent's mat on a portrait phone, and yours with "Simple board". */
   const counts = countRow;
   const who = side === "you" ? "Your" : "Opponent";
   const faceUpLife = data.faceUpLife ?? [];
   const trashTop = data.trash.length ? data.trash[data.trash.length - 1] : null;
+  const trashTopCopy = data.trashCopies?.[data.trash.length - 1] ?? undefined;
   const trashTitle = side === "you" ? "Your trash" : "Opponent trash";
   const leaderLife = lookupCard(data.leader.defId).life;
 
@@ -317,7 +320,7 @@ export function SideField({
             ownerSeat={ownerSeat}
             lifeFan={lifeFanForSide(lifeFan ?? "down", side)}
             onOpen={faceUpLife.length ? () => setLifeOpen(true) : undefined}
-            onInspectFace={setLifeFaceInspect}
+            onInspectFace={(defId, artCopy) => setLifeFaceInspect({ defId, artCopy })}
           />
           {turnOrder ? orderTag : null}
         </div>}
@@ -364,6 +367,7 @@ export function SideField({
                 <CardTile
                   key={c.id}
                   defId={c.defId}
+                  artCopy={c.artCopy}
                   instanceId={c.id}
                   compact={compact || mirrored}
                   rested={c.rested}
@@ -494,6 +498,7 @@ export function SideField({
               return (
                 <CardTile
                   defId={data.stage!.defId}
+                  artCopy={data.stage!.artCopy}
                   instanceId={stageId}
                   compact={compact || mirrored}
                   rested={data.stage!.rested}
@@ -547,6 +552,7 @@ export function SideField({
               count={data.trash.length}
               variant="trash"
               topDefId={trashTop}
+              topArtCopy={trashTopCopy}
               ownerSeat={ownerSeat}
               onOpen={() => setTrashOpen(true)}
               onInspectTop={trashTop ? () => setTrashTopInspect(true) : undefined}
@@ -559,6 +565,7 @@ export function SideField({
         <TrashViewer
           title={side === "you" ? "Your face-up Life" : "Opponent face-up Life"}
           cards={faceUpLife.map((c) => c.defId)}
+          copies={faceUpLife.map((c) => c.artCopy)}
           note="face up"
           emptyText="No face-up Life cards."
           onClose={() => setLifeOpen(false)}
@@ -568,7 +575,8 @@ export function SideField({
       ) : null}
       {lifeFaceInspect ? (
         <CardInspect
-          defId={lifeFaceInspect}
+          defId={lifeFaceInspect.defId}
+          artCopy={lifeFaceInspect.artCopy}
           open
           onClose={() => setLifeFaceInspect(null)}
           ownerSeat={ownerSeat}
@@ -578,6 +586,7 @@ export function SideField({
       {trashTopInspect && trashTop ? (
         <CardInspect
           defId={trashTop}
+          artCopy={trashTopCopy}
           open
           onClose={() => setTrashTopInspect(false)}
           ownerSeat={ownerSeat}
@@ -588,6 +597,7 @@ export function SideField({
         <TrashViewer
           title={trashTitle}
           cards={trashNewestFirst(data.trash)}
+          copies={data.trashCopies ? trashNewestFirst(data.trashCopies) : undefined}
           sortable
           onClose={() => setTrashOpen(false)}
           ownerSeat={ownerSeat}

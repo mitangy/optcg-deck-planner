@@ -67,7 +67,8 @@ for (const size of SIZES) {
     expect(listBg).toEqual(panelBg);
 
     // Text reads on it: the deck name and the muted sub-line.
-    const name = page.locator(".ui-select-option .ui-select-label").nth(1);
+    // Leader header rows (#1294) are disabled options, so count only the decks.
+    const name = page.locator(".ui-select-option:not([data-disabled]) .ui-select-label").nth(1);
     const sub = page.locator(".ui-select-option .ui-select-sub").first();
     expect(contrast(parse(await name.evaluate((el) => getComputedStyle(el).color)), listBg)).toBeGreaterThan(4.5);
     expect(contrast(parse(await sub.evaluate((el) => getComputedStyle(el).color)), listBg)).toBeGreaterThan(3);
@@ -83,7 +84,7 @@ for (const size of SIZES) {
     expect(lb.width).toBeGreaterThanOrEqual(before.trigger!.width - 1);
 
     // It is above the game-over overlay: what paints at the row's centre is the row, so a click lands.
-    const row = page.locator(".ui-select-option").nth(2);
+    const row = page.locator(".ui-select-option", { hasText: "Straw Hat Midrange with a Very Long Deck Name" });
     const rb = (await row.boundingBox())!;
     const top = await page.evaluate(
       ([x, y]) => document.elementFromPoint(x!, y!)?.closest(".ui-select-option") !== null,

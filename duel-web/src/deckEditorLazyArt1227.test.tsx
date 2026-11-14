@@ -76,7 +76,7 @@ describe("deck editor stacks (#1272)", () => {
       const tile = [...host!.querySelectorAll(".deck-stack")].find((t) => t.textContent?.includes(id))!;
       expect(tile).toBeTruthy();
       return {
-        copies: tile.querySelectorAll(".deck-stack-copy").length,
+        copies: tile.querySelectorAll(".card-stack-copy").length,
         badge: tile.querySelector(".deck-stack-badge")?.textContent,
       };
     };
