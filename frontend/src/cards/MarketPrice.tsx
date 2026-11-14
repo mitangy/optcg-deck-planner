@@ -372,7 +372,14 @@ export function AltArtsRow({
                       title="Copies you buy as this art (copies you own count first)"
                     >
                       <span className="alt-buy-own">Buy ×{altBuyQty(alt.product_id)}</span>
-                      {owned > 0 ? <span className="alt-buy-own">{` · own ${owned}`}</span> : null}
+                      {owned > 0 ? (
+                        <>
+                          <span className="alt-buy-sep" aria-hidden="true">
+                            {" · "}
+                          </span>
+                          <span className="alt-buy-own alt-buy-owned">own {owned}</span>
+                        </>
+                      ) : null}
                     </span>
                   ) : null}
                   {editable && onOwnedChange ? (

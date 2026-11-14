@@ -938,7 +938,15 @@
   }
 }
 
-/* Group buys (#1305): "Buy ×N · own M" wraps between the two parts, not inside them. */
+/* Group buys (#1305): "Buy ×N" with "own M" on its own muted line (tiles are too narrow for one line). */
 .alt-art .alt-buy-own {
   white-space: nowrap;
+}
+.alt-art .alt-buy-sep {
+  display: none;
+}
+.alt-art .alt-buy-owned {
+  display: block;
+  font-weight: 400;
+  color: var(--muted, inherit);
 }
