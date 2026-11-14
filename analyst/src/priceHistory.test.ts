@@ -71,7 +71,8 @@ describe("price_history tool (#946)", () => {
     // The same card 30 days in is still well above where its kind settles.
     const early = await priceHistory(planner({ ...ALT, released: ago(30) }).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
     expect(early.buy_timing.verdict).toBe("wait");
-    expect(early.buy_timing.expectedFurtherDropPct).toBe(24);
+    // The curve alone says 24% to 6 months; bought in the November low the season gives some of it back (#1311).
+    expect(early.buy_timing.expectedFurtherDropPct).toBe(17);
   });
 
   it("adds a best time to buy: now for an older art, a dated window with an estimate for a fresh one (#952)", async () => {
@@ -83,12 +84,29 @@ describe("price_history tool (#946)", () => {
       label: "Now",
       est_low: 20,
       est_high: 20,
-      basis: "Most of the typical drop is done.",
+      est_mid: null,
+      range_basis: null,
+      basis: "Most of the typical drop is done and this is usually the cheapest time of year for older cards.",
     });
     const fresh = await priceHistory(planner({ ...ALT, released: ago(20) }).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
-    expect(fresh.best_time_to_buy).toMatchObject({ when: "window", from: ago(-21), to: ago(-81), label: "Nov 2026 – Jan 2027", est_low: 13.32, est_high: 16.28 });
+    expect(fresh.best_time_to_buy).toMatchObject({ when: "window", from: "2026-11-25", to: "2027-01-24", label: "Nov 2026 – Jan 2027", est_low: 12.4, est_high: 20.23, range_basis: "middle half of outcomes for similar cards, 2024–2026" });
     const none = await priceHistory(planner({ ...ALT, released: null, current: null, points: [] }).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
     expect(none.best_time_to_buy).toBeNull();
+  });
+
+  it("adds the season it reads prices through, and passes the card's reprints to the timing (#1311)", async () => {
+    const out = await priceHistory(planner(ALT).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
+    expect(out.season.pct_vs_yearly_average_by_month).toEqual({ Jan: 4, Feb: 7, Mar: 6, Apr: 4, May: 3, Jun: 2, Jul: 0, Aug: -3, Sep: -4, Oct: -6, Nov: -8, Dec: -4 });
+    // 4 Nov is 11 of 31 days from mid-October (-6) towards mid-November (-8).
+    expect(out.season.factor_now).toBe(0.93);
+    expect(out.season.basis).toMatch(/two winters/);
+    expect(out.reprints).toEqual([]);
+    expect(out.buy_timing.verdict).toBe("good");
+    const reprint = await priceHistory(planner({ ...ALT, reprints: ["2026-12-20"] }).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
+    expect(reprint.reprints).toEqual(["2026-12-20"]);
+    expect(reprint.buy_timing.verdict).toBe("wait");
+    expect(reprint.buy_timing.reasons[0]).toMatch(/^A reprint releases Dec 20, 2026/);
+    expect(reprint.best_time_to_buy!.when).toBe("window");
   });
 
   it("reads a base SR with the base rare curve, and leaves a base card without a rarity on the all-singles one (#949)", async () => {

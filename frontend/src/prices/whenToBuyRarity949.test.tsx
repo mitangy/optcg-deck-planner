@@ -33,9 +33,9 @@ async function buyRead(over: Partial<PriceHistoryResponse>): Promise<string> {
     product_id: 1,
     name: "Portgas.D.Ace",
     group_name: "Set",
-    released: "2026-09-06",
+    released: "2026-10-06",
     current: 10,
-    points: [["2026-09-06", 10], ["2026-11-05", 10]],
+    points: [["2026-10-06", 10], ["2026-11-05", 10]],
     ...over,
   };
   vi.spyOn(api, "priceHistory").mockResolvedValue(data);
@@ -57,7 +57,17 @@ describe("When to buy uses the card's rarity (#949 follow-up)", () => {
     act(() => root?.unmount());
     host?.remove();
     const plain = await buyRead({ rarity: null });
-    expect(sr).toContain("Nov 2026 – Jan 2027");
-    expect(plain).not.toContain("Nov 2026 – Jan 2027");
+    expect(sr).toContain("Mar 2027 – May 2027");
+    expect(plain).not.toContain("Mar 2027 – May 2027");
+  });
+
+  it("waits for a reprint the price history says is coming (#1311)", async () => {
+    vi.useFakeTimers({ now: new Date("2026-11-05T12:00:00Z"), toFake: ["Date"] });
+    const none = await buyRead({ rarity: null });
+    act(() => root?.unmount());
+    host?.remove();
+    const coming = await buyRead({ rarity: null, reprints: ["2026-12-20"] });
+    expect(none).toContain("Close to a good price");
+    expect(coming).toContain("Better to wait");
   });
 });

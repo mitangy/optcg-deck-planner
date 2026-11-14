@@ -8263,6 +8263,11 @@ export interface components {
             rarity?: string | null;
             /** Released */
             released?: string | null;
+            /**
+             * Reprints
+             * @default []
+             */
+            reprints: string[];
         };
         /** PrintingView */
         PrintingView: {

@@ -62,9 +62,10 @@ test("Collection: a base art about four months old reads Good time, with its rea
   const buy = panel.getByLabel("When to buy");
   await expect(buy.locator(".ph-pill")).toHaveText("Good time");
   await expect(buy).toContainText("A reasonable time to buy");
-  await expect(buy.locator(".ph-buy-best")).toContainText("Best time: Now");
-  await expect(buy).toContainText("Based on how similar cards moved after release, 2024–2026");
-  // Released Sep 16, 2025: 121 days old, in January, so the winter note comes with it.
+  // 121 days old in January, the seasonal peak: the cheaper summer months come first (#1311).
+  await expect(buy.locator(".ph-buy-best")).toContainText("Best time: Jun 2026 – Aug 2026");
+  await expect(buy).toContainText("Based on how similar cards moved after release and through the year, 2024–2026");
+  // Released Sep 16, 2025: 121 days old, in January, so the season note comes with it.
   const why = buy.getByRole("button", { name: "Why this read?" });
   await expect(why).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
@@ -74,7 +75,7 @@ test("Collection: a base art about four months old reads Good time, with its rea
   await expect(why).toHaveAttribute("aria-expanded", "true");
   const reasons = page.getByRole("tooltip");
   await expect(reasons.getByRole("listitem").first()).toContainText("Most of the typical drop is done at this age.");
-  await expect(reasons).toContainText("tend to run higher in winter (peak in February)");
+  await expect(reasons).toContainText("A pricey time of year: older cards have run about 4% above their yearly average in January, against 8% below in November (2024–2026).");
   await expect(reasons).toContainText("Typical patterns of past sets, not a forecast.");
   // Opening the reasons does not move the button that opened the panel.
   expect(await toggle.boundingBox()).toEqual(triggerBefore);
@@ -153,11 +154,11 @@ test("Collection: an alt art a month after release says wait and how far similar
   await expect(buy).toContainText("Better to wait");
   await buy.getByRole("button", { name: "Why this read?" }).click();
   await expect(page.getByRole("tooltip").getByRole("listitem")).toHaveText([
-    "Similar cards fell another ~24% by 6 months.",
-    "Similar cards reached a buyable price about 6 weeks after release, around 21% below today's price.",
+    "Similar cards fell another ~26% by 6 months.",
+    "Similar cards reached a buyable price about 6 weeks after release and older cards have usually been cheaper around Aug, around 25% below today's price. Half of similar cards landed in this range.",
   ]);
-  // Released Dec 16: buyable about 41 days on (Jan 26), a 60-day window, and $12 now is about $9.49 then.
-  await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Jan 2026 – Mar 2026 · est. $8.54–$10.44");
+  // Released Dec 16: buyable Jan 26, but the February peak makes the summer lows the better window (#1311).
+  await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Jul 2026 – Sep 2026 · est. $5.56–$13.91");
   await expectFits(page, panel);
   if (SHOTS) await panel.screenshot({ path: `${SHOTS}/alt-wait-open-${test.info().project.name}.png` });
 });
@@ -168,7 +169,7 @@ test("On a 320px phone the best-time estimate moves to a second line instead of 
   await altHistory(page, { name: "Izo (Alternate Art)", released: "2025-12-16", current: 12, days: 30, price: (i) => 20 - i * 0.25 });
   const { panel } = await openAltPanel(page, planner);
   const best = panel.getByLabel("When to buy").locator(".ph-buy-best");
-  await expect(best).toHaveText("Best time: Jan 2026 – Mar 2026 · est. $8.54–$10.44");
+  await expect(best).toHaveText("Best time: Jul 2026 – Sep 2026 · est. $5.56–$13.91");
   const label = (await best.locator("strong").boundingBox())!;
   const est = (await best.locator(".ph-buy-est").boundingBox())!;
   expect(est.y).toBeGreaterThan(label.y);
@@ -203,8 +204,8 @@ test("Collection: an alt art with no price points yet still gets the read from i
   // 121 days old, so an alt art has about 14% of its typical drop left.
   await expect(buy.locator(".ph-pill")).toHaveText("Almost");
   await expect(buy).toContainText("Close to a good price");
-  // With no recent points the estimate is just today's price.
-  await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Now · est. ~$15");
+  // Mid-January is the seasonal peak, so the window is the autumn lows, with a lower estimate than today's $15 (#1311).
+  await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Sep 2026 – Nov 2026 · est. $8.47–$18.93");
   await expectFits(page, panel);
 });
 

@@ -147,10 +147,10 @@ export function buyQuestion(productName: string, cardId: string, productId: numb
 
 /** What the When to buy read is computed from. The card's rarity picks the base SR / SEC / Leader curve; alt and chase names win first. */
 export function buyTimingInput(
-  data: { name: string; rarity?: string | null; released: string | null; current: number | null },
+  data: { name: string; rarity?: string | null; released: string | null; current: number | null; reprints?: string[] | null },
   points: PricePoint[],
   fallbackNow: number | null,
   today: string,
 ) {
-  return { kind: artKind(data.name, data.rarity), released: data.released, today, points, current: data.current ?? fallbackNow };
+  return { kind: artKind(data.name, data.rarity), released: data.released, today, points, current: data.current ?? fallbackNow, reprints: data.reprints ?? [] };
 }

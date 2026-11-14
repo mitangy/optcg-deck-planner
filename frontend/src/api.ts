@@ -266,6 +266,8 @@ export type PriceHistoryResponse = {
   current: number | null;
   /** [YYYY-MM-DD, market price], oldest first. */
   points: [string, number][];
+  /** Release dates of later plain reprints of this card in other sets, sorted. */
+  reprints?: string[];
 };
 
 export type ShoppingResponse = {
