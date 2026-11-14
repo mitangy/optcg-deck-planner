@@ -8,9 +8,10 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from datetime import date
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.planner.catalog_sync import _orm_printing_sort_key
@@ -119,6 +120,32 @@ def release_date(db: Session, group_name: str) -> date | None:
         .order_by(CatalogGroup.published_on)
         .limit(1)
     )
+
+
+_ART_MARK = re.compile(r"\([^)]*\)")
+
+
+def later_reprints(db: Session, printing: CatalogPrinting, released: date | None) -> list[str]:
+    """Sorted distinct release dates of later plain reprints of this printing's card (#1311).
+
+    A reprint is another printing of the same card number with no "(...)" art mark in its
+    name, in a set that released after `released` (so never the printing's own set). Older printings have
+    usually dropped about 10% in the two months after one.
+    """
+    if released is None:
+        return []
+    others = db.scalars(
+        select(CatalogPrinting).where(CatalogPrinting.card_id == printing.card_id)
+    ).all()
+    names = {o.group_name for o in others if not _ART_MARK.search(o.name or "")}
+    if not names:
+        return []
+    rows = db.execute(
+        select(CatalogGroup.name, func.min(CatalogGroup.published_on))
+        .where(CatalogGroup.name.in_(names), CatalogGroup.published_on.is_not(None))
+        .group_by(CatalogGroup.name)
+    ).all()
+    return sorted({day.isoformat() for _, day in rows if day is not None and day > released})
 
 
 def known_product_ids(db: Session, product_ids: list[int]) -> set[int]:

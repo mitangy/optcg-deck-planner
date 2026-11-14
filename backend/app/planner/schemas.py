@@ -179,6 +179,8 @@ class PriceHistoryResponse(BaseModel):
     rarity: str | None = None
     current: float | None = None
     points: list[tuple[str, float]]
+    # Release dates of later plain reprints of this card in other sets (sorted, distinct).
+    reprints: list[str] = []
 
 
 class PriceHistoryImport(BaseModel):

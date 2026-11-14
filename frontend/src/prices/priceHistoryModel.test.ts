@@ -126,10 +126,10 @@ describe("Ask Log Pose about when to buy (#946)", () => {
 });
 
 describe("When to buy input (#949 follow-up)", () => {
-  // A base SR released 60 days ago, now $10: the base SR curve is still falling, the all-singles curve has settled.
-  const data = { name: "Portgas.D.Ace", released: "2026-09-06", current: 10 };
+  // A base SR released 30 days ago, now $10: the base SR curve is still falling (wait), the all-singles one is closer to done (soon).
+  const data = { name: "Portgas.D.Ace", released: "2026-10-06", current: 10 };
   const today = "2026-11-05";
-  const points = pts([["2026-09-06", 10], ["2026-11-05", 10]]);
+  const points = pts([["2026-10-06", 10], ["2026-11-05", 10]]);
 
   it("reads a base SR, SEC or Leader with the base rare curve and says wait (#949)", () => {
     for (const rarity of ["SR", "SEC", "L"]) {
@@ -141,6 +141,16 @@ describe("When to buy input (#949 follow-up)", () => {
 
   it("keeps an alternate art on the alt curve whatever the card's rarity is (#949)", () => {
     expect(buyTimingInput({ ...data, name: "Portgas.D.Ace (Alternate Art)", rarity: "SR" }, points, null, today).kind).toBe("alt");
+  });
+
+  it("hands the card's later reprints to the timing, none by default (#1311)", () => {
+    expect(buyTimingInput({ ...data, reprints: ["2026-12-20"] }, points, null, today).reprints).toEqual(["2026-12-20"]);
+    expect(buyTimingInput(data, points, null, today).reprints).toEqual([]);
+    expect(buyTimingInput({ ...data, reprints: null }, points, null, today).reprints).toEqual([]);
+    // A reprint a month and a half out turns a "soon" into a wait.
+    const withReprint = buyTimingInput({ ...data, rarity: null, reprints: ["2026-12-20"] }, points, null, today);
+    expect(buyTiming(buyTimingInput({ ...data, rarity: null }, points, null, today)).verdict).toBe("soon");
+    expect(buyTiming(withReprint).verdict).toBe("wait");
   });
 
   it("leaves a card with no known rarity on the all-singles curve (#949)", () => {

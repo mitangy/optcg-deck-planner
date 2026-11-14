@@ -155,3 +155,41 @@ def test_hourly_refresh_records_catalog_products_and_the_latest_price_of_the_day
     price_refresh.apply_prices(db, {11: (4.5, 3.5), 500: (9.0, 9.0)}, evening)
     assert price_history.history_points(db, 11) == [("2026-10-31", 4.5)]
     assert price_history.history_points(db, 500) == []  # sealed product, not a catalog printing
+
+
+def test_price_history_lists_later_plain_reprints_of_the_card_1311(client):
+    c, S = client
+    with S() as db:
+        db.add_all(
+            [
+                _printing("OP01-001", 11, "Luffy", 30.0, group="Set A"),
+                # Later plain reprints, two in sets released the same day.
+                _printing("OP01-001", 12, "Luffy", 3.0, group="Set C"),
+                _printing("OP01-001", 13, "Luffy", 3.0, group="Set E"),
+                _printing("OP01-001", 14, "Luffy", 3.0, group="Set G"),
+                # Not reprints: an alt art or a marked name, an earlier set, the same set, an undated set.
+                _printing("OP01-001", 15, "Luffy (Alternate Art)", 9.0, special=1, group="Set D"),
+                _printing("OP01-001", 16, "Luffy (Reprint)", 9.0, group="Set D"),
+                _printing("OP01-001", 17, "Luffy", 3.0, group="Set Z"),
+                _printing("OP01-001", 18, "Luffy", 3.0, group="Set A"),
+                _printing("OP01-001", 19, "Luffy", 3.0, group="Set F"),
+                _printing("OP02-002", 21, "Other", 3.0, group="Set H"),
+                CatalogGroup(group_id=1, name="Set A", published_on=date(2024, 12, 6)),
+                CatalogGroup(group_id=2, name="Set C", published_on=date(2025, 6, 1)),
+                CatalogGroup(group_id=3, name="Set E", published_on=date(2025, 6, 1)),
+                CatalogGroup(group_id=4, name="Set G", published_on=date(2026, 1, 10)),
+                CatalogGroup(group_id=5, name="Set D", published_on=date(2025, 8, 1)),
+                CatalogGroup(group_id=6, name="Set Z", published_on=date(2023, 1, 1)),
+                CatalogGroup(group_id=7, name="Set F", published_on=None),
+                CatalogGroup(group_id=8, name="Set H", published_on=date(2026, 3, 1)),
+            ]
+        )
+        db.commit()
+
+    base = c.get("/catalog/cards/OP01-001/price-history?product_id=11").json()
+    assert base["reprints"] == ["2025-06-01", "2026-01-10"]
+    # Seen from the first reprint, only the one after it counts.
+    assert c.get("/catalog/cards/OP01-001/price-history?product_id=12").json()["reprints"] == ["2026-01-10"]
+    # No release date for the printing's own set: nothing to compare against.
+    assert c.get("/catalog/cards/OP01-001/price-history?product_id=19").json()["reprints"] == []
+    assert c.get("/catalog/cards/OP02-002/price-history").json()["reprints"] == []

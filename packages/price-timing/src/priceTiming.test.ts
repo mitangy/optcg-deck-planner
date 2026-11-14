@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { artKind, bestTimeToBuy, buyableDay, buyTiming, expectedRatio, settledRatio, typicalCurve, type ArtKind, type PricePoint } from "./priceTiming";
+import { artKind, bestTimeToBuy, buyableDay, buyTiming, expectedRatio, SEASON_PCT, seasonFactor, settledRatio, typicalCurve, type ArtKind, type PricePoint } from "./priceTiming";
 
 /** `today` minus `days`, as an ISO day. */
 function ago(today: string, days: number): string {
@@ -15,8 +15,13 @@ const RELEASED = "2026-01-01";
 /** `age` days after RELEASED. */
 const at = (age: number) => ago("2026-01-01", -age);
 
-function timing(kind: ArtKind, age: number, extra: { points?: PricePoint[]; current?: number } = {}) {
-  return buyTiming({ kind, released: RELEASED, today: at(age), points: extra.points ?? [], current: extra.current ?? 10 });
+/** A release in July, September and so on: the next 6 months of season then fall less than the release curve does, so the verdict is the curve's. RELEASED (January) rides the February peak, which makes the season part of every drop. */
+const R_JUL = "2026-07-01";
+const R_SEP = "2026-09-01";
+
+function timing(kind: ArtKind, age: number, extra: { points?: PricePoint[]; current?: number; released?: string } = {}) {
+  const released = extra.released ?? RELEASED;
+  return buyTiming({ kind, released, today: ago(released, -age), points: extra.points ?? [], current: extra.current ?? 10 });
 }
 
 describe("artKind (#946)", () => {
@@ -90,37 +95,39 @@ describe("buyTiming verdicts (#946)", () => {
   });
 
   it("waits on an alt art 30 days after release, with the typical further drop", () => {
+    // The release curve alone says 24% to day 180 (#946); released in January the season adds a few points on top (#1311).
     const t = timing("alt", 30);
     expect(t.verdict).toBe("wait");
-    expect(t.expectedFurtherDropPct).toBe(24);
-    expect(t.reasons[0]).toBe("Similar cards fell another ~24% by 6 months.");
+    expect(t.expectedFurtherDropPct).toBe(28);
+    expect(t.reasons[0]).toBe("Similar cards fell another ~28% by 6 months.");
   });
 
   it("calls a base rare good at day 90 and still a wait at day 30", () => {
-    expect(timing("baseRare", 90).verdict).toBe("good");
-    expect(timing("baseRare", 90).reasons[0]).toMatch(/most of the typical drop is done/i);
-    expect(timing("baseRare", 30).verdict).toBe("wait");
+    expect(timing("baseRare", 90, { released: R_SEP }).verdict).toBe("good");
+    expect(timing("baseRare", 90, { released: R_SEP }).reasons[0]).toMatch(/most of the typical drop is done/i);
+    expect(timing("baseRare", 30, { released: R_SEP }).verdict).toBe("wait");
   });
 
   it("is soon when the typical remaining drop is 10 to 15 percent, good below that", () => {
-    const soon = timing("alt", 40);
+    const soon = timing("alt", 40, { released: R_JUL });
     expect(soon.verdict).toBe("soon");
-    expect(soon.expectedFurtherDropPct).toBe(14);
-    expect(timing("baseRare", 126).verdict).toBe("soon");
-    const good = timing("alt", 90);
+    expect(soon.expectedFurtherDropPct).toBe(13);
+    expect(timing("baseRare", 126, { released: "2026-06-01" }).verdict).toBe("soon");
+    const good = timing("alt", 90, { released: R_JUL });
     expect(good.verdict).toBe("good");
-    expect(good.expectedFurtherDropPct).toBe(9);
+    expect(good.expectedFurtherDropPct).toBe(6);
   });
 
   it("uses the all-singles curve for an unclassified art", () => {
-    // allSingles at day 30 is 76.6 and 64.1 at day 180: a 16% drop (an alt art would say 24%).
+    // The all-singles curve falls less than an alt art's from day 30 (21% against 28% released in January) (#946).
     const t = timing("other", 30);
     expect(t.verdict).toBe("wait");
-    expect(t.expectedFurtherDropPct).toBe(16);
+    expect(t.expectedFurtherDropPct).toBe(21);
   });
 
   it("does not say the price will fall further when the kind usually rises later", () => {
-    const t = timing("alt", 300);
+    // Day 300 of an alt art released in February is 28 Nov: the curve is flat and the season is about to climb.
+    const t = timing("alt", 300, { released: "2026-02-01" });
     expect(t.verdict).toBe("good");
     expect(t.expectedFurtherDropPct).toBe(0);
   });
@@ -144,9 +151,10 @@ describe("buyTiming verdicts (#946)", () => {
 });
 
 describe("buyTiming 30-day low (#946)", () => {
-  const today = at(90);
+  // Day 90 of a base rare released in September: a "good" verdict, so the 30-day low reason can show.
+  const today = ago(R_SEP, -90);
   const withLow = (low: number, current: number, kind: ArtKind = "baseRare") =>
-    buyTiming({ kind, released: RELEASED, today, points: [...flat(today, 29, 100).slice(0, 10), { date: ago(today, 5), price: low }, { date: today, price: current }], current });
+    buyTiming({ kind, released: R_SEP, today, points: [...flat(today, 29, 100).slice(0, 10), { date: ago(today, 5), price: low }, { date: today, price: current }], current });
 
   it("adds a reason when the price is more than 15 percent above the 30-day low", () => {
     const t = withLow(100, 116);
@@ -159,8 +167,8 @@ describe("buyTiming 30-day low (#946)", () => {
   });
 
   it("applies to soon as well, and never to wait", () => {
-    const soonDay = at(40);
-    const soon = buyTiming({ kind: "alt", released: RELEASED, today: soonDay, points: [{ date: ago(soonDay, 3), price: 10 }, { date: soonDay, price: 12 }], current: 12 });
+    const soonDay = ago(R_JUL, -40);
+    const soon = buyTiming({ kind: "alt", released: R_JUL, today: soonDay, points: [{ date: ago(soonDay, 3), price: 10 }, { date: soonDay, price: 12 }], current: 12 });
     expect(soon.verdict).toBe("soon");
     expect(soon.reasons).toContain("It is 20% above its 30-day low.");
     const waitT = buyTiming({ kind: "alt", released: RELEASED, today: at(30), points: [{ date: at(25), price: 10 }, { date: at(30), price: 12 }], current: 12 });
@@ -169,7 +177,7 @@ describe("buyTiming 30-day low (#946)", () => {
   });
 
   it("counts day 30 back but not day 31", () => {
-    const base = { kind: "baseRare" as const, released: RELEASED, today, current: 130 };
+    const base = { kind: "baseRare" as const, released: R_SEP, today, current: 130 };
     const edge = buyTiming({ ...base, points: [{ date: ago(today, 30), price: 100 }, { date: today, price: 130 }] });
     expect(edge.reasons).toContain("It is 30% above its 30-day low.");
     const older = buyTiming({ ...base, points: [{ date: ago(today, 31), price: 100 }, { date: today, price: 130 }] });
@@ -177,36 +185,36 @@ describe("buyTiming 30-day low (#946)", () => {
   });
 });
 
-describe("buyTiming season note (#946)", () => {
+describe("buyTiming season note (#946, #1311)", () => {
   const note = (today: string, age = 200) =>
     buyTiming({ kind: "alt", released: ago(today, age), today, points: [], current: 10 }).seasonNote;
-  const WINTER = "Prices across the market tend to run higher in winter (peak in February); autumn has been cheaper.";
-  const CHEAP = "This is usually the cheapest time of year for older cards.";
+  const MIDDLE = "Older cards have run about 7% above their yearly average in February and 8% below in November (2024–2026).";
 
-  it("says winter from December through March", () => {
-    expect(note("2026-12-01")).toBe(WINTER);
-    expect(note("2027-01-15")).toBe(WINTER);
-    expect(note("2027-03-31")).toBe(WINTER);
+  it("says where a high month sits against the November low", () => {
+    expect(note("2027-02-10")).toBe("A pricey time of year: older cards have run about 7% above their yearly average in February, against 8% below in November (2024–2026).");
+    expect(note("2027-04-01")).toBe("A pricey time of year: older cards have run about 4% above their yearly average in April, against 8% below in November (2024–2026).");
   });
 
-  it("says cheapest from August through October", () => {
-    expect(note("2026-08-01")).toBe(CHEAP);
-    expect(note("2026-10-31")).toBe(CHEAP);
+  it("says where a low month sits against the February peak", () => {
+    expect(note("2026-11-14")).toBe("Usually a cheap time of year: older cards have run about 8% below their yearly average in November, against 7% above in February (2024–2026).");
+    expect(note("2026-09-15")).toBe("Usually a cheap time of year: older cards have run about 4% below their yearly average in September, against 7% above in February (2024–2026).");
   });
 
-  it("says nothing in the months between", () => {
-    for (const day of ["2026-04-01", "2026-07-31", "2026-11-01", "2026-11-30"]) expect(note(day), day).toBeUndefined();
+  it("gives both ends of the year in a middle month", () => {
+    expect(note("2026-07-15")).toBe(MIDDLE);
+    expect(note("2026-06-15")).toBe(MIDDLE);
+    expect(note("2026-07-31")).toBe(MIDDLE);
   });
 
   it("is only for cards at least 120 days old", () => {
     expect(note("2026-09-15", 119)).toBeUndefined();
-    expect(note("2026-09-15", 120)).toBe(CHEAP);
+    expect(note("2026-09-15", 120)).toContain("cheap time of year");
   });
 
   it("comes with a chase verdict too", () => {
     const t = buyTiming({ kind: "chase", released: "2026-01-01", today: "2026-09-15", points: [], current: 10 });
     expect(t.verdict).toBe("holds");
-    expect(t.seasonNote).toBe(CHEAP);
+    expect(t.seasonNote).toContain("cheap time of year");
   });
 });
 
@@ -236,56 +244,68 @@ describe("bestTimeToBuy (#952)", () => {
     expect(buyableDay("alt")).toBe(41);
   });
 
-  it("gives a window about six weeks out and an estimate from the typical curve for a fresh alt art", () => {
-    // Day 20 sits at 82.43 on the curve; settling at 61 is a 26% drop, so $50 is about $37.
-    const b = best("alt", 20, { current: 50 })!;
+  it("puts the window in the cheap months, with an estimate from the curve and the season, for a fresh alt art", () => {
+    // Released 1 Jul, 20 days old: buyable from 11 Aug on the curve, but the Aug-Oct lows and the November trough are cheaper still (#1311).
+    const b = best("alt", 20, { current: 50, released: "2026-07-01", today: "2026-07-21" })!;
     expect(b).toEqual({
       when: "window",
-      from: "2026-02-11",
-      to: "2026-04-12",
-      label: "Feb 2026 – Apr 2026",
-      estLow: 33.3,
-      estHigh: 40.7,
-      basis: "Similar cards reached a buyable price about 6 weeks after release, around 26% below today's price.",
+      from: "2026-11-10",
+      to: "2027-01-09",
+      label: "Nov 2026 – Jan 2027",
+      estLow: 32.24,
+      estHigh: 39.4,
+      basis: "Similar cards reached a buyable price about 6 weeks after release and older cards have usually been cheaper around Nov, around 28% below today's price.",
     });
   });
 
   it("writes a window that crosses a year with both years", () => {
-    expect(best("alt", 5, { released: "2026-11-20", today: "2026-11-25" })!.label).toBe("Dec 2026 – Mar 2027");
+    expect(best("alt", 20, { current: 50, released: "2026-07-01", today: "2026-07-21" })!.label).toBe("Nov 2026 – Jan 2027");
+  });
+
+  it("moves a young card's window off the February peak (#1311)", () => {
+    // Released 1 Jan, 20 days old: the curve alone says 11 Feb, which is the seasonal peak. The window lands in the Aug-Oct lows instead.
+    const b = best("alt", 20, { current: 50 })!;
+    expect(b.when).toBe("window");
+    expect(b.from >= "2026-07-01" && b.from <= "2026-11-30").toBe(true);
+    expect(b.basis).toMatch(/cheaper around Aug/);
   });
 
   it("says now, with the 30-day low as the low end, once the typical drop is done", () => {
-    const today = at(100);
+    const today = "2026-11-14";
     const points = [
       { date: ago(today, 31), price: 5 },
       { date: ago(today, 10), price: 24 },
       { date: ago(today, 3), price: 40 },
     ];
-    expect(best("alt", 100, { points, current: 30 })).toEqual({
+    const settled = { released: "2025-03-01", today };
+    expect(best("alt", 0, { ...settled, points, current: 30 })).toEqual({
       when: "now",
       from: today,
       to: ago(today, -30),
       label: "Now",
       estLow: 24,
       estHigh: 30,
-      basis: "Most of the typical drop is done.",
+      basis: "Most of the typical drop is done and this is usually the cheapest time of year for older cards.",
     });
     // Cheaper than every recent price: today's price is the low end.
-    expect(best("alt", 100, { points, current: 20 })).toMatchObject({ estLow: 20, estHigh: 20 });
+    expect(best("alt", 0, { ...settled, points, current: 20 })).toMatchObject({ estLow: 20, estHigh: 20 });
   });
 
   it("starts a window the day the typical price turns buyable, not before and not after", () => {
-    expect(best("alt", 40)!.when).toBe("window");
-    expect(best("alt", 41)!.when).toBe("now");
+    // An unclassified art is buyable on day 38; released 1 Sep, day 38 is 9 Oct, when the best start is within two weeks.
+    const other = (age: number) => best("other", age, { released: "2026-09-01", today: ago("2026-09-01", -age) })!;
+    expect(buyableDay("other")).toBe(38);
+    expect(other(37).when).toBe("window");
+    expect(other(38).when).toBe("now");
   });
 
   it("gives a presale window with no estimate", () => {
     const b = best("alt", -31, { current: 100 })!;
     expect(b.when).toBe("window");
-    expect(b.from).toBe("2026-02-11");
+    expect(b.from).toBe("2026-08-05");
     expect(b.estLow).toBeUndefined();
     expect(b.estHigh).toBeUndefined();
-    expect(b.basis).toBe("Similar cards reached a buyable price about 6 weeks after release.");
+    expect(b.basis).toBe("Similar cards reached a buyable price about 6 weeks after release and older cards have usually been cheaper around Aug.");
   });
 
   it("tells a chase art to wait for a dip toward its 30-day low, with the 30-day average as the high end", () => {
@@ -307,20 +327,140 @@ describe("bestTimeToBuy (#952)", () => {
     expect(best("chase", 200, { current: 110 })).toMatchObject({ estLow: 110, estHigh: 110 });
   });
 
-  it("adds that Aug to Oct has been cheaper for cards 120 days old or more in December through March", () => {
-    const note = " Aug–Oct has usually been cheaper across the market.";
+  it("says now is the cheapest time of year in the autumn lows, and cheaper than average in the shoulder months, for older cards", () => {
     const basis = (today: string, age: number) => bestTimeToBuy({ kind: "alt", released: ago(today, age), today, points: [], current: 10 })!.basis;
-    expect(basis("2026-12-01", 200)).toBe(`Most of the typical drop is done.${note}`);
-    expect(basis("2027-03-31", 200)).toBe(`Most of the typical drop is done.${note}`);
-    expect(basis("2027-04-01", 200)).toBe("Most of the typical drop is done.");
-    expect(basis("2026-11-30", 200)).toBe("Most of the typical drop is done.");
-    expect(basis("2027-01-15", 119)).toBe("Most of the typical drop is done.");
-    expect(basis("2027-01-15", 120)).toBe(`Most of the typical drop is done.${note}`);
+    expect(basis("2026-10-15", 200)).toBe("Most of the typical drop is done and this is usually the cheapest time of year for older cards.");
+    expect(basis("2026-12-10", 200)).toBe("Most of the typical drop is done and this is a cheaper than average time of year for older cards.");
   });
 
   it("is null without a release date or a current price", () => {
     expect(best("alt", 20, { released: null })).toBeNull();
     expect(best("alt", 20, { current: null })).toBeNull();
     expect(best("alt", 20, { current: 0 })).toBeNull();
+  });
+});
+
+describe("seasonFactor (#1311)", () => {
+  it("is the month's value on the 15th and a straight line between mid-months", () => {
+    SEASON_PCT.forEach((pct, i) => {
+      const day = `2026-${String(i + 1).padStart(2, "0")}-15`;
+      expect(seasonFactor(day), day).toBeCloseTo(1 + pct / 100, 9);
+    });
+    // 16 of 31 days from 15 Jan (+4) towards 15 Feb (+7).
+    expect(seasonFactor("2027-01-31")).toBeCloseTo(1 + (4 + (3 * 16) / 31) / 100, 9);
+    // 28 Feb is 13 of 28 days from 15 Feb (+7) towards 15 Mar (+6).
+    expect(seasonFactor("2027-02-28")).toBeCloseTo(1 + (7 - 13 / 28) / 100, 9);
+  });
+
+  it("wraps from December to January", () => {
+    // 31 Dec is 16 of 31 days from 15 Dec (-4) towards 15 Jan (+4); 1 Jan is 17 of 31 days.
+    expect(seasonFactor("2026-12-31")).toBeCloseTo(1 + (-4 + (8 * 16) / 31) / 100, 9);
+    expect(seasonFactor("2027-01-01")).toBeCloseTo(1 + (-4 + (8 * 17) / 31) / 100, 9);
+    expect(seasonFactor("2027-01-01") - seasonFactor("2026-12-31")).toBeCloseTo(8 / 31 / 100, 9);
+  });
+});
+
+describe("season in the buy timing (#1311)", () => {
+  // The same settled alt art, bought at the same price, in February and in October.
+  const RELEASED_OLD = "2025-03-01";
+  const view = (today: string, extra: { current?: number; reprints?: string[]; kind?: ArtKind } = {}) => {
+    const input = { kind: extra.kind ?? ("alt" as ArtKind), released: RELEASED_OLD, today, points: [] as PricePoint[], current: extra.current ?? 100, reprints: extra.reprints };
+    return { timing: buyTiming(input), best: bestTimeToBuy(input)! };
+  };
+
+  it("waits for the autumn lows in February but says now in October (#1311)", () => {
+    const feb = view("2026-02-10");
+    expect(feb.timing.verdict).toBe("soon");
+    expect(feb.timing.expectedFurtherDropPct).toBe(11);
+    expect(feb.timing.reasons[0]).toBe("Older cards have usually been ~11% cheaper by Aug (prices run up from Christmas to a February peak, through tax refund season, then slide to a November low).");
+    expect(feb.best.when).toBe("window");
+    expect(feb.best.from >= "2026-08-01" && feb.best.from <= "2026-11-30").toBe(true);
+    expect(feb.best.label).toBe("Sep 2026 – Nov 2026");
+    expect(feb.best.estHigh!).toBeLessThan(95);
+    expect(feb.best.basis).toBe("Older cards have usually been cheaper around Oct, around 14% below today's price.");
+
+    const oct = view("2026-10-15");
+    expect(oct.timing.verdict).toBe("good");
+    expect(oct.best.when).toBe("now");
+    expect(oct.best.label).toBe("Now");
+  });
+
+  it("calls a drop that is mostly the release curve a curve drop, not a season drop (#1311)", () => {
+    const t = timing("alt", 30, { released: "2026-07-01" });
+    expect(t.verdict).toBe("wait");
+    expect(t.reasons[0]).toMatch(/^Similar cards fell another ~\d+% by 6 months\.$/);
+  });
+
+  it("does not wait nine months to save a percent or two (#1311)", () => {
+    // Mid-December a settled card sits 4% under its yearly average; the next lows are nearly as cheap.
+    expect(view("2026-12-10").best.when).toBe("now");
+  });
+
+  it("treats a card under 50 cents as bulk and a card at 50 cents as an ordinary card (#1311)", () => {
+    const bulk = view("2026-02-10", { current: 0.49 });
+    expect(bulk.timing.verdict).toBe("good");
+    expect(bulk.timing.headline).toBe("Bulk price — timing barely matters");
+    expect(bulk.timing.reasons[0]).toMatch(/few cents/);
+    expect(bulk.best.when).toBe("now");
+    expect(bulk.best.label).toBe("Now");
+    expect(bulk.best.basis).toMatch(/70%/);
+    const ordinary = view("2026-02-10", { current: 0.5 });
+    expect(ordinary.timing.verdict).toBe("soon");
+    expect(ordinary.best.when).toBe("window");
+    // A young bulk card is not told to wait for a window either.
+    expect(timing("alt", 30, { current: 0.3 }).verdict).toBe("good");
+    // Chase cards are never bulk.
+    expect(view("2026-02-10", { current: 0.3, kind: "chase" }).timing.verdict).toBe("holds");
+  });
+
+  it("tells a card with a reprint coming within 120 days to wait, and pushes the window past the reprint (#1311)", () => {
+    const none = view("2026-10-15");
+    expect(none.timing.verdict).toBe("good");
+    expect(none.best.when).toBe("now");
+    const withReprint = view("2026-10-15", { reprints: ["2026-12-05"] });
+    expect(withReprint.timing.verdict).toBe("wait");
+    expect(withReprint.timing.reasons[0]).toBe("A reprint releases Dec 5, 2026; older printings have usually dropped ~10% in the two months after a reprint.");
+    expect(withReprint.best.when).toBe("window");
+    expect(withReprint.best.from >= "2027-01-04").toBe(true);
+    expect(withReprint.best.estLow).toBe(81.21);
+    expect(withReprint.best.estHigh).toBe(99.25);
+    expect(withReprint.best.basis).toMatch(/reprint/);
+  });
+
+  it("starts the window a month after the reprint when the season would otherwise say earlier (#1311)", () => {
+    // Mid-July the lows start in October; a 1 Sep reprint puts the dip from 1 Oct on.
+    const b = view("2027-07-15", { reprints: ["2027-09-01"] }).best;
+    expect(b.when).toBe("window");
+    expect(b.from).toBe("2027-10-01");
+  });
+
+  it("says now when the best start is within two weeks, and waits when it is three weeks off (#1311)", () => {
+    const at = (today: string) => bestTimeToBuy({ kind: "alt", released: "2025-06-01", today, points: [], current: 100 })!;
+    expect(at("2025-10-10")).toMatchObject({ when: "now", label: "Now" });
+    expect(at("2025-10-09")).toMatchObject({ when: "window", from: "2025-10-30" });
+  });
+
+  it("ignores a reprint more than 120 days away and a reprint already out (#1311)", () => {
+    // 15 Oct + 120 days is 12 Feb; 13 Feb is out of range.
+    expect(view("2026-10-15", { reprints: ["2027-02-12"] }).timing.verdict).toBe("wait");
+    expect(view("2026-10-15", { reprints: ["2027-02-13"] }).timing.verdict).toBe("good");
+    expect(view("2026-10-15", { reprints: ["2027-02-13"] }).best.when).toBe("now");
+    expect(view("2026-10-15", { reprints: ["2026-09-01"] }).timing.verdict).toBe("good");
+  });
+
+  it("only mentions a reprint from the last 60 days, without changing the verdict (#1311)", () => {
+    const info = "A reprint released Aug 16, 2026; older printings have usually dropped ~10% in the two months after a reprint.";
+    // 15 Oct is 60 days after 16 Aug.
+    const recent = view("2026-10-15", { reprints: ["2026-08-16"] });
+    expect(recent.timing.verdict).toBe("good");
+    expect(recent.timing.reasons).toContain(info);
+    expect(view("2026-10-15", { reprints: ["2026-08-15"] }).timing.reasons).not.toContain(info.replace("Aug 16", "Aug 15"));
+  });
+
+  it("says a dip matters more for a chase card in a high month (#1311)", () => {
+    const high = view("2026-02-10", { kind: "chase" }).best;
+    expect(high.label).toBe("Now, on a dip");
+    expect(high.basis).toMatch(/run high at this time of year/);
+    expect(view("2026-10-15", { kind: "chase" }).best.basis).not.toMatch(/run high/);
   });
 });

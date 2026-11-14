@@ -1,4 +1,4 @@
-import { artKind, bestTimeToBuy, buyTiming, expectedRatio, type PricePoint } from "@optcg/price-timing";
+import { artKind, bestTimeToBuy, buyTiming, expectedRatio, SEASON_PCT, seasonFactor, type PricePoint } from "@optcg/price-timing";
 import { plannerCall, type PlannerApi } from "./matches";
 
 type Raw = {
@@ -10,6 +10,7 @@ type Raw = {
   rarity?: string | null;
   current: number | null;
   points: [string, number][];
+  reprints?: string[];
 };
 
 const DAY_MS = 86_400_000;
@@ -17,6 +18,7 @@ const dayNumber = (iso: string) => Math.floor(Date.parse(`${iso}T00:00:00Z`) / D
 const todayIso = () => new Date().toISOString().slice(0, 10);
 const round2 = (x: number) => Math.round(x * 100) / 100;
 const round1 = (x: number) => Math.round(x * 10) / 10;
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** Weeks of history sampled for the model: enough to see the shape, few enough to cite. */
 export const SAMPLE_WEEKS = 26;
@@ -72,8 +74,9 @@ export async function priceHistory(api: PlannerApi, q: { card_id: string; produc
     if (now != null && (!low || now < low.price)) low = { date: today, price: now };
   }
 
-  const timing = buyTiming({ kind, released: raw.released, today, points, current: now });
-  const best = bestTimeToBuy({ kind, released: raw.released, today, points, current: now });
+  const reprints = raw.reprints ?? [];
+  const timing = buyTiming({ kind, released: raw.released, today, points, current: now, reprints });
+  const best = bestTimeToBuy({ kind, released: raw.released, today, points, current: now, reprints });
   const notes = [
     "Prices are TCGPlayer market prices in USD, one per day.",
     ...(raw.released ? [] : ["No release date is known for this set."]),
@@ -109,6 +112,12 @@ export async function priceHistory(api: PlannerApi, q: { card_id: string; produc
       percent_of_release_price_at_this_age: age != null && age >= 0 ? round1(expectedRatio(kind, age)) : null,
       percent_of_release_price_at_6_months: round1(expectedRatio(kind, 180)),
     },
+    season: {
+      factor_now: round2(seasonFactor(today)),
+      pct_vs_yearly_average_by_month: Object.fromEntries(MONTH_NAMES.map((m, i) => [m, SEASON_PCT[i]!])),
+      basis: "Price level of older (settled) singles against their yearly average, by calendar month, detrended. Only two winters of data (2024-25, 2025-26), so a rough pattern, not a forecast. The factor now is interpolated between mid-months.",
+    },
+    reprints,
     buy_timing: timing,
     best_time_to_buy: best
       ? { when: best.when, from: best.from, to: best.to, label: best.label, est_low: best.estLow ?? null, est_high: best.estHigh ?? null, basis: best.basis }

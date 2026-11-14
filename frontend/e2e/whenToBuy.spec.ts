@@ -63,7 +63,7 @@ test("Collection: a base art about four months old reads Good time, with its rea
   await expect(buy.locator(".ph-pill")).toHaveText("Good time");
   await expect(buy).toContainText("A reasonable time to buy");
   await expect(buy.locator(".ph-buy-best")).toContainText("Best time: Now");
-  await expect(buy).toContainText("Based on how similar cards moved after release, 2024–2026");
+  await expect(buy).toContainText("Based on how similar cards moved after release and through the year, 2024–2026");
   // Released Sep 16, 2025: 121 days old, in January, so the winter note comes with it.
   const why = buy.getByRole("button", { name: "Why this read?" });
   await expect(why).toHaveAttribute("aria-expanded", "false");

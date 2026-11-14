@@ -76,13 +76,90 @@ function lastDays(points: PricePoint[], today: string, days: number): PricePoint
   });
 }
 
-/** Winter has run higher (peak in February), Aug to Oct cheaper; only said for cards a few months old. */
-function seasonFor(today: string, age: number): string | undefined {
+/** Price level of older cards by calendar month (Jan first) against their yearly average, percent. Settled singles, detrended; only two winters of data (2024-25, 2025-26). */
+export const SEASON_PCT = [4, 7, 6, 4, 3, 2, 0, -3, -4, -6, -8, -4];
+
+/** The seasonal price factor on a date: 1 + the month's percent / 100, with a month's value at its 15th and a straight line between mid-months (Dec wraps to Jan). */
+export function seasonFactor(iso: string): number {
+  const y = Number(iso.slice(0, 4));
+  const m = Number(iso.slice(5, 7)) - 1;
+  const d = Number(iso.slice(8, 10));
+  const mid = (yy: number, mm: number) => Math.floor(Date.UTC(yy, mm, 15) / DAY_MS);
+  const [a, b] = d >= 15 ? [m, m + 1] : [m - 1, m];
+  const x = dayNumber(iso);
+  const x0 = mid(y, a);
+  const x1 = mid(y, b);
+  const v = (k: number) => SEASON_PCT[((k % 12) + 12) % 12]!;
+  const pct = v(a) + ((v(b) - v(a)) * (x - x0)) / (x1 - x0);
+  return 1 + pct / 100;
+}
+
+const DAY_MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+/** Older printings have usually fallen about this much more in the two months after a reprint set released; applied from this many days after it. */
+const REPRINT_FACTOR = 0.9;
+const REPRINT_LAG = 30;
+const REPRINT_HORIZON = 120;
+const REPRINT_RECENT = 60;
+
+/** Relative expected price on a date: the release curve times the season, and the reprint dip once a reprint is a month out. Only ratios of two of these mean anything. */
+export function expectedPrice(kind: ArtKind, released: string, date: string, reprint?: string | null): number {
+  let p = expectedRatio(kind, dayNumber(date) - dayNumber(released)) * seasonFactor(date);
+  if (reprint && dayNumber(date) >= dayNumber(reprint) + REPRINT_LAG) p *= REPRINT_FACTOR;
+  return p;
+}
+
+function addDays(iso: string, days: number): string {
+  return new Date((dayNumber(iso) + days) * DAY_MS).toISOString().slice(0, 10);
+}
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function monthYear(iso: string): string {
+  return `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
+}
+
+function fullDate(iso: string): string {
+  return `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${Number(iso.slice(8, 10))}, ${iso.slice(0, 4)}`;
+}
+
+function windowLabel(from: string, to: string): string {
+  return `${monthYear(from)} – ${monthYear(to)}`;
+}
+
+/** The next reprint within 120 days after today, if any. */
+function upcomingReprint(reprints: string[] | undefined, today: string): string | null {
+  const t = dayNumber(today);
+  const next = (reprints ?? []).filter((r) => dayNumber(r) > t && dayNumber(r) - t <= REPRINT_HORIZON).sort()[0];
+  return next ?? null;
+}
+
+/** The latest reprint that released in the last 60 days, if any. */
+function recentReprint(reprints: string[] | undefined, today: string): string | null {
+  const t = dayNumber(today);
+  const last = (reprints ?? []).filter((r) => dayNumber(r) <= t && t - dayNumber(r) <= REPRINT_RECENT).sort().pop();
+  return last ?? null;
+}
+
+const BULK_BELOW = 0.5;
+
+const SEASON_SHAPE = "prices run up from Christmas to a February peak, through tax refund season, then slide to a November low";
+
+/** Where this month sits in the year for older cards, from SEASON_PCT; only said for cards a few months old. */
+function seasonNote(today: string, age: number): string | undefined {
   if (age < 120) return undefined;
-  const month = Number(today.slice(5, 7));
-  if (month === 12 || month <= 3) return "Prices across the market tend to run higher in winter (peak in February); autumn has been cheaper.";
-  if (month >= 8 && month <= 10) return "This is usually the cheapest time of year for older cards.";
-  return undefined;
+  const month = Number(today.slice(5, 7)) - 1;
+  const hi = SEASON_PCT.indexOf(Math.max(...SEASON_PCT));
+  const lo = SEASON_PCT.indexOf(Math.min(...SEASON_PCT));
+  const peak = `${SEASON_PCT[hi]}% above`;
+  const trough = `${Math.abs(SEASON_PCT[lo]!)}% below`;
+  const pct = (seasonFactor(today) - 1) * 100;
+  const now = SEASON_PCT[month]!;
+  const nowText = now >= 0 ? `${now}% above` : `${-now}% below`;
+  const here = `older cards have run about ${nowText} their yearly average in ${DAY_MONTHS[month]}`;
+  if (pct >= 3) return `A pricey time of year: ${here}, against ${trough} in ${DAY_MONTHS[lo]} (2024–2026).`;
+  if (pct <= -3) return `Usually a cheap time of year: ${here}, against ${peak} in ${DAY_MONTHS[hi]} (2024–2026).`;
+  return `Older cards have run about ${peak} their yearly average in ${DAY_MONTHS[hi]} and ${trough} in ${DAY_MONTHS[lo]} (2024–2026).`;
 }
 
 export type BuyTimingInput = {
@@ -93,10 +170,12 @@ export type BuyTimingInput = {
   /** Daily market prices, oldest first. */
   points: PricePoint[];
   current: number | null;
+  /** ISO release dates of later plain reprints of this card. */
+  reprints?: string[];
 };
 
-/** A plain "when to buy" read from how similar cards moved after release. A judgement from past patterns, never a price forecast. */
-export function buyTiming({ kind, released, today, points, current }: BuyTimingInput): BuyTiming {
+/** A plain "when to buy" read from how similar cards moved after release and through the year. A judgement from past patterns, never a price forecast. */
+export function buyTiming({ kind, released, today, points, current, reprints }: BuyTimingInput): BuyTiming {
   if (!released || current == null || !(current > 0)) {
     return { verdict: "unknown", headline: "Not enough data to say", reasons: ["There is no release date or current price for this art yet."] };
   }
@@ -110,7 +189,8 @@ export function buyTiming({ kind, released, today, points, current }: BuyTimingI
     };
   }
 
-  const seasonNote = seasonFor(today, age);
+  const note = seasonNote(today, age);
+  const noteField = note ? { seasonNote: note } : {};
   const recent = lastDays(points, today, 30);
 
   if (kind === "chase") {
@@ -121,27 +201,63 @@ export function buyTiming({ kind, released, today, points, current }: BuyTimingI
       const where = Math.abs(diff) < 1 ? "in line with" : `${Math.abs(diff).toFixed(0)}% ${diff < 0 ? "below" : "above"}`;
       reasons.push(`Now ${money(current)}, ${where} its 30-day average of ${money(avg)}.`);
     }
-    return { verdict: "holds", headline: "Tends to hold its value", reasons, ...(seasonNote ? { seasonNote } : {}) };
+    return { verdict: "holds", headline: "Tends to hold its value", reasons, ...noteField };
   }
 
-  // Past 6 months there is no "further drop to 6 months" left to expect.
-  const drop = age >= SETTLED_DAY ? 0 : 1 - expectedRatio(kind, SETTLED_DAY) / expectedRatio(kind, age);
-  const dropPct = Math.max(0, Math.round(drop * 100));
+  if (current < BULK_BELOW) {
+    return {
+      verdict: "good",
+      headline: "Bulk price — timing barely matters",
+      reasons: ["Cards this cheap only lose a few cents, so waiting is not worth it."],
+      expectedFurtherDropPct: 0,
+    };
+  }
+
+  const reprint = upcomingReprint(reprints, today);
+  const nowP = expectedPrice(kind, released, today, reprint);
+  let minP = nowP;
+  let minDate = today;
+  for (let d = 7; d <= SETTLED_DAY; d += 7) {
+    const date = addDays(today, Math.min(d, SETTLED_DAY));
+    const p = expectedPrice(kind, released, date, reprint);
+    if (p < minP) {
+      minP = p;
+      minDate = date;
+    }
+  }
+  const drop = Math.max(0, 1 - minP / nowP);
+  const dropPct = Math.round(drop * 100);
+  // How much of the drop is the release curve; the rest is season (and a reprint).
+  const curveDrop = age >= SETTLED_DAY ? 0 : Math.max(0, 1 - expectedRatio(kind, SETTLED_DAY) / expectedRatio(kind, age));
+  const seasonal = drop - curveDrop > curveDrop;
+  const dropReason = seasonal
+    ? `Older cards have usually been ~${dropPct}% cheaper by ${MONTHS[Number(minDate.slice(5, 7)) - 1]} (${SEASON_SHAPE}).`
+    : `Similar cards fell another ~${dropPct}% by 6 months.`;
+
   const reasons: string[] = [];
   let verdict: BuyVerdict;
   let headline: string;
   if (drop >= WAIT_DROP) {
     verdict = "wait";
     headline = "Better to wait";
-    reasons.push(`Similar cards fell another ~${dropPct}% by 6 months.`);
+    reasons.push(dropReason);
   } else if (drop >= SOON_DROP) {
     verdict = "soon";
     headline = "Close to a good price";
-    reasons.push(`Similar cards fell another ~${dropPct}% by 6 months.`);
+    reasons.push(dropReason);
   } else {
     verdict = "good";
     headline = "A reasonable time to buy";
     reasons.push("Most of the typical drop is done at this age.");
+  }
+
+  if (reprint) {
+    verdict = "wait";
+    headline = "Better to wait";
+    reasons.unshift(`A reprint releases ${fullDate(reprint)}; older printings have usually dropped ~10% in the two months after a reprint.`);
+  } else {
+    const past = recentReprint(reprints, today);
+    if (past) reasons.push(`A reprint released ${fullDate(past)}; older printings have usually dropped ~10% in the two months after a reprint.`);
   }
 
   if (verdict !== "wait" && recent.length) {
@@ -150,7 +266,7 @@ export function buyTiming({ kind, released, today, points, current }: BuyTimingI
     if (low > 0 && above > 15) reasons.push(`It is ${above.toFixed(0)}% above its 30-day low.`);
   }
 
-  return { verdict, headline, reasons, expectedFurtherDropPct: dropPct, ...(seasonNote ? { seasonNote } : {}) };
+  return { verdict, headline, reasons, expectedFurtherDropPct: dropPct, ...noteField };
 }
 
 export type BestBuy = {
@@ -179,24 +295,18 @@ export function buyableDay(kind: ArtKind): number {
   return 364;
 }
 
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-function addDays(iso: string, days: number): string {
-  return new Date((dayNumber(iso) + days) * DAY_MS).toISOString().slice(0, 10);
-}
-
-function monthYear(iso: string): string {
-  return `${MONTHS[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
-}
-
-function windowLabel(from: string, to: string): string {
-  return `${monthYear(from)} – ${monthYear(to)}`;
-}
-
 const cents = (x: number) => Math.round(x * 100) / 100;
 
-/** The best time to buy and roughly what it should cost then, from how similar cards moved after release. A pattern of past sets, never a forecast. */
-export function bestTimeToBuy({ kind, released, today, points, current }: BuyTimingInput): BestBuy | null {
+const SEARCH_DAYS = 365;
+const STEP_DAYS = 7;
+const SCORE_DAYS = 30;
+const NEAR_MIN = 1.02;
+const NOW_WITHIN = 14;
+/** A wait that saves less than this is not worth it: buy now. */
+const MIN_SAVING = 0.03;
+
+/** The best time to buy and roughly what it should cost then, from how similar cards moved after release and through the year. A pattern of past sets, never a forecast. */
+export function bestTimeToBuy({ kind, released, today, points, current, reprints }: BuyTimingInput): BestBuy | null {
   if (!released || current == null || !(current > 0)) return null;
   const age = dayNumber(today) - dayNumber(released);
   const recent = lastDays(points, today, 30);
@@ -211,6 +321,7 @@ export function bestTimeToBuy({ kind, released, today, points, current }: BuyTim
 
   if (kind === "chase") {
     const avg = recent.length ? recent.reduce((s, p) => s + p.price, 0) / recent.length : current;
+    const high = seasonFactor(today) >= 1.03;
     return {
       when: "now",
       from: today,
@@ -218,34 +329,76 @@ export function bestTimeToBuy({ kind, released, today, points, current }: BuyTim
       label: "Now, on a dip",
       estLow: cents(low),
       estHigh: cents(avg),
-      basis: "Cards like this have kept or gained value, so waiting rarely pays; aim for a dip toward its 30-day low.",
+      basis: `Cards like this have kept or gained value, so waiting rarely pays; aim for a dip toward its 30-day low.${high ? " Prices across the market run high at this time of year, so a dip matters more." : ""}`,
+    };
+  }
+
+  if (age >= 0 && current < BULK_BELOW) {
+    return {
+      when: "now",
+      from: today,
+      to: addDays(today, 30),
+      label: "Now",
+      estLow: cents(Math.min(low, current)),
+      estHigh: cents(current),
+      basis: "Cards under $0.50 only fall to about 70% and the cents don't matter, so buy when you need it.",
     };
   }
 
   const day = buyableDay(kind);
-  if (age < day) {
-    const from = addDays(released, day);
-    const to = addDays(from, 60);
-    const weeks = Math.round(day / 7);
-    const out: BestBuy = { when: "window", from, to, label: windowLabel(from, to), basis: `Similar cards reached a buyable price about ${weeks} weeks after release.` };
-    if (age >= 0) {
-      const est = (current * settledRatio(kind)) / expectedRatio(kind, age);
-      out.estLow = cents(est * 0.9);
-      out.estHigh = cents(est * 1.1);
-      out.basis = `Similar cards reached a buyable price about ${weeks} weeks after release, around ${Math.round((1 - est / current) * 100)}% below today's price.`;
-    }
-    return out;
+  const reprint = upcomingReprint(reprints, today);
+  const todayP = age >= 0 ? expectedPrice(kind, released, today, reprint) : 0;
+  let start0 = addDays(released, day);
+  if (dayNumber(today) > dayNumber(start0)) start0 = today;
+  if (reprint) {
+    const after = addDays(reprint, REPRINT_LAG);
+    if (dayNumber(after) > dayNumber(start0)) start0 = after;
+  }
+  const score = (start: string) => {
+    let sum = 0;
+    for (let d = 0; d < SCORE_DAYS; d++) sum += expectedPrice(kind, released, addDays(start, d), reprint);
+    return sum / SCORE_DAYS;
+  };
+  const starts: { start: string; score: number }[] = [];
+  for (let d = 0; d <= SEARCH_DAYS; d += STEP_DAYS) {
+    const start = addDays(start0, d);
+    starts.push({ start, score: score(start) });
+  }
+  const min = Math.min(...starts.map((s) => s.score));
+  const best = starts.find((s) => s.score <= min * NEAR_MIN)!;
+  const fromNow = dayNumber(best.start) - dayNumber(today);
+
+  if (age >= day && (fromNow <= NOW_WITHIN || (current * best.score) / todayP >= current * (1 - MIN_SAVING))) {
+    const sf = seasonFactor(today);
+    const cheap = sf <= 0.94 ? " and this is usually the cheapest time of year for older cards" : sf <= 0.97 ? " and this is a cheaper than average time of year for older cards" : "";
+    return {
+      when: "now",
+      from: today,
+      to: addDays(today, 30),
+      label: "Now",
+      estLow: cents(Math.min(low, current)),
+      estHigh: cents(current),
+      basis: `Most of the typical drop is done${cheap}.`,
+    };
   }
 
-  const month = Number(today.slice(5, 7));
-  const winter = age >= 120 && (month === 12 || month <= 3);
-  return {
-    when: "now",
-    from: today,
-    to: addDays(today, 30),
-    label: "Now",
-    estLow: cents(Math.min(low, current)),
-    estHigh: cents(current),
-    basis: `Most of the typical drop is done.${winter ? " Aug–Oct has usually been cheaper across the market." : ""}`,
-  };
+  const from = best.start;
+  const to = addDays(from, 60);
+  const parts: string[] = [];
+  if (age < day) parts.push(`similar cards reached a buyable price about ${Math.round(day / 7)} weeks after release`);
+  const startMonth = MONTHS[Number(addDays(from, 15).slice(5, 7)) - 1]!;
+  if (seasonFactor(addDays(from, 15)) < seasonFactor(start0) - 0.02) parts.push(`older cards have usually been cheaper around ${startMonth}`);
+  if (reprint) parts.push("older printings have usually dropped ~10% in the two months after a reprint");
+  if (!parts.length) parts.push("the typical curve and season put the lowest price around then");
+  const out: BestBuy = { when: "window", from, to, label: windowLabel(from, to), basis: "" };
+  let sentence = parts.join(" and ");
+  sentence = sentence[0]!.toUpperCase() + sentence.slice(1);
+  if (age >= 0) {
+    const est = (current * best.score) / todayP;
+    out.estLow = cents(est * 0.9);
+    out.estHigh = cents(est * 1.1);
+    if (est < current) sentence += `, around ${Math.round((1 - est / current) * 100)}% below today's price`;
+  }
+  out.basis = `${sentence}.`;
+  return out;
 }
