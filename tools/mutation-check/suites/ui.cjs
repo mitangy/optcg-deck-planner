@@ -7,6 +7,10 @@ module.exports = {
   cwd: "packages/ui",
   runner: "vitest",
   mutations: [
+    // Card stacks shared by the planner deck page and the duel deck editor (#1272)
+    {"id": "cardstack1272-layers-off-by-one", "file": "packages/ui/src/cardStack/stack.ts", "from": "Math.max(0, Math.min(count, MAX_STACK_CARDS) - 1)", "to": "Math.max(0, Math.min(count, MAX_STACK_CARDS))", "kills": ["draws one layer behind the front card per extra copy, capped at four cards (#1272)"], "args": "src/cardStack"},
+    {"id": "cardstack1272-cap-removed", "file": "packages/ui/src/cardStack/stack.ts", "from": "Math.max(0, Math.min(count, MAX_STACK_CARDS) - 1)", "to": "Math.max(0, count - 1)", "kills": ["draws one layer behind the front card per extra copy, capped at four cards (#1272)"], "args": "src/cardStack"},
+    {"id": "cardstack1272-reserve-always", "file": "packages/ui/src/cardStack/CardStack.tsx", "from": "data-reserve={reserve ? \"true\" : undefined}", "to": "data-reserve=\"true\"", "kills": ["layers are numbered from the one next to the front card outward, and reserve is opt-in (#1272)"], "args": "src/cardStack"},
     // Remembered UI state moved from the planner into @optcg/ui (#1225)
     { id: "persisted-choice-accepts-stale", file: "packages/ui/src/storage/persisted.ts", from: "(!allowed || (allowed as readonly string[]).includes(raw) ? (raw as T) : undefined)", to: "(raw as T)", kills: ["falls back to the default for a stale choice or a stored value the codec cannot use (#527)"], args: "src/storage/persisted" },
     { id: "persisted-choice-drops-all-choice", file: "packages/ui/src/storage/persisted.ts", from: "    if (raw === null) return defaultValue;\n", to: "    if (raw === null || raw === \"\") return defaultValue;\n", kills: ["keeps a stored value that is still an option, including the empty All choice (#527)"], args: "src/storage/persisted" },

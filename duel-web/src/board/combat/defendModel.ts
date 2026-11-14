@@ -16,13 +16,15 @@ export type DefendStaging = {
   blockerId: string | null;
 };
 
-export type BlockerChip = { id: string; defId: string; name: string; power: number | null };
-export type CounterChip = { id: string; defId: string; name: string; value: number | null };
+export type BlockerChip = { id: string; defId: string; artCopy?: number; name: string; power: number | null };
+export type CounterChip = { id: string; defId: string; artCopy?: number; name: string; value: number | null };
 /** Block step: a hand card that skips the block and counters (drag, or tap). */
-export type EarlyCounterChip = { id: string; defId: string; name: string; label: string };
+export type EarlyCounterChip = { id: string; defId: string; artCopy?: number; name: string; label: string };
 export type EventChip = {
   id: string;
   defId: string;
+  /** Copy rank of an any-number card, so the chip shows the art picked for this copy (#1292). */
+  artCopy?: number;
   name: string;
   cost: number;
   /** "+2000", "+2000 / +4000", or "Counter" when the event only has effects. */
@@ -90,6 +92,7 @@ export function deriveDefend(
         blockers.push({
           id: card.id,
           defId: card.defId,
+          ...(card.artCopy !== undefined ? { artCopy: card.artCopy } : {}),
           name: nameOf(card.defId),
           power: card.power ?? null,
         });
@@ -114,6 +117,7 @@ export function deriveDefend(
         counters.push({
           id: card.id,
           defId: card.defId,
+          ...(card.artCopy !== undefined ? { artCopy: card.artCopy } : {}),
           name: entry.name,
           // The engine's live Counter (statics like "+2000 Counter") beats the printed one.
           value: card.counter ?? counterValueFor(entry)?.base ?? null,
@@ -123,6 +127,7 @@ export function deriveDefend(
         events.push({
           id: card.id,
           defId: card.defId,
+          ...(card.artCopy !== undefined ? { artCopy: card.artCopy } : {}),
           name: entry.name,
           cost: card.playCost ?? entry.cost,
           valueLabel: value ? formatCounter(value) : "Counter",
@@ -141,6 +146,7 @@ export function deriveDefend(
       earlyCounters.push({
         id: card.id,
         defId: card.defId,
+        ...(card.artCopy !== undefined ? { artCopy: card.artCopy } : {}),
         name: entry.name,
         label: card.counter != null ? `+${card.counter}` : value ? formatCounter(value) : "Counter",
       });

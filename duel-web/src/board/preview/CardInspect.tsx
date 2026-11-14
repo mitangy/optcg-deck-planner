@@ -1,4 +1,4 @@
-import { resolveCardImageUrl, setDeckArtChoice } from "../../decks/artPrefs";
+import { canUseEachArt, EACH_ART_ID, resolveCardImageUrl, setDeckArtChoice } from "../../decks/artPrefs";
 import {
   getArtPrefsTick,
   setSeatArtPref,
@@ -37,6 +37,8 @@ type Props = {
   onClose: () => void;
   /** Seat whose cards own this art (display). */
   ownerSeat?: Seat;
+  /** Copy rank of an any-number card, so "One of each art" shows this copy's art (#1292). */
+  artCopy?: number;
   /** Seat controlling the UI — alt picks update this seat's prefs. */
   viewingSeat?: Seat;
   /**
@@ -58,6 +60,7 @@ export function CardInspect({
   open,
   onClose,
   ownerSeat,
+  artCopy,
   viewingSeat,
   deck,
   onDeckArtChange,
@@ -76,10 +79,11 @@ export function CardInspect({
       resolveCardImageUrl(defId, {
         deck: deck ?? null,
         ownerSeat: ownerSeat ?? viewingSeat,
+        artCopy,
         size: "large",
       }) ?? entry.imageUrl
     );
-  }, [defId, entry.imageUrl, artTick, ownerSeat, viewingSeat, deck]);
+  }, [defId, entry.imageUrl, artTick, ownerSeat, artCopy, viewingSeat, deck]);
 
   const { src: artSrc, fail: failArt } = useArtFallback(imageUrl, defId);
 
@@ -235,6 +239,15 @@ export function CardInspect({
                     {a.label}
                   </button>
                 ))}
+                {canUseEachArt(defId) ? (
+                  <button
+                    type="button"
+                    className="btn btn-secondary card-inspect-alt-btn"
+                    onClick={() => applyAlt(EACH_ART_ID)}
+                  >
+                    One of each art
+                  </button>
+                ) : null}
               </div>
             </div>
           ) : null}

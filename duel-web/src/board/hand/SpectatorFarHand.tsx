@@ -4,7 +4,7 @@ import { CardTile } from "../zones/CardTile";
 import { HandLabel } from "./HandLabel";
 import { spectatorHandGrid, type SpectatorFans } from "./handLayout";
 
-type HandCard = { id: string; defId: string };
+type HandCard = { id: string; defId: string; artCopy?: number };
 
 /**
  * The far player's hand for a spectator of an unranked room on a phone: a grid
@@ -34,7 +34,7 @@ export function SpectatorFarHand({
       <HandLabel name={name} count={n} />
       <div className="spec-far-cards">
         {cards.map((c) => (
-          <CardTile key={c.id} defId={c.defId} ownerSeat={ownerSeat} inspectOnClick />
+          <CardTile key={c.id} defId={c.defId} artCopy={c.artCopy} ownerSeat={ownerSeat} inspectOnClick />
         ))}
       </div>
     </section>

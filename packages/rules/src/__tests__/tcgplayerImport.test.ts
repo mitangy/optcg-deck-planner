@@ -177,8 +177,8 @@ describe("Bandai rebuild keeps TCGPlayer rows (#458)", () => {
 
 describe("provenance of TCGPlayer rows (#458)", () => {
   it("traits from TCGPlayer are unverified (#458)", () => {
-    expect(cardSourceRecord("OP18-015")?.fields).toMatchObject({ traits: "unverified", identity: "unverified" });
-    expect(cardSourceRecord("OP18-015")?.sourceUrl).toMatch(/^https:\/\/www\.tcgplayer\.com\/product\/\d+$/);
-    expect(cardSourceRecord("OP18-015")?.sourceRevision).toBeNull();
+    expect(cardSourceRecord("P-160")?.fields).toMatchObject({ traits: "unverified", identity: "unverified" });
+    expect(cardSourceRecord("P-160")?.sourceUrl).toMatch(/^https:\/\/www\.tcgplayer\.com\/product\/\d+$/);
+    expect(cardSourceRecord("P-160")?.sourceRevision).toBeNull();
   });
 });

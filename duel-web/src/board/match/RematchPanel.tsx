@@ -1,5 +1,6 @@
 import { Select } from "@optcg/ui/popups";
 import { useState } from "react";
+import { groupByLeader } from "../../decks/groupByLeader";
 import type { RematchDeckOption } from "../../decks/rematchDecks";
 import type { PlayerDeckWire, RematchAction, RematchState, Seat, SeatPlayers } from "../../net/protocol";
 import { seatLabel, seatName } from "./playerNames";
@@ -18,6 +19,8 @@ export function decksFromPicks(options: readonly RematchDeckOption[], picks: rea
 }
 
 const KEEP_DECK = "Keep same deck";
+/** Value prefix of the non-selectable Leader header rows (#1294). */
+const LEADER_GROUP = "__leader__:";
 
 /**
  * "Deck for the rematch" picker on the shared Select. A native select draws its open list with the browser's
@@ -43,11 +46,14 @@ function DeckSelect({
       onChange={onChange}
       options={[
         { value: "", label: KEEP_DECK },
-        ...options.map((o) => ({
-          value: o.id,
-          label: o.name,
-          sub: `${o.leaderName} · ${o.cards} cards`,
-        })),
+        ...groupByLeader(options, (o) => o.leaderId).flatMap((g) => [
+          {
+            value: `${LEADER_GROUP}${g.leaderId}`,
+            label: <span className="deck-picker-group">{g.items[0]!.leaderName} · {g.leaderId}</span>,
+            disabled: true,
+          },
+          ...g.items.map((o) => ({ value: o.id, label: o.name, sub: `${o.cards} cards` })),
+        ]),
       ]}
     />
   );

@@ -8,7 +8,9 @@ import { compileCardText } from "../../tools/cardText/compileCard.js";
 
 describe("timing keyword casing (#628)", () => {
   it("OP18-015 compiles its lowercase [On your Opponent's Attack] into a trash-self, Leader-type gated -3000 (#628)", () => {
-    const row = cardDataFor("OP18-015")!;
+    // Bandai's text now uses the canonical casing, so rebuild TCGPlayer's lowercase "your".
+    const official = cardDataFor("OP18-015")!;
+    const row = { ...official, text: official.text.replace("[On Your Opponent's Attack]", "[On your Opponent's Attack]") };
     expect(row.text).toContain("[On your Opponent's Attack]");
     const out = compileCardText("OP18-015", row);
     expect(out.status).toBe("supported");
@@ -22,8 +24,9 @@ describe("timing keyword casing (#628)", () => {
 
   it("a lowercase timing keyword compiles the same as the canonical casing (#628)", () => {
     const row = cardDataFor("OP18-015")!;
-    const canon = compileCardText("X", { ...row, text: row.text.replace("[On your Opponent's Attack]", "[On Your Opponent's Attack]") });
-    const lower = compileCardText("X", { ...row, text: row.text.replace("[On your Opponent's Attack]", "[on your opponent's attack]") });
+    expect(row.text).toContain("[On Your Opponent's Attack]");
+    const canon = compileCardText("X", row);
+    const lower = compileCardText("X", { ...row, text: row.text.replace("[On Your Opponent's Attack]", "[on your opponent's attack]") });
     expect(lower.status).toBe("supported");
     expect(lower.abilities.map((a) => ({ ...a, text: "" }))).toEqual(canon.abilities.map((a) => ({ ...a, text: "" })));
   });

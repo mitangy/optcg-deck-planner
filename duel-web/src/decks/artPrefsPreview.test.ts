@@ -1,4 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
+// Every card currently has official art, so the card preview list can be empty: use a fixed one (#1299).
+vi.mock("../../../packages/ui/src/cardArt/previewArt.json", () => ({ default: ["OP18-003", "OP18-031"] }));
+
 
 vi.mock("../cards/atlas", () => ({
   lookupCard: (id: string) => ({
