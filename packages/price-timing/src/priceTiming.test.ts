@@ -376,8 +376,8 @@ describe("season in the buy timing (#1311)", () => {
     expect(feb.best.when).toBe("window");
     expect(feb.best.from >= "2026-08-01" && feb.best.from <= "2026-11-30").toBe(true);
     expect(feb.best.label).toBe("Sep 2026 – Nov 2026");
-    expect(feb.best.estHigh!).toBeLessThan(95);
-    expect(feb.best.basis).toBe("Older cards have usually been cheaper around Oct, around 14% below today's price.");
+    expect(feb.best.estHigh!).toBeLessThan(96);
+    expect(feb.best.basis).toBe("Older cards have usually been cheaper around Sep, around 13% below today's price.");
 
     const oct = view("2026-10-15");
     expect(oct.timing.verdict).toBe("good");
@@ -392,8 +392,8 @@ describe("season in the buy timing (#1311)", () => {
   });
 
   it("does not wait nine months to save a percent or two (#1311)", () => {
-    // Mid-December a settled card sits 4% under its yearly average; the next lows are nearly as cheap.
-    expect(view("2026-12-10").best.when).toBe("now");
+    // Late August the autumn lows are only about 2.5% cheaper still: not worth waiting for.
+    expect(view("2026-08-24").best.when).toBe("now");
   });
 
   it("treats a card under 50 cents as bulk and a card at 50 cents as an ordinary card (#1311)", () => {
@@ -422,8 +422,8 @@ describe("season in the buy timing (#1311)", () => {
     expect(withReprint.timing.reasons[0]).toBe("A reprint releases Dec 5, 2026; older printings have usually dropped ~10% in the two months after a reprint.");
     expect(withReprint.best.when).toBe("window");
     expect(withReprint.best.from >= "2027-01-04").toBe(true);
-    expect(withReprint.best.estLow).toBe(81.21);
-    expect(withReprint.best.estHigh).toBe(99.25);
+    expect(withReprint.best.estLow).toBe(84.13);
+    expect(withReprint.best.estHigh).toBe(102.82);
     expect(withReprint.best.basis).toMatch(/reprint/);
   });
 
@@ -432,6 +432,13 @@ describe("season in the buy timing (#1311)", () => {
     const b = view("2027-07-15", { reprints: ["2027-09-01"] }).best;
     expect(b.when).toBe("window");
     expect(b.from).toBe("2027-10-01");
+  });
+
+  it("gives a young alt art a window within two months of its buyable day, not a year out (#1311)", () => {
+    // Released 15 Oct, 20 days old on 4 Nov: buyable 25 Nov. A 365-day search would jump to the autumn 2027 lows.
+    const b = bestTimeToBuy({ kind: "alt", released: "2026-10-15", today: "2026-11-04", points: [], current: 50 })!;
+    expect(b.when).toBe("window");
+    expect(b.from >= "2026-11-25" && b.from <= "2027-01-25").toBe(true);
   });
 
   it("says now when the best start is within two weeks, and waits when it is three weeks off (#1311)", () => {

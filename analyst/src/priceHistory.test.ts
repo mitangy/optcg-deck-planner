@@ -87,7 +87,7 @@ describe("price_history tool (#946)", () => {
       basis: "Most of the typical drop is done and this is usually the cheapest time of year for older cards.",
     });
     const fresh = await priceHistory(planner({ ...ALT, released: ago(20) }).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
-    expect(fresh.best_time_to_buy).toMatchObject({ when: "window", from: "2027-10-06", to: "2027-12-05", label: "Oct 2027 – Dec 2027", est_low: 13.49, est_high: 16.49 });
+    expect(fresh.best_time_to_buy).toMatchObject({ when: "window", from: "2026-11-25", to: "2027-01-24", label: "Nov 2026 – Jan 2027", est_low: 14.36, est_high: 17.55 });
     const none = await priceHistory(planner({ ...ALT, released: null, current: null, points: [] }).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
     expect(none.best_time_to_buy).toBeNull();
   });

@@ -297,7 +297,7 @@ export function buyableDay(kind: ArtKind): number {
 
 const cents = (x: number) => Math.round(x * 100) / 100;
 
-const SEARCH_DAYS = 365;
+const SEARCH_DAYS = 240;
 const STEP_DAYS = 7;
 const SCORE_DAYS = 30;
 const NEAR_MIN = 1.02;

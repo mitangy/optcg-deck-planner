@@ -57,8 +57,8 @@ describe("When to buy uses the card's rarity (#949 follow-up)", () => {
     act(() => root?.unmount());
     host?.remove();
     const plain = await buyRead({ rarity: null });
-    expect(sr).toContain("Apr 2027 – Jun 2027");
-    expect(plain).not.toContain("Apr 2027 – Jun 2027");
+    expect(sr).toContain("Mar 2027 – May 2027");
+    expect(plain).not.toContain("Mar 2027 – May 2027");
   });
 
   it("waits for a reprint the price history says is coming (#1311)", async () => {
