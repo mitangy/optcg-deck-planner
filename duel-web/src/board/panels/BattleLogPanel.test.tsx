@@ -1,7 +1,10 @@
 // @vitest-environment jsdom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+// Every card currently has official art, so the card preview list can be empty: use a fixed one (#1299).
+vi.mock("../../../../packages/ui/src/cardArt/previewArt.json", () => ({ default: ["OP18-003", "OP18-031"] }));
+
 import { lookupCard } from "../../cards/atlas";
 import { isPreviewArtPath } from "@optcg/ui/cardArt";
 import previewIds from "../../../../packages/ui/src/cardArt/previewArt.json";

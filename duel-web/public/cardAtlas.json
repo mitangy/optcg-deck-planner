@@ -42609,8 +42609,8 @@
     "name": "Karoo",
     "type": "leader",
     "colors": [
-      "blue",
-      "red"
+      "red",
+      "blue"
     ],
     "cost": 0,
     "power": 5000,
@@ -42659,7 +42659,7 @@
       "Alabasta"
     ],
     "attribute": "Wisdom",
-    "abilitySupport": "unverified"
+    "abilitySupport": "none"
   },
   "OP18-004": {
     "id": "OP18-004",
@@ -42688,7 +42688,6 @@
       "red"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 1000,
     "imageUrl": "/cards/OP18-005.png",
     "effectText": "[Your Turn] This Character gains +1000 power for every [Kung Fu Jugon].",
@@ -42801,7 +42800,6 @@
       "red"
     ],
     "cost": 2,
-    "power": 0,
     "counter": 1000,
     "imageUrl": "/cards/OP18-011.png",
     "effectText": "All of your Characters with both the {Animal} and {Alabasta} types gain +1000 power. [Opponent's Turn] This Character gains [Blocker] and +6000 power.",
@@ -42819,7 +42817,6 @@
       "red"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "/cards/OP18-012.png",
     "effectText": "[When Attacking] Up to 1 of your Characters with both the {Animal} and {Alabasta} types gains +1000 power during this turn.",
@@ -42874,10 +42871,9 @@
       "red"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/724463_400w.jpg",
-    "effectText": "[On your Opponent's Attack] You may trash this Character: If your Leader has the {Alabasta} type, give up to 1 of your opponent's Leader or Characters −3000 power during this turn.",
+    "effectText": "[On Your Opponent's Attack] You may trash this Character: If your Leader has the {Alabasta} type, give up to 1 of your opponent's Leader or Characters −3000 power during this turn.",
     "traits": [
       "Animal",
       "Alabasta"
@@ -42982,11 +42978,11 @@
     "power": 5000,
     "life": 4,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/712888_400w.jpg",
-    "effectText": "All Stage cards in your hand have a +3000 Counter. [Activate:Main] [Once Per Turn] DON!! −1: Play up to 1 Stage card with a cost of 5 or less from your hand.",
+    "effectText": "All Stage cards in your hand have a +3000 Counter. [Activate: Main] [Once Per Turn] DON!! −1: Play up to 1 Stage card with a cost of 5 or less from your hand.",
     "traits": [
-      "Straw Hat Crew",
       "Water Seven",
-      "The Franky Family"
+      "The Franky Family",
+      "Straw Hat Crew"
     ],
     "attribute": "Strike",
     "abilitySupport": "ok"
@@ -43002,10 +42998,10 @@
     "power": 5000,
     "life": 5,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/718691_400w.jpg",
-    "effectText": "[DON!!×3] [When Attacking] [Once Per Turn] You may set this Leader as active. If you do, this Leader will not become active in your next Refresh Phase.",
+    "effectText": "[DON!! x3] [When Attacking] [Once Per Turn] You may set this Leader as active. If you do, this Leader will not become active in your next Refresh Phase.",
     "traits": [
-      "Straw Hat Crew",
-      "Water Seven"
+      "Water Seven",
+      "Straw Hat Crew"
     ],
     "attribute": "Strike",
     "abilitySupport": "ok"
@@ -43018,7 +43014,6 @@
       "green"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "/cards/OP18-023.png",
     "effectText": "[On Play] Up to 1 of your {East Blue} type Leader or Characters gains [Banish] during this turn. (When this card deals damage, the target card is trashed without activating its Trigger.)",
@@ -43036,14 +43031,13 @@
       "green"
     ],
     "cost": 2,
-    "power": 0,
     "counter": 1000,
     "blocker": true,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/722650_400w.jpg",
     "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [End of Your Turn] You may trash this Character: Set your Leader as active.",
     "traits": [
-      "Water Seven",
-      "Merfolk"
+      "Merfolk",
+      "Water Seven"
     ],
     "attribute": "Wisdom",
     "abilitySupport": "ok"
@@ -43056,7 +43050,6 @@
       "green"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721560_400w.jpg",
     "effectText": "[End of Your Turn] If this Character is rested, set your Leader as active.",
@@ -43113,7 +43106,6 @@
       "green"
     ],
     "cost": 2,
-    "power": 0,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/719772_400w.jpg",
     "effectText": "[Activate: Main] You may rest 1 of your [Gonbe] and this Character: Set your [Monkey.D.Luffy] Leader as active.",
@@ -43138,8 +43130,8 @@
     "effectText": "[Rush] [When Attacking] [Once Per Turn] Give up to 3 rested DON!! cards to your Leader and set this Character as active. Then, this Character will not become active in your next Refresh Phase.",
     "traits": [
       "Animal",
-      "Straw Hat Crew",
-      "Water Seven"
+      "Water Seven",
+      "Straw Hat Crew"
     ],
     "attribute": "Strike",
     "abilitySupport": "ok"
@@ -43183,8 +43175,8 @@
       }
     ],
     "traits": [
-      "Straw Hat Crew",
-      "Water Seven"
+      "Water Seven",
+      "Straw Hat Crew"
     ],
     "attribute": "Wisdom",
     "abilitySupport": "ok"
@@ -43200,10 +43192,10 @@
     "power": 6000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723256_400w.jpg",
-    "effectText": "[On Play] / [On K.O.] Up to 1 of your opponent's rested Characters with 8000 power or less will not become active in your opponent's next Refresh Phase.",
+    "effectText": "[On Play]/[On K.O.] Up to 1 of your opponent's rested Characters with 8000 power or less will not become active in your opponent's next Refresh Phase.",
     "traits": [
-      "Buggy Pirates",
-      "East Blue"
+      "East Blue",
+      "Buggy Pirates"
     ],
     "attribute": "Slash",
     "abilitySupport": "ok"
@@ -43216,7 +43208,6 @@
       "green"
     ],
     "cost": 2,
-    "power": 0,
     "counter": 1000,
     "blocker": true,
     "imageUrl": "/cards/OP18-033.png",
@@ -43262,7 +43253,7 @@
       "Water Seven"
     ],
     "attribute": "Wisdom",
-    "abilitySupport": "unverified"
+    "abilitySupport": "none"
   },
   "OP18-036": {
     "id": "OP18-036",
@@ -43272,13 +43263,12 @@
       "green"
     ],
     "cost": 2,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/724624_400w.jpg",
     "effectText": "[End of Your Turn] You may trash this Character: Draw 1 card and set your Leader as active.",
     "traits": [
-      "Straw Hat Crew",
-      "Water Seven"
+      "Water Seven",
+      "Straw Hat Crew"
     ],
     "attribute": "Strike",
     "abilitySupport": "ok"
@@ -43338,7 +43328,7 @@
   },
   "OP18-040": {
     "id": "OP18-040",
-    "name": "Diable Jambe Flambe Shot",
+    "name": "Diable Jambe Flambé Shot",
     "type": "event",
     "colors": [
       "green"
@@ -43347,8 +43337,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/726787_400w.jpg",
     "effectText": "[Main] K.O. up to 1 of your opponent's rested Characters with a cost of 7 or less.\n\n[Trigger] Rest up to 1 of your opponent's Characters with a cost of 7 or less.",
     "traits": [
-      "Straw Hat Crew",
-      "Water Seven"
+      "Water Seven",
+      "Straw Hat Crew"
     ],
     "hasTrigger": true,
     "abilitySupport": "ok"
@@ -43408,7 +43398,7 @@
       "Baroque Works"
     ],
     "attribute": "Strike",
-    "abilitySupport": "unverified"
+    "abilitySupport": "none"
   },
   "OP18-044": {
     "id": "OP18-044",
@@ -43421,7 +43411,7 @@
     "power": 4000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721832_400w.jpg",
-    "effectText": "[DON!!×1] This Character gains +1000 power. [On Play] Draw 1 card and trash 1 card from your hand.",
+    "effectText": "[DON!! x1] This Character gains +1000 power. [On Play] Draw 1 card and trash 1 card from your hand.",
     "traits": [
       "Baroque Works"
     ],
@@ -43467,7 +43457,7 @@
   },
   "OP18-047": {
     "id": "OP18-047",
-    "name": "Mr.1 (Daz.Bonez)",
+    "name": "Mr.1(Daz.Bonez)",
     "type": "character",
     "colors": [
       "blue"
@@ -43478,8 +43468,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/724625_400w.jpg",
     "effectText": "[On Play] Your Leader with the {Cross Guild} type or a type including \"Baroque Works\" gains [Unblockable] during this turn. (This card cannot be blocked.)",
     "traits": [
-      "Former Baroque Works",
-      "Cross Guild"
+      "Cross Guild",
+      "Former Baroque Works"
     ],
     "attribute": "Slash",
     "abilitySupport": "ok"
@@ -43532,7 +43522,7 @@
     "counter": 1000,
     "blocker": true,
     "imageUrl": "/cards/OP18-050.png",
-    "effectText": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.) [On Play] If your Leader's type includes \"Baroque Works\", up to 1 of your opponent's Characters with a cost of 7 or less cannot attack until the end of your opponent's next End Phase.",
+    "effectText": "[Blocker] [On Play] If your Leader's type includes \"Baroque Works\", up to 1 of your opponent's Characters with a cost of 7 or less cannot attack until the end of your opponent's next End Phase.",
     "traits": [
       "Baroque Works"
     ],
@@ -43541,7 +43531,7 @@
   },
   "OP18-051": {
     "id": "OP18-051",
-    "name": "Mr. 4 & Miss.Merry Christmas",
+    "name": "Mr.4 & Miss.MerryChristmas",
     "type": "character",
     "colors": [
       "blue"
@@ -43550,7 +43540,7 @@
     "power": 3000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725884_400w.jpg",
-    "effectText": "[DON!!×1] This Character gains +1000 power. [On Play] You may rest 5 of your DON!! cards: Place up to 1 Character with a cost of 6 or less and up to 1 Character with a cost of 5 or less at the bottom of the owner's deck in any order of the owner's choosing.",
+    "effectText": "[DON!! x1] This Character gains +1000 power. [On Play] You may rest 5 of your DON!! cards: Place up to 1 Character with a cost of 6 or less and up to 1 Character with a cost of 5 or less at the bottom of the owner's deck in any order of the owner's choosing.",
     "traits": [
       "Baroque Works"
     ],
@@ -43559,7 +43549,7 @@
   },
   "OP18-052": {
     "id": "OP18-052",
-    "name": "Mr. 5 & Miss.Valentine",
+    "name": "Mr.5 & Miss.Valentine",
     "type": "character",
     "colors": [
       "blue"
@@ -43568,11 +43558,11 @@
     "power": 4000,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723257_400w.jpg",
-    "effectText": "[DON!!×1] This Character gains +1000 power. [On Play] Play up to 1 Character card with a type including \"Baroque Works\" and a cost of 3 or less from your hand.",
+    "effectText": "[DON!! x1] This Character gains +1000 power. [On Play] Play up to 1 Character card with a type including \"Baroque Works\" and a cost of 3 or less from your hand.",
     "traits": [
       "Baroque Works"
     ],
-    "attribute": "Special/Strike",
+    "attribute": "Strike/Special",
     "abilitySupport": "ok"
   },
   "OP18-053": {
@@ -43586,7 +43576,7 @@
     "power": 3000,
     "counter": 2000,
     "imageUrl": "/cards/OP18-053.png",
-    "effectText": "[DON!!×1] This Character gains +1000 power. [On Play] Look at 3 cards from the top of your deck, reorganize them in any order and place them at the top or bottom of your deck.",
+    "effectText": "[DON!! x1] This Character gains +1000 power. [On Play] Look at 3 cards from the top of your deck, reorganize them in any order and place them at the top or bottom of your deck.",
     "traits": [
       "Baroque Works"
     ],
@@ -43604,7 +43594,7 @@
     "power": 3000,
     "counter": 2000,
     "imageUrl": "/cards/OP18-054.png",
-    "effectText": "[DON!!×1] This Character gains +1000 power. [Opponent's Turn] [Once Per Turn] If your Character with a type including \"Baroque Works\" would be removed from the field by your opponent's effect, you may trash 1 card from your hand instead.",
+    "effectText": "[DON!! x1] This Character gains +1000 power. [Opponent's Turn] [Once Per Turn] If your Character with a type including \"Baroque Works\" would be removed from the field by your opponent's effect, you may trash 1 card from your hand instead.",
     "traits": [
       "Baroque Works"
     ],
@@ -43622,7 +43612,7 @@
     "power": 4000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/722714_400w.jpg",
-    "effectText": "[DON!!×1] This Character gains +1000 power. [On Play] Return up to 1 of your opponent's Characters with a cost of 2 or less to the owner's hand.",
+    "effectText": "[DON!! x1] This Character gains +1000 power. [On Play] Return up to 1 of your opponent's Characters with a cost of 2 or less to the owner's hand.",
     "traits": [
       "Baroque Works"
     ],
@@ -43640,7 +43630,7 @@
     "power": 3000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721348_400w.jpg",
-    "effectText": "[DON!!x1] This Character gains +1000 power. [On Play] You may place 1 of your Characters with a type including \"Baroque Works\" other than this Character at the bottom of your deck: Your opponent trashes 1 card from their hand.",
+    "effectText": "[DON!! x1] This Character gains +1000 power. [On Play] You may place 1 of your Characters with a type including \"Baroque Works\" other than this Character at the bottom of your deck: Your opponent trashes 1 card from their hand.",
     "traits": [
       "Animal",
       "Baroque Works"
@@ -43674,8 +43664,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/727044_400w.jpg",
     "effectText": "[Main] You may return 1 of your Characters to the owner's hand: Place up to 1 Character with a cost of 4 or less at the bottom of the owner's deck.\n\n[Trigger] Activate this card's [Main] effect.",
     "traits": [
-      "Baroque Works",
-      "The Seven Warlords of the Sea"
+      "The Seven Warlords of the Sea",
+      "Baroque Works"
     ],
     "hasTrigger": true,
     "abilitySupport": "ok"
@@ -43691,8 +43681,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/729873_400w.jpg",
     "effectText": "[Main] You may rest 1 of your DON!! cards and trash 1 card with a type including \"Baroque Works\" from your hand: Draw 2 cards. [Counter] You may trash 1 card from your hand: Up to 1 of your Leader or Characters gains +3000 power during this battle.",
     "traits": [
-      "Baroque Works",
-      "The Seven Warlords of the Sea"
+      "The Seven Warlords of the Sea",
+      "Baroque Works"
     ],
     "abilitySupport": "ok"
   },
@@ -43724,7 +43714,6 @@
       "purple"
     ],
     "cost": 2,
-    "power": 0,
     "counter": 1000,
     "imageUrl": "/cards/OP18-061.png",
     "effectText": "[On Play] Look at 5 cards from the top of your deck; reveal up to a total of 2 Stage cards or {Water Seven} type cards and add them to your hand. Then, place the rest at the bottom of your deck in any order.",
@@ -43752,7 +43741,7 @@
       "World Government"
     ],
     "attribute": "Strike",
-    "abilitySupport": "unverified"
+    "abilitySupport": "none"
   },
   "OP18-063": {
     "id": "OP18-063",
@@ -43822,7 +43811,7 @@
     "power": 6000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721379_400w.jpg",
-    "effectText": "[Activate:Main] You may K.O. 1 of your Stages with a cost of 5 or less: This Character gains [Rush] during this turn. (This card can attack on the turn in which it is played.)",
+    "effectText": "[Activate: Main] You may K.O. 1 of your Stages with a cost of 5 or less: This Character gains [Rush] during this turn. (This card can attack on the turn in which it is played.)",
     "traits": [
       "Water Seven",
       "The Franky Family"
@@ -43959,7 +43948,7 @@
       "Navy"
     ],
     "attribute": "Slash",
-    "abilitySupport": "unverified"
+    "abilitySupport": "none"
   },
   "OP18-074": {
     "id": "OP18-074",
@@ -44017,7 +44006,7 @@
     ],
     "cost": 5,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/724626_400w.jpg",
-    "effectText": "[On Play] Draw 1 card, then add up to 1 DON!! card as rested from your DON!! deck. [Activate:Main] You may rest this Stage: Up to 1 of your {Straw Hat Crew} type Characters gains [Rush: Character] during this turn.",
+    "effectText": "[On Play] Draw 1 card, then add up to 1 DON!! card as rested from your DON!! deck. [Activate: Main] You may rest this Stage: Up to 1 of your {Straw Hat Crew} type Characters gains [Rush: Character] during this turn.",
     "traits": [
       "Straw Hat Crew"
     ],
@@ -44159,10 +44148,9 @@
       "black"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 2000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723378_400w.jpg",
-    "effectText": "[Activate: Main] You may return this Character to the owner's hand: Up to 1 of your [Saint Shamrock] Characters gains [Rush], [Banish], or [Unblockable] during this turn.",
+    "effectText": "[Activate: Main] You may return this Character to the owner's hand: Up to 1 of your [Saint Shamrock] Characters gains [Rush], [Banish] or [Unblockable] during this turn.",
     "traits": [
       "Holy Knights of God"
     ],
@@ -44180,11 +44168,11 @@
     "power": 4000,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/721380_400w.jpg",
-    "effectText": "This Character gains +12 cost. [On K.O.] K.O. up to 1 of your opponent's Characters with cost of 4 or less.",
+    "effectText": "This Character gains +12 cost. [On K.O.] K.O. up to 1 of your opponent's Characters with a cost of 4 or less.",
     "traits": [
       "Giant",
-      "New Giant Pirates",
-      "Elbaph"
+      "Elbaph",
+      "New Giant Pirates"
     ],
     "attribute": "Strike",
     "abilitySupport": "ok"
@@ -44264,7 +44252,7 @@
       "Straw Hat Crew"
     ],
     "attribute": "Slash",
-    "abilitySupport": "unverified"
+    "abilitySupport": "none"
   },
   "OP18-091": {
     "id": "OP18-091",
@@ -44299,8 +44287,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/724684_400w.jpg",
     "effectText": "If there is a Character with a cost of 12 or more, this Character gains +3000 power. If you have 10 or more cards in your trash, this Character gains [Rush]. (This card can attack on the turn in which it is played.)",
     "traits": [
-      "Straw Hat Crew",
-      "Elbaph"
+      "Elbaph",
+      "Straw Hat Crew"
     ],
     "attribute": "Slash",
     "abilitySupport": "ok"
@@ -44338,9 +44326,9 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/729867_400w.jpg",
     "effectText": "[Main] Look at 5 cards from the top of your deck; reveal up to 1 {Elbaph} type card and add it to your hand. Then, place the rest at the bottom of your deck in any order.\n\n[Trigger] Draw 1 card.",
     "traits": [
-      "Straw Hat Crew",
+      "Elbaph",
       "The Four Emperors",
-      "Elbaph"
+      "Straw Hat Crew"
     ],
     "hasTrigger": true,
     "abilitySupport": "ok"
@@ -44485,7 +44473,7 @@
       "CP6"
     ],
     "attribute": "Strike",
-    "abilitySupport": "unverified"
+    "abilitySupport": "none"
   },
   "OP18-103": {
     "id": "OP18-103",
@@ -44556,8 +44544,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/722651_400w.jpg",
     "effectText": "[Double Attack] (This card deals 2 damage.)",
     "traits": [
-      "Navy",
-      "Vice Admiral"
+      "Vice Admiral",
+      "Navy"
     ],
     "attribute": "Slash",
     "abilitySupport": "keywords"
@@ -44590,7 +44578,6 @@
       "yellow"
     ],
     "cost": 1,
-    "power": 0,
     "counter": 1000,
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/725207_400w.jpg",
     "effectText": "[On Play] You may trash 1 card with a type including \"CP\" from your hand: Draw 2 cards. [Activate: Main] You may rest this Character: Up to 1 of your [Spandam] gains +1000 power during this turn.",
@@ -44653,8 +44640,8 @@
     "imageUrl": "https://tcgplayer-cdn.tcgplayer.com/product/723152_400w.jpg",
     "effectText": "[Rush] (This card can attack on the turn in which it is played.)",
     "traits": [
-      "Navy",
-      "Vice Admiral"
+      "Vice Admiral",
+      "Navy"
     ],
     "attribute": "Slash",
     "abilitySupport": "keywords"

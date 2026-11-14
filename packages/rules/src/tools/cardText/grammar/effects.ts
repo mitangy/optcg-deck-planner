@@ -1120,10 +1120,10 @@ const EFFECT_RULES: EffectRule[] = [
     const d = parseDuration(m[3]);
     return target && k && d ? keyword(target, k, d) : null;
   }),
-  // "Up to 1 of your X gains [A], [B], or [C] during this turn": the player selects the card, then picks exactly one keyword to grant.
+  // "Up to 1 of your X gains [A], [B], or [C] during this turn" (Bandai drops the comma before "or"): the player selects the card, then picks exactly one keyword to grant.
   rule(
     new RegExp(
-      `^(up to \\d+ .+?) gains? ((?:\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\], )+(?:or )?\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\]|\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\] or \\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\]) ${DUR}$`,
+      `^(up to \\d+ .+?) gains? ((?:\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\], )+(?:or )?\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\]|(?:\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\], )*\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\] or \\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\]) ${DUR}$`,
       "i",
     ),
     (m, ctx) => {

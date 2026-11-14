@@ -950,6 +950,8 @@ module.exports = {
     // #593 / #609: Bege's replacement saves only its own target; Bon Kurei's "would do nothing" gate is read as the trigger resolves.
     { id: "bege-replacement-covers-whole-batch", file: "packages/rules/src/engine/replacement.ts", from: "  if (r.instead.do !== \"pay\") return;\n", to: "", kills: ["OP11-101 replacement saves only the Character it was used for (#593)"] },
     { id: "bon-kurei-gate-at-queue-time", file: "packages/rules/src/cards/manualAbilities.ts", from: "resolveConditions: [cmp({ count: { of: \"self_base_power\" } }", to: "conditions: [cmp({ count: { of: \"self_base_power\" } }", kills: ["OP04-069 is offered when the attacker's When Attacking raised its power above Bon Kurei's base (#609)"] },
+    // #1299: Bandai prints "[A], [B] or [C]" without the comma before "or" (OP18-085).
+    {"id": "keyword-choice-no-oxford-comma", "file": "packages/rules/src/tools/cardText/grammar/effects.ts", "from": "|(?:\\\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\\\], )*\\\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\\\] or", "to": "|\\\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\\\] or", "kills": ["OP18-085 compiles its keyword choice without the comma"]},
     // #628: bracketed timing keywords are matched case-insensitively ("[On your Opponent's Attack]" from TCGPlayer).
     { id: "timing-keyword-casing-not-folded", file: "packages/rules/src/tools/cardText/normalize.ts", from: "const canon = TIMING_TAGS.find((tag) => tag.toLowerCase() === inner.trim().toLowerCase());", to: "const canon = TIMING_TAGS.find((tag) => tag === inner.trim());", kills: ["OP18-015 compiles its lowercase", "a lowercase timing keyword compiles the same"] },
     // Weekly Stryker survivors 2026-10-19 (#644)
