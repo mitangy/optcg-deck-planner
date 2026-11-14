@@ -164,22 +164,18 @@
     min-height: 40px;
   }
 
+  /* Three columns of stacked piles with the - n + stepper right under each (#1303). The leader sits alone in
+     the first column of its own grid, so its art is the same width as a main-deck tile. */
   .deck-stack-grid,
   .deck-editor-leader .deck-stack-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.4rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
   }
 
   .deck-stack {
-    display: grid;
-    grid-template-columns: 56px minmax(0, 1fr);
-    align-items: center;
-    column-gap: 0.6rem;
-    padding: 0.3rem 0.5rem 0.3rem 0.3rem;
-  }
-
-  .deck-stack-art-btn {
-    width: 56px;
+    position: relative;
+    gap: 0.3rem;
+    padding: 0.3rem;
   }
 
   .card-stack.deck-stack-pile {
@@ -195,25 +191,66 @@
     font-size: 0.65rem;
   }
 
-  .deck-stack-meta {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.15rem 0.5rem;
+  /* Name, code and attribute are left to screen readers: the art button names the card, and tapping it opens
+     the card sheet. */
+  .deck-stack .deck-stack-name-btn {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
-  .deck-stack-meta .deck-stack-name-btn {
-    min-height: 44px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .deck-stack-meta .deck-stack-id + .deck-stack-id,
   .deck-stack-art-label,
   .deck-stack-meta > .meta,
   .deck-stack .deck-stack-remove {
     display: none;
+  }
+
+  .deck-stack-edit {
+    display: block;
+    margin-top: 0;
+  }
+
+  /* The stepper spans the tile: wide - and + buttons around a count that never changes width. */
+  .deck-stack-stepper {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 1.5rem minmax(0, 1fr);
+    gap: 0.2rem;
+    width: 100%;
+  }
+
+  .deck-stack-stepper .deck-stack-qty {
+    min-width: 0;
+    min-height: 40px;
+    padding: 0.25rem 0;
+  }
+
+  .deck-stack-stepper .deck-stack-qty-label {
+    min-width: 0;
+  }
+
+  .deck-edit-error {
+    font-size: 0.65rem;
+    overflow-wrap: anywhere;
+  }
+
+  /* 320px: tighter gutters so the - and + keep a usable width. */
+  @media (max-width: 359px) {
+    .deck-stack-grid,
+    .deck-editor-leader .deck-stack-grid {
+      gap: 0.35rem;
+    }
+
+    .deck-stack {
+      padding: 0.2rem;
+    }
+
+    .deck-stack-stepper {
+      grid-template-columns: minmax(0, 1fr) 1.1rem minmax(0, 1fr);
+      gap: 0.15rem;
+    }
   }
 
   /* A long deck name takes two lines at most. */
@@ -224,20 +261,6 @@
     -webkit-box-orient: vertical;
     overflow: hidden;
     overflow-wrap: anywhere;
-  }
-
-  .deck-stack-edit {
-    margin-top: 0;
-    flex-wrap: nowrap;
-  }
-
-  .deck-stack-qty {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  .deck-edit-error {
-    grid-column: 1 / -1;
   }
 }
 

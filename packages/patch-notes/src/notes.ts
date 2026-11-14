@@ -11,6 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-14
+  { date: "2026-11-14", app: "duel", pr: 1303, title: "Deck editor on phones is a grid of stacks", text: "On a phone, the deck editor now shows your deck as three card stacks per row, with − and + right under each card, instead of one long list of rows. Tap a card to see its details." },
   { date: "2026-11-14", app: "planner", pr: 1300, title: "Every OP18 card has its price and official art", text: "All OP18 cards now have TCGPlayer prices in the planner, and every OP18 card shows its official picture and Bandai's official English text in the planner and the duel app, replacing the early preview scans." },
   { date: "2026-11-14", app: "duel", pr: 1302, title: "Card art no longer hints how many copies a deck runs", text: "With One of each art, your opponent and spectators used to see art choices that could hint at how many copies of a card were in your hidden deck. They now only see the art of cards that are on the table, and you still see your own cards spread evenly." },
   // 2026-11-13

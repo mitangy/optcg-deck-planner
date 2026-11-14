@@ -109,8 +109,8 @@ test("the deck editor offers One of each art on an any-number card and spreads t
         await page.getByRole("option", { name: "One of each art" }).click();
         await expect(sleeptids.locator(".deck-stack-art-select")).toHaveText(/One of each art/);
       } else {
-        // Phones hide the Artwork row: the card sheet has the same choice.
-        await sleeptids.locator(".deck-stack-name-btn").click();
+        // Phones hide the Artwork row (and the name, #1303): tapping the art opens the card sheet, which has the same choice.
+        await sleeptids.getByRole("button", { name: /^View details for / }).click();
         await expect(page.getByRole("button", { name: "One of each art" })).toBeVisible();
         await shot(page, "deck-editor-card-sheet", size);
         await page.getByRole("button", { name: "One of each art" }).click();
