@@ -58,4 +58,42 @@ describe("art copy ranks in the player view", () => {
     expect(Object.keys(you.hand[0]!)).not.toContain("artCopy");
     expect(Object.keys(you)).not.toContain("trashCopies");
   });
+
+  it("give the opponent and a spectator a played copy's rank that ignores how many copies sit in the hidden deck (#1301)", () => {
+    const rankSeenByOthers = (hiddenCopies: number) => {
+      const h = new Harness();
+      for (let i = 0; i < hiddenCopies; i++) h.deckTop(1, SLEEPTIDS);
+      h.hand(1, SLEEPTIDS);
+      h.life(1, SLEEPTIDS, KAROO);
+      h.field(1, SLEEPTIDS);
+      return {
+        opponent: h.view(0).opponent.characters.map((c) => c.artCopy),
+        spectator: getSpectatorView(h.state, 0).opponent.characters.map((c) => c.artCopy),
+        spectatorOther: getSpectatorView(h.state, 1).you.characters.map((c) => c.artCopy),
+        own: h.view(1).you.characters.map((c) => c.artCopy),
+      };
+    };
+    const few = rankSeenByOthers(1);
+    const many = rankSeenByOthers(19);
+    expect(few.opponent).toEqual([0]);
+    expect(many.opponent).toEqual([0]);
+    expect(many.spectator).toEqual([0]);
+    expect(many.spectatorOther).toEqual([0]);
+  });
+
+  it("rank a played copy among public copies only: field and trash count, deck, hand and face-down Life do not (#1301)", () => {
+    const h = new Harness();
+    h.deckTop(1, SLEEPTIDS, SLEEPTIDS);
+    h.hand(1, SLEEPTIDS);
+    h.life(1, SLEEPTIDS);
+    h.trash(1, SLEEPTIDS);
+    h.field(1, SLEEPTIDS);
+    const opp = h.view(0).opponent;
+    // Field "c_t…" sorts before trash "t_t…", so with only those two public copies the field one is rank 0.
+    expect(opp.characters.map((c) => c.artCopy)).toEqual([0]);
+    expect(opp.trashCopies).toEqual([1]);
+    // The owner's own view keeps the full rank: the field copy comes after the hand copy that was dealt first.
+    expect(h.view(1).you.characters.map((c) => c.artCopy)).toEqual([1]);
+    expect(h.view(1).you.trashCopies).toEqual([5]);
+  });
 });

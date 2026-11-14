@@ -1,7 +1,7 @@
 /** Per-viewer projections. Hidden cards and private choice options never reach other viewers. */
 import { getCardDef } from "../cards/definitions.js";
 import type { CardInstance, GameEvent, Intent, MatchState, PendingChoice, Seat } from "../types.js";
-import { artCopyIndex } from "./artCopies.js";
+import { visibleArtCopies } from "./artCopies.js";
 import { listLegalIntents } from "./intents.js";
 import { costOf, counterOf, hasRestriction, isNegated, keywordsOf, playCostOf, playerRestricted, powerOf, withQueryCache } from "./queries.js";
 import { activeDon, otherSeat } from "./zones.js";
@@ -112,15 +112,17 @@ function handReveals(state: MatchState, copies: [ArtCopies, ArtCopies]): { handR
  * What `seat` may see of `state`. Static-ability results are memoized for the
  * duration of the call (the state is only read), which is most of its cost.
  */
-export function getPlayerView(state: MatchState, seat: Seat) {
-  return withQueryCache(state, () => buildPlayerView(state, seat));
+export function getPlayerView(state: MatchState, seat: Seat, spectator?: { revealHands: boolean }) {
+  return withQueryCache(state, () => buildPlayerView(state, seat, spectator));
 }
 
-function buildPlayerView(state: MatchState, seat: Seat) {
+function buildPlayerView(state: MatchState, seat: Seat, spectator?: { revealHands: boolean }) {
   const you = state.players[seat];
   const oppSeat = otherSeat(seat);
   const opp = state.players[oppSeat];
-  const copiesBySeat: [ArtCopies, ArtCopies] = [artCopyIndex(state, 0), artCopyIndex(state, 1)];
+  // Ranks over hidden copies would leak deck size, so only the owner's own view gets the full rank (#1301).
+  const viewer = spectator ? null : seat;
+  const copiesBySeat: [ArtCopies, ArtCopies] = [visibleArtCopies(state, viewer, 0, spectator?.revealHands), visibleArtCopies(state, viewer, 1, spectator?.revealHands)];
   const youCopies = copiesBySeat[seat];
   const oppCopies = copiesBySeat[oppSeat];
   // Block step too: dragging a Counter onto the defender there skips the block (duel-web).
@@ -219,8 +221,8 @@ export type PlayerView = ReturnType<typeof getPlayerView> & {
  * `handReveals` (cards revealed from hand this turn) when any exist (#491).
  */
 export function getSpectatorView(state: MatchState, cameraSeat: Seat = 0, opts: { revealHands?: boolean } = {}) {
-  const base = getPlayerView(state, cameraSeat);
-  const copies = [artCopyIndex(state, 0), artCopyIndex(state, 1)] as const;
+  const base = getPlayerView(state, cameraSeat, { revealHands: Boolean(opts.revealHands) });
+  const copies = [visibleArtCopies(state, null, 0, opts.revealHands), visibleArtCopies(state, null, 1, opts.revealHands)] as const;
   const handOf = (seat: Seat): HandCard[] => state.players[seat].hand.map((c) => ({ id: c.id, defId: c.defId, ...copyOf(copies[seat], c.id) }));
   return {
     ...base,
