@@ -20,8 +20,8 @@ const SLEEPTIDS = "OP18-093";
 const DECK_ID = "e2e-each-art";
 const DECKS_KEY = "optcg.duel.savedDecks.v1";
 const PREFS_KEY = "optcg.duel.artPrefs.v1";
-/** What each copy of Sleeptids shows: the standard art (its file name varies with the preview chain), then the two alternates. */
-const STANDARD = /OP18-093\.(png|webp)$/;
+/** What each copy of Sleeptids shows: the standard art (its official TCGPlayer picture, product 733000, since #1299), then the two alternates. */
+const STANDARD = /\/product\/733000_\d+w\.jpg$/;
 const ALT_2 = /OP18-093-2\.webp$/;
 const ALT_3 = /OP18-093-3\.webp$/;
 
