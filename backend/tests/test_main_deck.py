@@ -344,3 +344,28 @@ def test_deck_summary_matches_its_list_entry_and_ignores_other_players_main_deck
     assert deck_summary(db, me, first) == listed[first.id]
     assert deck_summary(db, me, first).is_main is True
     assert deck_summary(db, me, second).is_main is False
+
+
+def test_deck_summary_lists_its_own_cards_with_qty_and_name_1315(db):
+    _seed_leader_catalog(db)
+    user = make_user(db, email="find@test", name="Find", sub="find")
+    a = _make_leader_deck(db, user, "A", {"OP01-016": 4, "OP01-017": 2}, sort_order=0)
+    b = _make_leader_deck(db, user, "B", {"OP01-016": 1, "OP01-018": 3}, sort_order=1)
+
+    by_id = {d.id: d for d in list_decks(db, user)}
+    assert {(c.card_id, c.name, c.qty) for c in by_id[a.id].cards} == {
+        ("OP01-016", "Nami", 4),
+        ("OP01-017", "Zoro", 2),
+    }
+    assert {(c.card_id, c.qty) for c in by_id[b.id].cards} == {("OP01-016", 1), ("OP01-018", 3)}
+    assert {c.card_id for c in deck_summary(db, user, a).cards} == {"OP01-016", "OP01-017"}
+
+
+def test_deck_summary_cards_skip_zero_needed_lines_1315(db):
+    _seed_leader_catalog(db)
+    user = make_user(db, email="zero@test", name="Zero", sub="zero")
+    deck = _make_leader_deck(db, user, "Z", {"OP01-016": 4, "OP01-017": 2}, sort_order=0)
+    next(c for c in deck.cards if c.card_id == "OP01-017").needed = 0
+    db.commit()
+
+    assert [c.card_id for c in list_decks(db, user)[0].cards] == ["OP01-016"]

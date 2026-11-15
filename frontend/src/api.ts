@@ -39,6 +39,8 @@ export type DeckSummary = {
   is_main?: boolean;
   /** Friends can't see this deck. */
   hidden_from_friends?: boolean;
+  /** Every card in the deck (copies > 0), for finding which decks run a card (#1315). */
+  cards?: { card_id: string; name: string; qty: number }[];
 };
 
 export type PrintingView = {
