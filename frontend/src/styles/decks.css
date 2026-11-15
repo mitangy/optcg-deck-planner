@@ -1150,3 +1150,38 @@
     min-width: 4.5rem;
   }
 }
+
+/* "Find a card in your decks" search above the leader groups (#1315). */
+.deck-find {
+  margin: 0 0 var(--space-4);
+  min-width: 0;
+}
+
+.deck-find .card-search {
+  min-width: 0;
+  max-width: 32rem;
+}
+
+.deck-find-summary {
+  margin: 0.4rem 0 0;
+  min-height: 1.4em; /* reserved so typing never shifts the list */
+  font-size: 0.88rem;
+}
+
+.deck-card-matches {
+  list-style: none;
+  margin: 0.75rem 0 0;
+  padding: 0.5rem 0.65rem;
+  display: grid;
+  gap: 0.2rem;
+  min-width: 0;
+  font-size: 0.85rem;
+  background: var(--bg-deep);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+}
+
+.deck-card-matches li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}

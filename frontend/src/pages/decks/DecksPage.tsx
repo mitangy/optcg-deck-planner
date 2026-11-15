@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { api, DeckSummary } from "../../api";
 import { savedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
 import { invalidateOwnedViews } from "../collection/ownedCollection";
@@ -8,6 +8,29 @@ import { CompassIcon } from "../../ui/ThemeIcons";
 import { CardArtImg } from "../../ui/CardThumb";
 import { DecksListSkeleton } from "../../ui/Skeleton";
 import { qk } from "../../cache/queryKeys";
+import { CardSearchInput } from "../../ui/cardListControls";
+import { DeckCardSearchHit, findDecksWithCard } from "./deckCardSearch";
+
+const MAX_MATCHES_PER_TILE = 4;
+
+/** The cards of a deck that match the "Find a card" search, shown on its tile (#1315). */
+function DeckCardMatches({ hit }: { hit: DeckCardSearchHit }) {
+  const rows: string[] = [];
+  if (hit.leaderMatches) {
+    rows.push(`Leader · ${hit.deck.leader_name || "Leader"} · ${hit.deck.leader_card_id ?? ""}`);
+  }
+  for (const c of hit.cards) rows.push(`${c.qty}× ${c.name || c.card_id} · ${c.card_id}`);
+  const shown = rows.slice(0, MAX_MATCHES_PER_TILE);
+  const more = rows.length - shown.length;
+  return (
+    <ul className="deck-card-matches" aria-label="Matching cards">
+      {shown.map((r) => (
+        <li key={r}>{r}</li>
+      ))}
+      {more > 0 && <li className="muted">+{more} more</li>}
+    </ul>
+  );
+}
 
 type DeckLeaderGroup = {
   key: string;
@@ -100,10 +123,28 @@ export function DecksPage() {
     }
     return map;
   }, [leaderArtQ.data]);
-  const leaderGroups = useMemo(
-    () => groupDecksByLeader(data ?? [], leaderArtById),
-    [data, leaderArtById],
+  const [params, setParams] = useSearchParams();
+  const cardQuery = params.get("card") ?? "";
+  const setCardQuery = (next: string) =>
+    setParams(
+      (prev) => {
+        const out = new URLSearchParams(prev);
+        if (next) out.set("card", next);
+        else out.delete("card");
+        return out;
+      },
+      { replace: true },
+    );
+  const hits = useMemo(() => findDecksWithCard(data ?? [], cardQuery), [data, cardQuery]);
+  const hitByDeckId = useMemo(
+    () => new Map((hits ?? []).map((h) => [h.deck.id, h])),
+    [hits],
   );
+  const leaderGroups = useMemo(
+    () => groupDecksByLeader(hits ? hits.map((h) => h.deck) : (data ?? []), leaderArtById),
+    [data, hits, leaderArtById],
+  );
+  const totalDecks = data?.length ?? 0;
   const del = useMutation({
     mutationFn: api.deleteDeck,
     onSuccess: () => {
@@ -139,7 +180,25 @@ export function DecksPage() {
         <p className="error">{(setMain.error as Error).message}</p>
       )}
       {del.isError && <p className="error">{(del.error as Error).message}</p>}
-      {leaderGroups.length === 0 && (
+      {totalDecks > 0 && (
+        <div className="deck-find">
+          <CardSearchInput
+            value={cardQuery}
+            onChange={setCardQuery}
+            label="Find a card in your decks"
+            placeholder="Find a card in your decks, e.g. Nami or OP01-016"
+            icon
+          />
+          <p className="muted deck-find-summary" aria-live="polite">
+            {hits
+              ? hits.length === 0
+                ? `No decks contain “${cardQuery.trim()}”.`
+                : `${hits.length} of ${totalDecks} deck${totalDecks === 1 ? "" : "s"} ${hits.length === 1 ? "has" : "have"} a match`
+              : ""}
+          </p>
+        </div>
+      )}
+      {totalDecks === 0 && (
         <div className="empty-state">
           <CompassIcon />
           <h2>No decks aboard yet</h2>
@@ -187,6 +246,7 @@ export function DecksPage() {
                   const leaderImage = d.leader_image_url || fallback?.image_url || "";
                   const leaderName = d.leader_name || fallback?.name || null;
                   const isMain = Boolean(d.is_main);
+                  const hit = hitByDeckId.get(d.id);
                   return (
                     <article
                       key={d.id}
@@ -236,6 +296,7 @@ export function DecksPage() {
                           <DeckOwnedMeter owned={d.owned_copies} total={d.main_cards ?? d.total_cards} />
                         </div>
                       </div>
+                      {hit && <DeckCardMatches hit={hit} />}
                       <div className="row-actions">
                         {d.leader_card_id && !isMain && (
                           <button
