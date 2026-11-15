@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-15
+  { date: "2026-11-15", app: "duel", pr: 0, title: "4th Anniversary Monkey.D.Luffy promo", text: "The new P-161 Monkey.D.Luffy promo (a yellow 7-cost with no effect) is now playable in the duel app and priced in the planner, with its Release Event Winner printing as an alt art." },
   // 2026-11-14
   { date: "2026-11-14", app: "planner", pr: 1306, title: "Group buy alt arts say how many copies you buy", text: "On a group buy, each alt art tile you have a Want or owned copies for now says how many copies you buy of that art, like the Base tile does, for example \"Buy ×0 · own 1\" when the copy you own already covers your Want." },
   { date: "2026-11-14", app: "planner", pr: 1311, title: "When to buy now follows the season and reprints", text: "The planner's When to buy read now also uses the time of year, since older cards have usually been priciest around February and cheapest around November, and tells you to wait when a reprint is coming. Cards under $0.50 are called bulk, where timing barely matters." },
