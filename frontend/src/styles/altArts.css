@@ -849,9 +849,33 @@
   font-size: 0.78rem;
 }
 
+/* Quantity stepper on its own row, full-width Add under it: fits a 2-column phone grid, and
+   "Add", "Add 99" and the busy state keep one button size (#1317). */
+.don-tile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-width: 0;
+  flex: 0 0 auto;
+}
+
+.don-tile-actions .friend-stepper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  min-width: 0;
+}
+
+.don-tile-actions .owned-btn {
+  width: 2rem;
+  height: 2rem;
+  flex: 0 0 auto;
+}
+
 .don-tile-add {
   width: 100%;
-  flex: 0 0 auto;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 @media (max-width: 720px) {

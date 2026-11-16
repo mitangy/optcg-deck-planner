@@ -291,7 +291,8 @@ def test_signed_in_players_see_their_own_progress_794(api, clock):
 
 def setup_players(S, n: int = 4) -> list[int]:
     """n opted-in players who each beat the eligibility bar by playing the others."""
-    ids = [mk(S, f"p{i}@x.test") for i in range(n)]
+    # Accounts made well before the event, so the new-account flag (#809) never depends on today's date.
+    ids = [mk(S, f"p{i}@x.test", created_at=START - timedelta(days=60)) for i in range(n)]
     for uid in ids:
         optin(S, uid)
     for i, uid in enumerate(ids):

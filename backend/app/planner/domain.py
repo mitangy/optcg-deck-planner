@@ -171,7 +171,7 @@ def parse_cost(raw: str | None) -> int | str | None:
         return value
 
 
-# Official constructed size: 50 main-deck cards + 1 leader. DON!! is separate (max 10).
+# Official constructed size: 50 main-deck cards + 1 leader. DON!! is separate: a deck plays 10, extras are allowed (#1317).
 MAIN_DECK_LIMIT = 51
 DON_DECK_LIMIT = 10
 
