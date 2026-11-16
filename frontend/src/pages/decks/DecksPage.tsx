@@ -10,6 +10,7 @@ import { DecksListSkeleton } from "../../ui/Skeleton";
 import { qk } from "../../cache/queryKeys";
 import { CardSearchInput } from "../../ui/cardListControls";
 import { DeckCardSearchHit, findDecksWithCard } from "./deckCardSearch";
+import { formatDonCount } from "./deckEditing";
 
 const MAX_MATCHES_PER_TILE = 4;
 
@@ -290,7 +291,7 @@ export function DecksPage() {
                           </div>
                           <p className="muted">
                             {d.main_cards ?? d.total_cards}/{51} main
-                            {(d.don_cards ?? 0) > 0 ? ` · ${d.don_cards}/10 DON!!` : ""}
+                            {(d.don_cards ?? 0) > 0 ? ` · ${formatDonCount(d.don_cards ?? 0)} DON!!` : ""}
                             {` · ${d.card_count} unique`}
                           </p>
                           <DeckOwnedMeter owned={d.owned_copies} total={d.main_cards ?? d.total_cards} />

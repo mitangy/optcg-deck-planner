@@ -9,7 +9,6 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import Conflict, Invalid, NotFound
 from app.planner.domain import (
-    DON_DECK_LIMIT,
     MAIN_DECK_LIMIT,
     ParsedCard,
     deck_size_counts,
@@ -590,12 +589,7 @@ def upsert_deck_card(
     projected_lines = [ParsedCard(card_id=cid, needed=qty) for cid, qty in projected.items()]
 
     main_now, _don_now = deck_size_counts(deck_card_lines(deck), catalog)
-    main_projected, don_projected = deck_size_counts(projected_lines, catalog)
-
-    if don_projected > DON_DECK_LIMIT:
-        raise Invalid(
-            f"DON!! deck would have {don_projected} cards (maximum {DON_DECK_LIMIT})"
-        )
+    main_projected, _don_projected = deck_size_counts(projected_lines, catalog)
 
     # Only prompt when crossing the 51-card limit. Once the deck is already over
     # size (user confirmed), further adds do not re-prompt until it drops to 51
@@ -650,9 +644,6 @@ def replace_deck_list(db: Session, user: User, deck_id: int, decklist: str) -> D
     parsed = parse_decklist(decklist)  # ValueError("No cards found...") when empty
     _check_distinct_card_cap(parsed)
     catalog = catalog_map(db, {c.card_id for c in parsed})
-    _main, don_count = deck_size_counts(parsed, catalog)
-    if don_count > DON_DECK_LIMIT:
-        raise Invalid(f"DON!! deck would have {don_count} cards (maximum {DON_DECK_LIMIT})")
 
     new_needed = {c.card_id: c.needed for c in parsed}
     existing = {c.card_id: c for c in deck.cards}

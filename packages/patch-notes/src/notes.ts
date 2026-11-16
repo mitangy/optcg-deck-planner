@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-16
+  { date: "2026-11-16", app: "planner", pr: 1317, title: "Add several DON!! at once, and keep extras", text: "In Available DON!! cards, each tile now has a quantity stepper next to Add, so you can add 3 at once instead of tapping Add another three times. A deck can also hold more than 10 DON!! if you want spares, and it shows them as, for example, 12/10 (+2 extra)." },
   // 2026-11-15
   { date: "2026-11-15", app: "planner", pr: 1315, title: "Find which decks run a card", text: "The Decks page has a new search box. Type a card name or number, like Nami or OP01-016, and it shows only the decks that run it, with how many copies each one plays." },
   // 2026-11-14
