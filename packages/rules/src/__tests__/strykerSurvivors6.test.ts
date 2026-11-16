@@ -28,7 +28,7 @@ describe("Buster Call plays from deck or trash (H1)", () => {
     return h;
   }
 
-  it("OP18-117 still asks which Vice Admirals to play when none are in the deck or trash, so the opponent cannot tell (#PRNUM)", () => {
+  it("OP18-117 still asks which Vice Admirals to play when none are in the deck or trash, so the opponent cannot tell (#1320)", () => {
     const h = busterCall({ trash: [FILLER] });
     expect(h.choice).toBeDefined();
     expect(h.choice!.seat).toBe(0);
@@ -49,7 +49,7 @@ describe("\"all of your Life\" costs (R1)", () => {
     return h;
   }
 
-  it("OP18-020 Stop Fighting!!! can be paid with exactly 1 Life and moves it to hand (#PRNUM)", () => {
+  it("OP18-020 Stop Fighting!!! can be paid with exactly 1 Life and moves it to hand (#1320)", () => {
     const h = stopFighting(["ST01-004"]);
     h.act(1, { type: "counter_event", handIndex: 0 });
     h.accept();
@@ -57,7 +57,7 @@ describe("\"all of your Life\" costs (R1)", () => {
     expect(h.state.players[1].hand.map((c) => c.defId)).toEqual(["ST01-004"]);
   });
 
-  it("OP18-020 Stop Fighting!!! with no Life cannot pay its cost: it is not offered and the attacker keeps its power (#PRNUM)", () => {
+  it("OP18-020 Stop Fighting!!! with no Life cannot pay its cost: it is not offered and the attacker keeps its power (#1320)", () => {
     const h = stopFighting([]);
     const before = getPlayerView(h.state, 0).you.leader.power;
     h.act(1, { type: "counter_event", handIndex: 0 });
@@ -65,7 +65,7 @@ describe("\"all of your Life\" costs (R1)", () => {
     expect(getPlayerView(h.state, 0).you.leader.power).toBe(before);
   });
 
-  it("OP18-020 Stop Fighting!!! with 1 Life pays the cost and gives the attacking Leader -5000 (#PRNUM)", () => {
+  it("OP18-020 Stop Fighting!!! with 1 Life pays the cost and gives the attacking Leader -5000 (#1320)", () => {
     const h = stopFighting(["ST01-004"]);
     const before = getPlayerView(h.state, 0).you.leader.power;
     h.act(1, { type: "counter_event", handIndex: 0 });
@@ -73,7 +73,7 @@ describe("\"all of your Life\" costs (R1)", () => {
     expect(getPlayerView(h.state, 0).you.leader.power).toBe(before - 5000);
   });
 
-  it("OP18-020 Stop Fighting!!! moves every Life card to hand, not just the top one (#PRNUM)", () => {
+  it("OP18-020 Stop Fighting!!! moves every Life card to hand, not just the top one (#1320)", () => {
     const h = stopFighting(["ST01-004", "ST01-005", "ST01-006"]);
     h.act(1, { type: "counter_event", handIndex: 0 });
     h.accept();
@@ -81,7 +81,7 @@ describe("\"all of your Life\" costs (R1)", () => {
     expect(h.state.players[1].hand.map((c) => c.defId).sort()).toEqual(["ST01-004", "ST01-005", "ST01-006"]);
   });
 
-  it("OP18-117 Buster Call can be paid with exactly 1 Life and trashes it (#PRNUM)", () => {
+  it("OP18-117 Buster Call can be paid with exactly 1 Life and trashes it (#1320)", () => {
     const h = new Harness({ leaders: [SPANDAM_LEADER, "ST01-001"] });
     h.life(0, "ST01-004");
     h.hand(0, BUSTER_CALL);
@@ -93,7 +93,7 @@ describe("\"all of your Life\" costs (R1)", () => {
     expect(h.state.players[0].trash).toContain("ST01-004");
   });
 
-  it("OP18-117 Buster Call trashes every Life card (#PRNUM)", () => {
+  it("OP18-117 Buster Call trashes every Life card (#1320)", () => {
     const h = new Harness({ leaders: [SPANDAM_LEADER, "ST01-001"] });
     h.life(0, "ST01-004", "ST01-005", "ST01-006");
     h.hand(0, BUSTER_CALL);
@@ -123,7 +123,7 @@ describe("OP18-105 Spandam activates the [Trigger] of a revealed card (R2)", () 
   }
   const deckSize = (h: Harness) => h.state.players[1].deck.length;
 
-  it("revealing a card with a [Trigger] activates it (#PRNUM)", () => {
+  it("revealing a card with a [Trigger] activates it (#1320)", () => {
     const h = spandamTrigger([SIX_KING]);
     const deck = deckSize(h);
     h.pick(SIX_KING);
@@ -132,7 +132,7 @@ describe("OP18-105 Spandam activates the [Trigger] of a revealed card (R2)", () 
     expect(deckSize(h)).toBe(deck - 2);
   });
 
-  it("revealing a card without a [Trigger] does nothing (#PRNUM)", () => {
+  it("revealing a card without a [Trigger] does nothing (#1320)", () => {
     const h = spandamTrigger([FUKUROU]);
     const deck = deckSize(h);
     expect(() => h.pick(FUKUROU)).not.toThrow();
@@ -150,7 +150,7 @@ describe("a `not` condition is the opposite of its inner condition (R3)", () => 
   const SANJI = "ST01-004"; // 4000 base power
   const KAIDO = "OP01-094"; // 12000 base power
 
-  it("EB04-005 Law attacks only once the opponent has two Characters with 5000+ base power (#PRNUM)", () => {
+  it("EB04-005 Law attacks only once the opponent has two Characters with 5000+ base power (#1320)", () => {
     const attackable = (opp: string[]) => {
       const h = new Harness();
       const [law] = h.field(0, LAW);
@@ -162,7 +162,7 @@ describe("a `not` condition is the opposite of its inner condition (R3)", () => 
     expect(attackable([JINBE, ROBIN])).toBe(true);
   });
 
-  it("EB04-051 Emet attacks only while some Character on either side has 12000+ base power (#PRNUM)", () => {
+  it("EB04-051 Emet attacks only while some Character on either side has 12000+ base power (#1320)", () => {
     const attackable = (mine: string[], opp: string[]) => {
       const h = new Harness();
       const [emet] = h.field(0, EMET, ...mine);
@@ -177,7 +177,7 @@ describe("a `not` condition is the opposite of its inner condition (R3)", () => 
 });
 
 describe("effects that choose a Stage find it on the field (R4)", () => {
-  it("OP05-104 Conis places the Stage at the bottom of the deck as its cost, then draws and trashes (#PRNUM)", () => {
+  it("OP05-104 Conis places the Stage at the bottom of the deck as its cost, then draws and trashes (#1320)", () => {
     const STAGE = "OP15-057";
     const h = new Harness();
     h.hand(0, "OP05-104");
@@ -192,7 +192,7 @@ describe("effects that choose a Stage find it on the field (R4)", () => {
     expect(p.zoneInstanceIds.deck[p.zoneInstanceIds.deck.length - 1]).toBe(stage.id);
   });
 
-  it("OP02-118 Yasakani Sacred Jewel's [Trigger] K.O.s the attacker's Stage with a cost of 3 or less (#PRNUM)", () => {
+  it("OP02-118 Yasakani Sacred Jewel's [Trigger] K.O.s the attacker's Stage with a cost of 3 or less (#1320)", () => {
     const h = new Harness();
     h.stage(0, "OP15-057"); // cost 1
     h.life(1, "OP02-118", FILLER);
@@ -209,7 +209,7 @@ describe("effects that choose a Stage find it on the field (R4)", () => {
 describe("trash rows carry art-copy ranks (V1)", () => {
   const SLEEPTIDS = "OP18-093"; // any number of copies allowed in a deck
 
-  it("a trash mixing an any-number card and an ordinary card still reports ranks, null for the ordinary one (#PRNUM)", () => {
+  it("a trash mixing an any-number card and an ordinary card still reports ranks, null for the ordinary one (#1320)", () => {
     const h = new Harness();
     h.trash(0, FILLER, SLEEPTIDS);
     const ranks = h.view(0).you.trashCopies;
@@ -218,7 +218,7 @@ describe("trash rows carry art-copy ranks (V1)", () => {
     expect(ranks![1]).toEqual(expect.any(Number));
   });
 
-  it("a spectator of a reveal-hands room ranks a played copy among the shown hand copies too (#PRNUM)", () => {
+  it("a spectator of a reveal-hands room ranks a played copy among the shown hand copies too (#1320)", () => {
     const h = new Harness();
     h.hand(1, SLEEPTIDS); // dealt before the field copy, so it ranks first once hands are shown
     h.field(1, SLEEPTIDS);
