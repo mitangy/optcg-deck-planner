@@ -555,7 +555,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Users */
+        /**
+         * List Users
+         * @description The user list, staff first then newest unless `sort` names a column (#1323).
+         *
+         *     user = the name the tab shows (username, else name, else email), case-insensitive; role = alphabetical, which is
+         *     also privilege order (admin, moderator, user); joined = sign-up time; source = the text the tab shows, accounts
+         *     with an unknown source always last; ranked/friends/private/bot/practice = that mode's game count. Every sort
+         *     breaks ties by id ascending so a page boundary never repeats or drops a row.
+         */
         get: operations["list_users_admin_users_get"];
         put?: never;
         post?: never;
@@ -10492,6 +10500,8 @@ export interface operations {
                 include_guests?: number;
                 limit?: number;
                 offset?: number;
+                sort?: ("user" | "role" | "source" | "ranked" | "friends" | "private" | "bot" | "practice" | "joined") | null;
+                dir?: "asc" | "desc";
             };
             header?: never;
             path?: never;

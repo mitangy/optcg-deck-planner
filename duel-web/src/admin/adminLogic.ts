@@ -684,6 +684,35 @@ export const GAME_MODES: readonly { mode: GameMode; label: string; short: string
   { mode: "practice", label: "Practice", short: "Prc", title: "Hotseat practice games (counted since tracking began)" },
 ];
 
+/** The Users list columns that sort, in header order (#1323). The Actions column does not. */
+export type UserSortKey = "user" | "role" | "source" | GameMode | "joined";
+export type UserSort = { key: UserSortKey; dir: SortDir };
+
+export const USER_SORT_KEYS: readonly UserSortKey[] = ["user", "role", "source", ...GAME_MODES.map((m) => m.mode), "joined"];
+
+/** Text columns start A to Z; counts and Joined start with the biggest / newest. */
+export function firstSortDir(key: UserSortKey): SortDir {
+  return key === "user" || key === "role" || key === "source" ? "asc" : "desc";
+}
+
+/** What a header click does: a new column starts in its own first direction, the active one flips. */
+export function nextUserSort(current: UserSort | null, key: UserSortKey): UserSort {
+  if (current && current.key === key) return { key, dir: current.dir === "asc" ? "desc" : "asc" };
+  return { key, dir: firstSortDir(key) };
+}
+
+/** The remembered sort, or null (the default order) when nothing usable was stored. */
+export function parseUserSort(raw: string | null): UserSort | null {
+  if (!raw) return null;
+  try {
+    const v = JSON.parse(raw) as { key?: unknown; dir?: unknown } | null;
+    if (v && USER_SORT_KEYS.includes(v.key as UserSortKey) && (v.dir === "asc" || v.dir === "desc")) return { key: v.key as UserSortKey, dir: v.dir };
+  } catch {
+    /* corrupt value: fall back to the default order */
+  }
+  return null;
+}
+
 export function modeLabel(mode: GameMode): string {
   return GAME_MODES.find((m) => m.mode === mode)?.label ?? mode;
 }

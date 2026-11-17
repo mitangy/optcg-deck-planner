@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 
 from app.duel import events as ev
 from app.duel.models import DuelEvent, DuelMatch, EventDraw, EventEntry
-from tests.test_admin import ADMIN_EMAIL, login, mk
+from tests.test_admin import ADMIN_EMAIL, login
+from tests.test_admin import mk as _mk
 from tests.test_admin import api  # noqa: F401  (fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)
 
@@ -22,6 +23,14 @@ MID = START + timedelta(hours=1)
 BEFORE = START - timedelta(days=3)
 AFTER = END + timedelta(hours=2)
 _n = [0]
+# Accounts default to well before the event, so a test run in the week before it does not flag them all
+# "new_account" (a wall-clock created_at started failing #794/#809 on 2026-11-15). Pass created_at to test new accounts.
+OLD_ACCOUNT = START - timedelta(days=60)
+
+
+def mk(SessionLocal, email: str, role: str = "user", **kw) -> int:
+    kw.setdefault("created_at", OLD_ACCOUNT)
+    return _mk(SessionLocal, email, role, **kw)
 
 
 @pytest.fixture(autouse=True)
@@ -291,7 +300,9 @@ def test_signed_in_players_see_their_own_progress_794(api, clock):
 
 def setup_players(S, n: int = 4) -> list[int]:
     """n opted-in players who each beat the eligibility bar by playing the others."""
-    ids = [mk(S, f"p{i}@x.test") for i in range(n)]
+    # Accounts older than the new-account window: mk() stamps the real clock, which falls inside
+    # the window in the week before the event (#1327).
+    ids = [mk(S, f"p{i}@x.test", created_at=START - timedelta(days=30)) for i in range(n)]
     for uid in ids:
         optin(S, uid)
     for i, uid in enumerate(ids):

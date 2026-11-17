@@ -127,9 +127,13 @@ export function fetchAdminFeedback(rating: FeedbackRating | null, limit: number,
 export const fetchAdminTraffic = (days = 30, refresh = false) => call<AdminTraffic>(`/admin/traffic?days=${days}${refresh ? "&refresh=1" : ""}`);
 export const fetchAdminHosting = (refresh = false) => call<AdminHosting>(`/admin/hosting${refresh ? "?refresh=1" : ""}`);
 
-export function fetchAdminUsers(q: string, includeGuests: boolean, limit: number, offset: number): Promise<AdminUsers> {
+export function fetchAdminUsers(q: string, includeGuests: boolean, limit: number, offset: number, sort: { key: string; dir: "asc" | "desc" } | null = null): Promise<AdminUsers> {
   const p = new URLSearchParams({ include_guests: includeGuests ? "1" : "0", limit: String(limit), offset: String(offset) });
   if (q.trim()) p.set("q", q.trim());
+  if (sort) {
+    p.set("sort", sort.key);
+    p.set("dir", sort.dir);
+  }
   return call<AdminUsers>(`/admin/users?${p}`);
 }
 
