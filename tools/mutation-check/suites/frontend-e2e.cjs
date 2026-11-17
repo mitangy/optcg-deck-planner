@@ -409,5 +409,6 @@ module.exports = {
     // Decks page leader groups sit side by side (#1324)
     {"id":"e2e-decksgrid1324-container-queries-off","args":"decksGrid1324 --project=desktop-1200","file":"frontend/src/styles/decks.css","from":"  container-type: inline-size;\n  min-width: 0;\n}\n\n.deck-leader-groups {","to":"  container-type: normal;\n  min-width: 0;\n}\n\n.deck-leader-groups {","kills":["decksGrid1324.spec.ts > Decks: on a wide screen leaders sit side by side and a leader's decks sit next to each other (#1324) [desktop-1200]"]},
     {"id":"e2e-decksgrid1324-phone-multi-column","args":"decksGrid1324 --project=phone-375","file":"frontend/src/styles/decks.css","from":"  --deck-cols: 1;\n  display: grid;","to":"  --deck-cols: 2;\n  display: grid;","kills":["decksGrid1324.spec.ts > Decks: on a phone leader groups stay stacked in one column (#1324) [phone-375]"]},
+    {"id":"e2e-decksgrid1326-no-leader-head-height","args":"decksGrid1324 --project=desktop-1200 -g \"No leader detected\"","file":"frontend/src/styles/decks.css","from":"  min-height: 56px;\n","to":"","kills":["decksGrid1324.spec.ts > Decks: a No leader detected group's card lines up with its row neighbours (#1326) [desktop-1200]"]},
 ],
 };

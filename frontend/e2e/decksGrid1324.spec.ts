@@ -6,7 +6,7 @@ import type { Page } from "@playwright/test";
 import type { DeckSummary } from "../src/api";
 import { expect, test } from "./fixtures";
 
-const deck = (id: number, name: string, leader: string, leaderName: string): DeckSummary => ({
+const deck = (id: number, name: string, leader: string | null, leaderName: string | null): DeckSummary => ({
   id,
   name,
   leader_card_id: leader,
@@ -28,6 +28,7 @@ const DECKS: DeckSummary[] = [
   deck(15, "op18 GY Robin", "OP18-040", "Nico Robin"),
   deck(16, "Elbuffy B", "OP13-001", "Monkey D. Luffy"),
   deck(17, "Elbuffy C", "OP13-001", "Monkey D. Luffy"),
+  deck(18, "Imported", null, null),
 ];
 
 test.afterEach(({ planner }) => {
@@ -64,6 +65,23 @@ test("Decks: on a wide screen leaders sit side by side and a leader's decks sit 
   expect(multi[0]!.left).toBeLessThan(multi[1]!.left);
   expect(multi[1]!.left).toBeLessThan(multi[2]!.left);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+});
+
+test("Decks: a No leader detected group's card lines up with its row neighbours (#1326)", async ({ page, planner }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openDecks(page, planner);
+
+  const rows = await page.locator(".deck-leader-group").evaluateAll((els) =>
+    els.map((el) => ({
+      top: Math.round(el.getBoundingClientRect().top),
+      card: Math.round(el.querySelector(".deck-card")!.getBoundingClientRect().top),
+      leader: Boolean(el.querySelector(".deck-leader-group-thumb")),
+    })),
+  );
+  const noLeader = rows.find((r) => !r.leader)!;
+  const neighbour = rows.find((r) => r.leader && r.top === noLeader.top);
+  expect(neighbour).toBeTruthy();
+  expect(noLeader.card).toBe(neighbour!.card);
 });
 
 test("Decks: on a phone leader groups stay stacked in one column (#1324)", async ({ page, planner }) => {
