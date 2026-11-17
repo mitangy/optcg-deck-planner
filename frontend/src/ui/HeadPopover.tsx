@@ -48,7 +48,7 @@ export function HeadPopover({
             role="dialog"
             aria-label={panelLabel}
             className="head-popover-panel"
-            style={{ width: `min(${width}px, calc(100vw - 16px))` }}
+            style={{ width: `min(${width / 16}rem, calc(100vw - 16px))` }}
           >
             {typeof children === "function" ? children(close) : children}
           </PopoverPanel>
@@ -94,7 +94,7 @@ export function HeadMenu({
       <MenuList
         anchor={{ to: "bottom end", gap: 6, padding: 8 }}
         className="head-popover-panel head-popover-menu"
-        style={{ width: `min(${width}px, calc(100vw - 16px))` }}
+        style={{ width: `min(${width / 16}rem, calc(100vw - 16px))` }}
       >
         {children}
       </MenuList>

@@ -108,9 +108,18 @@
 /* List view in the wide main column: smaller art and row hover, so a wide row stays easy to follow. */
 @media (min-width: 1600px) {
   .card-workspace-main .data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
-    max-width: 120px;
+    max-width: 7.5rem;
   }
   .card-workspace-main .data-table tbody tr:hover > td {
     background: color-mix(in srgb, var(--gold-soft) 45%, transparent);
+  }
+}
+
+/* Scale the whole planner on big monitors (#1325). rem sizes (text, card art, tiles, popovers) grow with
+   the root: 16px at 1600px wide, 18px at 1920px, capped at 21px (~2400px). Media and container queries
+   use px/em, which ignore the root size, so breakpoints stay put. Below 1600px nothing changes. */
+@media (min-width: 1600px) {
+  html {
+    font-size: clamp(100%, calc(100% + (100vw - 1600px) * 0.00625), 131.25%);
   }
 }

@@ -36,7 +36,7 @@
 .data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
   display: block;
   width: 100%;
-  max-width: 220px;
+  max-width: 13.75rem;
   height: auto;
   aspect-ratio: 63 / 88;
 }
@@ -952,8 +952,8 @@ tr.selected-row td,
 
 .grid-card-media .thumb,
 .grid-card-media .thumb-btn .thumb {
-  width: 156px;
-  height: 218px;
+  width: 9.75rem;
+  height: 13.625rem;
 }
 
 .grid-card-media .thumb-btn {

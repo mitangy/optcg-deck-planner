@@ -22,7 +22,7 @@
 }
 
 .mobile-card-media:has(> .card-stack.deck-copies) {
-  width: 105px;
+  width: 6.5625rem;
 }
 
 /* Desktop table: the stack takes the place of the art; art keeps its 220px cap. */
@@ -30,7 +30,7 @@
   --card-stack-step-x: 4px;
   --card-stack-step-y: 6px;
   width: 100%;
-  max-width: calc(220px + var(--card-stack-reserve-x));
+  max-width: calc(13.75rem + var(--card-stack-reserve-x));
 }
 
 .data-table .card-cell-inner > .card-stack.deck-copies .card-stack-front > :is(.thumb-btn, .thumb) {
@@ -48,6 +48,6 @@
 
 @media (min-width: 1600px) {
   .card-workspace-main .data-table .card-cell-inner > .card-stack.deck-copies {
-    max-width: calc(120px + var(--card-stack-reserve-x));
+    max-width: calc(7.5rem + var(--card-stack-reserve-x));
   }
 }

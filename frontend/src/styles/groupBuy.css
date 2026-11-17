@@ -72,8 +72,8 @@
 }
 
 .empty-state svg {
-  width: 56px;
-  height: 56px;
+  width: 3.5rem;
+  height: 3.5rem;
   color: var(--gold);
 }
 

@@ -664,7 +664,7 @@ export function NotificationsBell() {
         role="dialog"
         aria-label="Notifications"
         className="head-popover-panel bell-panel"
-        style={{ width: "min(360px, calc(100vw - 16px))" }}
+        style={{ width: "min(22.5rem, calc(100vw - 16px))" }}
       >
         {({ close }: { close: () => void }) => <BellPanel items={q.data?.items ?? []} close={close} />}
       </PopoverPanel>
