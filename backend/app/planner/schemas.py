@@ -45,6 +45,12 @@ class DeckCardUpsert(BaseModel):
     confirm_oversize: bool = False
 
 
+class DeckSummaryCard(BaseModel):
+    card_id: str
+    name: str
+    qty: int
+
+
 class DeckSummary(BaseModel):
     id: int
     name: str
@@ -62,6 +68,8 @@ class DeckSummary(BaseModel):
     # Effective main for this leader (explicit flag or earliest same-leader fallback).
     is_main: bool = False
     hidden_from_friends: bool = False
+    # Every listed card (needed > 0), so the Decks page can search "which decks run this card" (#1315).
+    cards: list[DeckSummaryCard] = []
 
 
 class CatalogCardResult(BaseModel):

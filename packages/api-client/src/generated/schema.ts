@@ -5633,6 +5633,11 @@ export interface components {
             /** Card Count */
             card_count: number;
             /**
+             * Cards
+             * @default []
+             */
+            cards: components["schemas"]["DeckSummaryCard"][];
+            /**
              * Don Cards
              * @default 0
              */
@@ -5674,6 +5679,15 @@ export interface components {
             sort_order: number;
             /** Total Cards */
             total_cards: number;
+        };
+        /** DeckSummaryCard */
+        DeckSummaryCard: {
+            /** Card Id */
+            card_id: string;
+            /** Name */
+            name: string;
+            /** Qty */
+            qty: number;
         };
         /** DisplayArtResult */
         DisplayArtResult: {

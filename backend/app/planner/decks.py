@@ -28,7 +28,7 @@ from app.planner.catalog_repo import (
     owned_map,
     primary_product_ids,
 )
-from app.planner.schemas import CardView, DeckDetail, DeckSummary, PrintingView
+from app.planner.schemas import CardView, DeckDetail, DeckSummary, DeckSummaryCard, PrintingView
 from app.planner.printings import (
     _alts_owned_total,
     _apply_alt_want_clamp_to_rows,
@@ -196,6 +196,15 @@ def _summaries(db: Session, user: User, decks: list[Deck], main_pool: list[Deck]
                 sort_order=deck.sort_order,
                 is_main=is_main,
                 hidden_from_friends=bool(deck.hidden_from_friends),
+                cards=[
+                    DeckSummaryCard(
+                        card_id=c.card_id,
+                        name=catalog[c.card_id].name if c.card_id in catalog else "",
+                        qty=c.needed,
+                    )
+                    for c in deck.cards
+                    if c.needed > 0
+                ],
             )
         )
     # Group by leader (no-leader last). Within a group: Main first, then sort_order.
