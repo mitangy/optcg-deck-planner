@@ -68,9 +68,13 @@ class ParsedCard:
 def _qty(digits: str) -> int:
     # A pasted run of thousands of digits makes int() raise; that stays a 400 with Python's message.
     try:
-        return int(digits)
+        qty = int(digits)
     except ValueError as exc:
         raise Invalid(str(exc)) from exc
+    # Same rule as the TypeScript parser: "0xOP01-001" is a typo, not a card to track (#1322).
+    if qty < 1:
+        raise Invalid(f"Bad quantity: {digits}")
+    return qty
 
 
 def parse_decklist(text: str) -> list[ParsedCard]:
