@@ -11,7 +11,7 @@ import type { PatchNote } from "./types";
  */
 export const PATCH_NOTES: PatchNote[] = [
   // 2026-11-17
-  { date: "2026-11-17", app: "planner", pr: 1326, title: "Bigger planner on big screens", text: "On wide monitors, 1920 pixels and up, the whole planner now scales up, so text, card art and buttons are easier to read. Laptops, tablets and phones look the same as before." },
+  { date: "2026-11-17", app: "planner", pr: 1329, title: "Bigger planner on big screens", text: "On wide monitors, 1920 pixels and up, the whole planner now scales up, so text, card art and buttons are easier to read. Laptops, tablets and phones look the same as before." },
   // 2026-11-15
   { date: "2026-11-15", app: "planner", pr: 1315, title: "Find which decks run a card", text: "The Decks page has a new search box. Type a card name or number, like Nami or OP01-016, and it shows only the decks that run it, with how many copies each one plays." },
   // 2026-11-14
