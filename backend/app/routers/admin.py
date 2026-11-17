@@ -407,16 +407,17 @@ def _friend_pair_on(me, other):
     return and_(Friendship.status == FriendshipStatus.ACCEPTED, Friendship.user_low_id == low, Friendship.user_high_id == high)
 
 
-def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[int, int]]]:
+def _game_counts(db: Session, users) -> dict[int, dict[str, tuple[int, int]]]:
     """Games and wins per mode for each user: {user_id: {mode: (games, wins)}} (#988).
 
     ranked = matchmaker games; friends = casual games against an accepted friend (as things stand
     now); private = every other casual game; bot and practice come from duel_solo_games. Four
     grouped queries however many users are asked for.
+
+    ``users`` is a list of ids or a ``select(User.id)`` subquery (so a big selection never becomes a big IN list).
+    Only users with at least one game appear in the result.
     """
-    out = {uid: {m: (0, 0) for m in MODES} for uid in user_ids}
-    if not user_ids:
-        return out
+    out: dict[int, dict[str, tuple[int, int]]] = {}
     me, opp = DuelMatchSeat, aliased(DuelMatchSeat)
     is_friend = Friendship.id.is_not(None)
     rows = db.execute(
@@ -424,23 +425,31 @@ def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[i
         .select_from(me)
         .outerjoin(opp, and_(opp.match_id == me.match_id, opp.seat != me.seat))
         .outerjoin(Friendship, _friend_pair_on(me.user_id, opp.user_id))
-        .where(me.user_id.in_(user_ids))
+        .where(me.user_id.in_(users))
         .group_by(me.user_id, me.ranked, is_friend)
     )
     for uid, ranked, friend, n, wins in rows:
         mode = "ranked" if ranked else ("friends" if friend else "private")
-        games, won = out[uid][mode]
+        games, won = out.setdefault(uid, {m: (0, 0) for m in MODES})[mode]
         out[uid][mode] = (games + int(n), won + int(wins))
     for uid, mode, n, wins in db.execute(
         select(
             DuelSoloGame.user_id, DuelSoloGame.mode, func.count(),
             func.coalesce(func.sum(case((DuelSoloGame.won.is_(True), 1), else_=0)), 0),
         )
-        .where(DuelSoloGame.user_id.in_(user_ids))
+        .where(DuelSoloGame.user_id.in_(users))
         .group_by(DuelSoloGame.user_id, DuelSoloGame.mode)
     ):
-        if mode in out[uid]:
-            out[uid][mode] = (int(n), int(wins))
+        if mode in MODES:
+            out.setdefault(uid, {m: (0, 0) for m in MODES})[mode] = (int(n), int(wins))
+    return out
+
+
+def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[int, int]]]:
+    """Games and wins per mode for each listed user, zeros for users with none: {user_id: {mode: (games, wins)}} (#988)."""
+    out = {uid: {m: (0, 0) for m in MODES} for uid in user_ids}
+    if user_ids:
+        out.update(_game_counts(db, user_ids))
     return out
 
 
@@ -484,8 +493,9 @@ def _sorted_user_ids(db: Session, where: list, sort: str, direction: str) -> lis
         known.sort(key=lambda r: r[1], reverse=desc)
         return [uid for uid, _ in known] + unknown  # an unknown source is last in either direction
     ids = sorted(db.scalars(select(User.id).where(*where)).all())
-    counts = mode_counts(db, ids)
-    return sorted(ids, key=lambda uid: counts[uid][sort][0], reverse=desc)
+    # The selection goes in as a subquery, so the SQL stays the same size however many accounts match (#1328).
+    counts = _game_counts(db, select(User.id).where(*where))
+    return sorted(ids, key=lambda uid: counts[uid][sort][0] if uid in counts else 0, reverse=desc)
 
 
 @router.get("/users", response_model=AdminUsers, response_model_exclude_unset=True)

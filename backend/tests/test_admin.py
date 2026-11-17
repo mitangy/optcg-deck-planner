@@ -540,6 +540,30 @@ def test_a_sorted_user_list_pages_without_repeats_or_gaps_1323(api):
     assert _ids(c, sort="source", dir="asc") == [*ids, admin] and _ids(c, sort="source", dir="desc") == [*ids, admin]
 
 
+def test_a_game_count_sort_never_sends_every_account_id_to_the_database_1328(api):
+    from sqlalchemy import event
+
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin")
+    guests = [mk(S, f"g{i}@localhost") for i in range(60)]
+    login(c, S, admin)
+    biggest = 0
+
+    def watch(_conn, _cur, _stmt, params, *_):
+        nonlocal biggest
+        biggest = max(biggest, len(params or ()))
+
+    engine = S.kw["bind"]
+    event.listen(engine, "before_cursor_execute", watch)
+    try:
+        got = _ids(c, sort="bot", include_guests=1, limit=5)
+    finally:
+        event.remove(engine, "before_cursor_execute", watch)
+    assert got == sorted([admin, *guests])[:5]
+    # One id list per statement would be 61 parameters; the sort selects accounts in SQL and binds only the page.
+    assert biggest < 30, biggest
+
+
 def test_users_refuse_an_unknown_sort_or_direction_1323(api):
     c, S = api
     admin = mk(S, ADMIN_EMAIL, "admin")
