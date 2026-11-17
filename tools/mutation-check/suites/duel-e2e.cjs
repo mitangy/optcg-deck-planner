@@ -39,10 +39,32 @@ module.exports = {
     ], kills: ["prompt-dock.spec.ts > desktop > a pop-up can be dragged to the far left edge when only the right column is open, and does not jump into the right column (#1245) [desktop-1280]"] },
     // Users tab column titles stay in their own column (#1018): the Source column keeps a minimum width, the titles clip, and the stacked list takes over before the grid stops fitting. Every layer is reverted.
     { id: "e2e-admin-users-columns-overlap", args: "admin-users-columns.spec", edits: [
-      { file: "duel-web/src/admin/admin/users.css", from: "7.5rem minmax(4.5rem, 0.9fr) repeat", to: "7.5rem minmax(0, 0.9fr) repeat" },
-      { file: "duel-web/src/admin/admin/users.css", from: ".adm-uhead > span {\n  min-width: 0;\n  overflow: hidden;\n  text-overflow: ellipsis;\n  white-space: nowrap;\n}", to: ".adm-uhead > span {\n  min-width: 0;\n}" },
-      { file: "duel-web/src/admin/admin/users.css", from: "@media (max-width: 1030px) {\n  .adm-uhead {", to: "@media (max-width: 760px) {\n  .adm-uhead {" },
+      { file: "duel-web/src/admin/admin/users.css", from: "7rem minmax(4rem, 0.9fr) repeat", to: "7rem minmax(0, 0.9fr) repeat" },
+      { file: "duel-web/src/admin/admin/users.css", from: ".adm-usort-label {\n  display: block;\n  overflow: hidden;\n  text-overflow: ellipsis;\n}", to: ".adm-usort-label {\n  display: block;\n}" },
+      { file: "duel-web/src/admin/admin/users.css", from: "@container adm-users (max-width: 55rem) {\n  .adm-uhead {", to: "@container adm-users (max-width: 30rem) {\n  .adm-uhead {" },
     ], kills: ["admin-users-columns.spec.ts > admin Users column titles do not overlap (#1018) [desktop-1280]", "admin-users-columns.spec.ts > admin Users column titles do not overlap (#1018) [phone-375]"] },
+    // Users list fits its panel (#1323): the stacked layout follows the panel's own width, not the viewport's.
+    { id: "e2e-admin-users-1323-stack-by-viewport", args: "admin-users-columns.spec -g 1323", edits: [
+      { file: "duel-web/src/admin/admin/users.css", from: "@container adm-users (max-width: 55rem) {\n  .adm-uhead {", to: "@media (max-width: 1030px) {\n  .adm-uhead {" },
+    ], kills: ["admin-users-columns.spec.ts > admin Users row buttons stay inside the panel at every width (#1323) [desktop-1280]"] },
+    // Users list sorts from its headers (#1323)
+    { id: "e2e-admin-users-1323-sort-dir-not-sent", args: "admin-users-sort.spec --project=desktop-1280", edits: [
+      { file: "duel-web/src/admin/adminApi.ts", from: "    p.set(\"dir\", sort.dir);\n", to: "" },
+    ], kills: ["admin-users-sort.spec.ts > a header click sorts on the server, shows an arrow and the next click flips it (#1323) [desktop-1280]"] },
+    { id: "e2e-admin-users-1323-header-no-aria-sort", args: "admin-users-sort.spec --project=desktop-1280", edits: [
+      { file: "duel-web/src/admin/UsersTab.tsx", from: "aria-sort={active === \"asc\" ? \"ascending\" : active === \"desc\" ? \"descending\" : \"none\"}", to: "aria-sort=\"none\"" },
+    ], kills: ["admin-users-sort.spec.ts > a header click sorts on the server, shows an arrow and the next click flips it (#1323) [desktop-1280]"] },
+    { id: "e2e-admin-users-1323-sort-not-remembered", args: "admin-users-sort.spec --project=desktop-1280", edits: [
+      { file: "duel-web/src/admin/UsersTab.tsx", from: "    writeStored(SORT_KEY, JSON.stringify(next));\n", to: "" },
+    ], kills: ["admin-users-sort.spec.ts > a header click sorts on the server, shows an arrow and the next click flips it (#1323) [desktop-1280]"] },
+    // A Show more page that lands after a re-sort is dropped, not appended to the new list (#1323). The append guard and the busy reset are both reverted.
+    { id: "e2e-admin-users-1323-stale-show-more-appended", args: "admin-users-sort.spec -g \"Show more page\"", edits: [
+      { file: "duel-web/src/admin/UsersTab.tsx", from: ".then((r) => mine === seq.current && setState((s) => (s.status === \"ready\" ? { status: \"ready\", total: r.total, users: [...s.users, ...r.users] } : s)))\n      .catch((e: Error) => mine === seq.current && setNotice(e.message))\n      .finally(() => mine === seq.current && setMore(false));", to: ".then((r) => setState((s) => (s.status === \"ready\" ? { status: \"ready\", total: r.total, users: [...s.users, ...r.users] } : s)))\n      .catch((e: Error) => setNotice(e.message))\n      .finally(() => setMore(false));" },
+      { file: "duel-web/src/admin/UsersTab.tsx", from: "    const mine = ++seq.current;\n    setMore(false);\n", to: "    const mine = ++seq.current;\n" },
+    ], kills: ["admin-users-sort.spec.ts > a Show more page that lands after a re-sort is dropped, not appended to the new order (#1323) [desktop-1280]", "admin-users-sort.spec.ts > a Show more page that lands after a re-sort is dropped, not appended to the new order (#1323) [phone-375]"] },
+    { id: "e2e-admin-users-1323-stacked-sort-control-hidden", args: "admin-users-sort.spec --project=phone-375", edits: [
+      { file: "duel-web/src/admin/admin/users.css", from: "  .adm-sortby {\n    display: flex;\n  }", to: "" },
+    ], kills: ["admin-users-sort.spec.ts > the stacked list sorts from the Sort by control (#1323) [phone-375]"] },
     // rating Log Pose answers in the panel (#679)
     {"id": "fb-e2e-answers-never-saved", "file": "packages/analyst-client/src/chatMessages.ts", "from": "  drafts: m.drafts ?? [],\n  saved: true,", "to": "  drafts: m.drafts ?? [],", "kills": ["log-pose-feedback.spec.ts > every saved answer has thumbs and 'This is wrong', and a vote is a quiet Thanks that moves nothing (#679) [desktop-1280]", "log-pose-feedback.spec.ts > 'This is wrong' opens a note form below the buttons; Escape closes it; Send saves the note (#679) [desktop-1280]", "log-pose-feedback.spec.ts > a rating that can't be sent says so, keeps the note and marks nothing (#679) [desktop-1280]", "log-pose-feedback.spec.ts > the player's earlier votes come back selected after a reload (#679) [desktop-1280]"], "args": "log-pose-feedback --project=desktop-1280"},
     {"id": "fb-e2e-answer-number-off-by-one", "file": "packages/analyst-client/src/ChatMessageList.tsx", "from": "(x) => x.role === \"assistant\" && x.saved && x.text.trim()).length;", "to": "(x) => x.role === \"assistant\" && x.saved && x.text.trim()).length + 1;", "kills": ["log-pose-feedback.spec.ts > every saved answer has thumbs and 'This is wrong', and a vote is a quiet Thanks that moves nothing (#679) [desktop-1280]", "log-pose-feedback.spec.ts > 'This is wrong' opens a note form below the buttons; Escape closes it; Send saves the note (#679) [desktop-1280]", "log-pose-feedback.spec.ts > the player's earlier votes come back selected after a reload (#679) [desktop-1280]"], "args": "log-pose-feedback --project=desktop-1280"},

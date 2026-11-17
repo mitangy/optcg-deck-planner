@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun, EventFlag } from "./adminApi";
-import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, spendText, formatCount, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel } from "./adminLogic";
+import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, spendText, formatCount, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel, nextUserSort, firstSortDir, parseUserSort } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -318,5 +318,31 @@ describe("traffic tab helpers (#1020)", () => {
     expect(countryName("US")).toBe("United States");
     expect(countryName("zz9")).toBe("zz9");
     expect(deviceLabel("mobile")).toBe("Mobile");
+  });
+});
+
+describe("Users list header sorting (#1323)", () => {
+  it("starts text columns A to Z and counts and Joined with the biggest first", () => {
+    expect(nextUserSort(null, "user")).toEqual({ key: "user", dir: "asc" });
+    expect(nextUserSort(null, "source")).toEqual({ key: "source", dir: "asc" });
+    expect(nextUserSort({ key: "user", dir: "asc" }, "role")).toEqual({ key: "role", dir: "asc" });
+    expect(nextUserSort({ key: "user", dir: "asc" }, "ranked")).toEqual({ key: "ranked", dir: "desc" });
+    expect(nextUserSort(null, "practice")).toEqual({ key: "practice", dir: "desc" });
+    expect(nextUserSort({ key: "role", dir: "desc" }, "joined")).toEqual({ key: "joined", dir: "desc" });
+    expect(firstSortDir("bot")).toBe("desc");
+  });
+
+  it("flips the direction when the active column is clicked again", () => {
+    expect(nextUserSort({ key: "bot", dir: "desc" }, "bot")).toEqual({ key: "bot", dir: "asc" });
+    expect(nextUserSort({ key: "bot", dir: "asc" }, "bot")).toEqual({ key: "bot", dir: "desc" });
+    expect(nextUserSort({ key: "user", dir: "asc" }, "user")).toEqual({ key: "user", dir: "desc" });
+  });
+
+  it("restores a remembered sort and ignores anything unusable", () => {
+    expect(parseUserSort('{"key":"friends","dir":"asc"}')).toEqual({ key: "friends", dir: "asc" });
+    expect(parseUserSort('{"key":"actions","dir":"asc"}')).toBeNull();
+    expect(parseUserSort('{"key":"user","dir":"up"}')).toBeNull();
+    expect(parseUserSort("not json")).toBeNull();
+    expect(parseUserSort(null)).toBeNull();
   });
 });

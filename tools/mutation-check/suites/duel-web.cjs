@@ -5,6 +5,10 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Users list header sorting (#1323)
+    {"id": "users1323-click-active-does-not-flip", "file": "duel-web/src/admin/adminLogic.ts", "from": "return { key, dir: current.dir === \"asc\" ? \"desc\" : \"asc\" };", "to": "return { key, dir: current.dir };", "kills": ["flips the direction when the active column is clicked again"], "args": "src/admin/adminLogic"},
+    {"id": "users1323-counts-start-ascending", "file": "duel-web/src/admin/adminLogic.ts", "from": "return key === \"user\" || key === \"role\" || key === \"source\" ? \"asc\" : \"desc\";", "to": "return \"asc\";", "kills": ["starts text columns A to Z and counts and Joined with the biggest first"], "args": "src/admin/adminLogic"},
+    {"id": "users1323-remembered-sort-unchecked", "file": "duel-web/src/admin/adminLogic.ts", "from": "if (v && USER_SORT_KEYS.includes(v.key as UserSortKey) && (v.dir", "to": "if (v && (v.dir", "kills": ["restores a remembered sort and ignores anything unusable"], "args": "src/admin/adminLogic"},
     // Deck dropdowns grouped by Leader (#1294)
     {"id": "group1294-alphabetical-groups", "file": "duel-web/src/decks/groupByLeader.ts", "from": "return [...groups].map(", "to": "return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(", "kills": ["groups by leader in first-appearance order and keeps input order inside a group (#1294)"], "args": "src/decks/groupByLeader"},
     {"id": "group1294-no-merge", "file": "duel-web/src/decks/groupByLeader.ts", "from": "const group = groups.get(id);", "to": "const group = undefined;", "kills": ["groups by leader in first-appearance order and keeps input order inside a group (#1294)"], "args": "src/decks/groupByLeader"},

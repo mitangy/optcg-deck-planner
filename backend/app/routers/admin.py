@@ -407,16 +407,17 @@ def _friend_pair_on(me, other):
     return and_(Friendship.status == FriendshipStatus.ACCEPTED, Friendship.user_low_id == low, Friendship.user_high_id == high)
 
 
-def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[int, int]]]:
+def _game_counts(db: Session, users) -> dict[int, dict[str, tuple[int, int]]]:
     """Games and wins per mode for each user: {user_id: {mode: (games, wins)}} (#988).
 
     ranked = matchmaker games; friends = casual games against an accepted friend (as things stand
     now); private = every other casual game; bot and practice come from duel_solo_games. Four
     grouped queries however many users are asked for.
+
+    ``users`` is a list of ids or a ``select(User.id)`` subquery (so a big selection never becomes a big IN list).
+    Only users with at least one game appear in the result.
     """
-    out = {uid: {m: (0, 0) for m in MODES} for uid in user_ids}
-    if not user_ids:
-        return out
+    out: dict[int, dict[str, tuple[int, int]]] = {}
     me, opp = DuelMatchSeat, aliased(DuelMatchSeat)
     is_friend = Friendship.id.is_not(None)
     rows = db.execute(
@@ -424,23 +425,31 @@ def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[i
         .select_from(me)
         .outerjoin(opp, and_(opp.match_id == me.match_id, opp.seat != me.seat))
         .outerjoin(Friendship, _friend_pair_on(me.user_id, opp.user_id))
-        .where(me.user_id.in_(user_ids))
+        .where(me.user_id.in_(users))
         .group_by(me.user_id, me.ranked, is_friend)
     )
     for uid, ranked, friend, n, wins in rows:
         mode = "ranked" if ranked else ("friends" if friend else "private")
-        games, won = out[uid][mode]
+        games, won = out.setdefault(uid, {m: (0, 0) for m in MODES})[mode]
         out[uid][mode] = (games + int(n), won + int(wins))
     for uid, mode, n, wins in db.execute(
         select(
             DuelSoloGame.user_id, DuelSoloGame.mode, func.count(),
             func.coalesce(func.sum(case((DuelSoloGame.won.is_(True), 1), else_=0)), 0),
         )
-        .where(DuelSoloGame.user_id.in_(user_ids))
+        .where(DuelSoloGame.user_id.in_(users))
         .group_by(DuelSoloGame.user_id, DuelSoloGame.mode)
     ):
-        if mode in out[uid]:
-            out[uid][mode] = (int(n), int(wins))
+        if mode in MODES:
+            out.setdefault(uid, {m: (0, 0) for m in MODES})[mode] = (int(n), int(wins))
+    return out
+
+
+def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[int, int]]]:
+    """Games and wins per mode for each listed user, zeros for users with none: {user_id: {mode: (games, wins)}} (#988)."""
+    out = {uid: {m: (0, 0) for m in MODES} for uid in user_ids}
+    if user_ids:
+        out.update(_game_counts(db, user_ids))
     return out
 
 
@@ -460,6 +469,35 @@ def _like_escape(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+UserSort = Literal["user", "role", "source", "ranked", "friends", "private", "bot", "practice", "joined"]
+SortDir = Literal["asc", "desc"]
+
+
+def _source_label(raw: str | None) -> str | None:
+    """The text the Users tab shows for a source (adminLogic.formatSignupSource), lower-cased; None when unknown (#1323)."""
+    src = _parse_signup_source(raw)
+    if src is None:
+        return None
+    utm = " / ".join(str(src[k]) for k in ("utm_source", "utm_medium", "utm_campaign") if src.get(k))
+    return (f"utm: {utm}" if utm else str(src.get("ref") or "direct")).lower()
+
+
+def _sorted_user_ids(db: Session, where: list, sort: str, direction: str) -> list[int]:
+    """Every matching user id ordered by a Python-computed key (source text or a game count), ties by id ascending."""
+    desc = direction == "desc"
+    if sort == "source":
+        rows = sorted(db.execute(select(User.id, User.signup_source).where(*where)).all(), key=lambda r: r[0])
+        known = [(uid, label) for uid, raw in rows if (label := _source_label(raw)) is not None]
+        unknown = [uid for uid, raw in rows if _source_label(raw) is None]
+        # reverse=True keeps equal labels in id order, so the id tie-break holds in both directions.
+        known.sort(key=lambda r: r[1], reverse=desc)
+        return [uid for uid, _ in known] + unknown  # an unknown source is last in either direction
+    ids = sorted(db.scalars(select(User.id).where(*where)).all())
+    # The selection goes in as a subquery, so the SQL stays the same size however many accounts match (#1328).
+    counts = _game_counts(db, select(User.id).where(*where))
+    return sorted(ids, key=lambda uid: counts[uid][sort][0] if uid in counts else 0, reverse=desc)
+
+
 @router.get("/users", response_model=AdminUsers, response_model_exclude_unset=True)
 def list_users(
     _: Staff,
@@ -468,7 +506,16 @@ def list_users(
     include_guests: int = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
+    sort: UserSort | None = None,
+    sort_dir: Annotated[SortDir, Query(alias="dir")] = "asc",
 ) -> dict:
+    """The user list, staff first then newest unless `sort` names a column (#1323).
+
+    user = the name the tab shows (username, else name, else email), case-insensitive; role = alphabetical, which is
+    also privilege order (admin, moderator, user); joined = sign-up time; source = the text the tab shows, accounts
+    with an unknown source always last; ranked/friends/private/bot/practice = that mode's game count. Every sort
+    breaks ties by id ascending so a page boundary never repeats or drops a row.
+    """
     where = []
     if not include_guests:
         where.append(~is_guest())
@@ -483,8 +530,20 @@ def list_users(
             )
         )
     total = int(db.scalar(select(func.count()).select_from(User).where(*where)) or 0)
-    staff_first = case((User.role.in_(STAFF_ROLES), 0), else_=1)
-    page = db.scalars(select(User).where(*where).order_by(staff_first, User.created_at.desc(), User.id.desc()).limit(limit).offset(offset)).all()
+    query = select(User).where(*where)
+    if sort is None:
+        page = db.scalars(query.order_by(case((User.role.in_(STAFF_ROLES), 0), else_=1), User.created_at.desc(), User.id.desc()).limit(limit).offset(offset)).all()
+    elif sort in ("user", "role", "joined"):
+        key = {
+            "user": func.lower(func.coalesce(func.nullif(User.username, ""), func.nullif(User.name, ""), User.email)),
+            "role": User.role,
+            "joined": User.created_at,
+        }[sort]
+        page = db.scalars(query.order_by(key.desc() if sort_dir == "desc" else key.asc(), User.id.asc()).limit(limit).offset(offset)).all()
+    else:
+        wanted = _sorted_user_ids(db, where, sort, sort_dir)[offset : offset + limit]
+        by_id = {u.id: u for u in db.scalars(select(User).where(User.id.in_(wanted)))} if wanted else {}
+        page = [by_id[i] for i in wanted]
     stats: dict[int, tuple[int, datetime | None]] = {}
     ids = [u.id for u in page]
     if ids:
