@@ -10,9 +10,7 @@ from dataclasses import dataclass
 from typing import Any
 from app.core.errors import Invalid
 
-DECK_LINE_RE = re.compile(
-    r"^\s*(?:(\d+)\s*[xX]\s*)?([A-Za-z0-9]+-\d+[A-Za-z]?)\s*(.*)?$"
-)
+DECK_LINE_RE = re.compile(r"^\s*(?:(\d+)\s*[xX]\s*)?([A-Za-z0-9]+-\d+[A-Za-z]?)\s*(.*)?$")
 # Egman / Limitless-style: "4 OP01-016 Nami" or "4x OP01-016"
 DECK_TOKEN_RE = re.compile(
     r"(?:(\d+)\s*[xX]?\s*)?([A-Za-z0-9]+-\d+[A-Za-z]?)",
@@ -65,15 +63,16 @@ class ParsedCard:
     needed: int
 
 
-def _qty(digits: str) -> int:
+def _qty(digits: str, line_no: int, line: str) -> int:
     # A pasted run of thousands of digits makes int() raise; that stays a 400 with Python's message.
     try:
         qty = int(digits)
     except ValueError as exc:
         raise Invalid(str(exc)) from exc
     # Same rule as the TypeScript parser: "0xOP01-001" is a typo, not a card to track (#1322).
+    # Name the line so it can be found in a long paste (#1330).
     if qty < 1:
-        raise Invalid(f"Bad quantity: {digits}")
+        raise Invalid(f"Line {line_no}: bad quantity {digits} in {line!r}")
     return qty
 
 
@@ -120,12 +119,12 @@ def parse_decklist(text: str) -> list[ParsedCard]:
             # Support "OP01-001 4" / "OP01-001 x4" when qty wasn't written first.
             trailing = trailing_qty_re.match(rest) if rest and not leading_qty else None
             if trailing:
-                qty = _qty(trailing.group(1) or trailing.group(2))
+                qty = _qty(trailing.group(1) or trailing.group(2), line_no, line)
                 cards[card_id] = cards.get(card_id, 0) + qty
                 continue
             # One entry (optional card name) vs multiple codes on one line
             if not rest or not DECK_TOKEN_RE.search(rest):
-                qty = _qty(leading_qty or "1")
+                qty = _qty(leading_qty or "1", line_no, line)
                 cards[card_id] = cards.get(card_id, 0) + qty
                 continue
         # Fall back: find all qty+id tokens in the line
@@ -133,7 +132,7 @@ def parse_decklist(text: str) -> list[ParsedCard]:
         if not found:
             raise Invalid(f"Line {line_no}: unrecognized format: {line!r}")
         for token in found:
-            qty = _qty(token.group(1) or "1")
+            qty = _qty(token.group(1) or "1", line_no, line)
             card_id = token.group(2).upper()
             cards[card_id] = cards.get(card_id, 0) + qty
 
