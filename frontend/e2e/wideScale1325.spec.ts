@@ -51,3 +51,44 @@ for (const width of [1920, 2560]) {
     });
   }
 }
+
+// Grid column minimums are rem so they grow with the root; px columns left the scaled card art and its
+// Want controls wider than the tile.
+for (const path of ["/shopping", "/collection", `/decks/${DECK_ID}`]) {
+  test(`${path} Grid at 2560px: no card content overflows its tile (#1329)`, async ({ page, planner }, testInfo) => {
+    test.skip(testInfo.project.name !== "desktop-1200", "viewport is set by the test");
+    await page.setViewportSize({ width: 2560, height: 1440 });
+    await planner.open(path);
+    await page.getByRole("button", { name: "Grid", exact: true }).click();
+    const tiles = page.locator(".grid-card").filter({ visible: true });
+    await expect(tiles.first()).toBeVisible();
+    const over = await tiles.evaluateAll((els) =>
+      els.flatMap((el) => {
+        const e = el as HTMLElement;
+        const tile = e.getBoundingClientRect();
+        // The copies badge deliberately pokes out of the art corner, so absolutely positioned bits are skipped.
+        const wide = Array.from(e.querySelectorAll<HTMLElement>("*")).filter(
+          (c) =>
+            getComputedStyle(c).position !== "absolute" &&
+            !c.closest(".copies-badge") &&
+            (c.getBoundingClientRect().right > tile.right + 1 || (c.childElementCount === 0 && c.scrollWidth > c.clientWidth + 1)),
+        );
+        return wide.slice(0, 1).map((c) => `${e.dataset.cardId}: ${c.className || c.tagName}`);
+      }),
+    );
+    expect(over).toEqual([]);
+  });
+}
+
+test("price history chart axis labels keep their 10px size at 2560px (#1329)", async ({ page, planner }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-1200", "viewport is set by the test");
+  await page.setViewportSize({ width: 2560, height: 1440 });
+  await planner.open("/collection");
+  await page.locator('[data-card-id="EB01-002"]:visible').locator("img.thumb").first().click();
+  const lightbox = page.getByRole("dialog", { name: "Expanded card art" });
+  await lightbox.getByRole("button", { name: "Price history" }).click();
+  const axis = lightbox.getByRole("region", { name: "Price history" }).locator("text.ph-axis").first();
+  await expect(axis).toBeVisible();
+  // The SVG already scales with its box, so a rem size would scale the labels twice.
+  expect(await axis.evaluate((el) => getComputedStyle(el).fontSize)).toBe("10px");
+});

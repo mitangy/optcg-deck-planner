@@ -29,6 +29,11 @@ module.exports = {
       { file: "frontend/src/styles/wideLayout.css", from: "calc(100% + (100vw - 1600px) * 0.00625)", to: "calc(100% + (100vw - 1400px) * 0.00625)" },
     ], kills: ["wideScale1325.spec.ts > a 1440px screen keeps the 16px root font size (#1325) [desktop-1200]"] },
     { id: "e2e-wide1325-list-art-px", args: "wideScale1325 --project=desktop-1200", file: "frontend/src/styles/deckCopies.css", from: "    max-width: calc(7.5rem + var(--card-stack-reserve-x));", to: "    max-width: calc(120px + var(--card-stack-reserve-x));", kills: ["wideScale1325.spec.ts > a 2560px screen scales the planner and its card art up from a 1600px screen (#1325) [desktop-1200]"] },
+    { id: "e2e-wide1329-grid-columns-px", args: "wideScale1325 --project=desktop-1200 -g \"Grid at 2560px\"", edits: [
+      { file: "frontend/src/styles/shopping.css", from: "repeat(auto-fill, minmax(12.25rem, 1fr))", to: "repeat(auto-fill, minmax(196px, 1fr))" },
+      { file: "frontend/src/styles/shopping.css", from: "repeat(auto-fill, minmax(13.75rem, 1fr))", to: "repeat(auto-fill, minmax(220px, 1fr))" },
+    ], kills: ["wideScale1325.spec.ts > /shopping Grid at 2560px: no card content overflows its tile (#1329) [desktop-1200]"] },
+    { id: "e2e-wide1329-chart-axis-font-rem", args: "wideScale1325 --project=desktop-1200 -g \"price history\"", file: "frontend/src/styles/priceHistory.css", from: "  font-size: 10px;\n  font-family: inherit;", to: "  font-size: 0.625rem;\n  font-family: inherit;", kills: ["wideScale1325.spec.ts > price history chart axis labels keep their 10px size at 2560px (#1329) [desktop-1200]"] },
     // Lightbox action controls share one width (#1034)
     { id: "e2e-lightbox1034-shopping-control-narrower", args: "lightboxButtonWidths1034 --project=desktop-1200", file: "frontend/src/styles/lightbox.css", from: ".lightbox-action > .shopping-extra-control,\n", to: "", kills: ["lightboxButtonWidths1034.spec.ts > the enlarged card's four action controls are the same width, before and after Add (#1034) [desktop-1200]"] },
     // Lightbox price alert follows the main art (#896)
