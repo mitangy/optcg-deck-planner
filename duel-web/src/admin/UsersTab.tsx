@@ -45,6 +45,7 @@ export function UsersTab({ actor }: { actor: Actor }) {
 
   const load = useCallback((query: string, includeGuests: boolean, order: UserSort | null) => {
     const mine = ++seq.current;
+    setMore(false);
     fetchAdminUsers(query, includeGuests, PAGE, 0, order)
       .then((r: AdminUsers) => mine === seq.current && setState({ status: "ready", total: r.total, users: r.users }))
       .catch((e: Error) => mine === seq.current && setState({ status: "error", message: e.message }));
@@ -58,11 +59,13 @@ export function UsersTab({ actor }: { actor: Actor }) {
 
   const loadMore = () => {
     if (state.status !== "ready") return;
+    // A page that lands after the list was re-sorted, re-searched or reloaded belongs to the old list: drop it.
+    const mine = seq.current;
     setMore(true);
     fetchAdminUsers(q, guests, PAGE, state.users.length, sort)
-      .then((r) => setState((s) => (s.status === "ready" ? { status: "ready", total: r.total, users: [...s.users, ...r.users] } : s)))
-      .catch((e: Error) => setNotice(e.message))
-      .finally(() => setMore(false));
+      .then((r) => mine === seq.current && setState((s) => (s.status === "ready" ? { status: "ready", total: r.total, users: [...s.users, ...r.users] } : s)))
+      .catch((e: Error) => mine === seq.current && setNotice(e.message))
+      .finally(() => mine === seq.current && setMore(false));
   };
 
   const actions = useUserActions((u, next) =>

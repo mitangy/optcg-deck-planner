@@ -99,3 +99,52 @@ test("the Sort by control is hidden in the desktop grid (#1323)", async ({ page 
   await open(page);
   await expect(page.locator(".adm-sortby")).toBeHidden();
 });
+
+test("a Show more page that lands after a re-sort is dropped, not appended to the new order (#1323)", async ({ page }, info) => {
+  const PAGE = 50;
+  const row = (id: number, name: string) => mk(id, name, 0);
+  const firstPage = (prefix: string) => Array.from({ length: PAGE }, (_, i) => row(i + 1, `${prefix}${String(i + 1).padStart(2, "0")}`));
+  const stale = [row(901, "Stale1"), row(902, "Stale2"), row(903, "Stale3")];
+  let release: () => void = () => {};
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  let heldHit = false;
+  await signInAs(page, { uid: 1, name: "boss" });
+  await page.route(`${FAKE_API}/admin/**`, async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname === "/admin/me") return route.fulfill({ json: { role: "admin", can: { analytics: true, set_roles: true, ban: true, delete: true } } });
+    if (url.pathname === "/admin/users") {
+      const sorted = url.searchParams.get("sort") === "bot";
+      if (url.searchParams.get("offset") === String(PAGE)) {
+        heldHit = true;
+        await held;
+        return route.fulfill({ json: { total: 120, users: stale } });
+      }
+      return route.fulfill({ json: { total: 120, users: firstPage(sorted ? "Sorted" : "Old") } });
+    }
+    return route.fulfill({ status: 500, json: { detail: "faked failure" } });
+  });
+  await page.goto("/admin");
+  await page.getByRole("tab", { name: "Users", exact: true }).click();
+  const rows = page.locator(".adm-urow:not(.adm-uhead)");
+  await expect(rows).toHaveCount(PAGE);
+
+  await page.getByRole("button", { name: "Show more" }).click();
+  await expect.poll(() => heldHit).toBe(true);
+
+  if (info.project.name === "phone-375") {
+    await page.getByRole("button", { name: "Sort users by" }).click();
+    await page.getByRole("option", { name: "Bot" }).click();
+  } else {
+    await page.getByRole("button", { name: "Sort by Bot" }).click();
+  }
+  await expect.poll(async () => (await names(page))[0]).toBe("Sorted01");
+
+  release();
+  // Give the stale response time to land before judging the list.
+  await page.waitForTimeout(300);
+  await expect(rows).toHaveCount(PAGE);
+  expect((await names(page)).filter((n) => n.startsWith("Stale"))).toEqual([]);
+  expect((await names(page)).every((n) => n.startsWith("Sorted"))).toBe(true);
+  // The old request no longer locks the button for the new list.
+  await expect(page.getByRole("button", { name: "Show more" })).toBeEnabled();
+});

@@ -57,6 +57,11 @@ module.exports = {
     { id: "e2e-admin-users-1323-sort-not-remembered", args: "admin-users-sort.spec --project=desktop-1280", edits: [
       { file: "duel-web/src/admin/UsersTab.tsx", from: "    writeStored(SORT_KEY, JSON.stringify(next));\n", to: "" },
     ], kills: ["admin-users-sort.spec.ts > a header click sorts on the server, shows an arrow and the next click flips it (#1323) [desktop-1280]"] },
+    // A Show more page that lands after a re-sort is dropped, not appended to the new list (#1323). The append guard and the busy reset are both reverted.
+    { id: "e2e-admin-users-1323-stale-show-more-appended", args: "admin-users-sort.spec -g \"Show more page\"", edits: [
+      { file: "duel-web/src/admin/UsersTab.tsx", from: ".then((r) => mine === seq.current && setState((s) => (s.status === \"ready\" ? { status: \"ready\", total: r.total, users: [...s.users, ...r.users] } : s)))\n      .catch((e: Error) => mine === seq.current && setNotice(e.message))\n      .finally(() => mine === seq.current && setMore(false));", to: ".then((r) => setState((s) => (s.status === \"ready\" ? { status: \"ready\", total: r.total, users: [...s.users, ...r.users] } : s)))\n      .catch((e: Error) => setNotice(e.message))\n      .finally(() => setMore(false));" },
+      { file: "duel-web/src/admin/UsersTab.tsx", from: "    const mine = ++seq.current;\n    setMore(false);\n", to: "    const mine = ++seq.current;\n" },
+    ], kills: ["admin-users-sort.spec.ts > a Show more page that lands after a re-sort is dropped, not appended to the new order (#1323) [desktop-1280]", "admin-users-sort.spec.ts > a Show more page that lands after a re-sort is dropped, not appended to the new order (#1323) [phone-375]"] },
     { id: "e2e-admin-users-1323-stacked-sort-control-hidden", args: "admin-users-sort.spec --project=phone-375", edits: [
       { file: "duel-web/src/admin/admin/users.css", from: "  .adm-sortby {\n    display: flex;\n  }", to: "" },
     ], kills: ["admin-users-sort.spec.ts > the stacked list sorts from the Sort by control (#1323) [phone-375]"] },
