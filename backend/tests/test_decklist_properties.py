@@ -9,6 +9,8 @@ Hypothesis found that "0xOP01-001" returned needed=0 (the TypeScript parser reje
 
 import re
 
+import pytest
+
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
@@ -64,16 +66,6 @@ def test_parse_decklist_returns_well_formed_cards_or_raises_invalid_on_arbitrary
     _check_cards(cards, minimum=1)
 
 
-@settings(max_examples=300, deadline=None)
-@given(any_text)
-def test_parse_decklist_never_returns_a_card_with_a_count_below_one_1322(text):
-    try:
-        cards = parse_decklist(text)
-    except Invalid:
-        return
-    _check_cards(cards, minimum=1)
-
-
 @settings(max_examples=200, deadline=None)
 @given(card_ids, st.integers(1, 5), st.sampled_from(["", "\n4xOP01-016"]))
 def test_parse_decklist_rejects_a_zero_count_instead_of_returning_it_1322(card_id, zeros, tail):
@@ -113,3 +105,10 @@ def test_parse_decklist_adds_up_a_card_repeated_across_lines_1322(rows):
     for card_id, n in rows:
         want[card_id] = want.get(card_id, 0) + n
     assert {c.card_id: c.needed for c in parse_decklist(text)} == want
+
+
+def test_a_zero_count_error_names_the_line_it_is_on_1330():
+    text = "4xOP01-016\n2xST10-012\n0xOP05-119\n4xEB02-061"
+    with pytest.raises(Invalid) as err:
+        parse_decklist(text)
+    assert "Line 3" in str(err.value) and "0xOP05-119" in str(err.value)
