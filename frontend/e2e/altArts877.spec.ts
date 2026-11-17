@@ -181,7 +181,9 @@ for (const list of LISTS) {
       await page.setViewportSize({ width, height: 900 });
       await planner.open(list.path);
       const table = page.locator(".desktop-table");
-      await expect(table.locator("thead th").last()).toHaveText("Alt arts");
+      // From 1600px the column gives way to a strip row under each card (#1329).
+      if (width < 1600) await expect(table.locator("thead th").last()).toHaveText("Alt arts");
+      else await expect(table.locator("tr.alt-strip-row").first()).toBeVisible();
       const fit = await table.evaluate((w) => ({ scroll: w.scrollWidth, client: w.clientWidth }));
       expect(fit.scroll, `${list.name} at ${width}px`).toBeLessThanOrEqual(fit.client);
     }
