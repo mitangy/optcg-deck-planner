@@ -905,7 +905,7 @@ tr.selected-row td,
 .card-grid {
   display: grid;
   /* Extra width for the external select column beside each card (matches list). */
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(12.25rem, 1fr));
   gap: 0.85rem;
 }
 
@@ -1410,6 +1410,6 @@ span.deck-filter-group-head {
   }
 
   .card-grid:has(.grid-card-steppers) {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(13.75rem, 1fr));
   }
 }

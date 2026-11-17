@@ -575,7 +575,7 @@
 
 .ph-axis {
   fill: var(--muted);
-  font-size: 0.625rem;
+  font-size: 10px;
   font-family: inherit;
 }
 
