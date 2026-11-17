@@ -10,6 +10,8 @@ import type { PatchNote } from "./types";
  * internal work (tests, refactors, CI) and fixes nobody noticed.
  */
 export const PATCH_NOTES: PatchNote[] = [
+  // 2026-11-17
+  { date: "2026-11-17", app: "planner", pr: 1324, title: "Decks page uses wide screens", text: "On a wide screen the Decks page now shows leaders side by side instead of one under the other, and a leader's decks sit next to each other. Phones still show one column." },
   // 2026-11-15
   { date: "2026-11-15", app: "planner", pr: 1315, title: "Find which decks run a card", text: "The Decks page has a new search box. Type a card name or number, like Nami or OP01-016, and it shows only the decks that run it, with how many copies each one plays." },
   // 2026-11-14

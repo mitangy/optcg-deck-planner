@@ -93,23 +93,27 @@ export function DecksListSkeleton() {
         <Skeleton className="skeleton-title" />
         <Skeleton className="skeleton-btn skeleton-btn-sm" />
       </div>
-      <div className="deck-grid">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="skeleton-deck-card">
-            <div className="skeleton-deck-card-main">
-              <Skeleton className="skeleton-thumb" />
-              <div className="skeleton-stack skeleton-stack-grow">
-                <Skeleton className="skeleton-line skeleton-line-md" />
-                <Skeleton className="skeleton-line skeleton-line-sm" />
-                <Skeleton className="skeleton-line skeleton-line-sm" />
+      <div className="deck-leader-groups-wrap">
+        <div className="deck-leader-groups">
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="deck-leader-group">
+              <div className="skeleton-deck-card">
+                <div className="skeleton-deck-card-main">
+                  <Skeleton className="skeleton-thumb" />
+                  <div className="skeleton-stack skeleton-stack-grow">
+                    <Skeleton className="skeleton-line skeleton-line-md" />
+                    <Skeleton className="skeleton-line skeleton-line-sm" />
+                    <Skeleton className="skeleton-line skeleton-line-sm" />
+                  </div>
+                </div>
+                <div className="skeleton-deck-actions">
+                  <Skeleton className="skeleton-line skeleton-line-xs" />
+                  <Skeleton className="skeleton-line skeleton-line-xs" />
+                </div>
               </div>
             </div>
-            <div className="skeleton-deck-actions">
-              <Skeleton className="skeleton-line skeleton-line-xs" />
-              <Skeleton className="skeleton-line skeleton-line-xs" />
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </SkeletonScreen>
   );
