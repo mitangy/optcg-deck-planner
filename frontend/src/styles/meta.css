@@ -31,7 +31,7 @@
 
 .meta-leader-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr));
   gap: var(--space-4);
 }
 
@@ -69,8 +69,8 @@ a.meta-leader-card:focus-visible {
 
 .meta-leader-art {
   flex: 0 0 auto;
-  width: 72px;
-  height: 100px;
+  width: 4.5rem;
+  height: 6.25rem;
   object-fit: cover;
   border-radius: var(--radius-10);
   border: 1px solid var(--line);
@@ -258,7 +258,7 @@ a.meta-leader-card:focus-visible {
 
 .meta-card {
   flex: 0 0 auto;
-  width: 72px;
+  width: 4.5rem;
 }
 
 .meta-deck-groups {

@@ -3,10 +3,10 @@
    (thumbnail + price/labels, stepper, Extra copy, then a footer with who-wants chips and Show).
    Tiles in one row stretch to the same height; --alt-tile-h is that standard height and sizes the #877 scroll cap. */
 .alt-arts {
-  --alt-tile-w: 148px;
-  --alt-thumb-w: 48px;
-  --alt-thumb-h: 67px;
-  --alt-tile-h: 122px;
+  --alt-tile-w: 9.25rem;
+  --alt-thumb-w: 3rem;
+  --alt-thumb-h: 4.1875rem;
+  --alt-tile-h: 7.625rem;
 }
 
 /* A grid, not a wrapping flex row (#1280): every row is as tall as the tallest tile in the list, so tiles
@@ -24,7 +24,7 @@
 
 /* Planner tiles with the Extra copy toggle (#1035) carry one more row. */
 .alt-arts.alt-arts-collect {
-  --alt-tile-h: 152px;
+  --alt-tile-h: 9.5rem;
 }
 
 .alt-art {
@@ -184,7 +184,7 @@
 .data-table td.alt-arts-cell .alt-arts,
 .mobile-card-alts .alt-arts {
   --alt-rows: 5;
-  max-height: calc(var(--alt-rows) * var(--alt-tile-h, 116px) + (var(--alt-rows) - 1) * 0.55rem);
+  max-height: calc(var(--alt-rows) * var(--alt-tile-h, 7.625rem) + (var(--alt-rows) - 1) * 0.55rem);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -388,7 +388,7 @@
 .group-buy-color-rail {
   display: flex;
   flex-direction: column;
-  width: 9px;
+  width: 0.5625rem;
   overflow: hidden;
   flex: 0 0 auto;
   position: absolute;
@@ -752,8 +752,8 @@
 
 .deck-editor-result-main .thumb,
 .deck-editor-result-main .thumb.placeholder {
-  width: 40px;
-  height: 56px;
+  width: 2.5rem;
+  height: 3.5rem;
   flex: 0 0 auto;
 }
 
@@ -922,8 +922,8 @@
 
   .deck-editor-result-main .thumb,
   .deck-editor-result-main .thumb.placeholder {
-    width: 36px;
-    height: 50px;
+    width: 2.25rem;
+    height: 3.125rem;
   }
 
   .deck-editor-result-actions .btn.secondary {

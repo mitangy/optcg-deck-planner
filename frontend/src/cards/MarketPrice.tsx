@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useContext, type ReactNode } from "react";
 import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { api, money, type PrintingView } from "../api";
 import { CardThumb } from "../ui/CardThumb";
+import { AltTrayContext } from "./AltTray";
 import { InlineSkeleton } from "../ui/Skeleton";
 import { qk } from "../cache/queryKeys";
 
@@ -252,6 +253,7 @@ export function AltArtsRow({
   onCollectorChange?: (productId: number, qty: number) => void;
   collectorBusyProductId?: number | null;
 }) {
+  const inTray = useContext(AltTrayContext);
   const list = alts ?? [];
   if (!list.length) return <span className="muted">—</span>;
   const wantSum = list.reduce((s, a) => s + (a.wanted ?? 0), 0);
@@ -287,7 +289,7 @@ export function AltArtsRow({
     );
   };
 
-  return (
+  const tiles = (
     <div className={onCollectorChange ? "alt-arts alt-arts-collect" : "alt-arts"}>
       <div className="alt-arts-grid">
         {base && (
@@ -426,6 +428,13 @@ export function AltArtsRow({
           );
         })}
       </div>
+    </div>
+  );
+  if (!inTray) return tiles;
+  return (
+    <div className="alt-tray">
+      <div className="alt-tray-label">Alt arts · {list.length + (base ? 1 : 0)}</div>
+      {tiles}
     </div>
   );
 }

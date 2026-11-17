@@ -95,8 +95,8 @@ tr.done td {
 }
 
 .thumb {
-  width: 108px;
-  height: 151px;
+  width: 6.75rem;
+  height: 9.4375rem;
   object-fit: contain;
   border-radius: var(--radius-10);
   background: var(--thumb-bg);

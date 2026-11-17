@@ -108,9 +108,74 @@
 /* List view in the wide main column: smaller art and row hover, so a wide row stays easy to follow. */
 @media (min-width: 1600px) {
   .card-workspace-main .data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
-    max-width: 120px;
+    max-width: 7.5rem;
   }
-  .card-workspace-main .data-table tbody tr:hover > td {
+  .card-workspace-main .data-table tbody tr:hover > td,
+  .card-workspace-main .data-table tbody.card-rows:hover > tr > td {
     background: color-mix(in srgb, var(--gold-soft) 45%, transparent);
+  }
+}
+
+/* Wide List tables (#1329): no Alt arts column. Each card is its own tbody with a main row (checkbox and Card
+   cell span both rows) and, when it has alts, a strip row whose one cell spans the value columns and holds the
+   alt tiles side by side in a tray. React picks this layout at the same 1600px (cards/AltTray.tsx). */
+@media (min-width: 1600px) {
+  /* Big numbers, centred on the top of the card art. Small labels inside (of 4, from decks) keep their own size. */
+  .data-table tr.alt-main-row > td:not(.card-cell, .select-col) {
+    height: 5rem;
+    font-size: 1.25rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    vertical-align: middle;
+  }
+
+  /* The art stays at the top of its two-row cell, level with the numbers. */
+  .data-table tr.has-strip > td[rowspan] {
+    vertical-align: top;
+  }
+
+  /* The row rule goes under the strip, not between the numbers and the tray. */
+  .data-table tr.has-strip > td:not([rowspan])::after {
+    display: none;
+  }
+
+  .data-table td.alt-strip-cell {
+    vertical-align: top;
+    padding: 0 1rem 1.1rem 0;
+  }
+
+  .alt-tray {
+    box-sizing: border-box;
+    background: var(--card-sunk);
+    border: 1px solid var(--line);
+    border-radius: 0.75rem;
+    padding: 0.55rem 0.75rem 0.75rem;
+  }
+
+  .alt-tray-label {
+    margin-bottom: 0.45rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* Tiles sit side by side and wrap; no #877 height cap, the tray grows instead of scrolling. */
+  .alt-tray .alt-arts {
+    max-width: none;
+  }
+
+  .alt-tray .alt-arts-grid {
+    grid-template-columns: repeat(auto-fill, var(--alt-tile-w));
+  }
+}
+
+/* Scale the whole planner on big monitors (#1325). rem sizes (text, card art, tiles, popovers) grow with
+   the root: 16px at 1600px wide, 18px at 1920px, capped at 21px (~2400px). Media and container queries
+   use px/em, which ignore the root size, so breakpoints stay put. Below 1600px nothing changes. */
+@media (min-width: 1600px) {
+  html {
+    font-size: clamp(100%, calc(100% + (100vw - 1600px) * 0.00625), 131.25%);
   }
 }

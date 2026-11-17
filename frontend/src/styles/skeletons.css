@@ -93,15 +93,15 @@
 
 .skeleton-deck-leader {
   flex: 0 0 auto;
-  width: 84px;
-  height: 117px;
+  width: 5.25rem;
+  height: 7.3125rem;
   border-radius: var(--radius-8);
 }
 
 @media (max-width: 800px) {
   .skeleton-deck-leader {
-    width: 64px;
-    height: 89px;
+    width: 4rem;
+    height: 5.5625rem;
   }
 }
 
@@ -166,14 +166,14 @@
 }
 
 .skeleton-thumb {
-  width: 108px;
-  height: 151px;
+  width: 6.75rem;
+  height: 9.4375rem;
   border-radius: var(--radius-10);
 }
 
 .skeleton-thumb-lg {
-  width: 96px;
-  height: 134px;
+  width: 6rem;
+  height: 8.375rem;
 }
 
 .skeleton-chip {

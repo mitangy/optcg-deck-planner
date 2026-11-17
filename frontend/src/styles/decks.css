@@ -73,7 +73,7 @@
 
 .deck-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(16.25rem, 1fr));
   gap: var(--space-4);
 }
 
@@ -143,8 +143,8 @@
 }
 
 .deck-leader-group-thumb {
-  width: 40px;
-  height: 56px;
+  width: 2.5rem;
+  height: 3.5rem;
   object-fit: cover;
   border-radius: var(--radius-8);
   background: var(--thumb-bg);
@@ -222,8 +222,8 @@
 }
 
 .deck-card-leader-thumb {
-  width: 72px;
-  height: 100px;
+  width: 4.5rem;
+  height: 6.25rem;
   object-fit: cover;
   border-radius: var(--radius-10);
   background: var(--thumb-bg);
@@ -293,8 +293,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: 2.5rem;
+  height: 2.5rem;
   padding: 0;
   color: var(--muted, inherit);
   background: transparent;
@@ -378,8 +378,8 @@
 
 .deck-detail-leader {
   flex: 0 0 auto;
-  width: 84px;
-  height: 117px;
+  width: 5.25rem;
+  height: 7.3125rem;
   object-fit: cover;
   border-radius: var(--radius-8);
   border: 1px solid var(--line-strong);
@@ -389,8 +389,8 @@
 
 @media (max-width: 800px) {
   .deck-detail-leader {
-    width: 64px;
-    height: 89px;
+    width: 4rem;
+    height: 5.5625rem;
   }
 }
 
@@ -790,7 +790,7 @@
   }
 
   .card-grid {
-    grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr));
     gap: 0.65rem;
   }
 
@@ -804,8 +804,8 @@
 
   .grid-card-media .thumb,
   .grid-card-media .thumb-btn .thumb {
-    width: 120px;
-    height: 168px;
+    width: 7.5rem;
+    height: 10.5rem;
   }
 
   /* Underlined tabs instead of fat pills — saves ~20px of chrome. Tabs size
@@ -943,12 +943,12 @@
     align-items: center;
     gap: 0.2rem;
     flex: 0 0 auto;
-    width: 96px;
+    width: 6rem;
   }
 
   .mobile-card .thumb {
-    width: 96px;
-    height: 134px;
+    width: 6rem;
+    height: 8.375rem;
   }
 
   .mobile-card-media-meta {
