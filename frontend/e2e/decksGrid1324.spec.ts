@@ -29,6 +29,7 @@ const DECKS: DeckSummary[] = [
   deck(16, "Elbuffy B", "OP13-001", "Monkey D. Luffy"),
   deck(17, "Elbuffy C", "OP13-001", "Monkey D. Luffy"),
   deck(18, "Imported", null, null),
+  deck(19, "Zoro op12", "OP12-001", "Roronoa Zoro"),
 ];
 
 test.afterEach(({ planner }) => {
@@ -82,6 +83,25 @@ test("Decks: a No leader detected group's card lines up with its row neighbours 
   const neighbour = rows.find((r) => r.leader && r.top === noLeader.top);
   expect(neighbour).toBeTruthy();
   expect(noLeader.card).toBe(neighbour!.card);
+});
+
+test("Decks: leaders keep their sorted order on a wide screen instead of back-filling gaps (#1326)", async ({ page, planner }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openDecks(page, planner);
+
+  // Pudding, Newgate and Lucy fill 3 of 4 columns; the 3-deck Luffy group doesn't fit the last one.
+  // Nico Robin comes after Luffy, so it must not be pulled up into that gap.
+  const placed = await page.locator(".deck-leader-group").evaluateAll((els) =>
+    els.map((el) => {
+      const r = el.getBoundingClientRect();
+      return { top: Math.round(r.top), left: Math.round(r.left) };
+    }),
+  );
+  for (let i = 1; i < placed.length; i++) {
+    const prev = placed[i - 1]!;
+    const cur = placed[i]!;
+    expect(cur.top > prev.top || (cur.top === prev.top && cur.left > prev.left)).toBe(true);
+  }
 });
 
 test("Decks: on a phone leader groups stay stacked in one column (#1324)", async ({ page, planner }) => {
