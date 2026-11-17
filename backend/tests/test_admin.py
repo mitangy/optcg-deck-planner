@@ -449,6 +449,106 @@ def test_user_list_hides_guests_searches_and_puts_staff_first_667(api):
     assert (page["total"], [u["id"] for u in page["users"]]) == (3, [new])
 
 
+def _ids(c, **params) -> list[int]:
+    r = c.get("/admin/users", params=params)
+    assert r.status_code == 200, r.text
+    return [u["id"] for u in r.json()["users"]]
+
+
+def test_users_sort_by_shown_name_role_and_joined_in_both_directions_1323(api):
+    c, S = api
+    # Default order is staff first, then newest: mod, c_new, a_mid, b_old. None of the sorts below equals it.
+    mod = mk(S, "zzz@x.test", "moderator", name="Mod", created_at=NOW - timedelta(days=50))
+    b_old = mk(S, "m@x.test", name="", username="Bravo", created_at=NOW - timedelta(days=30))  # shown as "Bravo"
+    a_mid = mk(S, "a@x.test", name="alpha", created_at=NOW - timedelta(days=20))  # shown as "alpha" (case-blind)
+    c_new = mk(S, "c@x.test", name="", username=None, created_at=NOW - timedelta(days=10))  # shown as its email "c@x.test"
+    login(c, S, mod)
+    assert _ids(c) == [mod, c_new, a_mid, b_old]
+    assert _ids(c, sort="user", dir="asc") == [a_mid, b_old, c_new, mod]
+    assert _ids(c, sort="user", dir="desc") == [mod, c_new, b_old, a_mid]
+    assert _ids(c, sort="joined", dir="asc") == [mod, b_old, a_mid, c_new]
+    assert _ids(c, sort="joined", dir="desc") == [c_new, a_mid, b_old, mod]
+    # role is alphabetical (moderator before user), ties by id ascending in both directions.
+    assert _ids(c, sort="role", dir="asc") == [mod, b_old, a_mid, c_new]
+    assert _ids(c, sort="role", dir="desc") == [b_old, a_mid, c_new, mod]
+    # dir defaults to asc, and a sort keeps the search and the page.
+    assert _ids(c, sort="user") == [a_mid, b_old, c_new, mod]
+    assert _ids(c, sort="user", dir="desc", limit=2, offset=1) == [c_new, b_old]
+    assert _ids(c, sort="user", q="x.test", limit=1) == [a_mid]
+
+
+def test_users_sort_by_source_uses_the_shown_text_and_puts_unknown_last_1323(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin", created_at=NOW - timedelta(days=90))
+    reddit = mk(S, "r@x.test", signup_source='{"ref":"a-ref.example","utm_source":"Reddit","utm_medium":"social"}', created_at=NOW - timedelta(days=1))
+    google = mk(S, "g@x.test", signup_source='{"ref":"google.com"}', created_at=NOW - timedelta(days=2))
+    direct = mk(S, "d@x.test", signup_source="{}", created_at=NOW - timedelta(days=3))
+    unknown = mk(S, "u@x.test", created_at=NOW - timedelta(days=4))
+    login(c, S, admin)
+    # Shown texts: "direct" < "google.com" < "utm: reddit / social"; the admin and `unknown` have no source.
+    assert _ids(c, sort="source", dir="asc") == [direct, google, reddit, admin, unknown]
+    assert _ids(c, sort="source", dir="desc") == [reddit, google, direct, admin, unknown]
+    assert _ids(c, sort="source", dir="desc", limit=2, offset=2) == [direct, admin]
+
+
+def test_users_sort_by_each_game_count_with_ties_by_id_1323(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin", created_at=NOW - timedelta(days=90))
+    p1 = mk(S, "p1@x.test", created_at=NOW - timedelta(days=1))
+    p2 = mk(S, "p2@x.test", created_at=NOW - timedelta(days=2))
+    p3 = mk(S, "p3@x.test", created_at=NOW - timedelta(days=3))
+    with S() as db:
+        at = NOW - timedelta(hours=5)
+        # ranked: p3 has 2, p1 has 1. bot: p2 has 3, p3 has 1. practice: p1 has 1.
+        seat(db, "r1", p3, "OP01-001", True, at)
+        seat(db, "r2", p3, "OP01-001", False, at)
+        seat(db, "r3", p1, "OP01-001", True, at)
+        for i in range(3):
+            solo(db, f"b2-{i}", p2, "bot", at)
+        solo(db, "b3", p3, "bot", at)
+        solo(db, "pr1", p1, "practice", at)
+        db.commit()
+    login(c, S, admin)
+    assert _ids(c) == [admin, p1, p2, p3]
+    assert _ids(c, sort="ranked", dir="desc") == [p3, p1, admin, p2]
+    assert _ids(c, sort="ranked", dir="asc") == [admin, p2, p1, p3]
+    assert _ids(c, sort="bot", dir="desc") == [p2, p3, admin, p1]
+    assert _ids(c, sort="bot", dir="asc") == [admin, p1, p3, p2]
+    assert _ids(c, sort="practice", dir="desc") == [p1, admin, p2, p3]
+    assert _ids(c, sort="friends", dir="desc") == [admin, p1, p2, p3]
+    assert _ids(c, sort="private", dir="asc") == [admin, p1, p2, p3]
+    body = c.get("/admin/users", params={"sort": "bot", "dir": "desc", "limit": 1, "offset": 1}).json()
+    assert body["total"] == 4 and [(u["id"], u["games"]["bot"]) for u in body["users"]] == [(p3, 1)]
+
+
+def test_a_sorted_user_list_pages_without_repeats_or_gaps_1323(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin", created_at=NOW - timedelta(days=90))
+    same = NOW - timedelta(days=1)
+    ids = [mk(S, f"u{i}@x.test", name="same", signup_source="{}", created_at=same) for i in range(5)]
+    login(c, S, admin)
+    everyone = sorted([admin, *ids])
+    for sort in ("user", "joined", "bot", "source"):
+        for direction in ("asc", "desc"):
+            paged = [i for off in range(0, 6, 2) for i in _ids(c, sort=sort, dir=direction, limit=2, offset=off)]
+            assert len(paged) == len(set(paged)) == 6, (sort, direction, paged)
+            assert paged == _ids(c, sort=sort, dir=direction), (sort, direction)
+    # Equal keys come out in id order, so the order is the same on every request.
+    assert _ids(c, sort="bot", dir="desc") == everyone
+    assert [i for i in _ids(c, sort="user", dir="desc") if i != admin] == ids
+    # Five accounts share the source "direct"; the admin has none and is last either way.
+    assert _ids(c, sort="source", dir="asc") == [*ids, admin] and _ids(c, sort="source", dir="desc") == [*ids, admin]
+
+
+def test_users_refuse_an_unknown_sort_or_direction_1323(api):
+    c, S = api
+    admin = mk(S, ADMIN_EMAIL, "admin")
+    login(c, S, admin)
+    assert c.get("/admin/users", params={"sort": "email"}).status_code == 422
+    assert c.get("/admin/users", params={"sort": "user", "dir": "sideways"}).status_code == 422
+    assert c.get("/admin/users", params={"sort": "joined", "dir": "desc"}).status_code == 200
+
+
 # ------------------------------------------------------------------ analytics
 
 def test_overview_counts_real_players_guests_and_recent_signups_667(api):

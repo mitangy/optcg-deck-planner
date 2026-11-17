@@ -63,6 +63,17 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The panel is the container: the grid below needs about 54rem, and only the panel's own width says whether it has it (#1323). */
+.adm-users {
+  container: adm-users / inline-size;
+}
+
+.adm-utable {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .adm-urows {
   display: flex;
   flex-direction: column;
@@ -76,7 +87,7 @@
 
 .adm-urow {
   display: grid;
-  grid-template-columns: minmax(7rem, 1.6fr) 7.5rem minmax(4.5rem, 0.9fr) repeat(5, 2.9rem) 6.2rem 10.5rem;
+  grid-template-columns: minmax(6.5rem, 1.5fr) 7rem minmax(4rem, 0.9fr) repeat(5, 2.6rem) 6.2rem 9.5rem;
   align-items: center;
   gap: var(--space-3);
   padding: 0.55rem 0.25rem;
@@ -94,11 +105,120 @@
 }
 
 /* A title never spills into its neighbour (#1018). */
-.adm-uhead > span {
+.adm-uhead > * {
   min-width: 0;
+  white-space: nowrap;
+}
+
+.adm-uhead > .num {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.adm-uhead > .num .adm-usort {
+  text-align: right;
+}
+
+/* A header is a button with a fixed slot at its right edge for the caret, so showing it never moves the label or widens the column (#1323). */
+.adm-usort {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 10px 0 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.adm-usort-label {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.adm-usort:hover {
+  color: var(--ink);
+}
+
+.adm-usort:focus-visible {
+  outline: none;
+  border-radius: var(--radius-4);
+  box-shadow: var(--focus-ring);
+}
+
+.adm-usort-arrow {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  line-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.adm-usort-arrow svg {
+  fill: currentColor;
+}
+
+.adm-usort:hover .adm-usort-arrow {
+  opacity: 0.35;
+}
+
+.adm-usort-arrow.active,
+.adm-usort:hover .adm-usort-arrow.active {
+  opacity: 1;
+  color: var(--chrome);
+}
+
+/* The stacked layout's "Sort by" control; the desktop grid has header buttons instead. */
+.adm-sortby {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.adm-sortby-label {
   white-space: nowrap;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.adm-sortby-select {
+  min-width: 8rem;
+}
+
+.adm-sortby-select .ui-select-button {
+  min-height: 44px;
+  width: 100%;
+  background: var(--arena-mid);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8);
+  color: var(--ink);
+  padding: 0.3rem 0.6rem;
+  font: inherit;
+  font-size: 0.85rem;
+}
+
+.adm-sortdir {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  min-width: 4.6rem;
+  min-height: 44px;
+}
+
+.adm-sortdir svg {
+  fill: currentColor;
 }
 
 .adm-ucell {
@@ -180,10 +300,14 @@
   min-width: 8rem;
 }
 
-/* Below ~1030px the desktop grid (about 57rem of columns inside the panel) no longer fits, so each user stacks (#1018). */
-@media (max-width: 1030px) {
+/* When the panel is narrower than the desktop grid needs (about 54rem), each user stacks (#1018, #1323). */
+@container adm-users (max-width: 55rem) {
   .adm-uhead {
     display: none;
+  }
+
+  .adm-sortby {
+    display: flex;
   }
 
   /* Stacked list: name and role on top, the five game counts in one row, then joined / source, then the buttons. */
@@ -227,9 +351,13 @@
 
   .adm-urow > .adm-ugames::before {
     content: attr(data-label);
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     font-size: 0.6rem;
     font-weight: 700;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
     color: var(--muted);
   }

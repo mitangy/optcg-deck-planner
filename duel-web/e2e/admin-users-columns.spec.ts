@@ -71,3 +71,43 @@ test("admin Users column titles do not overlap (#1018)", async ({ page }) => {
     });
   }
 });
+
+/** The panel's inner right edge: the row's action buttons must end inside it (#1323). */
+test("admin Users row buttons stay inside the panel at every width (#1323)", async ({ page }) => {
+  await signInAs(page, { uid: 1, name: "boss" });
+  await page.route(`${FAKE_API}/admin/**`, (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/admin/me") return route.fulfill({ json: { role: "admin", can: { analytics: true, set_roles: true, ban: true, delete: true } } });
+    if (path === "/admin/users") return route.fulfill({ json: { total: USERS.length, users: USERS } });
+    return route.fulfill({ status: 500, json: { detail: "faked failure" } });
+  });
+  await page.goto("/admin");
+  await page.getByRole("tab", { name: "Users", exact: true }).click();
+  await expect(page.locator(".adm-urow:not(.adm-uhead)")).toHaveCount(USERS.length);
+
+  // The second pass is a bigger default text size (browser setting or OS scaling): the grid's rem columns grow, the panel does not.
+  const passes = [2560, 1280, 1150, 1100, 1060, 1031, 1000, 800, 600, 375, 320].flatMap((w) => [{ width: w, text: 16 }, { width: w, text: 20 }]);
+  for (const { width, text } of passes) {
+    await page.setViewportSize({ width, height: 800 });
+    await page.evaluate((px) => (document.documentElement.style.fontSize = `${px}px`), text);
+    const where = `at ${width}px wide with ${text}px text`;
+    const r = await page.evaluate(() => {
+      const panel = document.querySelector<HTMLElement>(".adm-users")!;
+      const cs = getComputedStyle(panel);
+      const rect = panel.getBoundingClientRect();
+      const inner = { left: rect.left + parseFloat(cs.paddingLeft) + parseFloat(cs.borderLeftWidth), right: rect.right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth) };
+      const spill: string[] = [];
+      for (const row of document.querySelectorAll<HTMLElement>(".adm-urow")) {
+        for (const el of row.querySelectorAll<HTMLElement>("button, .adm-ucell")) {
+          const b = el.getBoundingClientRect();
+          if (b.width === 0) continue;
+          if (b.right > inner.right + 1 || b.left < inner.left - 1) spill.push(`${el.textContent?.trim().slice(0, 12)} ${Math.round(b.left)}-${Math.round(b.right)} vs ${Math.round(inner.left)}-${Math.round(inner.right)}`);
+        }
+      }
+      return { spill, pageOverflow: document.documentElement.scrollWidth - window.innerWidth, rowOverflow: Math.max(...[...document.querySelectorAll<HTMLElement>(".adm-urow")].map((x) => x.scrollWidth - x.clientWidth)) };
+    });
+    expect.soft(r.spill, `something spills out of the panel ${where}`).toEqual([]);
+    expect.soft(r.pageOverflow, `the page scrolls sideways ${where}`).toBeLessThanOrEqual(0);
+    expect.soft(r.rowOverflow, `a row scrolls sideways ${where}`).toBeLessThanOrEqual(1);
+  }
+});
