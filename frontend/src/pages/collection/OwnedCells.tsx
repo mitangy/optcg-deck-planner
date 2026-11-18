@@ -15,6 +15,10 @@ export function stillNeededText(still: number, need: number): string {
   return still > 0 ? `Still need ${still} of ${need}` : `Have all ${need}`;
 }
 
+export function toBuyText(still: number, need: number): string {
+  return still > 0 ? `To buy ${still} of ${need}` : `Have all ${need}`;
+}
+
 export function AltsOwnedNote({ count }: { count?: number }) {
   if (!count || count <= 0) return null;
   return (
@@ -223,6 +227,7 @@ export function WantStepper({
   extraQty,
   applyOptimistic,
   onSaved,
+  explain,
 }: {
   cardId: string;
   name: string;
@@ -231,6 +236,8 @@ export function WantStepper({
   extraQty: number;
   applyOptimistic: (cardId: string, extraQty: number) => void;
   onSaved: () => void;
+  /** Tooltip on the Need number: how the total comes from the decks. */
+  explain?: string;
 }) {
   const [err, setErr] = useState<string | null>(null);
   const prevRef = useRef(extraQty);
@@ -253,7 +260,7 @@ export function WantStepper({
   });
   const atFloor = wantAtDeckFloor({ need, deckNeed });
   const over = extraQty > deckNeed && deckNeed > 0 ? extraQty - deckNeed : 0;
-  let note: ReactNode;
+  let note: ReactNode = null;
   if (over > 0) {
     note = (
       <>
@@ -261,7 +268,7 @@ export function WantStepper({
         <button
           type="button"
           className="want-reset"
-          aria-label={`Reset want for ${cardId} to decks`}
+          aria-label={`Reset need for ${cardId} to decks`}
           disabled={save.isPending}
           onClick={() => save.mutate(0)}
         >
@@ -269,9 +276,7 @@ export function WantStepper({
         </button>
       </>
     );
-  } else if (deckNeed > 0) {
-    note = "from decks";
-  } else {
+  } else if (deckNeed === 0) {
     note = "added directly";
   }
   return (
@@ -280,7 +285,7 @@ export function WantStepper({
         <button
           type="button"
           className="owned-btn"
-          aria-label={`Want fewer of ${name}`}
+          aria-label={`Need fewer of ${name}`}
           title={atFloor ? `Your decks need ${deckNeed}. Change the deck to go lower.` : undefined}
           disabled={save.isPending || atFloor}
           onMouseDown={(e) => e.preventDefault()}
@@ -288,13 +293,13 @@ export function WantStepper({
         >
           −
         </button>
-        <span className="want-qty" title={err ?? undefined} aria-label={`${name} wanted`}>
+        <span className="want-qty" title={err ?? explain ?? (deckNeed > 0 ? "From your decks" : undefined)} aria-label={`${name} needed`}>
           {need}
         </span>
         <button
           type="button"
           className="owned-btn"
-          aria-label={`Want more of ${name}`}
+          aria-label={`Need more of ${name}`}
           disabled={save.isPending}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => save.mutate(nextWantTarget({ need, deckNeed }, 1))}
@@ -303,7 +308,7 @@ export function WantStepper({
         </button>
         {err && <span className="owned-err">!</span>}
       </span>
-      <span className="want-note">{note}</span>
+      {note ? <span className="want-note">{note}</span> : null}
     </span>
   );
 }

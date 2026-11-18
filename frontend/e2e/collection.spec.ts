@@ -109,7 +109,8 @@ test("Collection picks up a card marked Buying in person on the shopping list (#
   await nav.getByRole("link", { name: "Shopping" }).click();
   const select = { name: "Select EB01-003", exact: true };
   await page.getByRole("checkbox", select).or(page.getByRole("button", select)).filter({ visible: true }).press("Space");
-  await page.getByRole("button", { name: "Buying in person" }).click();
+  await page.getByTestId("buy-dock").getByRole("button", { name: "More ways to buy" }).click();
+  await page.getByRole("menuitem", { name: /Buying in person/ }).click();
   await expect.poll(() => planner.owned.get("EB01-003")).toBe(4);
   await nav.getByRole("link", { name: "Collection" }).click();
   await expect(page.locator(row("EB01-003"))).toBeVisible();

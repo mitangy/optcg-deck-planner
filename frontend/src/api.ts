@@ -199,15 +199,6 @@ export type ShoppingItem = {
   collector_wants?: CollectorLine[];
 };
 
-export function needBreakdownLabel(item: ShoppingItem): string {
-  const parts = item.need_by_leader ?? [];
-  if (parts.length < 2) return "";
-  const each = parts.map((p) => `${p.label} ${p.need}`);
-  return item.need_summed
-    ? `Need ${item.need} = ${each.join(" + ")}`
-    : `Need ${item.need} = most of ${each.join(", ")}`;
-}
-
 export type RecentSale = {
   price: number;
   shipping: number;

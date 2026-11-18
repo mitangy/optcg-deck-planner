@@ -418,7 +418,8 @@ export function CardSearchInput({
   onChange: (next: string) => void;
   placeholder?: string;
   label?: string;
-  icon?: boolean;
+  /** true or "search" draws a magnifier, "filter" a funnel (for inputs that narrow the list below them). */
+  icon?: boolean | "search" | "filter";
 }) {
   const id = useId();
   return (
@@ -428,8 +429,14 @@ export function CardSearchInput({
       </label>
       {icon ? (
         <svg className="card-search-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
-          <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M12.7 12.7 17 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          {icon === "filter" ? (
+            <path d="M3 4.5h14l-5.2 6.1v4.4l-3.6 1.8v-6.2z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+          ) : (
+            <>
+              <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M12.7 12.7 17 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </>
+          )}
         </svg>
       ) : null}
       <input

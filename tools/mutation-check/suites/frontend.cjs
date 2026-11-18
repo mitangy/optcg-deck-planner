@@ -12,6 +12,11 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Buy on TCGPlayer targets the selection, or every card still to buy (#1342)
+    { id: "buy1342-nothing-selected-buys-nothing", file: "frontend/src/pages/shopping/shoppingBuy.ts", from: "  const all = items.filter((i) => i.still_need > 0);", to: "  const all: ShoppingItem[] = [];", kills: ["with nothing selected buys every card that still needs copies, extra copies included (#1342)"], args: "src/pages/shopping/shoppingBuy1342" },
+    { id: "buy1342-selection-ignored", file: "frontend/src/pages/shopping/shoppingBuy.ts", from: "  if (selection.items.length + selection.lines.length > 0) return", to: "  if (selection.items.length + selection.lines.length > 99999) return", kills: ["with cards selected buys only the selection (#1342)"], args: "src/pages/shopping/shoppingBuy1342" },
+    { id: "buy1342-stale-ids-count", file: "frontend/src/pages/shopping/shoppingBuy.ts", from: "    if (selectedIds.has(item.card_id)) picked.items.push(item);", to: "    picked.items.push(item);", kills: ["with cards selected buys only the selection (#1342)", "ids left over from an older list do not count as a selection (#1342)"], args: "src/pages/shopping/shoppingBuy1342" },
+    { id: "buy1342-chips-drop-count", file: "frontend/src/pages/shopping/shoppingBuy.ts", from: "parts.map((p) => `${p.label} ×${p.need}`)", to: "parts.map((p) => p.label)", kills: ["carry the count per leader when the copies are split by leader (#1342)"], args: "src/pages/shopping/shoppingBuy1342" },
     // Deck page draws a stack of layers by the copies in the deck (#1272)
     {"id": "deckstack1272-copies-off-by-one", "file": "frontend/src/pages/decks/CardTable.tsx", "from": ": c.needed;\n}", "to": ": c.needed + 1;\n}", "kills": ["grid, table and phone list draw one layer per extra copy in the deck, and none for DON!! (#1272)"], "args": "src/pages/decks/deckStacks1272"},
     {"id": "deckstack1272-don-stacked", "file": "frontend/src/pages/decks/CardTable.tsx", "from": "c.section === \"don\" || isDonCardType(c.card_type) ? undefined : c.needed", "to": "c.needed", "kills": ["grid, table and phone list draw one layer per extra copy in the deck, and none for DON!! (#1272)"], "args": "src/pages/decks/deckStacks1272"},

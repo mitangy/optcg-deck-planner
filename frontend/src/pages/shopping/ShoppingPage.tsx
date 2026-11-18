@@ -1,11 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, CollectorLine, money, needBreakdownLabel, ShoppingItem, User } from "../../api";
+import { api, CollectorLine, ShoppingItem, User } from "../../api";
 import { blankMassEntryUrl, buildMassEntryExport } from "./tcgplayerMassEntry";
+import { buyCards, pickSelection } from "./shoppingBuy";
+import { ShoppingBuyButton, ShoppingBuyDock } from "./ShoppingBuyControls";
 import { shoppingMenuPrice } from "./deckCost";
 import { UndoToast } from "../collection/CollectorLine";
-import { collectorSelectKey, itemNeedsCopies } from "../collection/collectorLines";
+import { itemNeedsCopies } from "../collection/collectorLines";
 import { useMe } from "../../auth/useMe";
 import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
 import {
@@ -246,25 +248,9 @@ export function ShoppingPage() {
     [mainItems, donItems, showDons],
   );
 
-  const selectedItems = useMemo(() => {
-    const byId = new Map((data?.items ?? []).map((i) => [i.card_id, i]));
-    const list: ShoppingItem[] = [];
-    for (const id of selectedCardIds) {
-      const item = byId.get(id);
-      if (item) list.push(item);
-    }
-    return list;
-  }, [data, selectedCardIds]);
-
-  const selectedCollectorLines = useMemo(() => {
-    const out: { item: ShoppingItem; line: CollectorLine }[] = [];
-    for (const item of data?.items ?? []) {
-      for (const line of item.collector_wants ?? []) {
-        if (selectedCardIds.has(collectorSelectKey(item.card_id, line.product_id))) out.push({ item, line });
-      }
-    }
-    return out;
-  }, [data, selectedCardIds]);
+  const selection = useMemo(() => pickSelection(data?.items ?? [], selectedCardIds), [data, selectedCardIds]);
+  const selectedItems = selection.items;
+  const selectedCollectorLines = selection.lines;
 
   const selectedTotals = useMemo(() => {
     let copies = 0;
@@ -290,24 +276,14 @@ export function ShoppingPage() {
     return { count, copies, total: Math.round(total * 100) / 100, priced };
   }, [selectedItems, selectedCollectorLines]);
 
-  // Selected collector lines go to Mass Entry as their own printing; Buy in person only adds base copies, so it skips them.
-  const massEntry = useMemo(
-    () =>
-      buildMassEntryExport([
-        ...selectedItems,
-        ...selectedCollectorLines.map(({ item, line }) => ({
-          card_id: item.card_id,
-          name: `${item.name} (${line.label})`,
-          still_need: line.still_need,
-          product_id: line.product_id,
-        })),
-      ]),
-    [selectedItems, selectedCollectorLines],
-  );
+  const hasSelection = selectedTotals.count > 0;
+  // Selected extra copies go to Mass Entry as their own printing; Buying in person only adds base copies, so it skips them.
+  // With nothing ticked, Buy on TCGPlayer takes every card still to buy, the same cards as Cards to buy and Est. cost.
+  const massEntry = useMemo(() => buildMassEntryExport(buyCards(data?.items ?? [], selection)), [data, selection]);
 
   async function copyMassEntryList(): Promise<boolean> {
     if (!massEntry.pasteText) {
-      setExportMsg("Nothing to export — selected cards need copies.");
+      setExportMsg("Nothing to buy: no cards need copies.");
       return false;
     }
     if (await copyText(massEntry.pasteText)) return true;
@@ -320,7 +296,7 @@ export function ShoppingPage() {
     if (!ok) return;
     const missing =
       massEntry.missingProductId > 0
-        ? ` · ${massEntry.missingProductId} without product id (name fallback)`
+        ? `, ${massEntry.missingProductId} without product id (name fallback)`
         : "";
     setExportMsg(
       `Copied ${massEntry.includedCount} card${massEntry.includedCount === 1 ? "" : "s"} (${massEntry.copyCount} copies) for TCGPlayer Mass Entry${missing}`,
@@ -329,7 +305,7 @@ export function ShoppingPage() {
 
   async function onOpenMassEntry() {
     if (!massEntry.pasteText) {
-      setExportMsg("Nothing to export — selected cards need copies.");
+      setExportMsg("Nothing to buy: no cards need copies.");
       return;
     }
     const copied = await copyMassEntryList();
@@ -337,7 +313,7 @@ export function ShoppingPage() {
       window.open(massEntry.url, "_blank", "noopener,noreferrer");
       setExportMsg(
         copied
-          ? "Opened TCGPlayer Mass Entry (list copied as backup). Paste only if the form is empty, then Add to Cart → Optimize Cart."
+          ? "Opened TCGPlayer Mass Entry (list copied as backup). Paste only if the form is empty, then Add to Cart, then Optimize Cart."
           : "Opened TCGPlayer Mass Entry. Paste the list below if the cart is empty.",
       );
       return;
@@ -353,7 +329,7 @@ export function ShoppingPage() {
     }
     setExportMsg(
       copied
-        ? "List too long for a direct link — copied. Paste into Mass Entry, then Add to Cart → Optimize Cart."
+        ? "List too long for a direct link — copied. Paste into Mass Entry, then Add to Cart, then Optimize Cart."
         : "List too long for a direct link. Paste the list below into Mass Entry.",
     );
   }
@@ -361,7 +337,7 @@ export function ShoppingPage() {
   const buyInPerson = useMutation({
     mutationFn: async (targets: { cardId: string; prevOwned: number; nextOwned: number; copies: number }[]) => {
       if (!targets.length) {
-        throw new Error("Nothing to mark — selected cards already have enough owned.");
+        throw new Error("Nothing to mark: the selected cards already have enough owned.");
       }
       for (const t of targets) {
         applyOwnedOptimistic(qc, t.cardId, t.nextOwned);
@@ -476,25 +452,6 @@ export function ShoppingPage() {
     onError: (e: Error) => setExportMsg(e.message),
   });
 
-  function usedInNote(item: ShoppingItem): string {
-    const parts: string[] = [];
-    const breakdown = needBreakdownLabel(item);
-    if ((item.leader_count ?? 1) > 1) {
-      const primary = item.primary_leader_name || item.primary_leader_card_id || "earliest deck";
-      if (!breakdown) parts.push(`shared (sorted under ${primary})`);
-      else parts.push(sortingByDeck ? `${breakdown} · sorted under ${primary}` : breakdown);
-    } else if (breakdown) {
-      parts.push(breakdown);
-    } else if (sortingByDeck && item.primary_leader_name) {
-      parts.push(item.primary_leader_name);
-    }
-    const extra = item.extra_qty ?? 0;
-    if (extra > 0) {
-      parts.push("Added directly");
-    }
-    return parts.join(" · ");
-  }
-
   function selectAllDecks() {
     setSelectedDeckIds(allDeckIds);
     setIncludeExtras(true);
@@ -534,51 +491,62 @@ export function ShoppingPage() {
   const emptyList = allDeckIds.length === 0 && (data?.items.length ?? 0) === 0;
 
   return (
-    <section>
-      <div className="page-head">
-        <div>
+    <section className={hasSelection || exportMsg ? "has-buy-dock" : undefined}>
+      <div className="page-head shopping-head">
+        <div className="shopping-head-title">
           <p className="eyebrow">{allDeckIds.length === 0 ? "Cards you are buying" : "Across your decks"}</p>
           <h1>Master Shopping</h1>
-          {!emptyList && <ShoppingStatStrip data={data} />}
         </div>
         {!emptyList && (
-        <div className="page-head-actions">
-          <ShoppingSharePanel
-            shareInfo={shareInfo}
-            shareUrl={shareUrl}
-            shareMsg={shareMsg}
-            creating={createShare.isPending}
-            revoking={revokeShare.isPending}
-            onCopy={async () => {
-              if (!shareUrl) return;
-              setShareMsg((await copyText(shareUrl)) ? "Public link copied" : shareUrl);
-            }}
-            onCreateOrUpdate={() => createShare.mutate()}
-            onRevoke={() => {
-              if (shareInfo) revokeShare.mutate(shareInfo.token);
-            }}
-          />
-          <button
-            type="button"
-            className="btn secondary"
-            disabled={startGroupBuy.isPending}
-            onClick={() => startGroupBuy.mutate()}
-          >
-            {startGroupBuy.isPending ? "Starting…" : "Start group buy"}
-          </button>
-        </div>
+          <div className="shopping-head-stats">
+            <ShoppingStatStrip data={data} />
+            <ShoppingBuyButton
+              selected={hasSelection}
+              massEntry={massEntry}
+              busy={buyInPerson.isPending}
+              canMarkBought={selectedItems.some((i) => i.still_need > 0)}
+              onBuy={() => void onOpenMassEntry()}
+              onCopy={() => void onCopyMassEntry()}
+              onBuyInPerson={onBuyInPerson}
+            />
+          </div>
         )}
+        <div className="page-head-actions">
+          <ShoppingAddPanel deckIds={filterReady && shoppingKey.length < allDeckIds.length ? shoppingKey : undefined} />
+          {!emptyList && (
+            <>
+              <ShoppingSharePanel
+                shareInfo={shareInfo}
+                shareUrl={shareUrl}
+                shareMsg={shareMsg}
+                creating={createShare.isPending}
+                revoking={revokeShare.isPending}
+                onCopy={async () => {
+                  if (!shareUrl) return;
+                  setShareMsg((await copyText(shareUrl)) ? "Public link copied" : shareUrl);
+                }}
+                onCreateOrUpdate={() => createShare.mutate()}
+                onRevoke={() => {
+                  if (shareInfo) revokeShare.mutate(shareInfo.token);
+                }}
+              />
+              <button
+                type="button"
+                className="btn secondary"
+                disabled={startGroupBuy.isPending}
+                onClick={() => startGroupBuy.mutate()}
+              >
+                {startGroupBuy.isPending ? "Starting…" : "Start group buy"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
-
-      <ShoppingAddPanel
-        defaultOpen={(data?.items.length ?? 0) === 0}
-        deckIds={filterReady && shoppingKey.length < allDeckIds.length ? shoppingKey : undefined}
-      />
 
       {emptyList ? (
         <>
           <p className="muted">
-            No decks yet. <Link to="/import">Import a deck</Link> to build your shopping list, or add cards above.
+            No decks yet. <Link to="/import">Import a deck</Link> to build your shopping list, or use Add cards above.
           </p>
           {/* Price lookup works without any decks — useful before you own a list. */}
           <p className="muted">
@@ -591,68 +559,22 @@ export function ShoppingPage() {
         </>
       ) : (
         <>
-      {selectedTotals.count > 0 && (
-        <div className="buy-bar">
-          <div className="buy-bar-summary">
-            <div>
-              <strong>
-                {selectedTotals.count} card{selectedTotals.count === 1 ? "" : "s"} selected
-              </strong>
-              <span className="muted">
-                {" "}
-                · {selectedTotals.copies} still needed · {money(selectedTotals.total)}
-                {selectedTotals.priced < selectedTotals.count ? " (priced cards only)" : ""}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="ghost"
-              onClick={() => {
-                setSelectedCardIds(new Set());
-                setExportMsg(null);
-              }}
-            >
-              Clear
-            </button>
-          </div>
-          <div className="buy-bar-actions">
-            <button
-              type="button"
-              className="btn secondary"
-              disabled={massEntry.includedCount === 0 || buyInPerson.isPending}
-              onClick={() => void onCopyMassEntry()}
-            >
-              Copy for TCGPlayer
-            </button>
-            <button
-              type="button"
-              className="btn primary"
-              disabled={massEntry.includedCount === 0 || buyInPerson.isPending}
-              onClick={() => void onOpenMassEntry()}
-            >
-              Open Mass Entry
-            </button>
-            <button
-              type="button"
-              className="btn secondary"
-              disabled={!selectedItems.some((i) => i.still_need > 0) || buyInPerson.isPending}
-              onClick={onBuyInPerson}
-            >
-              {buyInPerson.isPending ? "Updating…" : "Buying in person"}
-            </button>
-          </div>
-          {exportMsg ? (
-            <p className="buy-bar-msg" role="status">
-              {exportMsg}
-            </p>
-          ) : null}
-        </div>
-      )}
-      {selectedTotals.count === 0 && exportMsg ? (
-        <p className="buy-bar-msg buy-bar-msg-solo" role="status">
-          {exportMsg}
-        </p>
-      ) : null}
+      <ShoppingBuyDock
+        selection={selectedTotals}
+        selected={hasSelection}
+        massEntry={massEntry}
+        busy={buyInPerson.isPending}
+        canMarkBought={selectedItems.some((i) => i.still_need > 0)}
+        message={exportMsg}
+        onBuy={() => void onOpenMassEntry()}
+        onCopy={() => void onCopyMassEntry()}
+        onBuyInPerson={onBuyInPerson}
+        onClear={() => {
+          setSelectedCardIds(new Set());
+          setExportMsg(null);
+        }}
+        onDismissMessage={() => setExportMsg(null)}
+      />
       {altOwnedErr && <p className="error">{altOwnedErr}</p>}
       {collectorUndo ? (
         <UndoToast
@@ -666,7 +588,7 @@ export function ShoppingPage() {
         rail={
       <div className="list-toolbar">
         <div className="list-toolbar-row">
-          <CardSearchInput value={search} onChange={setSearch} />
+          <CardSearchInput value={search} onChange={setSearch} placeholder="Filter this list" label="Filter this list" icon="filter" />
           <button type="button" className="ghost scan-open" onClick={() => setScanOpen(true)}>
             Scan
           </button>
@@ -777,7 +699,7 @@ export function ShoppingPage() {
         altRow={shoppingAltRow}
         onBuyPick={(cardId, productId, qty) => void changeShoppingAltBuy(cardId, productId, qty)}
         buyBusyKey={altOwnedBusyKey}
-        usedInNote={usedInNote}
+        sortingByDeck={sortingByDeck}
         onOwnedSaved={() => invalidateOwnedViews(qc)}
         onRemoveExtra={(id) => removeExtra.mutate(id)}
         removingExtraId={removeExtra.isPending ? (removeExtra.variables ?? null) : null}
@@ -802,7 +724,7 @@ export function ShoppingPage() {
               onToggleSelectVisible={toggleSelectVisible}
               showAltArts={showAltArts}
               altRow={shoppingAltRow}
-              usedInNote={usedInNote}
+              sortingByDeck={sortingByDeck}
               onOwnedSaved={() => invalidateOwnedViews(qc)}
               onRemoveExtra={(id) => removeExtra.mutate(id)}
               removingExtraId={removeExtra.isPending ? (removeExtra.variables ?? null) : null}

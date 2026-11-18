@@ -615,66 +615,6 @@ button.ghost.danger:not(:disabled):hover {
   margin: 0 0 1rem;
 }
 
-.buy-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  margin: 0 0 0.75rem;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
-  border-radius: var(--radius-12);
-  background: var(--gold-soft);
-  min-width: 0;
-}
-
-.buy-bar-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 0.75rem;
-  min-width: 0;
-  line-height: 1.35;
-}
-
-.buy-bar-summary strong {
-  font-weight: 700;
-}
-
-.buy-bar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.45rem;
-  min-width: 0;
-}
-
-.buy-bar-actions .btn {
-  min-height: 2rem;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.85rem;
-  width: auto;
-  margin-top: 0;
-  border-radius: var(--radius-pill);
-}
-
-.buy-bar-actions .btn.secondary {
-  background: var(--card);
-  border-color: color-mix(in srgb, var(--gold) 60%, var(--line));
-}
-
-.buy-bar-actions .btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.buy-bar-actions .ghost {
-  min-width: 0;
-  min-height: 2rem;
-  padding: 0.3rem 0.45rem;
-  font-size: 0.85rem;
-}
-
 .buy-bar-msg {
   margin: 0;
   padding: 0;
@@ -708,11 +648,19 @@ button.ghost.danger:not(:disabled):hover {
   cursor: pointer;
 }
 
-tr.selected-row td,
+/* A selected row is a light tint and an accent edge; the ticked box carries the rest (#1342). */
+tr.selected-row td {
+  background: color-mix(in srgb, var(--gold) 12%, transparent);
+}
+
+tr.selected-row td:first-child {
+  box-shadow: inset 0.2rem 0 0 var(--gold);
+}
+
 .mobile-card.selected-row,
 .grid-card-wrap.selected-row .grid-card {
-  outline: 2px solid color-mix(in srgb, var(--gold) 70%, transparent);
-  outline-offset: -2px;
+  background: color-mix(in srgb, var(--gold) 12%, var(--card));
+  box-shadow: inset 0.2rem 0 0 var(--gold), var(--shadow);
 }
 
 .mobile-card.selectable,
@@ -1382,5 +1330,257 @@ span.deck-filter-group-head {
 
   .card-grid:has(.grid-card-steppers) {
     grid-template-columns: repeat(auto-fill, minmax(13.75rem, 1fr));
+  }
+}
+
+/* Page head: title, totals and the Buy button share one row; Add cards, Share and group buy sit at its right end. */
+.page-head.shopping-head {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: var(--space-2) var(--space-3);
+}
+
+.shopping-head-title {
+  min-width: 0;
+}
+
+.shopping-head h1 {
+  font-size: clamp(1.6rem, 1.3rem + 1vw, 2rem);
+}
+
+.shopping-head-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  padding-bottom: 0.2rem;
+}
+
+.shopping-head .add-cards-btn .head-popover-chevron {
+  display: none;
+}
+
+.shopping-head .stat-strip {
+  margin: 0;
+  gap: 0.35rem 1.1rem;
+}
+
+.shopping-head .btn {
+  padding-inline: 0.85rem;
+}
+
+.shopping-head .page-head-actions {
+  margin-left: auto;
+  padding-bottom: 0.2rem;
+}
+
+.shopping-head .head-popover-icon {
+  display: inline-flex;
+}
+
+.tcg-buy {
+  position: relative;
+  display: inline-flex;
+  align-items: normal;
+  flex: 0 0 auto;
+}
+
+.tcg-buy .btn.tcg-buy-main {
+  width: auto;
+  margin-top: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  white-space: nowrap;
+}
+
+.tcg-buy .btn.tcg-buy-caret {
+  width: auto;
+  margin-top: 0;
+  min-width: 2.4rem;
+  padding-inline: 0.6rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+}
+
+/* Selection bar and export message: over the page edge, so ticking a card moves nothing (#1342). */
+.buy-dock {
+  position: fixed;
+  z-index: var(--z-menu);
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  justify-content: center;
+  padding: 0 max(0.75rem, env(safe-area-inset-right, 0px)) 0.75rem max(0.75rem, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+
+html[data-lp-dock="right"] .buy-dock {
+  right: var(--lp-dock-w, 380px);
+}
+
+html[data-lp-dock="left"] .buy-dock {
+  left: var(--lp-dock-w, 380px);
+}
+
+/* The Log Pose compass floats at the bottom right; leave it clear. */
+body:has(.lp-compass) .buy-dock {
+  padding-right: 4.75rem;
+}
+
+.buy-dock-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.9rem;
+  box-sizing: border-box;
+  width: min(100%, 72rem);
+  min-width: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
+  border-radius: var(--radius-14);
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
+  pointer-events: auto;
+}
+
+.buy-dock-summary {
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.buy-dock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  min-width: 0;
+}
+
+.buy-dock-msg {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  max-height: 7rem;
+  margin: 0;
+  overflow: auto;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.buy-dock-msg .ghost {
+  flex: 0 0 auto;
+  min-height: 1.75rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.82rem;
+}
+
+/* Room for the last row above the dock; --buy-dock-h is measured in ShoppingBuyDock. */
+.has-buy-dock {
+  padding-bottom: calc(var(--buy-dock-h, 0px) + var(--bottom-nav-h, 0px) + 1rem);
+}
+
+/* Used in stays body size even where wide screens enlarge the other value cells. */
+.data-table.shopping-table tr.alt-main-row > td.used-in {
+  height: auto;
+  font-size: 0.88rem;
+  font-weight: 400;
+}
+
+.head-popover-panel .shopping-add {
+  margin: 0;
+}
+
+/* Inside the narrow Add cards panel the search and filter rows must shrink to it, not to the input's own width. */
+.shopping-add .deck-editor-filters :is(.card-search, .deck-editor-filter-row) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 800px) {
+  .page-head.shopping-head {
+    align-items: normal;
+  }
+
+  .shopping-head-stats {
+    width: 100%;
+  }
+
+  .shopping-head .page-head-actions {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+
+  .shopping-head .page-head-actions .btn {
+    flex: 1 1 auto;
+    width: auto;
+    padding: 0.45rem 0.5rem;
+    font-size: 0.85rem;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .shopping-head .page-head-actions .head-popover {
+    flex: 1 1 auto;
+  }
+
+  .shopping-head .page-head-actions .head-popover-icon,
+  .shopping-head .page-head-actions .head-popover-chevron {
+    display: none;
+  }
+
+  .shopping-head .stat-strip {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    gap: 0.35rem 1.1rem;
+  }
+
+  .shopping-head .stat-value {
+    font-size: 1.15rem;
+  }
+
+  .shopping-head .stat-note.stat-split {
+    display: none;
+  }
+
+  .shopping-head-stats .tcg-buy {
+    flex: 1 1 100%;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-caret {
+    min-height: 2.75rem;
+  }
+
+  .shopping-head .page-head-actions {
+    margin-left: 0;
+    padding-bottom: 0;
+  }
+
+  .buy-dock-actions {
+    flex: 1 1 100%;
+  }
+
+  .buy-dock-actions .tcg-buy {
+    flex: 1 1 auto;
+  }
+
+  .buy-dock-actions .tcg-buy-main {
+    flex: 1 1 auto;
+    justify-content: center;
   }
 }
