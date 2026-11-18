@@ -39,9 +39,9 @@ def _fresh_rate_limits():
 
 @pytest.fixture(autouse=True)
 def _fresh_fuzzy_index():
-    from app.planner.catalog_search import _FUZZY_INDEX
+    from app.planner.catalog_search import reset_fuzzy_cache
 
-    _FUZZY_INDEX.clear()
+    reset_fuzzy_cache()
     yield
 
 

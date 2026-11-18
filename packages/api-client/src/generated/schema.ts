@@ -2995,6 +2995,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/group-buys/{group_id}/invite/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Group Buy Invite Reset */
+        post: operations["post_group_buy_invite_reset_group_buys__group_id__invite_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/group-buys/{group_id}/leave": {
         parameters: {
             query?: never;
@@ -15172,6 +15189,37 @@ export interface operations {
                 "application/json": components["schemas"]["GroupBuyExtraSkipUpdate"];
             };
         };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_group_buy_invite_reset_group_buys__group_id__invite_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
