@@ -95,8 +95,13 @@
 .alert-art-name {
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  min-height: 2.6em;
+  line-height: 1.3;
+  text-align: center;
   font-size: 0.75rem;
 }
 
@@ -143,28 +148,76 @@
   margin: 0 auto;
 }
 
+.alert-lists {
+  margin-top: 0.75rem;
+  --alert-cols: 3.5rem minmax(9rem, 1fr) 10.5rem 16rem 7.5rem 17.5rem;
+}
+
+.alert-group-title {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+.alert-group:first-of-type .alert-group-title {
+  margin-top: 0.5rem;
+}
+
+.alert-group[aria-label="Hit"] .alert-group-title {
+  color: var(--ok-ink);
+}
+
+.alert-group-count {
+  margin-left: 0.25rem;
+  font-weight: 600;
+  opacity: 0.75;
+}
+
 .alert-list {
   list-style: none;
-  margin: 1rem 0 0;
+  margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.6rem;
+  gap: 0.5rem;
 }
 
 .alert-row {
+  position: relative;
   display: grid;
-  grid-template-columns: 3.5rem minmax(0, 1.6fr) 5rem minmax(0, 1.5fr) auto auto;
-  gap: 0.5rem 1rem;
+  grid-template-columns: var(--alert-cols, 3.5rem minmax(9rem, 1fr) 10.5rem 16rem 7.5rem 17.5rem);
+  gap: 0.4rem 0.75rem;
   align-items: center;
-  padding: 0.7rem 0.9rem;
+  padding: 0.6rem 0.9rem;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-12);
   box-shadow: var(--shadow);
 }
 
-.alert-row.paused {
-  opacity: 0.8;
+.alert-row.tone-hit,
+.alert-row.tone-met {
+  background: color-mix(in srgb, var(--ok-bg) 60%, var(--card));
+  border-color: var(--ok-line);
+  box-shadow: inset 4px 0 0 var(--ok-ink), var(--shadow);
+}
+
+.alert-colhead {
+  padding-block: 0 0;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+.alert-row.paused > :not(.alert-actions):not(.alert-edit) {
+  opacity: 0.6;
 }
 
 .alert-art .thumb {
@@ -181,15 +234,26 @@
 
 .alert-card-name {
   font-weight: 600;
+  color: inherit;
+  text-decoration: none;
   overflow-wrap: anywhere;
+}
+
+a.alert-card-name:hover {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .alert-card-art {
   font-size: 0.85rem;
 }
 
+.alert-lasthit {
+  font-size: 0.8rem;
+}
+
 .alert-chip {
-  margin-top: 0.25rem;
+  margin-top: 0.2rem;
   padding: 0.12rem 0.55rem;
   font-size: 0.78rem;
   font-weight: 600;
@@ -224,20 +288,31 @@
 .alert-now,
 .alert-target {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.15rem;
   min-width: 0;
 }
 
-.alert-now {
+.alert-now-price {
   font-weight: 600;
 }
 
-.alert-col-label {
-  font-size: 0.7rem;
+.alert-distance {
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.alert-distance-part {
+  white-space: nowrap;
+}
+
+.alert-distance.at {
+  color: var(--ok-ink);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--label);
+}
+
+.alert-target-text,
+.alert-edit {
+  display: none;
 }
 
 .alert-target-controls {
@@ -246,19 +321,102 @@
   min-width: 0;
 }
 
+.alert-target-controls .alert-money {
+  flex: 0 0 6.6rem;
+}
+
+.alert-dir {
+  display: inline-flex;
+  flex: 0 0 8.6rem;
+  width: 8.6rem;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-10);
+  background: var(--field-bg);
+}
+
+.alert-dir-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 2.5rem;
+  padding: 0 0.3rem;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  white-space: nowrap;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.alert-dir-btn + .alert-dir-btn {
+  border-left: 1px solid var(--line-strong);
+}
+
+.alert-dir-btn.on {
+  background: var(--gold-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.alert-dir-btn:disabled {
+  cursor: not-allowed;
+}
+
+.alert-dir-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+
 .alert-toggles {
   display: grid;
   gap: 0.1rem;
 }
 
-.alert-actions {
-  display: flex;
-  gap: var(--space-1);
+.alert-check.off {
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
-.alert-act {
-  min-height: 2.5rem;
-  padding: 0 0.5rem;
+.alert-check.off input {
+  opacity: 0.5;
+}
+
+.alert-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.alert-actions .btn,
+.alert-dialog-more .btn,
+.alert-edit.btn {
+  width: auto;
+  margin: 0;
+}
+
+.alert-act,
+.alert-dlg-act,
+.alert-buy {
+  min-height: 2.25rem;
+  padding: 0 0.8rem;
+  font-size: 0.85rem;
+}
+
+.btn.secondary.danger {
+  color: var(--danger);
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--line));
+}
+
+.btn.secondary.danger:not(:disabled):hover {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 8%, var(--card));
 }
 
 .alert-row-error {
@@ -267,13 +425,111 @@
   font-size: 0.85rem;
 }
 
-@media (max-width: 760px) {
+.alerts-hits {
+  margin: 0.35rem 0 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ok-ink);
+}
+
+.alert-form-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.alert-chip-btn {
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--card-sunk);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+}
+
+.alert-chip-btn:not(:disabled):hover {
+  border-color: var(--gold);
+}
+
+.alert-chip-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alert-form .alert-dir {
+  flex: 0 0 10rem;
+  width: 10rem;
+}
+
+.alert-dialog-art {
+  margin: -0.3rem 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.alert-dialog-more {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: 0.9rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+}
+
+.alert-dialog-more .btn {
+  flex: 1 1 0;
+}
+
+.alerts-empty .ghost-row {
+  margin: 0 0 1rem;
+  text-align: left;
+  opacity: 0.5;
+  pointer-events: none;
+  user-select: none;
+  --alert-cols: 3.5rem minmax(9rem, 1fr) 10.5rem 16rem;
+}
+
+.ghost-art {
+  width: 3.5rem;
+  aspect-ratio: 5 / 7;
+  border-radius: var(--radius-4);
+  background: var(--line);
+}
+
+.ghost-row .alert-money {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 0.6rem;
+  min-height: 2.5rem;
+  box-sizing: border-box;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-10);
+}
+
+.alert-empty-btn {
+  margin-top: 0.9rem;
+}
+
+/* Narrower than the full table: two lines per row, same fixed tracks. */
+@media (max-width: 1180px) and (min-width: 641px) {
+  .alert-lists {
+    --alert-cols: 3.5rem minmax(0, 1fr) 11rem auto;
+  }
+
+  .alerts-empty .ghost-row {
+    --alert-cols: 3.5rem minmax(0, 1fr) 11rem;
+  }
+
+  .alert-colhead {
+    display: none;
+  }
+
   .alert-row {
-    grid-template-columns: 3.5rem minmax(0, 1fr) auto;
     grid-template-areas:
-      "art card now"
-      "target target target"
-      "toggles toggles actions";
+      "art card now actions"
+      "art target target toggles";
   }
 
   .alert-art {
@@ -287,8 +543,6 @@
 
   .alert-now {
     grid-area: now;
-    justify-items: end;
-    align-self: start;
   }
 
   .alert-target {
@@ -297,20 +551,144 @@
 
   .alert-toggles {
     grid-area: toggles;
-    display: flex;
-    gap: var(--space-4);
+    justify-self: end;
   }
 
   .alert-actions {
     grid-area: actions;
   }
+}
 
-  .alert-dir {
-    flex: 1 1 8rem;
+/* Phone: compact summary cards; editing happens in a dialog. */
+@media (max-width: 640px) {
+  .alert-lists {
+    --alert-cols: 2.75rem minmax(0, 1fr) auto;
   }
 
-  .alert-money {
-    flex: 0 0 6rem;
+  .alerts-empty .ghost-row {
+    --alert-cols: 2.75rem minmax(0, 1fr) auto;
+  }
+
+  .alert-colhead,
+  .alert-card .card-id,
+  .alert-target-controls,
+  .alert-toggles,
+  .alert-act {
+    display: none;
+  }
+
+  .alert-target-text,
+  .alert-edit {
+    display: inline-flex;
+  }
+
+  .alert-list {
+    gap: 0.4rem;
+  }
+
+  .alert-row {
+    grid-template-areas:
+      "art card edit"
+      "art now target"
+      "buy buy buy";
+    gap: 0 0.6rem;
+    padding: 0.5rem 0.65rem;
+  }
+
+  .alert-art {
+    grid-area: art;
+    align-self: start;
+  }
+
+  .alert-art .thumb,
+  .ghost-art {
+    width: 2.75rem;
+  }
+
+  .alert-card {
+    grid-area: card;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 0.5rem;
+  }
+
+  .alert-card-name {
+    flex: 1 0 100%;
+    font-size: 0.95rem;
+    line-height: 1.25;
+  }
+
+  .alert-card-art {
+    font-size: 0.8rem;
+  }
+
+  .alert-chip {
+    margin-top: 0;
+    padding: 0.05rem 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  .alert-lasthit {
+    flex: 1 0 100%;
+    font-size: 0.75rem;
+  }
+
+  .alert-now {
+    grid-area: now;
+    grid-template-columns: minmax(0, 1fr);
+    padding-top: 0.2rem;
+  }
+
+  .alert-distance {
+    font-size: 0.75rem;
+  }
+
+  .alert-target {
+    grid-area: target;
+    justify-items: end;
+    align-self: start;
+    padding-top: 0.2rem;
+  }
+
+  .alert-target-text {
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .alert-edit {
+    grid-area: edit;
+    align-self: start;
+    align-items: center;
+    justify-content: center;
+    min-width: 3.5rem;
+    min-height: 2.75rem;
+    padding: 0 0.9rem;
+  }
+
+  .alert-actions {
+    display: contents;
+  }
+
+  .alert-buy {
+    grid-area: buy;
+    justify-self: end;
+    margin-top: 0.3rem !important;
+    min-height: 2.25rem;
+  }
+}
+
+/* A phone on its side: keep Save in reach while the form scrolls. */
+@media (max-height: 500px) {
+  .alert-dialog-panel .alert-form-actions {
+    position: sticky;
+    bottom: -1.1rem;
+    z-index: var(--z-raise-1);
+    margin: 0 -0.2rem -1.1rem;
+    padding: 0.5rem 0.2rem 0.6rem;
+    background: var(--card);
+    border-top: 1px solid var(--line);
   }
 }
 

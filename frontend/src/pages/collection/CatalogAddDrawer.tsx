@@ -24,6 +24,7 @@ export function AltArtChip({ card }: { card: CatalogCardResult }) {
 
 export function CatalogAddDrawer({
   className,
+  label = "Add cards",
   summary,
   storageKey,
   defaultOpen,
@@ -37,6 +38,8 @@ export function CatalogAddDrawer({
   searchIcon,
 }: {
   className?: string;
+  /** Drawer title (default "Add cards"). */
+  label?: string;
   summary: string;
   storageKey: string;
   defaultOpen: boolean;
@@ -138,7 +141,7 @@ export function CatalogAddDrawer({
   if (bare) return <div className={`deck-editor ${className ?? ""}`.trim()}>{body}</div>;
   return (
     <div className={`deck-editor ${className ?? ""}`.trim()}>
-      <CollapsibleDrawer label="Add cards" summary={summary} storageKey={storageKey} defaultOpen={defaultOpen}>
+      <CollapsibleDrawer label={label} summary={summary} storageKey={storageKey} defaultOpen={defaultOpen}>
         {body}
       </CollapsibleDrawer>
     </div>
