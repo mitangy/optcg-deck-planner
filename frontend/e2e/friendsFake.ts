@@ -215,7 +215,7 @@ export async function installFriendsApi(page: Page, owned: Map<string, number>, 
 
     if (path === "/trades/summary") {
       const t = mine();
-      return json({ incoming_pending: t.filter((x) => x.status === "pending" && x.to.id === ME.id).length, active: t.filter((x) => x.status === "accepted" || (x.status === "completed" && !x.applied)).length } satisfies TradesSummary);
+      return json({ incoming_pending: t.filter((x) => x.status === "pending" && x.to.id === ME.id).length, active: t.filter((x) => x.status === "accepted" || (x.status === "completed" && !x.applied)).length, friend_requests: fake.incomingRequests.length, to_apply: t.filter((x) => x.status === "completed" && !x.applied).length } satisfies TradesSummary);
     }
     if (path === "/trades" && method === "GET") {
       const t = mine();

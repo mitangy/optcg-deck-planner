@@ -9209,8 +9209,18 @@ export interface components {
         TradeSummaryOut: {
             /** Active */
             active: number;
+            /**
+             * Friend Requests
+             * @default 0
+             */
+            friend_requests: number;
             /** Incoming Pending */
             incoming_pending: number;
+            /**
+             * To Apply
+             * @default 0
+             */
+            to_apply: number;
         };
         /** TradesOut */
         TradesOut: {
