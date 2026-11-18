@@ -31,6 +31,7 @@ import {
 import { usePointerDrag } from "../input/usePointerDrag";
 import { StatusRow } from "../panels/StatusIcon";
 import { donUnderLayers } from "../don/donUnder";
+import { cardAriaLabel } from "./cardLabel";
 
 const COLOR_CHIP: Record<string, string> = {
   red: "#c62828",
@@ -308,6 +309,14 @@ export function CardTile({
     inspectOnClick || inspectGestures || Boolean(onClick) || dragEnabled;
   const interactive = Boolean(onClick || inspectOnClick || dragEnabled || inspectGestures);
 
+  const tileLabel = cardAriaLabel({
+    name: entry.name,
+    power: pb?.current,
+    cost: cb?.current ?? entry.cost,
+    rested: Boolean(rested),
+    attachedDon: attachedDonCount,
+  });
+
   const body = (
     <>
       {donLayers.length ? (
@@ -470,6 +479,7 @@ export function CardTile({
         <button
           type="button"
           className={className}
+          aria-label={tileLabel}
           onClick={handleClick}
           onClickCapture={dragBind.onClickCapture}
           onKeyDown={(e) => {
@@ -486,7 +496,7 @@ export function CardTile({
           {body}
         </button>
       ) : (
-        <div className={className} style={style} {...dropProps} {...pointerHandlers}>
+        <div className={className} style={style} role="group" aria-label={tileLabel} {...dropProps} {...pointerHandlers}>
           {body}
         </div>
       )}

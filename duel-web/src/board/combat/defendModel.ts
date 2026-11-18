@@ -173,3 +173,26 @@ export function deriveDefend(
     stagedBlockerId: previewBlocker?.id ?? null,
   };
 }
+
+const showPower = (n: number | null): string => (n == null ? "?" : String(n));
+
+// "Nico Robin (4000) attacks your Leader (7000)"; "if it blocks" while a Blocker is only being previewed.
+export function attackSummary(
+  m: Pick<DefendModel, "attackerName" | "attackerPower" | "defenderName" | "defenderPower" | "blocking" | "preview">,
+): string {
+  return `${m.attackerName} (${showPower(m.attackerPower)}) attacks ${m.blocking ? "Blocker " : ""}${m.defenderName} (${showPower(m.defenderPower)})${m.preview ? " if it blocks" : ""}`;
+}
+
+export function defendVerdict(
+  m: Pick<DefendModel, "phase" | "gap" | "remaining" | "stagedIds" | "stagedTotal" | "stagedUnknown">,
+): { text: string; safe: boolean } {
+  if (m.gap == null || m.remaining == null) return { text: "Attack incoming", safe: false };
+  const safe = m.remaining === 0;
+  if (m.phase === "counter" && m.stagedIds.length > 0) {
+    const total = `+${m.stagedTotal}${m.stagedUnknown ? "+" : ""} staged`;
+    if (m.stagedUnknown) return { text: total, safe };
+    return { text: safe ? `${total} · Safe` : `${total} · still short by ${m.remaining}`, safe };
+  }
+  if (m.gap === 0) return { text: "Safe", safe: true };
+  return { text: `Need +${m.gap} to survive`, safe: false };
+}

@@ -141,6 +141,35 @@
   color: #ffd9d4;
 }
 
+.match-menu-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Full screen and Mute share one row of two icon buttons. */
+.match-menu-icons {
+  flex-direction: row;
+}
+
+.match-menu-icon-item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0 0.5rem;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.match-menu-exits {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line-strong);
+}
+
 .match-menu-item.match-menu-danger.armed {
   border-color: #c06060;
   background: var(--danger);

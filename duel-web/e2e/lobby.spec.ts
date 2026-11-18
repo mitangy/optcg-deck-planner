@@ -85,7 +85,7 @@ test("shows the deck's leader name as plain text, not a pill (#431)", async ({ p
 test("signed in at 1280x720, your voyage and Friends sit right of the deck and above the fold (#431)", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-1280", "the two-column layout starts at 1000px");
   await openLobby(page, { signedIn: true });
-  await expect(page.getByRole("link", { name: /vs Rival1/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^W vs Rival1/ })).toBeVisible();
   const deck = (await page.locator(".home-deck").boundingBox())!;
   const side = (await page.locator(".home-side").boundingBox())!;
   const friends = (await page.getByRole("region", { name: "Friends" }).boundingBox())!;

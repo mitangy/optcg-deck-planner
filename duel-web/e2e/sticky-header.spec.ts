@@ -1,6 +1,12 @@
 import { test, expect, type Page } from "@playwright/test";
 import { FAKE_API, RED_VANILLA } from "./fixtures";
 
+// A deck with enough different cards and costs that the editor page scrolls well past one window.
+const LONG_DECK = {
+  leaderId: RED_VANILLA.leaderId,
+  cards: Array.from({ length: 16 }, (_, i) => `ST01-${String(i + 2).padStart(3, "0")}`).flatMap((id) => [id, id, id]),
+};
+
 async function open(page: Page, path: string): Promise<void> {
   await page.route(`${FAKE_API}/**`, (route) => {
     const p = new URL(route.request().url()).pathname;
@@ -14,7 +20,7 @@ async function open(page: Page, path: string): Promise<void> {
     localStorage.clear();
     localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify(d));
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
-  }, [{ id: "e2e-you", name: "E2E You", ...RED_VANILLA, updatedAt: 1 }]);
+  }, [{ id: "e2e-you", name: "E2E You", ...LONG_DECK, updatedAt: 1 }]);
   await page.goto(path);
   await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
 }

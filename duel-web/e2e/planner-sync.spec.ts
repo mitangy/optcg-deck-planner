@@ -55,7 +55,6 @@ test("the Decks page says decks sync with the planner and offers no planner colu
 });
 
 test("an alt art picked in a linked deck's editor is set as the planner's art too (#1017)", async ({ page }, info) => {
-  test.skip(info.project.name === "phone-375", "the Artwork row is desktop-only");
   const artPuts: { card: string; product_id: number }[] = [];
   await fakeAccount(page, artPuts);
   await seed(page, true);
@@ -65,8 +64,8 @@ test("an alt art picked in a linked deck's editor is set as the planner's art to
   expect(artPuts).toEqual([]);
 
   const stack = page.locator("article.deck-stack", { hasText: ALT_CARD });
-  await stack.locator(".deck-stack-art-select").click();
-  await page.getByRole("option").nth(1).click();
+  await stack.getByRole("button", { name: /^Artwork for / }).click();
+  await page.getByRole("menuitem").nth(1).click();
   await expect.poll(() => artPuts.length).toBe(1);
   expect(artPuts[0].card).toBe(ALT_CARD);
   expect(artPuts[0].product_id).toBeGreaterThan(0);

@@ -2,21 +2,16 @@ import { Link } from "react-router-dom";
 import { BountyAmount } from "../Bounty";
 import { lookupCard } from "../cards/atlas";
 import { useCardDataReady } from "../cards/cardData";
-import { fetchMatchHistory } from "../history/historyApi";
+import type { MatchHistoryEntry } from "../history/historyApi";
 import { matchRow, outcomeKey } from "../history/matchRow";
-import { useAsyncResource } from "../lib/useAsyncResource";
 import type { RatingMe } from "../net/api";
 import { recordLabel, streak, streakLabel } from "./voyage";
 
-const HISTORY_LIMIT = 10;
 const SHOWN_GAMES = 3;
 
 const CHIP: Record<ReturnType<typeof outcomeKey>, string> = { won: "W", lost: "L", unfinished: "Cut off" };
 
-export function VoyageCard({ me }: { me: RatingMe | null | undefined }) {
-  const res = useAsyncResource(() => fetchMatchHistory(HISTORY_LIMIT), []);
-  const games = res.status === "loading" ? undefined : res.status === "error" ? null : res.data;
-
+export function VoyageCard({ me, games }: { me: RatingMe | null | undefined; games: MatchHistoryEntry[] | null | undefined }) {
   const cardsReady = useCardDataReady();
   const rows = games && cardsReady ? games.slice(0, SHOWN_GAMES).map((m) => matchRow(m, (id) => lookupCard(id).name)) : [];
   const failed = games === null || me === null;

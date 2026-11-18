@@ -12,6 +12,7 @@ export function SiteFooter({
   extraLinks,
   externalLinks,
   trailing,
+  compact,
 }: {
   Link: ComponentType<FooterLinkProps>;
   className?: string;
@@ -21,7 +22,31 @@ export function SiteFooter({
   onFeedback?: () => void;
   /** Small muted text after the links (the planner puts its build id here). */
   trailing?: ReactNode;
+  /** One line: Terms, Privacy, feedback and the fan-made disclaimer. For app pages; content pages keep the full footer. */
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <footer className={`site-footer site-footer-compact${className ? ` ${className}` : ""}`}>
+        <div className="site-footer-inner">
+          <nav className="site-footer-links" aria-label="Legal">
+            <Link to={LEGAL_PATHS.terms} className="site-footer-link">
+              Terms
+            </Link>
+            <Link to={LEGAL_PATHS.privacy} className="site-footer-link">
+              Privacy
+            </Link>
+            {onFeedback ? (
+              <button type="button" className="site-footer-link site-footer-feedback" onClick={onFeedback}>
+                Send feedback
+              </button>
+            ) : null}
+          </nav>
+          <p className="site-footer-disclaimer">{FAN_DISCLAIMER}</p>
+        </div>
+      </footer>
+    );
+  }
   return (
     <footer className={`site-footer${className ? ` ${className}` : ""}`}>
       <div className="site-footer-inner">

@@ -17,8 +17,7 @@ async function openBotSetup(page: Page, seed: number) {
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
   }, decks);
   await page.goto("/");
-  await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: /^Play vs Bot/ }).click();
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Play vs Bot/ }).click();
 }
 
 test("Play vs Bot: the bot answers the opening hand and takes its turn (#631)", async ({ page, duel }, info) => {

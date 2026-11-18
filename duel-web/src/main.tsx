@@ -17,6 +17,7 @@ import "./interactions.css";
 import "./popupScale.css";
 import "./auth/username.css";
 import "./deckList.css";
+import "./newDeck.css";
 import "./light.css";
 import "./metaDecks.css";
 import "./events/events.css";

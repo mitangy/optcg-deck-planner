@@ -11,6 +11,7 @@ import { rematchDeckOptions } from "../decks/rematchDecks";
 import { setSelectedDeckId } from "../decks/storage";
 import { fetchMatchDetail } from "../history/historyApi";
 import { useDuelSession } from "../state/DuelSession";
+import { duelPageChrome } from "./duelPageChrome";
 
 const loadMatchRecord = (matchId: string) => fetchMatchDetail(matchId).then((d) => d.match);
 
@@ -80,6 +81,8 @@ export function DuelPage() {
     navigate("/", { replace: true, state: { joinInvite: invite } });
   }
 
+  const spectating = role === "spectator" || Boolean(view?.spectator);
+  const chrome = duelPageChrome({ vsBot, spectating, rating });
   const rolling = !view && !(launching && launch) && !resuming && Boolean(dice);
   const waiting: BoardWaiting | undefined = view
     ? undefined
@@ -120,7 +123,7 @@ export function DuelPage() {
           </button>
         </div>
       ) : null}
-      {rating != null && !(role === "spectator" || view?.spectator) ? <div className="rating-chip">
+      {chrome.bounty && rating != null ? <div className="rating-chip">
           Your Bounty: <BountyAmount amount={rating} />
         </div> : null}
       <DuelBoard
@@ -131,7 +134,7 @@ export function DuelPage() {
         matchOver={matchOver}
         players={players}
         timer={timer}
-        spectator={role === "spectator" || Boolean(view?.spectator)}
+        spectator={spectating}
         matchBrief={role === "player" ? { brief, ranked } : undefined}
         battleLog={battleLog}
         firstSeatPickedBy={firstSeatPickedBy}
@@ -139,7 +142,7 @@ export function DuelPage() {
         dicePhase={view || !dice ? undefined : { state: dice, onAction: sendDice }}
         vsHuman
         canReport={!vsBot}
-        chat={{ lines: chat, onSend: sendChat }}
+        chat={chrome.chat ? { lines: chat, onSend: sendChat } : undefined}
         onConcede={connected && role === "player" ? () => concede() : undefined}
         onHandOrder={connected && role === "player" ? sendHandOrder : undefined}
         undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}

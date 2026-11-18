@@ -45,6 +45,7 @@ const DEFAULT_OVERLAYS = [
   ".undo-menu",
   ".field-bar",
   ".card-actions",
+  ".mulligan-hand",
   ".col-cut",
 ];
 

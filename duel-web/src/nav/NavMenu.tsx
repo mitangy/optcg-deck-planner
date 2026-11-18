@@ -3,11 +3,11 @@ import { Link, useLocation } from "react-router-dom";
 import { Dialog } from "@optcg/ui/popups";
 import { DISCORD_INVITE_URL } from "@optcg/site-legal";
 import { getPlannerUrl } from "../config";
-import { activeNavHref, navItemsFor } from "./navItems";
+import { activeNavHref, isShownInline, navItemsFor } from "./navItems";
 import { useAccountRole } from "../auth/session";
 import { useStickyHeadHeight } from "./useStickyHeadHeight";
 
-export function NavMenu() {
+export function NavMenu({ className, hideInline = false }: { className?: string; hideInline?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -26,7 +26,7 @@ export function NavMenu() {
       <button
         ref={buttonRef}
         type="button"
-        className="icon-btn nav-menu-btn"
+        className={className ? `icon-btn nav-menu-btn ${className}` : "icon-btn nav-menu-btn"}
         aria-label="Menu"
         aria-expanded={open}
         aria-controls={open ? drawerId : undefined}
@@ -48,7 +48,7 @@ export function NavMenu() {
         <nav aria-label="Site menu" className="nav-drawer-nav">
           <ul className="nav-list">
             {items.map((item, i) => (
-              <li key={item.href}>
+              <li key={item.href} className={hideInline && isShownInline(item.href) ? "nav-wide-dup" : undefined}>
                 <Link
                   to={item.href}
                   data-autofocus={i === 0 ? "" : undefined}

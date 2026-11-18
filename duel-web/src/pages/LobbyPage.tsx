@@ -11,7 +11,10 @@ import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../ins
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
 import { EventBanner } from "../events/EventBanner";
 import { IntroStrip } from "../home/IntroStrip";
-import { LivePanel } from "../home/LivePanel";
+import { LivePanel, useLiveCounts } from "../home/LivePanel";
+import { ForYou } from "../home/ForYou";
+import { fetchMatchHistory } from "../history/historyApi";
+import { useAsyncResource } from "../lib/useAsyncResource";
 import { LogPoseTile } from "../home/LogPoseTile";
 import { OnlyOnDuel } from "../home/OnlyOnDuel";
 import { BrandMark } from "../BrandMark";
@@ -36,6 +39,8 @@ import { useOtherDeviceMatch } from "./lobby/useOtherDeviceMatch";
 
 export { DeckSwitcher, SPECTATE_GONE_MESSAGE };
 
+const HISTORY_LIMIT = 10;
+
 export function LobbyPage() {
   const navigate = useNavigate();
   const { cancelQueue, queueing } = useDuelSession();
@@ -57,6 +62,9 @@ export function LobbyPage() {
   const otherDevice = useOtherDeviceMatch({ authChecked, matchOwner, devUserKey: settings.devUserKey, serverUrl });
   const friendsEnabled = authMode === "google" && Boolean(authUser?.username);
   const friends = useFriends(friendsEnabled);
+  const liveCounts = useLiveCounts();
+  const historyRes = useAsyncResource(() => fetchMatchHistory(HISTORY_LIMIT), [authUser?.id], authUser != null);
+  const games = authUser == null || historyRes.status === "loading" ? undefined : historyRes.status === "error" ? null : historyRes.data;
 
   useEffect(() => {
     // Offer resume instead of forcing it — browser Back from hotseat used to
@@ -89,17 +97,18 @@ export function LobbyPage() {
   });
   const { busy, busyStatus, friendError, watchStarted, confirmSetup } = launch;
 
-  function playFrom(at: LastMode | null) {
-    const action = primaryAction(at);
-    if (action.act === "start") {
+  const primary = primaryAction(lastMode, authMode === "google");
+
+  function playFrom(mode: LastMode | "spectate", act: "start" | "sheet" = mode === "queue" ? "start" : "sheet") {
+    if (act === "start") {
       if (!selectedDeck || (authMode === "dev" && !settings.devUserKey.trim())) {
-        sheet.openSheet(action.mode);
+        sheet.openSheet(mode);
         return;
       }
-      void confirmSetup(action.mode);
+      void confirmSetup(mode);
       return;
     }
-    sheet.openSheet(action.mode);
+    sheet.openSheet(mode);
   }
 
   function dismissIntro() {
@@ -161,16 +170,20 @@ export function LobbyPage() {
             <DeckSwitcher decks={decks} selectedDeck={selectedDeck} onChoose={deckState.chooseDeck} />
           ) : null}
 
-          <PlayActions lastMode={lastMode} disabled={busy || queueing} onPlay={playFrom} />
+          <PlayActions primary={primary} disabled={busy || queueing} onPrimary={() => playFrom(primary.mode, primary.act)} onPlay={playFrom} />
 
           <LivePanel
+            counts={liveCounts}
             onInvite={() => playFrom("create")}
             onBot={() => playFrom("bot")}
             onPractice={() => playFrom("hotseat")}
             disabled={busy || queueing}
           />
 
-          <OnlyOnDuel deck={selectedDeck} onSpectate={() => playFrom("spectate")} disabled={busy || queueing} />
+          {authChecked && !authUser ? (
+            <OnlyOnDuel deck={selectedDeck} onSpectate={() => playFrom("spectate")} disabled={busy || queueing} />
+          ) : null}
+          {authUser ? <ForYou games={games} live={liveCounts} onSpectate={() => playFrom("spectate")} disabled={busy || queueing} /> : null}
 
           {showIosHint ? (
             <div className="install-hint" role="note" aria-label="Install on your iPhone">
@@ -199,7 +212,7 @@ export function LobbyPage() {
           {friendError ? <p className="error-text">{friendError}</p> : null}
           {busy && busyStatus && !sheet.sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
           <LogPoseTile deck={selectedDeck} />
-          {authMode === "google" ? <VoyageCard me={me} /> : null}
+          {authMode === "google" ? <VoyageCard me={me} games={games} /> : null}
           <TournamentsCard signedIn={friendsEnabled} />
           <FriendsPanel
             signedIn={friendsEnabled}

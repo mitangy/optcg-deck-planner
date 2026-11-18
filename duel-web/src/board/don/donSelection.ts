@@ -14,6 +14,11 @@ export function nextDonSelection(
   return new Set();
 }
 
+// On touch screens the DON!! chips are tiny, so a tap on the cost area between them adds the next free DON!! (a DON!! id) and, once all are picked, clears the selection (null).
+export function railTapDon(selected: ReadonlySet<string>, legalIds: readonly string[]): string | null {
+  return legalIds.find((id) => !selected.has(id)) ?? null;
+}
+
 export function pruneDonSelection(
   prev: Set<string>,
   legal: ReadonlySet<string>,

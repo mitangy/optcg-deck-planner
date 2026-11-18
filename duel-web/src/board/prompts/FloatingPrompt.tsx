@@ -161,7 +161,8 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
             <strong>{name}</strong>
           )}
           <span className="float-prompt">{choice.prompt}</span>
-          {portrait ? noteEl : <PopupSizeButtons className="float-size-btn" />}
+          {noteEl}
+          {portrait ? null : <PopupSizeButtons className="float-size-btn" />}
         </div>
         {children}
         <div className="float-axis" aria-hidden>
@@ -169,7 +170,6 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
           <span className="float-axis-line" />
           <span>{axis[1]}</span>
         </div>
-        {portrait ? null : noteEl}
         <PromptSlotPortal>
           <div className={`float-actions ${SLOT_ROW}`}>
             <button

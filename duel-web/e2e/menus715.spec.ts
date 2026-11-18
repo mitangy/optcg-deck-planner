@@ -110,7 +110,7 @@ test("Concede in the match menu needs two presses, by keyboard too (#715)", asyn
   await matchButton(page).focus();
   await page.keyboard.press("Enter");
   const menu = page.getByRole("menu", { name: "Match menu" });
-  const concede = menu.locator(".match-menu-danger");
+  const concede = menu.locator(".match-menu-danger").first();
   await walkTo(page, menu, "Concede");
   await page.keyboard.press("Enter");
   await expect(menu).toBeVisible();

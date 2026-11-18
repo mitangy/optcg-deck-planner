@@ -11,7 +11,7 @@ import { FeedbackHost } from "./FeedbackHost";
 import { ReportHost } from "./reports/ReportHost";
 import { openFeedback } from "./feedbackDialog";
 import { RouteMeta } from "./seo/RouteMeta";
-import { FOOTER_EXTERNAL_LINKS, FOOTER_LINKS, showsSiteFooter } from "./siteFooter";
+import { compactSiteFooter, FOOTER_EXTERNAL_LINKS, FOOTER_LINKS, showsSiteFooter } from "./siteFooter";
 import { applyTextSize } from "./textSize";
 import { applyPopupSize } from "./board/preview/popupSize";
 import { applyTheme, LIGHT_QUERY } from "./theme";
@@ -51,7 +51,7 @@ export function App() {
           ))}
         </Routes>
       </Suspense>
-      {showsSiteFooter(pathname) && <SiteFooter Link={Link} className="site-footer-centered" extraLinks={FOOTER_LINKS} externalLinks={FOOTER_EXTERNAL_LINKS} onFeedback={() => openFeedback("Send feedback")} />}
+      {showsSiteFooter(pathname) && <SiteFooter Link={Link} className="site-footer-centered" compact={compactSiteFooter(pathname)} extraLinks={FOOTER_LINKS} externalLinks={FOOTER_EXTERNAL_LINKS} onFeedback={() => openFeedback("Send feedback")} />}
       <FeedbackHost />
       <ReportHost />
       <LeaveGameDialog

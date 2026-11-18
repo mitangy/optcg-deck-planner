@@ -150,8 +150,7 @@ export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
           for (const [k, v] of Object.entries(extra as Record<string, string>)) localStorage.setItem(k, v);
         }, [decks, storage] as const);
         await page.goto("/");
-        await page.getByRole("button", { name: "Play", exact: true }).click();
-        await page.getByRole("dialog").getByRole("button", { name: /^Practice/ }).click();
+        await page.locator(".mode-tiles").getByRole("button", { name: /^Practice/ }).click();
         await page.getByLabel("Opponent deck").click();
         await page.getByRole("option", { name: /^E2E Opponent/ }).click();
         await page.getByRole("button", { name: "Start practice" }).click();
