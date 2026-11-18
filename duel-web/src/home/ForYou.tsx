@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import type { MatchHistoryEntry } from "../history/historyApi";
 import type { LiveCounts } from "../net/api";
-import { forYouItems } from "./forYou";
+import { forYouItems } from "./forYouModel";
 
 export function ForYou({
   games,

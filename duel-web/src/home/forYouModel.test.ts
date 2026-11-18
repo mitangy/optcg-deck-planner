@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { forYouItems } from "./forYou";
+import { forYouItems } from "./forYouModel";
 
 describe("For you strip (#1343)", () => {
   it("has no items, so no box, when there is no game and nothing live (#1343)", () => {
