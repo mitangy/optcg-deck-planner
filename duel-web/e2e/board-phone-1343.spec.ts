@@ -45,9 +45,15 @@ test("phone portrait: the controls a thumb needs have a 44px hit area (#1343)", 
     await expect(loc, name).toBeVisible();
     expect(await tapHeight(loc), `${name} answers taps over 44px of height`).toBeGreaterThanOrEqual(44);
   }
-  // The corner pills sit between the top bar and the opponent's count chips, so they stop at 28px.
+});
+
+test("phone portrait: the Battle log and Chat pills stay off the opponent's mat (#1343)", async ({ page }) => {
+  phoneOnly();
+  await openDemo(page, "?full&chat", { width: 375, height: 812 });
+  const mat = (await page.locator(".side-opp").boundingBox())!;
   for (const loc of [page.locator(".battle-log-toggle").first(), page.locator(".chat-toggle")]) {
-    expect((await loc.boundingBox())!.height).toBeGreaterThanOrEqual(28);
+    const box = (await loc.boundingBox())!;
+    expect(box.y + box.height).toBeLessThanOrEqual(mat.y + 0.5);
   }
 });
 

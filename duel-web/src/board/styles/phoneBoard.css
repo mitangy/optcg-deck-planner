@@ -453,10 +453,17 @@
     min-height: 44px;
   }
 
-  /* The two corner pills have the top bar above them and the opponent's count chips below, so they stop at 28px instead of taking those controls' taps. */
-  .battle-log.collapsed .battle-log-toggle,
-  .chat-panel.collapsed .chat-toggle {
-    min-height: 28px;
+  /* The two corner pills share the opponent-hand row with the top bar above and the mat below, so they stay as tall as that row and never sit on the mat. */
+  .arena:not(.arena-lp) .battle-log.collapsed,
+  .arena:not(.arena-lp) .chat-panel.collapsed {
+    top: 1px;
+  }
+
+  .arena:not(.arena-lp) .battle-log.collapsed .battle-log-toggle,
+  .arena:not(.arena-lp) .chat-panel.collapsed .chat-toggle {
+    min-height: 24px;
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   .hand-rail-btn,

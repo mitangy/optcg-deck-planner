@@ -90,6 +90,7 @@ module.exports = {
     { id: "e2e-bp2-1343-sort-hit-area-shrinks", args: "board-phone-1343.spec --project=phone-375 -g \"thumb needs\"", edits: [
       { file: "duel-web/src/board/styles/phoneBoard.css", from: "    width: max(100%, 44px);\n    height: max(100%, 44px);", to: "    width: 100%;\n    height: 100%;" }
     ], kills: ["board-phone-1343.spec.ts > phone portrait: the controls a thumb needs have a 44px hit area (#1343) [phone-375]"] },
+    { id: "e2e-bp2-1343-pills-on-the-mat", args: "board-phone-1343.spec --project=phone-375 -g \"stay off\"", file: "duel-web/src/board/styles/phoneBoard.css", from: "  .arena:not(.arena-lp) .chat-panel.collapsed .chat-toggle {\n    min-height: 24px;", to: "  .arena:not(.arena-lp) .chat-panel.collapsed .chat-toggle {\n    min-height: 34px;", kills: ["board-phone-1343.spec.ts > phone portrait: the Battle log and Chat pills stay off the opponent's mat (#1343) [phone-375]"] },
     { id: "e2e-bp2-1343-menu-button-40", args: "board-phone-1343.spec --project=phone-375 -g \"thumb needs\"", edits: [
       { file: "duel-web/src/board/styles/phoneBoard.css", from: "    min-width: 44px;\n    min-height: 44px;\n  }\n\n  /* The two corner", to: "    min-width: 40px;\n    min-height: 40px;\n  }\n\n  /* The two corner" }
     ], kills: ["board-phone-1343.spec.ts > phone portrait: the controls a thumb needs have a 44px hit area (#1343) [phone-375]"] },
