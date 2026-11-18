@@ -278,15 +278,6 @@
   white-space: normal;
 }
 
-.group-buy-contribution-actions {
-  margin-top: 0.75rem;
-}
-
-.group-buy-contribution-actions .btn {
-  width: auto;
-  margin-top: 0;
-}
-
 .group-buy-deck-filter-note {
   margin: 0.55rem 0 0;
   font-size: 0.82rem;
@@ -388,44 +379,6 @@
   border-radius: 15px 0 0 15px;
 }
 
-.gb-user-0 { --gb-user: #0f6a6a; }
-.gb-user-1 { --gb-user: #c65911; }
-.gb-user-2 { --gb-user: #2f6b3a; }
-.gb-user-3 { --gb-user: #355c7d; }
-.gb-user-4 { --gb-user: #9b2c2c; }
-.gb-user-5 { --gb-user: #6b5344; }
-.gb-user-6 { --gb-user: #8a5a12; }
-.gb-user-7 { --gb-user: #3d5a80; }
-
-.grid-card.need.gb-user-0,
-.grid-card.need.gb-user-1,
-.grid-card.need.gb-user-2,
-.grid-card.need.gb-user-3,
-.grid-card.need.gb-user-4,
-.grid-card.need.gb-user-5,
-.grid-card.need.gb-user-6,
-.grid-card.need.gb-user-7,
-.mobile-card.need.gb-user-0,
-.mobile-card.need.gb-user-1,
-.mobile-card.need.gb-user-2,
-.mobile-card.need.gb-user-3,
-.mobile-card.need.gb-user-4,
-.mobile-card.need.gb-user-5,
-.mobile-card.need.gb-user-6,
-.mobile-card.need.gb-user-7 {
-  background: color-mix(in srgb, var(--gb-user) 14%, var(--need));
-}
-
-.data-table tr.gb-user-0 td,
-.data-table tr.gb-user-1 td,
-.data-table tr.gb-user-2 td,
-.data-table tr.gb-user-3 td,
-.data-table tr.gb-user-4 td,
-.data-table tr.gb-user-5 td,
-.data-table tr.gb-user-6 td,
-.data-table tr.gb-user-7 td {
-  background: color-mix(in srgb, var(--gb-user) 10%, var(--card));
-}
 
 .group-buy-qty-controls {
   display: inline-flex;
@@ -549,11 +502,6 @@
   }
 }
 
-.group-buy-footnote {
-  margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-}
-
 .group-buy-invite-banner {
   display: flex;
   flex-wrap: wrap;
@@ -607,7 +555,6 @@
 }
 
 @media (max-width: 720px) {
-  .group-buy-toolbar .btn,
   .page-head-actions .btn.secondary {
     flex: 1 1 auto;
     text-align: center;

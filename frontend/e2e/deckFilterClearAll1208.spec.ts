@@ -83,7 +83,7 @@ test("Group buy: Clear all sends an empty deck list and Select all sends none (#
   await page.route(`**/api/group-buys/${GB}`, (r) => r.fulfill({ json: gbDetail(ids) }));
   await planner.open(`/group-buys/${GB}`);
   await expect(page.getByRole("heading", { name: "Friday pool", level: 1 })).toBeVisible();
-  await page.locator(".group-buy-merged-toolbar").getByRole("button", { name: /Filters/ }).first().click();
+  await page.getByTestId("gb-your-share").locator(".gb-share-edit").click();
 
   const clear = page.getByRole("button", { name: "Clear all" });
   const selectAll = page.getByRole("button", { name: "Select all decks" });

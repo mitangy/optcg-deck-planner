@@ -110,10 +110,9 @@ async function render() {
     ),
   );
   await act(async () => void (await new Promise((r) => setTimeout(r, 30))));
-  const toggle = [...host.querySelectorAll<HTMLButtonElement>("button.filter-drawer-toggle")].find((b) =>
-    b.textContent?.startsWith("Filters"),
-  )!;
-  if (toggle.getAttribute("aria-expanded") !== "true") await act(async () => toggle.click());
+  // Include lives in the Your share card now (#1361); Edit opens it.
+  const edit = [...host.querySelectorAll<HTMLButtonElement>(".gb-share button")].find((b) => b.textContent === "Edit")!;
+  if (edit.getAttribute("aria-expanded") !== "true") await act(async () => edit.click());
 }
 
 describe("Group buy Include filter groups decks by leader (#1203)", () => {

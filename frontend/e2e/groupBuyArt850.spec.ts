@@ -91,7 +91,7 @@ test("Group buy shows the Base tile and prices the card as the total across pick
     await expect(base).toContainText("$1.00");
     const total = card.getByTestId("gb-arts-total");
     await expect(total).toContainText("$11.00");
-    await expect(total).toContainText("Your 3 copies");
+    await expect(total).toContainText("Yours $11.00 · 3 copies");
     await expect(total).toHaveAttribute("title", "2 × Base $1.00 + 1 × Manga $9.00");
   }
 

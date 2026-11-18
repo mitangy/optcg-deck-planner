@@ -116,7 +116,7 @@ export function BuyQtyEditor({
               </button>
             </>
           ) : (
-            <span>From shopping</span>
+            <span className="group-buy-qty-default">From shopping</span>
           )}
         </div>
       )}

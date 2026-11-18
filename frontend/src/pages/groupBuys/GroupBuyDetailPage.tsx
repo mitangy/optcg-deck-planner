@@ -1,19 +1,20 @@
-import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
+import { useCardLayout, useListDensity } from "../../ui/CardLayout";
 import { AltArtsRow } from "../../cards/MarketPrice";
 import { ReceiptImportPanel, type ReceiptApplyDraft } from "./ReceiptImport";
 import { GroupBuyDetailSkeleton } from "../../ui/Skeleton";
 import { shownProductId } from "../../cards/altArt";
 import { api, GroupBuyDetail, GroupBuyLine, GroupBuyOrderUpdate, money } from "../../api";
 import { useMe } from "../../auth/useMe";
-import { contributionSummary, contributionUpdate, type ContributionUpdate } from "./contribution";
-import { buildFilterSummary, CardSearchInput, CollapsibleFilters, SortMenu, useCardSorts, useShowAltArts, type SortKey } from "../../ui/cardListControls";
+import { contributionUpdate, type ContributionUpdate } from "./contribution";
+import { useCardSorts, useShowAltArts, type SortKey } from "../../ui/cardListControls";
+import { FilterCheck, ListToolbar } from "../../ui/ListToolbar";
 import { CardWorkspace } from "../../ui/CardWorkspace";
 import { SortableTh, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "../../cards/displayArtViews";
 import { altIncBlocked, myAltBuyQty, myArtSplit } from "./groupBuyArt";
 import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { blankMassEntryUrl } from "../shopping/tcgplayerMassEntry";
-import { useNarrowLayout } from "../../hooks/useNarrowLayout";
+import { useGroupBuyListNarrow } from "../../hooks/useGroupBuyListNarrow";
 import { Select, useConfirm } from "@optcg/ui/popups";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
@@ -23,11 +24,12 @@ import { GroupBuyLines } from "./GroupBuyLines";
 import { GroupBuyMembersList, GroupBuyOrderDetails, GroupBuySettlement, hasOrderPanel } from "./GroupBuyPanels";
 import { groupBuyOweValue } from "./lineRows";
 import { MemberSwatch } from "./memberColors";
+import { GroupBuyActionBar, GroupBuyStepper, PencilIcon, YourShareCard, type ActionDef } from "./GroupBuyHeader";
+import { groupBuyActions, stepHint, stepLabel, summaryParts, type GroupBuyActionKey } from "./groupBuyActions";
 import { ArtWantChips, SkippedBadge } from "./memberParts";
 import { SHIPPING_SPLIT_LABELS, ShippingSplit } from "./shipping";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_CARDS_KEY, COLSORT_GB_OWE_KEY } from "../../storage/keys";
-import { DeckIncludeFilter } from "../../ui/DeckIncludeFilter";
 import { qk } from "../../cache/queryKeys";
 import { copyText } from "@optcg/ui/clipboard";
 
@@ -37,8 +39,10 @@ export function GroupBuyDetailPage() {
   const navigate = useNavigate();
   const groupId = Number(id);
   const qc = useQueryClient();
-  const isNarrow = useNarrowLayout();
+  const isNarrow = useGroupBuyListNarrow();
   const [layout, setLayout] = useCardLayout();
+  const [density, setDensity] = useListDensity("groupBuy");
+  const [receiptFocus, setReceiptFocus] = useState(0);
   const [showExcluded, setShowExcluded] = useState(false);
   const unavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(true, unavailableSorts);
@@ -89,40 +93,9 @@ export function GroupBuyDetailPage() {
   }, [detail, meQ.data]);
   const activeDeckIds = myContribution?.deck_ids;
   const allSelected = !activeDeckIds || (decks.length > 0 && activeDeckIds.length === decks.length);
-  const selectedDeckCount = allSelected ? decks.length : (activeDeckIds?.length ?? decks.length);
 
   const includeSingles = myContribution?.include_singles ?? true;
   const includeExtraCopies = myContribution?.include_extra_copies ?? false;
-
-  const filterSummary = useMemo(() => {
-    const extra: string[] = [];
-    if (showExcluded) extra.push("Excluded");
-    extra.push(
-      ...contributionSummary({
-        deckCount: decks.length,
-        selectedDeckCount,
-        allDecksSelected: allSelected,
-        includeSingles,
-        includeExtraCopies,
-      }),
-    );
-    return buildFilterSummary({
-      sorts: effectiveSorts,
-      showAltArts,
-      layout,
-      extra: extra.length ? extra : undefined,
-    });
-  }, [
-    effectiveSorts,
-    showAltArts,
-    layout,
-    showExcluded,
-    decks.length,
-    allSelected,
-    selectedDeckCount,
-    includeSingles,
-    includeExtraCopies,
-  ]);
 
   useEffect(() => {
     if (!detail) return;
@@ -540,13 +513,122 @@ export function GroupBuyDetailPage() {
     };
   }
 
+  const hasReceipt = Boolean(detail.has_receipt);
+  const actions = groupBuyActions(detail.status, detail.is_host, receiptReady, Boolean(detail.can_undo_purchase));
+  const summary = summaryParts(detail);
+  const filterBadge = (showExcluded ? 1 : 0) + (showAltArts ? 0 : 1);
+
+  const defs: Partial<Record<GroupBuyActionKey, ActionDef>> = {
+    "copy-invite": { label: "Copy invite link", onClick: () => void copyInvite(detail.invite_path) },
+    "mass-entry": { label: "Open Mass Entry", onClick: () => void exportMassEntry(detail) },
+    lock: {
+      label: lock.isPending ? "Locking…" : "Lock for checkout",
+      disabled: lock.isPending || orderBusy,
+      onClick: () => lock.mutate(),
+    },
+    unlock: {
+      label: unlock.isPending ? "Unlocking…" : "Unlock",
+      disabled: unlock.isPending || orderBusy,
+      onClick: () => unlock.mutate(),
+    },
+    "mark-ordered": {
+      label: markOrdered.isPending ? "Saving…" : "Mark ordered",
+      disabled: orderBusy,
+      onClick: async () => {
+        const ok = await confirm({
+          title: "Mark this group buy as ordered?",
+          message:
+            "Use this after placing the bulk TCGPlayer order. Quantities stay frozen; you can still edit shipping and what each person owes. Owned counts are not updated yet.",
+          confirmLabel: "Mark ordered",
+          danger: false,
+        });
+        if (ok) markOrdered.mutate(orderBodyFromForm());
+      },
+    },
+    "import-receipt": { label: "Import receipt", onClick: () => setReceiptFocus((n) => n + 1) },
+    "mark-purchased": {
+      label: complete.isPending ? "Finishing…" : `Mark purchased (${receiptDraft?.stagedCopies ?? 0})`,
+      disabled: complete.isPending || !receiptReady,
+      onClick: async () => {
+        if (!receiptDraft?.canApply) {
+          setMsg("Import and match a TCGPlayer receipt before Mark purchased.");
+          return;
+        }
+        const ok = await confirm({
+          title: "Mark purchased for matched receipt cards?",
+          message:
+            `${receiptDraft.lineCount} card line(s), ${receiptDraft.stagedCopies} copies will be added to Owned.\n\n` +
+            "Pool cards missing from the receipt are left ordered until another receipt covers them.",
+          confirmLabel: "Mark purchased",
+          danger: false,
+        });
+        if (ok) complete.mutate(receiptDraft);
+      },
+    },
+    "undo-purchase": {
+      label: undoPurchase.isPending ? "Undoing…" : "Undo Mark purchased",
+      disabled: undoPurchase.isPending || complete.isPending,
+      onClick: async () => {
+        const ok = await confirm({
+          title: "Undo the latest Mark purchased?",
+          message:
+            "This restores the shopping pool and each person’s owed amounts, and removes those receipt copies from Owned. " +
+            "Your imported receipt paste stays saved so you can Mark purchased again.",
+          confirmLabel: "Undo",
+        });
+        if (ok) undoPurchase.mutate();
+      },
+    },
+    "reset-invite": {
+      label: "Reset invite link",
+      testId: "gb-reset-invite",
+      disabled: resetInvite.isPending,
+      onClick: async () => {
+        const ok = await confirm({
+          title: "Reset the invite link?",
+          message:
+            "The current link stops working for everyone who has it. People already in the group buy stay in.",
+          confirmLabel: "Reset link",
+          danger: false,
+        });
+        if (ok) {
+          setInviteMsg(null);
+          resetInvite.mutate();
+        }
+      },
+    },
+    delete: {
+      label: "Delete group buy",
+      danger: true,
+      disabled: remove.isPending,
+      onClick: async () => {
+        const ok = await confirm({ title: "Delete this group buy for everyone?", confirmLabel: "Delete" });
+        if (ok) remove.mutate();
+      },
+    },
+    leave: {
+      label: "Leave group buy",
+      danger: true,
+      disabled: leave.isPending || detail.status !== "open",
+      title: detail.status !== "open" ? "Ask the host to unlock first" : undefined,
+      onClick: async () => {
+        const ok = await confirm({
+          title: "Leave this group buy?",
+          message: "Your quantities are removed from the pool.",
+          confirmLabel: "Leave",
+        });
+        if (ok) leave.mutate();
+      },
+    },
+  };
+
   return (
     <section className="group-buy-detail">
       {confirmDialog}
-      <div className="page-head">
+      <div className="page-head gb-head">
         <div>
-          <p className="muted">
-            <Link to="/group-buys">Group buys</Link>
+          <p className="eyebrow gb-back">
+            <Link to="/group-buys">← Group buys</Link>
           </p>
           {detail.is_host && renaming ? (
             <div className="gb-title-edit">
@@ -587,270 +669,127 @@ export function GroupBuyDetailPage() {
               {detail.is_host && (
                 <button
                   type="button"
-                  className="ghost"
+                  className="ghost gb-rename-btn"
                   data-testid="gb-rename"
+                  aria-label="Rename group buy"
+                  title="Rename group buy"
                   onClick={() => {
                     setTitleDraft(detail.title);
                     setRenaming(true);
                   }}
                 >
-                  Rename
+                  <PencilIcon />
                 </button>
               )}
+              <span className={`group-buy-status status-${detail.status}`}>{stepLabel(detail.status)}</span>
             </div>
           )}
-          <p className="muted">
-            <span className={`group-buy-status status-${detail.status}`}>{detail.status}</span>
-            {" · "}
-            Host {detail.host_name} · {detail.member_count} members · {detail.unique_cards} cards ·{" "}
-            {detail.cards_still_needed} copies · {money(detail.remaining_market)}
+          <p className="muted gb-summary">
+            {summary.text} · {summary.moneyLabel} <strong>{money(summary.money)}</strong>
+          </p>
+          <GroupBuyStepper status={detail.status} />
+          <p className="gb-step-hint muted" role="status">
+            {stepHint(detail.status, detail.is_host, receiptReady, hasReceipt)}
           </p>
         </div>
       </div>
 
-      <div className="group-buy-toolbar">
-        <button type="button" className="btn secondary" onClick={() => void copyInvite(detail.invite_path)}>
-          Copy invite link
-        </button>
-        {detail.is_host && (
-          <button
-            type="button"
-            className="btn secondary"
-            data-testid="gb-reset-invite"
-            disabled={resetInvite.isPending}
-            onClick={() => {
-              if (
-                window.confirm(
-                  "Reset the invite link? The current link stops working for everyone who has it. People already in the group buy stay in.",
-                )
-              ) {
-                setInviteMsg(null);
-                resetInvite.mutate();
-              }
-            }}
-          >
-            Reset link
-          </button>
-        )}
-        {detail.status !== "completed" && (
-          <button
-            type="button"
-            className="btn secondary"
-            onClick={() => void exportMassEntry(detail)}
-          >
-            Open Mass Entry
-          </button>
-        )}
-        {detail.is_host && detail.status === "open" && (
-          <button
-            type="button"
-            className="btn secondary"
-            disabled={lock.isPending || orderBusy}
-            onClick={() => lock.mutate()}
-          >
-            {lock.isPending ? "Locking…" : "Lock for checkout"}
-          </button>
-        )}
-        {detail.is_host && detail.status === "locked" && (
-          <button
-            type="button"
-            className="btn secondary"
-            disabled={unlock.isPending || orderBusy}
-            onClick={() => unlock.mutate()}
-          >
-            {unlock.isPending ? "Unlocking…" : "Unlock"}
-          </button>
-        )}
-        {detail.is_host && detail.status === "locked" && (
-          <button
-            type="button"
-            className="btn primary"
-            disabled={orderBusy}
-            onClick={async () => {
-              const ok = await confirm({
-                title: "Mark this group buy as ordered?",
-                message:
-                  "Use this after placing the bulk TCGPlayer order. Quantities stay frozen; you can still edit shipping and what each person owes. Owned counts are not updated yet.",
-                confirmLabel: "Mark ordered",
-                danger: false,
-              });
-              if (ok) markOrdered.mutate(orderBodyFromForm());
-            }}
-          >
-            {markOrdered.isPending ? "Saving…" : "Mark ordered"}
-          </button>
-        )}
-        {detail.is_host && (detail.status === "locked" || detail.status === "ordered") && (
-          <button
-            type="button"
-            className="btn primary"
-            disabled={complete.isPending || !receiptReady}
-            title={
-              receiptReady
-                ? undefined
-                : "Import and match a TCGPlayer receipt first"
-            }
-            onClick={async () => {
-              if (!receiptDraft?.canApply) {
-                setMsg("Import and match a TCGPlayer receipt before Mark purchased.");
-                return;
-              }
-              const ok = await confirm({
-                title: "Mark purchased for matched receipt cards?",
-                message:
-                  `${receiptDraft.lineCount} card line(s), ${receiptDraft.stagedCopies} copies will be added to Owned.\n\n` +
-                  "Pool cards missing from the receipt are left ordered until another receipt covers them." +
-                  (detail.status === "locked" ? "\n\nThis will also mark the pool as ordered." : ""),
-                confirmLabel: "Mark purchased",
-                danger: false,
-              });
-              if (ok) complete.mutate(receiptDraft);
-            }}
-          >
-            {complete.isPending
-              ? "Finishing…"
-              : receiptReady
-                ? `Mark purchased (${receiptDraft?.stagedCopies ?? 0})`
-                : "Mark purchased"}
-          </button>
-        )}
-        {detail.is_host && detail.can_undo_purchase && (
-          <button
-            type="button"
-            className="btn secondary"
-            disabled={undoPurchase.isPending || complete.isPending}
-            onClick={async () => {
-              const ok = await confirm({
-                title: "Undo the latest Mark purchased?",
-                message:
-                  "This restores the shopping pool and each person’s owed amounts, and removes those receipt copies from Owned. " +
-                  "Your imported receipt paste stays saved so you can Mark purchased again.",
-                confirmLabel: "Undo",
-              });
-              if (ok) undoPurchase.mutate();
-            }}
-          >
-            {undoPurchase.isPending ? "Undoing…" : "Undo Mark purchased"}
-          </button>
-        )}
-        {detail.is_host && (
-          <button
-            type="button"
-            className="ghost danger"
-            disabled={remove.isPending}
-            onClick={async () => {
-              const ok = await confirm({ title: "Delete this group buy for everyone?", confirmLabel: "Delete" });
-              if (ok) remove.mutate();
-            }}
-          >
-            Delete
-          </button>
-        )}
-        {!detail.is_host && (
-          <button
-            type="button"
-            className="ghost danger"
-            disabled={leave.isPending || detail.status !== "open"}
-            title={detail.status !== "open" ? "Ask the host to unlock first" : undefined}
-            onClick={async () => {
-              const ok = await confirm({
-                title: "Leave this group buy?",
-                message: "Your quantities are removed from the pool.",
-                confirmLabel: "Leave",
-              });
-              if (ok) leave.mutate();
-            }}
-          >
-            Leave group buy
-          </button>
-        )}
-      </div>
-      {detail.is_host &&
-      (detail.status === "locked" || detail.status === "ordered") &&
-      !receiptReady ? (
-        <p className="group-buy-receipt-gate muted" role="status">
-          {detail.has_receipt
-            ? "Matching saved receipt… Mark purchased unlocks when the match finishes."
-            : "Import and match a TCGPlayer receipt below to enable Mark purchased."}
-        </p>
-      ) : null}
+      <GroupBuyActionBar actions={actions} defs={defs} />
       {(inviteMsg || msg) && (
         <p className="buy-bar-msg buy-bar-msg-solo" role="status">
           {inviteMsg || msg}
         </p>
       )}
 
+      {myContribution ? (
+        <YourShareCard
+          detail={detail}
+          me={myContribution}
+          decks={decks}
+          activeDeckIds={activeDeckIds}
+          allSelected={allSelected}
+          includeSingles={includeSingles}
+          includeExtraCopies={includeExtraCopies}
+          busy={contribution.isPending}
+          resetBusy={syncQty.isPending}
+          onDecks={setContributionDecks}
+          onSelectAll={() => setContributionDecks(null)}
+          onFlag={updateContribution}
+          onReset={() => syncQty.mutate()}
+        />
+      ) : null}
+
       <GroupBuyMembersList detail={detail} />
 
       {showOrderPanel && (
         <GroupBuySettlement detail={detail}>
           {detail.is_host && detail.status !== "completed" ? (
-            <form
-              className="group-buy-order-form"
-              onSubmit={(e: FormEvent) => {
-                e.preventDefault();
-                saveOrder.mutate(orderBodyFromForm());
-              }}
-            >
-              <label>
-                Order / receipt id
-                <input
-                  type="text"
-                  value={orderId}
-                  maxLength={200}
-                  onChange={(e) => setOrderId(e.target.value)}
-                  placeholder="Optional"
-                />
-              </label>
-              <label>
-                Shipping cost
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={shippingCost}
-                  onChange={(e) => setShippingCost(e.target.value)}
-                />
-              </label>
-              <label>
-                Split shipping
-                <Select
-                  value={shippingSplit}
-                  onChange={setShippingSplit}
-                  options={(Object.keys(SHIPPING_SPLIT_LABELS) as ShippingSplit[]).map((key) => ({
-                    value: key,
-                    label: SHIPPING_SPLIT_LABELS[key],
-                  }))}
-                />
-              </label>
-              <label>
-                Tax
-                <input
-                  type="number"
-                  min={0}
-                  step="0.01"
-                  value={taxCost}
-                  onChange={(e) => setTaxCost(e.target.value)}
-                  aria-describedby="group-buy-tax-hint"
-                />
-                <span id="group-buy-tax-hint" className="group-buy-field-hint">
-                  Always split by card cost
-                </span>
-              </label>
-              <label className="group-buy-order-notes">
-                Notes
-                <textarea
-                  value={orderNotes}
-                  maxLength={4000}
-                  rows={3}
-                  onChange={(e) => setOrderNotes(e.target.value)}
-                  placeholder="Who paid, tracking, Venmo handles…"
-                />
-              </label>
-              <button type="submit" className="btn secondary" disabled={orderBusy}>
-                {saveOrder.isPending ? "Saving…" : "Save order details"}
-              </button>
-            </form>
+              <form
+                className="group-buy-order-form"
+                onSubmit={(e: FormEvent) => {
+                  e.preventDefault();
+                  saveOrder.mutate(orderBodyFromForm());
+                }}
+              >
+                <label>
+                  Order / receipt id
+                  <input
+                    type="text"
+                    value={orderId}
+                    maxLength={200}
+                    onChange={(e) => setOrderId(e.target.value)}
+                    placeholder="Optional"
+                  />
+                </label>
+                <label>
+                  Shipping cost
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={shippingCost}
+                    onChange={(e) => setShippingCost(e.target.value)}
+                  />
+                </label>
+                <label>
+                  Split shipping
+                  <Select
+                    value={shippingSplit}
+                    onChange={setShippingSplit}
+                    options={(Object.keys(SHIPPING_SPLIT_LABELS) as ShippingSplit[]).map((key) => ({
+                      value: key,
+                      label: SHIPPING_SPLIT_LABELS[key],
+                    }))}
+                  />
+                </label>
+                <label>
+                  Tax
+                  <input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    value={taxCost}
+                    onChange={(e) => setTaxCost(e.target.value)}
+                    aria-describedby="group-buy-tax-hint"
+                  />
+                  <span id="group-buy-tax-hint" className="group-buy-field-hint">
+                    Always split by card cost
+                  </span>
+                </label>
+                <label className="group-buy-order-notes">
+                  Notes
+                  <textarea
+                    value={orderNotes}
+                    maxLength={4000}
+                    rows={3}
+                    onChange={(e) => setOrderNotes(e.target.value)}
+                    placeholder="Who paid, tracking, Venmo handles…"
+                  />
+                </label>
+                <button type="submit" className="btn secondary" disabled={orderBusy}>
+                  {saveOrder.isPending ? "Saving…" : "Save order details"}
+                </button>
+              </form>
           ) : (
             <GroupBuyOrderDetails detail={detail} />
           )}
@@ -896,6 +835,7 @@ export function GroupBuyDetailPage() {
           isHost={detail.is_host}
           status={detail.status}
           initialReceiptText={detail.receipt_text || ""}
+          focusRequest={receiptFocus}
           onDraftChange={setReceiptDraft}
           onError={(message) => setMsg(message)}
           onReceiptSaved={() => {
@@ -904,156 +844,95 @@ export function GroupBuyDetailPage() {
         />
       )}
 
-      {detail.status === "open" && myContribution && (
-        <div className="group-buy-contribution">
-          <h2>Your contribution</h2>
-          <p className="muted">
-            Defaults follow your shopping still-need for the decks, singles and extra copies selected under Filters. Edit{" "}
-            <strong>Your buy</strong> on any line before the host locks.
-          </p>
-          <div className="group-buy-contribution-actions">
-            <button
-              type="button"
-              className="btn secondary"
-              disabled={syncQty.isPending || detail.status !== "open"}
-              onClick={() => syncQty.mutate()}
-            >
-              {syncQty.isPending ? "Resetting…" : "Reset my qtys to shopping"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      <h2 className="group-buy-merged-heading">Merged list</h2>
       {detail.lines.length === 0 ? (
         <p className="muted">Nothing to buy yet — members need cards on their shopping lists.</p>
       ) : (
         <>
+          <h2 className="group-buy-merged-heading">Cards · {detail.lines.length}</h2>
           <CardWorkspace
             rail={
-          <div className="list-toolbar group-buy-merged-toolbar">
-            <div className="list-toolbar-row">
-              <CardSearchInput value={search} onChange={setSearch} />
-              <CardLayoutToggle layout={layout} onChange={setLayout} />
-            </div>
-            <CollapsibleFilters summary={filterSummary}>
-              <div className="filters">
-                <SortMenu
-                  sorts={sorts}
-                  onChange={setSorts}
-                  onlyNeed
-                  unavailableKeys={unavailableSorts}
-                  columnSortKey={COLSORT_GB_CARDS_KEY}
-                />
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showAltArts}
-                    onChange={(e) => setShowAltArts(e.target.checked)}
-                  />
-                  Show alt arts
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={showExcluded}
-                    onChange={(e) => setShowExcluded(e.target.checked)}
-                  />
-                  Show excluded
-                </label>
-              </div>
-              {sortingByUser ? (
-                <p className="sort-deck-note muted">
-                  User sort groups cards by who wants them (member list order). Cards wanted by
-                  multiple people stay under their earliest member.
-                </p>
-              ) : null}
-              {detail.status === "open" && myContribution ? (
-                <DeckIncludeFilter
-                  heading="Include"
-                  decks={decks}
-                  selectedIds={allSelected ? decks.map((d) => d.id) : (activeDeckIds ?? [])}
-                  onChange={setContributionDecks}
-                  onSelectAll={() => setContributionDecks(null)}
-                  selectAllLabel="Select all decks"
-                  selectAllDisabled={allSelected}
-                  showSelectAll={decks.length > 0}
-                  disabled={contribution.isPending}
-                  otherChips={[
-                    {
-                      key: "singles",
-                      label: "Cards not in a deck",
-                      checked: includeSingles,
-                      onChange: (v) => updateContribution({ include_singles: v }),
-                    },
-                    {
-                      key: "extra-copies",
-                      label: "Extra copies",
-                      checked: includeExtraCopies,
-                      onChange: (v) => updateContribution({ include_extra_copies: v }),
-                    },
-                  ]}
-                  note={
-                    <p className="muted group-buy-deck-filter-note">
-                      Unchecked decks and cards are left out of your contribution. Extra copies adds
-                      the alt arts you marked as Extra copy.
-                    </p>
-                  }
-                />
-              ) : null}
-            </CollapsibleFilters>
-          </div>
+              <ListToolbar
+                className="group-buy-merged-toolbar"
+                search={{ value: search, onChange: setSearch }}
+                sort={{
+                  sorts,
+                  onChange: setSorts,
+                  onlyNeed: true,
+                  unavailableKeys: unavailableSorts,
+                  columnSortKey: COLSORT_GB_CARDS_KEY,
+                }}
+                filterBadge={filterBadge}
+                filters={
+                  <>
+                    <div className="collection-filter-list">
+                      <FilterCheck checked={showAltArts} onChange={setShowAltArts}>
+                        Show alt arts
+                      </FilterCheck>
+                      <FilterCheck checked={showExcluded} onChange={setShowExcluded}>
+                        Show excluded
+                      </FilterCheck>
+                    </div>
+                    {sortingByUser ? (
+                      <p className="sort-deck-note muted">
+                        User sort groups cards by who wants them (member list order). Cards wanted by
+                        multiple people stay under their earliest member.
+                      </p>
+                    ) : null}
+                  </>
+                }
+                layout={layout}
+                onLayout={setLayout}
+                density={density}
+                onDensity={setDensity}
+              />
             }
           >
+            {search.trim() ? (
+              <p className="search-result-note muted">
+                Showing {lines.length} match{lines.length === 1 ? "" : "es"} for “{search.trim()}”
+              </p>
+            ) : null}
 
-          {search.trim() ? (
-            <p className="search-result-note muted">
-              Showing {lines.length} match{lines.length === 1 ? "" : "es"} for “{search.trim()}”
-            </p>
-          ) : null}
-
-          {lines.length === 0 ? (
-            <p className="muted">No cards match the current search or filters.</p>
-          ) : (
-            <GroupBuyLines
-              layout={layout}
-              isNarrow={isNarrow}
-              members={members}
-              displayRows={displayRows}
-              tableRows={tableRows}
-              cardsSort={cardsSort}
-              onCardsSort={onCardsSort}
-              renderBuyEditor={
-                detail.status === "open"
-                  ? (line, excluded) => (
-                      <BuyQtyEditor
-                        cardId={line.card_id}
-                        qty={line.my_qty}
-                        suggestedQty={line.my_suggested_qty}
-                        isCustom={line.my_is_custom}
-                        excluded={excluded}
-                        disabled={qtyBusy}
-                        onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
-                        onReset={() => clearQty.mutate(line.card_id)}
-                        onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
-                        deckQty={line.my_deck_qty ?? 0}
-                        extras={line.my_extras ?? []}
-                        onExtraSkip={(productId, skip) =>
-                          setExtraSkip.mutate({ cardId: line.card_id, productId, skip })
-                        }
-                      />
-                    )
-                  : undefined
-              }
-              renderAltRow={showAltArts ? groupBuyAltRow : undefined}
-            />
-          )}
+            {lines.length === 0 ? (
+              <p className="muted">No cards match the current search or filters.</p>
+            ) : (
+              <GroupBuyLines
+                layout={layout}
+                density={density}
+                isNarrow={isNarrow}
+                members={members}
+                displayRows={displayRows}
+                tableRows={tableRows}
+                cardsSort={cardsSort}
+                onCardsSort={onCardsSort}
+                renderBuyEditor={
+                  detail.status === "open"
+                    ? (line, excluded) => (
+                        <BuyQtyEditor
+                          cardId={line.card_id}
+                          qty={line.my_qty}
+                          suggestedQty={line.my_suggested_qty}
+                          isCustom={line.my_is_custom}
+                          excluded={excluded}
+                          disabled={qtyBusy}
+                          onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty })}
+                          onReset={() => clearQty.mutate(line.card_id)}
+                          onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0 })}
+                          deckQty={line.my_deck_qty ?? 0}
+                          extras={line.my_extras ?? []}
+                          onExtraSkip={(productId, skip) =>
+                            setExtraSkip.mutate({ cardId: line.card_id, productId, skip })
+                          }
+                        />
+                      )
+                    : undefined
+                }
+                renderAltRow={showAltArts ? groupBuyAltRow : undefined}
+              />
+            )}
           </CardWorkspace>
         </>
       )}
-      {detail.status === "open" ? (
-        <p className="muted group-buy-footnote">* Custom quantity (not shopping still-need)</p>
-      ) : null}
     </section>
   );
 }

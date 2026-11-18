@@ -14,9 +14,9 @@ export type DensityPage = keyof typeof LIST_DENSITY_KEYS;
 
 const densityCodec = choiceCodec<ListDensity>(["comfortable", "compact"]);
 
-/** Shopping and Collection are long lists, so they start Compact; deck pages and the share page keep the roomy rows. */
+/** Shopping, Collection and group buys are long lists, so they start Compact; deck pages and the share page keep the roomy rows. */
 export function defaultListDensity(page: DensityPage): ListDensity {
-  return page === "shopping" || page === "collection" ? "compact" : "comfortable";
+  return page === "shopping" || page === "collection" || page === "groupBuy" ? "compact" : "comfortable";
 }
 
 /** Density of the List view, remembered per page; a saved choice wins over the page default. */

@@ -16,7 +16,7 @@ function detail(singles: boolean, extras: boolean) {
     members: [{ user_id: 1, display_name: "Nami", role: "host", deck_ids: null, include_singles: singles, include_extra_copies: extras, cards_still_needed: 0, remaining_market: 0, card_cost: 0, shipping_share: 0, tax_share: 0, total_owed: 0 }],
     lines, locked_at: null, ordered_at: null, external_order_id: "", order_notes: "", shipping_cost: 0, shipping_split: "equal", tax_cost: 0, cards_subtotal: 0, grand_total: 0, receipt_text: "", has_receipt: false, can_undo_purchase: false };
 }
-test("Include toggles send your contribution flags and the Filters panel stays put (#1177)", async ({ page, planner }, ti) => {
+test("Include toggles send your contribution flags and the Include panel stays put (#1177)", async ({ page, planner }, ti) => {
   let s = true, e = false;
   const puts: unknown[] = [];
   await page.route(`**/api/group-buys/${GB}/contribution`, async (r) => {
@@ -28,13 +28,14 @@ test("Include toggles send your contribution flags and the Filters panel stays p
   await page.route(`**/api/group-buys/${GB}`, (r) => r.fulfill({ json: detail(s, e) }));
   await planner.open(`/group-buys/${GB}`);
   await expect(page.getByRole("heading", { name: "Friday pool", level: 1 })).toBeVisible();
-  const toggle = page.locator(".group-buy-merged-toolbar").getByRole("button", { name: /Filters/ }).first();
+  // Include lives in the Your share card (#1361), behind Edit.
+  const toggle = page.getByTestId("gb-your-share").locator(".gb-share-edit");
   await toggle.click();
   const singles = page.getByLabel("Cards not in a deck");
   await expect(singles).toBeVisible();
   const y = () => toggle.evaluate((el) => el.getBoundingClientRect().top + window.scrollY);
   const box1 = await y();
-  if (SHOTS) await page.locator(".group-buy-merged-toolbar").screenshot({ path: `${SHOTS}/${ti.project.name}-1-filters-default.png` });
+  if (SHOTS) await page.getByTestId("gb-your-share").screenshot({ path: `${SHOTS}/${ti.project.name}-1-filters-default.png` });
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${ti.project.name}-1-page-default.png`, fullPage: true });
   await singles.click();
   await expect(page.getByText("Monkey.D.Luffy")).toHaveCount(0);

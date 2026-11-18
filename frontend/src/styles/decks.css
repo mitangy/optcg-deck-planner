@@ -849,6 +849,9 @@
     max-width: 100%;
   }
 
+}
+
+@media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
   .mobile-card {
     position: relative;
     border: 1px solid var(--line);
@@ -991,6 +994,9 @@
     font-size: 0.88rem;
   }
 
+}
+
+@media (max-width: 800px) {
   .sort-menu {
     width: 100%;
   }
@@ -1011,6 +1017,9 @@
     min-height: 2.75rem;
   }
 
+}
+
+@media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
   .mobile-card-name {
     font-weight: 600;
     line-height: 1.25;
@@ -1098,6 +1107,9 @@
     margin: 0.35rem 0 0;
   }
 
+}
+
+@media (max-width: 800px) {
   .btn.primary,
   .btn.secondary {
     min-height: 2.75rem;
