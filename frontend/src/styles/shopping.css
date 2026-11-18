@@ -615,66 +615,6 @@ button.ghost.danger:not(:disabled):hover {
   margin: 0 0 1rem;
 }
 
-.buy-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  margin: 0 0 0.75rem;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
-  border-radius: var(--radius-12);
-  background: var(--gold-soft);
-  min-width: 0;
-}
-
-.buy-bar-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 0.75rem;
-  min-width: 0;
-  line-height: 1.35;
-}
-
-.buy-bar-summary strong {
-  font-weight: 700;
-}
-
-.buy-bar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.45rem;
-  min-width: 0;
-}
-
-.buy-bar-actions .btn {
-  min-height: 2rem;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.85rem;
-  width: auto;
-  margin-top: 0;
-  border-radius: var(--radius-pill);
-}
-
-.buy-bar-actions .btn.secondary {
-  background: var(--card);
-  border-color: color-mix(in srgb, var(--gold) 60%, var(--line));
-}
-
-.buy-bar-actions .btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.buy-bar-actions .ghost {
-  min-width: 0;
-  min-height: 2rem;
-  padding: 0.3rem 0.45rem;
-  font-size: 0.85rem;
-}
-
 .buy-bar-msg {
   margin: 0;
   padding: 0;
@@ -708,11 +648,19 @@ button.ghost.danger:not(:disabled):hover {
   cursor: pointer;
 }
 
-tr.selected-row td,
+/* A selected row is a light tint and an accent edge; the ticked box carries the rest (#1342). */
+tr.selected-row td {
+  background: color-mix(in srgb, var(--gold) 12%, transparent);
+}
+
+tr.selected-row td:first-child {
+  box-shadow: inset 0.2rem 0 0 var(--gold);
+}
+
 .mobile-card.selected-row,
 .grid-card-wrap.selected-row .grid-card {
-  outline: 2px solid color-mix(in srgb, var(--gold) 70%, transparent);
-  outline-offset: -2px;
+  background: color-mix(in srgb, var(--gold) 12%, var(--card));
+  box-shadow: inset 0.2rem 0 0 var(--gold), var(--shadow);
 }
 
 .mobile-card.selectable,
@@ -815,6 +763,44 @@ tr.selected-row td,
   background: linear-gradient(90deg, var(--gold), var(--gold-bright));
   box-shadow: inset 0 -1px 0 rgba(122, 86, 20, 0.25);
   transition: width 0.2s ease;
+}
+
+/* Wide enough: the owned meter is one row, toggle, the sentence and the bar side by side (#1342). */
+@media (min-width: 900px) {
+  .deck-progress {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1rem;
+    margin-bottom: 0.7rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .deck-progress-head {
+    display: contents;
+  }
+
+  .deck-progress-text {
+    display: block;
+    flex: 0 0 auto;
+    min-height: 0;
+    white-space: nowrap;
+  }
+
+  .deck-progress-line {
+    display: inline;
+    min-height: 0;
+  }
+
+  .deck-progress-line + .deck-progress-line::before {
+    content: " · ";
+  }
+
+  .deck-progress-bar {
+    flex: 1 1 8rem;
+    min-width: 8rem;
+    margin-top: 0;
+  }
 }
 
 .sr-only {
@@ -1342,7 +1328,7 @@ span.deck-filter-group-head {
   .grid-card-select {
     position: absolute;
     top: 0.55rem;
-    left: 0.55rem;
+    right: 0.55rem;
     z-index: var(--z-raise-2);
     width: auto;
     min-width: 1.75rem;
@@ -1382,5 +1368,422 @@ span.deck-filter-group-head {
 
   .card-grid:has(.grid-card-steppers) {
     grid-template-columns: repeat(auto-fill, minmax(13.75rem, 1fr));
+  }
+}
+
+/* Page head: title, totals and the Buy button share one row; Add cards, Share and group buy sit at its right end. */
+.page-head.shopping-head {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: var(--space-2) var(--space-3);
+}
+
+.shopping-head-title {
+  min-width: 0;
+}
+
+.shopping-head h1 {
+  font-size: clamp(1.6rem, 1.3rem + 1vw, 2rem);
+}
+
+.shopping-head-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  padding-bottom: 0.2rem;
+}
+
+.shopping-head .add-cards-btn .head-popover-chevron {
+  display: none;
+}
+
+.shopping-head .stat-strip {
+  margin: 0;
+  gap: 0.35rem 0.9rem;
+}
+
+.shopping-head .btn {
+  padding-inline: 0.7rem;
+}
+
+.tcg-buy-label {
+  display: inline-grid;
+  justify-items: center;
+}
+
+.tcg-buy-label > span {
+  grid-area: 1 / 1;
+}
+
+.tcg-buy-label > span[aria-hidden="true"] {
+  visibility: hidden;
+}
+
+.shopping-head .page-head-actions {
+  margin-left: auto;
+  padding-bottom: 0.2rem;
+}
+
+.shopping-head .head-popover-icon {
+  display: inline-flex;
+}
+
+.tcg-buy {
+  position: relative;
+  display: inline-flex;
+  align-items: normal;
+  flex: 0 0 auto;
+}
+
+.tcg-buy .btn.tcg-buy-main {
+  width: auto;
+  margin-top: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  white-space: nowrap;
+}
+
+.tcg-buy .btn.tcg-buy-caret {
+  width: auto;
+  margin-top: 0;
+  min-width: 2.4rem;
+  padding-inline: 0.6rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+}
+
+/* Selection bar and export message: over the page edge, so ticking a card moves nothing (#1342). */
+.buy-dock {
+  position: fixed;
+  z-index: var(--z-menu);
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  justify-content: center;
+  padding: 0 max(0.75rem, env(safe-area-inset-right, 0px)) 0.75rem max(0.75rem, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+
+html[data-lp-dock="right"] .buy-dock {
+  right: var(--lp-dock-w, 380px);
+}
+
+html[data-lp-dock="left"] .buy-dock {
+  left: var(--lp-dock-w, 380px);
+}
+
+/* The Log Pose compass floats at the bottom right; leave it clear. */
+body:has(.lp-compass) .buy-dock {
+  padding-right: 4.75rem;
+}
+
+.buy-dock-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.9rem;
+  box-sizing: border-box;
+  width: min(100%, 72rem);
+  min-width: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
+  border-radius: var(--radius-14);
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
+  pointer-events: auto;
+}
+
+.buy-dock-summary {
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.buy-dock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  min-width: 0;
+}
+
+.buy-dock-msg {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  max-height: 7rem;
+  margin: 0;
+  overflow: auto;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.buy-dock-msg .ghost {
+  flex: 0 0 auto;
+  min-height: 1.75rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.82rem;
+}
+
+/* Room for the last row above the dock; --buy-dock-h is measured in ShoppingBuyDock. */
+.has-buy-dock {
+  padding-bottom: calc(var(--buy-dock-h, 0px) + var(--bottom-nav-h, 0px) + 1rem);
+}
+
+/* Used in stays body size even where wide screens enlarge the other value cells. */
+.data-table.shopping-table tr.alt-main-row > td.used-in {
+  height: auto;
+  font-size: 0.88rem;
+  font-weight: 400;
+}
+
+.head-popover-panel .shopping-add {
+  margin: 0;
+}
+
+/* Inside the narrow Add cards panel the search and filter rows must shrink to it, not to the input's own width. */
+:is(.shopping-add, .collection-add) .deck-editor-filters :is(.card-search, .deck-editor-filter-row) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 800px) {
+  .page-head.shopping-head {
+    align-items: normal;
+  }
+
+  .shopping-head-stats {
+    width: 100%;
+  }
+
+  .shopping-head .page-head-actions {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+
+  .shopping-head .page-head-actions .btn {
+    flex: 1 1 auto;
+    width: auto;
+    padding: 0.45rem 0.5rem;
+    font-size: 0.85rem;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .shopping-head .page-head-actions .head-popover {
+    flex: 1 1 auto;
+  }
+
+  .shopping-head .page-head-actions .head-popover-icon,
+  .shopping-head .page-head-actions .head-popover-chevron {
+    display: none;
+  }
+
+  .shopping-head .stat-strip {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    gap: 0.35rem 1.1rem;
+  }
+
+  .shopping-head .stat-value {
+    font-size: 1.15rem;
+  }
+
+  .shopping-head .stat-note.stat-split {
+    display: none;
+  }
+
+  .shopping-head-stats .tcg-buy {
+    flex: 1 1 100%;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-caret {
+    min-height: 2.75rem;
+  }
+
+  .shopping-head .page-head-actions {
+    margin-left: 0;
+    padding-bottom: 0;
+  }
+
+  .buy-dock-actions {
+    flex: 1 1 100%;
+  }
+
+  .buy-dock-actions .tcg-buy {
+    flex: 1 1 auto;
+  }
+
+  .buy-dock-actions .tcg-buy-main {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+/* Phone: a shorter head so the list starts higher (#1342). Same elements, tighter sizes. */
+@media (max-width: 600px) {
+  .page-head.shopping-head {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .shopping-head .page-head-actions {
+    gap: 0.3rem;
+  }
+
+  .shopping-head .page-head-actions .btn {
+    min-height: 2.25rem;
+    padding-block: 0.25rem;
+  }
+
+  .shopping-head-title .eyebrow {
+    display: none;
+  }
+
+  .shopping-head h1 {
+    font-size: 1.25rem;
+    line-height: 1.1;
+  }
+
+  /* Title and Buy share one row, totals sit under them: the wrapper stops being a box so its children join the head's flow. */
+  .shopping-head-stats {
+    display: contents;
+  }
+
+  .shopping-head-title {
+    flex: 1 1 0;
+    align-self: center;
+  }
+
+  .shopping-head-stats .tcg-buy {
+    order: 1;
+    flex: 0 0 auto;
+  }
+
+  .shopping-head .stat-strip {
+    order: 2;
+  }
+
+  .shopping-head .page-head-actions {
+    order: 3;
+    flex: 1 1 100%;
+  }
+
+  .shopping-head .stat-value {
+    font-size: 1.05rem;
+    line-height: 1.1;
+  }
+
+  .shopping-head .stat-strip {
+    gap: 0.2rem 1rem;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main,
+  .shopping-head-stats .tcg-buy .tcg-buy-caret {
+    min-height: 2.25rem;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main {
+    flex: 0 1 auto;
+    padding-inline: 0.55rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* Short landscape screens (phones turned sideways): the head is one tight row so cards start in view (#1342). */
+@media (max-height: 500px) and (orientation: landscape) {
+  .page-head.shopping-head {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .shopping-head-title {
+    flex: 0 1 auto;
+  }
+
+  .shopping-head-title .eyebrow {
+    display: none;
+  }
+
+  .shopping-head h1 {
+    font-size: 1.1rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .shopping-head-stats {
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    padding-bottom: 0;
+    gap: 0.4rem;
+  }
+
+  .shopping-head .stat-strip {
+    gap: 0.1rem 0.5rem;
+  }
+
+  .shopping-head .stat-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+
+  .shopping-head .stat-value {
+    font-size: 0.95rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .shopping-head .stat-note {
+    display: none;
+  }
+
+  .shopping-head .page-head-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    padding-bottom: 0;
+    gap: 0.25rem;
+  }
+
+  .shopping-head .page-head-actions .btn {
+    min-height: 2.25rem;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .shopping-head .page-head-actions .head-popover-icon,
+  .shopping-head .page-head-actions .head-popover-chevron {
+    display: none;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main,
+  .shopping-head-stats .tcg-buy .tcg-buy-caret {
+    min-height: 2.25rem;
+    font-size: 0.8rem;
+    padding-inline: 0.5rem;
+    white-space: nowrap;
   }
 }

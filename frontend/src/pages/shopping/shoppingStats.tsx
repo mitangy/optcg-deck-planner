@@ -53,7 +53,7 @@ function shoppingListStats(data: ShoppingStatsData | null | undefined) {
 export function formatShoppingListStats(data: ShoppingStatsData | null | undefined) {
   const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket } = shoppingListStats(data);
   return (
-    `${uniqueStillNeeded}/${totalUnique} uniques left · ${totalStillNeeded} copies · ` +
+    `${uniqueStillNeeded}/${totalUnique} cards to buy · ${totalStillNeeded} copies · ` +
     `${money(remainingMarket)}`
   );
 }
@@ -65,14 +65,14 @@ export function ShoppingStatStrip({ data }: { data: ShoppingStatsData | null | u
   return (
     <ul className="stat-strip" aria-label="Shopping totals">
       <li>
-        <span className="stat-label">Cards left</span>
+        <span className="stat-label" title="Cards that still need copies, out of every card on the list">Cards to buy</span>
         <span className="stat-value">
           {uniqueStillNeeded}
           <small> / {totalUnique}</small>
         </span>
       </li>
       <li>
-        <span className="stat-label">Copies</span>
+        <span className="stat-label" title="Copies still to buy across those cards">Copies</span>
         <span className="stat-value">{totalStillNeeded}</span>
         {collectorNote ? <span className="stat-note">{collectorNote}</span> : null}
       </li>

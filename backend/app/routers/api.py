@@ -76,9 +76,10 @@ _sales_in_flight = threading.BoundedSemaphore(4)
 def get_decks(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    deck_ids: Annotated[list[int] | None, Query()] = None,
 ):
     deck_link.reconcile_user(db, user)
-    return deck_svc.list_decks(db, user)
+    return deck_svc.list_decks(db, user, deck_ids)
 
 
 @router.post("/decks", response_model=DeckSummary)

@@ -38,7 +38,7 @@ type FixtureCard = {
   section: string;
   alt_arts?: Array<{ product_id: number; name: string; market_price: number; low_price: number; group_name: string; is_special: boolean }>;
 };
-const CARDS = fixture<FixtureCard[]>("cards.json");
+const BASE_CARDS = fixture<FixtureCard[]>("cards.json");
 const DON_CARDS = [
   { card_id: "DON-001", name: "DON!! Card (Luffy)", product_id: 301, group_name: "Extra Booster: Memorial Collection" },
   { card_id: "DON-002", name: "DON!! Card (Zoro)", product_id: 302, group_name: "Premium Booster" },
@@ -108,6 +108,10 @@ type Planner = {
   displayArt: Map<string, number>;
   extras: Map<string, number>;
   manyAlts(cardId: string, count: number): void;
+  /** Adds `count` plain Character cards (no alt arts) so lists are long enough to scroll. */
+  manyCards(count: number): void;
+  /** Keep each page's own default List density (Compact on Shopping and Collection) instead of the Comfortable rows older specs expect. */
+  defaultDensity: boolean;
   noDecks(): void;
   priceAlertPosts: { card_id: string; product_id: number; target_price: number; direction: AlertDirection }[];
   requests: string[];
@@ -135,6 +139,7 @@ export const test = base.extend<{ planner: Planner }>({
     let signedIn = true;
     const createdDecks: Planner["createdDecks"] = [];
     const replacedLists: string[] = [];
+    const CARDS: FixtureCard[] = [...BASE_CARDS];
     let deckCards: FixtureCard[] = CARDS;
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
     const altOwned = new Map<string, number>();
@@ -384,6 +389,7 @@ export const test = base.extend<{ planner: Planner }>({
             main_cards: mainCards,
             don_cards: 0,
             owned_copies: [...owned.values()].reduce((a, b) => a + b, 0),
+            remaining_cost: 36.8,
             sort_order: 0,
             is_main: true,
           },
@@ -450,9 +456,10 @@ export const test = base.extend<{ planner: Planner }>({
             } satisfies CatalogCardResult)),
           );
         }
-        if (!q) return json([]);
+        const onlyLeaders = (params.get("card_type") ?? "") === "Leader";
+        if (!q && !onlyLeaders) return json([]);
         return json(
-          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q)).map((c) => ({
+          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q) && (!onlyLeaders || c.card_type === "Leader")).map((c) => ({
             card_id: c.card_id,
             name: c.name,
             rarity: c.rarity,
@@ -604,6 +611,14 @@ export const test = base.extend<{ planner: Planner }>({
       manyAlts(cardId, count) {
         extraAlts.set(cardId, count);
       },
+      manyCards(count) {
+        for (let i = 0; i < count; i++) {
+          const n = String(20 + i).padStart(3, "0");
+          const card: FixtureCard = { card_id: `EB01-${n}`, name: `Filler Pirate ${i + 1}`, rarity: "C", color: i % 2 ? "Green" : "Red", card_type: "Character", cost: 2 + (i % 5), product_id: 300 + i, market_price: 0.5 + i / 10, low_price: 0.3, needed: 4, owned: i % 3, section: "main" };
+          CARDS.push(card);
+          owned.set(card.card_id, card.owned);
+        }
+      },
       noDecks() {
         hasDecks = false;
       },
@@ -626,9 +641,18 @@ export const test = base.extend<{ planner: Planner }>({
       enableLogPose() {
         logPoseOn = true;
       },
-      async open(path) {
+      async open(this: Planner, path) {
+        // Older specs were written for the roomy rows with inline alt tiles; a spec about the new defaults opts in.
+        if (!this.defaultDensity) {
+          await page.addInitScript(() => {
+            for (const k of ["shopping", "collection", "deck", "share"]) {
+              if (localStorage.getItem(`optcg_list_density_${k}`) === null) localStorage.setItem(`optcg_list_density_${k}`, "comfortable");
+            }
+          });
+        }
         await page.goto(path);
       },
+      defaultDensity: false,
       async audit(opts) {
         return (await auditPage(page, opts)).filter((i) => !isKnown(i));
       },

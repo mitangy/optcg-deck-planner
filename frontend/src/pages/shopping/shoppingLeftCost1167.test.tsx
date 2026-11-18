@@ -79,7 +79,7 @@ function view(items: ShoppingItem[]) {
           onToggleSelectVisible={() => {}}
           showAltArts={false}
           altRow={() => null}
-          usedInNote={() => ""}
+         
           onOwnedSaved={() => {}}
           onRemoveExtra={() => {}}
           removingExtraId={null}

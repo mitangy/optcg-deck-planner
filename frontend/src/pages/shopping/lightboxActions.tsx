@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useId, useMemo } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { api, ShoppingItem } from "../../api";
 import { useSavedShoppingDeckIds } from "./shoppingDeckFilter";
 import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
@@ -9,6 +9,7 @@ import { LightboxPriceAlertControl } from "../../prices/PriceAlerts";
 import { LightboxPriceHistoryControl } from "../../prices/PriceHistory";
 import { LightboxPanelProvider } from "../../prices/lightboxPanel";
 import { qk } from "../../cache/queryKeys";
+import { cardBackState } from "../../cards/cardBack";
 
 function useFullShoppingState(deckIds?: number[]): { byId: Map<string, ShoppingItem>; loaded: boolean } {
   const q = useQuery({
@@ -34,6 +35,7 @@ export function ShoppingExtraControl({
   addLabel = "Add",
   loading = false,
   altProductId = 0,
+  stepperLabel,
 }: {
   cardId: string;
   item: ShoppingItem | undefined;
@@ -42,7 +44,10 @@ export function ShoppingExtraControl({
   /** The list or owned counts are still loading: item/owned are placeholders, so a press would overwrite a saved target (#845). */
   loading?: boolean;
   altProductId?: number;
+  /** Visible name for the stepper (e.g. "To buy"); also its accessible group name. */
+  stepperLabel?: string;
 }) {
+  const labelId = useId();
   const qc = useQueryClient();
   const stillNeed = item?.still_need ?? 0;
   const extraQty = item?.extra_qty ?? 0;
@@ -69,9 +74,18 @@ export function ShoppingExtraControl({
       adding: delta > 0,
     });
   return (
-    <span className="shopping-extra-control">
+    <span
+      className="shopping-extra-control"
+      role={stepperLabel && stillNeed > 0 ? "group" : undefined}
+      aria-labelledby={stepperLabel && stillNeed > 0 ? labelId : undefined}
+    >
       {stillNeed > 0 ? (
         <>
+          {stepperLabel ? (
+            <span id={labelId} className="shopping-extra-label">
+              {stepperLabel}
+            </span>
+          ) : null}
           <button
             type="button"
             className="owned-btn"
@@ -140,6 +154,7 @@ export function LightboxShoppingControl({ cardId }: { cardId: string }) {
         owned={ownedOf(cardId)}
         addLabel="Add to shopping list"
         loading={loading}
+        stepperLabel="To buy"
       />
     </>
   );
@@ -168,11 +183,28 @@ export const renderCardPageActions = (cardId: string, productId: number) => (
   </>
 );
 
-export const renderLightboxActions = (cardId: string, productId?: number, close?: () => void) => (
-  <LightboxPanelProvider>
-    <Link className="btn secondary lightbox-card-link" to={`/cards/${encodeURIComponent(cardId)}${productId ? `?art=${productId}` : ""}`} onClick={close}>
+function CardPageLink({ cardId, productId, close }: { cardId: string; productId?: number; close?: () => void }) {
+  const { pathname, search } = useLocation();
+  const qc = useQueryClient();
+  const deckId = /^\/decks\/(\d+)$/.exec(pathname)?.[1];
+  const deckName = deckId
+    ? qc.getQueriesData<{ name?: string }>({ queryKey: qk.deck.byId(Number(deckId)) }).find(([, d]) => d?.name)?.[1]?.name
+    : undefined;
+  return (
+    <Link
+      className="btn secondary lightbox-card-link"
+      to={`/cards/${encodeURIComponent(cardId)}${productId ? `?art=${productId}` : ""}`}
+      state={cardBackState({ pathname, search }, deckName)}
+      onClick={close}
+    >
       Card page
     </Link>
+  );
+}
+
+export const renderLightboxActions = (cardId: string, productId?: number, close?: () => void) => (
+  <LightboxPanelProvider>
+    <CardPageLink cardId={cardId} productId={productId} close={close} />
     <LightboxShoppingControl cardId={cardId} />
     <LightboxPriceAlertControl cardId={cardId} productId={productId ?? 0} />
     <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} />

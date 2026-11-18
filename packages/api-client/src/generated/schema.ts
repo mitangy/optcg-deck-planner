@@ -5700,6 +5700,8 @@ export interface components {
              * @default 0
              */
             owned_copies: number;
+            /** Remaining Cost */
+            remaining_cost?: number | null;
             /** Sort Order */
             sort_order: number;
             /** Total Cards */
@@ -7739,6 +7741,8 @@ export interface components {
             count: number;
             /** Image Url */
             image_url: string;
+            /** Market Price */
+            market_price?: number | null;
             /** Name */
             name: string;
         };
@@ -7750,6 +7754,8 @@ export interface components {
             image_url: string;
             /** Leader Id */
             leader_id: string;
+            /** Leader Market Price */
+            leader_market_price?: number | null;
             /** Name */
             name: string;
         };
@@ -13008,7 +13014,9 @@ export interface operations {
     };
     get_decks_decks_get: {
         parameters: {
-            query?: never;
+            query?: {
+                deck_ids?: number[] | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -13022,6 +13030,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeckSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

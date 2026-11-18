@@ -9,6 +9,7 @@ import { MySparesPanel } from "./MySparesPanel";
 import { friendsApi } from "./friendsApi";
 import { Empty, LoadError, Tabs } from "./ui";
 import { USERNAME_MAX, usernameFormatError } from "@optcg/ui/username";
+import { useConfirm } from "@optcg/ui/popups";
 import { qk } from "../cache/queryKeys";
 
 type FriendsTab = "friends" | "trades" | "spares";
@@ -109,6 +110,7 @@ function FriendsTabPanel() {
   const { data, isLoading, error, refetch } = useQuery({ queryKey: qk.friends(), queryFn: friendsApi.list });
   const [username, setUsername] = useState("");
   const [note, setNote] = useState<string | null>(null);
+  const { confirm, confirmDialog } = useConfirm();
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: qk.friends() });
     void qc.invalidateQueries({ queryKey: qk.trades() });
@@ -159,9 +161,13 @@ function FriendsTabPanel() {
                     className="ghost danger"
                     disabled={remove.isPending}
                     aria-label={`Remove ${f.username}`}
-                    onClick={() => {
-                      if (!window.confirm(`Remove ${f.username} from your friends? Open trades with them are cancelled.`)) return;
-                      remove.mutate(f.user_id);
+                    onClick={async () => {
+                      const ok = await confirm({
+                        title: `Remove ${f.username}?`,
+                        message: "Open trades with them are cancelled.",
+                        confirmLabel: "Remove",
+                      });
+                      if (ok) remove.mutate(f.user_id);
                     }}
                   >
                     Remove
@@ -171,6 +177,7 @@ function FriendsTabPanel() {
             </ul>
           )}
           {mutationError ? <p className="error">{(mutationError as Error).message}</p> : null}
+          {confirmDialog}
         </section>
       </div>
       <div className="friends-col">

@@ -14,7 +14,7 @@ import { altIncBlocked, myAltBuyQty, myArtSplit } from "./groupBuyArt";
 import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { blankMassEntryUrl } from "../shopping/tcgplayerMassEntry";
 import { useNarrowLayout } from "../../hooks/useNarrowLayout";
-import { Select } from "@optcg/ui/popups";
+import { Select, useConfirm } from "@optcg/ui/popups";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -32,6 +32,7 @@ import { qk } from "../../cache/queryKeys";
 import { copyText } from "@optcg/ui/clipboard";
 
 export function GroupBuyDetailPage() {
+  const { confirm, confirmDialog } = useConfirm();
   const { id } = useParams();
   const navigate = useNavigate();
   const groupId = Number(id);
@@ -541,6 +542,7 @@ export function GroupBuyDetailPage() {
 
   return (
     <section className="group-buy-detail">
+      {confirmDialog}
       <div className="page-head">
         <div>
           <p className="muted">
@@ -664,11 +666,14 @@ export function GroupBuyDetailPage() {
             type="button"
             className="btn primary"
             disabled={orderBusy}
-            onClick={() => {
-              const ok = window.confirm(
-                "Mark this group buy as ordered?\n\n" +
+            onClick={async () => {
+              const ok = await confirm({
+                title: "Mark this group buy as ordered?",
+                message:
                   "Use this after placing the bulk TCGPlayer order. Quantities stay frozen; you can still edit shipping and what each person owes. Owned counts are not updated yet.",
-              );
+                confirmLabel: "Mark ordered",
+                danger: false,
+              });
               if (ok) markOrdered.mutate(orderBodyFromForm());
             }}
           >
@@ -685,17 +690,20 @@ export function GroupBuyDetailPage() {
                 ? undefined
                 : "Import and match a TCGPlayer receipt first"
             }
-            onClick={() => {
+            onClick={async () => {
               if (!receiptDraft?.canApply) {
                 setMsg("Import and match a TCGPlayer receipt before Mark purchased.");
                 return;
               }
-              const ok = window.confirm(
-                "Mark purchased for matched receipt cards?\n\n" +
-                  `${receiptDraft.lineCount} card line(s), ${receiptDraft.stagedCopies} copies will be added to Owned.\n` +
+              const ok = await confirm({
+                title: "Mark purchased for matched receipt cards?",
+                message:
+                  `${receiptDraft.lineCount} card line(s), ${receiptDraft.stagedCopies} copies will be added to Owned.\n\n` +
                   "Pool cards missing from the receipt are left ordered until another receipt covers them." +
                   (detail.status === "locked" ? "\n\nThis will also mark the pool as ordered." : ""),
-              );
+                confirmLabel: "Mark purchased",
+                danger: false,
+              });
               if (ok) complete.mutate(receiptDraft);
             }}
           >
@@ -711,12 +719,14 @@ export function GroupBuyDetailPage() {
             type="button"
             className="btn secondary"
             disabled={undoPurchase.isPending || complete.isPending}
-            onClick={() => {
-              const ok = window.confirm(
-                "Undo the latest Mark purchased?\n\n" +
+            onClick={async () => {
+              const ok = await confirm({
+                title: "Undo the latest Mark purchased?",
+                message:
                   "This restores the shopping pool and each person’s owed amounts, and removes those receipt copies from Owned. " +
                   "Your imported receipt paste stays saved so you can Mark purchased again.",
-              );
+                confirmLabel: "Undo",
+              });
               if (ok) undoPurchase.mutate();
             }}
           >
@@ -728,8 +738,9 @@ export function GroupBuyDetailPage() {
             type="button"
             className="ghost danger"
             disabled={remove.isPending}
-            onClick={() => {
-              if (window.confirm("Delete this group buy for everyone?")) remove.mutate();
+            onClick={async () => {
+              const ok = await confirm({ title: "Delete this group buy for everyone?", confirmLabel: "Delete" });
+              if (ok) remove.mutate();
             }}
           >
             Delete
@@ -741,10 +752,13 @@ export function GroupBuyDetailPage() {
             className="ghost danger"
             disabled={leave.isPending || detail.status !== "open"}
             title={detail.status !== "open" ? "Ask the host to unlock first" : undefined}
-            onClick={() => {
-              if (window.confirm("Leave this group buy? Your quantities are removed from the pool.")) {
-                leave.mutate();
-              }
+            onClick={async () => {
+              const ok = await confirm({
+                title: "Leave this group buy?",
+                message: "Your quantities are removed from the pool.",
+                confirmLabel: "Leave",
+              });
+              if (ok) leave.mutate();
             }}
           >
             Leave group buy

@@ -1,4 +1,6 @@
 :root {
+  /* Height of the phone bottom tab bar (0 where there is none); fixed bottom elements sit at bottom: var(--bottom-nav-h, 0px). */
+  --bottom-nav-h: 0px;
   --bg: #f3ecdf;
   --bg-deep: #e8dcc6;
   --ink: #17252e;
@@ -150,4 +152,10 @@
 
 * {
   box-sizing: border-box;
+}
+
+@media (max-width: 800px) and (min-height: 500px) {
+  :root:has(.bottom-nav) {
+    --bottom-nav-h: calc(3.5rem + env(safe-area-inset-bottom, 0px));
+  }
 }

@@ -17,7 +17,7 @@ test.afterEach(({ planner }) => {
 });
 
 test("More menu replaces the deck with the pasted list and keeps its name (#1016)", async ({ page, planner }, info) => {
-  await page.getByRole("button", { name: "More" }).click();
+  await page.locator("main").getByRole("button", { name: "More" }).click();
   await page.getByRole("menuitem", { name: /Replace with deck list/ }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("heading", { name: "Replace Oden Red/Green?" })).toBeVisible();

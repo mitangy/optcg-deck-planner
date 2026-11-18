@@ -7,30 +7,28 @@ import { api, money } from "../api";
 import { DUEL_URL } from "../app/duelLink";
 import { UpdateNotice } from "../app/UpdateNotice";
 import { useMe } from "../auth/useMe";
-import { CardLayoutToggle, useCardLayout } from "../ui/CardLayout";
+import { useCardLayout } from "../ui/CardLayout";
+import { FilterCheck, ListToolbar } from "../ui/ListToolbar";
 import {
-  buildFilterSummary,
-  CardSearchInput,
-  CollapsibleFilters,
   compareCardOrder,
   matchesCardSearch,
-  SortMenu,
   useCardSorts,
   usePersistedOpen,
   type SortKey,
 } from "../ui/cardListControls";
 import { CardWorkspace } from "../ui/CardWorkspace";
-import { BuildTag } from "@optcg/ui/appShell";
-import { DeckStatsDock } from "./decks/DeckStats";
+import { SharedStatsDock } from "./decks/DeckStats";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { CardThumb } from "../ui/CardThumb";
 import { GridCard, MobileCard } from "../ui/PlannerCard";
 import { MarketPrice } from "../cards/MarketPrice";
-import { StillNeededCell, stillNeededText, totalOwned } from "./collection/OwnedCells";
+import { StillNeededCell, toBuyText, totalOwned } from "./collection/OwnedCells";
+import { UsedInCell } from "../ui/UsedInCell";
+import { needExplanation, usedInChips } from "./shopping/shoppingBuy";
 import { SortableTh, sortByColumn, useColumnSort } from "../ui/columnSort";
 import { ShoppingListSkeleton } from "../ui/Skeleton";
 import { isDonCardType } from "../cards/donCards";
-import { shoppingColumnValue, sharedUsedIn } from "./shopping/ShoppingItemsView";
+import { shoppingColumnValue } from "./shopping/ShoppingItemsView";
 import { formatShoppingListStats } from "./shopping/shoppingStats";
 import { COLSORT_SHARE_KEY, SHARE_ONLY_NEED_KEY } from "../storage/keys";
 import { qk } from "../cache/queryKeys";
@@ -83,7 +81,6 @@ export function PublicSharePage() {
     <div className="app public-app">
       <UpdateNotice />
       <Topbar brandTo="/login">
-        <BuildTag />
         <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
           Play Duel
         </a>
@@ -141,31 +138,20 @@ export function PublicSharePage() {
             <CardWorkspace
               wider={data.kind === "deck"}
               rail={
-            <div className="list-toolbar">
-              <div className="list-toolbar-row">
-                <CardSearchInput value={search} onChange={setSearch} />
-                <CardLayoutToggle layout={layout} onChange={setLayout} />
-              </div>
-              <CollapsibleFilters summary={buildFilterSummary({ onlyNeed, sorts: effectiveSorts, layout })}>
-                <div className="filters">
-                  <SortMenu
-                    sorts={sorts}
-                    onChange={setSorts}
-                    onlyNeed={onlyNeed}
-                    unavailableKeys={unavailableSorts}
-                    columnSortKey={COLSORT_SHARE_KEY}
-                  />
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={onlyNeed}
-                      onChange={(e) => setOnlyNeed(e.target.checked)}
-                    />
-                    Still need only
-                  </label>
+            <ListToolbar
+              search={{ value: search, onChange: setSearch }}
+              sort={{ sorts, onChange: setSorts, onlyNeed, unavailableKeys: unavailableSorts, columnSortKey: COLSORT_SHARE_KEY }}
+              filterBadge={onlyNeed ? 0 : 1}
+              filters={
+                <div className="collection-filter-list">
+                  <FilterCheck checked={onlyNeed} onChange={setOnlyNeed}>
+                    To buy only
+                  </FilterCheck>
                 </div>
-              </CollapsibleFilters>
-            </div>
+              }
+              layout={layout}
+              onLayout={setLayout}
+            />
               }
             >
 
@@ -180,8 +166,8 @@ export function PublicSharePage() {
                     imageSrc={item.image_url || undefined}
                     meta={
                       <>
-                        Owned {totalOwned(item.owned, item.alts_owned)} · {stillNeededText(item.still_need, item.need)}
-                        {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                        Own {totalOwned(item.owned, item.alts_owned)} · {toBuyText(item.still_need, item.need)}
+                        {item.still_need > 0 ? ` · To buy ${money(item.remaining_cost)}` : ""}
                       </>
                     }
                   >
@@ -203,10 +189,11 @@ export function PublicSharePage() {
                     <thead>
                       <tr>
                         <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
-                        <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
-                        <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="Own" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="Need" colKey="want" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="To buy" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
                         <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
-                        <SortableTh label="Remaining" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="To buy $" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
                         <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
                       </tr>
                     </thead>
@@ -228,15 +215,16 @@ export function PublicSharePage() {
                             </div>
                           </td>
                           <td>{totalOwned(item.owned, item.alts_owned)}</td>
+                          <td title={needExplanation(item) || undefined}>{item.need}</td>
                           <td>
-                            <StillNeededCell still={item.still_need} need={item.need} />
+                            <StillNeededCell still={item.still_need} />
                           </td>
                           <td>
                             <MarketPrice price={item.market_price} productId={item.product_id} />
                           </td>
                           <td>{money(item.remaining_cost)}</td>
                           <td className="used-in">
-                            {sharedUsedIn(item)}
+                            <UsedInCell decks={usedInChips(item)} />
                           </td>
                         </tr>
                       ))}
@@ -256,10 +244,10 @@ export function PublicSharePage() {
                       rarity={item.rarity}
                       meta={
                         <>
-                          {[`Owned ${totalOwned(item.owned, item.alts_owned)}`, stillNeededText(item.still_need, item.need)]
+                          {[`Own ${totalOwned(item.owned, item.alts_owned)}`, toBuyText(item.still_need, item.need)]
                             .filter(Boolean)
                             .join(" · ")}
-                          {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                          {item.still_need > 0 ? ` · To buy ${money(item.remaining_cost)}` : ""}
                         </>
                       }
                       info={
@@ -276,7 +264,7 @@ export function PublicSharePage() {
                         </div>
                       }
                     >
-                      {sharedUsedIn(item) && <p className="used-in mobile-used-in">{sharedUsedIn(item)}</p>}
+                      {usedInChips(item).length > 0 && <UsedInCell className="mobile-used-in" decks={usedInChips(item)} />}
                     </MobileCard>
                   ))}
                 </div>
@@ -285,7 +273,7 @@ export function PublicSharePage() {
             </CardWorkspace>
           </section>
           {data.kind === "deck" && (
-            <DeckStatsDock cards={shareStatsCards} leaderId={data.items[0]?.primary_leader_card_id ?? null} />
+            <SharedStatsDock cards={shareStatsCards} leaderId={data.items[0]?.primary_leader_card_id ?? null} />
           )}
           </div>
         )}

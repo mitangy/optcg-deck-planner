@@ -92,3 +92,21 @@
 .landing-notice b {
   color: var(--ink);
 }
+
+.landing-shot {
+  margin: 0;
+  min-width: 0;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-16);
+  background: var(--card-sunk);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+
+.landing-shot img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}

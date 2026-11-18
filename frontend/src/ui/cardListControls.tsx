@@ -23,7 +23,7 @@ export const OWNED_DEFAULT_SORTS: SortKey[] = ["value"];
 export const SORT_LABELS: Record<SortKey, string> = {
   deck: "Deck",
   user: "User",
-  still_need: "Still need",
+  still_need: "To buy",
   price: "Price",
   value: "Value",
   owned: "Owned",
@@ -177,7 +177,7 @@ export function SortMenu({
           .join(" › ");
 
   function keyDisabled(key: SortKey): string | null {
-    if (key === "still_need" && onlyNeed) return "Off while Still need only";
+    if (key === "still_need" && onlyNeed) return "Off while To buy only";
     if (unavailableKeys.includes(key)) {
       if (key === "deck") return "Shopping list only";
       if (key === "user") return "Group buy only";
@@ -212,8 +212,8 @@ export function SortMenu({
 
   return (
     <Popover as="div" className="sort-menu">
-      <PopoverButton type="button" className="sort-menu-btn">
-        Sort: {summary}
+      <PopoverButton type="button" className="sort-menu-btn" aria-label={`Sort: ${summary}`}>
+        Sort<span className="sort-menu-summary">: {summary}</span>
       </PopoverButton>
       <PopoverPanel anchor={{ to: "bottom start", gap: 6, padding: 8 }} className="sort-menu-panel" role="dialog" aria-label="Sort order">
         <p className="sort-menu-hint">
@@ -418,7 +418,8 @@ export function CardSearchInput({
   onChange: (next: string) => void;
   placeholder?: string;
   label?: string;
-  icon?: boolean;
+  /** true or "search" draws a magnifier, "filter" a funnel (for inputs that narrow the list below them). */
+  icon?: boolean | "search" | "filter";
 }) {
   const id = useId();
   return (
@@ -428,8 +429,14 @@ export function CardSearchInput({
       </label>
       {icon ? (
         <svg className="card-search-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
-          <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M12.7 12.7 17 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          {icon === "filter" ? (
+            <path d="M3 4.5h14l-5.2 6.1v4.4l-3.6 1.8v-6.2z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+          ) : (
+            <>
+              <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M12.7 12.7 17 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </>
+          )}
         </svg>
       ) : null}
       <input
@@ -473,7 +480,7 @@ export function buildFilterSummary(parts: {
   extra?: string[];
 }): string {
   const out: string[] = [];
-  if (parts.onlyNeed) out.push("Still need");
+  if (parts.onlyNeed) out.push("To buy");
   if (parts.sorts.length) out.push(parts.sorts.map((k) => SORT_LABELS[k]).join(" › "));
   if (parts.showAltArts) out.push("Alt arts");
   if (parts.layout === "grid") out.push("Grid");

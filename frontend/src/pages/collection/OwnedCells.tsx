@@ -7,54 +7,26 @@ export function totalOwned(owned: number, altsOwned?: number): number {
   return owned + Math.max(0, altsOwned ?? 0);
 }
 
-export function ownedCellIsTotal(showAltArts: boolean, altCount: number, altsEditable: boolean): boolean {
-  return showAltArts && altCount > 0 && altsEditable;
+export function toBuyText(still: number, need: number): string {
+  return still > 0 ? `To buy ${still} of ${need}` : `Have all ${need}`;
 }
 
-export function stillNeededText(still: number, need: number): string {
-  return still > 0 ? `Still need ${still} of ${need}` : `Have all ${need}`;
-}
-
-export function AltsOwnedNote({ count }: { count?: number }) {
+export function AltsOwnedNote({ count, total }: { count?: number; total?: number }) {
   if (!count || count <= 0) return null;
+  const label = total != null ? `${total} owned in total: the stepper counts the base art, ${count} more ${count === 1 ? "is an alt" : "are alts"}` : "Alt-art copies you own, on top of Owned";
   return (
-    <span className="alts-owned-note" title="Alt-art copies you own, on top of Owned">
-      +{count} alt
+    <span className="alts-owned-note" title={label}>
+      +{count} alt{total != null ? ` · ${total} total` : ""}
     </span>
   );
 }
 
-export function OwnedTotal({ owned, altsOwned }: { owned: number; altsOwned?: number }) {
-  const alts = Math.max(0, altsOwned ?? 0);
-  const total = totalOwned(owned, alts);
-  return (
-    <div
-      className="owned-total"
-      aria-label={`${total} owned in total; change counts under each art`}
-      title={`${total} owned in total; change counts under each art`}
-    >
-      <span className="owned-total-num">{total}</span>
-      {alts > 0 && <span className="owned-total-split">{owned} base + {alts} alt</span>}
-    </div>
-  );
-}
-
-export function OwnedCell({
-  isTotal,
-  owned,
-  altsOwned,
-  stepper,
-}: {
-  isTotal: boolean;
-  owned: number;
-  altsOwned?: number;
-  stepper: ReactNode;
-}) {
-  if (isTotal) return <OwnedTotal owned={owned} altsOwned={altsOwned} />;
+/** The Owned column always steps the base art; alt copies show as a note with the total (per-art steppers live in the alt tiles). */
+export function OwnedCell({ owned, altsOwned, stepper }: { owned: number; altsOwned?: number; stepper: ReactNode }) {
   return (
     <>
       {stepper}
-      <AltsOwnedNote count={altsOwned} />
+      <AltsOwnedNote count={altsOwned} total={totalOwned(owned, altsOwned)} />
     </>
   );
 }
@@ -223,6 +195,7 @@ export function WantStepper({
   extraQty,
   applyOptimistic,
   onSaved,
+  explain,
 }: {
   cardId: string;
   name: string;
@@ -231,6 +204,8 @@ export function WantStepper({
   extraQty: number;
   applyOptimistic: (cardId: string, extraQty: number) => void;
   onSaved: () => void;
+  /** Tooltip on the Need number: how the total comes from the decks. */
+  explain?: string;
 }) {
   const [err, setErr] = useState<string | null>(null);
   const prevRef = useRef(extraQty);
@@ -253,7 +228,7 @@ export function WantStepper({
   });
   const atFloor = wantAtDeckFloor({ need, deckNeed });
   const over = extraQty > deckNeed && deckNeed > 0 ? extraQty - deckNeed : 0;
-  let note: ReactNode;
+  let note: ReactNode = null;
   if (over > 0) {
     note = (
       <>
@@ -261,7 +236,7 @@ export function WantStepper({
         <button
           type="button"
           className="want-reset"
-          aria-label={`Reset want for ${cardId} to decks`}
+          aria-label={`Reset need for ${cardId} to decks`}
           disabled={save.isPending}
           onClick={() => save.mutate(0)}
         >
@@ -269,9 +244,7 @@ export function WantStepper({
         </button>
       </>
     );
-  } else if (deckNeed > 0) {
-    note = "from decks";
-  } else {
+  } else if (deckNeed === 0) {
     note = "added directly";
   }
   return (
@@ -280,7 +253,7 @@ export function WantStepper({
         <button
           type="button"
           className="owned-btn"
-          aria-label={`Want fewer of ${name}`}
+          aria-label={`Need fewer of ${name}`}
           title={atFloor ? `Your decks need ${deckNeed}. Change the deck to go lower.` : undefined}
           disabled={save.isPending || atFloor}
           onMouseDown={(e) => e.preventDefault()}
@@ -288,13 +261,13 @@ export function WantStepper({
         >
           −
         </button>
-        <span className="want-qty" title={err ?? undefined} aria-label={`${name} wanted`}>
+        <span className="want-qty" title={err ?? explain ?? (deckNeed > 0 ? "From your decks" : undefined)} aria-label={`${name} needed`}>
           {need}
         </span>
         <button
           type="button"
           className="owned-btn"
-          aria-label={`Want more of ${name}`}
+          aria-label={`Need more of ${name}`}
           disabled={save.isPending}
           onMouseDown={(e) => e.preventDefault()}
           onClick={() => save.mutate(nextWantTarget({ need, deckNeed }, 1))}
@@ -303,7 +276,7 @@ export function WantStepper({
         </button>
         {err && <span className="owned-err">!</span>}
       </span>
-      <span className="want-note">{note}</span>
+      {note ? <span className="want-note">{note}</span> : null}
     </span>
   );
 }

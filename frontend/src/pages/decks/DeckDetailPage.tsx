@@ -12,14 +12,11 @@ import {
   type DeckEditor,
 } from "@optcg/analyst-client";
 import { applyPlannerEdit, plannerDeckContext, plannerDeckPage } from "./logPose";
-import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
+import { useCardLayout, useListDensity } from "../../ui/CardLayout";
+import { FilterCheck, ListToolbar } from "../../ui/ListToolbar";
 import {
-  CardSearchInput,
-  CollapsibleFilters,
   compareCardOrder,
   matchesCardSearch,
-  SORT_LABELS,
-  SortMenu,
   useCardSorts,
   usePersistedOpen,
   useShowAltArts,
@@ -29,10 +26,10 @@ import { CardWorkspace } from "../../ui/CardWorkspace";
 import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
 import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { useMediaQuery } from "@optcg/ui/hooks";
-import { DOCK_QUERY, DeckStatsDock } from "./DeckStats";
+import { DOCK_QUERY, DeckStatsBox, DeckStatsDock, StatsButton, useStatsMode } from "./DeckStats";
 import { type DeckHint } from "@optcg/deck-analytics";
 import { useDeckHints } from "@optcg/deck-analytics/ui";
-import { MenuItem } from "@optcg/ui/popups";
+import { MenuItem, useConfirm } from "@optcg/ui/popups";
 import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "../../ui/HeadPopover";
 import { ReplaceDeckListDialog } from "./ReplaceDeckListDialog";
 import { HideFromFriendsItem } from "../../friends/HideFromFriends";
@@ -98,9 +95,16 @@ export function DeckDetailPage() {
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [layout, setLayout] = useCardLayout();
+  const [density, setDensity] = useListDensity("deck");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
   const sideEdit = useMediaQuery(DOCK_QUERY) && editing;
+  const statsMode = useStatsMode(editing);
+  const [statsOpen, setStatsOpen] = useState(false);
+  useEffect(() => {
+    if (statsMode !== "sheet") setStatsOpen(false);
+  }, [statsMode]);
+  const { confirm, confirmDialog } = useConfirm();
   const [rowFlash, setRowFlash] = useState<{ id: string; n: number } | null>(null);
   useEffect(() => {
     if (!rowFlash) return;
@@ -317,15 +321,6 @@ export function DeckDetailPage() {
     () => (askLogPose ? { ...baseHints, onAsk: (h: DeckHint) => askLogPose(hintAsk(h)) } : baseHints),
     [baseHints, askLogPose],
   );
-  const filterSummary = useMemo(() => {
-    const parts: string[] = [];
-    if (onlyNeed) parts.push("Still need");
-    if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
-    if (showAltArts) parts.push("Alt arts");
-    if (layout === "grid") parts.push("Grid");
-    return parts.join(" · ");
-  }, [onlyNeed, effectiveSorts, showAltArts, layout]);
-  const filterCount = (onlyNeed ? 1 : 0) + (effectiveSorts.length ? 1 : 0) + (showAltArts ? 1 : 0);
 
   if (!data && lastError.current) {
     return <LoadErrorBlock title="Couldn't load this deck" message={lastError.current.message} retrying={isFetching} onRetry={() => void refetch()} />;
@@ -460,9 +455,9 @@ export function DeckDetailPage() {
             }}
           >
             {editing ? (
-              <>
+              <span>
                 Done<span className="done-editing-extra"> editing</span>
-              </>
+              </span>
             ) : (
               "Edit deck"
             )}
@@ -497,6 +492,7 @@ export function DeckDetailPage() {
               />
             </div>
           </HeadPopover>
+          {statsMode === "sheet" && <StatsButton hints={hints} open={statsOpen} onClick={() => setStatsOpen(true)} />}
           <HeadMenu label="More" icon={<MoreIcon />} className="btn quiet" width={260}>
             <HideFromFriendsItem deck={data} onUpdated={applyDeckUpdate} />
             {data.leader_card_id && !data.is_main && (
@@ -523,11 +519,14 @@ export function DeckDetailPage() {
               <button
                 type="button"
                 className="danger"
-                onClick={() => {
-                  const ok = window.confirm(
-                    "Reset owned counts to 0 for every card in this deck?\n\n" +
-                      "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
-                  );
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: "Reset owned counts to 0?",
+                    message:
+                      "This sets every card in this deck to 0 owned.\n\n" +
+                      "Owned is shared across decks: those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
+                    confirmLabel: "Reset owned",
+                  });
                   if (!ok) return;
                   setResetMsg(null);
                   resetOwned.mutate();
@@ -551,6 +550,7 @@ export function DeckDetailPage() {
         </p>
       )}
 
+      {confirmDialog}
       <ReplaceDeckListDialog
         open={replaceOpen}
         deckId={deckId}
@@ -573,35 +573,26 @@ export function DeckDetailPage() {
       <CardWorkspace
         wider
         rail={
-      <div className="list-toolbar deck-toolbar">
-        <div className="list-toolbar-row">
-          <CardSearchInput value={search} onChange={setSearch} />
-          <CardLayoutToggle layout={layout} onChange={setLayout} />
-        </div>
-        <CollapsibleFilters summary={filterSummary} badge={filterCount} badgeLabel="active filters">
-          <div className="filters">
-            <label>
-              <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
-              Still need only
-            </label>
-            <SortMenu
-              sorts={sorts}
-              onChange={setSorts}
-              onlyNeed={onlyNeed}
-              unavailableKeys={deckUnavailableSorts}
-              columnSortKey={COLSORT_DECK_KEY}
-            />
-            <label>
-              <input
-                type="checkbox"
-                checked={showAltArts}
-                onChange={(e) => setShowAltArts(e.target.checked)}
-              />
+      <ListToolbar
+        className="deck-toolbar"
+        search={{ value: search, onChange: setSearch }}
+        sort={{ sorts, onChange: setSorts, onlyNeed, unavailableKeys: deckUnavailableSorts, columnSortKey: COLSORT_DECK_KEY }}
+        filterBadge={(onlyNeed ? 0 : 1) + (showAltArts ? 0 : 1)}
+        filters={
+          <div className="collection-filter-list">
+            <FilterCheck checked={onlyNeed} onChange={setOnlyNeed}>
+              To buy only
+            </FilterCheck>
+            <FilterCheck checked={showAltArts} onChange={setShowAltArts}>
               Show alt arts
-            </label>
+            </FilterCheck>
           </div>
-        </CollapsibleFilters>
-      </div>
+        }
+        layout={layout}
+        density={density}
+        onLayout={setLayout}
+        onDensity={setDensity}
+      />
         }
       >
 
@@ -620,12 +611,13 @@ export function DeckDetailPage() {
           differ appear under Additional Cards.
         </p>
       )}
-      <h2>Deck list</h2>
+      <h2 className="deck-list-heading">Deck list</h2>
       <CardTable
         cards={main}
         onOwnedSaved={refresh}
         showAltArts={showAltArts}
         layout={layout}
+        density={density}
         editing={editing}
         onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
         neededBusyId={neededBusyId}
@@ -646,6 +638,7 @@ export function DeckDetailPage() {
             onOwnedSaved={refresh}
             showAltArts={showAltArts}
             layout={layout}
+            density={density}
             editing={editing}
             onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
             neededBusyId={neededBusyId}
@@ -676,6 +669,7 @@ export function DeckDetailPage() {
           onOwnedSaved={refresh}
           showAltArts={showAltArts}
           layout={layout}
+          density={density}
           editing={editing}
           onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
           neededBusyId={neededBusyId}
@@ -690,11 +684,19 @@ export function DeckDetailPage() {
       </CardWorkspace>
     </section>
     {sideEdit && (
-      <aside className="deck-editor-side" aria-label="Add cards">
+      <aside className={`deck-editor-side${statsMode === "stack" ? " has-stats" : ""}`} aria-label="Add cards">
         <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} onChanged={flashRow} onReplaceList={() => setReplaceOpen(true)} />
+        {statsMode === "stack" && <DeckStatsBox cards={statsCards} leaderId={data.leader_card_id ?? null} hints={hints} />}
       </aside>
     )}
-    <DeckStatsDock cards={statsCards} leaderId={data.leader_card_id ?? null} hints={hints} compact={sideEdit} />
+    <DeckStatsDock
+      cards={statsCards}
+      leaderId={data.leader_card_id ?? null}
+      hints={hints}
+      mode={statsMode}
+      sheetOpen={statsOpen}
+      onSheetOpenChange={setStatsOpen}
+    />
     </div>
   );
 }

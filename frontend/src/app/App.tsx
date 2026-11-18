@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
+import { BuildTag } from "@optcg/ui/appShell";
 import { submitFeedback } from "./feedback";
 import { LogPoseProvider } from "@optcg/analyst-client";
 import { ErrorBoundary } from "@optcg/ui/errorBoundary";
@@ -143,7 +144,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </ErrorBoundary>
-      <SiteFooter Link={Link} onFeedback={() => setFeedbackOpen(true)} />
+      <SiteFooter Link={Link} onFeedback={() => setFeedbackOpen(true)} trailing={<BuildTag />} />
       {feedbackOpen ? (
         <FeedbackDialog
           title="Send feedback"

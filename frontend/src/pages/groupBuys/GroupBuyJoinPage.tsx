@@ -1,4 +1,3 @@
-import { BuildTag } from "@optcg/ui/appShell";
 import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
 import { AuthLoadingSkeleton, GroupBuyDetailSkeleton } from "../../ui/Skeleton";
 import { ThemeToggle } from "../../ui/ThemeToggle";
@@ -58,7 +57,6 @@ export function GroupBuyJoinPage() {
   return (
     <div className="app public-app">
       <Topbar brandTo={signedIn ? "/group-buys" : "/login"}>
-        <BuildTag />
         <ThemeToggle />
         {signedIn ? (
           <Link className="btn secondary" to="/group-buys">

@@ -30,6 +30,8 @@ export type DeckSummary = {
   main_cards?: number;
   don_cards?: number;
   owned_copies?: number;
+  /** Dollars left to finish the deck, the same number the deck page shows as "left". */
+  remaining_cost?: number | null;
   sort_order: number;
   is_main?: boolean;
   hidden_from_friends?: boolean;
@@ -198,15 +200,6 @@ export type ShoppingItem = {
   deck_need?: number;
   collector_wants?: CollectorLine[];
 };
-
-export function needBreakdownLabel(item: ShoppingItem): string {
-  const parts = item.need_by_leader ?? [];
-  if (parts.length < 2) return "";
-  const each = parts.map((p) => `${p.label} ${p.need}`);
-  return item.need_summed
-    ? `Need ${item.need} = ${each.join(" + ")}`
-    : `Need ${item.need} = most of ${each.join(", ")}`;
-}
 
 export type RecentSale = {
   price: number;
@@ -476,6 +469,7 @@ export type MetaDeckCard = {
   cost: string;
   card_type: string;
   image_url: string;
+  market_price?: number | null;
 };
 
 export type MetaDeck = {
@@ -497,6 +491,7 @@ export type MetaDecksResponse = {
   leader_id: string;
   name: string;
   image_url: string;
+  leader_market_price?: number | null;
   decks: MetaDeck[];
 };
 
@@ -588,6 +583,12 @@ export const api = {
   cardDetail: (cardId: string, days: number) =>
     request<CardPageResponse>(`/meta/cards/${encodeURIComponent(cardId)}?days=${days}`),
   decks: () => request<DeckSummary[]>("/decks"),
+  /** Same list with "share between leaders" counted the way the Shopping deck filter says (see `deck`). */
+  decksForFilter: (deckIds: number[]) => {
+    const params = new URLSearchParams();
+    for (const d of deckIds) params.append("deck_ids", String(d));
+    return request<DeckSummary[]>(`/decks?${params.toString()}`);
+  },
   deck: (id: number, deckIds?: number[]) => {
     const params = new URLSearchParams();
     for (const d of deckIds ?? []) params.append("deck_ids", String(d));
