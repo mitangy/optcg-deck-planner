@@ -56,6 +56,7 @@ export const SERVER_MESSAGE = {
   undo_state: "undo_state",
   undo_applied: "undo_applied",
   taken_over: "taken_over",
+  server_restarting: "server_restarting",
   pong: "pong",
 } as const;
 export type ServerMessageType = (typeof SERVER_MESSAGE)[keyof typeof SERVER_MESSAGE];

@@ -12,7 +12,7 @@ import { getGameTokenSecret, getRankedMatchCreateSecret } from "../src/env.js";
 import { MAX_ROOMS_PER_CREATOR } from "../src/matchmakeGuard.js";
 import { matchMaker } from "colyseus";
 import { createHmac } from "node:crypto";
-import type { DuelRoom } from "../src/rooms/DuelRoom.js";
+import { RESTART_WARNING_SECONDS, type DuelRoom } from "../src/rooms/DuelRoom.js";
 import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "../src/writeback.js";
 import { deviceHandoffTests } from "./deviceHandoff.js";
 import { botRoomTests } from "./botRoom.js";
@@ -2903,6 +2903,82 @@ describe("DuelRoom", () => {
     await new Promise((r) => setTimeout(r, 1000));
     assert.ok(pongs < 100, `answered ${pongs} of 100 pings`);
     assert.equal(colyseus.getRoomById(room.roomId)?.clients.length ?? 0, 0);
+  });
+
+  describe("server restart warning (#1352)", () => {
+    type Restart = { protocolVersion: number; seconds: number };
+    async function liveRoom(seed: number) {
+      const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed, autoSkipMulligan: true });
+      const results: MatchResultPayload[] = [];
+      const progress: MatchProgressPayload[] = [];
+      Object.assign(room, {
+        ingestSeats: () => [101, 102],
+        persistMatchResult: async (p: MatchResultPayload) => void results.push(p),
+        persistMatchProgress: async (_id: string, p: MatchProgressPayload) => void progress.push(p),
+      });
+      const bags: [SeatBag, SeatBag] = [
+        { views: [], errors: [] },
+        { views: [], errors: [] },
+      ];
+      const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+      attach(c0, bags[0]);
+      const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+      attach(c1, bags[1]);
+      await syncSeat(c0, bags[0]);
+      await syncSeat(c1, bags[1]);
+      const spec = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, devUserId: "watcher", role: "spectator", preferredSeat: 0 });
+      const heard: Restart[][] = [[], [], []];
+      [c0, c1, spec].forEach((c, i) => c.onMessage("server_restarting", (m: Restart) => heard[i]!.push(m)));
+      return { room, heard, results, progress };
+    }
+
+    it("a game in progress warns players and spectators on shutdown, then keeps the game open for the warning window (#1352)", () => withFakeTime(async (time) => {
+      const { room, heard } = await liveRoom(91);
+      const done = room.onBeforeShutdown();
+      await waitUntil(() => heard.every((h) => h.length === 1), 5000);
+      for (const h of heard) assert.deepEqual(h, [{ protocolVersion: PROTOCOL_VERSION, seconds: RESTART_WARNING_SECONDS }]);
+      await time.advance((RESTART_WARNING_SECONDS - 1) * 1000);
+      assert.equal(room.clients.length, 3, "players are still connected inside the warning window");
+      await time.advance(2000);
+      await done;
+      await waitUntil(() => room.clients.length === 0, 5000);
+    }));
+
+    it("a game cut off by the shutdown records no winner and is saved as a closed log (#1352)", () => withFakeTime(async (time) => {
+      const { room, results, progress } = await liveRoom(96);
+      const done = room.onBeforeShutdown();
+      await time.advance((RESTART_WARNING_SECONDS + 1) * 1000);
+      await done;
+      await waitUntil(() => room.clients.length === 0, 5000);
+      await waitUntil(() => progress.some((p) => p.closed), 5000);
+      assert.deepEqual(results, []);
+      assert.equal(room.game.matchOverSent, false);
+    }));
+
+    it("a room with no game in progress sends no warning (#1352)", () => withFakeTime(async (time) => {
+      const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 92 });
+      const bag: SeatBag = { views: [], errors: [] };
+      const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+      attach(c0, bag);
+      const heard: Restart[] = [];
+      c0.onMessage("server_restarting", (m: Restart) => heard.push(m));
+      await roundTrip(c0);
+      const done = room.onBeforeShutdown();
+      await time.advance((RESTART_WARNING_SECONDS + 1) * 1000);
+      await done;
+      await waitUntil(() => room.clients.length === 0, 5000);
+      assert.deepEqual(heard, []);
+    }));
+
+    it("a finished game sends no warning (#1352)", () => withFakeTime(async (time) => {
+      const { room, heard } = await liveRoom(93);
+      room.game.matchOverSent = true;
+      const done = room.onBeforeShutdown();
+      await time.advance((RESTART_WARNING_SECONDS + 1) * 1000);
+      await done;
+      await waitUntil(() => room.clients.length === 0, 5000);
+      assert.deepEqual(heard, [[], [], []]);
+    }));
   });
 
   deviceHandoffTests(() => colyseus);

@@ -8,6 +8,7 @@ import {
   parseError,
   parseMatchOver,
   parsePresence,
+  parseServerRestarting,
   parseRematchState,
   parseTimer,
   parseUndoApplied,
@@ -74,6 +75,7 @@ export type DuelClientHandlers = {
   onUndoState?: (state: UndoState) => void;
   onUndoApplied?: (info: UndoApplied) => void;
   onPresence?: (awayUntil: [number | null, number | null]) => void;
+  onServerRestarting?: (seconds: number) => void;
   onRematchState?: (state: RematchState) => void;
   onDiceState?: (state: DiceStateMessage) => void;
   onTakenOver?: () => void;
@@ -633,6 +635,11 @@ export class DuelClient {
         type: SERVER_MESSAGE.undo_applied,
         onBad: ignoreBad,
         handle: (raw) => this.handlers.onUndoApplied?.(parseUndoApplied(raw)),
+      },
+      {
+        type: SERVER_MESSAGE.server_restarting,
+        onBad: ignoreBad,
+        handle: (raw) => this.handlers.onServerRestarting?.(parseServerRestarting(raw).seconds),
       },
       { type: SERVER_MESSAGE.taken_over, handle: () => this.markTakenOver(room) },
     ];

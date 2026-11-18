@@ -24,12 +24,16 @@ import type {
   UndoState,
 } from "../net/protocol";
 
+import { SERVER_RESTART_ENDED } from "./serverRestart";
+
 export type MatchMode = "online" | "hotseat" | "demo";
 
 export type MatchState = {
   mode: MatchMode;
   connected: boolean;
   takenOver: boolean;
+  /** The server told this game it is about to restart. */
+  serverRestart: { seconds: number } | null;
   queueing: boolean;
   canReconnect: boolean;
   resuming: boolean;
@@ -108,6 +112,7 @@ export type MatchAction =
   | { type: "diceState"; state: DiceStateMessage }
   | { type: "undoApplied"; info: UndoApplied }
   | { type: "takenOver" }
+  | { type: "serverRestarting"; seconds: number }
   | { type: "disconnect" }
   | { type: "drop" }
   | { type: "reconnect" }
@@ -139,6 +144,7 @@ export function createInitialMatchState(mode: MatchMode = "online", overrides: P
     mode,
     connected: false,
     takenOver: false,
+    serverRestart: null,
     queueing: false,
     canReconnect: false,
     resuming: false,
@@ -200,6 +206,7 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
         view: info.view,
         connected: true,
         reconnecting: false,
+        serverRestart: null,
         canReconnect: info.role === "player",
         queueing: false,
         resuming: false,
@@ -273,10 +280,12 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
         queueing: false,
         resuming: false,
       };
+    case "serverRestarting":
+      return s.matchOver || !s.view ? s : { ...s, serverRestart: { seconds: a.seconds } };
     case "disconnect":
-      return { ...s, connected: false, reconnecting: false, queueing: false };
+      return s.serverRestart ? gameCutOffByRestart(s) : { ...s, connected: false, reconnecting: false, queueing: false };
     case "drop":
-      return { ...s, connected: false, reconnecting: true };
+      return s.serverRestart ? gameCutOffByRestart(s) : { ...s, connected: false, reconnecting: true };
     case "reconnect":
       return { ...s, connected: true, reconnecting: false };
     case "queued":
@@ -287,6 +296,7 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
         ...s,
         errorBanner: null,
         takenOver: false,
+        serverRestart: null,
         matchOver: null,
         timer: null,
         chat: [],
@@ -312,6 +322,7 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
         undo: null,
         view: null,
         takenOver: false,
+        serverRestart: null,
         queueing: true,
         resuming: false,
       };
@@ -338,7 +349,7 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
       if (!s.resuming && a.banner === undefined) return s;
       return { ...s, resuming: false, ...(a.banner !== undefined ? { errorBanner: a.banner } : null) };
     case "launchStarted":
-      return { ...s, errorBanner: null, takenOver: false, view: null, matchId: null, seat: null };
+      return { ...s, errorBanner: null, takenOver: false, serverRestart: null, view: null, matchId: null, seat: null };
     case "launchFailed":
       return { ...s, queueing: false, errorBanner: a.banner };
     case "reset":
@@ -350,11 +361,28 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
   }
 }
 
+// The game is gone and there is nothing to reconnect to: leave the board so the lobby redirect shows why.
+function gameCutOffByRestart(s: MatchState): MatchState {
+  return {
+    ...s,
+    view: null,
+    matchId: null,
+    seat: null,
+    connected: false,
+    reconnecting: false,
+    canReconnect: false,
+    queueing: false,
+    resuming: false,
+    errorBanner: SERVER_RESTART_ENDED,
+  };
+}
+
 function resetMatchState(s: MatchState): MatchState {
   return {
     ...s,
     seatSkins: [null, null],
     takenOver: false,
+    serverRestart: null,
     awayUntil: [null, null],
     rematch: null,
     connected: false,

@@ -61,6 +61,9 @@ const INTENT_RATE_LIMIT = 20;
 const INTENT_RATE_WINDOW_MS = 1000;
 const MAX_MESSAGES_PER_SECOND = 40;
 
+/** How long a live game is warned before a server shutdown closes it. */
+export const RESTART_WARNING_SECONDS = 10;
+
 export class DuelRoom extends Room implements PresenceSource, DuelCore {
   maxClients = 2 + MAX_SPECTATORS;
   maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;
@@ -248,7 +251,18 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
   }
 
+  // Set once the server is shutting down: dropped seats are the restart's doing, not a forfeit.
+  private shuttingDown = false;
+
   async onBeforeShutdown() {
+    this.shuttingDown = true;
+    // Tell a live game before anything else, then give the players a few seconds to read it. Assumes Render's
+    // default 30 s between SIGTERM and SIGKILL, so this stays well inside that.
+    if (this.game.matchStarted && !this.game.matchOverSent) {
+      this.io.broadcast("server_restarting", { seconds: RESTART_WARNING_SECONDS });
+      this.log("info", "server_restarting", { matchId: this.game.matchId, seconds: RESTART_WARNING_SECONDS });
+      await this.time.sleep(RESTART_WARNING_SECONDS * 1000);
+    }
     // Do not dispose a completed match before its result is durably queued. A rematch can add a write
     // while we wait, so loop until none is left.
     while (this.pendingResultWrites.size > 0) await Promise.all([...this.pendingResultWrites]);
@@ -539,7 +553,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
 
   private forfeitAbsentSeat(seat: Seat, reason: "abandoned" | "disconnect") {
     const { game } = this;
-    if (!game.match || !game.matchStarted || game.matchOverSent) return;
+    if (this.shuttingDown || !game.match || !game.matchStarted || game.matchOverSent) return;
     if (game.match.winner !== null || game.match.phase === "game_over") return;
     if (this.seats.slot(seat)) return;
     const other = (seat === 0 ? 1 : 0) as Seat;

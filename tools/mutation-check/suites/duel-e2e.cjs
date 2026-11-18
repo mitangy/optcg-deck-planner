@@ -147,6 +147,13 @@ module.exports = {
     { id: "e2e-bp1343-two-gold-buttons", args: "board-prompts-1343.spec -g \"gold button\"", edits: [
       { file: "duel-web/src/board/match/MatchResultView.tsx", from: "className={`btn ${homePrimary ? \"btn-primary\" : \"btn-secondary\"} match-result-home`}", to: "className={`btn btn-primary match-result-home`}" },
     ], kills: ["board-prompts-1343.spec.ts > the match over card has one gold button and Change deck reveals the select without moving it (#1343) [desktop-1280]", "board-prompts-1343.spec.ts > the guest match over card keeps one gold button and drops Review game (#1343) [desktop-1280]"] },
+    // Restart notice (#1352): an overlay that is on the board when warned, and never pushes it.
+    { id: "e2e-restart1352-notice-in-flow", args: "restart-notice.spec -g 1352", edits: [
+      { file: "duel-web/src/board/styles/roomStates.css", from: ".restart-notice {\n  position: fixed;", to: ".restart-notice {\n  position: relative;" },
+    ], kills: ["restart-notice.spec.ts > the restart notice floats inside the screen without moving the board (#1352) [desktop-1280]", "restart-notice.spec.ts > the restart notice floats inside the screen without moving the board (#1352) [phone-375]"] },
+    { id: "e2e-restart1352-notice-not-rendered", args: "restart-notice.spec -g 1352", edits: [
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "{serverRestart && !over ?", to: "{false && serverRestart && !over ?" },
+    ], kills: ["restart-notice.spec.ts > the restart notice floats inside the screen without moving the board (#1352) [desktop-1280]", "restart-notice.spec.ts > the restart notice floats inside the screen without moving the board (#1352) [phone-375]"] },
     // A pop-up dragged to the far left of the screen floats there instead of jumping into the right column (#1245): the edge strip only docks toward a side with a column, and a folded-away column reports no span. Both layers are reverted.
     { id: "e2e-prompt-edge-drop-jumps-to-open-column", args: "prompt-dock.spec --project=desktop-1280 -g far.left", edits: [
       { file: "duel-web/src/board/prompts/promptDock.ts", from: "  if (x <= EDGE_PX && columns.left) return \"left\";\n  if (x >= viewWidth - EDGE_PX && columns.right) return \"right\";\n", to: "  if (x <= EDGE_PX) return \"left\";\n  if (x >= viewWidth - EDGE_PX) return \"right\";\n" },

@@ -372,6 +372,29 @@ describe("DuelClient stale-intent guards (#1351)", () => {
   });
 });
 
+describe("DuelClient server restart warning (#1352)", () => {
+  function restartSetup() {
+    const client = new DuelClient();
+    const onServerRestarting = vi.fn();
+    const onError = vi.fn();
+    client.setHandlers({ onServerRestarting, onError });
+    const room = fakeRoom({ answersPing: true });
+    attach(client, room);
+    const message = (payload: unknown) =>
+      (room.onMessage.mock.calls.find((c) => c[0] === "server_restarting")![1] as (raw: unknown) => void)(payload);
+    return { onServerRestarting, onError, message };
+  }
+
+  it("server_restarting tells the app how long is left, and a malformed one is ignored without an error banner (#1352)", () => {
+    const t = restartSetup();
+    t.message({ protocolVersion: PROTOCOL_VERSION, seconds: 10 });
+    expect(t.onServerRestarting).toHaveBeenCalledWith(10);
+    t.message({ seconds: 10 });
+    expect(t.onServerRestarting).toHaveBeenCalledTimes(1);
+    expect(t.onError).not.toHaveBeenCalled();
+  });
+});
+
 describe("DuelClient takeover (#451)", () => {
   function takenOverSetup() {
     const client = new DuelClient();

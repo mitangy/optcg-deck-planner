@@ -117,6 +117,12 @@ export type MatchOverMessage = {
   };
 };
 
+/** Sent to everyone in a live game when the server is about to restart; `seconds` is how long until the connection closes. */
+export type ServerRestartingMessage = {
+  protocolVersion: ProtocolVersion;
+  seconds: number;
+};
+
 export type TimerMessage = {
   protocolVersion: ProtocolVersion;
   turnSeconds: number | null;
