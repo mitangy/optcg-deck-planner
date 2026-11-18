@@ -39,6 +39,8 @@ export type ApplyResult = { ok: true } | { ok: false; message: string };
 export class DuelGame {
   matchId = "";
   seed = 0;
+  /** Secret 256-bit key of the running game, absent for a pinned-seed room. Never sent to players. */
+  rngKey: string | null = null;
   match: MatchState | null = null;
   /** Never sent to players. */
   replay: MatchReplay | null = null;

@@ -2482,6 +2482,57 @@ describe("DuelRoom", () => {
     assert.equal(sent.at(-1)!.closed, true, "the closing snapshot opens the recording to the players (#476)");
   });
 
+  it("a keyed game's progress snapshots leave out the rng key; the result and the closing snapshot carry it, and a pinned seed has none (#1350)", async () => {
+    const pinned = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 67, autoSkipMulligan: true });
+    const pinnedBags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const p0 = await colyseus.connectTo(pinned, joinOpts("carol", 0));
+    attach(p0, pinnedBags[0]);
+    const p1 = await colyseus.connectTo(pinned, joinOpts("dave", 1));
+    attach(p1, pinnedBags[1]);
+    await syncSeat(p0, pinnedBags[0]);
+    assert.equal(pinned.game.rngKey, null);
+    assert.equal(pinned.game.match!.rng.key, undefined, "a pinned seed deals from the bare seed");
+    await p0.leave(true);
+    await p1.leave(true);
+    const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, autoSkipMulligan: true });
+    const sent: MatchProgressPayload[] = [];
+    Object.assign(room, {
+      ingestSeats: () => [101, 102],
+      persistMatchProgress: async (_matchId: string, payload: MatchProgressPayload) => {
+        sent.push(payload);
+      },
+      persistMatchResult: async () => {},
+    });
+    const bags: [SeatBag, SeatBag] = [
+      { views: [], errors: [] },
+      { views: [], errors: [] },
+    ];
+    const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+    attach(c0, bags[0]);
+    const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+    attach(c1, bags[1]);
+    await syncSeat(c0, bags[0]);
+    await syncSeat(c1, bags[1]);
+    await playSome([c0, c1], bags, 6);
+    const key = room.game.rngKey!;
+    assert.match(key, /^[0-9a-f]{64}$/);
+    assert.equal(room.game.match!.rng.key, key, "the match deals from the room's key");
+    assert.ok(sent.length > 0, "turn snapshots were sent");
+    for (const payload of sent) {
+      assert.equal(payload.replay!.rngKey, undefined, "a live snapshot has no key");
+      assert.ok(!JSON.stringify(payload).includes(key));
+    }
+    assert.equal(internals(room).resultPayload(11, 12, 0, "concede").replay!.rngKey, key);
+    const live = sent.length;
+    await c0.leave(true);
+    await c1.leave(true);
+    await waitUntil(() => sent.length > live, 5000);
+    assert.equal(sent.at(-1)!.replay!.rngKey, key, "the closing snapshot carries the key so the saved game replays");
+  });
+
   it("the result sent to the backend carries leaders, turns, the replay, each seat's log and how it ended (#244, #252)", async () => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,

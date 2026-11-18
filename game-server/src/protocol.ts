@@ -18,6 +18,8 @@ export const RANKED_SEAT_SECONDS = 15 * 60;
 export function parseCreateOptions(raw: unknown): {
   protocolVersion: ProtocolVersion;
   seed: number;
+  /** A create option pinned the seed (dev and tests): the room then deals from the bare seed, with no secret key. */
+  seedPinned: boolean;
   firstSeat: Seat;
   autoSkipMulligan: boolean;
   diceRoll: boolean;
@@ -32,9 +34,9 @@ export function parseCreateOptions(raw: unknown): {
   if (o.protocolVersion !== undefined && !isProtocolVersion(o.protocolVersion)) {
     throw bad("Unsupported protocolVersion on create");
   }
-  const seed = gameSeed(
-    typeof o.seed === "number" && Number.isFinite(o.seed) ? Math.floor(o.seed) : undefined,
-  );
+  const clientSeed = typeof o.seed === "number" && Number.isFinite(o.seed) ? Math.floor(o.seed) : undefined;
+  const seed = gameSeed(clientSeed);
+  const seedPinned = clientSeed !== undefined && seed === clientSeed;
   if (o.firstSeat !== undefined && o.firstSeat !== 0 && o.firstSeat !== 1) {
     throw bad("firstSeat must be 0 or 1");
   }
@@ -106,6 +108,7 @@ export function parseCreateOptions(raw: unknown): {
   return {
     protocolVersion: PROTOCOL_VERSION,
     seed,
+    seedPinned,
     firstSeat,
     autoSkipMulligan,
     diceRoll,

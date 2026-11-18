@@ -233,7 +233,8 @@ export interface MatchState {
   rulesVersion: string;
   protocolVersion: 5;
   registryHash: string;
-  rng: { seed: number; cursor: number };
+  /** `key` (hex) makes the match draw from a keyed stream; it never leaves the server before the game ends. */
+  rng: { seed: number; cursor: number; key?: string };
   players: [PlayerState, PlayerState];
   activeSeat: Seat;
   firstSeat: Seat;
@@ -358,6 +359,8 @@ export interface PlayerDeckConfig {
 
 export interface CreateMatchConfig {
   seed: number;
+  /** 256-bit hex key: shuffles come from a keyed stream the seed cannot reproduce. Absent: seed-only legacy stream. */
+  rngKey?: string;
   firstSeat?: Seat;
   players: [PlayerDeckConfig, PlayerDeckConfig];
   /** false keeps the legacy flow (non-[Trigger] Life damage goes to hand without a check), for replaying old games. */

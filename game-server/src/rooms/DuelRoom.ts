@@ -16,7 +16,7 @@ import { hashToNegativeId } from "../devIdentity.js";
 import { sanitizeDisplayName, verifyGameToken } from "../gameToken.js";
 import { writeLog, type LogLevel } from "../log.js";
 import { SlidingWindowLimiter } from "../rateLimit.js";
-import { checkMatchmakeToken, claimCreatorRoom, releaseCreatorRoom } from "../matchmakeGuard.js";
+import { checkMatchmakeToken, claimCreatorRoom, newRngKey, releaseCreatorRoom } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import {
   PROTOCOL_VERSION,
@@ -711,6 +711,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     game.firstSeatPickedBy = pickedBy;
     this.resetPerGameState();
     const { players: createPlayers, autoSkipMulligan } = this.config;
+    game.rngKey = this.config.seedPinned ? null : newRngKey();
     const deckA = game.seatDecks[0]?.deck ?? createPlayers?.[0]?.deck ?? buildTestDeck(20);
     const deckB = game.seatDecks[1]?.deck ?? createPlayers?.[1]?.deck ?? buildTestDeck(20);
     const leaderA =
@@ -722,6 +723,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     try {
       match = createMatch({
         seed: game.seed,
+        ...(game.rngKey ? { rngKey: game.rngKey } : {}),
         firstSeat,
         players: [
           { leaderId: leaderA, deck: [...deckA] },
@@ -754,6 +756,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       rulesVersion: RULES_VERSION,
       registryHash: REGISTRY_HASH,
       seed: game.seed,
+      ...(game.rngKey ? { rngKey: game.rngKey } : {}),
       firstSeat,
       skipMulligans: autoSkipMulligan,
       // createMatch's default: every non-Banish Life hit opens a private Life check.
