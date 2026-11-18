@@ -7,9 +7,7 @@ import { qk } from "../cache/queryKeys";
 
 const capOf = (item: SpareItem): CardCap => ({ spare: item.spare, base: item.base_owned, printings: Object.fromEntries(item.printings.map((p) => [p.product_id, p.owned])) });
 
-/** Spares between you and one friend, plus how many copies of a card each side can still put on the table. */
 export function useFriendSpares(friendId: number) {
-  /** The viewer's Include decks filter narrows "You need"; undefined (all decks) keeps the plain key. */
   const deckIds = useSavedShoppingDeckIds();
   const query = useQuery({
     queryKey: qk.friend.spares(friendId, deckIds),
@@ -22,7 +20,6 @@ export function useFriendSpares(friendId: number) {
     for (const i of query.data?.they_need ?? []) map.set(`give:${i.card_id}`, capOf(i));
     return map;
   }, [query.data]);
-  /** Lines from a counter may name cards the lists no longer show; they can keep their current copies, no more. */
   const capFor = useCallback(
     (side: TradeSide, cardId: string, lines: TrayLine[]): CardCap => {
       const known = caps.get(`${side}:${cardId}`);

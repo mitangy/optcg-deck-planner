@@ -1,5 +1,3 @@
-/* —— Log Pose feedback (#679) —— */
-
 .adm-fb-filters {
   display: flex;
   flex-wrap: wrap;
@@ -116,7 +114,6 @@
   overflow-wrap: anywhere;
 }
 
-/* The whole excerpt is readable inside a fixed-height box, so nothing opens or shoves the rows below. */
 .adm-fb-excerpt {
   margin-top: 0.4rem;
   max-height: 7.5rem;

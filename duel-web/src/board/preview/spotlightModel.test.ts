@@ -50,13 +50,11 @@ describe("log spotlight field", () => {
     const [mine] = narrate([drew]);
     expect(mine!.text).toBe("You draw Sanji");
     expect(mine!.spotlight).toEqual({ defId: "ST01-004", ownerSeat: 0, kind: "draw", label: "Drew" });
-    // Seat 1's draw reaches this viewer with the card stripped; a card that did arrive is still not theirs to show.
     const [theirs] = narrate([{ ...drew, seat: 1 }]);
     expect(theirs!.spotlight).toBeUndefined();
     expect(theirs!.text).toBe("Opponent draws 1");
     const [stripped] = narrate([{ type: "drew", seat: 1, count: 1, turnDraw: true }]);
     expect(stripped!.spotlight).toBeUndefined();
-    // An effect draw (no turnDraw) stays a count.
     const [effect] = narrate([{ type: "drew", seat: 0, count: 2, defIds: ["ST01-004"] }]);
     expect(effect!.spotlight).toBeUndefined();
     expect(effect!.text).toBe("You draw 2");

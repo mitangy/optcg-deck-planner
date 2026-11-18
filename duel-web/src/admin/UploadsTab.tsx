@@ -24,7 +24,6 @@ const KINDS: readonly { id: UploadKind | "both"; label: string }[] = [
   { id: "cardBack", label: "Card back" },
 ];
 
-/** An upload, fetched with the staff cookie. Blurred until a moderator asks to see it. */
 function UploadImage({ row }: { row: UploadRow }) {
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -56,7 +55,6 @@ function UploadImage({ row }: { row: UploadRow }) {
   );
 }
 
-/** "Take down": a modal in the shared Dialog (fixed overlay), so the grid behind it does not move. */
 function TakeDownDialog({ row, onDone, onClose }: { row: UploadRow; onDone: (next: UploadRow) => void; onClose: () => void }) {
   const [choice, setChoice] = useState<TakeDownChoice>("Copyright notice");
   const [note, setNote] = useState("");
@@ -212,7 +210,7 @@ export function UploadsTab({ actor }: { actor: Actor }) {
     const mine = seq.current;
     setMore(true);
     setMoreError(null);
-    // Page by id, not by count: a take-down keeps its card here but leaves the server's Live list, so an offset would skip a row (#824).
+    // Page by id, not by count: a take-down keeps its card here but leaves the server's Live list, so an offset would skip a row.
     const oldest = data.items.reduce((m, i) => Math.min(m, i.id), Infinity);
     fetchAdminUploads(state, kind === "both" ? null : kind, 0, PAGE, oldest)
       .then((r) =>
@@ -227,7 +225,6 @@ export function UploadsTab({ actor }: { actor: Actor }) {
       .finally(() => setMore(false));
   };
 
-  // A changed row stays where it is, so the grid does not jump under the cursor; Refresh moves it to the right filter.
   const replace = (next: UploadRow) =>
     setData((d) => (d.status === "ready" ? { ...d, items: d.items.map((x) => (x.id === next.id ? next : x)) } : d));
 

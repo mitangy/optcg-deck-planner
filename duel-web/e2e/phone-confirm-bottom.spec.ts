@@ -1,8 +1,3 @@
-/**
- * Picks from your hand (#341): on portrait phones the Confirm / None buttons
- * sit bottom right in End turn's slot, not in the bar at the top of the
- * screen; landscape phones keep the whole bar at the bottom of the board.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -51,7 +46,6 @@ test("a scrolling pop-up keeps its Confirm row in view on landscape phones (#341
   const prompt = page.locator(".ability-prompt");
   const button = prompt.getByRole("button", { name: "Choose none" });
   await expect(button).toBeVisible();
-  // The demo's pop-up is taller than the screen allows, so it scrolls.
   expect(await prompt.evaluate((el) => el.scrollHeight > el.clientHeight)).toBe(true);
   const box = (await button.boundingBox())!;
   const frame = (await prompt.boundingBox())!;

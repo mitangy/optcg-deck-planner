@@ -1,6 +1,3 @@
-/* Theme-agnostic: text colours derive from the surrounding colour. Each app
-   maps the --wn-* tokens on .wn-card to its own palette (see its styles). */
-
 .wn-list {
   max-width: 68ch;
   min-width: 0;
@@ -70,10 +67,6 @@
   color: color-mix(in srgb, currentColor 72%, transparent);
 }
 
-/* —— Once-per-update card ——
-   Fixed to the bottom-right corner, above the Log Pose compass: it overlays the page
-   instead of pushing anything, and dismissing it moves nothing. */
-
 .wn-card {
   position: fixed;
   /* Above the Log Pose compass (70), below its panel (90) and dialogs (2000). */
@@ -121,7 +114,6 @@
 
 .wn-card-list span {
   color: color-mix(in srgb, currentColor 78%, transparent);
-  /* Two lines of each note; the page has the full text. */
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;

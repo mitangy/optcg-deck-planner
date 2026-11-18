@@ -1,4 +1,3 @@
-/** Print compiled abilities for card ids: `npx tsx src/tools/cardText/show.ts OP01-016 ST01-014`. */
 import { cardDataFor } from "../../cards/cardData.js";
 import { compileCardText } from "./compileCard.js";
 

@@ -1,7 +1,3 @@
-/**
- * Log Pose's deck edit suggestions (#400): the chat-only propose_deck_edit tool checks a change to the deck the
- * player has open and its legality, and writes nothing. The app shows the result as an Apply card.
- */
 import { MAIN_DECK_SIZE, normalizeCardId } from "@optcg/card-core";
 import { z } from "zod";
 import { analyzeDeck } from "./analysis";
@@ -16,7 +12,6 @@ import { jsonResult as textOf, refusalResult as refusal } from "./toolResult";
 
 export const PROPOSE_TOOL = "propose_deck_edit";
 
-/** The deck the app says is open: the chat request's `context.deck`. */
 export type ContextDeck = {
   name?: string;
   leaderId?: string | null;
@@ -29,10 +24,8 @@ export type DeckEditProposal = {
   version: 1;
   target: { ref: string; name: string; leader_id: string | null };
   summary: string;
-  /** The player asked Log Pose to make this change: the app applies it to the open deck once (#726). */
   apply: boolean;
   lines: { id: string; name: string; before: number; after: number; reason: string }[];
-  /** The deck as sent in the context block, with normalized ids. */
   base: { id: string; copies: number }[];
   legality: { legal: boolean; count: number; problems: string[]; upcoming: string[]; ban_list_checked: boolean };
 };
@@ -48,7 +41,6 @@ const MAX_PROPOSALS_PER_TURN = 4;
 
 type Problem = { key: string; text: string };
 
-/** The deck's rule problems (count, copies, colors, leader rules) and, with a ban list, its ban problems. */
 export async function problemsOf(catalog: Catalog, library: OfficialLibrary | undefined, deck: Deck) {
   const rule: Problem[] = analyzeDeck(catalog, deck)
     .hints.filter((h) => h.tier === "rule")
@@ -61,10 +53,6 @@ export async function problemsOf(catalog: Catalog, library: OfficialLibrary | un
   return { problems: [...rule, ...banProblems], upcoming, count, banChecked: ban?.checked ?? false };
 }
 
-/**
- * Problems the change adds: a key the deck did not have before, or a card count further from 50 than before.
- * A deck that was already illegal can still get an unrelated fix.
- */
 function introducedProblems(before: Problem[], beforeCount: number, after: Problem[], afterCount: number): string[] {
   const had = new Set(before.map((p) => p.key));
   const added = [...new Set(after.filter((p) => !had.has(p.key)).map((p) => p.text))];
@@ -137,10 +125,6 @@ export async function proposeDeckEdit(
   };
 }
 
-/**
- * Checks +N / -N lines the model wrote as text against the open deck, with the checks propose_deck_edit makes:
- * the problems the lines would add and the card count they leave. A card number not in the catalog, or more copies out than the deck has, is a problem.
- */
 export async function checkTextEdits(
   catalog: Catalog,
   library: OfficialLibrary | undefined,
@@ -173,7 +157,6 @@ export async function checkTextEdits(
 }
 
 
-/** The chat's propose_deck_edit tool, bound to the deck the player has open. Made fresh for every turn. */
 export function deckEditTool(catalog: Catalog, knowledge: { library?: OfficialLibrary }, deck: ContextDeck | undefined): ToolDef {
   let made = 0;
   return {

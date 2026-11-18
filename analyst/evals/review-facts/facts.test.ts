@@ -59,7 +59,6 @@ describe("review facts from a replay", () => {
   });
 
   it("records the DON!!, hand, field and trash each seat had during a turn (#687)", () => {
-    // Turn 8: you spent all 7 DON!! on the opponent's turn; the opponent went from 3 to 7 and spent them.
     expect(turn(8).don[0]).toEqual({ active: [0, 0], rested: [7, 7], attached: [0, 0], area: [7, 7], field: [7, 7] });
     expect(turn(8).don[1]).toMatchObject({ active: [0, 7], rested: [0, 7], area: [3, 7] });
     expect(turn(10).don[1].attached).toEqual([0, 1]);

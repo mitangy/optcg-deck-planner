@@ -9,7 +9,6 @@ import { DESKTOP_BOARD_QUERY, PORTRAIT_MAT_QUERY, SIDEWAYS_FAN_QUERY } from "../
 let root: Root | null = null;
 let host: HTMLElement | null = null;
 
-/** Mounts the fields with only the listed media queries matching. */
 async function mount(matching: string[], saved: Partial<DuelSettings> = {}) {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.matchMedia = ((q: string) => ({
@@ -35,7 +34,6 @@ afterEach(() => {
   localStorage.clear();
 });
 
-/** The Select button: `disabled` is its own, the chosen label is its text (a native select had `value`). */
 const select = (id: string) => document.getElementById(id) as HTMLButtonElement;
 const notes = () => Array.from(document.querySelectorAll('[role="note"]')).map((n) => n.textContent ?? "");
 const simpleBoard = () =>

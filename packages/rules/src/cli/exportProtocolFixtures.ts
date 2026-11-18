@@ -1,8 +1,3 @@
-/**
- * Write the golden duel-protocol fixtures shared by game-server, duel-web and mobile.
- * Usage: npm run export-protocol-fixtures
- * Default output: packages/rules/protocol-fixtures
- */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { protocolFixtureFiles } from "../testing/protocolFixtures.js";

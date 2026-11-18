@@ -32,7 +32,6 @@ describe("parseSkin", () => {
     for (const bad of ["512345", "https://evil.example/x.jpg", -5, 0, 1.5, 2_147_483_648, NaN, {}, true]) {
       expect(donArt(bad), String(bad)).toBeNull();
     }
-    // An old client sends no donArt.
     expect(parseSkin(msg({ playmat: null, cardBack: null })).skin.donArt).toBeNull();
   });
 });

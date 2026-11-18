@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 
-/** Pointer travel (px) that counts as "dragging it to attack", not a tap. */
 export const ATTEMPT_DRAG_PX = 12;
 
 export type AttackAttempt = { id: string; reason: string };
@@ -10,14 +9,6 @@ function tileId(target: EventTarget | null, sideClass: "side-you" | "side-opp"):
   return el?.getAttribute("data-instance-id") ?? null;
 }
 
-/**
- * Catches the two ways a player tries to attack with a card that can't:
- *  1. press one of your own cards and drag it (>= ATTEMPT_DRAG_PX), the way a
- *     legal attack starts; or
- *  2. with such a card selected, tap one of the opponent's cards.
- * A plain tap only selects (abilities, DON!!), so it never warns. `reasonFor`
- * returns the reason or null for a card that may attack / isn't an attacker.
- */
 export function useAttackAttempt(opts: {
   enabled: boolean;
   reasonFor: (id: string) => string | null;

@@ -1,13 +1,8 @@
-/**
- * Noun-phrase parsing for card references in protected card text.
- * Every parser consumes its whole input or returns null.
- */
 import type { Cmp, CmpOp, CountExpr, Filter, Rel, RelOrAny, Selector, Value, Zone } from "../../effects/types.js";
 import type { Placeholders } from "./normalize.js";
 
 export interface Ctx {
   ph: Placeholders;
-  /** Printed type of the card whose text is being compiled. */
   selfType: "leader" | "character" | "event" | "stage";
   /** Compiling an "On Event" ability: "that Character" is the card that caused the event (`_event`), not a chosen target. */
   eventCard?: boolean;
@@ -28,7 +23,6 @@ export function num(text: string): number {
 }
 
 export function traitList(text: string, ctx: Ctx): string[] | null {
-  // "§T0§", "§T0§ or §T1§", "§T0§, §T1§ or §T2§", "§T0§, §T1§, or §T2§"
   const parts = text.split(/\s*(?:,\s*or|,|\bor\b)\s*/).map((part) => part.trim()).filter(Boolean);
   const out: string[] = [];
   for (const part of parts) {
@@ -62,7 +56,6 @@ function cmp(op: string, value: Value): Cmp {
   return { op: map[op] ?? "==", value };
 }
 
-/** "the number of your opponent's Life cards" etc. */
 export function parseCountPhrase(text: string, ctx: Ctx): CountExpr | null {
   const t = text.trim().replace(/^the number of /i, "").replace(/^the total number of /i, "");
   const who = (s: string) => (s.toLowerCase() === "your" ? "you" : "opponent") as "you" | "opponent";
@@ -101,7 +94,6 @@ export function parseCountPhrase(text: string, ctx: Ctx): CountExpr | null {
   return null;
 }
 
-/** Parse trailing qualifiers ("with a cost of 3 or less and a [Trigger] other than §N0§"). */
 function parseQualifiers(text: string, ctx: Ctx, filter: Filter, extra: { totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean }): boolean {
   let rest = text.trim();
   const take = (re: RegExp): RegExpExecArray | null => {
@@ -198,15 +190,11 @@ const NOUNS: [RegExp, Zone, Filter["types"]][] = [
 ];
 
 export interface PhraseOptions {
-  /** Default zone when the phrase does not name one (e.g. "from your trash" parsed by the caller). */
   zone?: Zone;
-  /** Allow phrases without a quantifier ("a {X} type Character"). */
   allowBare?: boolean;
-  /** Owner when unspecified. */
   defaultPlayer?: RelOrAny;
 }
 
-/** Parse "up to 1 of your opponent's rested Characters with a cost of 3 or less". */
 export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {}): CardPhrase | null {
   // "up to 1 of your Leader or up to 1 of your Characters" picks one card among both: same as "Leader or Characters".
   let text = input.trim().replace(/^up to (\d+) of (your(?: opponent's)?) (leader(?: card)?) or up to \1 of \2 (characters?)\b/i, "up to $1 of $2 $3 or $4");
@@ -239,7 +227,6 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
 
   const filter: Filter = {};
   const extra: { totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean } = {};
-  // Leading adjectives.
   for (let guard = 0; guard < 8; guard += 1) {
     if ((m = /^rested /i.exec(text))) { filter.rested = true; text = text.slice(m[0].length); continue; }
     if ((m = /^active /i.exec(text))) { filter.rested = false; text = text.slice(m[0].length); continue; }
@@ -278,7 +265,6 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
     }
     break;
   }
-  // Noun: named cards or a type noun, followed by qualifiers.
   let zone: Zone | null = null;
   let types: Filter["types"];
   const named = /^(§N\d+§(?:(?:, | or |, or | and |, and )§N\d+§)*)(?: cards?| characters?)?(?=$| with | other than | from | in | that )/i.exec(text);
@@ -294,7 +280,6 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
     if (!nounMatch) return null;
     for (const [re, z, t] of NOUNS) if (re.test(nounMatch[1]!)) { zone = z; types = t; break; }
     text = text.slice(nounMatch[0].length).trim();
-    // "Characters or [Name]" tail.
     const orNamed = /^or (§N\d+§(?:(?: or |, )§N\d+§)*)(?: cards?)?/.exec(text);
     if (orNamed) {
       const names = nameList(orNamed[1]!, ctx); if (!names) return null;
@@ -314,7 +299,6 @@ export function parseCardPhrase(input: string, ctx: Ctx, opts: PhraseOptions = {
   return { selector, quant, ...extra };
 }
 
-/** Adjectives before "Leader": names, traits, attributes, colors. */
 function leaderFilter(adj: string, ctx: Ctx): Filter | null {
   let text = adj.trim();
   const filter: Filter = {};

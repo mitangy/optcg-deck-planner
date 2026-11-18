@@ -100,7 +100,6 @@ describe("Bot's deck picker (#1180)", () => {
     const pick = BOT_META_DECKS[1]!;
     await openPicker(botPicker([mine("d1", "Alpha")], metaDeckValue(pick.leaderId)));
     expect(document.getElementById("bot-deck")!.textContent).toContain(pick.name);
-    // Its Leader art (or the art placeholder while the image loads), not the "?" of a random pick.
     expect(document.querySelector("img.deck-picker-art, .deck-picker-art-empty")).not.toBeNull();
     expect(document.querySelector(".deck-picker-art-random")).toBeNull();
   });

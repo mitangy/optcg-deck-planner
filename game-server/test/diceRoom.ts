@@ -57,7 +57,6 @@ function gameToken(uid: number): string {
   return `${body}.${b64url(createHmac("sha256", getGameTokenSecret()).update(body).digest())}`;
 }
 
-/** Scripts the room's dice: each draw takes the next value (the roller seat, then calls, then die faces minus one). */
 function script(room: DuelRoom, values: number[]) {
   const queue = [...values];
   room.dice.randomInt = () => {
@@ -67,7 +66,6 @@ function script(room: DuelRoom, values: number[]) {
   };
 }
 
-/** The opening dice roll (#1190). */
 export function diceRoomTests(getServer: () => ColyseusTestServer) {
   describe("opening dice roll (#1190)", () => {
     const saved = { ...botPacing };
@@ -84,7 +82,6 @@ export function diceRoomTests(getServer: () => ColyseusTestServer) {
         ...opts,
       });
 
-    /** Two players seated; `values` script the dice. Seat 0 joins first, so the dice start on seat 1's join. */
     async function seated(values: number[], opts: object = {}) {
       const room = await create(opts);
       script(room, values);
@@ -157,7 +154,6 @@ export function diceRoomTests(getServer: () => ColyseusTestServer) {
     }
 
     it("the loser of the roll never chooses, and the winner's pick decides the order", async () => {
-      // High + a 2: the roller (seat 0) wins and takes first.
       const { c, b } = await seated([0, 1]);
       c[1].send("dice", msg({ action: "call", call: "high" }));
       await waitUntil(() => last(b[0]).step === "roll");
@@ -175,7 +171,6 @@ export function diceRoomTests(getServer: () => ColyseusTestServer) {
 
     it("the wrong seat is told unauthorized and the wrong step match_not_ready, and neither moves the roll", async () => {
       const { room, c, b } = await seated([0, 4]);
-      // Step "call": the roller may not call (wrong seat) and nobody may roll or choose yet (wrong step).
       c[0].send("dice", msg({ action: "call", call: "low" }));
       await waitUntil(() => b[0].errors.length === 1);
       assert.equal(b[0].errors[0]!.code, "unauthorized");
@@ -188,7 +183,6 @@ export function diceRoomTests(getServer: () => ColyseusTestServer) {
 
       c[1].send("dice", msg({ action: "call", call: "high" }));
       await waitUntil(() => last(b[1]).step === "roll");
-      // Step "roll": the caller may not roll, and a second call is the wrong step.
       c[1].send("dice", msg({ action: "roll" }));
       c[1].send("dice", msg({ action: "call", call: "low" }));
       await waitUntil(() => b[1].errors.length === 4);
@@ -360,7 +354,6 @@ export function diceRoomTests(getServer: () => ColyseusTestServer) {
           // The timer fires while the roll runs and must not close the room.
           await time.advance(6000);
           assert.equal(room.dice.active, true);
-          // The opponent drops and misses the reconnect grace (a consented leave forfeits instead): the roll is cancelled and the room waits again.
           const serverSide = room.clients.find((c) => c.sessionId === c1.sessionId)!;
           (serverSide.ref as unknown as { terminate(): void }).terminate();
           await waitUntil(() => last(b0).step === "cancelled", 5000);

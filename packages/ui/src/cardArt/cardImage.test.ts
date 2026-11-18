@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-// Every card currently has official art, so the card preview list can be empty: use a fixed one (#1299).
+// Every card currently has official art, so the card preview list can be empty: use a fixed one.
 vi.mock("./previewArt.json", () => ({ default: ["OP18-003", "OP18-031"] }));
 
 import { artAfterError, cardImageUrl, isPlaceholderArt } from "./cardImage";
@@ -62,22 +62,18 @@ describe("artAfterError", () => {
     const preview = artAfterError("/cards/OP18-003.png", "OP18-003");
     expect(preview).toBe("/cards/preview/OP18-003.webp");
     expect(artAfterError(preview!, "OP18-003")).toBeNull();
-    // Cards with no preview end at the text fallback, and other URLs never retry.
     expect(artAfterError("/cards/OP01-016.png", "OP01-016")).toBeNull();
     expect(artAfterError("https://example.com/a.jpg", "OP18-003")).toBeNull();
   });
 
   it("a failed alt printing shows its own preview, not the card's (#581)", () => {
-    // Both the card and the alt printing have previews, so the alt's own must win.
     const alt = `https://tcgplayer-cdn.tcgplayer.com/product/${ALT}_400w.jpg`;
     const preview = artAfterError(alt, CARD);
     expect(preview).toBe(`/cards/preview/p${ALT}.webp`);
     expect(artAfterError(preview!, CARD)).toBeNull();
-    // Large (_in_1000x1000) urls resolve the same product.
     expect(artAfterError(`https://tcgplayer-cdn.tcgplayer.com/product/${ALT}_in_1000x1000.jpg`, CARD)).toBe(
       `/cards/preview/p${ALT}.webp`,
     );
-    // A product without an alt preview keeps the card-level chain.
     const other = "https://tcgplayer-cdn.tcgplayer.com/product/999999_400w.jpg";
     expect(artAfterError(other, CARD)).toBe(`/cards/preview/${CARD}.webp`);
     expect(artAfterError(other, "OP01-016")).toBe("/cards/OP01-016.png");

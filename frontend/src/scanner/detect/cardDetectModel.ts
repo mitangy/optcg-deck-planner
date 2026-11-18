@@ -1,18 +1,3 @@
-/** Learned card detector: runs the YOLO11n-pose ONNX model (#701).
- *
- * The model outputs one detection per visible card FACE with four corner
- * keypoints (the printed card's own corners, never the sleeve, toploader,
- * slab or acrylic case around it). Training and the generator live in
- * `scripts/train-detector/`.
- *
- * This file is the glue: letterbox the photo, run onnxruntime-web, decode the
- * raw tensor, suppress duplicates, and hand `cardDetect.ts` quads in source
- * pixels. The model file is NOT in the bundle; it is downloaded with the scan
- * descriptors (see `descriptorCache.ts`), and until it is present
- * `detectCardsAsync` quietly uses the OpenCV detector instead.
- *
- * Everything except `loadCardDetector`/`runModel` is pure and unit-tested.
- */
 import type { Quad } from "../geometry/cardRectify";
 import { intersectionArea, isCardShaped, quadIoU, quadSides, setCardModelDetector, sortReadingOrder, uprightQuad } from "./cardDetect";
 import type { DetectedCard } from "./cardDetect";
@@ -20,11 +5,8 @@ import { quadArea } from "../geometry/cardRectify";
 import { scanLog } from "../runtime/scanLog";
 
 export type ModelOptions = {
-  /** Long side of the network input. Smaller is faster; cards need ~40 px. */
   longSide?: number;
-  /** Detections scoring below this are dropped. */
   scoreThreshold?: number;
-  /** Quads overlapping a better one by more than this IoU are duplicates. */
   nmsIoU?: number;
 };
 
@@ -34,7 +16,6 @@ export const MODEL_DEFAULTS = {
   nmsIoU: 0.5,
 };
 
-/** Options with every unset (or explicitly undefined) field at its default. */
 export function resolveOptions(opts: ModelOptions = {}): Required<ModelOptions> {
   return {
     longSide: opts.longSide ?? MODEL_DEFAULTS.longSide,
@@ -43,28 +24,21 @@ export function resolveOptions(opts: ModelOptions = {}): Required<ModelOptions> 
   };
 }
 
-/** Network stride; the input's sides must be multiples of it. */
 export const STRIDE = 32;
 const PAD_VALUE = 114 / 255;
 
-/** Output channels of YOLO-pose with one class and four 3-value keypoints. */
 export const CHANNELS = 4 + 1 + 4 * 3;
 
 export type Letterbox = {
-  /** Network input size (multiples of STRIDE). */
   width: number;
   height: number;
-  /** Source -> network scale (same both axes). */
   scale: number;
-  /** Where the scaled photo's top-left sits in the network input. */
   padX: number;
   padY: number;
-  /** Size of the scaled photo inside the input. */
   innerWidth: number;
   innerHeight: number;
 };
 
-/** Geometry only: how a `srcW x srcH` photo is placed in the network input. */
 export function letterboxGeometry(srcW: number, srcH: number, longSide: number): Letterbox {
   const scale = longSide / Math.max(srcW, srcH);
   const innerWidth = Math.max(1, Math.round(srcW * scale));
@@ -97,7 +71,6 @@ export function preprocess(image: ImageData, longSide: number): { tensor: Float3
   const sh = image.height;
   const xScale = sw / iw;
   const yScale = sh / ih;
-  // Column bounds once; rows reuse them.
   const x0s = new Int32Array(iw);
   const x1s = new Int32Array(iw);
   for (let x = 0; x < iw; x += 1) {
@@ -134,12 +107,6 @@ export function preprocess(image: ImageData, longSide: number): { tensor: Float3
 
 export type RawDetection = { quad: Quad; score: number };
 
-/**
- * Decode the raw `[1, 17, N]` output (channel-major: cx, cy, w, h, score, then
- * x, y, visibility per corner) into quads in SOURCE pixels, keeping those
- * above the score threshold. Corner order is the card's own printed order
- * (TL, TR, BR, BL), exactly as trained.
- */
 export function decodeDetections(
   data: ArrayLike<number>,
   anchors: number,
@@ -159,13 +126,10 @@ export function decodeDetections(
   return out;
 }
 
-/** Share of a quad that must lie inside the photo (the model labels cards that are at least 55% in frame). */
 const MIN_INSIDE_FRAME = 0.4;
 
-/** Corners that cannot be a card: collapsed, bow-tied or the wrong shape. */
 export function isPlausibleCard(q: Quad, imageW: number, imageH: number): boolean {
   if (quadArea(q) < 100) return false;
-  // Convex with a consistent winding: all cross products share a sign.
   let sign = 0;
   for (let i = 0; i < 4; i += 1) {
     const a = q[i];
@@ -189,11 +153,6 @@ export function isPlausibleCard(q: Quad, imageW: number, imageH: number): boolea
   return isCardShaped(q, 0.3);
 }
 
-/**
- * Greedy non-maximum suppression on quads: highest score first; a quad is a
- * duplicate of a kept one if their IoU is high, or if it is mostly inside it
- * (a card's inner art box next to its outline).
- */
 export function suppressDuplicates(dets: RawDetection[], iou: number): RawDetection[] {
   const sorted = [...dets].sort((a, b) => b.score - a.score);
   const kept: RawDetection[] = [];
@@ -207,22 +166,15 @@ export function suppressDuplicates(dets: RawDetection[], iou: number): RawDetect
   return kept;
 }
 
-/** Share of the smaller quad that must lie inside a better one to be dropped as nested. */
 const NESTED = 0.85;
 
-/** Share of the smaller quad's area that lies inside the other, from their IoU. */
 function containment(a: Quad, b: Quad, iou: number): number {
   const aa = quadArea(a);
   const ab = quadArea(b);
-  // IoU = I / (aa + ab - I)  =>  I = IoU * (aa + ab) / (1 + IoU)
   const inter = (iou * (aa + ab)) / (1 + iou);
   return inter / Math.min(aa, ab);
 }
 
-/**
- * Raw model output -> the detector's result: plausible cards only, duplicates
- * removed, reading order, each quad with its long side running top to bottom.
- */
 export function detectionsToCards(
   data: ArrayLike<number>,
   anchors: number,
@@ -236,8 +188,6 @@ export function detectionsToCards(
     isPlausibleCard(d.quad, imageW, imageH),
   );
   const kept = suppressDuplicates(decoded, o.nmsIoU);
-  // The model keeps each card's printed orientation (a sideways card comes out
-  // rotated); `uprightQuad` only repairs a 90-degree mix-up in the output.
   const quads = kept.map((d) => {
     const [across, down] = quadSides(d.quad);
     return across > down ? uprightQuad(d.quad) : d.quad;
@@ -245,9 +195,6 @@ export function detectionsToCards(
   return sortReadingOrder(quads).map((quad) => ({ quad }));
 }
 
-// ------------------------------------------------------------- the session
-
-/** The slice of onnxruntime-web this file uses, so Node scripts can pass their own. */
 export type OrtLike = {
   InferenceSession: { create(model: Uint8Array, options?: unknown): Promise<OrtSession> };
   Tensor: new (type: "float32", data: Float32Array, dims: number[]) => unknown;
@@ -262,12 +209,10 @@ type OrtSession = {
 let session: { ort: OrtLike; s: OrtSession } | null = null;
 let loading: Promise<boolean> | null = null;
 
-/** Is a model loaded and registered with `detectCardsAsync`? */
 export function cardDetectorReady(): boolean {
   return session !== null;
 }
 
-/** Browser: load onnxruntime-web (WASM backend) only when the scanner needs it. */
 async function loadBrowserOrt(): Promise<OrtLike> {
   const ort = await import("onnxruntime-web/wasm");
   const wasm = (await import("onnxruntime-web/ort-wasm-simd-threaded.wasm?url")).default;
@@ -278,11 +223,6 @@ async function loadBrowserOrt(): Promise<OrtLike> {
   return ort as unknown as OrtLike;
 }
 
-/**
- * Create the session from the downloaded model bytes and register the detector.
- * Resolves false (never throws) when the runtime or model cannot be loaded, so
- * the scanner just keeps using the OpenCV detector.
- */
 export function loadCardDetector(model: Uint8Array, ort?: OrtLike): Promise<boolean> {
   if (session) return Promise.resolve(true);
   loading ??= (async () => {
@@ -309,7 +249,6 @@ export async function releaseCardDetector(): Promise<void> {
   await cur?.s.release?.();
 }
 
-/** Run the model on one photo. Null when no model is loaded or inference fails. */
 export async function detectWithModel(image: ImageData, opts: ModelOptions = {}): Promise<DetectedCard[] | null> {
   if (!session) return null;
   const { ort, s } = session;

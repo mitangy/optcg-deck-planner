@@ -1,11 +1,8 @@
 import type { LastMode } from "./lastMode";
 
 export type PrimaryAction =
-  /** No last mode: the chooser. */
   | { act: "choose"; mode: null; subline: string }
-  /** Ranked: start the queue now. */
   | { act: "start"; mode: "queue"; subline: string }
-  /** Everything else: the setup sheet at that mode. */
   | { act: "sheet"; mode: Exclude<LastMode, "queue">; subline: string };
 
 const SUBLINE: Record<LastMode, string> = {
@@ -16,7 +13,6 @@ const SUBLINE: Record<LastMode, string> = {
   spectate: "Spectate",
 };
 
-/** What the big Play button, or a mode tile, does for a mode. */
 export function primaryAction(mode: LastMode | null): PrimaryAction {
   if (mode === null) return { act: "choose", mode: null, subline: "Choose a mode" };
   if (mode === "queue") return { act: "start", mode, subline: SUBLINE[mode] };
@@ -25,7 +21,6 @@ export function primaryAction(mode: LastMode | null): PrimaryAction {
 
 const TILE_ORDER: readonly LastMode[] = ["queue", "hotseat", "bot", "create", "spectate"];
 
-/** The tiles under Play: every mode but the one Play already repeats. */
 export function modeTiles(lastMode: LastMode | null): LastMode[] {
   return TILE_ORDER.filter((m) => m !== lastMode);
 }

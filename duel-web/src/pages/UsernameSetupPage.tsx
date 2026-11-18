@@ -7,13 +7,6 @@ import { clearAuth, ensureAuth } from "../auth/session";
 import { fetchUsernameSuggestion, logoutSession } from "../net/api";
 import { useDuelSession } from "../state/DuelSession";
 
-/**
- * First sign-in step: pick a public username before playing.
- *
- * Required for signed-in accounts (the lobby redirects here until one is set),
- * but prefilled with an available suggestion so it's one click. The only way
- * out without choosing is signing out, which returns you to guest play.
- */
 export function UsernameSetupPage() {
   const navigate = useNavigate();
   const { setRating } = useDuelSession();

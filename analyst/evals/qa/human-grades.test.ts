@@ -7,7 +7,6 @@ import type { Rubric } from "./types";
 
 const OFFICIAL = "when this character attacks you may trash one card from your hand to give up to one of your opponents characters minus three thousand power during this turn";
 
-/** A one-case run folder: D01 rep 0 with one tool call. */
 function run(answer: string, toolResult: string, rubric?: Rubric) {
   const dir = mkdtempSync(join(tmpdir(), "hg-"));
   mkdirSync(join(dir, "traces"));

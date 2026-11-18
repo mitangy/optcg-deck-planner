@@ -1,11 +1,3 @@
-/**
- * Build-time pre-render entry (#914). tools/seo/prerender-plugin.mjs bundles this for Node after
- * `vite build`, calls `prerender()` and writes what it returns into `dist/`.
- *
- * Pre-rendered: the logged-out landing page at `/`, the public `/meta` browser and the legal pages.
- * The client replaces the markup with `createRoot` and keeps showing the same page while it checks
- * the session (see prerendered.ts).
- */
 import type { ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -25,7 +17,6 @@ export type PrerenderedFile = { file: string; content: string };
 const META_DAYS = 30;
 const DEFAULT_API = "https://optcg-api-nutb.onrender.com";
 
-/** The leaders for the `/meta` page, or null when the API cannot be reached: the page then ships without them and loads them in the browser. */
 export async function fetchLeaders(api = DEFAULT_API, timeoutMs = 45_000, fetchFn: typeof fetch = fetch): Promise<MetaLeadersResponse | null> {
   try {
     const res = await fetchFn(`${api}/meta/leaders?days=${META_DAYS}`, { signal: AbortSignal.timeout(timeoutMs) });
@@ -60,7 +51,6 @@ function renderPage(path: string, page: ReactNode, leaders: MetaLeadersResponse 
   );
 }
 
-/** All pre-rendered files for a build. `leaders` is for tests; a build leaves it out and fetches them. */
 export async function prerender(opts: { template: string; leaders?: MetaLeadersResponse | null; log?: (msg: string) => void }): Promise<PrerenderedFile[]> {
   const log = opts.log ?? ((m: string) => console.log(`[planner-prerender] ${m}`));
   const leaders = opts.leaders !== undefined ? opts.leaders : await fetchLeaders((globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.META_API_URL || DEFAULT_API);

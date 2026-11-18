@@ -23,10 +23,8 @@ export type MetaDeck = { name: string; leaderId: string; deck: string[] };
 
 export const SABOTAGE_MIN = 4;
 export const SABOTAGE_MAX = 8;
-/** Cards of the ranking a planted card is picked from. */
 const POOL = 8;
 
-/** A small seeded generator (mulberry32). Same seed, same sequence, on every machine. */
 export function rng(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -38,11 +36,9 @@ export function rng(seed: number): () => number {
   };
 }
 
-/** A seed from a number and a string (leader id, case id), so different decks shuffle differently. */
 export function seedOf(seed: number, text: string): number {
   let h = (seed ^ 0x811c9dc5) >>> 0;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193) >>> 0;
-  // Final mix, so similar strings (case-1, case-2) differ in every bit and not only the low ones.
   h ^= h >>> 16;
   h = Math.imul(h, 0x85ebca6b) >>> 0;
   h ^= h >>> 13;
@@ -59,7 +55,6 @@ export function shuffled<T>(items: readonly T[], next: () => number): T[] {
   return out;
 }
 
-/** The number of meta decks that play each card (once per deck). */
 export function metaFrequency(decks: readonly MetaDeck[]): Map<string, number> {
   const freq = new Map<string, number>();
   for (const d of decks) for (const id of new Set(d.deck)) freq.set(id, (freq.get(id) ?? 0) + 1);
@@ -73,17 +68,14 @@ export function toCopies(ids: readonly string[]): Copies[] {
 }
 
 export type Sabotage = {
-  /** The sabotaged main deck (50 cards). */
   cards: Copies[];
   k: number;
-  /** What was put in, and what was taken out. */
   planted: Copies[];
   removed: Copies[];
 };
 
 const countOf = (cards: readonly Copies[]) => cards.reduce((s, c) => s + c.copies, 0);
 
-/** Planted-card candidates for a leader, best first, in widening tiers. */
 export function plantCandidates(catalog: Catalog, leaderId: string, freq: ReadonlyMap<string, number>, banned: ReadonlySet<string>, exclude: ReadonlySet<string>): CardRow[] {
   const leader = catalog.cards.get(leaderId);
   if (!leader) return [];
@@ -98,16 +90,11 @@ export function plantCandidates(catalog: Catalog, leaderId: string, freq: Readon
   return tiers[tiers.length - 1]!.sort(rank);
 }
 
-/**
- * Sabotage a legal deck. Deterministic for (deck, seed). `k` defaults to a seeded value from 4 to 8.
- * Returns null when no legal sabotage exists (it should not happen with real meta decks).
- */
 export function sabotage(catalog: Catalog, source: MetaDeck, opts: { seed: number; k?: number; freq: ReadonlyMap<string, number>; banned?: ReadonlySet<string>; restricted?: ReadonlySet<string> }): Sabotage | null {
   const next = rng(seedOf(opts.seed, source.leaderId));
   const k = opts.k ?? SABOTAGE_MIN + Math.floor(next() * (SABOTAGE_MAX - SABOTAGE_MIN + 1));
   const original = toCopies(source.deck);
 
-  // Take out k copies: core cards first, at most 2 copies from each card.
   const order = shuffled(original, next);
   const removedBy = new Map<string, number>();
   let left = k;
@@ -136,7 +123,6 @@ export function sabotage(catalog: Catalog, source: MetaDeck, opts: { seed: numbe
     if (toPlant <= 0) break;
     const copies = Math.min(2, toPlant);
     const trial = [...kept, ...planted, { id: card.id, copies }];
-    // The deck is short of 50 cards until the last card goes in, so only the other rules are checked here.
     if (analyzeDeck(catalog, deckFromLines(catalog, trial, source.leaderId)).hints.some((h) => h.tier === "rule" && h.id !== "count")) continue;
     planted.push({ id: card.id, copies });
     toPlant -= copies;

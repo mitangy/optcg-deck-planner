@@ -486,7 +486,6 @@ def catalog_recent_sales(
     return RecentSalesResponse(product_id=product_id, sales=sales)
 
 
-# History is read from our own DB (no upstream call), so a looser cap than sales.
 _history_rate_limiter = RateLimiter(max_calls=120, period_s=60, name="api_price_history_rate_limiter")
 MAX_IMPORT_PRODUCTS = 50_000
 

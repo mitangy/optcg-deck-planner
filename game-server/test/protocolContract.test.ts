@@ -3,8 +3,6 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { PROTOCOL_VERSION, parseIntentMessage } from "../src/protocol.js";
 
-// Golden fixtures generated from the engine (packages/rules/protocol-fixtures);
-// duel-web and mobile run their own contract tests against the same files.
 const dir = fileURLToPath(new URL("../../packages/rules/protocol-fixtures/", import.meta.url));
 const load = <T>(file: string): T => JSON.parse(readFileSync(`${dir}${file}`, "utf8")) as T;
 

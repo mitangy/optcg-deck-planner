@@ -27,7 +27,6 @@ export type RunnerDeps = {
   catalog: Catalog;
   library?: OfficialLibrary;
   knowledge: Pick<Knowledge, "playbook">;
-  /** The model for one attempt (the dry run's oracle needs the case and its gold). */
   callModel: (c: EvalCase, gold: Gold) => CallModel;
   judge: Judge;
   planner: Omit<PlannerOptions, "mode"> & { mode: PlannerOptions["mode"] };
@@ -46,7 +45,6 @@ export type RunOptions = {
   resume: boolean;
   /** The model every call must be served by. */
   model: string;
-  /** Base delay for retries after 429/529/5xx; tests pass 0. */
   retryMs?: number;
 };
 
@@ -88,7 +86,6 @@ export async function runEval(deps: RunnerDeps, opts: RunOptions): Promise<RunRe
     appendFileSync(errorsFile, `${JSON.stringify(e)}\n`);
   };
 
-  // Which tools the chat offers, to skip cases that need a tool that is not on main yet.
   const probe = evalPlanner({ ...deps.planner });
   const offered = new Set<string>(buildTools(deps.catalog, undefined, { api: probe.api, token: "chat.eval" }, { library: deps.library, playbook: deps.knowledge.playbook, stats: probe.api }).map((t) => t.name));
 

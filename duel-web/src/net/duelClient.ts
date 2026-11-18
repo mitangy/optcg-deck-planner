@@ -63,37 +63,25 @@ export type DuelClientHandlers = {
     brief?: BriefTicketWire;
   }) => void;
   onView?: (view: PlayerView) => void;
-  /** `step`: intents the room had applied after these events (undo trims the log back to a step). */
   onEvents?: (events: unknown[], step?: number) => void;
   onError?: (err: ErrorMessage) => void;
-  /** The turn moved on since the last rejected action, so its error is old news. */
   onStaleIllegalIntent?: () => void;
   onMatchOver?: (msg: MatchOverMessage) => void;
   onCosmetics?: (msg: CosmeticsMessage) => void;
   onSkin?: (msg: SkinMessage) => void;
   onTimer?: (msg: TimerMessage) => void;
-  /** New chat lines (a single relay, or the replayed history on join / sync). */
   onChat?: (lines: ChatLine[]) => void;
-  /** Undo availability / open request (unranked rooms). */
   onUndoState?: (state: UndoState) => void;
-  /** An accepted undo took back the last action, restoring the state of `toTurn` / `toStep`. */
   onUndoApplied?: (info: UndoApplied) => void;
-  /** Seats that dropped: epoch ms until which each may still reconnect. */
   onPresence?: (awayUntil: [number | null, number | null]) => void;
-  /** Rematch vote after the match ends. */
   onRematchState?: (state: RematchState) => void;
-  /** The opening dice roll (before the first game exists): every step, and a cancel when a seat leaves. */
   onDiceState?: (state: DiceStateMessage) => void;
-  /** Another device took this seat over: stop sending, never reconnect on our own. */
   onTakenOver?: () => void;
   onDisconnect?: (code: number) => void;
-  /** Socket dropped unexpectedly; the SDK is retrying in the background. */
   onDrop?: (code: number) => void;
-  /** The SDK's background retry reclaimed the seat. */
   onReconnect?: () => void;
   onQueued?: (position: number) => void;
   onMatched?: (info: { roomId: string; seat: Seat; ranked: boolean }) => void;
-  /** Fired whenever Colyseus issues/refreshes a reconnection token. */
   onReconnectionToken?: (token: string, roomId: string) => void;
 };
 
@@ -106,11 +94,8 @@ export type ConnectParams = {
   roomId?: string;
   role?: "player" | "spectator";
   createOptions?: DuelCreateOptions;
-  /** Deck for this seat (create or join). */
   deck?: { leaderId: string; deck: string[] };
-  /** Take over the seat `preferredSeat` this account holds in `roomId`. */
   takeover?: boolean;
-  /** Practice: game token of the signed-in account that owns this seat. */
   ownerToken?: string;
 };
 
@@ -118,22 +103,16 @@ export class DuelClient {
   private client: Client | null = null;
   private room: Room | null = null;
   private queueRoom: Room | null = null;
-  /** Rejects the in-flight queue wait when the player cancels. */
   private queueAbort: ((err: Error) => void) | null = null;
   private handlers: DuelClientHandlers = {};
   private reconnectionToken: string | null = null;
-  /** Game server the current match was created / joined on; reconnects go back there. */
   private matchServerUrl: string | null = null;
-  /** Bumped by each connect: an older one that finishes later must not take the client. */
   private connectSeq = 0;
   private pendingReconnect: Promise<{ matchId: string; seat: Seat }> | null = null;
-  /** Latest view from the server: the turn the player's clicks were made in. */
   private lastView: PlayerView | null = null;
   /** Turn an End turn went out on; until its result arrives, Main actions would land in the opponent's turn. */
   private endTurnSentOn: number | null = null;
-  /** Turn of the last rejected action, while its error is still on screen. */
   private illegalIntentOn: number | null = null;
-  /** Another device took the seat over; cleared by the next connect. */
   private takenOverFlag = false;
   /** A battle pass sent since the last view: a second one (a tap racing the automatic pass) could only be refused. */
   private passSent: Intent["type"] | null = null;
@@ -150,7 +129,6 @@ export class DuelClient {
     return this.reconnectionToken;
   }
 
-  /** Game server of the current match (null before the first connect). */
   get serverUrl(): string | null {
     return this.matchServerUrl;
   }
@@ -168,7 +146,6 @@ export class DuelClient {
         const join = this.buildJoin(params);
         const create: DuelCreateOptions = {
           protocolVersion: PROTOCOL_VERSION,
-          // Real matches use the rules mulligan step (Keep hand / redraw 5).
           autoSkipMulligan: false,
           ...params.createOptions,
         };
@@ -183,8 +160,6 @@ export class DuelClient {
         }
 
         if (seq !== this.connectSeq) {
-          // A newer connect owns the client now. Give this seat back, or the
-          // room stays open with us seated in it (and shows us "waiting").
           void room.leave(true).catch(() => undefined);
           throw new Error("Superseded by a newer match request");
         }
@@ -192,11 +167,9 @@ export class DuelClient {
         this.captureReconnectionToken(room);
         this.wireDuel(room);
         // A takeover's welcome is sent during the join handshake, before the
-        // handlers above existed: ask again so the board always arrives (#451).
+        // handlers above existed: ask again so the board always arrives.
         if (params.takeover) room.send(CLIENT_MESSAGE.sync, { protocolVersion: PROTOCOL_VERSION });
 
-        // Resolve as soon as the Colyseus room exists so the lobby can show the
-        // room id while waiting for the second seat (welcome arrives via handlers).
         return { matchId: room.roomId, seat: params.preferredSeat ?? 0 };
       },
       {
@@ -216,7 +189,6 @@ export class DuelClient {
     );
   }
 
-  /** Join ranked_queue until matched, then join the duel room. */
   async queueRanked(params: ConnectParams): Promise<{ matchId: string; seat: Seat }> {
     this.takenOverFlag = false;
     await this.disconnect();
@@ -257,8 +229,6 @@ export class DuelClient {
           clearTimeout(timer);
           reject(new Error(message || `queue error ${code}`));
         });
-        // The queue closed under us (server restart, dropped socket): nobody
-        // can pair with us any more, so stop "searching" now.
         queueRoom.onLeave(() => {
           clearTimeout(timer);
           reject(new Error("Lost the ranked queue. Queue again."));
@@ -299,14 +269,6 @@ export class DuelClient {
     }
   }
 
-  /**
-   * Rejoin after an unexpected drop / page reload.
-   * Pass `reconnectionToken` + `serverUrl` when restoring from sessionStorage
-   * (the in-memory Client is gone after refresh).
-   *
-   * Retries on "seat reservation expired" — full page reload can race the
-   * server's `allowReconnection` setup by a few dozen ms.
-   */
   reconnect(opts?: {
     serverUrl?: string;
     reconnectionToken?: string;
@@ -331,7 +293,6 @@ export class DuelClient {
     if (this.takenOverFlag) throw new Error("This match continues on another device.");
     const token = opts?.reconnectionToken ?? this.reconnectionToken;
     if (!token) throw new Error("No reconnection token");
-    // Back to the server the match lives on, never whichever pool a newer token names.
     const url = opts?.serverUrl ?? this.matchServerUrl ?? getGameServerUrl();
     return retry(
       async () => {
@@ -387,7 +348,6 @@ export class DuelClient {
     this.room.send(CLIENT_MESSAGE.sync, { protocolVersion: PROTOCOL_VERSION });
   }
 
-  /** Publish this seat's alt-art prefs (non-authoritative cosmetics). */
   sendCosmetics(artPrefs: ArtPrefsMap) {
     if (!this.room) return;
     this.room.send(CLIENT_MESSAGE.cosmetics, {
@@ -396,7 +356,6 @@ export class DuelClient {
     });
   }
 
-  /** Publish this seat's custom playmat / card back for the opponent to see. */
   sendSkin(skin: SeatSkin) {
     if (!this.room) return;
     this.room.send(CLIENT_MESSAGE.skin, { protocolVersion: PROTOCOL_VERSION, skin });
@@ -407,28 +366,21 @@ export class DuelClient {
     this.room.send(CLIENT_MESSAGE.chat, { protocolVersion: PROTOCOL_VERSION, text });
   }
 
-  /** Tell the room this seat's hand order, so spectators' fans match it (ignored in ranked rooms). */
   sendHandOrder(ids: string[]) {
     if (!this.room) return;
     this.room.send(CLIENT_MESSAGE.hand_order, { protocolVersion: PROTOCOL_VERSION, ids } satisfies HandOrderMessage);
   }
 
-  /** Opening dice roll (#1190): the caller's High / Low, the roller's Roll, the winner's first / second. */
   sendDice(action: DiceAction) {
     if (!this.room) throw new Error("Not connected");
     this.room.send(CLIENT_MESSAGE.dice, { protocolVersion: PROTOCOL_VERSION, ...action });
   }
 
-  /** `deck` (a "request" only) swaps this seat's deck for the next game. */
   sendRematch(action: RematchAction, deck?: PlayerDeckWire) {
     if (!this.room) throw new Error("Not connected");
     this.room.send(CLIENT_MESSAGE.rematch, { protocolVersion: PROTOCOL_VERSION, action, ...(deck ? { deck } : {}) });
   }
 
-  /**
-   * `opts` (a "request" only): take back the whole turn, and/or force past a reveal (#536).
-   * An "accept" passes `id` (the pending request it was shown) so a changed request is refused (#540).
-   */
   sendUndo(action: UndoAction, opts?: UndoRequestOptions) {
     if (!this.room) throw new Error("Not connected");
     this.room.send(CLIENT_MESSAGE.undo, {
@@ -444,16 +396,10 @@ export class DuelClient {
     this.room?.send(CLIENT_MESSAGE.ping, { t });
   }
 
-  /** True while the SDK is retrying a dropped socket on its own. */
   get isReconnecting(): boolean {
     return Boolean(this.room?.reconnection?.isReconnecting);
   }
 
-  /**
-   * Round-trip a transport ping. A phone that was in another app can come back
-   * with a socket that still reads OPEN but that the server already dropped;
-   * nothing answers it, so resolve false after `timeoutMs`.
-   */
   isAlive(timeoutMs = 3000): Promise<boolean> {
     const room = this.room;
     if (!room || !room.connection?.isOpen) return Promise.resolve(false);
@@ -466,10 +412,6 @@ export class DuelClient {
     });
   }
 
-  /**
-   * Stop tracking the current room without a consented leave, so the server
-   * keeps the seat for reclaim. Its late close / retry events are ignored.
-   */
   private abandonRoom() {
     const room = this.room;
     if (!room) return;
@@ -482,11 +424,6 @@ export class DuelClient {
     }
   }
 
-  /**
-   * @param consented When true (default), leave with consent and drop the
-   *   reconnection token. Pass `false` only for rare soft-teardowns where the
-   *   server should keep reconnect grace (page reload uses neither — the tab dies).
-   */
   async disconnect(consented = true) {
     // Detach first so a caller that doesn't await (Leave navigates at once)
     // can start a new match on this client while the old socket closes.
@@ -536,7 +473,6 @@ export class DuelClient {
     this.handlers.onTakenOver?.();
   }
 
-  /** True once the seat moved to another device (until the next connect). */
   get takenOver(): boolean {
     return this.takenOverFlag;
   }
@@ -579,11 +515,6 @@ export class DuelClient {
     }
   }
 
-  /**
-   * One row per message the room sends. `handle` parses the payload and delivers it; when it throws, `onBad`
-   * decides what a malformed message does: report a protocol error to the app, drop it quietly (cosmetic or
-   * advisory messages must never break a match), or, with no `onBad`, let the exception propagate.
-   */
   private messageRoutes(room: Room): MessageRoute[] {
     return [
       {
@@ -634,7 +565,6 @@ export class DuelClient {
         handle: (raw) => {
           const err = parseError(raw);
           if (err.code === "illegal_intent") {
-            // A rejected End turn leaves the turn open: let the player act again.
             this.endTurnSentOn = null;
             this.passSent = null;
             this.illegalIntentOn = this.lastView?.turnNumber ?? null;
@@ -652,7 +582,6 @@ export class DuelClient {
         onBad: reportBad("Bad cosmetics"),
         handle: (raw) => this.handlers.onCosmetics?.(parseCosmetics(raw)),
       },
-      // Cosmetic only: a bad skin never surfaces as a match error.
       { type: SERVER_MESSAGE.skin, onBad: ignoreBad, handle: (raw) => this.handlers.onSkin?.(parseSkin(raw)) },
       { type: SERVER_MESSAGE.timer, onBad: ignoreBad, handle: (raw) => this.handlers.onTimer?.(parseTimer(raw)) },
       { type: SERVER_MESSAGE.chat, onBad: ignoreBad, handle: (raw) => this.handlers.onChat?.([parseChat(raw)]) },
@@ -711,7 +640,6 @@ export class DuelClient {
     });
 
     room.onReconnect(() => {
-      // An End turn lost with the old socket must not lock the turn.
       if (this.room === room) this.endTurnSentOn = null;
       // The server issues a fresh token on every reclaim and the old one is
       // dead, but the SDK fires onReconnect before it stores the new token.
@@ -723,7 +651,6 @@ export class DuelClient {
     });
 
     room.onLeave((code) => {
-      // A room we already detached from (Leave) must not clobber a newer one.
       if (this.room !== room) return;
       if (code === TAKEN_OVER_CLOSE_CODE) this.markTakenOver(room);
       this.handlers.onDisconnect?.(code);
@@ -732,13 +659,10 @@ export class DuelClient {
   }
 }
 
-/** Prompts can still be answered after End turn (end-of-turn effects); everything else waits for the next turn. */
 const AFTER_END_TURN = new Set<Intent["type"]>(["resolve_pending_choice", "order_pending_effects"]);
 
-/** Battle passes answer one step each: the next view brings the next step (#445). */
 const ONCE_PER_VIEW = new Set<Intent["type"]>(["pass_block", "pass_counter"]);
 
-/** An action sent after End turn, while the view still shows the turn that was ended. */
 export function lateForTurn(intent: Intent, endTurnSentOn: number | null, view: PlayerView | null): boolean {
   return endTurnSentOn !== null && view?.turnNumber === endTurnSentOn && !AFTER_END_TURN.has(intent.type);
 }
@@ -746,11 +670,9 @@ export function lateForTurn(intent: Intent, endTurnSentOn: number | null, view: 
 type MessageRoute = {
   type: ServerMessageType;
   handle: (raw: unknown) => void;
-  /** What a message that fails to parse (or whose handler throws) does: an error for the app, or null to drop it. */
   onBad?: (e: unknown) => ErrorMessage | null;
 };
 
-/** A malformed message that is worth telling the app about: the parse error's text, else `fallback`. */
 const reportBad =
   (fallback: string) =>
   (e: unknown): ErrorMessage => ({
@@ -759,5 +681,4 @@ const reportBad =
     message: e instanceof Error ? e.message : fallback,
   });
 
-/** A malformed message that is dropped. */
 const ignoreBad = (): null => null;

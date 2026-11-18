@@ -1,4 +1,3 @@
-"""Giveaway events (#794): public event info and opt-in, and the admin draw tools."""
 
 from __future__ import annotations
 
@@ -83,8 +82,6 @@ def _can_join(event: ev.Event, user: User | None, now: datetime) -> tuple[bool, 
     return True, None
 
 
-# ---------------------------------------------------------------- public
-
 @router.get("/current", response_model=EventEnvelope)
 def current(db: DB, user: Annotated[User | None, Depends(get_optional_user)]) -> dict:
     """The lobby banner's event: live or upcoming, or one that ended in the last week."""
@@ -103,7 +100,6 @@ def by_id(event_id: str, db: DB, user: Annotated[User | None, Depends(get_option
 
 
 def _detail_fields(event: ev.Event) -> dict:
-    """Prizing and tourney-style details (#1019), the same on the public and admin shapes."""
     return {
         "description": event.description,
         "prize": event.prize,
@@ -166,12 +162,10 @@ def join(event_id: str, body: JoinIn, db: DB, user: Annotated[User, Depends(get_
         db.add(EventEntry(event_id=event.id, user_id=user.id, rules_version=body.rules_version))
         try:
             db.commit()
-        except IntegrityError:  # a double click raced us; the entry exists
+        except IntegrityError:
             db.rollback()
     return {"opted_in": True}
 
-
-# ---------------------------------------------------------------- admin
 
 def _name(u: User) -> str:
     return duel_display_name(u)
@@ -279,7 +273,6 @@ def admin_event(event_id: str, _: Admin, db: DB) -> dict:
     return _admin_state(db, _event_or_404(db, event_id))
 
 
-# Fields whose change makes players re-read the rules (their join then 409s on the old version).
 RULES_FIELDS = (
     "starts_at", "ends_at", "min_games", "min_opponents", "min_turns", "winners",
     "prize", "prize_details", "prize_method", "format", "best_of", "bracket_size",
@@ -327,7 +320,6 @@ def _bad(detail: str) -> HTTPException:
 
 
 def _clean(values: dict) -> dict:
-    """Normalise and validate a full set of event fields; raises 422 with a message the form can show."""
     v = dict(values)
     v["title"] = (v["title"] or "").strip()
     if not 1 <= len(v["title"]) <= 80:
@@ -363,7 +355,7 @@ def _clean(values: dict) -> dict:
 
 def _new_rules_version(old: str) -> str:
     version = ev.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
-    if old.startswith(version):  # two edits in the same second still get different versions
+    if old.startswith(version):
         return f"{version}.{int(old[len(version) + 1:] or 0) + 1}"
     return version
 

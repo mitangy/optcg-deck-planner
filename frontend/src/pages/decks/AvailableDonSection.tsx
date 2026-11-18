@@ -28,7 +28,6 @@ export function AvailableDonSection({
     queryKey: qk.catalogDon(debouncedQ),
     queryFn: () => api.searchCatalog({ q: debouncedQ || undefined, card_type: "DON", limit: 100 }),
     staleTime: 60_000,
-    // Keep the grid on screen while the next search loads so typing never collapses it to a skeleton.
     placeholderData: keepPreviousData,
   });
 

@@ -1,6 +1,3 @@
-/**
- * Shared simulation handle, the acting-source marker and small helpers used by every runtime module.
- */
 import { getCardDef } from "../cards/definitions.js";
 import type { Rng } from "../rng.js";
 import type { GameEvent, InstanceId, MatchState, Seat, TurnLog } from "../types.js";
@@ -26,7 +23,6 @@ export function actingSource(): { seat: Seat; id: InstanceId; defId: string } | 
   return acting;
 }
 
-/** Run `fn` with `source` marked as the acting effect, restoring the previous marker afterwards. */
 export function withActing<T>(source: { seat: Seat; id: InstanceId; defId: string }, fn: () => T): T {
   const previous = acting;
   acting = source;

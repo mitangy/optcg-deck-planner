@@ -59,7 +59,6 @@ describe("stagedCounterTotal", () => {
 describe("resolveStagedCounters", () => {
   const hand = [{ id: "A" }, { id: "B" }, { id: "C" }, { id: "D" }, { id: "E" }];
   const counter = (handIndex: number): Intent => ({ type: "counter_from_hand", handIndex });
-  // B is not a counter card.
   const intents: Intent[] = [
     { type: "pass_counter" },
     counter(0),
@@ -69,7 +68,6 @@ describe("resolveStagedCounters", () => {
     { type: "counter_event", handIndex: 1 },
   ];
 
-  /** Replays the sends against a hand that shrinks like the server's. */
   function replay(sent: Intent[]): (string | undefined)[] {
     const h = hand.map((c) => c.id);
     return sent.map((i) => h.splice((i as { handIndex: number }).handIndex, 1)[0]);
@@ -87,7 +85,6 @@ describe("resolveStagedCounters", () => {
   });
 
   it("looks cards up by id in the latest hand", () => {
-    // D moved from slot 3 to slot 2 after C left the hand.
     const shifted = [{ id: "A" }, { id: "B" }, { id: "D" }, { id: "E" }];
     const sent = resolveStagedCounters([counter(0), counter(2), counter(3)], shifted, ["D"]);
     expect(sent).toEqual([counter(2)]);

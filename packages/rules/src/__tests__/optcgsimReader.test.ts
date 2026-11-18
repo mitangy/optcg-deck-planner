@@ -5,10 +5,9 @@ import { parseSimExport, parseSimGame, type SimGame, type SimMatchRecord } from 
 const fixture = (name: string): SimMatchRecord =>
   JSON.parse(readFileSync(new URL(`../sim/optcgsim/__fixtures__/${name}`, import.meta.url), "utf8")) as SimMatchRecord;
 
-const FIRST = fixture("game-me-first-won.json"); // turnOrder 0, PlayerA won
-const SECOND = fixture("game-me-second-lost.json"); // turnOrder 1, PlayerA lost, PlayerA mulliganed
+const FIRST = fixture("game-me-first-won.json");
+const SECOND = fixture("game-me-second-lost.json");
 
-/** Minimal synthetic log: one card drawn by `owner` 2, then the Don phase starts the turn. */
 const synth = (opts: { ply: string[]; pre?: string[]; match?: Partial<SimMatchRecord> }): SimGame =>
   parseSimGame({
     playerName: "PlayerA#1",
@@ -106,7 +105,6 @@ describe("OPTCGSim combat log reader (#1030)", () => {
   });
 
   it("refresh readies the active player's DON!! at their next turn start (#1030)", () => {
-    // Fixture: PlayerA spends DON!! in turn 1 and turn 3 opens with all 3 active again.
     const g = parseSimGame(FIRST);
     expect(g.turns[2].active).toBe("me");
     expect(g.turns[2].snapshot.me).toMatchObject({ donActive: 3, donRested: 0 });

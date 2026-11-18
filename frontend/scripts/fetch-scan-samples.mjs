@@ -1,15 +1,4 @@
 #!/usr/bin/env node
-/** Download the users' confirmed scan crops for retraining the art embedder (#852).
- *
- *   SCAN_TRAINING_TOKEN=... node scripts/fetch-scan-samples.mjs <outDir>
- *
- * Pages through `GET {API_URL}/scan-samples/export` and writes `<outDir>/<id>.jpg`
- * plus `<outDir>/index.json` ([{id, file, split, card_id, label}]).
- *
- * These are user photos and the repo is public: this script prints COUNTS only
- * (never ids, card ids or image data), and callers must keep <outDir> out of
- * artifacts and caches and delete it afterwards.
- */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -24,10 +13,8 @@ async function getPage(base, token, afterId) {
       if (res.ok) return res.json();
       if (res.status < 500 || attempt >= 4) throw new Error(`HTTP ${res.status}`);
     } catch (err) {
-      // Never echo the URL or body: only the failure kind.
       if (attempt >= 4 || /^HTTP 4/.test(String(err.message))) throw new Error(`export request failed (${err.message})`);
     }
-    // Render free tier may be asleep: back off and retry.
     await new Promise((r) => setTimeout(r, 15000 * attempt));
   }
 }

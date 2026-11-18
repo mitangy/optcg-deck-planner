@@ -1,9 +1,3 @@
-/**
- * The deck editor's Save button (#481): edits are a draft until Save, and leaving with unsaved edits asks first.
- * The API is not needed (the editor only calls /auth/me, which 404s to signed-out); the editor and saved deck are real.
- *
- * SHOTS=1 also saves screenshots to /mnt/project-files/deck-save/.
- */
 import type { Page } from "@playwright/test";
 import { test, expect, FAKE_API, RED_VANILLA } from "./fixtures";
 
@@ -37,7 +31,6 @@ test("deck editor edits stay a draft until Save, and leaving asks first (#481)",
   const discard = page.getByRole("button", { name: "Discard", exact: true });
   await expect(save).toHaveText("Saved");
   await expect(save).toBeDisabled();
-  // A web font that swaps in between the two measurements moves the button, so measure after fonts load.
   await page.evaluate(() => document.fonts.ready);
   await page.evaluate(() => window.scrollTo(0, 0));
   const clean = await save.boundingBox();
@@ -48,7 +41,6 @@ test("deck editor edits stay a draft until Save, and leaving asks first (#481)",
   await expect(save).toHaveText("Save");
   await expect(save).toBeEnabled();
   expect(await storedCards(page)).toBe(RED_VANILLA.cards.length);
-  // Saved -> Save does not move or resize the button.
   await page.evaluate(() => window.scrollTo(0, 0));
   const dirty = await save.boundingBox();
   expect(Math.abs(dirty!.x - clean!.x)).toBeLessThanOrEqual(1);
@@ -69,7 +61,6 @@ test("deck editor edits stay a draft until Save, and leaving asks first (#481)",
   await expect(save).toHaveText("Save");
   expect(await storedCards(page)).toBe(RED_VANILLA.cards.length);
 
-  // Discard puts the saved deck back.
   await discard.click();
   await expect(save).toHaveText("Saved");
   await expect(page.locator("article.deck-stack", { hasText: "ST01-006" }).getByLabel("4 copies")).toBeVisible();
@@ -80,7 +71,6 @@ test("deck editor edits stay a draft until Save, and leaving asks first (#481)",
   await expect(save).toBeDisabled();
   expect(await storedCards(page)).toBe(RED_VANILLA.cards.length - 1);
 
-  // Leaving with nothing unsaved goes straight through.
   await page.getByRole("link", { name: "Back to decks" }).click();
   await expect(page).toHaveURL(/\/decks$/);
 });
@@ -110,7 +100,6 @@ test("Back with unsaved deck edits asks Save / Discard / Keep editing (#483)", a
     await expect(save).toHaveText("Saved");
   };
 
-  // Keep editing: Back stays on the editor with the edits; a second Back asks again.
   await openEditor();
   await chopper.click();
   await expect(save).toHaveText("Save");
@@ -124,12 +113,10 @@ test("Back with unsaved deck edits asks Save / Discard / Keep editing (#483)", a
   await page.goBack();
   await expect(dialog).toBeVisible();
 
-  // Discard goes where Back was heading, with the saved deck untouched.
   await dialog.getByRole("button", { name: "Discard", exact: true }).click();
   await expect(page).toHaveURL(/\/decks$/);
   expect(await storedCards(page)).toBe(RED_VANILLA.cards.length);
 
-  // Save goes there too, with the edit stored, and Back from the list does not land on a stuck editor entry.
   await openEditor();
   await chopper.click();
   await page.goBack();
@@ -140,7 +127,6 @@ test("Back with unsaved deck edits asks Save / Discard / Keep editing (#483)", a
   await expect(page).toHaveURL(/configure$/);
   await expect(dialog).toHaveCount(0);
 
-  // Saving in place drops the guard: Back is not swallowed by a leftover entry.
   await page.getByRole("button", { name: "Remove one Tony Tony.Chopper" }).click();
   await save.click();
   await expect(save).toHaveText("Saved");
@@ -148,7 +134,6 @@ test("Back with unsaved deck edits asks Save / Discard / Keep editing (#483)", a
   await expect(page).toHaveURL(/\/decks$/);
   await expect(dialog).toHaveCount(0);
 
-  // A link click while dirty, then Discard, leaves no guard entry behind: Back returns to the list in one step.
   await openEditor();
   await chopper.click();
   await page.getByRole("link", { name: "Back to decks" }).click();

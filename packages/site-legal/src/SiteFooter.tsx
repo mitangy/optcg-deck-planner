@@ -5,11 +5,6 @@ export type FooterLinkProps = { to: string; className?: string; children: ReactN
 
 const ORDER: LegalKind[] = ["terms", "privacy", "cookies", "conduct"];
 
-/**
- * Page-end footer: legal links, What’s new, the Discord invite (and optional feedback button) plus the fan-project blurb. In flow at the end
- * of the page (never fixed), so it never covers controls. `Link` is the app's
- * router link so the legal pages open without a reload.
- */
 export function SiteFooter({
   Link,
   className,
@@ -19,11 +14,9 @@ export function SiteFooter({
 }: {
   Link: ComponentType<FooterLinkProps>;
   className?: string;
-  /** Extra internal links after What’s new, e.g. a landing page that should be reachable from every page. */
   extraLinks?: readonly { to: string; label: string }[];
   /** Links to other sites, opened in a new tab (no nofollow: they are our own listings). */
   externalLinks?: readonly { href: string; label: string }[];
-  /** When set, a "Send feedback" button follows the legal links. */
   onFeedback?: () => void;
 }) {
   return (
@@ -64,7 +57,6 @@ export function SiteFooter({
   );
 }
 
-/** Switcher between the legal pages, shown at the top of each. */
 export function LegalNav({ Link, current }: { Link: ComponentType<FooterLinkProps>; current: LegalKind }) {
   return (
     <nav className="legal-nav" aria-label="Legal pages">

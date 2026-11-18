@@ -1,8 +1,3 @@
-"""Imported OPTCGSim games (#1030): validation, name scrubbing and storage rules.
-
-Privacy: the player's and the opponent's names are never stored. The combat log names
-both players on most lines, so they are replaced with fixed placeholders before it is kept.
-"""
 
 from __future__ import annotations
 
@@ -24,7 +19,7 @@ MAX_COMBAT_LOG_CHARS = 400_000
 MAX_DECK_ENTRIES = 80
 ME_PLACEHOLDER = "Me#1"
 OPP_PLACEHOLDER = "Opp#2"
-MAX_SCRUB_OPP_NAMES = 8  # a real log names two players; more PLY names are junk and each costs a pass
+MAX_SCRUB_OPP_NAMES = 8
 
 _ZW = re.compile("[​‌‍﻿]")
 _DECK_ENTRY = re.compile(r"^\d{1,2}x[A-Za-z0-9]{2,6}-\d{2,4}[A-Za-z0-9_]{0,4}$")
@@ -37,14 +32,12 @@ def _norm(s: str) -> str:
 
 
 def scrub_names(log: str, my_name: str, opp_name: str | None) -> str:
-    """Replace both players' names by placeholders. Zero-width characters are stripped from the log first
-    (the sim puts one before the "#"), so a name matches however it was typed."""
     text = _ZW.sub("", log)
     me = _norm(my_name)
-    opps: dict[str, None] = {}  # ordered, distinct
+    opps: dict[str, None] = {}
     if opp_name and _norm(opp_name):
         opps[_norm(opp_name)] = None
-    for m in _PLY.finditer(text):  # the PLY lines name the opponent even when the record does not
+    for m in _PLY.finditer(text):
         n = _norm(m.group(2))
         if n and n != me and len(opps) < MAX_SCRUB_OPP_NAMES:
             opps[n] = None
@@ -52,7 +45,6 @@ def scrub_names(log: str, my_name: str, opp_name: str | None) -> str:
     swaps.update({o: OPP_PLACEHOLDER for o in opps if o != me})
     if not swaps:
         return text
-    # One pass over the log, longest names first so a name containing another is not cut short.
     names = sorted(swaps, key=len, reverse=True)
     return re.sub("|".join(re.escape(n) for n in names), lambda m: swaps[m.group(0)], text)
 
@@ -88,7 +80,6 @@ def _match_key(raw: dict, my_deck: list[str]) -> str:
 
 
 def build_row(user_id: int, raw: object) -> SimGame | None:
-    """A SimGame for one raw match record, or None when it is not usable. Stores no names."""
     if not isinstance(raw, dict):
         return None
     name = raw.get("playerName")
@@ -121,7 +112,6 @@ def build_row(user_id: int, raw: object) -> SimGame | None:
 
 
 def import_games(db: Session, user_id: int, games: list[object]) -> dict[str, int]:
-    """Store the usable games for this user. Duplicates (same match key) are skipped, never overwritten."""
     seen = set(db.scalars(select(SimGame.match_key).where(SimGame.user_id == user_id)).all())
     imported = dup = invalid = 0
     for raw in games:
@@ -135,7 +125,7 @@ def import_games(db: Session, user_id: int, games: list[object]) -> dict[str, in
                 with db.begin_nested():
                     db.add(row)
                     db.flush()
-            except IntegrityError:  # a parallel import stored it first
+            except IntegrityError:
                 dup += 1
                 continue
             seen.add(row.match_key)

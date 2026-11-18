@@ -1,4 +1,3 @@
-"""Duel friends: requests, presence-backed status, and private-room invites."""
 
 from __future__ import annotations
 
@@ -34,8 +33,6 @@ from app.social.presence import friend_status, friendship, live_presence, pair, 
 router = APIRouter(prefix="/friends", tags=["friends"])
 
 INVITE_TTL = timedelta(minutes=10)
-# An invite is sent right after the room is created, before the game-server
-# has reported it; give the room this long to show up in presence.
 INVITE_ROOM_GRACE = timedelta(seconds=30)
 MAX_FRIENDS = 200
 
@@ -62,7 +59,6 @@ def _invite_is_live(
         return False
     if now - as_utc(invite.created_at) <= INVITE_ROOM_GRACE:
         return True
-    # After the grace window the inviter must still be seated in that room.
     return any(
         r.room_id == invite.room_id and r.role == "player" and r.phase != "finished"
         for r in presence.get(invite.from_user_id, [])
@@ -128,7 +124,6 @@ def list_friends(
             from_user_id=i.from_user_id,
             from_username=users[i.from_user_id].username or "Player",
             room_id=i.room_id,
-            # The game server's own report beats what the inviter's client said when it sent the invite.
             server_url=room_server_url(presence.get(i.from_user_id, []), i.room_id) or i.server_url,
             expires_at=int(as_utc(i.expires_at).timestamp()),
         )
@@ -158,7 +153,6 @@ def send_request(
             raise HTTPException(status_code=409, detail="You're already friends.")
         if existing.requester_id == user.id:
             return FriendRequestResult(status=FriendshipStatus.PENDING)
-        # They already asked you: sending one back accepts theirs.
         existing.status = FriendshipStatus.ACCEPTED
         existing.accepted_at = utcnow()
         db.commit()
@@ -177,7 +171,6 @@ def send_request(
     try:
         db.commit()
     except IntegrityError:
-        # They sent one at the same moment; the row exists now.
         db.rollback()
         return FriendRequestResult(status=FriendshipStatus.PENDING)
     return FriendRequestResult(status=FriendshipStatus.PENDING)
@@ -234,11 +227,9 @@ def invite_friend(
     if f is None or f.status != FriendshipStatus.ACCEPTED:
         raise HTTPException(status_code=403, detail="You can only invite friends.")
     now = utcnow()
-    # One live invite per sender/recipient pair: a new room replaces the old one.
     db.execute(
         delete(DuelInvite).where(DuelInvite.from_user_id == user.id, DuelInvite.to_user_id == other_id)
     )
-    # The recipient's client dials this address with its game token: keep only pools this API has handed out.
     server_url = normalize_server_url(body.server_url)
     if server_url not in known_game_server_urls(settings):
         server_url = None

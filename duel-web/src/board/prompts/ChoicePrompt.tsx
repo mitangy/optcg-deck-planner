@@ -14,18 +14,15 @@ import { useDuelSettings } from "../../settings";
 import { useConfirmKeys } from "../input/useBoardHotkeys";
 import { DOUBLE_CLICK_DELAY_MS } from "../preview/inspectGestures";
 
-/** True while the pop-up is tucked away (see `HideablePrompt`). */
 const PromptHiddenContext = createContext(false);
 
 type Props = {
   choice: PendingChoiceView;
   mySeat: Seat;
   onSend: (intent: Intent) => void;
-  /** Current board, so field targets show their live status (rested, sick, power…). */
   view?: PlayerView | null;
-  /** Tucks the pop-up away so the hand and board can be read first. */
   onHide?: () => void;
-  /** Tucked away: board clicks must not pick targets for a prompt you can't see. */
+  // Tucked away: board clicks must not pick targets for a prompt you can't see.
   hidden?: boolean;
 };
 
@@ -46,38 +43,30 @@ function optionName(option: ChoiceOptionView): string {
   return lookupCard(option.defId).name;
 }
 
-/** Card name of a visible card option (null for DON!!, labels and hidden cards). */
 function cardName(option: ChoiceOptionView): string | null {
   return option.defId && option.defId !== "HIDDEN" ? lookupCard(option.defId).name : null;
 }
 
-/** Card art tile (or labeled chip) for one choice option. */
 export function OptionTile({ option, mySeat, selected, disabled, onToggle, onDouble, badge, lookOnly = false, disabledNote = "not eligible" }: {
   option: ChoiceOptionView;
   mySeat: Seat;
   selected: boolean;
   disabled: boolean;
   onToggle: () => void;
-  /** Double click / double tap (#1287): pick it and confirm in one go. */
   onDouble?: () => void;
   badge?: string;
-  /** Pure look (nothing can be taken): don't label cards "not eligible". */
   lookOnly?: boolean;
-  /** Why a disabled card can't be picked. */
   disabledNote?: string;
 }) {
   const donArt = useDonArt();
   const owner = option.ownerSeat == null ? null : option.ownerSeat === mySeat ? "Yours" : "Opponent";
   const zone = option.zone ? ZONE_LABEL[option.zone] ?? option.zone : null;
-  // Field targets: read the card's live state off the board.
   const live = useLiveCard(option.instanceId);
   const [hovered, setHovered] = useState(false);
-  // Plain buttons click at once, so a second click is told apart here; a card tile times its own.
   const doubleTap = useMemo(() => createDoubleTap(DOUBLE_CLICK_DELAY_MS), []);
   const onPlainClick = () => (onDouble && doubleTap.isDouble(option.id) ? onDouble() : onToggle());
   if (option.zone === "don") {
-    // DON!! are interchangeable cards: show where each one sits (active,
-    // rested, or attached to which card) so the player picks the right one.
+    // DON!! are interchangeable cards: show where each one sits so the player picks the right one.
     return (
       <div className={`choice-option choice-don${selected ? " selected" : ""}${disabled ? " disabled" : ""}`}>
         <button
@@ -109,8 +98,6 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, onDou
   return (
     <div
       className={`choice-option${selected ? " selected" : ""}${disabled ? " disabled" : ""}`}
-      // Hover / focus lights up this exact card on the board, so two copies
-      // of the same card can be told apart.
       onPointerEnter={live ? () => setHovered(true) : undefined}
       onPointerLeave={live ? () => setHovered(false) : undefined}
       onFocus={live ? () => setHovered(true) : undefined}
@@ -148,14 +135,9 @@ export function OptionTile({ option, mySeat, selected, disabled, onToggle, onDou
   );
 }
 
-/**
- * Outline board cards by instance id without touching the board's DOM: a
- * scoped style rule keyed on the tiles' `data-instance-id`.
- */
 export function BoardHighlight({ ids, kind, hand = false }: { ids: string[]; kind: "hover" | "candidate"; hand?: boolean }) {
   const first = ids[0];
   const scrollsHand = hand && kind === "candidate";
-  // A scrolling hand strip may have the choosable cards off-screen: bring the first into view.
   useEffect(() => {
     if (!scrollsHand || !first) return;
     const el = document.querySelector<HTMLElement>(`${HAND_ROWS} > .card-tile[data-motion-id="${first.replace(/"/g, "")}"]`);
@@ -168,22 +150,13 @@ export function BoardHighlight({ ids, kind, hand = false }: { ids: string[]; kin
     kind === "hover"
       ? `${selector} { outline: 3px solid var(--chrome-bright); outline-offset: 2px; box-shadow: 0 0 18px rgba(240, 220, 168, 0.8); z-index: 4; }`
       : `${selector} { outline: 2px dashed rgba(240, 220, 168, 0.75); outline-offset: 2px; cursor: pointer; }`;
-  // Hand picks: a crowded hand hides a dashed line, so dim every card that can't be chosen.
+  // A crowded hand hides a dashed line, so dim every card that can't be chosen.
   const dim = hand && kind === "candidate" ? ` ${HAND_ROWS} > .card-tile:not(${selector}) { opacity: 0.4; filter: saturate(0.5); }` : "";
   return <style>{rule + dim}</style>;
 }
 
-/**
- * Where the list sits against the rest of the pile: "above" (top of deck),
- * "below" (bottom of deck), or "split" (each card picks Top / Bottom).
- */
 type OrderMode = "above" | "below" | "split";
 
-/**
- * Cards to put back, drawn top → bottom like the pile itself, between "Top of
- * deck" and "Bottom of deck" caps with the untouched rest of the pile marked.
- * Reorder by dragging a row (the grip on touch screens) or with the arrows.
- */
 function OrderList({ arrangement, byId, onChange, mode, pile, label }: {
   arrangement: Arrangement;
   byId: Map<string, ChoiceOptionView>;
@@ -194,7 +167,6 @@ function OrderList({ arrangement, byId, onChange, mode, pile, label }: {
 }) {
   const listRef = useRef<HTMLOListElement>(null);
   const [dragId, setDragId] = useState<string | null>(null);
-  // Latest props for the window listeners of an in-flight drag.
   const live = useRef({ arrangement, onChange });
   live.current = { arrangement, onChange };
 
@@ -203,7 +175,7 @@ function OrderList({ arrangement, byId, onChange, mode, pile, label }: {
     const onMove = (e: PointerEvent) => {
       const list = listRef.current;
       if (!list) return;
-      // Index among the other rows (the divider counts only when it is draggable-across).
+      // The divider counts only when it is draggable-across.
       const others = [...list.querySelectorAll<HTMLElement>("[data-order-row]")].filter((el) => el.dataset.orderRow !== dragId);
       const index = others.filter((el) => {
         const r = el.getBoundingClientRect();
@@ -271,8 +243,6 @@ function OrderList({ arrangement, byId, onChange, mode, pile, label }: {
               <span className="choice-order-name">{name}</span>
               <span className="search-order-actions">
                 {split ? (
-                  // Explicit two-way switch: a single "Top"/"Bottom" toggle read
-                  // like an action, not the card's current placement.
                   <span className="choice-place-seg" role="group" aria-label={`Place ${name}`}>
                     <button type="button" className="choice-place" aria-pressed={onTop.has(id)} onClick={() => onChange(setSide(arrangement, id, "top"))}>
                       Top
@@ -294,7 +264,6 @@ function OrderList({ arrangement, byId, onChange, mode, pile, label }: {
   );
 }
 
-/** Where the cards will end up, read top of deck → bottom of deck. */
 function DeckPreview({ top, bottom }: { top: string[]; bottom: string[] }) {
   return (
     <p className="choice-rest-note deck-preview">
@@ -319,21 +288,16 @@ function SourceHeader({ choice }: { choice: PendingChoiceView }) {
   return <h3>{name}</h3>;
 }
 
-/** Option id for an eligible board card, by its tile's `data-instance-id`. */
 export function boardTargetOption(options: readonly ChoiceOptionView[], instanceId: string | undefined): string | null {
   if (!instanceId) return null;
   return options.find((o) => o.eligible && o.instanceId === instanceId)?.id ?? null;
 }
 
-/**
- * Lets a click on a highlighted board card pick it, same as its tile in the
- * prompt. Listens on the document in the capture phase so the board's own
- * click (select card / show actions) never sees these clicks.
- */
+// Capture phase, so the board's own click never sees these clicks.
 export function useBoardTargetClicks(
   options: readonly ChoiceOptionView[],
   onPick: (optionId: string) => void,
-  /** A second click on the same card within the double-click window (#1287); also keeps `dblclick` from opening inspect. */
+  // Also keeps `dblclick` from opening inspect.
   onDouble?: (optionId: string) => void,
 ) {
   const hidden = useContext(PromptHiddenContext);
@@ -370,7 +334,6 @@ export function useBoardTargetClicks(
   }, []);
 }
 
-/** Selection state shared by the pop-up grid and the on-board bar. */
 function useSelectPicks(request: Extract<ChoiceRequestView, { type: "select" }>, onSend: (i: Intent) => void) {
   const oneTap = useDuelSettings().oneTapActions;
   const [selected, setSelected] = useState<string[]>([]);
@@ -380,16 +343,13 @@ function useSelectPicks(request: Extract<ChoiceRequestView, { type: "select" }>,
     sent.current = true;
     onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
   };
-  // "With different card names": a card whose name is already picked can't be added.
   const taken = nameTakenIds(request.options, selected, request.distinctNames, cardName);
   const toggle = (id: string) => {
     if (taken.has(id)) return;
     const next = toggleSelection(selected, id, request.max);
-    // One-tap: with exactly N picks wanted, the Nth pick is the answer.
     if (!selected.includes(id) && answersAtPick(oneTap, request.min, request.max, next.length)) return answer(next);
     setSelected(next);
   };
-  // Double click / tap (#1287): pick it (never un-pick) and confirm when the picks are valid.
   const doubleToggle = (id: string) => {
     if (taken.has(id) || sent.current) return;
     const next = doublePick(selected, id, request.min, request.max);
@@ -406,7 +366,7 @@ function useSelectPicks(request: Extract<ChoiceRequestView, { type: "select" }>,
 function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<ChoiceRequestView, { type: "select" }>; choice: PendingChoiceView; mySeat: Seat; onSend: (i: Intent) => void }) {
   const { selected, taken, toggle, doubleToggle, valid, boardIds, selectedBoardIds, answer } = useSelectPicks(request, onSend);
   const range = request.min === request.max ? `${request.max}` : request.min === 0 ? `up to ${request.max}` : `${request.min}–${request.max}`;
-  // A hidden-zone pick with no candidate is still asked, so the opponent cannot tell it was empty (#369).
+  // A hidden-zone pick with no candidate is still asked, so the opponent cannot tell it was empty.
   const none = request.options.length === 0;
   return (
     <>
@@ -450,11 +410,9 @@ function SelectBody({ request, choice, mySeat, onSend }: { request: Extract<Choi
   );
 }
 
-/** Your hand's card tiles: only hand cards carry a motion id (the hand card's instance id). */
 const HAND_TILE = ".card-tile[data-motion-id]";
 const HAND_ROWS = ":is(.hand-fan-cards, .hand-row-inner, .hand-dock-cards, .rail-hand-cards)";
 
-/** The board spot under a click: a field card tile, a hand card or a cost-area DON!! chip. */
 function spotAtClick(target: Element | null, spots: ReadonlySet<BoardSpot>): { spot: BoardSpot; chipId?: string } | null {
   const handId = target?.closest?.<HTMLElement>(HAND_TILE)?.dataset.motionId;
   if (handId) return spots.has(`hand:${handId}`) ? { spot: `hand:${handId}` } : null;
@@ -472,14 +430,10 @@ function spotAtClick(target: Element | null, spots: ReadonlySet<BoardSpot>): { s
   return spots.has(spot) ? { spot, chipId: chip.dataset.donId } : null;
 }
 
-/**
- * Taps on the board's targets (cards, DON!! chips) pick them. Capture phase,
- * so the board's own click (select card / show actions) never sees them.
- */
+// Capture phase, so the board's own click never sees them.
 function useBoardSpotClicks(
   spots: ReadonlyMap<string, BoardSpot>,
   onTap: (spot: BoardSpot, chipId?: string) => void,
-  /** A second tap on the same spot (and chip) within the double-click window (#1287). */
   onDouble: (spot: BoardSpot, chipId?: string) => void,
 ) {
   const hidden = useContext(PromptHiddenContext);
@@ -511,7 +465,6 @@ function useBoardSpotClicks(
   }, []);
 }
 
-/** Outline cost-area DON!! chips: every chip of a pickable state, or the picked ones. */
 function DonHighlight({ spots, chipIds, kind }: { spots: BoardSpot[]; chipIds: string[]; kind: "hover" | "candidate" }) {
   const esc = (id: string) => (typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, ""));
   const selectors = [
@@ -529,18 +482,12 @@ function DonHighlight({ spots, chipIds, kind }: { spots: BoardSpot[]; chipIds: s
   return <style>{rule}</style>;
 }
 
-/** Field card info the board-pick routing needs (owner, name, DON!! under it). */
 function boardCards(live: ReadonlyMap<string, { seat: number; defId: string; attachedDonCount?: number }>): Map<string, BoardCardInfo> {
   const out = new Map<string, BoardCardInfo>();
   for (const [id, c] of live) out.set(id, { seat: c.seat, name: lookupCard(c.defId).name, attachedDonCount: c.attachedDonCount });
   return out;
 }
 
-/**
- * Every target is on the board (field cards, cost-area DON!!, DON!! under a
- * card): no pop-up, the player taps the board. Candidates are outlined, picks
- * highlighted; the bar only carries the words and the Confirm / Decline buttons.
- */
 function FieldSelectBar({ request, choice, spots, onSend }: {
   request: Extract<ChoiceRequestView, { type: "select" }>;
   choice: PendingChoiceView;
@@ -556,19 +503,16 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
     onSend({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
   };
   const oneTap = resolvesOnPick(oneTapSetting, request.min, request.max);
-  // "With different card names": cards whose name is already picked drop out of the targets.
   const taken = nameTakenIds(request.options, pick.selected, request.distinctNames, cardName);
   const open = taken.size ? new Map([...spots].filter(([id]) => !taken.has(id))) : spots;
   useBoardSpotClicks(
     open,
     (spot, chipId) => {
       const next = tapBoardSpot(pick, open, spot, request.max, chipId);
-      // One-tap: with exactly N picks wanted, the Nth pick is the answer.
       const added = next.selected.some((id) => !pick.selected.includes(id));
       if (added && answersAtPick(oneTapSetting, request.min, request.max, next.selected.length)) return answer(next.selected);
       setPick(next);
     },
-    // Double tap (#1287): keep the spot picked (never drop it) and confirm when the picks are valid.
     (spot, chipId) => {
       if (sent.current) return;
       const next = doubleTapBoardSpot(pick, open, spot, request.min, request.max, chipId);
@@ -615,15 +559,12 @@ function FieldSelectBar({ request, choice, spots, onSend }: {
 function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestView, { type: "look" }>; mySeat: Seat; onSend: (i: Intent) => void }) {
   const byId = useMemo(() => new Map(request.options.map((o) => [o.id, o])), [request.options]);
   const [selected, setSelected] = useState<string[]>([]);
-  // Top by default, so "Done" without changes leaves the deck as it was.
   const [arrangement, setArrangement] = useState<Arrangement>(() => initialArrangement(request.options.map((o) => o.id)));
-  // "Top or bottom" moves the rest together, so one switch picks the side for all of them.
   const [side, setGroupSide] = useState<"top" | "bottom">("top");
   const rest = withoutIds(arrangement, selected);
   const remaining = [...rest.top, ...rest.bottom];
   const eligible = (id: string) => request.groups.some((g) => g.eligibleIds.includes(id));
   const toggle = (id: string) => setSelected((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : request.maxSelect === 1 ? [id] : cur.length >= request.maxSelect ? cur : [...cur, id]));
-  // What Confirm sends, and what a double click / tap on a card sends (#1287).
   const lookAnswer = (picked: string[]): Intent => {
     const rest = withoutIds(arrangement, picked);
     const left = [...rest.top, ...rest.bottom];
@@ -678,7 +619,6 @@ function LookBody({ request, mySeat, onSend }: { request: Extract<ChoiceRequestV
         <OrderList
           arrangement={rest}
           byId={byId}
-          // Selected cards keep their slot in the full arrangement.
           onChange={(next) => setArrangement(mergeArrangement(arrangement, next, selected))}
           mode={request.rest === "deck_top" || (request.rest === "top_or_bottom" && side === "top") ? "above" : "below"}
           pile="deck"
@@ -733,10 +673,6 @@ function OrderBody({ request, onSend }: { request: Extract<ChoiceRequestView, { 
   );
 }
 
-/**
- * Generic prompt for every server choice request (protocol 5). The server
- * validates all answers; this component only helps build a legal one.
- */
 export function ChoicePrompt({ choice, mySeat, onSend, view, onHide, hidden = false }: Props) {
   const liveCards = useMemo(() => indexLiveCards(view), [view]);
   return (
@@ -748,16 +684,12 @@ export function ChoicePrompt({ choice, mySeat, onSend, view, onHide, hidden = fa
   );
 }
 
-/**
- * Answer to a Yes/No prompt. A Life card without [Trigger] has one answer (add it to hand), so Y, Space
- * and N all decline; accept:true would be rejected by the engine (#352).
- */
+// A Life card without [Trigger] has one answer (add it to hand), so Y, Space and N all decline; accept:true would be rejected by the engine.
 export function confirmIntent(choice: Pick<PendingChoiceView, "kind" | "noTrigger" | "unpayable">, accept: boolean): Intent {
-  // A cost the player cannot pay is still asked so the opponent learns nothing; the only legal answer is to decline (#369).
+  // A cost the player cannot pay is still asked so the opponent learns nothing; the only legal answer is to decline.
   return { type: "resolve_pending_choice", accept: (choice.kind === "life_trigger" && choice.noTrigger) || choice.unpayable ? false : accept };
 }
 
-/** Yes/No buttons; a Life card without [Trigger] or a cost that can't be paid has one decline button (#352, #369). */
 function ConfirmButtons({ choice, onSend, rowClass = "" }: { choice: PendingChoiceView; onSend: (i: Intent) => void; rowClass?: string }) {
   const noTrigger = choice.kind === "life_trigger" && choice.noTrigger === true;
   const cannotPay = choice.unpayable === true;
@@ -795,11 +727,9 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
     return <FieldSelectBar request={request} choice={choice} spots={spots} onSend={onSend} />;
   }
   const showSource = request.type === "confirm" && choice.cardDefId && choice.cardDefId !== "HIDDEN";
-  // Life check (#495): just the Life card, big, with its buttons under it; no box, header or prompt text.
   if (choice.kind === "life_trigger" && request.type === "confirm" && showSource) {
     return (
       <div className="ability-prompt life-trigger-card choice-prompt choice-confirm" role="dialog" aria-label={choice.prompt}>
-        {/* The drag grip: the pop-up has no header (#565). */}
         <div className="life-trigger-tools" title="Drag to move, double-click to put back">
           <span className="life-trigger-grip" aria-hidden>
             ⠿
@@ -807,7 +737,6 @@ function ChoicePromptBody({ choice, mySeat, onSend, onHide }: Omit<Props, "view"
           <PromptHideButton onHide={onHide} />
         </div>
         <CardTile defId={choice.cardDefId} inspectGestures viewingSeat={mySeat} />
-        {/* Portrait phones: the buttons ride in the bottom bar, off the hand (#663). */}
         <PromptSlotPortal hidden={hidden}>
           <ConfirmButtons choice={choice} onSend={onSend} rowClass={` ${SLOT_ROW}`} />
         </PromptSlotPortal>

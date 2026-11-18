@@ -38,12 +38,10 @@ MAX_RETRY_WAIT_S = 30.0
 FIRST_RUN_DELAY_S = 10
 MIN_POLL_S = 10
 GUILD_FORUM, GUILD_MEDIA, GUILD_TEXT = 15, 16, 0
-# Message types worth a ticket: a plain message and a reply.
 USER_MESSAGE_TYPES = (0, 19)
 
 
 def snowflake_from_datetime(when: datetime) -> int:
-    """The smallest Discord id created at `when`."""
     return (int(as_utc(when).timestamp() * 1000) - DISCORD_EPOCH_MS) << 22
 
 
@@ -55,8 +53,6 @@ class RateLimited(Exception):
 
 @dataclass
 class PollState:
-    """What one running bot remembers between polls."""
-
     cutoff_id: int = field(default_factory=lambda: snowflake_from_datetime(datetime.now(timezone.utc) - STARTUP_GRACE))
     channel: dict | None = None
     # Text channel: the newest message id already looked at, filed or not (bot replies, system
@@ -106,15 +102,13 @@ def _text_with_attachments(head: str, message: dict) -> str:
 
 @dataclass
 class _Post:
-    """One Discord post that becomes a ticket."""
-
     message_id: str
     kind: str
     text: str
     author: str
     link: str
     reply_path: str
-    reply_to: str | None  # message to reply to (text channel); None inside a forum thread
+    reply_to: str | None
 
 
 def _known(db: Session, ids: list[str]) -> set[str]:
@@ -135,14 +129,13 @@ async def _forum_new_posts(client, db: Session, state: PollState, channel: dict)
     posts: list[_Post] = []
     for thread in [t for t in threads if str(t["id"]) not in seen][:MAX_NEW_PER_POLL]:
         thread_id = str(thread["id"])
-        # A forum post's starter message has the same id as its thread.
         try:
             starter = (await _request(client, "GET", f"/channels/{thread_id}/messages/{thread_id}")).json()
         except httpx.HTTPStatusError as exc:
             if exc.response.status_code != 404:
                 log.warning("discord feedback: starter of thread %s failed: HTTP %s", thread_id, exc.response.status_code)
                 continue
-            starter = {}  # starter deleted: file the title alone
+            starter = {}
         author_obj = starter.get("author") or {}
         if author_obj.get("bot"):
             continue
@@ -207,12 +200,10 @@ MAX_ISSUE_RETRIES_PER_POLL = 3
 
 
 def _defang(text: str) -> str:
-    """Player text goes into a public issue: a zero-width space after every @ stops GitHub pinging users and teams."""
     return text.replace("@", "@\u200b")
 
 
 def issue_title(message: str) -> str:
-    """The thread title of a forum post (its message's first line), else the start of the message."""
     first = next((line.strip() for line in message.splitlines() if line.strip()), "")
     return f"[Discord] {_defang(first[:80])}"
 
@@ -231,7 +222,6 @@ def make_github_client(token: str) -> httpx.AsyncClient:
 
 
 async def _find_issue(github: httpx.AsyncClient, settings, row: Feedback) -> int | None:
-    """The issue already opened for a ticket (its body ends with the ticket marker), else None."""
     query = f'repo:{settings.github_issues_repo} is:issue label:discord-feedback in:body "Feedback ticket #{row.id}"'
     resp = await github.get("/search/issues", params={"q": query})
     resp.raise_for_status()
@@ -243,10 +233,6 @@ async def _find_issue(github: httpx.AsyncClient, settings, row: Feedback) -> int
 
 
 async def _open_issue(github: httpx.AsyncClient, db: Session, settings, row: Feedback, retry: bool = False) -> None:
-    """Open the GitHub issue for a ticket and remember its number. Failure leaves github_issue null.
-
-    A retry first looks for an issue the earlier try created but whose reply was lost.
-    """
     if row.github_issue is not None:
         return
     body = (
@@ -294,7 +280,6 @@ async def _reply(client, post: _Post, ticket_id: int) -> None:
     try:
         await _request(client, "POST", post.reply_path, json=body)
     except httpx.HTTPError as exc:
-        # The ticket stays; only the confirmation is lost.
         log.warning("discord feedback: reply for ticket %s failed: %s", ticket_id, type(exc).__name__)
 
 
@@ -305,7 +290,6 @@ async def poll_once(
     state: PollState | None = None,
     github: httpx.AsyncClient | None = None,
 ) -> int:
-    """File every new post in the channel as a ticket and reply to it. Returns how many were filed."""
     state = state or PollState()
     filed = 0
     try:
@@ -331,13 +315,12 @@ async def poll_once(
             try:
                 db.commit()
             except IntegrityError:
-                db.rollback()  # another worker filed it first; it replies
+                db.rollback()
                 continue
             filed += 1
             if github is not None:
                 await _open_issue(github, db, settings, row)
             await _reply(client, post, row.id)
-        # Every post of the page is handled: the next poll starts after the last message looked at.
         state.text_after = max(state.text_after, state.text_scanned_to)
     except RateLimited as limited:
         log.warning("discord feedback: rate limited, retry after %.1fs", limited.retry_after)
@@ -347,13 +330,11 @@ async def poll_once(
         status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else ""
         log.warning("discord feedback: poll failed: %s %s", type(exc).__name__, status)
     if github is not None:
-        # Issues that failed earlier (GitHub down, bad token) get another try.
         await _retry_issues(github, db, settings)
     return filed
 
 
 async def run_once(settings, state: PollState) -> int | None:
-    """One poll under the cross-worker lock; None while another worker holds it."""
     from app.core.db import DISCORD_FEEDBACK_LOCK_KEY, SessionLocal, try_advisory_lock
 
     lock = await asyncio.to_thread(try_advisory_lock, DISCORD_FEEDBACK_LOCK_KEY)
@@ -384,7 +365,6 @@ async def poll_loop(settings) -> None:
 
 
 def start_background(settings) -> asyncio.Task | None:
-    """The polling task when the bot token and channel id are both set, else None."""
     if not settings.discord_feedback_enabled:
         return None
     return asyncio.create_task(poll_loop(settings))

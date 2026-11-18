@@ -24,9 +24,7 @@ export function BuyQtyEditor({
   onSave: (qty: number) => void;
   onReset: () => void;
   onExclude: () => void;
-  /** Copies bought for the viewer's decks; shown above the Extra copies (#1269). */
   deckQty?: number;
-  /** The viewer's Extra copies on this card; each can be left out of this group buy (#1269). */
   extras?: GroupBuyMyExtra[];
   onExtraSkip?: (productId: number, skip: number) => void;
 }) {
@@ -145,7 +143,6 @@ export function BuyQtyEditor({
   );
 }
 
-/** One Extra copy line: tick to include it in this buy, or a 0..wanted stepper when several are wanted. */
 function ExtraRow({
   extra,
   disabled,

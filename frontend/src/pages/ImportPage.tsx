@@ -15,7 +15,6 @@ export function ImportPage() {
   const [decklist, setDecklist] = useState("");
   const [mode, setMode] = useState<"paste" | "file">("paste");
   const [err, setErr] = useState<string | null>(null);
-  // A deck Log Pose built arrives in the router state (#726): its name and list go straight into the form.
   const fromLogPose = useLogPoseDraft((d) => {
     setName(d.name);
     setDecklist(d.list);
@@ -26,7 +25,6 @@ export function ImportPage() {
     onSuccess: async (deck) => {
       await qc.invalidateQueries({ queryKey: qk.decks() });
       await qc.invalidateQueries({ queryKey: qk.shopping.all() });
-      // New imports are auto-added to open group-buy contributions.
       await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       await qc.invalidateQueries({ queryKey: qk.groupBuy.all() });
       navigate(`/decks/${deck.id}`);

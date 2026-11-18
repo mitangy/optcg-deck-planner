@@ -114,7 +114,6 @@ describe("docking the Log Pose window (#432)", () => {
 
   it("holds a panel that comes loose by the same spot of its header, kept on screen (#432)", () => {
     const size = { w: 400, h: 600 };
-    // Grabbed halfway across, 20px down: the window's centre is under the pointer.
     expect(looseAt({ x: 600, y: 120 }, { share: 0.5, dy: 20 }, size, vp)).toEqual({ r: 400, b: 100 });
     expect(looseAt({ x: 5, y: 10 }, { share: 0.5, dy: 20 }, size, vp)).toEqual({ r: 800, b: 200 });
     expect(looseAt({ x: 1195, y: 790 }, { share: 0.5, dy: 20 }, size, vp)).toEqual({ r: 0, b: 0 });

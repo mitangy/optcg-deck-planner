@@ -21,10 +21,8 @@ describe("Top bounties", () => {
   });
 
   it("pins you when a tie shares rank 1 but your row is cut off the list (#466)", () => {
-    // 101 players tied at 1016 all have rank 1; the board shows 100 of them and you are the 101st.
     const board = Array.from({ length: 100 }, (_, i) => i + 1);
     expect(pinnedYou(me(1, 101), board)).toEqual({ rank: 1, rating: 1488 });
-    // A tied player who is listed is not pinned a second time.
     expect(pinnedYou(me(1, 40), board)).toBeNull();
   });
 });

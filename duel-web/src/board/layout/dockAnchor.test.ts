@@ -21,8 +21,6 @@ describe("dockAnchor", () => {
   });
 
   it("keeps the battle strip clear of the dock where the strip runs past the mat (#278)", () => {
-    // 1280x720: the strip spans 238-990 but the dock hugs the mat edge at 879, 226 wide.
-    // The strip's right side is covered from the dock's left edge (653) to 990, plus the gap.
     expect(stripReserve(box(238, 356, 752, 28), 879, 226, 12)).toBe(349);
   });
 

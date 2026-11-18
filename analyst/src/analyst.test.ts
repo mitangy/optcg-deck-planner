@@ -7,7 +7,6 @@ import { searchCards } from "./search";
 
 const catalog = loadCatalog();
 
-/** OP01-001 Roronoa Zoro (red) with 50 red OP01 characters: 12 x4 + 1 x2. */
 const legalDeckText = [
   "1xOP01-001",
   ...["004", "005", "006", "007", "008", "009", "010", "011", "012", "013", "014", "015"].map((n) => `4xOP01-${n}`),
@@ -77,7 +76,6 @@ describe("card search", () => {
   });
 
   it("legalFor applies the leader's own deck rules (#244)", () => {
-    // OP12-001 Silvers Rayleigh: no cards costing 5 or more.
     const r = searchCards(catalog, { legalFor: "OP12-001", set: "EB01", types: ["character"], limit: 100 });
     const ids = r.cards.map((c) => c.id);
     expect(ids).toContain("EB01-003");

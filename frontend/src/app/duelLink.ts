@@ -4,7 +4,6 @@ export const DUEL_URL = (
   (import.meta.env.VITE_DUEL_URL as string | undefined)?.trim() || "https://optcgduel.app"
 ).replace(/\/+$/, "");
 
-/** Link that opens the deck in the duel app (`?planner` for signed-in users, `#list` for guests). */
 export function duelPlayUrl(deck: {
   id: number | string;
   name: string;

@@ -11,7 +11,6 @@ describe("planShards (#737)", () => {
   });
 
   it("balances by duration, not by count or order (#737)", () => {
-    // Optimal split of 7,6,5,4,3,3 over 2 shards is 14 / 14. Round-robin gives 7+5+3=15 vs 13 and in-order chunks give 18 vs 10.
     const t = { "a.spec.ts": 7, "b.spec.ts": 6, "c.spec.ts": 5, "d.spec.ts": 4, "e.spec.ts": 3, "f.spec.ts": 3 };
     const shards = planShards(Object.keys(t).map((f) => `e2e/${f}`), t, 2);
     expect(Math.max(...shards.map((s) => load(s, t)))).toBe(14);

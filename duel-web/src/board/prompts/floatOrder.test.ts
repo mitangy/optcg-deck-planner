@@ -16,7 +16,6 @@ function look(rest: "deck_top" | "deck_bottom" | "top_or_bottom"): Extract<Choic
 
 describe("floating look answer", () => {
   it("puts the cards back in the dragged row order, without the taken card", () => {
-    // Row was reordered from a,b,c,d; "b" is taken.
     expect(floatLookAnswer(look("deck_bottom"), ["d", "a", "b", "c"], ["b"], "top")).toEqual({
       selectedOptionIds: ["b"],
       orderedOptionIds: ["d", "a", "c"],

@@ -1,4 +1,3 @@
-"""Run the Alembic migrations (backend/migrations) at API startup."""
 
 from __future__ import annotations
 
@@ -21,19 +20,7 @@ def alembic_config() -> Config:
 
 
 def upgrade_to_head(bind: Engine) -> bool:
-    """Run ``alembic upgrade head`` on ``bind``; True when the database was empty before it.
-
-    Callers hold ``app.core.db.startup_lock`` so several workers do not race.
-    The whole upgrade is one transaction (Postgres DDL is transactional), and
-    it is a no-op on a database that is already at head.
-
-    A database that has the app's tables but no ``alembic_version`` row was
-    built by the old ``create_all`` + ``_ensure_*`` startup. Running 0001 on it
-    would fail half way on "table already exists", so refuse up front with the
-    fix instead.
-    """
     cfg = alembic_config()
-    # env.py must not reset the logging that uvicorn and the app configured.
     cfg.attributes["configure_logger"] = False
     with bind.begin() as conn:
         cfg.attributes["connection"] = conn

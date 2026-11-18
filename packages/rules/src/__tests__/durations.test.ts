@@ -3,23 +3,19 @@ import { powerOf } from "../engine/queries.js";
 import { Harness } from "../testing/harness.js";
 import type { Seat } from "../types.js";
 
-// Effect durations: when "until ..." modifiers expire.
-
-const RAYLEIGH = "OP08-118"; // 8-cost, [On Play] gives 1 of your opponent's Characters -3000 power until the end of your opponent's next turn.
-const KEEP_OUT = "OP07-018"; // 1-cost Event, [Counter] +2000 power to a {Revolutionary Army} Character until the end of your next turn.
-const REVOLUTIONARY = "OP05-012"; // {Revolutionary Army} Character, no [Trigger]
-const UTA = "OP02-120"; // 8-cost, [On Play] DON!! -2: Your Leader and all of your Characters gain +1000 power until the start of your next turn.
+const RAYLEIGH = "OP08-118";
+const KEEP_OUT = "OP07-018";
+const REVOLUTIONARY = "OP05-012";
+const UTA = "OP02-120";
 
 function leaderPower(h: Harness, seat: Seat): number {
   return powerOf(h.state, seat, h.state.players[seat].leader);
 }
 
-/** End the active seat's turn; the other seat's turn begins. */
 function endTurn(h: Harness): void {
   h.act(h.state.activeSeat, { type: "end_turn" });
 }
 
-/** Advance to the start of `seat`'s next turn. */
 function toTurnOf(h: Harness, seat: Seat): void {
   while (h.state.activeSeat !== seat) endTurn(h);
 }
@@ -35,7 +31,6 @@ describe("duration expiry", () => {
       h.play(seat, UTA).accept().pick("o0", "o1");
       expect(leaderPower(h, seat)).toBe(base + 1000);
       endTurn(h);
-      // The opponent's whole turn: still buffed.
       expect(h.state.activeSeat).toBe(seat === 0 ? 1 : 0);
       expect(leaderPower(h, seat)).toBe(base + 1000);
       endTurn(h);
@@ -60,7 +55,6 @@ describe("duration expiry", () => {
       // The opponent's turn is the one that ends it: still reduced during it.
       expect(powerOf(h.state, opp, target!)).toBe(base - 3000);
       endTurn(h);
-      // Back on the applying seat's turn the reduction is gone; it must not last through that turn too.
       expect(h.state.activeSeat).toBe(seat);
       expect(powerOf(h.state, opp, target!)).toBe(base);
     });

@@ -1,4 +1,3 @@
-/** Record one clip by id, or all of them: `npx tsx main.ts [id ...]`. */
 import { readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";

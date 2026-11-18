@@ -23,7 +23,6 @@ describe("clampRect (#986)", () => {
   it("holds the size between the minimum and the maximum width, and within the window", () => {
     expect(clampRect({ ...box, w: 10, h: 10 }, limits)).toMatchObject({ w: PANEL_MIN.w, h: PANEL_MIN.h });
     expect(clampRect({ ...box, w: 5000 }, limits).w).toBe(PANEL_MAX_W);
-    // A window shorter than the panel shrinks it (the room wins over its old height), and it still fits whole.
     const small = clampRect({ x: 0, y: 0, w: 360, h: 600 }, { vp: { w: 1280, h: 500 }, top: 60 });
     expect(small.h).toBe(500 - PANEL_GAP - 60);
     expect(small.y + small.h).toBeLessThanOrEqual(500 - PANEL_GAP);
@@ -46,11 +45,9 @@ describe("resizeRect (#986)", () => {
   it("the left and top edges move the corner and keep the opposite edge, also when the minimum or the window stops them", () => {
     expect(resizeRect(box, "left", -60, 0, limits)).toEqual({ ...box, x: 340, w: 420 });
     expect(resizeRect(box, "top", 0, -50, limits)).toEqual({ ...box, y: 150, h: 350 });
-    // Dragged far to the right: it stops at the minimum width and the right edge (760) has not moved.
     const narrow = resizeRect(box, "left", 900, 0, limits);
     expect(narrow.w).toBe(PANEL_MIN.w);
     expect(narrow.x + narrow.w).toBe(760);
-    // Dragged far to the left: it stops at the viewport gap, the right edge still at 760.
     const wide = resizeRect({ ...box, x: 300, w: 460 }, "left", -9999, 0, limits);
     expect(wide.x).toBeGreaterThanOrEqual(PANEL_GAP);
     expect(wide.x + wide.w).toBe(760);
@@ -67,7 +64,6 @@ describe("resizeRect (#986)", () => {
   it("never grows wider than the maximum or past the right edge", () => {
     expect(resizeRect(box, "right", 9999, 0, limits).w).toBe(PANEL_MAX_W);
     const near = resizeRect({ ...box, x: 1000, w: 260 }, "right", 9999, 0, limits);
-    // Stopped at the window edge: the left edge stays where it was (it is not pushed over to make room).
     expect(near).toMatchObject({ x: 1000, w: 1280 - PANEL_GAP - 1000 });
   });
 });

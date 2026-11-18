@@ -19,8 +19,6 @@ const LOOKUP = {
   key: "k",
 };
 
-// Zoro leads against Luffy. Hand: Nami (cost 1, a character), Sanji (cost 2), Gum-Gum Jet Pistol (an event).
-// The opponent has a Luffy character on the board; the player has a Chopper.
 function snapshot(over: Record<string, unknown> = {}) {
   return {
     seat: 0,
@@ -72,7 +70,6 @@ function snapshot(over: Record<string, unknown> = {}) {
 const game = (over: Record<string, unknown> = {}, log?: string[]): GameContext => gameContext.parse({ ticket: TICKET, snapshot: snapshot(over), ...(log ? { log } : {}) });
 const claims = { leader: "OP01-001", opponent: "ST01-001", deck: LOOKUP.deck };
 
-/** Runs propose_turn_plan on a game; returns the plan, or the refusal text. */
 async function plan(g: GameContext, steps: Record<string, unknown>[]) {
   const r = await turnPlanTool(catalog, g).run({ summary: "Develop and swing", steps });
   const text = r.content.map((c) => c.text).join("\n");
@@ -94,7 +91,6 @@ describe("copilot game context schema", () => {
     expect(Object.keys(parsed.snapshot)).not.toContain("revealedHands");
     expect(Object.keys(parsed.snapshot.opponent)).not.toContain("handCards");
     expect(Object.keys(parsed)).not.toContain("extra");
-    // The block the model reads says only how many cards the opponent holds.
     expect(gameContextBlock(catalog, parsed, claims)).not.toContain("handCards");
   });
 
@@ -125,7 +121,6 @@ describe("copilot ticket check", () => {
     expect(err).toBeInstanceOf(ChatHttpError);
     expect(err).toMatchObject({ status: 400, code: "bad_request" });
     expect(seen).toHaveLength(0);
-    // No thread was made and nothing was spent either.
     expect(calls.map((c) => c.url.replace("https://api.test", ""))).toEqual(["/analyst/briefs/lookup"]);
   });
 
@@ -151,7 +146,6 @@ describe("copilot game block", () => {
     expect(text).toContain("Your trash (2): Sanji x2");
     expect(text).toContain("Player A plays Nami");
     expect(text).toContain("4x OP01-016 Nami");
-    // The card reference carries the printed effect for a card on the table.
     const luffy = catalog.cards.get("ST01-012")!;
     expect(luffy.text.length).toBeGreaterThan(5);
     expect(text).toContain(`- ST01-012 ${luffy.name} (character, ${luffy.colors.join("/")}, cost 5, power 6000, traits: ${luffy.traits.join("/")})`);
@@ -192,7 +186,6 @@ describe("copilot power marks (#835)", () => {
     expect(text).toContain("Nami [h1] (cost 1, counter 1000)");
     expect(text).toContain("Sanji [h2] (cost 2)");
     expect(text).toContain("[h5] (cost 1, counter event)");
-    // The app's value, when it sends one, wins over the printed one.
     expect(text).toContain("Nami [h6] (cost 1, counter 2000)");
   });
 
@@ -210,7 +203,6 @@ describe("copilot power marks (#835)", () => {
     expect(text).toContain("with Roronoa Zoro [y-l] (5000 vs 5000: wins as is unless they block or counter)");
     expect(text).toContain("with Tony Tony.Chopper [y-c1] (2000 vs 5000: loses as is, 3000 short)");
     expect(text).toContain("[o-c1] with Roronoa Zoro [y-l] (5000 vs 6000: loses as is, 1000 short)");
-    // No mark when a power is missing.
     const unknown = game({ legal: [{ type: "declare_attack", attacker: "y-l", target: "o-l" }], opponent: { ...snapshot().opponent, leader: { id: "o-l", defId: "ST01-001" } } });
     expect(gameContextBlock(catalog, unknown, claims)).toContain("- attack Monkey.D.Luffy [o-l] with Roronoa Zoro [y-l]\n");
   });
@@ -261,7 +253,6 @@ describe("copilot turn plan", () => {
 
   it("accepts a character played earlier in the plan as an attacker and DON target in later steps (#416)", async () => {
     const rich = game({ you: { ...snapshot().you, donActive: 10 } });
-    // Nami (2000) with 3 DON!! reaches the Leader's 5000.
     const r = await plan(rich, [PLAY_NAMI, { action: "give_don", target: "h1", count: 3 }, { action: "attack", attacker: "h1", target: "o-l" }]);
     expect(r.plan).toBeDefined();
     // A card played from the hand that isn't a character can't act: the event has no body on the board.
@@ -270,20 +261,16 @@ describe("copilot turn plan", () => {
 
   it("refuses a plan attack that loses on power, and accepts it after enough DON!! or with a boost (#835)", async () => {
     const rich = game({ you: { ...snapshot().you, donActive: 10 } });
-    // Chopper (1000) into the Leader (5000): short by 4000.
     const lose = await refusedWith(rich, [{ action: "attack", attacker: "y-c1", target: "o-l" }]);
     expect(lose).toMatch(/Tony Tony.Chopper \(1000\) attacking Monkey.D.Luffy \(5000\) loses as is/);
     expect(lose).toContain("Give it 4 DON!!");
     expect(lose).toContain('"boost"');
-    // 3 DON!! is still short (4000), 4 DON!! ties at 5000 and a tie goes to the attacker.
     expect(await refusedWith(rich, [{ action: "give_don", target: "y-c1", count: 3 }, { action: "attack", attacker: "y-c1", target: "o-l" }])).toMatch(/\(4000\) attacking/);
     expect((await plan(rich, [{ action: "give_don", target: "y-c1", count: 4 }, { action: "attack", attacker: "y-c1", target: "o-l" }])).plan).toBeDefined();
     const legalChopper = game({ you: { ...snapshot().you, donActive: 10 }, legal: [{ type: "declare_attack", attacker: "y-c1", target: "o-l" }, { type: "end_turn" }] });
     expect((await plan(legalChopper, [{ action: "attack", attacker: "y-c1", target: "o-l", boost: "Nami gives +4000" }])).plan).toBeDefined();
     expect(await refusedWith(legalChopper, [{ action: "attack", attacker: "y-c1", target: "o-l" }])).toMatch(/loses as is/);
-    // A character played in the plan starts at its printed power (Nami 2000).
     expect(await refusedWith(rich, [PLAY_NAMI, { action: "attack", attacker: "h1", target: "o-l" }])).toMatch(/Nami \(2000\) attacking/);
-    // A Leader tying the opponent's Leader may attack as is.
     expect((await plan(rich, [{ action: "attack", attacker: "y-l", target: "o-l" }])).plan).toBeDefined();
   });
 
@@ -326,9 +313,7 @@ describe("copilot turn plan", () => {
   });
 
   it("counts card costs against active DON!! along with DON!! given (#416)", async () => {
-    // Nami costs 1, so with 3 active only 2 more can be given.
     expect(await refusedWith(game(), [PLAY_NAMI, { action: "give_don", target: "y-l", count: 3 }])).toMatch(/uses 4 DON!! in all/);
-    // Sanji (2) and Nami (1) use all 3: a play past that is refused too.
     expect(await refusedWith(game(), [PLAY_NAMI, { action: "play", card: "h2" }, { action: "give_don", target: "y-l", count: 1 }])).toMatch(/uses 4 DON!! in all/);
     expect((await plan(game(), [PLAY_NAMI, { action: "give_don", target: "y-l", count: 2 }])).plan).toBeDefined();
   });
@@ -343,7 +328,6 @@ describe("copilot turn plan", () => {
   });
 
   it("refuses a plan whose first step isn't a legal action right now (#416)", async () => {
-    // Sanji is in the hand but the Sanji play isn't among the legal actions of this snapshot.
     const g = game({ legal: [{ type: "play_card", card: "h1" }, { type: "end_turn" }] });
     expect(await refusedWith(g, [{ action: "play", card: "h2" }])).toMatch(/first step isn't a legal action/);
     expect((await plan(g, [PLAY_NAMI, { action: "play", card: "h2" }])).plan).toBeDefined();
@@ -408,7 +392,6 @@ describe("copilot chat turn", () => {
     const content = seen[0]!.messages[0].content as { text: string }[];
     expect(content.map((b) => b.text.split("\n")[0])).toEqual(["<context>", "<game>", "Plan my turn"]);
     expect(content[1]!.text).toContain("Your hand: Nami [h1]");
-    // The cached prefix stays first and unchanged; the copilot text is its own block after it.
     expect(seen[0]!.system).toHaveLength(2);
     expect(seen[0]!.system[0].cache_control).toEqual({ type: "ephemeral" });
     expect(seen[0]!.system[1]).toEqual({ type: "text", text: COPILOT_INSTRUCTIONS });
@@ -462,8 +445,6 @@ describe("copilot chat turn", () => {
     expect(seen[1]!.messages.at(-1).content[0]).toMatchObject({ is_error: true, content: NO_GAME_ERROR });
   });
 });
-
-// ——— Log Pose plays the turn (#725) ———
 
 const opt = (id: string, defId: string, over: Record<string, unknown> = {}) => ({ id, defId, eligible: true, ...over });
 const SELECT = {
@@ -564,7 +545,6 @@ describe("copilot answer_choice (#725)", () => {
     expect((await answered(look(), { choiceId: "pc-7", accept: true, selected: ["l1", "l2"] })).error).toMatch(/Pick 0 to 1/);
     expect((await answered(look(), { choiceId: "pc-7", accept: true, selected: ["l2"], ordered: ["l1"] })).error).toMatch(/exactly the options you did not select/);
     expect((await answered(look(), { choiceId: "pc-7", accept: true, selected: ["l2"], top: ["l1", "l3"] })).error).toMatch(/can't be split/);
-    // top or bottom moves the leftovers together
     const top = await answered(look("top_or_bottom"), { choiceId: "pc-7", accept: true, selected: [], top: ["l1", "l2", "l3"] });
     expect(top.answer).toMatchObject({ orderedOptionIds: ["l1", "l2", "l3"], topOptionIds: ["l1", "l2", "l3"] });
     expect((await answered(look("top_or_bottom"), { choiceId: "pc-7", accept: true, selected: [], top: ["l1"] })).error).toMatch(/every card you did not select/);

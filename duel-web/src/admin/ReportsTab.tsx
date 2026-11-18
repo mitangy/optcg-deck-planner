@@ -15,7 +15,6 @@ import type { Actor } from "./UsersTab";
 type Filter = "open" | "all";
 type Panel = "warn" | "ban" | null;
 
-/** The snapshot of a reported image, fetched with the staff cookie. Blurred until a moderator asks to see it. */
 function ReportImage({ report }: { report: ReportRow }) {
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
@@ -225,7 +224,6 @@ export function ReportsTab({ actor }: { actor: Actor }) {
 
   useEffect(() => load(filter), [filter, load]);
 
-  // A handled report stays where it is, so the list does not jump under the cursor; Refresh drops it from "Open".
   const replace = (next: ReportRow) =>
     setState((s) => (s.status === "ready" ? { status: "ready", reports: s.reports.map((x) => (x.id === next.id ? next : x)) } : s));
 

@@ -1,15 +1,4 @@
-/**
- * Build `src/cards/cardData.json` from an official Bandai candidate snapshot.
- *
- * Usage (from packages/rules):
- *   npx tsx src/tools/buildCardData.ts <path/to/artifacts/bandai-full>
- *
- * The candidate is produced by `backend/scripts/import_bandai_metadata.py --all-series`.
- * Base card IDs only (parallel printings `_pN` are art, not gameplay). IDs that
- * exist in the bundled catalog but not in the official English list keep their
- * bundled values and are marked `source: "bundled"` (unverified). Rows imported
- * from TCGPlayer (`importTcgplayerCards.ts`) for ids Bandai lacks are kept.
- */
+/** Base card IDs only (parallel printings `_pN` are art, not gameplay). */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -54,15 +43,9 @@ export function splitTrigger(text: string): { effect: string; trigger: string } 
   return { effect: text.slice(0, index).trim(), trigger: text.slice(index).trim() };
 }
 
-/**
- * Strip printing suffixes from promo names so name-based effects match:
- * "Usopp - P-136 (Premium Card Collection …)", "Trafalgar Law (Event Pack Vol. 4)",
- * "Nico Robin (016) (SP)", "Shirahoshi (Manga)", "Nami (055) (Alternate Art)". Real parenthesised
- * names such as "Zephyr (Navy)" stay.
- */
+/** Real parenthesised names such as "Zephyr (Navy)" stay. */
 const PRINTING_MARKERS = ["SP", "Alternate Art", "Manga", "Parallel", "Treasure Rare", "Full Art", "Box Topper", "Jolly Roger Foil", "Pirate Foil", "Special Rare"];
 
-/** A trailing TCGPlayer printing marker such as " (Parallel)" or " (Alternate Art)". */
 export const VARIANT_SUFFIX = new RegExp(String.raw`\s+\((?:${PRINTING_MARKERS.join("|")})\)$`);
 
 export function normalizeCardName(name: string): string {
@@ -73,7 +56,6 @@ export function normalizeCardName(name: string): string {
     out = next;
   }
 }
-
 
 const BASE_TYPES = ["leader", "character", "event", "stage"];
 

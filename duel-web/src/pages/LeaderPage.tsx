@@ -13,7 +13,6 @@ import { DeckCards, LeaderArt } from "./MetaDecksPage";
 import "./playOnline.css";
 import "./leaders.css";
 
-/** What the leader page says about itself in the title, description and H1 (shared with the pre-render). */
 export function leaderPageText(leader: MetaLeader, days: number) {
   const name = leader.name || leader.leader_id;
   return {
@@ -44,7 +43,6 @@ function PlayButton({ leader, deck, className, children }: { leader: MetaLeader;
   const [error, setError] = useState<string | null>(null);
   async function play() {
     setError(null);
-    // Saving a deck checks its cards against the card data, which loads on its own (B-02).
     try {
       await loadCardData();
     } catch {
@@ -91,7 +89,6 @@ function NotFound({ text }: { text: string }) {
   );
 }
 
-/** `/leaders/:slug`: one popular leader with its numbers, recent top lists and a button to play one online (#914). */
 export function LeaderPage() {
   const { slug = "" } = useParams();
   const view = useMetaView(parseLeaderSlug(slug)?.leaderId ?? null);
@@ -107,7 +104,6 @@ export function LeaderPage() {
 function LeaderBody({ leader, view }: { leader: MetaLeader; view: ReturnType<typeof useMetaView> }) {
   const decks = view.decks ?? [];
   const text = leaderPageText(leader, view.days);
-  // A snapshot leader the live list dropped sits after the live ones, so it never reads as "most played" (#919).
   const rank = view.routeLeaders.findIndex((l) => l.leader_id === leader.leader_id) + 1;
   usePageMeta({
     title: text.title,

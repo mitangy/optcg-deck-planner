@@ -1,16 +1,12 @@
-/**
- * "Your Leader with <leader-type filter> gains [Keyword] during this turn" (OP18-047 Mr.1 (Daz.Bonez)) compiles to an
- * `if` on the same leader-type condition P-082 uses, wrapping a keyword grant on your Leader (#666).
- */
 import { describe, expect, it } from "vitest";
 import { cardDataFor } from "../../cards/cardData.js";
 import { compileCardText } from "../../tools/cardText/compileCard.js";
 import { runScenarios, type CardScenario } from "../../testing/scenario.js";
 
 const MR1 = "OP18-047";
-const BUGGY = "OP09-042"; // Leader {Cross Guild}, not Baroque Works
-const ALL_SUNDAY = "OP18-041"; // Leader {Baroque Works}, not Cross Guild
-const LUFFY = "ST01-001"; // Leader {Straw Hat Crew}: neither type
+const BUGGY = "OP09-042";
+const ALL_SUNDAY = "OP18-041";
+const LUFFY = "ST01-001";
 
 describe("leader-type keyword grant compiles (#666)", () => {
   it("OP18-047 compiles to an if on Cross Guild or a type including Baroque Works, granting your Leader Unblockable this turn (#666)", () => {

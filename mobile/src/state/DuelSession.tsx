@@ -42,7 +42,6 @@ type DuelSession = {
   leave: () => Promise<void>;
   clearError: () => void;
   setRating: (n: number | null) => void;
-  /** Settings: searches and effect ordering float their cards over the board (else the inline prompt). */
   floatingCards: boolean;
   setFloatingCards: (on: boolean) => void;
 };

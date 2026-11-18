@@ -1,11 +1,5 @@
-/**
- * "Buttons beside the board" (#556, #564): on a computer the dock (Keep / Mulligan, End turn ...) sits in a narrow
- * gutter against the right edge of the two playmats, its primary button centred on the line where the mats meet,
- * and the mats touch, so the board is the same size before and after the mulligan banner goes away.
- */
 import { test, expect, keepBothHands, RED_VANILLA, type Page } from "./fixtures";
 
-// This spec is about the new defaults, so it skips the fixture's old-layout settings.
 test.use({ legacyLayout: false });
 
 test.beforeEach(({}, info) => {
@@ -49,12 +43,10 @@ for (const size of SIZES) {
 
         const dock = await box(page, ".primary-dock");
         const main = await box(page, ".primary-dock-main");
-        // Directly against the mats' right edge, not in the side column.
         const matsRight = Math.max(opp.right, you.right);
         expect(dock.left - matsRight, "gap between the mats and the buttons").toBeGreaterThanOrEqual(0);
         expect(dock.left - matsRight, "gap between the mats and the buttons").toBeLessThanOrEqual(9);
         expect(await page.locator("[data-side-dock]").evaluate((el) => !!el.closest(".board-col"))).toBe(false);
-        // The primary is centred on the seam; the Mulligan button stacks above it.
         expect(Math.abs((main.top + main.bottom) / 2 - opp.bottom), "primary centre vs the seam").toBeLessThanOrEqual(4);
         if (query === "?turn0") {
           const extra = await box(page, ".primary-dock .dock-extra");
@@ -63,7 +55,6 @@ for (const size of SIZES) {
           expect(extra.width).toBeCloseTo(main.width, 0);
           expect(extra.height).toBeCloseTo(main.height, 0);
         }
-        // Clear of both mats and of every side column.
         const hits = [...(await page.locator(".side-field").evaluateAll((els) => els.map((e) => e.getBoundingClientRect()))), ...(await page.locator(".board-col").evaluateAll((els) => els.map((e) => e.getBoundingClientRect())))];
         for (const r of hits) expect(overlaps(dock, r as Box), "dock over a mat or a column").toBe(false);
         const caption = await box(page, ".dock-caption");
@@ -107,7 +98,6 @@ for (const size of SIZES) {
       await page.waitForTimeout(400);
       expect(await box(page, ".side-opp")).toEqual(mulligan.opp);
       expect(await box(page, ".side-you")).toEqual(mulligan.you);
-      // The primary does not move either when Mulligan goes away.
       expect(await box(page, ".primary-dock-main")).toEqual(mulligan.main);
     });
   }
@@ -159,7 +149,6 @@ for (const spot of ["", "left", "right"]) {
     const you = await box(page, ".side-you");
     const dock = await box(page, ".primary-dock");
     const hand = spot ? await box(page, ".opp-hand-mat-side") : null;
-    // The mats are not centred: the leftover width is right of the dock.
     const flush = hand && spot === "left" ? hand.left : opp.left;
     expect(flush - playmat.left, "left space before the board").toBeLessThanOrEqual(4);
     expect(dock.left - Math.max(opp.right, you.right, hand?.right ?? 0), "dock against the mats / hand").toBeLessThanOrEqual(9);

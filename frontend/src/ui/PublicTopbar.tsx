@@ -4,7 +4,6 @@ import { DUEL_URL } from "../app/duelLink";
 import { ThemeToggle } from "./ThemeToggle";
 import { Topbar } from "../app/Topbar";
 
-/** The slim header of the pages a visitor can open without signing in: the landing page and the meta decks. */
 export function PublicTopbar() {
   return (
     <Topbar>

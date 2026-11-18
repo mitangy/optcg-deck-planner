@@ -6,7 +6,6 @@ import { googleLoginUrl } from "../net/api";
 import { type DuelEvent, fetchCurrentEvent, joinEvent } from "./eventApi";
 import { bannerCta, closedNote, eventPhase, eventStyleLabel, formatWindow, prizeLine, progressLabel, staffNote, statusLine, usesDraw } from "./eventLogic";
 
-/** The current time. Re-armed after every tick: every 15 seconds, every second in the last two minutes before a change, and not at all once the event has ended. */
 function useNow(event: DuelEvent | null): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -25,9 +24,8 @@ function useCurrentEvent() {
   const load = useCallback(() => {
     fetchCurrentEvent()
       .then(setEvent)
-      .catch(() => undefined); // the banner is optional: no event, no banner
+      .catch(() => undefined);
   }, []);
-  // Now, and again whenever the tab comes back (no timer).
   usePolling(load, null);
   return { event, reload: load };
 }
@@ -102,7 +100,6 @@ function JoinDialog({ event, open, onClose, onJoined }: { event: DuelEvent; open
   );
 }
 
-/** Home-page banner for the current giveaway event. Renders nothing when there is none. */
 export function EventBanner() {
   const { event, reload } = useCurrentEvent();
   const now = useNow(event);

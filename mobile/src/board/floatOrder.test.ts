@@ -16,7 +16,6 @@ function look(rest: "deck_top" | "deck_bottom" | "top_or_bottom"): Extract<Choic
 
 describe("floating look answer", () => {
   it("puts the cards back in the dragged row order, without the taken card", () => {
-    // Row was reordered from a,b,c,d; "b" is taken.
     expect(floatLookAnswer(look("deck_bottom"), ["d", "a", "b", "c"], ["b"], "top")).toEqual({
       selectedOptionIds: ["b"],
       orderedOptionIds: ["d", "a", "c"],
@@ -64,7 +63,6 @@ describe("floating card size", () => {
 
   it("shrinks cards to fit a short landscape screen", () => {
     const { cardW } = floatCardSize(5, 844, 390);
-    // One row of cards (art + caption) fits under the landscape chrome.
     expect(cardW / 0.716 + 36).toBeLessThanOrEqual(390 - 150);
     expect(cardW).toBeGreaterThan(100);
   });

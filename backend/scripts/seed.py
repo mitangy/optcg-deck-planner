@@ -1,4 +1,3 @@
-"""Seed catalog from existing optcg_tracker cache and import sample decks."""
 
 from __future__ import annotations
 
@@ -36,7 +35,6 @@ def import_catalog_from_cache(db) -> int:
     now = datetime.now(timezone.utc)
     count = 0
     for card_id, printings in by_number.items():
-        # Prefer standard then cheapest
         def key(p: dict):
             special = 1 if p.get("is_special") else 0
             market = p.get("market_price")

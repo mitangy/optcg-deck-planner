@@ -1,6 +1,3 @@
-/* Continuous row rules via inset line (not border-collapse seams).
-   border-bottom on cells fragments around flex history, sticky headers,
-   and narrow columns like the shopping checkbox — this paints evenly. */
 .data-table > :is(thead, tbody) > tr > :is(th, td) {
   position: relative;
   border-bottom: none;
@@ -18,7 +15,6 @@
   pointer-events: none;
 }
 
-/* Non-data tables (e.g. group-buy owes) keep a simple bottom border. */
 table:not(.data-table) th,
 table:not(.data-table) td {
   border-bottom: 1px solid var(--line);
@@ -35,8 +31,6 @@ th {
   z-index: var(--z-raise-1);
 }
 
-/* Sortable column headers. The button hugs its label and the arrow hangs in the
-   cell's right padding, so headers keep their pre-sort width and never shift. */
 .th-sort-btn {
   position: relative;
   display: inline-block;
@@ -70,7 +64,6 @@ th {
   top: 50%;
   transform: translateY(-50%);
   display: flex;
-  /* 2px gap + 6px icon fits the tightest cell padding (0.5rem in deck edit mode). */
   margin-left: 2px;
   line-height: 0;
   opacity: 0.35;
@@ -105,7 +98,6 @@ tr.done td {
 
 .thumb.placeholder {
   border: 1px dashed var(--line);
-  /* Same footprint as real art: a long card name must not squeeze it narrower. */
   flex-shrink: 0;
 }
 

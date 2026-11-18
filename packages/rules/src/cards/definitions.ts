@@ -1,14 +1,8 @@
-/**
- * Card definitions: printed metadata from the generated official card data
- * (`cardData.json`). Executable behavior comes from the ability registry
- * (`abilities.ts`); nothing here encodes card-specific rules.
- */
 import type { CardDef, CardDefId, CardType } from "../types.js";
 import { cardDataFor, listCardDataIds } from "./cardData.js";
 import { normalizeCardId, tcgAltsForCard, tcgArtForCard } from "@optcg/card-core";
 import { cardHasUnconditionalKeyword } from "./keywords.js";
 
-/** Local parallel-art mirrors shipped with duel-web (`public/cards`). */
 const LOCAL_ALTS: Record<string, { id: string; label: string }[]> = {
   "ST01-001": [{ id: "p1", label: "Alternate Art" }],
   "ST01-006": [{ id: "p1", label: "Alternate Art" }, { id: "p2", label: "Parallel 2" }],
@@ -25,7 +19,6 @@ function altsFor(id: string): CardDef["altArts"] {
   const tcg = tcgAltsForCard(id);
   const byId = new Map<string, { id: string; label: string; imageUrl: string }>();
   for (const alt of LOCAL_ALTS[id] ?? []) byId.set(alt.id, { ...alt, imageUrl: `/cards/${id}_${alt.id}.webp` });
-  // The atlas keeps `{ id, label, imageUrl }`; the product id is only for the SPA's own lookups.
   for (const { id: altId, label, imageUrl } of tcg) byId.set(altId, { id: altId, label, imageUrl });
   return byId.size ? [...byId.values()] : undefined;
 }
@@ -69,7 +62,6 @@ for (const id of listCardDataIds()) {
 
 export const DEFAULT_LEADER_ID: CardDefId = "ST01-001";
 
-/** Normalize OPTCG-style ids (trim + uppercase; parallel suffixes map to the base card). */
 export function normalizeCardDefId(id: string): CardDefId {
   return normalizeCardId(id);
 }
@@ -78,7 +70,6 @@ export function hasCardDef(id: CardDefId): boolean {
   return byId.has(normalizeCardDefId(id));
 }
 
-/** True when the card's printed data comes from the official card list. */
 export function isCuratedCardDef(id: CardDefId): boolean {
   return byId.get(normalizeCardDefId(id))?.dataSource === "bandai";
 }
@@ -87,10 +78,6 @@ export function getDefsHealthSnapshot(): { defsCount: number; hasOP16080: boolea
   return { defsCount: byId.size, hasOP16080: byId.has("OP16-080") };
 }
 
-/**
- * Register a stub for an id absent from the card data (unknown promos). Stubs
- * are vanilla and never ranked-eligible.
- */
 export function ensureCardDef(id: CardDefId, opts: { asLeader?: boolean } = {}): CardDef {
   const key = normalizeCardDefId(id);
   const existing = byId.get(key);
@@ -98,16 +85,10 @@ export function ensureCardDef(id: CardDefId, opts: { asLeader?: boolean } = {}):
     if (opts.asLeader && existing.type !== "leader") throw new Error(`Card ${key} is typed as ${existing.type} but was used as a Leader`);
     return existing;
   }
-  // Every catalog card is defined at load. Never create definitions for other ids:
-  // client-provided decks must not grow the process-global catalog for a server's lifetime.
+  // Client-provided decks must not grow the process-global catalog for a server's lifetime.
   throw new Error(`Unknown card def: ${key}`);
 }
 
-/**
- * Validate every leader + main-deck id before a match is created. All catalog cards
- * are already defined, so this never mutates the catalog; unknown ids,
- * non-Leader leaders and Leaders in the main deck are rejected.
- */
 export function ensureDefsForPlayers(players: ReadonlyArray<{ leaderId: CardDefId; deck: readonly CardDefId[] }>): void {
   for (const p of players) {
     const leaderId = normalizeCardDefId(p.leaderId);
@@ -131,7 +112,6 @@ export function listCardDefs(): CardDef[] {
   return [...byId.values()];
 }
 
-/** Atlas entries for clients (cosmetics + public stats). */
 export type CardAtlasEntry = {
   id: CardDefId;
   name: string;
@@ -150,7 +130,6 @@ export type CardAtlasEntry = {
   hasTrigger?: boolean;
   attribute?: string;
   abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unverified" | "unsupported";
-  /** Printed clauses the engine does not execute yet (casual play only). */
   unsupportedText?: string[];
 };
 
@@ -180,7 +159,6 @@ export function buildCardAtlas(): Record<CardDefId, CardAtlasEntry> {
   return atlas;
 }
 
-/** Short prototype main deck (no leader) of simple ST01 cards. Respects ≤4 copies. */
 export function buildTestDeck(size = 20): CardDefId[] {
   const pool: CardDefId[] = [
     "ST01-003", "ST01-003", "ST01-003", "ST01-003",

@@ -1,5 +1,3 @@
-/** The guest "how it works" strip: shown until dismissed or a match starts from the lobby. */
-
 export const INTRO_KEY = "optcg-duel:homeIntroDone";
 
 type Store = Pick<Storage, "getItem" | "setItem">;

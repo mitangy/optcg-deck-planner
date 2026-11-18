@@ -2,13 +2,10 @@ import { createContext, useContext, useEffect, useState } from "react";
 import { fetchMetaDecks, fetchMetaLeaders, type MetaDeck, type MetaLeader } from "../decks/meta";
 import { isSnapshot, pickSnapshotLeaders, SAMPLE_DECKS, SNAPSHOT_DAYS, type MetaSnapshot } from "./snapshot";
 
-/** The pre-render hands the snapshot to the pages here; in the browser it is read from the page instead. */
 export const SnapshotContext = createContext<MetaSnapshot | null>(null);
 
-/** Id of the `<script type="application/json">` the pre-render leaves in the page. */
 export const EMBEDDED_SNAPSHOT_ID = "meta-snapshot";
 
-/** The snapshot the server embedded in this page, so the first browser render matches the pre-rendered HTML. */
 export function readEmbeddedSnapshot(): MetaSnapshot | null {
   if (typeof document === "undefined") return null;
   try {
@@ -22,7 +19,6 @@ export function readEmbeddedSnapshot(): MetaSnapshot | null {
 
 let staticSnapshot: Promise<MetaSnapshot | null> | null = null;
 
-/** `/meta-snapshot.json`, shipped with the site; for a visitor who did not land on a pre-rendered meta page. */
 export function fetchStaticSnapshot(): Promise<MetaSnapshot | null> {
   staticSnapshot ??= fetch("/meta-snapshot.json")
     .then((r) => (r.ok ? r.json() : null))
@@ -32,33 +28,24 @@ export function fetchStaticSnapshot(): Promise<MetaSnapshot | null> {
 }
 
 export type MetaView = {
-  /** The popular leaders: the snapshot's until the live API answers. */
   leaders: MetaLeader[];
   /**
    * `leaders` plus any snapshot leader the live list dropped, so a pre-rendered leader page does not
-   * turn into "not found" when its leader falls out of the live top 30 (#919). Only for resolving a page's route.
+   * turn into "not found" when its leader falls out of the live top 30. Only for resolving a page's route.
    */
   routeLeaders: MetaLeader[];
-  /** Recent top-8 lists of `leaderId`, when one was asked for and known. */
   decks: MetaDeck[] | null;
   days: number;
   events: number | null;
   totalDecks: number | null;
   source: string;
   sourceUrl: string;
-  /** ISO time the data on screen was taken. */
   updatedAt: string | null;
-  /** False until there is anything to show (snapshot or live) or both failed. */
   settled: boolean;
 };
 
 const EMPTY_SOURCE = { source: "Limitless TCG", sourceUrl: "https://play.limitlesstcg.com/tournaments/completed?game=OP" };
 
-/**
- * Leaders (and one leader's recent lists) for the leader pages. It starts from the pre-rendered
- * snapshot, so the page is complete on first paint, then swaps in the live API when that answers.
- * A failed live call keeps the snapshot.
- */
 export function useMetaView(leaderId: string | null): MetaView {
   const fromServer = useContext(SnapshotContext);
   const [base, setBase] = useState<MetaSnapshot | null>(() => fromServer ?? readEmbeddedSnapshot());
@@ -67,7 +54,6 @@ export function useMetaView(leaderId: string | null): MetaView {
   const [liveFailed, setLiveFailed] = useState(false);
   const key = leaderId?.toUpperCase() ?? null;
 
-  // Someone who arrived on another page has no embedded snapshot: use the file shipped with the site.
   const needsStatic = base === null || (key !== null && !base.decks[key]);
   useEffect(() => {
     if (!needsStatic) return;

@@ -1,8 +1,3 @@
-/**
- * Dragging a grayed-out (unaffordable) hand card (#364): the card lifts out of
- * its slot and follows the pointer like any other hand card, and the lift ends
- * with the drag even when the drag stops being allowed halfway through.
- */
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 
@@ -15,7 +10,6 @@ async function openDemo(page: Page) {
   await page.waitForTimeout(800);
 }
 
-/** Press on the first unaffordable card and drag it up out of the hand. */
 async function pickUp(page: Page, dy: number) {
   const card = page.locator(UNAFFORDABLE).first();
   await expect(card).toBeAttached();
@@ -61,7 +55,6 @@ test("a hand card drag cut short by Sort lets the lifted copy go (#364)", async 
   await openDemo(page);
   const { end, move, release } = await pickUp(page, 200);
   await expect(page.locator(".hand-lift")).toHaveCount(1);
-  // Sorting turns hand reordering off mid-drag, which drops the card's drag handlers.
   await page
     .locator(".hand-rail-btn", { hasText: "Sort" })
     .locator("visible=true")

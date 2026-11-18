@@ -36,7 +36,6 @@ const alt = (product_id: number, owned = 0): PrintingView => ({
   owned,
 });
 
-/** A client holding one cached shopping list, like the page has after its first load. */
 function listed(items: ShoppingItem[]) {
   const qc = new QueryClient();
   const stillNeeded = items.reduce((n, i) => n + i.still_need, 0);

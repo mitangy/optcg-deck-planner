@@ -1,6 +1,3 @@
-/**
- * Derived card values: power, cost, keywords, restrictions and counters.
- */
 import { getCardDef } from "../cards/definitions.js";
 import type { Filter, Keyword, PlayerRestriction, Restriction } from "../effects/types.js";
 import type { CardInstance, InstanceId, MatchState, Seat } from "../types.js";
@@ -9,10 +6,6 @@ import { ctxFor } from "./evalCtx.js";
 import { activeStatics, cardModifiers, costStaticsFor, locateCard, staticPassActive, staticsFor } from "./statics.js";
 import { filterMatches, onField } from "./selectors.js";
 import { evalValue } from "./evaluate.js";
-
-// ---------------------------------------------------------------------------
-// Derived card values
-// ---------------------------------------------------------------------------
 
 export function basePowerOf(state: MatchState, seat: Seat, card: CardInstance): number {
   let p = getCardDef(card.defId).power ?? 0;
@@ -63,7 +56,6 @@ export function hasRestriction(state: MatchState, seat: Seat, card: CardInstance
   return restrictionValue(state, seat, card, restriction) != null;
 }
 
-/** Player-level restriction. Filtered restrictions apply only when `card` matches the filter. */
 export function playerRestricted(state: MatchState, seat: Seat, restriction: PlayerRestriction, card?: { id: InstanceId; defId: string }): boolean {
   const applies = (filter: Filter | undefined, ctxSeat: Seat) => {
     if (!filter) return true;
@@ -80,7 +72,6 @@ export function playerRestricted(state: MatchState, seat: Seat, restriction: Pla
   return false;
 }
 
-/** "Your opponent cannot attack any card other than …": may `seat` attack `target`? */
 export function attackTargetAllowed(state: MatchState, seat: Seat, target: CardInstance): boolean {
   const filters: { filter: Filter; seat: Seat; source: { id: InstanceId; defId: string } }[] = [];
   for (const m of state.modifiers) {
@@ -94,7 +85,6 @@ export function attackTargetAllowed(state: MatchState, seat: Seat, target: CardI
   return loc != null && filters.every((f) => filterMatches(state, ctxFor(f.seat, f.source), f.filter, loc));
 }
 
-/** "This card cannot attack … matching": does a restriction forbid \`attacker\` from attacking \`target\`? */
 export function cannotAttackMatching(state: MatchState, seat: Seat, attacker: CardInstance, target: CardInstance): boolean {
   const loc = locateCard(state, target.id);
   if (!loc) return false;
@@ -103,7 +93,6 @@ export function cannotAttackMatching(state: MatchState, seat: Seat, attacker: Ca
   return false;
 }
 
-/** Printed attributes plus gained ones (field cards). */
 export function attributesOf(state: MatchState, loc: Located): string[] {
   const printed = (getCardDef(loc.defId).attribute ?? "").split("/").filter(Boolean);
   if (!loc.card || !onField(loc)) return printed;
@@ -111,7 +100,6 @@ export function attributesOf(state: MatchState, loc: Located): string[] {
   return [...printed, ...gained];
 }
 
-/** Protection keyed on the effect's source card ("cannot be K.O.'d by effects of Characters without <Special>"). */
 export function protectedFromSource(state: MatchState, target: Located, restriction: Restriction, source: Located | null, sourceSeat: Seat): boolean {
   if (!target.card || !onField(target)) return false;
   const filters: { filter: Filter; seat: Seat; card: CardInstance }[] = [];
@@ -123,7 +111,6 @@ export function protectedFromSource(state: MatchState, target: Located, restrict
   return filters.some((f) => filterMatches(state, ctxFor(f.seat, f.card), f.filter, source));
 }
 
-/** "Cannot be K.O.'d in battle by <Attribute> …": does any such protection apply against `attackerDefId`? */
 export function protectedFromBattleKoBy(state: MatchState, seat: Seat, card: CardInstance, attackerDefId: string): boolean {
   const attackerLoc = findBattleCard(state, attackerDefId);
   const attrs = attackerLoc ? attributesOf(state, attackerLoc) : (getCardDef(attackerDefId).attribute ?? "").split("/");
@@ -137,7 +124,6 @@ export function protectedFromBattleKoBy(state: MatchState, seat: Seat, card: Car
   return false;
 }
 
-/** Counter value of a hand card, including "have a +N Counter" rules. */
 export function counterOf(state: MatchState, seat: Seat, card: CardInstance): number {
   const def = getCardDef(card.defId);
   let value = def.counter ?? 0;
@@ -156,7 +142,6 @@ export function counterOf(state: MatchState, seat: Seat, card: CardInstance): nu
   return value;
 }
 
-/** Cost to play a hand card now. */
 export function playCostOf(state: MatchState, seat: Seat, card: CardInstance): number {
   const def = getCardDef(card.defId);
   let cost = def.cost;

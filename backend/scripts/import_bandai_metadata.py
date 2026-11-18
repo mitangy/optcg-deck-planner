@@ -97,8 +97,6 @@ def discover_series(html):
     return dict(sorted(result.items()))
 
 
-# Official text writes attributes as literal "<Slash>" inside the HTML, which an
-# HTML parser would swallow as tags. Protect them as fullwidth brackets.
 ATTRIBUTE_MARKER = re.compile(r"<(Strike|Slash|Special|Wisdom|Ranged)>")
 
 
@@ -136,7 +134,6 @@ def parse_cards(html):
             row[field] = value
         if not row["name"]:
             raise ValueError(f"Missing name on {printing_id}")
-        # Errata notices require a separate review; scraping is not verification.
         status["errata"] = "unknown"
         row["fieldStatus"] = status
         if printing_id in cards:
@@ -177,7 +174,6 @@ def encoded(value):
 
 
 def retrieved_at(fetch, url):
-    """Original retrieval time for replayed snapshots; now for live fetches."""
     recorded = getattr(fetch, "retrieved", {}).get(url)
     return recorded or datetime.now(timezone.utc).isoformat()
 
@@ -222,7 +218,6 @@ def collect(series, output, catalog, fetch=None, all_series=False):
                "cards": all_cards, "reconciliation": reconcile(all_cards, catalog, all_series)}
     content = encoded(payload)
     digest = hashlib.sha256(content).hexdigest()
-    # Candidate is content-addressed; only the manifest changes after every fetch succeeds.
     (output / f"candidate-{digest}.json").write_bytes(content)
     manifest = output / "latest-candidate.tmp"
     manifest.write_bytes(encoded({"candidate": f"candidate-{digest}.json", "sources": sources}))
@@ -231,7 +226,6 @@ def collect(series, output, catalog, fetch=None, all_series=False):
 
 
 def replay_fetcher(directory):
-    """Serve fetches from a previous run's content-addressed raw snapshots."""
     manifest = json.loads((directory / "latest-candidate.json").read_text(encoding="utf-8"))
     by_url = {source["url"]: source["sha256"] for source in manifest["sources"]}
     retrieved = {source["url"]: source.get("retrievedAt") for source in manifest["sources"]}

@@ -8,11 +8,6 @@ import { newOpponentReveals, type OpponentReveal } from "./revealCues";
 
 const SHOW_MS = 3600;
 
-/**
- * Queue of cards the opponent reveals, filled as new log entries arrive (never
- * on mount, resync or undo; see newOpponentReveals). `enabled` = reveals apply
- * (not spectating); the log is tracked either way so enabling never replays.
- */
 export function useOpponentReveals(
   battleLog: readonly BattleLogEntry[],
   oppSeat: 0 | 1,
@@ -32,11 +27,6 @@ export function useOpponentReveals(
   return { current: queue[0] ?? null, waiting: Math.max(0, queue.length - 1), dismiss };
 }
 
-/**
- * The revealed card, big over the board with "Opponent reveals …". Fixed
- * overlay: the backdrop lets clicks through, only the card itself takes a
- * click (or Esc) to dismiss; it also leaves on its own after a few seconds.
- */
 export function RevealOverlay({
   reveal,
   waiting,

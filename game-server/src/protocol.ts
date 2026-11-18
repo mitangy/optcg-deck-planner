@@ -1,9 +1,3 @@
-/**
- * Duel wire protocol — protocolVersion 5 (generic effect choice requests).
- * Message types, constants and envelope parsers live in @optcg/duel-protocol (shared with duel-web); this module
- * re-exports them and keeps the two parsers that need the game server's own modules or the engine's runtime:
- * room creation options (seed / first-seat guards, bot levels) and intents (validated by @optcg/rules).
- */
 import { BOT_LEVELS, parseIntent, type BotLevel, type Intent, type Seat } from "@optcg/rules";
 import {
   PROTOCOL_VERSION,
@@ -19,16 +13,13 @@ import { gameFirstSeat, gameSeed } from "./matchmakeGuard.js";
 
 export * from "@optcg/duel-protocol";
 
-/** Ranked games give each player a 15 minute chess clock (30 minutes total). */
 export const RANKED_SEAT_SECONDS = 15 * 60;
 
 export function parseCreateOptions(raw: unknown): {
   protocolVersion: ProtocolVersion;
   seed: number;
-  /** Seat that goes first in the room's first game. */
   firstSeat: Seat;
   autoSkipMulligan: boolean;
-  /** Ask for the opening dice roll (#1190); deployed servers roll regardless. */
   diceRoll: boolean;
   ranked: boolean;
   seatUserIds?: [number, number];
@@ -134,7 +125,7 @@ export function parseIntentMessage(raw: unknown): Intent {
   ) {
     throw bad("intent object with type required");
   }
-  // The engine indexes arrays with intent fields, so the shape is checked here (refactor 0.2).
+  // The engine indexes arrays with intent fields, so the shape is checked here.
   const parsed = parseIntent(o.intent);
   if (!parsed.ok) {
     throw bad(parsed.message);

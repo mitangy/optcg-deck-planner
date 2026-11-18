@@ -1,12 +1,10 @@
 import type { DiceCall, DiceStateMessage, Seat } from "../../net/protocol";
 
-/** The dice state a viewer sees: who they are (null = spectator) and whether the die is still tumbling. */
 export type DiceView = Pick<DiceStateMessage, "roller" | "caller" | "step" | "call" | "roll" | "winner"> & {
   me: Seat | null;
   tumbling: boolean;
 };
 
-/** What fills the fixed action slot of the dice card at one step. */
 export type DiceSlot =
   | { kind: "call"; enabled: boolean; picked: DiceCall | null }
   | { kind: "roll"; enabled: boolean }
@@ -14,10 +12,8 @@ export type DiceSlot =
   | { kind: "wait"; text: string };
 
 const callName = (call: DiceCall) => (call === "high" ? "High" : "Low");
-/** The side of the die a roll falls on: High is 4-6, Low is 1-3. */
 export const rollSide = (roll: number): DiceCall => (roll >= 4 ? "high" : "low");
 
-/** The one line under the die. `nameOf` gives "You" for the viewer's own seat. */
 export function diceStatus(v: DiceView, nameOf: (seat: Seat) => string): string {
   const caller = nameOf(v.caller);
   const roller = nameOf(v.roller);
@@ -37,7 +33,7 @@ export function diceStatus(v: DiceView, nameOf: (seat: Seat) => string): string 
   return `${caller} called ${called}. ${roller} is rolling…`;
 }
 
-/** The controls (or waiting text) in the action slot. The slot keeps one height, so the card never jumps between steps. */
+// The slot keeps one height, so the card never jumps between steps.
 export function diceSlot(v: DiceView, nameOf: (seat: Seat) => string): DiceSlot {
   if (v.step === "call") {
     if (v.me === v.caller) return { kind: "call", enabled: true, picked: null };

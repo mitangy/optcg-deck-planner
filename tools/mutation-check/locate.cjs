@@ -1,9 +1,3 @@
-/**
- * --locate-stale: for each mutation anchor that no longer matches its file,
- * search the tracked source files for the one place the anchor moved to.
- * Exact text is tried across all candidate files first, then the
- * whitespace-tolerant fallback. Read-only.
- */
 "use strict";
 const fs = require("fs");
 const path = require("path");
@@ -18,21 +12,14 @@ function trackedFiles(repo) {
   return execFileSync("git", ["ls-files", "-z"], { cwd: repo, encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }).split("\0").filter(Boolean);
 }
 
-/** Directories to search for an anchor whose old file was `oldFile` in a suite running in `cwd`. */
 function defaultScopes(cwd, oldFile) {
   const parts = oldFile.split("/");
-  // The file's own package/app root: packages/<name>, else the first directory.
   const root = parts[0] === "packages" && parts.length > 2 ? parts.slice(0, 2).join("/") : parts.length > 1 ? parts[0] : "";
   return [...new Set([cwd === "." ? "" : cwd, root])];
 }
 
 const inScope = (file, scopes) => scopes.some((s) => s === "" || s === "." || file === s || file.startsWith(`${s.replace(/\/$/, "")}/`));
 
-/**
- * Locate every stale anchor. `scope` (a repo-relative directory) replaces the
- * default search area. `files` and `readFile` can be injected for tests.
- * Returns { output: string[], stale, unlocated }.
- */
 function locateStale({ repo, suites, only = null, scope = null, files = null, readFile = null }) {
   const list = files ?? trackedFiles(repo);
   const read = readFile ?? ((f) => {

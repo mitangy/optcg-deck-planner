@@ -10,10 +10,8 @@ export const useL = () => {
   if (!l) throw new Error('no layout');
   return l;
 };
-/** frames the current scene was started early (0 for the very first scene) */
 const LeadCtx = createContext(0);
 export const LeadProvider = LeadCtx.Provider;
-/** frame counted from the scene's nominal start (negative during the lead-in overlap) */
 export const useScene = () => useCurrentFrame() - useContext(LeadCtx);
 
 export const M = (f: string) => staticFile(`motion/${f}`);
@@ -23,7 +21,6 @@ export const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 export const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
 export const ease = Easing.bezier(0.22, 1, 0.36, 1);
 export const easeInOut = Easing.bezier(0.65, 0, 0.35, 1);
-/** 0..1 eased progress between two frames */
 export const prog = (f: number, a: number, b: number, e = ease) => interpolate(f, [a, b], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: e});
 export const sp = (f: number, start: number, cfg: {damping?: number; stiffness?: number; mass?: number} = {}) =>
   spring({frame: f - start, fps: 30, config: {damping: 16, stiffness: 120, mass: 0.9, ...cfg}});
@@ -49,12 +46,10 @@ export const sans = (size: number, extra: React.CSSProperties = {}): React.CSSPr
   fontFamily: FONT_SANS, fontWeight: 500, fontSize: size, color: COLORS.ink, lineHeight: 1.15, ...extra,
 });
 
-/** Centre-anchored absolute box */
 export const At: React.FC<{x: number; y: number; w?: number; h?: number; style?: React.CSSProperties; children: React.ReactNode}> = ({x, y, w = 0, h = 0, style, children}) => (
   <div style={{position: 'absolute', left: x - w / 2, top: y - h / 2, width: w || undefined, height: h || undefined, ...style}}>{children}</div>
 );
 
-/** Scene fades in over the overlap and out over the next one's overlap; tiny scale breathing for depth */
 export const SceneFade: React.FC<{lead: number; tail: number; dur: number; children: React.ReactNode}> = ({lead, tail, dur, children}) => {
   const f = useCurrentFrame();
   const a = lead ? prog(f, 0, lead, Easing.linear) : 1;

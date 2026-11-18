@@ -29,15 +29,14 @@ import numpy as np
 
 SIZE = 640
 VISIBLE_MIN = 0.35
-OOF_MIN = 0.55  # a card cut by the photo's edge is labelled when this much of it is inside
-CROP_PROB = 0.3  # share of scenes shown through a smaller window (cards run over the frame)
-NON_OP_PILE = 0.07  # share of table piles made of non-One-Piece cards (--non-op-piles)
-DISTRACTOR_ON_CARDS = 0.0  # share of distractors dropped right next to / under a card (--hard-negatives)
+OOF_MIN = 0.55
+CROP_PROB = 0.3
+NON_OP_PILE = 0.07
+DISTRACTOR_ON_CARDS = 0.0
 CARD_ASPECT = 63.0 / 88.0
-rng = random.Random()  # re-seeded per scene
+rng = random.Random()
 
 
-# ----------------------------------------------------------------- helpers
 def U(a, b):
     return rng.uniform(a, b)
 
@@ -51,7 +50,6 @@ def read(path, flags=cv2.IMREAD_COLOR):
 
 
 def rr(sw, sh, x0, y0, x1, y1, r):
-    """Anti-aliased rounded-rect coverage mask (float32 HxW)."""
     ys, xs = np.mgrid[0:sh, 0:sw].astype(np.float32)
     xs += 0.5
     ys += 0.5
@@ -65,7 +63,6 @@ def rr(sw, sh, x0, y0, x1, y1, r):
 
 
 class Layer:
-    """Premultiplied RGBA float canvas."""
 
     def __init__(self, w, h):
         self.w, self.h = w, h
@@ -80,7 +77,6 @@ class Layer:
         self.a = m + self.a * (1 - m)
 
     def paint_img(self, img, mask, x, y):
-        """Paste a BGR image (float32) with mask at integer (x, y)."""
         h, w = img.shape[:2]
         x0, y0 = max(x, 0), max(y, 0)
         x1, y1 = min(x + w, self.w), min(y + h, self.h)
@@ -92,7 +88,6 @@ class Layer:
         self.a[y0:y1, x0:x1] = m + self.a[y0:y1, x0:x1] * (1 - m)
 
     def overlay_tint(self, color, mask, opacity):
-        """Tint what is already drawn (does not change coverage)."""
         m = np.clip(mask * opacity, 0, 1) * (self.a > 0.01)
         col = np.asarray(color, np.float32).reshape(1, 1, 3) * self.a[..., None]
         self.pm = self.pm * (1 - m[..., None]) + col * m[..., None]
@@ -118,7 +113,6 @@ SLEEVE_COLORS = [
 
 
 def round_card(card, cw, ch):
-    """Card art resized, with the printed rounded corners masked."""
     img = cv2.resize(card, (cw, ch), interpolation=cv2.INTER_AREA).astype(np.float32)
     mask = rr(cw, ch, 0, 0, cw, ch, 0.05 * cw)
     return img, mask
@@ -135,7 +129,6 @@ def foil(img):
 
 
 def gold_frame(img):
-    """Gold-bordered alt art: a thick metallic frame on the card's edge."""
     h, w = img.shape[:2]
     t = max(3, int(w * U(0.035, 0.07)))
     m = np.ones((h, w), np.float32)
@@ -176,10 +169,6 @@ def watermark(img, strength=None):
     return img * (1 - a) + 255 * a
 
 
-# ------------------------------------------------- non-One-Piece faces (#789)
-# Procedural stand-ins for other games' cards and for product box art. They
-# have to look like the real thing at phone-photo size (art box, name bar, text
-# box, borders, icons), vary a lot, and never reuse One Piece's own frame.
 FONT = cv2.FONT_HERSHEY_SIMPLEX
 
 
@@ -199,7 +188,6 @@ def _vgrad(w, h, c1, c2):
 
 
 def para(out, x0, y0, x1, y1, col, lh, alpha=0.75):
-    """Lines of 'text' (word-shaped bars) filling a box."""
     h, w = out.shape[:2]
     m = np.zeros((h, w), np.uint8)
     lh = max(int(lh), 3)
@@ -227,7 +215,6 @@ def label_text(out, text, x, y, scale, col, thick=1):
 
 
 def proc_art(cards, aw, ah):
-    """Art that is not One Piece's: recoloured crops, plasma, landscapes."""
     aw, ah = max(aw, 4), max(ah, 4)
     r = rng.random()
     if r < 0.4:
@@ -383,7 +370,6 @@ def style_sports(cards, cw, ch):
 
 
 def style_fullart(cards, cw, ch):
-    """Modern full-art card: art to the edge, cost orbs, a text panel over it, like the newest games (and a bit like ours)."""
     out = np.zeros((ch, cw, 3), np.float32)
     m = int(cw * U(0.02, 0.05))
     out[:] = _col(10, 240)
@@ -415,17 +401,17 @@ def style_back(cards, cw, ch):
     out[m : ch - m, m : cw - m] = np.clip(base * U(0.5, 1.4), 0, 255)
     v = rng.random()
     cx, cy = cw // 2, ch // 2
-    if v < 0.35:  # swirl / oval emblem
+    if v < 0.35:
         cv2.ellipse(out, (cx, cy), (int(cw * U(0.2, 0.36)), int(cw * U(0.2, 0.36))), 0, 0, 360, tuple(float(c) for c in _col()), -1, cv2.LINE_AA)
         cv2.circle(out, (cx, cy), int(cw * 0.14), tuple(float(c) for c in _col()), 3, cv2.LINE_AA)
-    elif v < 0.7:  # diamond lattice
+    elif v < 0.7:
         step = max(6, int(cw * U(0.05, 0.12)))
         c2 = tuple(float(c) for c in np.clip(base * U(0.3, 1.8) + 20, 0, 255))
         for k in range(-ch, cw + ch, step):
             cv2.line(out, (k, 0), (k + ch, ch), c2, 1, cv2.LINE_AA)
             cv2.line(out, (k + ch, 0), (k, ch), c2, 1, cv2.LINE_AA)
         cv2.ellipse(out, (cx, cy), (int(cw * 0.3), int(ch * 0.2)), 0, 0, 360, tuple(float(c) for c in _col()), -1, cv2.LINE_AA)
-    else:  # logo text band
+    else:
         _blend(out, m, ch * 0.4, cw - m, ch * 0.6, _col(), 0.9)
         label_text(out, rand_words(1)[0], cw * 0.18, ch * 0.54, cw / 130, _col(150, 255), 2)
     cv2.rectangle(out, (m, m), (cw - m, ch - m), tuple(float(c) for c in _col(150, 255)), max(1, cw // 70))
@@ -436,7 +422,6 @@ STYLES = [style_pokemon, style_mtg, style_ygo, style_sports, style_fullart, styl
 
 
 def fake_card(cards, cw, ch):
-    """A card that is NOT a One Piece card: another game's layout, procedurally drawn."""
     fn = rng.choices(STYLES, [22, 20, 14, 10, 22, 12])[0]
     out = fn(cards, cw, ch)
     if rng.random() < 0.12:
@@ -453,9 +438,6 @@ def card_back(cw, ch):
 
 
 def box_face(cards, cw, ch):
-    """The front of a product box: a coloured panel with a logo band, a warning
-    tag and a printed (smaller, slightly crooked) card on it, like the starter
-    deck boxes behind the acrylic cases on a shop shelf."""
     out = _vgrad(cw, ch, _col(10, 230), _col(10, 230))
     dark = np.array([25, 25, 25], np.float32)
     lg = int(ch * U(0.06, 0.12))
@@ -466,7 +448,7 @@ def box_face(cards, cw, ch):
     c = read(rng.choice(cards))
     c = cv2.resize(c, (pw, ph), interpolation=cv2.INTER_AREA).astype(np.float32)
     c = c * U(0.7, 1.0) + U(0, 25)
-    if rng.random() < 0.5:  # printed art is slightly crooked
+    if rng.random() < 0.5:
         M = cv2.getRotationMatrix2D((pw / 2, ph / 2), U(-9, 9), 1.0)
         pm = cv2.warpAffine(np.ones((ph, pw), np.float32), M, (pw, ph))
         c = cv2.warpAffine(c, M, (pw, ph))
@@ -480,7 +462,6 @@ def box_face(cards, cw, ch):
         sub = c[y0 - py : y1 - py, x0 - px : x1 - px]
         mm = pm[y0 - py : y1 - py, x0 - px : x1 - px][..., None]
         out[y0:y1, x0:x1] = sub * mm + out[y0:y1, x0:x1] * (1 - mm)
-    # tags, badges, barcode, small print
     if rng.random() < 0.8:
         _blend(out, cw * 0.04, ch * U(0.3, 0.5), cw * 0.36, ch * U(0.3, 0.5) + ch * 0.1, (235, 235, 235), 0.95)
         para(out, cw * 0.06, ch * 0.32, cw * 0.34, ch * 0.42, dark, ch * 0.022)
@@ -498,17 +479,14 @@ def box_face(cards, cw, ch):
     return np.clip(out, 0, 255), rr(cw, ch, 0, 0, cw, ch, U(1, 0.03 * cw))
 
 
-# ----------------------------------------------------------- card sprites
 class Sprite:
     def __init__(self, layer, quad, label, kind):
         self.layer, self.quad, self.label, self.kind = layer, quad, label, kind
 
 
 def build_sprite(kind, face, cw, ch, label, sleeve_color=None):
-    """Card face + its container, upright, at the scene's pixel scale."""
     img, mask = face
     pad = 5
-    # --- geometry of the container around the card
     if kind == "sleeve":
         mx, mt, mb = cw * U(0.03, 0.085), ch * U(0.035, 0.1), ch * U(0.02, 0.07)
     elif kind == "clear_sleeve":
@@ -540,7 +518,7 @@ def build_sprite(kind, face, cw, ch, label, sleeve_color=None):
     if kind == "sleeve":
         col = np.array(sleeve_color if sleeve_color is not None else rng.choice(SLEEVE_COLORS), np.float32)
         L.paint(col * U(0.85, 1.05), outer, U(0.9, 1.0))
-        L.paint(col * 1.15 + 15, stroke(max(1.0, cw * 0.012), 0), 0.35)  # sleeve rim highlight
+        L.paint(col * 1.15 + 15, stroke(max(1.0, cw * 0.012), 0), 0.35)
     elif kind == "clear_sleeve":
         L.paint((235, 235, 235), outer, U(0.08, 0.2))
         L.paint((250, 250, 250), stroke(1.5), 0.6)
@@ -566,9 +544,8 @@ def build_sprite(kind, face, cw, ch, label, sleeve_color=None):
         L.paint((230, 230, 230), stroke(1.5, 1), 0.7)
         gap = rr(sw, sh, x0 + t, y0 + t, x1 - t, y1 - t, 3)
         L.paint((200, 200, 200), gap, U(0.1, 0.3))
-        # inner shadow ring around card
         L.paint((15, 15, 15), np.clip(rr(sw, sh, ox - 3, oy - 3, ox + cw + 3, oy + ch + 3, rad) - mask_at(sw, sh, ox, oy, mask), 0, 1), 0.5)
-        for cy in (y0 + sh * 0.3, y0 + sh * 0.7):  # clips on the sides
+        for cy in (y0 + sh * 0.3, y0 + sh * 0.7):
             L.paint((200, 200, 205), rr(sw, sh, x0, cy - 6, x0 + t * 0.9, cy + 6, 2), 0.8)
             L.paint((200, 200, 205), rr(sw, sh, x1 - t * 0.9, cy - 6, x1, cy + 6, 2), 0.8)
     elif kind == "slab":
@@ -576,12 +553,11 @@ def build_sprite(kind, face, cw, ch, label, sleeve_color=None):
         rimc = {"clear": (225, 225, 225), "red": (50, 40, 190), "black": (35, 35, 35), "blue": (170, 90, 40)}[rim]
         t = max(3, int(cw * 0.06))
         L.paint(np.array(rimc, np.float32), outer, 0.95 if rim != "clear" else 0.55)
-        if rim != "clear":  # glitter
+        if rim != "clear":
             sp = (np.random.rand(sh, sw) > 0.92).astype(np.float32) * U(0.3, 0.8)
             L.paint((255, 255, 255), sp * stroke(t * 3.0), 0.8)
         inner = rr(sw, sh, x0 + t, y0 + t, x1 - t, y1 - t, 3)
         L.paint((215, 215, 215), inner, U(0.55, 0.9))
-        # label strip
         lh = int(mt * 0.8)
         lab = rr(sw, sh, x0 + t * 1.5, y0 + t * 1.5, x1 - t * 1.5, y0 + t * 1.5 + lh, 2)
         base = rng.choice([(245, 245, 245), (245, 245, 245), (50, 40, 200), (40, 40, 40)])
@@ -595,15 +571,12 @@ def build_sprite(kind, face, cw, ch, label, sleeve_color=None):
             if rng.random() < 0.6:
                 L.paint((20, 20, 20), rr(sw, sh, bx, y0 + t * 1.5 + lh * 0.55, bx + 1.5, y0 + t * 1.5 + lh * 0.95, 0.5), 0.8)
         L.paint((60, 60, 60), rr(sw, sh, ox - 5, oy - 5, ox + cw + 5, oy + ch + 5, 4) - rr(sw, sh, ox - 3, oy - 3, ox + cw + 3, oy + ch + 3, 3), 0.55)
-    # --- the card itself
     L.paint_img(img, mask, ox, oy)
-    # tint of the sleeve over the card, glare over everything
     if kind == "sleeve" and rng.random() < 0.7:
         L.overlay_tint(sleeve_color if sleeve_color is not None else (230, 190, 240), mask_at(sw, sh, ox, oy, mask), U(0.03, 0.1))
     if kind in ("sleeve", "clear_sleeve", "toploader", "pocket", "acrylic", "slab") and rng.random() < 0.7:
         g = gloss_mask(sw, sh, U(0.1, 0.5))
         L.overlay_tint((255, 255, 255), g * np.clip(L.a, 0, 1), 1.0)
-    # soft edge of the sprite for shadow computations is done by the caller
     quad = np.array([[ox, oy], [ox + cw, oy], [ox + cw, oy + ch], [ox, oy + ch]], np.float32)
     return Sprite(L, quad, label, kind)
 
@@ -615,7 +588,6 @@ def mask_at(sw, sh, ox, oy, mask):
     return m
 
 
-# ------------------------------------------------------------- backgrounds
 class BG:
     def __init__(self, textures, cards):
         self.textures = textures
@@ -624,7 +596,7 @@ class BG:
 
     def tex(self):
         p = rng.choice(self.textures)
-        if rng.random() < 0.35:  # tables are mostly wood
+        if rng.random() < 0.35:
             wood = [t for t in self.textures if os.path.basename(t).lower().startswith(("wood", "plank"))]
             p = rng.choice(wood or self.textures)
         if p not in self.cache:
@@ -657,15 +629,15 @@ class BG:
         if rng.random() < 0.4:
             base *= U(0.1, 0.4)
         refl = np.zeros((SIZE, SIZE), np.float32)
-        for _ in range(rng.randint(1, 4)):  # dark silhouettes of furniture / people
+        for _ in range(rng.randint(1, 4)):
             pts = np.array([[rng.randint(-100, SIZE + 100), rng.randint(-100, SIZE + 100)] for _ in range(rng.randint(3, 6))], np.int32)
             cv2.fillConvexPoly(refl, cv2.convexHull(pts), -U(0.2, 0.6))
-        for _ in range(rng.randint(0, 3)):  # bright window / lamp
+        for _ in range(rng.randint(0, 3)):
             pts = np.array([[rng.randint(0, SIZE), rng.randint(0, SIZE)] for _ in range(4)], np.int32)
             cv2.fillConvexPoly(refl, cv2.convexHull(pts), U(0.2, 0.7))
         refl = cv2.GaussianBlur(refl, (0, 0), U(4, 30))
         out = base * (1 + refl[..., None])
-        for _ in range(rng.randint(0, 3)):  # lamp glare discs
+        for _ in range(rng.randint(0, 3)):
             cx, cy = rng.randint(0, SIZE), rng.randint(0, SIZE)
             r = rng.randint(25, 70)
             disc = np.zeros((SIZE, SIZE), np.float32)
@@ -698,7 +670,6 @@ class BG:
         return cv2.resize(small, (SIZE, SIZE), interpolation=rng.choice([cv2.INTER_NEAREST, cv2.INTER_CUBIC]))
 
     def shelf(self):
-        """A shop's back wall: pale vertical gradient with metal slat bars."""
         base = np.linspace(U(215, 245), U(170, 215), SIZE, dtype=np.float32)[:, None, None] * np.ones((1, SIZE, 3), np.float32)
         base *= np.array([U(0.95, 1.05), U(0.97, 1.05), U(0.93, 1.03)], np.float32)
         for _ in range(rng.randint(1, 4)):
@@ -717,7 +688,6 @@ class BG:
         return getattr(self, kind)(), kind
 
 
-# ---------------------------------------------------------------- scene
 def rot_matrix(deg):
     c, s = math.cos(math.radians(deg)), math.sin(math.radians(deg))
     return np.array([[c, -s], [s, c]], np.float32)
@@ -734,11 +704,10 @@ def place_homography(sprite_shape, pos, deg):
 
 
 def persp_matrix():
-    """Mild camera tilt: map the plane's corners to jittered corners."""
     j = U(0.0, 0.14) if rng.random() < 0.75 else 0.0
     src = np.float32([[0, 0], [SIZE, 0], [SIZE, SIZE], [0, SIZE]])
     d = np.random.uniform(-j, j, (4, 2)).astype(np.float32) * SIZE
-    if rng.random() < 0.5:  # keystone: one edge pulled in
+    if rng.random() < 0.5:
         side = rng.randint(0, 3)
         k = U(0.0, 0.2) * SIZE
         idx = [(0, 1), (1, 2), (2, 3), (3, 0)][side]
@@ -754,7 +723,7 @@ def make_scene(cards, bg, rngseed):
     P = persp_matrix()
     scene_kind = rng.choices(["table", "binder", "shelf"], weights=[78, 12, 10])[0]
     base, bgkind = (bg.shelf(), "shelf") if scene_kind == "shelf" else bg.make()
-    if rng.random() < 0.2:  # stray big translucent text on the table
+    if rng.random() < 0.2:
         patch = np.zeros((SIZE, SIZE, 3), np.float32)
         wm = watermark(np.zeros((SIZE // 2, SIZE // 2, 3), np.float32) + 128, U(0.15, 0.5))
         M = cv2.getRotationMatrix2D((SIZE // 4, SIZE // 4), U(0, 360), U(0.8, 2.0))
@@ -763,9 +732,9 @@ def make_scene(cards, bg, rngseed):
         base = base + patch * 1.0
     # background lives on the table plane, so it takes the camera's perspective too
     base = cv2.warpPerspective(base, P, (SIZE, SIZE), borderMode=cv2.BORDER_REFLECT)
-    items = []  # (sprite, H(plane->scene 3x3), z)
+    items = []
 
-    Hs = logU(66, 400)  # base card height in plane px
+    Hs = logU(66, 400)
     dominant = rng.choice([0, 90, 180, 270]) + U(-10, 10)
     follow = rng.random() < 0.65
     occ = np.zeros((SIZE // 8, SIZE // 8), np.uint8)
@@ -814,9 +783,8 @@ def make_scene(cards, bg, rngseed):
             if not op:
                 sp.label = False
             sps.append(sp)
-        # offsets: bottom card first, top card last
         d_ang = math.radians(rot + fan_dir)
-        rel = math.radians(fan_dir)  # card extent along the offset direction
+        rel = math.radians(fan_dir)
         along = abs(math.cos(rel)) * ch + abs(math.sin(rel)) * cw
         step = step_frac * along * rng.choice([1, 1])
         poly_pts = []
@@ -857,7 +825,6 @@ def make_scene(cards, bg, rngseed):
         gx, gy = cw * 1.1, ch * 1.07
         cx0, cy0 = SIZE / 2 + U(-40, 40), SIZE / 2 + U(-40, 40)
         page_w, page_h = cols * gx + cw * 0.12, rows * gy + ch * 0.12
-        # page backing drawn into the background (on the plane), then warped
         page = np.zeros((SIZE, SIZE, 3), np.float32)
         page[:] = U(15, 45)
         R = rot_matrix(rot)
@@ -879,7 +846,6 @@ def make_scene(cards, bg, rngseed):
                 local, _ = add_pile(cx0 + off[0], cy0 + off[1], hc, rot, "pocket", 1, 0, 0, non_op=non_op)
                 items.extend((sp, P @ M, z) for sp, M in local)
                 z += 1
-        # loose cards on top of the page (like a photo of two cards laid on a binder)
         for _ in range(rng.randint(0, 3)):
             lh = hc * U(0.9, 1.35)
             cx, cy = cx0 + U(-0.3, 0.3) * page_w, cy0 + U(-0.3, 0.3) * page_h
@@ -907,10 +873,10 @@ def make_scene(cards, bg, rngseed):
             style = rng.choice(["fan", "wide_fan", "wide_fan", "stack", "side", "side", "cover"])
             step = {"fan": U(0.03, 0.25), "wide_fan": U(0.3, 0.65), "stack": U(0.005, 0.045), "side": U(0.0, 0.0), "cover": U(0.3, 0.8)}[style]
             fan_dir = rng.choice([0, 180, 90, 270]) + U(-6, 6)
-            if style == "side" and n > 1:  # cards laid next to each other, edges touching or overlapping
+            if style == "side" and n > 1:
                 fan_dir = 90 if rng.random() < 0.5 else 270
                 step = U(0.5, 1.04)
-            if style == "cover":  # a card half on top of another, any direction
+            if style == "cover":
                 fan_dir = U(0, 360)
                 n = rng.choice([2, 2, 3])
             if kind in ("slab", "acrylic"):
@@ -921,10 +887,9 @@ def make_scene(cards, bg, rngseed):
                 local, poly = add_pile(cx, cy, hc, rot, kind, n, step, fan_dir, non_op=non_op)
                 ok, m = foot_free(poly)
                 if not ok and placed > 0 and rng.random() < 0.3:
-                    ok = True  # lay this pile partly over a neighbour
+                    ok = True
                 if not ok or not inside_scene(local):
                     continue
-                # fan behind cards that are scattered: keep one label rule: visibility decided later
                 items.extend((sp, P @ M, z) for sp, M in local)
                 z += 1
                 occ |= m
@@ -933,7 +898,6 @@ def make_scene(cards, bg, rngseed):
         if scene_kind == "shelf":
             pass
 
-    # ---- distractor rectangles (boxes with printed art, paper, phones)
     distract = []
     for _ in range(rng.choice([0, 0, 1, 2, 3, 5]) if scene_kind != "shelf" else rng.randint(2, 4)):
         hh = logU(60, 280) if scene_kind != "shelf" else logU(220, 380)
@@ -941,7 +905,7 @@ def make_scene(cards, bg, rngseed):
         ww = hh * CARD_ASPECT * U(1.05, 1.5) if hard_art else hh * U(0.45, 1.3)
         rotd = rng.choice([0, 90, 0]) + U(-8, 8) if rng.random() < 0.6 else U(0, 360)
         cx, cy = U(0.05, 0.95) * SIZE, U(0.05, 0.95) * SIZE
-        if items and rng.random() < DISTRACTOR_ON_CARDS:  # box with card art tucked behind / beside a card
+        if items and rng.random() < DISTRACTOR_ON_CARDS:
             sp0, H0, _ = rng.choice(items)
             c0 = cv2.perspectiveTransform(sp0.quad.mean(0)[None, None], H0)[0, 0]
             cx, cy = float(c0[0]) + U(-0.6, 0.6) * hh, float(c0[1]) + U(-0.6, 0.6) * hh
@@ -950,10 +914,10 @@ def make_scene(cards, bg, rngseed):
         L = Layer(sw_, sh_)
         body = rr(sw_, sh_, 5, 5, sw_ - 5, sh_ - 5, U(1, 8))
         L.paint(col, body, 1.0)
-        if rng.random() < 0.55:  # a printed box front instead (#789)
+        if rng.random() < 0.55:
             bimg, bmask = box_face(cards, int(ww), int(hh))
             L.paint_img(bimg, bmask, 5, 5)
-        elif hard_art or rng.random() < 0.7:  # printed art, sometimes a whole fake printed card
+        elif hard_art or rng.random() < 0.7:
             if hard_art or rng.random() < 0.6:
                 art = read(rng.choice(cards))
                 aw = int(hh * CARD_ASPECT * U(0.7, 0.93)) if hard_art else int(ww * U(0.4, 0.8))
@@ -968,11 +932,10 @@ def make_scene(cards, bg, rngseed):
             L.overlay_tint((255, 255, 255), gloss_mask(sw_, sh_, U(0.2, 0.6)) * L.a, 1.0)
         distract.append((L, place_homography((sh_, sw_), (cx, cy), rotd)))
 
-    # ---- render
     img = base.copy()
     idmap = np.full((SIZE, SIZE), -1, np.int32)
     order = sorted(range(len(items)), key=lambda i: items[i][2])
-    dist_first = rng.random() < (0.85 if DISTRACTOR_ON_CARDS else 0.6)  # boxes behind the cards, or a stray one over a corner
+    dist_first = rng.random() < (0.85 if DISTRACTOR_ON_CARDS else 0.6)
     def draw_layer(L, H, ident):
         nonlocal img
         warped_pm = cv2.warpPerspective(L.pm, H, (SIZE, SIZE), flags=cv2.INTER_LINEAR)
@@ -995,7 +958,6 @@ def make_scene(cards, bg, rngseed):
     if not dist_first:
         for L, M in distract:
             draw_layer(L, P @ M, None)
-    # occluders: hands / fingers
     for _ in range(rng.choice([0, 0, 0, 1, 2])):
         skin = np.array([U(110, 190), U(130, 190), U(170, 235)], np.float32) * U(0.6, 1.0)
         L = Layer(300, 300)
@@ -1005,8 +967,6 @@ def make_scene(cards, bg, rngseed):
     # ---- labels: full quads of the cards that are visible enough, with per-corner visibility.
     # Frame cut-offs (#789): sometimes the "photo" is a window onto the scene, so
     # cards run over its edge. A card is labelled when >= OOF_MIN of it is inside
-    # the window and VISIBLE_MIN of it is visible there; its quad keeps the corners
-    # that are outside (flag 1) and the box is the part that is inside.
     crop = None
     if rng.random() < CROP_PROB:
         f = U(0.6, 0.92)
@@ -1034,7 +994,6 @@ def make_scene(cards, bg, rngseed):
         vis = (idmap[mw] == i).mean() * inframe
         if vis < VISIBLE_MIN:
             continue
-        # a corner is seen when it is in the window and this card is the topmost thing just inside it
         ctr = q.mean(0)
         flags = []
         for p in q:
@@ -1054,7 +1013,6 @@ def make_scene(cards, bg, rngseed):
         img = cv2.resize(np.asarray(img, np.float32)[y0 : y0 + s_, x0 : x0 + s_], (SIZE, SIZE), interpolation=cv2.INTER_LINEAR)
 
     if scene_kind == "shelf" and labels:
-        # glass shelf: everything below the lowest card is a faded mirror image
         ys = [q[:, 1].max() for q, _, _ in labels]
         y0 = int(min(SIZE - 40, max(ys) + SIZE * 0.015))
         k = SIZE - y0
@@ -1065,15 +1023,12 @@ def make_scene(cards, bg, rngseed):
         img[y0 : y0 + 3] = np.clip(img[y0 : y0 + 3].astype(np.float32) * 0.5 + 100, 0, 255)
         img = img.astype(np.float32)
 
-    # ---- camera effects
-    # glare blobs
     for _ in range(rng.choice([0, 0, 1, 1, 2, 3])):
         cx, cy = rng.randint(0, SIZE), rng.randint(0, SIZE)
         disc = np.zeros((SIZE, SIZE), np.float32)
         cv2.ellipse(disc, (cx, cy), (rng.randint(15, 140), rng.randint(15, 140)), U(0, 180), 0, 360, 1.0, -1)
         disc = cv2.GaussianBlur(disc, (0, 0), U(8, 40)) * U(0.15, 0.7)
         img = img + disc[..., None] * np.array([U(200, 255), U(220, 255), 255], np.float32)
-    # vignette + white balance + contrast
     ys, xs = np.mgrid[0:SIZE, 0:SIZE].astype(np.float32)
     r = np.hypot(xs - SIZE / 2, ys - SIZE / 2) / SIZE
     img = img * (1 - U(0, 0.35) * r**2)[..., None]
@@ -1090,7 +1045,7 @@ def make_scene(cards, bg, rngseed):
         M = cv2.getRotationMatrix2D((k / 2 - 0.5, k / 2 - 0.5), U(0, 180), 1)
         kern = cv2.warpAffine(kern, M, (k, k))
         img = cv2.filter2D(img, -1, kern / max(kern.sum(), 1e-6))
-    if rng.random() < 0.5:  # low-res then upscale, like a phone crop
+    if rng.random() < 0.5:
         f = U(0.45, 0.85)
         s = cv2.resize(img, None, fx=f, fy=f, interpolation=cv2.INTER_AREA)
         img = cv2.resize(s, (SIZE, SIZE), interpolation=cv2.INTER_LINEAR)

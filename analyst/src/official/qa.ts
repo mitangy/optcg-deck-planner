@@ -1,15 +1,9 @@
-/**
- * Official Q&A from Bandai's FAQ PDFs: one table per set ("Card No. | Card Name | Question | Answer")
- * and a general rules table ("Category | Question | Answer"), parsed from text positions.
- */
 import { decodeEntities } from "./html";
 import { queryTerms } from "./rules";
 import { joinRuns, type PdfItem, type PdfPage } from "./pdf";
 
 export type QaEntry = {
-  /** Card number of the row, when the table is per card. */
   cardId: string | null;
-  /** Card name, or the category in the general rules table. */
   label: string;
   question: string;
   answer: string;
@@ -25,7 +19,6 @@ function findColumns(page: PdfPage, previous: Columns | null): Columns | null {
   const a = page.find((i) => i.str.trim() === "Answer");
   if (!q || !a) return previous ? { ...previous, headerY: Infinity } : null;
   const split = (q.x + a.x) / 2;
-  // Question text is left-aligned under a centred header; its most common start x is the column edge.
   const counts = new Map<number, number>();
   for (const i of page) if (i.y < q.y - 2 && i.x < split) counts.set(Math.round(i.x), (counts.get(Math.round(i.x)) ?? 0) + 1);
   const [questionX] = [...counts.entries()].sort((x, y) => y[1] - x[1])[0] ?? [q.x];
@@ -61,7 +54,6 @@ export function parseQaTable(pages: readonly PdfPage[]): QaEntry[] {
     const aItems = body.filter((i) => i.x >= answer);
     const labels = body.filter((i) => i.x < question);
     if (!qItems.length) continue;
-    // Rows start where the question column jumps by more than a line and a half.
     const gaps = qItems.slice(1).map((it, n) => qItems[n]!.y - it.y).filter((g) => g > 2);
     const line = gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 4)] ?? 12;
     const rows: { top: number; q: PdfItem[]; a: PdfItem[]; label: PdfItem[] }[] = [];
@@ -71,8 +63,6 @@ export function parseQaTable(pages: readonly PdfPage[]): QaEntry[] {
       if (Math.abs(lastY - it.y) > 2) lastY = it.y;
       rows[rows.length - 1]!.q.push(it);
     }
-    // A row runs from its top line down to the next row's top. Labels sit centred in the row's box,
-    // which starts about a line above its text, so their window is shifted up by one line.
     const rowAt = (y: number, shift = 0) => {
       for (let n = rows.length - 1; n >= 0; n--) if (y <= rows[n]!.top + shift + 2) return rows[n]!;
       return rows[0]!;
@@ -84,7 +74,6 @@ export function parseQaTable(pages: readonly PdfPage[]): QaEntry[] {
       const a = text(r.a);
       if (!r.label.length) {
         const prev = entries[entries.length - 1];
-        // A row with no label at the top of a page carries on the previous page's last row.
         if (n === 0 && prev) {
           prev.question = `${prev.question} ${q}`.trim();
           prev.answer = `${prev.answer} ${a}`.trim();
@@ -101,7 +90,6 @@ export function parseQaTable(pages: readonly PdfPage[]): QaEntry[] {
   return entries.filter((e) => e.question && e.answer);
 }
 
-/** FAQ PDFs listed on the official FAQ page, with the set codes each covers. */
 export type FaqFile = { url: string; sets: string[]; general: boolean };
 
 export function setCodeOf(cardId: string): string {
@@ -113,7 +101,6 @@ function setsFromFile(name: string): string[] {
   if (stem.startsWith("promotion")) return ["P"];
   const sets: string[] = [];
   for (const raw of stem.split("_")) {
-    // "st-01-st-04" is the range ST01 to ST04.
     const part = raw.replace(/^(op|eb|st|prb)(-?\d+)-\1-?(\d+)$/i, "$1$2-$3");
     const m = /^(op|eb|st|prb)-?(\d{1,2})(?:-(\d{1,2}))?$/i.exec(part) ?? /^(op|eb|st|prb)(\d{1,2})-(eb)(\d{1,2})$/i.exec(part);
     if (!m) continue;
@@ -140,13 +127,8 @@ export function parseFaqIndex(html: string, baseUrl: string): FaqFile[] {
   return [...files.values()];
 }
 
-/** An entry with its score and how many distinct query words it holds. */
 export type RankedQa = { entry: QaEntry; score: number; matched: number };
 
-/**
- * Q&A entries ranked by their query words, rarest words first: each word weighs log(entries / entries containing it),
- * and counts double when it is in the label or question rather than only the answer.
- */
 export function rankQa(entries: readonly QaEntry[], query: string): RankedQa[] {
   const terms = [...new Set(queryTerms(query))];
   if (!terms.length) return [];

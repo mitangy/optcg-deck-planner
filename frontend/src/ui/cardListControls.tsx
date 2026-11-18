@@ -7,7 +7,6 @@ import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { CARD_SORTS_KEY, FILTERS_OPEN_KEY, SHOW_ALT_ARTS_KEY } from "../storage/keys";
 import { bool01, choiceCodec, readStored, usePersistedState, writeStored, type PersistedCodec } from "@optcg/ui/storage";
 
-/** Alt arts are shown unless the visitor turned them off. */
 export function showAltArtsFromStored(raw: string | null): boolean {
   return raw !== "0";
 }
@@ -19,7 +18,6 @@ export type SortKey = "still_need" | "color" | "set" | "deck" | "user" | "price"
 
 export const ALL_SORT_KEYS: SortKey[] = ["deck", "user", "still_need", "price", "color", "set"];
 export const DEFAULT_SORTS: SortKey[] = ["color", "set"];
-/** Sorts offered on the Collection page (owned cards). */
 export const OWNED_SORT_KEYS: SortKey[] = ["value", "owned", "price", "color", "set"];
 export const OWNED_DEFAULT_SORTS: SortKey[] = ["value"];
 export const SORT_LABELS: Record<SortKey, string> = {
@@ -41,11 +39,9 @@ export type SortableCard = {
   user_sort_key?: string;
   market_price?: number | null;
   owned?: number;
-  /** Owned copies × market price (Collection page). */
   value?: number | null;
 };
 
-/** Highest first; cards without a number sort last. */
 function compareDesc(a: number | null | undefined, b: number | null | undefined): number {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
@@ -103,7 +99,6 @@ export function compareCardOrder(a: SortableCard, b: SortableCard, sorts: SortKe
 }
 
 type CardSortOptions = {
-  /** localStorage key; pages with a different key set keep their own order. */
   storageKey?: string;
   keys?: SortKey[];
   defaults?: SortKey[];
@@ -162,13 +157,10 @@ export function SortMenu({
 }: {
   sorts: SortKey[];
   onChange: (next: SortKey[]) => void;
-  /** Storage key of the table header sort on this page; changing the Sort menu clears it so the menu wins. */
   columnSortKey?: string;
   onlyNeed: boolean;
   unavailableKeys?: SortKey[];
-  /** Sort options this page offers (defaults to the shopping/deck set). */
   keys?: SortKey[];
-  /** Explains the Price option when a page sorts by something other than the base market price. */
   priceHint?: string;
 }) {
   const menuKeys = useMemo(() => {
@@ -313,7 +305,6 @@ export function usePersistedOpen(storageKey: string | undefined, defaultOpen: bo
   return usePersistedState(storageKey, defaultOpen, bool01);
 }
 
-/** A string filter choice (select) remembered in localStorage across reloads. */
 export function usePersistedChoice(storageKey: string, defaultValue: string, allowed?: readonly string[]) {
   return usePersistedState(storageKey, defaultValue, choiceCodec(allowed));
 }
@@ -333,12 +324,9 @@ export function CollapsibleDrawer({
   summary?: string;
   storageKey?: string;
   defaultOpen?: boolean;
-  /** Small count pill beside the label, shown only while the drawer is collapsed. */
   badge?: number;
   badgeLabel?: string;
-  /** Always-visible row directly under the toggle (open or closed). */
   headerExtra?: ReactNode;
-  /** Render open with no toggle (the wide-screen sidebar). */
   pinnedOpen?: boolean;
   children: ReactNode;
 }) {
@@ -346,7 +334,6 @@ export function CollapsibleDrawer({
   const panelId = useId();
 
   if (pinnedOpen) {
-    // Wide-screen sidebar: the filters are always shown, so there is nothing to collapse.
     return (
       <div className="filter-drawer open pinned">
         <div className="filter-drawer-toggle filter-drawer-static">
@@ -372,7 +359,6 @@ export function CollapsibleDrawer({
           {summary ? <span className="filter-drawer-summary"> · {summary}</span> : null}
         </span>
         {badge ? (
-          // Held (invisible) while open so a right-aligned trigger keeps its width and position.
           <span
             className={`filter-drawer-badge${open ? " filter-drawer-badge-held" : ""}`}
             aria-label={`${badge} ${badgeLabel ?? "items"}`}
@@ -402,7 +388,6 @@ export function CollapsibleFilters({
   children,
 }: {
   summary?: string;
-  /** Count of active filters, shown beside the label while collapsed. */
   badge?: number;
   badgeLabel?: string;
   children: ReactNode;
@@ -433,7 +418,6 @@ export function CardSearchInput({
   onChange: (next: string) => void;
   placeholder?: string;
   label?: string;
-  /** A magnifier inside the field's left edge. */
   icon?: boolean;
 }) {
   const id = useId();
@@ -481,7 +465,6 @@ export function useShowAltArts() {
   return usePersistedState(SHOW_ALT_ARTS_KEY, true, showAltArtsCodec);
 }
 
-/** Build the Filters drawer summary chips used on shopping / deck / group buy. */
 export function buildFilterSummary(parts: {
   onlyNeed?: boolean;
   sorts: SortKey[];

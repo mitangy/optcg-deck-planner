@@ -1,13 +1,10 @@
-/** "Report this card": testers flag cards that do not play as printed. */
 import { BUILD_SHA } from "@optcg/ui/appShell";
 import { ApiError, request } from "../api/http";
 import { getMatchContext } from "../matchContext";
 
-/** Matches the API floor so the form can explain before a round trip. */
 export const MIN_REPORT_LENGTH = 10;
 export const MAX_REPORT_LENGTH = 2000;
 
-/** Returns a message to show when the description is not usable, else null. */
 export function reportDescriptionError(description: string): string | null {
   const len = description.trim().length;
   if (len < MIN_REPORT_LENGTH) {
@@ -24,7 +21,6 @@ function reportSource(pathname: string): string {
   return first.slice(0, 32);
 }
 
-/** POST the report; throws an Error with a user-facing message on failure. */
 export async function submitCardReport(
   cardId: string,
   description: string,

@@ -2,12 +2,10 @@ import { describe, expect, it } from "vitest";
 import { isNegated, powerOf } from "../engine/queries.js";
 import { Harness } from "../testing/harness.js";
 
-// Static modifiers: negation applied through selectors and a negated Character's own statics.
-
-const KAROO = "ST01-003"; // vanilla 1-cost {Animal}/{Alabasta}
+const KAROO = "ST01-003";
 
 describe("a static \"have their effects negated\" on a selector", () => {
-  const ROGER = "OP13-064"; // Your Leader and all of your Characters that do not have a type including "Roger Pirates" have their effects negated.
+  const ROGER = "OP13-064";
 
   it("negates your Leader and your other Characters, but not a Roger Pirates Character or the opponent's cards (#753)", () => {
     const h = new Harness();
@@ -22,9 +20,9 @@ describe("a static \"have their effects negated\" on a selector", () => {
 });
 
 describe("a negated Character's own static abilities", () => {
-  const SANJI = "OP12-070"; // 3-cost 5000. This Character gains +1000 power for every 5 Events in your trash.
-  const ROGER = "OP13-064"; // Your Leader and all of your Characters that do not have a type including "Roger Pirates" have their effects negated.
-  const GUARD_POINT = "ST01-014"; // Event
+  const SANJI = "OP12-070";
+  const ROGER = "OP13-064";
+  const GUARD_POINT = "ST01-014";
 
   function sanjiPower(withRoger: boolean): number {
     const h = new Harness();

@@ -58,7 +58,6 @@ describe("canDragDon / giveDonTargetIds", () => {
 
 describe("multi-select DON!! drag helpers", () => {
   it("intersects targets legal for every donId in the set", () => {
-    // d1 -> {leader, c1}, d2 -> {leader}: only "leader" works for both.
     expect(giveDonTargetIdsForAll(intents, ["d1", "d2"])).toEqual(["leader"]);
     expect(giveDonTargetIdsForAll(intents, ["d1"]).sort()).toEqual(["c1", "leader"]);
     expect(giveDonTargetIdsForAll(intents, [])).toEqual([]);
@@ -70,7 +69,6 @@ describe("multi-select DON!! drag helpers", () => {
       { type: "give_don", donId: "d1", targetId: "leader" },
       { type: "give_don", donId: "d2", targetId: "leader" },
     ]);
-    // d2 has no legal give_don to c1 — only d1's intent comes back.
     expect(matchGiveDonMulti(intents, ["d1", "d2"], "c1")).toEqual([
       { type: "give_don", donId: "d1", targetId: "c1" },
     ]);
@@ -168,9 +166,7 @@ describe("resolveDropIntents", () => {
 
   it("a playable hand card dropped off any drop zone is played (#552)", () => {
     const play = [{ type: "play_card", handIndex: 0 }];
-    // An empty spot is not a drop zone at all.
     expect(resolveDropIntents({ type: "play_card", handIndex: 0 }, null, intents)).toEqual(play);
-    // Nor is another kind of zone.
     expect(
       resolveDropIntents(
         { type: "play_card", handIndex: 0 },
@@ -185,11 +181,8 @@ describe("resolveDropIntents", () => {
         intents,
       ),
     ).toEqual(play);
-    // A full-board-only card has no plain play to send, and never trashes on its own.
     expect(resolveDropIntents({ type: "play_card", handIndex: 2 }, null, intents)).toEqual([]);
-    // A card with no legal play at all does nothing.
     expect(resolveDropIntents({ type: "play_card", handIndex: 1 }, null, intents)).toEqual([]);
-    // Dropped on a Character to trash, it trashes that one, not a plain play.
     expect(
       resolveDropIntents(
         { type: "play_card", handIndex: 2 },
@@ -197,7 +190,6 @@ describe("resolveDropIntents", () => {
         intents,
       ),
     ).toEqual([{ type: "play_card", handIndex: 2, trashCharacterId: "c2" }]);
-    // Counter and attack drags still need their own target.
     const counterable: Intent[] = [...intents, { type: "counter_from_hand", handIndex: 3 }];
     expect(resolveDropIntents({ type: "counter", handIndex: 3 }, null, counterable, { defenderId: "c1" })).toEqual([]);
     expect(resolveDropIntents({ type: "attack", attackerId: "c1" }, null, intents, { opponentLeaderId: "ol" })).toEqual([]);
@@ -248,7 +240,6 @@ describe("attack and counter drags", () => {
   const battle: Intent[] = [
     { type: "declare_attack", attackerId: "myLeader", target: { kind: "leader" } },
     { type: "declare_attack", attackerId: "myLeader", target: { kind: "character", instanceId: "o1" } },
-    // o2 is only a legal target for c1 (e.g. c1 may attack active Characters).
     { type: "declare_attack", attackerId: "c1", target: { kind: "character", instanceId: "o2" } },
     { type: "counter_from_hand", handIndex: 1 },
     { type: "counter_event", handIndex: 3 },

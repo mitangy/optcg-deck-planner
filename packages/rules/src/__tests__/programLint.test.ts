@@ -1,8 +1,3 @@
-/**
- * Static lints over every compiled ability program (tools/cardText/programLint.ts): no card may read a variable that
- * nothing writes, and no "if you do / if they do not" payoff may hang on a `may` that is not a cost. The first
- * describe runs the lint over the real registry; the rest pin the lint itself on small hand-written programs.
- */
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -45,10 +40,6 @@ describe("program lint over the card registry", () => {
     for (const [kind, passes] of sites) expect(EVENT_CARRIES_CARD[kind as GameEventKind], kind).toBe(passes.every(Boolean));
   });
 });
-
-// ---------------------------------------------------------------------------
-// The lint itself
-// ---------------------------------------------------------------------------
 
 const ability = (effect: Effect, extra: Partial<Ability> = {}): Ability => ({ id: "t#0", trigger: "on_play", text: "test", effect, ...extra });
 const kinds = (a: Ability): FindingKind[] => lintAbility("T-001", a).map((f) => f.kind);
@@ -109,7 +100,6 @@ describe("unbound reads", () => {
     expect(kinds(readsEvent("self_ko"))).toEqual(["unbound-read"]);
     expect(kinds({ ...readsEvent("attack_declared"), eventTrigger: { event: "attack_declared", alsoEvents: ["don_returned"], player: "opponent" } })).toEqual(["unbound-read"]);
     expect(kinds({ ...readsEvent("attack_declared"), trigger: "on_play" })).toEqual(["unbound-read"]);
-    // The event_card target reads `_event` too.
     expect(kinds(ability({ do: "ko", target: { ref: "event_card" } }, { trigger: "on_play" }))).toEqual(["unbound-read"]);
   });
 

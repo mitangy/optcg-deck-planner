@@ -1,9 +1,3 @@
-/**
- * Group buy art tiles count alt copies you already own (#1263): the Base "Buy ×N"
- * and your price agree with the who-wants tags the server sends.
- * Real case: OP17-112, deck need 8, own 2 base + 1 of the alt, Want 4 of the alt
- * -> buy 3 of the alt + 2 base.
- */
 import { expect, test } from "./fixtures";
 
 const GB = 12;
@@ -53,7 +47,6 @@ function detail() {
           { product_id: 22, name: "Alternate Art", market_price: 16.03, low_price: 15, image_url: IMG(22), tcgplayer_url: "", group_name: "Test", is_special: true, wanted: 4, owned: 1, collector: 0 },
           { product_id: 23, name: "Manga", market_price: 709.14, low_price: 700, image_url: IMG(23), tcgplayer_url: "", group_name: "Test", is_special: true, wanted: 0, owned: 0, collector: 0 },
         ],
-        // What the server allocates (#1217): owned alt copy covers one of the 4.
         art_wants: [
           { product_id: 22, user_id: 1, qty: 3 },
           { product_id: 21, user_id: 1, qty: 2 },

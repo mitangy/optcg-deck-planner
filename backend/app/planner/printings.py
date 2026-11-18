@@ -1,4 +1,3 @@
-"""Printing-row helpers shared by the deck, owned and shopping services."""
 
 from __future__ import annotations
 
@@ -21,7 +20,6 @@ from app.planner.models import (
 def _printing_wants_for_decks(
     db: Session, deck_ids: list[int]
 ) -> dict[int, dict[str, dict[int, int]]]:
-    """deck_id -> card_id -> product_id -> qty."""
     if not deck_ids:
         return {}
     rows = db.scalars(
@@ -35,13 +33,11 @@ def _printing_wants_for_decks(
 
 
 def clamp_alt_want_map(wants: dict[int, int], limit: int) -> dict[int, int]:
-    """Reduce alt wants so sum(qty) <= limit, cutting largest counts first."""
     if limit < 0:
         limit = 0
     total = sum(max(0, q) for q in wants.values())
     if total <= limit:
         return {pid: q for pid, q in wants.items() if q > 0}
-    # Largest qty first; stable by product_id for determinism.
     items = sorted(wants.items(), key=lambda x: (-max(0, x[1]), x[0]))
     excess = total - limit
     result = {pid: max(0, q) for pid, q in wants.items()}
@@ -57,7 +53,6 @@ def clamp_alt_want_map(wants: dict[int, int], limit: int) -> dict[int, int]:
 def _apply_alt_want_clamp_to_rows(
     rows: list[DeckCardPrinting], limit: int
 ) -> None:
-    """Mutate/delete ORM rows so their qty sum fits limit (largest first)."""
     wants = {r.product_id: r.qty for r in rows if r.qty > 0}
     clamped = clamp_alt_want_map(wants, limit)
     for row in rows:
@@ -86,7 +81,6 @@ def _clear_deck_card_printings(db: Session, deck_id: int, card_id: str) -> None:
 
 
 def _collector_map(db: Session, user_id: int) -> dict[str, dict[int, int]]:
-    """card_id -> product_id -> collector copies the user wants on top of their decks (qty > 0)."""
     rows = db.scalars(select(CollectorWant).where(CollectorWant.user_id == user_id)).all()
     out: dict[str, dict[int, int]] = defaultdict(dict)
     for row in rows:
@@ -98,10 +92,6 @@ def _collector_map(db: Session, user_id: int) -> dict[str, dict[int, int]]:
 def _deck_alt_owned_map(
     alt_owned: dict[str, dict[int, int]], collector: dict[str, dict[int, int]]
 ) -> dict[str, dict[int, int]]:
-    """Alt copies that count toward decks: owned minus the copies a collector want claims first.
-
-    Owning 2 of a printing with a collector want of 1 leaves 1 for decks (#1031).
-    """
     if not collector:
         return alt_owned
     out: dict[str, dict[int, int]] = {}
@@ -120,11 +110,6 @@ def _deck_alt_owned_map(
 def deck_alt_buy_inputs(
     alts, deck_alt_owned: dict[int, int]
 ) -> list[tuple[int, int, float | None]]:
-    """Picked alts as (product_id, copies still to buy, price) for allocate_still_need_buys.
-
-    Each pick shrinks by the copies of it the deck can use from what the user owns (#908),
-    so Master Shopping and group buys price an owned picked alt the same way (#1216).
-    """
     out: list[tuple[int, int, float | None]] = []
     for a in alts:
         left = a.wanted - deck_alt_owned.get(a.product_id, 0)
@@ -134,7 +119,6 @@ def deck_alt_buy_inputs(
 
 
 def _display_choice_map(db: Session, user_id: int) -> dict[str, int]:
-    """card_id -> chosen display art (0 = base, >0 = product id)."""
     rows = db.scalars(
         select(CardDisplayChoice).where(CardDisplayChoice.user_id == user_id)
     ).all()
@@ -148,7 +132,6 @@ def _alts_owned_total(alt_owned: dict[str, dict[int, int]], card_id: str) -> int
 def _write_extra_printing_qty(
     db: Session, user_id: int, card_id: str, product_id: int, qty: int, extra_qty: int
 ) -> int:
-    """Write the alt want of a Master Shopping card, clamped to the extra's qty. Returns qty stored."""
     others = db.scalars(
         select(ShoppingExtraPrinting).where(
             ShoppingExtraPrinting.user_id == user_id,
@@ -201,7 +184,6 @@ def _write_deck_printing_qty(
     needed: int,
     strict: bool,
 ) -> int:
-    """Write one deck's alt want. Returns qty stored (may be clamped when not strict)."""
     others = db.scalars(
         select(DeckCardPrinting).where(
             DeckCardPrinting.deck_id == deck_id,
@@ -244,7 +226,6 @@ def _write_deck_printing_qty(
 
 
 def _leader_group_id(deck: Deck) -> str:
-    """Group decks that share a leader; each leaderless deck is its own group."""
     if deck.leader_card_id:
         return deck.leader_card_id
     return f"__deck_{deck.id}"

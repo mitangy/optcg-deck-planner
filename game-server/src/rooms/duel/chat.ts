@@ -8,9 +8,7 @@ const CHAT_RATE_LIMIT = 5;
 const CHAT_RATE_WINDOW_MS = 5000;
 const CHAT_HISTORY_LIMIT = 50;
 
-/** The room's chat: relays lines to everyone, keeps the last few for joiners, rate-limits each sender. */
 export class RoomChat {
-  /** Recent chat lines, replayed on join / sync. Not persisted. */
   private chatLog: ChatMessage[] = [];
   private chatSeq = 0;
   private readonly limiter: SlidingWindowLimiter;
@@ -19,7 +17,6 @@ export class RoomChat {
     this.limiter = new SlidingWindowLimiter(CHAT_RATE_LIMIT, CHAT_RATE_WINDOW_MS, () => core.time.now());
   }
 
-  /** A seated player's chat message. */
   handle(client: Client, seat: Seat, message: unknown) {
     const { game, io, time } = this.core;
     let text: string;
@@ -43,7 +40,6 @@ export class RoomChat {
     };
     this.chatLog.push(line);
     if (this.chatLog.length > CHAT_HISTORY_LIMIT) this.chatLog.shift();
-    // Relay to everyone (including sender and spectators).
     io.broadcast("chat", line);
   }
 
@@ -52,7 +48,6 @@ export class RoomChat {
     this.core.io.send(client, "chat_history", { messages: this.chatLog });
   }
 
-  /** A connection is gone: forget its rate-limit window. */
   forget(sessionId: string) {
     this.limiter.forget(sessionId);
   }

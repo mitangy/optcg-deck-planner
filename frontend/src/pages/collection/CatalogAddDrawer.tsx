@@ -14,21 +14,14 @@ export const CARD_TYPE_OPTIONS = CATALOG_TYPE_FILTERS.map((t) => ({ value: t as 
 
 export const COLOR_OPTIONS = [{ value: "", label: "All colors" }, ...COLOR_ORDER.map((c) => ({ value: c as string, label: c }))];
 
-/** Row key for a catalog search result: a card's base row and each of its alt-art rows are distinct. */
 export function catalogRowKey(card: CatalogCardResult): string {
   return `${card.card_id}:${card.alt_product_id ?? 0}`;
 }
 
-/** "Alt art" chip beside the card id on alt-art search rows. Inline, so it never shifts the row. */
 export function AltArtChip({ card }: { card: CatalogCardResult }) {
   return card.alt_product_id ? <span className="alt-art-chip">Alt art</span> : null;
 }
 
-/**
- * Catalog search drawer shared by Collection and Master Shopping: the deck
- * editor's search box + color/type filters + result rows, with the per-row
- * action and an optional extra meta line supplied by the page.
- */
 export function CatalogAddDrawer({
   className,
   summary,

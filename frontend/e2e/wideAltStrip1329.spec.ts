@@ -1,7 +1,3 @@
-/**
- * Wide List tables (#1329): from 1600px the Alt arts column is gone. Each card with alts gets a second row
- * under its numbers holding its alt tiles side by side in a tray; below 1600px the column stays as it was.
- */
 import type { Page } from "@playwright/test";
 import { expect, test, DECK_ID } from "./fixtures";
 
@@ -13,7 +9,6 @@ test.afterEach(({ planner }) => {
 
 const altHeaders = (page: Page) => page.locator("thead th").filter({ hasText: /^Alt arts$/ });
 
-/** The first card's strip: its tray, tile boxes, and the main row above it. */
 async function firstStrip(page: Page) {
   const strip = page.locator("tr.alt-strip-row").first();
   await expect(strip).toBeVisible();
@@ -33,9 +28,7 @@ function expectSideBySide(s: Awaited<ReturnType<typeof firstStrip>>) {
   const [a, b] = s.boxes;
   expect(b.top).toBeCloseTo(a.top, 0);
   expect(b.left).toBeGreaterThan(a.right);
-  // The tray sits below the card's numbers, not beside them.
   expect(s.strip.y).toBeGreaterThanOrEqual(s.main.y + s.main.height - 1);
-  // Izo's 4 extra alts + the one in the fixture + the Base tile.
   expect(s.label.replace(/\s+/g, " ").trim().toLowerCase()).toBe("alt arts · 6");
 }
 

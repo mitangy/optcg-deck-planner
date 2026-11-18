@@ -1,4 +1,3 @@
-"""Decklist parsing, printing selection, and leader-variant helpers."""
 
 from __future__ import annotations
 
@@ -11,18 +10,12 @@ from typing import Any
 from app.core.errors import Invalid
 
 DECK_LINE_RE = re.compile(r"^\s*(?:(\d+)\s*[xX]\s*)?([A-Za-z0-9]+-\d+[A-Za-z]?)\s*(.*)?$")
-# Egman / Limitless-style: "4 OP01-016 Nami" or "4x OP01-016"
 DECK_TOKEN_RE = re.compile(
     r"(?:(\d+)\s*[xX]?\s*)?([A-Za-z0-9]+-\d+[A-Za-z]?)",
     re.IGNORECASE,
 )
 
-# Substrings matched against TCGPlayer product names (case-insensitive).
-# Intentionally omits plain "reprint" / bare "promo" — those are usually the
-# same base art on another SKU. Alt-arts UI also drops same image_url as the
-# preferred printing (see catalog_repo.alt_arts_map).
 SPECIAL_NAME_MARKERS = (
-    # Classic alts / serialized treatments
     "alternate art",
     "parallel",
     "manga",
@@ -32,10 +25,8 @@ SPECIAL_NAME_MARKERS = (
     "(tr)",
     "box topper",
     "dash pack",
-    # Distinct foil treatments (not plain reprints)
     "pirate foil",
     "jolly roger foil",
-    # Promo / event / competitive variants
     "winner",
     "tournament",
     "championship",
@@ -64,34 +55,22 @@ class ParsedCard:
 
 
 def _qty(digits: str, line_no: int, line: str) -> int:
-    # A pasted run of thousands of digits makes int() raise; that stays a 400 with Python's message.
     try:
         qty = int(digits)
     except ValueError as exc:
         raise Invalid(str(exc)) from exc
-    # Same rule as the TypeScript parser: "0xOP01-001" is a typo, not a card to track (#1322).
-    # Name the line so it can be found in a long paste (#1330).
     if qty < 1:
         raise Invalid(f"Line {line_no}: bad quantity {digits} in {line!r}")
     return qty
 
 
 def parse_decklist(text: str) -> list[ParsedCard]:
-    """Parse OPTCGSim deck code / clipboard text into card counts.
-
-    Accepts:
-      4xOP15-053
-      4x OP15-053
-      4 OP15-053 Nami
-      multiline or single-blob pastes
-    """
     cards: dict[str, int] = {}
     raw = text.replace("\r\n", "\n").replace("\r", "\n").strip()
     if not raw:
         raise Invalid("No cards found in decklist")
 
     lines = [ln.strip() for ln in raw.split("\n")]
-    # If paste is one long line of many cards, also split on common separators
     expanded: list[str] = []
     for line in lines:
         if not line or line.startswith("#") or line.startswith("//"):
@@ -100,10 +79,8 @@ def parse_decklist(text: str) -> list[ParsedCard]:
         if DECK_LINE_RE.match(line) and line.count("-") <= 1:
             expanded.append(line)
             continue
-        # Split on commas / semicolons / multiple spaces while preserving "4xOP15-053"
         parts = re.split(r"[,;]+|\s{2,}", line)
         if len(parts) == 1 and " " in line and not DECK_LINE_RE.match(line):
-            # egman line or several codes separated by single spaces
             expanded.append(line)
         else:
             expanded.extend(p.strip() for p in parts if p.strip())
@@ -116,18 +93,15 @@ def parse_decklist(text: str) -> list[ParsedCard]:
             rest = (match.group(3) or "").strip()
             card_id = match.group(2).upper()
             leading_qty = match.group(1)
-            # Support "OP01-001 4" / "OP01-001 x4" when qty wasn't written first.
             trailing = trailing_qty_re.match(rest) if rest and not leading_qty else None
             if trailing:
                 qty = _qty(trailing.group(1) or trailing.group(2), line_no, line)
                 cards[card_id] = cards.get(card_id, 0) + qty
                 continue
-            # One entry (optional card name) vs multiple codes on one line
             if not rest or not DECK_TOKEN_RE.search(rest):
                 qty = _qty(leading_qty or "1", line_no, line)
                 cards[card_id] = cards.get(card_id, 0) + qty
                 continue
-        # Fall back: find all qty+id tokens in the line
         found = list(DECK_TOKEN_RE.finditer(line))
         if not found:
             raise Invalid(f"Line {line_no}: unrecognized format: {line!r}")
@@ -146,11 +120,6 @@ ALT_ART_PRODUCTS_PATH = Path(__file__).resolve().parent.parent / "data" / "alt_a
 
 @lru_cache(maxsize=1)
 def alt_art_product_ids() -> frozenset[int]:
-    """TCGPlayer productIds duel-web verified as distinct alt art (#762).
-
-    Written by `backend/scripts/sync_alt_arts.py`; covers promo printings whose name has
-    no marker. A missing or unreadable file means no extra ids.
-    """
     try:
         return frozenset(int(p) for p in json.loads(ALT_ART_PRODUCTS_PATH.read_text("utf-8")))
     except (OSError, ValueError, TypeError):
@@ -174,7 +143,6 @@ def parse_cost(raw: str | None) -> int | str | None:
         return value
 
 
-# Official constructed size: 50 main-deck cards + 1 leader. DON!! is separate (max 10).
 MAIN_DECK_LIMIT = 51
 DON_DECK_LIMIT = 10
 
@@ -184,7 +152,6 @@ def normalize_card_type(card_type: str | None) -> str:
 
 
 def is_don_type(card_type: str | None) -> bool:
-    """True for DON!! catalog rows (TCGPlayer CardType is typically 'DON!!')."""
     normalized = normalize_card_type(card_type)
     if not normalized:
         return False
@@ -197,14 +164,12 @@ def is_don_product(
     card_type: str | None = None,
     rarity: str | None = None,
 ) -> bool:
-    """Detect DON!! singles from TCGCSV fields (many have no Number)."""
     if is_don_type(card_type) or is_don_type(rarity):
         return True
     return (name or "").strip().upper().startswith("DON!!")
 
 
 def synthetic_don_card_id(product_id: int) -> str:
-    """Stable catalog id for numberless DON!! products."""
     return f"DON-{int(product_id)}"
 
 
@@ -245,7 +210,6 @@ def deck_size_counts(
     cards: list[ParsedCard] | list[tuple[str, int]],
     catalog_by_id: dict[str, Any],
 ) -> tuple[int, int]:
-    """Return (main_or_leader_copies, don_copies) for a deck's card lines."""
     main = 0
     don = 0
     for entry in cards:

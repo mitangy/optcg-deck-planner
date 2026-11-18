@@ -1,20 +1,10 @@
-/**
- * "What should I have done there?" (#635): rebuild a recorded game's position at a turn and ask the
- * bot analysis (rankOptions / winProbability from the rules engine) how the seat's options compare.
- *
- * The estimates are bot-simulation numbers, not results and not player statistics. The analysis only searches
- * determinized copies of the position, so it works from what the seat could see; and it is offered for finished
- * games only, where the replay's hidden cards are no longer secret.
- */
 import { rankOptions, replayApply, replayStart, winProbability, type Intent, type MatchReplay, type MatchState, type PositionOption, type Seat } from "@optcg/rules";
 import { PlannerApiError, plannerCall, isBotGameId, type PlannerApi } from "./matches";
 
 export type PositionRequest = {
   seat: Seat;
   turn: number;
-  /** Which of the seat's decisions in that turn (0 = the first). */
   step?: number;
-  /** How many options to report (default 5). */
   top?: number;
   budgetMs?: number;
 };
@@ -24,7 +14,6 @@ export const MAX_BUDGET_MS = 5000;
 
 const pct = (p: number) => Math.round(p * 100);
 
-/** JSON with sorted keys, so two intents compare by content. */
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(",")}]`;
   if (value && typeof value === "object") {
@@ -37,7 +26,6 @@ function stable(value: unknown): string {
   return JSON.stringify(value);
 }
 
-/** The seat's decisions in a turn: the state before each of its recorded intents. */
 function decisionsIn(replay: MatchReplay, seat: Seat, turn: number): { index: number; before: MatchState }[] {
   const out: { index: number; before: MatchState }[] = [];
   let state = replayStart(replay);
@@ -55,16 +43,13 @@ export type PositionAnalysis = {
   decisionsThisTurn: number;
   activeSeat: Seat;
   phase: string;
-  /** The seat's estimated chance to win from the position, 0 to 100. */
   winChance: number;
   options: { rank: number; label: string; winChance: number; samples: number; botPick: boolean }[];
   optionCount: number;
-  /** What was really played there, and where it ranks; null when the game ended before the seat moved. */
   actual: { label: string; rank: number | null; winChance: number | null; matchedOption: boolean } | null;
   notes: string[];
 };
 
-/** Rank the seat's options at one decision of a finished game. Throws a readable error when there is no such decision. */
 export function analyzePosition(replay: MatchReplay, req: PositionRequest): PositionAnalysis {
   if (!replay.end) throw new Error("Position analysis is for finished games only: this game has no recorded end yet.");
   const decisions = decisionsIn(replay, req.seat, req.turn);
@@ -101,7 +86,6 @@ export function analyzePosition(replay: MatchReplay, req: PositionRequest): Posi
   };
 }
 
-/** A finished game's replay for a position check: a player's own match (personal token) or an archive game (g_ or b_ id). */
 export async function fetchReplayFor(api: PlannerApi, target: { matchId: string; token: string } | { gameId: string }): Promise<{ id: string; replay: MatchReplay; seat: Seat | null; kind: "match" | "game" | "botgame" }> {
   if (!api.serviceSecret) throw new Error("Position analysis isn't set up on this server (ANALYST_SERVICE_SECRET is unset).");
   try {

@@ -6,16 +6,13 @@ export type CollectionTotals = {
   cards: number;
   copies: number;
   value: number;
-  /** Cards with no market price, left out of `value`. */
   unpriced: number;
 };
 
-/** Whether the user holds any copy of the card, base or alt art. */
 export function holdsCopies(item: OwnedCard): boolean {
   return item.owned + (item.alts_owned ?? 0) > 0;
 }
 
-/** Totals for the cards currently shown (after search and filters). */
 export function collectionTotals(items: OwnedCard[]): CollectionTotals {
   let copies = 0;
   let value = 0;
@@ -52,8 +49,6 @@ export function patchOwnedCollection(
     } else {
       value = Math.round((item.value + (qty - item.owned) * item.market_price) * 100) / 100;
     }
-    // Still-to-buy copies shrink or grow with Owned while the card is on the list;
-    // a card already covered (0) is left alone until the next refetch.
     const buying = item.buying ? Math.max(0, item.owned + item.buying - qty) : item.buying;
     return { ...item, owned: qty, value, buying };
   });
@@ -68,12 +63,6 @@ export function patchOwnedCollection(
   };
 }
 
-/**
- * Apply an alt-art Owned change to the cached collection: that printing's count,
- * the card's alt total, its value (the alt copies at the alt's own market price)
- * and the page totals move right away. A card whose copies all drop to 0 stays
- * listed until the next refetch.
- */
 export function patchOwnedCollectionAlt(
   old: OwnedCollectionResponse,
   cardId: string,
@@ -88,7 +77,6 @@ export function patchOwnedCollectionAlt(
     const alt_arts = (item.alt_arts ?? []).map((a) => (a.product_id === productId ? { ...a, owned: qty } : a));
     const alts_owned = alt_arts.reduce((n, a) => n + (a.owned ?? 0), 0);
     const delta = qty - (before.owned ?? 0);
-    // A missing price leaves the value to the refetch rather than guessing.
     const value =
       item.value == null || before.market_price == null
         ? item.value
@@ -106,7 +94,6 @@ export function patchOwnedCollectionAlt(
   };
 }
 
-/** Set one alt's collector want (#1035) on a card in the cached collection. Other cards and alts are untouched. */
 export function patchOwnedCollectionCollector(
   old: OwnedCollectionResponse,
   cardId: string,
@@ -127,7 +114,6 @@ export function patchOwnedCollectionCollector(
   };
 }
 
-/** Patch the chosen art (null = automatic, 0 = base) onto a card in the cached collection. */
 export function patchOwnedCollectionDisplayArt(
   old: OwnedCollectionResponse,
   cardId: string,
@@ -142,10 +128,6 @@ export function patchOwnedCollectionDisplayArt(
   };
 }
 
-/**
- * Refetch every view that shows Owned counts (shopping list, deck pages, the
- * Collection). Call after any server-side change to Owned.
- */
 export function invalidateOwnedViews(qc: QueryClient) {
   void qc.invalidateQueries({ queryKey: qk.shopping.all() });
   void qc.invalidateQueries({ queryKey: qk.deck.all() });

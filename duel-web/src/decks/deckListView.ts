@@ -1,7 +1,6 @@
 import { lookupCard } from "../cards/atlas";
 import { readStored, writeStored } from "@optcg/ui/storage";
 
-/** How the Decks page orders your saved decks. */
 export type DeckSort = "recent" | "name" | "leader";
 
 export const DECK_SORTS: readonly { id: DeckSort; label: string }[] = [
@@ -20,19 +19,16 @@ export function parseDeckSort(raw: string | null | undefined): DeckSort {
   return DECK_SORTS.find((s) => s.id === raw)?.id ?? DEFAULT_DECK_SORT;
 }
 
-/** The sort picked last time, or Recently updated when nothing (valid) is stored or storage is blocked. */
 export function loadDeckSort(): DeckSort {
   return parseDeckSort(readStored(SORT_KEY));
 }
 
 export function saveDeckSort(sort: DeckSort): void {
-  // Storage blocked: the pick just lasts until the page closes.
   writeStored(SORT_KEY, sort);
 }
 
 const leaderName = (deck: ListedDeck) => lookupCard(deck.leaderId).name;
 
-/** Decks whose name, leader name or leader card number contains the search text (any case). Empty text keeps every deck. */
 export function filterDecks<T extends ListedDeck>(decks: readonly T[], query: string): T[] {
   const q = query.trim().toLowerCase();
   if (!q) return [...decks];
@@ -41,7 +37,6 @@ export function filterDecks<T extends ListedDeck>(decks: readonly T[], query: st
 
 const byText = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base", numeric: true });
 
-/** A copy ordered by the chosen sort: newest edit first, name A to Z, or leader name A to Z (then deck name). */
 export function sortDecks<T extends ListedDeck>(decks: readonly T[], sort: DeckSort): T[] {
   const list = [...decks];
   if (sort === "name") return list.sort((a, b) => byText(a.name, b.name));

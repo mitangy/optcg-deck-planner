@@ -1,6 +1,3 @@
-/**
- * Information ops: reveal a card or the top of a zone.
- */
 import { type OpTable, seatOf } from "./shared.js";
 
 export const infoOps: OpTable<"reveal_top" | "reveal"> = {
@@ -15,7 +12,6 @@ export const infoOps: OpTable<"reveal_top" | "reveal"> = {
   reveal(effect, { sim, state, targetsOf }) {
     for (const loc of targetsOf(effect.target)) {
       sim.events.push({ type: "card_revealed", seat: loc.seat, defId: loc.defId });
-      // Revealed hand cards stay face up for the rest of the turn (#491).
       if (loc.zone === "hand") {
         const p = state.players[loc.seat];
         const ids = p.revealedHandIds ?? (p.revealedHandIds = []);

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
-  /** Inliers verifyPair reports per candidate label (default 0 = rejected). */
   inliers: {} as Record<string, number>,
   verified: [] as string[],
 }));
@@ -19,7 +18,6 @@ vi.mock("./cardMatch", () => ({
     return { good: inliers, inliers, rejected: inliers ? "none" : "too-few-good" };
   },
 }));
-// The hash of the query is "0": a candidate's orderHash is its distance to it.
 vi.mock("../geometry/cardOrder", () => ({
   computeOrderHash: () => "0",
   orderDistance: (_a: string, b: string) => Number(b),
@@ -38,11 +36,9 @@ import {
 const pixels = { data: new Uint8ClampedArray(4), width: 1, height: 1, colorSpace: "srgb" } as unknown as ImageData;
 const cand = (cardId: string, orderHash: string): ScanCandidate => {
   const label = `${cardId}#${orderHash}`;
-  // The mocked verifier reads the label back off the features it is handed.
   return { cardId, label, orderHash, features: { label } as unknown as ScanCandidate["features"] };
 };
 
-/** n candidates whose hash distance is their position, so catalog order == walk order. */
 const catalog = (n: number) => Array.from({ length: n }, (_, i) => cand(`C${i}`, String(i)));
 const reset = () => {
   state.inliers = {};
@@ -101,7 +97,6 @@ describe("orderByHash", () => {
   });
 });
 
-/** Dense unit directions (A = first half, B = second half) quantised like the shipped rows. */
 const dir = (which: "A" | "B") => (which === "A" ? [0.5, 0.5, 0.5, 0.5, 0, 0, 0, 0] : [0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5]);
 const unitRow = (which: "A" | "B") => quantizeEmbedding(dir(which));
 
@@ -121,7 +116,6 @@ describe("matchRectified with an embedder", () => {
       const m = await matchRectified(pixels, cands, undefined, DEFAULT_WALK, () => 0);
       expect(m?.cardId).toBe("C70");
       expect(m?.embedRank).toBe(0);
-      // Hash order alone would need 71 verifications; fusion gets there in about ten.
       expect(state.verified.length).toBeLessThanOrEqual(12);
     } finally {
       setScanEmbedder(null);
@@ -189,7 +183,6 @@ describe("matchRectified walk", () => {
 
   it("does not count another printing of the same card as a rival (#701)", async () => {
     reset();
-    // Two printings of one card, the second a little stronger, then a real rival.
     const cands = [cand("OP14-113", "0"), cand("OP14-113", "1"), cand("OP01-001", "2"), ...catalog(100).slice(3)];
     cands[1].label = "OP14-113#1b";
     (cands[1].features as unknown as { label: string }).label = "OP14-113#1b";
@@ -207,7 +200,6 @@ describe("matchRectified walk", () => {
     const m = await matchRectified(pixels, catalog(6000), undefined, DEFAULT_WALK, () => (t += 10));
     expect(m?.cardId).toBe("C2");
     expect(m?.inliers).toBe(9);
-    // 10 ms per tick, 1500 ms budget: nowhere near all 6000 candidates.
     expect(state.verified.length).toBeLessThan(200);
   });
 

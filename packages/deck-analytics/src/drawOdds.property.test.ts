@@ -5,15 +5,12 @@ import { atLeastWithMulligan, hypergeomAtLeast, hypergeomPmf, oddsByTurn } from 
 const NUM_RUNS = 300;
 const EPS = 1e-9;
 
-/** N <= 60, K <= N, n <= N. */
 const setupArb = fc
   .integer({ min: 1, max: 60 })
   .chain((N) => fc.tuple(fc.constant(N), fc.integer({ min: 0, max: N }), fc.integer({ min: 0, max: N })));
 
-/** Like setupArb, but n may exceed the deck (a draw is then capped at the deck). */
 const overdrawArb = setupArb.chain(([N, K, n]) => fc.tuple(fc.constant(N), fc.constant(K), fc.constant(n), fc.integer({ min: 0, max: 8 })).map(([a, b, c, extra]) => [a, b, c + extra] as const));
 
-/** A deck-shaped setup: 40 to 60 cards, any number of hits. */
 const deckArb = fc.integer({ min: 40, max: 60 }).chain((N) => fc.record({ N: fc.constant(N), K: fc.integer({ min: 0, max: N }) }));
 
 describe("draw odds properties (#1322)", () => {

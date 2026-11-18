@@ -7,11 +7,6 @@ import type { DefendModel } from "../combat/defendModel";
 import { collapseReplacePlays } from "../combat/dragIntents";
 import { isGlobalIntent } from "../prompts/intentFilter";
 
-/**
- * Splits the selection's actions: per-card ones (play, attack, activate, give
- * DON!!, counter) go on the card itself, phase-wide ones (mulligan, triggers)
- * stay in the intent bar.
- */
 export function splitCardActions(shown: Intent[]): { card: Intent[]; bar: Intent[] } {
   const collapsed = collapseReplacePlays(shown);
   return {
@@ -20,12 +15,6 @@ export function splitCardActions(shown: Intent[]): { card: Intent[]; bar: Intent
   };
 }
 
-/**
- * One-tap: the only action a card's pop-up would show, if it is exactly one.
- * `donCounts` is the quick DON!! row ([1], [1, 2], ...), empty when there is none.
- * A tap never gives DON!!, so a lone DON!! row, an action plus a DON!! row, or
- * two or more actions are all null: the pop-up opens.
- */
 export function soleCardButton<T>(
   actions: readonly T[],
   donCounts: readonly number[],
@@ -34,7 +23,6 @@ export function soleCardButton<T>(
   return null;
 }
 
-/** "leader_give_rested_don" -> "Leader give rested don"; opaque ids ("a1") -> null. */
 export function humanizeAbilityId(id: unknown): string | null {
   if (typeof id !== "string" || !/^[a-z][a-z0-9]*(_[a-z0-9]+)+$/.test(id)) return null;
   const words = id.split("_").join(" ");
@@ -42,25 +30,19 @@ export function humanizeAbilityId(id: unknown): string | null {
 }
 
 export type CardActionText = {
-  /** Button text, e.g. "Activate Ability", "Counter +2000". */
   label: string;
-  /** Small second line: the ability or the target it applies to. */
   sub: string | null;
-  /** Full text for screen readers and the tooltip. */
   title: string;
 };
 
 function targetName(view: PlayerView | undefined, intent: { targetId?: string }): string | null {
   if (intent.targetId == null) return null;
-  // intentLabel already resolves the name; "Activate X → Y" ends with Y.
   const full = intentLabel({ type: "activate_ability", sourceId: intent.targetId, abilityId: "" }, view);
   return full.replace(/^Activate /, "");
 }
 
-/** Wording for a button that sits on the card it acts on. */
 export function cardActionText(anIntent: Intent, view?: PlayerView): CardActionText {
   const title = intentLabel(anIntent, view);
-  // `activate_leader` is the pre-`activate_ability` shape; tests and older callers still pass it.
   const intent = anIntent as Intent | { type: "activate_leader"; targetId?: string };
   switch (intent.type) {
     case "activate_ability": {
@@ -100,7 +82,6 @@ export function cardActionText(anIntent: Intent, view?: PlayerView): CardActionT
   }
 }
 
-/** The Counter play for this hand slot when exactly one exists (what one-tap sends). */
 export function counterIntentForHand(intents: readonly Intent[], handIndex: number): Intent | null {
   const hits = intents.filter(
     (i) =>
@@ -109,7 +90,6 @@ export function counterIntentForHand(intents: readonly Intent[], handIndex: numb
   return hits.length === 1 ? hits[0]! : null;
 }
 
-/** The Counter play for a hand card by id (the defend tray's chips know ids, not slots). */
 export function counterIntentForCard(
   intents: readonly Intent[],
   hand: readonly { id: string }[],
@@ -119,22 +99,15 @@ export function counterIntentForCard(
   return idx < 0 ? null : counterIntentForHand(intents, idx);
 }
 
-/** The block declaration for this Blocker, if legal. */
 export function blockIntentFor(intents: readonly Intent[], blockerId: string): Intent | null {
   return intents.find((i) => i.type === "declare_block" && i.blockerId === blockerId) ?? null;
 }
 
-/**
- * Text of the counter step's primary button. Once the defender is already
- * safe (nothing more is needed) it reads "Resolve" rather than a pass / take-hit.
- * `tray` is the phone tray, whose staged counters turn it into "Confirm counter".
- */
 export function counterPrimaryLabel(
   model: Pick<DefendModel, "remaining" | "stagedIds"> & { stagedUnknown?: boolean },
   tray: boolean,
 ): string {
   if (tray && model.stagedIds.length > 0) {
-    // Staged but still short: confirming spends the cards and the hit lands anyway.
     const short = model.remaining != null && model.remaining > 0 && !model.stagedUnknown;
     return short ? "Counter anyway (still lose)" : "Confirm counter";
   }
@@ -145,14 +118,6 @@ export function counterPrimaryLabel(
 export type PopoverPlacement = { left: number; top: number; above: boolean };
 export type PopoverSize = { width: number; height: number };
 
-/**
- * Where a card's popover goes: centred on the card (clamped inside the
- * viewport), tucked over the card's top edge when its whole height fits above,
- * else below the card when it fits there, else clamped so every button stays
- * on screen (it then covers part of the card). `top` is the anchor edge (the
- * popover's bottom when `above`, its top otherwise). A positive `overlap`
- * tucks it over the card's edge; a negative one leaves a gap.
- */
 export function popoverPlacement(
   box: Box,
   size: PopoverSize,
@@ -167,7 +132,6 @@ export function popoverPlacement(
   const belowTop = box.top + box.height - overlap;
   if (aboveBottom - size.height >= edge) return { left, top: aboveBottom, above: true };
   if (belowTop + size.height <= viewport.height - edge) return { left, top: belowTop, above: false };
-  // Neither side has room: take the roomier one and slide it back on screen.
   const preferred = aboveBottom - edge > viewport.height - edge - belowTop ? aboveBottom - size.height : belowTop;
   const top = Math.min(Math.max(preferred, edge), Math.max(edge, viewport.height - edge - size.height));
   return { left, top, above: false };

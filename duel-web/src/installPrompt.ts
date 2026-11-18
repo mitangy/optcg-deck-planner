@@ -1,14 +1,8 @@
-/**
- * Add-to-home-screen / fullscreen helpers. Pure functions over an injected
- * environment snapshot so they are testable without a DOM.
- */
-
 export const IOS_HINT_DISMISSED_KEY = "optcg-duel.iosInstallHintDismissed";
 
 export type InstallEnv = {
   userAgent: string;
   maxTouchPoints: number;
-  /** matchMedia("(display-mode: standalone)").matches */
   standaloneMedia: boolean;
   /** iOS Safari's non-standard navigator.standalone */
   navigatorStandalone: boolean;
@@ -20,7 +14,6 @@ export function isStandalone(env: InstallEnv): boolean {
   return env.standaloneMedia || env.navigatorStandalone === true;
 }
 
-/** iPhone/iPad, including iPadOS which reports a "Macintosh" desktop UA. */
 export function isIos(env: InstallEnv): boolean {
   if (/iPhone|iPad|iPod/.test(env.userAgent)) return true;
   return /Macintosh/.test(env.userAgent) && env.maxTouchPoints > 1;
@@ -56,7 +49,6 @@ export function canOfferFullscreen(env: InstallEnv): boolean {
   return env.fullscreenEnabled && !isStandalone(env) && !isIos(env);
 }
 
-/** Snapshot of the real browser. Safe to call during render; returns a no-op env off the DOM. */
 export function readInstallEnv(): InstallEnv {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return {

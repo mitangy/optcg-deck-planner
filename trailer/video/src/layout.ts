@@ -4,14 +4,10 @@ export type Layout = {
   name: string;
   width: number;
   height: number;
-  /** footage window (the browser frame's content area) */
   frame: {w: number; h: number; cx: number; top: number};
-  /** headline block: text sits on the bottom edge of this box */
   headline: {top: number; height: number; size: number; maxW: number};
-  /** eyebrow (small caps sub-caption) top edge, size */
   eyebrow: {top: number; size: number};
   compassR: number;
-  /** the big phone of the phone section: screen height (width follows the 750:1624 footage), centre, and how much it grows when turned sideways */
   phone: {h: number; cx: number; cy: number; landscapeScale: number; /** vertical layouts: chips are centred at these spots (top edge y) instead of beside the phone */ chips?: {home: {x: number; y: number}; train: {x: number; y: number}; plane: {x: number; y: number}; scale: number}};
   end: {
     desktop: {scale: number; cx: number; top: number};
@@ -66,7 +62,6 @@ export const LAYOUT_9x16: Layout = {
   },
 };
 
-/** 4:5 for the Instagram feed: only small margins, nothing is covered. */
 export const LAYOUT_4x5: Layout = {
   name: '4x5',
   width: 1080,

@@ -2,7 +2,6 @@ import { Select } from "@optcg/ui/popups";
 import { useEffect, useState } from "react";
 import { getModelSetting, modelCostHint, modelLabel, setModelSetting, type ModelSetting } from "./modelSetting";
 
-/** The model Log Pose runs on. Shown only to the model admin (the API says so with can_edit); everyone else sees nothing. */
 export function ModelPicker({ apiBase }: { apiBase: string }) {
   const [setting, setSetting] = useState<ModelSetting | null>(null);
   const [busy, setBusy] = useState(false);

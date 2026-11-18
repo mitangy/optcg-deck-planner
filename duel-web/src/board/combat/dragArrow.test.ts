@@ -20,7 +20,6 @@ describe("attack drag arrow", () => {
     const aim = dragArrow(ATTACKER, { x: 510, y: 110 }, { kind: "attack_target", targetId: "o-leader" }, find);
     expect(aim?.targetId).toBe("o-leader");
     expect(aim?.targetBox).toEqual(OPP_LEADER);
-    // Ends near the leader's centre (the reticle), not at the pointer in its corner.
     const c = boxCenter(OPP_LEADER);
     expect(Math.hypot(aim!.arc.to.x - c.x, aim!.arc.to.y - c.y)).toBeLessThan(20);
   });

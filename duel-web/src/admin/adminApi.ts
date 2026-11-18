@@ -2,10 +2,6 @@ import type { components } from "@optcg/api-client";
 import { apiCall, apiError } from "../api/http";
 import { getApiBaseUrl } from "../config";
 
-// The response shapes are generated from the backend's OpenAPI schema (refactor 2.1c, node tools/ci/openapi-types.cjs):
-// these aliases keep the names callers already use. A type written out below is one the backend does not describe
-// exactly (hosting and traffic are free-form provider blobs there; SignupSource omits absent keys, which OpenAPI
-// cannot say), or a request body.
 type Schemas = components["schemas"];
 
 export type Role = Schemas["AdminMe"]["role"];
@@ -100,7 +96,6 @@ export type AdminTraffic = { days: number; vercel: ProviderResult<TrafficVercel>
 export type SignupSource = { ref?: string; land?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string };
 
 export type AdminUser = Omit<Schemas["AdminUser"], "signup_source"> & {
-  /** First-touch source captured at sign-up (#905). Null: unknown (account predates tracking); `{}`: direct. */
   signup_source: SignupSource | null;
 };
 
@@ -146,7 +141,6 @@ export const banUser = (id: number, reason: string) =>
 export const unbanUser = (id: number) => call<AdminUser>(`/admin/users/${id}/unban`, { method: "POST" });
 export const deleteUser = (id: number) => call<void>(`/admin/users/${id}`, { method: "DELETE" });
 
-/** Advisory cheat-review flags (#809). They never change eligibility. */
 export type EventFlag = Schemas["EventParticipant"]["flags"][number];
 export type EventParticipant = Schemas["EventParticipant"];
 export type EventDrawee = Schemas["EventDrawee"];
@@ -154,14 +148,12 @@ export type EventDrawState = Schemas["EventDrawState"];
 export type EventFormat = Schemas["AdminEvent"]["format"];
 export type EventPrizeMethod = Schemas["AdminEvent"]["prize_method"];
 export type EventStatus = Schemas["AdminEvent"]["status"];
-/** What an admin sets on an event (#1019). Dates are ISO strings in UTC. */
 export type EventFields = {
   title: string;
   description: string;
   starts_at: string;
   ends_at: string;
   format: EventFormat;
-  /** Only for single elimination, otherwise null. */
   bracket_size: number | null;
   best_of: 1 | 3;
   prize: string;
@@ -175,22 +167,18 @@ export type EventFields = {
 export type AdminEventSummary = Schemas["AdminEventSummary"];
 export type AdminEvent = Schemas["AdminEvent"];
 
-/** Every event, newest start first (#1019). */
 export const fetchAdminEvents = () => call<{ events: AdminEventSummary[] }>("/admin/events").then((r) => r.events);
 export const fetchAdminEvent = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}`);
 export const createAdminEvent = (fields: EventFields) => call<AdminEvent>("/admin/events", { method: "POST", body: JSON.stringify(fields) });
 export const updateAdminEvent = (id: string, fields: Partial<EventFields>) =>
   call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(fields) });
 export const deleteAdminEvent = (id: string) => call<{ deleted: string }>(`/admin/events/${encodeURIComponent(id)}`, { method: "DELETE" });
-/** The newest event whatever the date (the banner's /current stops after a week, but forfeits come later). */
 export const fetchLatestAdminEvent = () => call<AdminEvent>("/admin/events/latest");
 export const commitEventSeed = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/commit`, { method: "POST" });
 export const drawEvent = (id: string) => call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/draw`, { method: "POST" });
 export const forfeitEventWinner = (id: string, userId: number) =>
   call<AdminEvent>(`/admin/events/${encodeURIComponent(id)}/forfeit`, { method: "POST", body: JSON.stringify({ user_id: userId }) });
 export const eventCsvUrl = (id: string) => `${getApiBaseUrl()}/admin/events/${encodeURIComponent(id)}/participants.csv`;
-
-// ---------------------------------------------------------------- player reports
 
 export type ReportStatus = Schemas["ReportRow"]["status"];
 
@@ -213,8 +201,6 @@ export async function fetchReportImageUrl(id: number): Promise<string> {
   if (!res.ok) throw await apiError(res, `Could not load the image (${res.status})`);
   return URL.createObjectURL(await res.blob());
 }
-
-// ---------------------------------------------------------------- uploaded images (#812)
 
 export type UploadState = "live" | "taken_down" | "all";
 export type UploadKind = Schemas["UploadRow"]["kind"];

@@ -22,7 +22,6 @@ const rect = (x: number, y: number, w: number, h: number): Quad => [
 ];
 const card = (x: number, y: number, h = 220): Quad => rect(x, y, (h * 63) / 88, h);
 
-/** A `[1, 17, anchors]` channel-major tensor holding the given detections (network-input pixels). */
 function tensor(dets: { score: number; quad: Quad }[]): { data: Float32Array; anchors: number } {
   const n = dets.length;
   const data = new Float32Array(CHANNELS * n);
@@ -52,7 +51,6 @@ describe("letterbox", () => {
   });
 
   it("converts a photo to planar RGB in [0,1] with grey padding (#701)", () => {
-    // 64x16, left half red, right half blue: padded to 64x32, 8 rows of grey above and below.
     const w = 64;
     const h = 16;
     const data = new Uint8ClampedArray(w * h * 4);
@@ -75,7 +73,6 @@ describe("letterbox", () => {
   });
 
   it("averages when shrinking instead of sampling single pixels (#701)", () => {
-    // Alternating black/white columns shrunk 2x must come out mid-grey.
     const w = 64;
     const h = 32;
     const data = new Uint8ClampedArray(w * h * 4).fill(255);
@@ -122,7 +119,6 @@ describe("isPlausibleCard", () => {
     ];
     expect(isPlausibleCard(bowtie, 640, 640)).toBe(false);
     expect(isPlausibleCard(card(900, 100), 640, 640)).toBe(false); // far outside the frame
-    // One corner dragged in past the opposite diagonal: card-like side lengths, but concave.
     const dart: Quad = [
       { x: 100, y: 100 },
       { x: 257, y: 100 },
@@ -135,11 +131,8 @@ describe("isPlausibleCard", () => {
 
 describe("isPlausibleCard at the photo's edge", () => {
   it("accepts a card cut by the frame when most of it is inside, and not one mostly outside (#789)", () => {
-    // 220 px tall, 157 wide: 40 px past the left edge is 25% outside.
     expect(isPlausibleCard(card(-40, 100), 640, 640)).toBe(true);
-    // Rotated, off the bottom-right corner by a third of its height.
     expect(isPlausibleCard(rect(500, 620 - 157, 220, 157), 640, 640)).toBe(true);
-    // 100 px past the edge is 64% outside: only a sliver is in the photo.
     expect(isPlausibleCard(card(-100, 100), 640, 640)).toBe(false);
     expect(isPlausibleCard(card(300, 560), 640, 640)).toBe(false); // 73% below the bottom
   });
@@ -192,8 +185,6 @@ describe("suppressDuplicates", () => {
   });
 
   it("with the shipped threshold keeps a rear card that is 55% visible behind a fan's top card (#769)", () => {
-    // The model returns covered cards as full quads, so a rear card shows up as a quad
-    // that overlaps the top card's quad (IoU ~0.4 here) but is a different card.
     const top = card(100, 100, 300);
     const rear = card(100 + 0.45 * ((300 * 63) / 88), 100, 300);
     expect(suppressDuplicates([{ score: 0.9, quad: top }, { score: 0.8, quad: rear }], MODEL_DEFAULTS.nmsIoU)).toHaveLength(2);
@@ -227,7 +218,6 @@ describe("detectionsToCards", () => {
   });
 
   it("keeps a sideways card's printed corner order but repairs a quarter-turn mix-up (#701)", () => {
-    // Printed TL at the photo's top-right: the card lies rotated 90 degrees clockwise.
     const w = 220; // the card's long side now runs across the photo
     const h = 157;
     const x = 200;
@@ -239,7 +229,6 @@ describe("detectionsToCards", () => {
       { x, y }, // BL
     ];
     expect(cards([{ score: 0.9, quad: cw }])[0].quad).toEqual(cw);
-    // Same card reported with corners shifted a quarter turn: long side now runs across.
     const shifted: Quad = [cw[1], cw[2], cw[3], cw[0]];
     expect(cards([{ score: 0.9, quad: shifted }])[0].quad).toEqual(cw);
   });

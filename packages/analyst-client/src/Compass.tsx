@@ -1,4 +1,3 @@
-/** The round compass launcher (bottom-right). Its needle swings while Log Pose is working. */
 export function LogPoseCompass({
   working,
   unread,
@@ -8,9 +7,7 @@ export function LogPoseCompass({
 }: {
   working: boolean;
   unread: boolean;
-  /** Access requests waiting for an owner: shown as a count badge (not the unread dot). */
   requests?: number;
-  /** Chat isn't on for this player: the compass opens the access request. */
   requestOnly?: boolean;
   onClick: () => void;
 }) {

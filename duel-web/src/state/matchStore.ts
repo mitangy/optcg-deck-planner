@@ -1,11 +1,3 @@
-/**
- * The client's picture of one match, as a pure reducer plus a tiny store.
- *
- * Online play (DuelSession), practice (HotseatSession, one store per seat) and the demo page all feed the same
- * `matchReducer`, so a protocol change is one edit. There is no React and no socket in here: sockets and session
- * side effects (resume blobs, cosmetics, launch generation) stay in their owners, which `dispatch` what they
- * received. Read it in components with `useMatch` / `useMatchStore` (state/useMatch.ts).
- */
 import {
   indexViewInstances,
   narrateEvents,
@@ -32,19 +24,15 @@ import type {
   UndoState,
 } from "../net/protocol";
 
-/** Who feeds the store; only the welcome rule below differs (see `welcome`). */
 export type MatchMode = "online" | "hotseat" | "demo";
 
 export type MatchState = {
   mode: MatchMode;
   connected: boolean;
-  /** Another device took this seat over (#451): the board is frozen and nothing reconnects. */
   takenOver: boolean;
   queueing: boolean;
   canReconnect: boolean;
-  /** True while a sessionStorage resume is in flight (blocks lobby redirect). */
   resuming: boolean;
-  /** True while the socket dropped and a reclaim of the seat is in flight. */
   reconnecting: boolean;
   matchId: string | null;
   seat: Seat | null;
@@ -52,23 +40,18 @@ export type MatchState = {
   view: PlayerView | null;
   players: SeatPlayers | null;
   ranked: boolean | null;
-  /** null = coin flip, a seat = who chose; undefined from an older server. */
   firstSeatPickedBy: Seat | null | undefined;
-  /** The dice roll that decided this game's order (a room's first game, #1190), else null. */
   firstSeatDice: DiceResult | null;
-  /** The opening dice roll in progress, before any game exists (#1190); null once the game starts or it is cancelled. */
   dice: DiceStateMessage | null;
   brief: BriefTicketWire | null;
   vsBot: boolean;
   battleLog: BattleLogEntry[];
-  /** Board instance ids → cards, so log lines can name attackers / blockers. Never mutated in place. */
   instances: InstanceIndex;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
   timer: TimerMessage | null;
   chat: ChatLine[];
   undo: UndoState | null;
-  /** Per seat: epoch ms until which a dropped player may reconnect (else null). */
   awayUntil: [number | null, number | null];
   seatSkins: [SeatSkin | null, SeatSkin | null];
   rematch: RematchState | null;
@@ -88,13 +71,8 @@ export type WelcomeInfo = {
 
 export const SPECTATOR_CAP_MESSAGE = "This match already has the most spectators.";
 
-/** Chat lines kept; history replays on every sync, so older ones only matter to scrollback. */
 export const CHAT_KEEP = 100;
 
-/**
- * What the board should do with a server error. `reset` ends the match locally (the owner also tears down its
- * socket / resume blob) and shows `text` back in the lobby.
- */
 export type ErrorOutcome = { kind: "ignore" } | { kind: "banner"; text: string } | { kind: "reset"; text: string };
 
 export function classifyServerError(
@@ -102,12 +80,8 @@ export function classifyServerError(
   state: Pick<MatchState, "view" | "mode">,
   connectRole: "player" | "spectator",
 ): ErrorOutcome {
-  // Colyseus seat-reservation races are recovered via reconnect/mint; never pin them on the board banner.
   if (isSeatReservationExpiredError(err.message)) return { kind: "ignore" };
-  // Practice has no lobby to fall back to and no spectators: every other error is a plain banner.
   if (state.mode === "hotseat") return { kind: "banner", text: `${err.code}: ${err.message}` };
-  // A spectator who arrives before the first deal is not in trouble:
-  // the board already says "Waiting for the match to start…".
   if (err.code === "match_not_ready" && !state.view) return { kind: "ignore" };
   if (err.code === "room_full" && connectRole === "spectator") return { kind: "reset", text: SPECTATOR_CAP_MESSAGE };
   // Ranked opponent never arrived and the room closed: back to the lobby with the reason
@@ -116,12 +90,9 @@ export function classifyServerError(
   return { kind: "banner", text: `${err.code}: ${err.message}` };
 }
 
-/** Everything the reducer accepts: the server messages the client handles, then local session transitions. */
 export type MatchAction =
-  // ---- server messages ----
   | { type: "welcome"; info: WelcomeInfo }
   | { type: "view"; view: PlayerView }
-  /** `step`: intents the room had applied after these events. `turn` overrides the view's turn (demo only). */
   | { type: "events"; events: unknown[]; step?: number; turn?: number }
   | { type: "skin"; msg: SkinMessage }
   | { type: "error"; err: Pick<ErrorMessage, "code" | "message">; connectRole?: "player" | "spectator" }
@@ -139,12 +110,9 @@ export type MatchAction =
   | { type: "drop" }
   | { type: "reconnect" }
   | { type: "queued" }
-  // ---- local transitions ----
-  /** A new connect(): forget the last match's per-match data; the welcome fills it in again. */
   | { type: "connectStarted"; role: "player" | "spectator"; vsBot: boolean }
   | { type: "queueStarted" }
   | { type: "queueCancelled" }
-  /** The client resolved a connect / queue / reconnect: set only the flags given. */
   | {
       type: "joined";
       matchId: string;
@@ -158,10 +126,8 @@ export type MatchAction =
   | { type: "reconnectFailed"; banner: string }
   | { type: "resumeStarted" }
   | { type: "resumeEnded"; banner?: string }
-  /** startMatch: the board opens empty behind the request. */
   | { type: "launchStarted" }
   | { type: "launchFailed"; banner: string }
-  /** Leave / abandoned connect: everything per-match goes (the banner and battle log stay). */
   | { type: "reset" }
   | { type: "setError"; message: string | null }
   | { type: "clearBattleLog" };
@@ -206,7 +172,6 @@ function indexed(prev: InstanceIndex, view: PlayerView | null): InstanceIndex {
   return next;
 }
 
-/** Spectators follow a camera seat but are not "You". */
 function youSeatOf(s: MatchState): Seat | null {
   return s.view?.spectator ? null : s.seat;
 }
@@ -224,7 +189,6 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
         players: info.players ?? null,
         firstSeatPickedBy: info.firstSeatPickedBy,
         firstSeatDice: info.dice ?? null,
-        // The roll is over: the game it decided has begun.
         dice: null,
         ranked: typeof info.ranked === "boolean" ? info.ranked : null,
         brief: info.role === "player" ? (info.brief ?? null) : null,
@@ -272,14 +236,12 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
       return { ...s, errorBanner: out.text };
     }
     case "staleIllegalIntent":
-      // A late action's "Not your turn" must not linger into your next turn.
       return s.errorBanner?.startsWith("illegal_intent:") ? { ...s, errorBanner: null } : s;
     case "matchOver":
       return { ...s, matchOver: a.result, canReconnect: false };
     case "timer":
       return { ...s, timer: a.msg };
     case "chat": {
-      // History replays on every sync; merge by id so nothing duplicates.
       const seen = new Set(s.chat.map((l) => l.id));
       const fresh = a.lines.filter((l) => !seen.has(l.id));
       return fresh.length ? { ...s, chat: [...s.chat, ...fresh].slice(-CHAT_KEEP) } : s;
@@ -291,7 +253,6 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
     case "rematchState":
       return { ...s, rematch: a.state };
     case "diceState":
-      // A cancelled roll (a seat left) sends everyone back to waiting for an opponent.
       return { ...s, dice: a.state.step === "cancelled" ? null : a.state };
     case "undoApplied": {
       const { toTurn, toStep, by, action, scope } = a.info;
@@ -301,7 +262,6 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
       };
     }
     case "takenOver":
-      // The seat is theirs now: keep the last board on screen and stop every path that would reclaim it.
       return {
         ...s,
         takenOver: true,
@@ -424,7 +384,6 @@ export type MatchStore = {
   dispatch: (action: MatchAction) => void;
 };
 
-/** A store around `matchReducer`. Listeners run only when the state object actually changed. */
 export function createMatchStore(mode: MatchMode = "online", overrides: Partial<MatchState> = {}): MatchStore {
   let state = createInitialMatchState(mode, overrides);
   const listeners = new Set<() => void>();

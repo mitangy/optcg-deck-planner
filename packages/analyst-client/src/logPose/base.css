@@ -1,18 +1,3 @@
-/*
- * Log Pose chat: compass launcher + panel. Every colour and layer comes from a --lp-* custom
- * property with a neutral default; each app sets them on `.logpose` from its own tokens.
- *
- *   --lp-surface        panel background          --lp-surface-2   assistant bubble / chips
- *   --lp-ink            text                      --lp-muted       secondary text
- *   --lp-line           borders                   --lp-accent      compass ring, Send button
- *   --lp-on-accent      text on --lp-accent       --lp-user-bg     user bubble
- *   --lp-user-ink       user bubble text          --lp-danger      errors
- *   --lp-needle         compass north needle      --lp-field       textarea background
- *   --lp-shadow         panel / compass shadow    --lp-focus       focus outline colour
- *   --lp-font, --lp-font-display                  --lp-radius      bubble radius
- *   --lp-z-compass      launcher layer            --lp-z-panel     panel layer
- */
-
 .logpose {
   --lp-surface-d: var(--lp-surface, #ffffff);
   --lp-surface-2-d: var(--lp-surface-2, #f2f4f6);

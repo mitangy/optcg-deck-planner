@@ -1,4 +1,3 @@
-/** Test helper: the short self-play game the tests read (seed 7, random decks, Normal vs Normal, seat 0 goes first and loses). */
 import { readFileSync } from "node:fs";
 import type { MatchReplay } from "@optcg/rules";
 

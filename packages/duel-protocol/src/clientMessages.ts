@@ -1,9 +1,3 @@
-/**
- * Messages a client sends to a duel room, and the parsers the game server runs on them.
- * Every parser throws a `ProtocolError`; the room answers with its `code`.
- * Intent validation lives in @optcg/rules (`parseIntent`) because it needs the engine's rules; the server
- * wraps it in `parseIntentMessage` (game-server/src/protocol.ts).
- */
 import {
   CHAT_MAX_LENGTH,
   HAND_ORDER_MAX_ID_LENGTH,
@@ -26,7 +20,6 @@ import type {
   UndoRequestBody,
 } from "./types.js";
 
-/** A positive 31-bit integer (a TCGPlayer productId); anything else is dropped to null, never relayed. */
 export function asDonArtId(raw: unknown): number | null {
   return typeof raw === "number" && Number.isSafeInteger(raw) && raw > 0 && raw <= 2_147_483_647
     ? raw
@@ -42,7 +35,6 @@ function asSkinImage(raw: unknown, maxChars: number, field: string): string | nu
   return raw;
 }
 
-/** Parse client → server skin update for the sender's seat. */
 export function parseSkinMessage(raw: unknown): SeatSkin {
   const o = expectEnvelope(raw, "skin message");
   const skin = (o.skin && typeof o.skin === "object" ? o.skin : {}) as Record<string, unknown>;
@@ -121,7 +113,6 @@ export function asPlayerDeck(raw: unknown): PlayerDeckWire {
   };
 }
 
-/** Parse client → server cosmetics update (artPrefs for the sender's seat). */
 export function parseCosmeticsMessage(raw: unknown): ArtPrefsMap {
   const o = expectEnvelope(raw, "cosmetics message");
   return asArtPrefsMap(o.artPrefs);
@@ -140,7 +131,6 @@ function asArtPrefsMap(raw: unknown): ArtPrefsMap {
   return out;
 }
 
-/** Validates an inbound chat body and returns the cleaned text. */
 export function parseChatMessage(raw: unknown): string {
   const o = expectEnvelope(raw, "chat message");
   if (typeof o.text !== "string") throw bad("chat text required");
@@ -155,7 +145,6 @@ export function parseChatMessage(raw: unknown): string {
   return text;
 }
 
-/** Validates an inbound hand_order body and returns the ids. */
 export function parseHandOrderMessage(raw: unknown): string[] {
   const ids = raw && typeof raw === "object" ? (raw as Record<string, unknown>).ids : undefined;
   if (
@@ -201,7 +190,6 @@ export function parseUndoMessage(raw: unknown): UndoRequestBody {
   };
 }
 
-/** Validates an inbound dice message (#1190). */
 export function parseDiceMessage(raw: unknown): DiceAction {
   const o = expectEnvelope(raw, "dice message");
   if (o.action === "call") {

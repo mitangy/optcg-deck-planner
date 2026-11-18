@@ -1,8 +1,3 @@
-/**
- * Human grading of the D answers (#1038). Miko grades on a web page, blind to the judge: `exportForGrading` builds
- * what the page shows (no rubric), `toHumanGrades` turns the page's grades into human-grades.jsonl rows, and
- * `judgeAgreement` compares them with the judge's rubric.
- */
 import { readFileSync, existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { CASES } from "./cases";
@@ -44,12 +39,10 @@ const readTraces = (dir: string): Trace[] => {
   return out;
 };
 
-/** The judge's rubric per "<case>_rep<rep>" key, read from a run's traces. */
 export function judgeRubrics(dir: string): Record<string, Rubric> {
   return Object.fromEntries(readTraces(dir).flatMap((t) => (t.rubric ? [[`${t.case}_rep${t.rep}`, t.rubric]] : [])));
 }
 
-/** Everything the grading page shows. The judge's rubric is left out on purpose: grading is blind. */
 export function exportForGrading(dir: string): GradingItem[] {
   return readTraces(dir).flatMap((t) => {
     const c = CASES.find((x) => x.id === t.case);
@@ -71,7 +64,6 @@ export function exportForGrading(dir: string): GradingItem[] {
 
 export const RESULT_CAP = 6000;
 
-/** Each tool call of the turn in order: name, compact input and the result text (cut at RESULT_CAP chars). */
 export function toolSteps(turn: readonly Message[]): ToolStep[] {
   const blocks = turn.flatMap((m) => (typeof m.content === "string" ? [] : (m.content as Record<string, unknown>[])));
   const results = new Map(blocks.filter((b) => b.type === "tool_result").map((b) => [String(b.tool_use_id), resultText(b as never)]));
@@ -85,7 +77,6 @@ export function toolSteps(turn: readonly Message[]): ToolStep[] {
 
 type Ctx = { dir: string; run: string; gitSha: string; now: string };
 
-/** Page grades to rows. A grade with an unanswered item, or an overall that is present but not an integer 1-5, is skipped and listed in `skipped`. A missing overall is kept as null. */
 export function toHumanGrades(pageGrades: PageGrade[], ctx: Ctx): { rows: HumanGrade[]; skipped: { key: string; why: string }[] } {
   const exported = new Map(exportForGrading(ctx.dir).map((x) => [x.key, x]));
   const traces = new Map(readTraces(ctx.dir).map((t) => [`${t.case}_rep${t.rep}`, t]));
@@ -126,7 +117,6 @@ export function toHumanGrades(pageGrades: PageGrade[], ctx: Ctx): { rows: HumanG
   return { rows, skipped };
 }
 
-/** Appends rows to the jsonl file; a line with the same run, case and rep is replaced, so re-grading overwrites. */
 export function appendHumanGrades(file: string, rows: HumanGrade[]): void {
   const same = (a: HumanGrade, b: HumanGrade) => a.run === b.run && a.case === b.case && (a.rep ?? 0) === (b.rep ?? 0);
   const kept = readJsonl<HumanGrade>(file).filter((old) => !rows.some((r) => same(old, r)));
@@ -136,10 +126,6 @@ export function appendHumanGrades(file: string, rows: HumanGrade[]): void {
 export type ItemAgreement = { item: string; n: number; agree: number; percent: number | null; kappa: number | null; skipped: number };
 export type Disagreement = { key: string; item: string; human: 0 | 1; judge: 0 | 1; judgeWhy: string; note: string };
 
-/**
- * Cohen's kappa for two binary raters. Chance agreement pe = P(both say 1) + P(both say 0). kappa = (po - pe) / (1 - pe).
- * When both raters are constant and identical, pe is 1 and kappa is defined as 1. It is null only when there are no pairs.
- */
 export function cohenKappa(pairs: [0 | 1, 0 | 1][]): number | null {
   const n = pairs.length;
   if (!n) return null;
@@ -155,7 +141,6 @@ const summarize = (item: string, pairs: [0 | 1, 0 | 1][], skipped: number): Item
   return { item, n: pairs.length, agree, percent: pairs.length ? (100 * agree) / pairs.length : null, kappa: cohenKappa(pairs), skipped };
 };
 
-/** Judge-human agreement per rubric item and pooled. Items either side marks null are excluded from n and counted as skipped. */
 export function judgeAgreement(rows: HumanGrade[], judgeByKey: Record<string, Rubric>): { items: ItemAgreement[]; pooled: ItemAgreement; disagreements: Disagreement[] } {
   const byItem = new Map<string, { pairs: [0 | 1, 0 | 1][]; skipped: number }>();
   const disagreements: Disagreement[] = [];
@@ -183,5 +168,4 @@ export function judgeAgreement(rows: HumanGrade[], judgeByKey: Record<string, Ru
   return { items, pooled, disagreements };
 }
 
-/** True when an item agrees under 90% or has kappa under 0.6. */
 export const needsPromptFix = (a: ItemAgreement): boolean => a.n > 0 && ((a.percent ?? 0) < 90 || (a.kappa ?? 0) < 0.6);

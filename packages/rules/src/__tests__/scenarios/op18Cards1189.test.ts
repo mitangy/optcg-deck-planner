@@ -1,33 +1,26 @@
-/**
- * OP18 cards added from the Japanese card pages before TCGPlayer listed them (#1189): the six whose text needed
- * new engine or grammar support. Each row has a case where the behaviour must not apply, so loosening it fails on
- * its own scenario.
- */
 import { describe, expect, it } from "vitest";
 import { Harness } from "../../testing/harness.js";
 import { runScenarios, mine, type CardScenario } from "../../testing/scenario.js";
 import { powerOf } from "../../engine/queries.js";
 
-const KAROO = "ST01-003"; // 3000 vanilla
-const VIVI = "ST01-009"; // 4000 vanilla
-const KOMACHIYO = "OP01-010"; // 3000 vanilla
-const SPEED = "OP01-104"; // 3000 vanilla
-const ROBIN = "OP01-017"; // 3000
-const VIVI_LEADER = "OP04-001"; // Nefeltari Vivi
-const LUFFY_LEADER = "ST01-001"; // Monkey.D.Luffy, 5000 power
+const KAROO = "ST01-003";
+const VIVI = "ST01-009";
+const KOMACHIYO = "OP01-010";
+const SPEED = "OP01-104";
+const ROBIN = "OP01-017";
+const VIVI_LEADER = "OP04-001";
+const LUFFY_LEADER = "ST01-001";
 const SPANDAM = "OP18-079";
-const BASE_5000_A = "OP01-023"; // vanilla 5000 base power
-const BASE_5000_B = "OP01-043"; // vanilla 5000 base power
-const BASE_6000 = "OP01-018"; // vanilla 6000 base power
-const BASE_8000 = "OP02-007"; // vanilla 8000 base power
-const KAROO_7000 = "EB02-001"; // vanilla {Animal}{Alabasta}, 7000 base power
-const YAMAKAJI = "OP18-112"; // {Vice Admiral}
-const DOBERMAN = "OP18-106"; // {Vice Admiral}
-const MOMONGA = "OP18-111"; // {Vice Admiral}
+const BASE_5000_A = "OP01-023";
+const BASE_5000_B = "OP01-043";
+const BASE_6000 = "OP01-018";
+const BASE_8000 = "OP02-007";
+const KAROO_7000 = "EB02-001";
+const YAMAKAJI = "OP18-112";
+const DOBERMAN = "OP18-106";
+const MOMONGA = "OP18-111";
 
 const rows: CardScenario[] = [
-  // OP18-020 Stop Fighting!!!: [Counter] You may add all of your Life cards to your hand: If your Leader is [Nefeltari Vivi],
-  // give your opponent's Leader and all of their Characters -5000 power during this turn.
   {
     card: "OP18-020", name: "adds all your Life cards to your hand and gives the opponent's Leader and every Character -5000 (#1189)",
     leaders: { me: VIVI_LEADER },
@@ -51,7 +44,6 @@ const rows: CardScenario[] = [
     },
   },
 
-  // OP18-078 Mini-Merry: [Activate: Main] You may rest this Stage: Give up to 1 rested DON!! card each to a total of up to 4 of your Leader and Characters.
   {
     card: "OP18-078", name: "gives 1 rested DON!! each to 4 chosen Leader or Characters (#1189)",
     me: { stage: "OP18-078", field: [KAROO, VIVI, KOMACHIYO, SPEED, ROBIN], don: { active: 0, rested: 5 } },
@@ -101,8 +93,6 @@ describe("OP18-078 Mini-Merry picks at most 4 cards", () => {
 });
 
 describe("OP18-027 Zoro & Sogeking", () => {
-  // [Opponent's Turn] The base power of your active [Monkey.D.Luffy] Leader with 3 or more DON!! cards given becomes 7000.
-  // Zoro & Sogeking belongs to seat 1, so seat 0's turn is its opponent's turn.
   const leaderPower = (setup: (h: Harness) => void, leader = LUFFY_LEADER): number => {
     const h = new Harness({ leaders: [LUFFY_LEADER, leader] });
     h.field(1, "OP18-027");
@@ -136,11 +126,9 @@ describe("OP18-027 Zoro & Sogeking", () => {
 });
 
 describe("OP18-061 Iceburg", () => {
-  // [On Play] Look at 5 cards from the top of your deck; reveal a total of up to 2 Stage cards or {Water Seven} type cards
-  // and add them to your hand. Then, place the rest at the bottom of your deck in any order.
-  const MINI_MERRY = "EB01-011"; // Stage, {Straw Hat Crew}
-  const KIWI_MOZU = "OP03-061"; // {Water Seven} Character
-  const KOKORO = "OP03-062"; // {Water Seven} Character
+  const MINI_MERRY = "EB01-011";
+  const KIWI_MOZU = "OP03-061";
+  const KOKORO = "OP03-062";
 
   const play = () => {
     const h = new Harness({ leaders: [LUFFY_LEADER, LUFFY_LEADER] });
@@ -179,16 +167,12 @@ describe("OP18-061 Iceburg", () => {
 });
 
 describe("OP18-064 Saint Killingham", () => {
-  // [Your Turn] [On Play] DON!! −1: Up to 1 of your opponent's Characters with 7000 base power or less and up to 1 of your
-  // opponent's Characters with 5000 base power or less cannot attack until the end of your opponent's next End Phase.
-  // The opponent's Leader OP18-001 gives {Animal}{Alabasta} Characters +1000, so KAROO_7000 has 8000 power but 7000 base power.
   const setup = () => {
     const h = new Harness({ leaders: [LUFFY_LEADER, "OP18-001"] });
     h.don(0, 6, 0);
     h.hand(0, "OP18-064");
     h.field(1, BASE_8000, BASE_6000, BASE_5000_A, BASE_5000_B, KAROO_7000);
     h.play(0, "OP18-064");
-    // DON!! −1 is a cost: accept it, then pick the one DON!! to return.
     h.accept();
     const pay = h.choice!.request;
     if (pay?.type !== "select") throw new Error("expected the DON!! cost prompt");
@@ -230,8 +214,6 @@ describe("OP18-064 Saint Killingham", () => {
 });
 
 describe("OP18-117 Buster Call", () => {
-  // [Main] You may trash all of your Life cards: If your Leader is [Spandam], trash all Characters and play up to a total of 5
-  // {Vice Admiral} type Character cards with different card names from your deck or trash. Then, shuffle your deck.
   const MARKERS = [KAROO, VIVI, KOMACHIYO, SPEED, ROBIN, BASE_5000_A, BASE_5000_B];
   const setup = (leader: string) => {
     const h = new Harness({ leaders: [leader, LUFFY_LEADER] });

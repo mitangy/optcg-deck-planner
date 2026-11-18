@@ -11,7 +11,6 @@ describe("applyHotseatAutoPass", () => {
     });
     expect(first).toEqual({ activeSeat: 0, lastNeeded: 0, manualPass: false });
 
-    // Same needed + already on that seat: manualPass can stick (no-op hold).
     const held = applyHotseatAutoPass({
       needed: 0,
       activeSeat: 0,
@@ -22,8 +21,6 @@ describe("applyHotseatAutoPass", () => {
   });
 
   it("forces handoff when needed seat differs despite manualPass (Rocks pending)", () => {
-    // Device was passed to Teach (or briefly handed for block) while Rocks
-    // When Attacking still owns needed=0 — pending must win.
     const forced = applyHotseatAutoPass({
       needed: 0,
       activeSeat: 1,

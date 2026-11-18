@@ -1,29 +1,18 @@
-/**
- * Build hints for the deck editor (pure, no React). Rule breaks are soft warnings: nothing
- * here ever blocks an add or remove. Thresholds live in HINT_THRESHOLDS so they are easy to tune.
- */
 import { MAIN_DECK_SIZE, normalizeCardId } from "@optcg/card-core";
 import { computeDeckStats, type DeckStats, type DeckStatsCard, type StatsAtlas } from "./deckStats";
 import { deckEntries, searcherOdds } from "./drawOdds";
 
 export const HINT_THRESHOLDS = {
-  /** Main deck size, leader and DON!! excluded. */
   deckSize: MAIN_DECK_SIZE,
   maxCopies: 4,
-  /** Shape and synergy hints stay quiet until this many counted cards are in the deck. */
   minCardsForAdvice: 40,
   earlyCostMax: 3,
-  /** Fewer plays than this at cost 1..earlyCostMax is a thin early game. */
   minEarlyPlays: 10,
   lateCostMin: 7,
-  /** More cards than this at cost lateCostMin+ is top-heavy. */
   maxLatePlays: 8,
   minAvgCounter: 1000,
-  /** A searcher that finds a hit less often than this is weak. */
   minSearcherChance: 0.75,
-  /** A searcher whose filter matches this many other deck cards or fewer is dead. */
   deadFilterMaxHits: 3,
-  /** A {Trait} named by the leader is flagged when fewer deck cards than this have it. */
   traitSupportBelow: 16,
 } as const;
 
@@ -32,7 +21,6 @@ export type HintTier = "rule" | "shape" | "synergy";
 export type DeckHint = { id: string; tier: HintTier; title: string; detail: string; cardIds?: string[] };
 
 export type HintOptions = {
-  /** The user is done adding (tapped "Done editing" or is viewing the deck): surface the 50-card count. */
   finished?: boolean;
 };
 
@@ -46,7 +34,6 @@ function ruleText(rule: string, leaderName: string): string {
   return `This deck breaks a rule printed on ${leaderName}.`;
 }
 
-/** Copies per normalized card number, leader and leader-typed cards excluded, unknown ids included. */
 function mainCopies(cards: readonly DeckStatsCard[], atlas: StatsAtlas, leaderId?: string | null): Map<string, number> {
   const leaderKey = leaderId ? normalizeCardId(leaderId) : null;
   const out = new Map<string, number>();
@@ -75,7 +62,6 @@ export function computeDeckHints(
   const leader = leaderId ? atlas[normalizeCardId(leaderId)] : undefined;
   const leaderName = leader?.n ?? "The leader";
 
-  // Rule
   if (count !== T.deckSize && (opts.finished || count > T.deckSize)) {
     hints.push({
       id: "count",
@@ -109,7 +95,6 @@ export function computeDeckHints(
     hints.push({ id: `leader-rule:${v.rule}`, tier: "rule", title: "Leader rule broken", detail: ruleText(v.rule, leaderName), cardIds: v.cardIds });
   }
 
-  // Shape
   if (stats.total >= T.minCardsForAdvice) {
     let early = 0;
     for (let c = 1; c <= T.earlyCostMax; c++) early += stats.costCurve[c]?.total ?? 0;
@@ -139,7 +124,7 @@ export function computeDeckHints(
     }
   }
 
-  // Searchers (weak = low chance, dead = filter nearly matches nothing; dead wins so a card is flagged once)
+  // Dead wins over weak, so a card is flagged once.
   if (stats.total >= T.minCardsForAdvice) {
     const seen = new Set<string>();
     for (const row of searcherOdds(deckEntries(deckCards, atlas))) {
@@ -166,7 +151,6 @@ export function computeDeckHints(
     }
   }
 
-  // Leader traits
   if (leader?.lt && stats.total >= T.minCardsForAdvice) {
     for (const trait of leader.lt) {
       let n = 0;
@@ -185,7 +169,6 @@ export function computeDeckHints(
   return hints.sort((a, b) => TIER_ORDER[a.tier] - TIER_ORDER[b.tier]);
 }
 
-/** Split hints by the user's dismissals. Unknown dismissed ids are ignored. */
 export function splitDismissed(hints: readonly DeckHint[], dismissed: readonly string[]): { visible: DeckHint[]; dismissed: DeckHint[] } {
   const gone = new Set(dismissed);
   return { visible: hints.filter((h) => !gone.has(h.id)), dismissed: hints.filter((h) => gone.has(h.id)) };
@@ -193,10 +176,6 @@ export function splitDismissed(hints: readonly DeckHint[], dismissed: readonly s
 
 const fmtK = (n: number) => `${(n / 1000).toFixed(2)}k`;
 
-/**
- * What one add/remove moved: a hint that appeared or cleared, the touched cost bucket, and the
- * average counter. Returns at most two parts joined by " · ", or null when nothing notable moved.
- */
 export function deckDelta(
   before: readonly DeckStatsCard[],
   after: readonly DeckStatsCard[],

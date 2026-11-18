@@ -15,7 +15,6 @@ const run = async (d: ChatDeps, generate: boolean) => {
   return events;
 };
 
-// Two leaders that differ, and a deck that is not just 4-ofs of one card.
 const LOOKUP = {
   leader_id: "OP01-001",
   opponent_id: "ST01-001",
@@ -167,7 +166,6 @@ describe("matchup brief", () => {
     ]);
     const events = await run(deps(api, callModel), true);
 
-    // The model is asked for a short brief with the cheap settings and only the shared tools.
     expect(seen).toHaveLength(2);
     expect(seen[0]!.max_tokens).toBe(1500);
     expect(seen[0]!.output_config).toEqual({ effort: "low" });

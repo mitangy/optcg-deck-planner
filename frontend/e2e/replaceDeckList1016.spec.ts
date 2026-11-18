@@ -1,7 +1,3 @@
-/**
- * Replace with deck list (#1016): overwrite an existing deck from a pasted deck code, from the More menu and from the
- * Edit deck panel. Runs at desktop-1200 and phone-375. Set SHOTS_DIR to save screenshots for the PR body.
- */
 import type { Page } from "@playwright/test";
 import { expect, test, DECK_ID } from "./fixtures";
 
@@ -34,7 +30,6 @@ test("More menu replaces the deck with the pasted list and keeps its name (#1016
   expect(planner.replacedLists).toEqual([LIST]);
   await expect(page.getByRole("status").filter({ hasText: "Replaced with the pasted list (7 cards)." })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Oden Red/Green", level: 1 })).toBeVisible();
-  // Izo was not in the pasted list, Kid & Killer was.
   await expect(page.locator('[data-card-id="EB01-002"]:visible')).toHaveCount(0);
   await expect(page.locator('[data-card-id="EB01-003"]:visible').first()).toBeVisible();
   await shot(page, "2-replaced", info.project.name);

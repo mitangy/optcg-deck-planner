@@ -1,15 +1,3 @@
-/**
- * Golden duel-protocol fixtures, generated from the real engine.
- *
- * Server → client: the `view` message a seat receives in each situation the
- * engine can produce (one per pending-choice kind, plus battle steps).
- * Client → server: the `intent` message a client sends to answer it, taken from
- * the view's own `legalIntents` or answered against the engine.
- *
- * Committed under `packages/rules/protocol-fixtures`; game-server, duel-web and
- * mobile load the same files so a wire-shape change breaks all of them at once.
- * Regenerate with `npm run export-protocol-fixtures -w @optcg/rules`.
- */
 import { applyIntent, createMatch, getPlayerView, listLegalIntents } from "../engine.js";
 import { RULES_PROTOCOL_VERSION } from "../engine/snapshot.js";
 import type { Intent, MatchState, Seat } from "../types.js";
@@ -19,22 +7,17 @@ export type ChoiceFixtureKind = "confirm" | "select" | "mode" | "order" | "look"
 
 export type ServerFixture = {
   name: string;
-  /** Message name the game-server sends it under. */
   message: "view" | "welcome";
   viewerSeat: Seat;
-  /** Request type (or "order_effects" / "life_trigger") of the front pending choice; null when none. */
   choice: ChoiceFixtureKind | null;
-  /** True when the viewer is the seat that must answer the front choice. */
   answerable: boolean;
   body: Record<string, unknown>;
 };
 
 export type ClientFixture = {
   name: string;
-  /** Always "intent": the message name the game-server listens on. */
   message: "intent";
   intentType: Intent["type"];
-  /** Server fixture whose view this intent answers, when it answers a choice. */
   answers: string | null;
   body: { protocolVersion: number; intent: Intent };
 };
@@ -61,13 +44,11 @@ export function buildProtocolFixtures(): ProtocolFixtures {
   };
 
   const addClient = (name: string, h: Harness, seat: Seat, intent: Intent, answers: string | null): void => {
-    // Every client fixture must be accepted by the engine against the state it answers.
     const r = applyIntent(h.state, intent, { seat });
     if (!r.ok) throw new Error(`fixture ${name}: engine rejected ${JSON.stringify(intent)}: ${r.error?.message}`);
     client.push({ name, message: "intent", intentType: intent.type, answers, body: { protocolVersion: RULES_PROTOCOL_VERSION, intent: clone(intent) } });
   };
 
-  // Mulligan: before either seat has chosen.
   {
     const state = createMatch({ seed: 1, firstSeat: 0, players: [{ leaderId: "ST01-001", deck: Array(40).fill(FILLER) }, { leaderId: "ST01-001", deck: Array(40).fill(FILLER) }] });
     const h = new Harness();
@@ -77,7 +58,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     addClient("mulligan-redraw", h, 0, { type: "mulligan", doMulligan: true }, null);
   }
 
-  // Main phase: every action a plain turn offers.
   {
     const h = new Harness();
     h.don(0, 1, 1);
@@ -100,7 +80,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     addClient("attack-character", h, 0, first((i) => i.type === "declare_attack" && i.target.kind === "character"), null);
   }
 
-  // Main phase with a full field: playing a Character names the one to trash.
   {
     const h = new Harness();
     h.don(0, 1);
@@ -112,7 +91,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     addClient("play-card-replace", h, 0, replace, null);
   }
 
-  // Block step, then counter step (defender's view).
   {
     const h = new Harness();
     h.field(1, "ST01-006");
@@ -133,7 +111,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     if (!fromHand || !event) throw new Error("counter scenario lacks counter intents");
     addClient("counter-from-hand", h, 1, fromHand, null);
     addClient("counter-event", h, 1, event, null);
-    // The counter event's [Counter] asks which Character to power up: a select.
     h.act(1, event);
     const choice = h.choice;
     if (choice?.request?.type !== "select") throw new Error("counter event should open a select");
@@ -144,7 +121,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     addClient("resolve-select", h, 1, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [option.id] }, "choice-select");
   }
 
-  // Optional yes / no (OP02-062 pays a cost to K.O.).
   {
     const h = new Harness();
     h.hand(0, "OP02-062", FILLER, FILLER);
@@ -158,7 +134,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     addClient("resolve-decline", h, 0, { type: "resolve_pending_choice", accept: false }, "choice-confirm");
   }
 
-  // Mode: pick one labelled option (OP11-081 names a cost).
   {
     const h = new Harness();
     h.hand(0, "OP11-081");
@@ -172,7 +147,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     addClient("resolve-mode", h, 0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [request.options[0]!.id] }, "choice-mode");
   }
 
-  // Order: put a looked-at Life card back (EB02-053), hidden from the opponent.
   {
     const h = new Harness();
     h.hand(0, "EB02-053");
@@ -186,7 +160,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     addClient("resolve-order", h, 0, { type: "resolve_pending_choice", accept: true, orderedOptionIds: ["o0"], topOptionIds: [] }, "choice-order");
   }
 
-  // Look: search the top of the deck (OP01-016 Nami), private to its owner.
   {
     const h = new Harness();
     h.hand(0, "OP01-016");
@@ -199,7 +172,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     addClient("resolve-look", h, 0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] }, "choice-look");
   }
 
-  // Simultaneous effects: two copies of OP06-014 answer the same attack.
   {
     const h = new Harness();
     h.field(1, "OP06-014", "OP06-014");
@@ -212,7 +184,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     addClient("order-effects", h, 1, { type: "order_pending_effects", orderedIds: ids }, "choice-order-effects");
   }
 
-  // Life trigger: the defender may activate the revealed [Trigger].
   {
     const h = new Harness();
     h.life(1, "ST01-014", FILLER);
@@ -223,7 +194,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
     addClient("resolve-trigger", h, 1, { type: "resolve_pending_choice", accept: true }, "choice-life-trigger");
   }
 
-  // Welcome wraps the same view with the seat and player names.
   {
     const base = server.find((s) => s.name === "choice-confirm")!;
     server.push({
@@ -239,7 +209,6 @@ export function buildProtocolFixtures(): ProtocolFixtures {
   return { protocolVersion: RULES_PROTOCOL_VERSION, server, client };
 }
 
-/** The committed files: file name → JSON value. */
 export function protocolFixtureFiles(): Record<string, unknown> {
   const f = buildProtocolFixtures();
   return {

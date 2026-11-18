@@ -1,9 +1,4 @@
-/* —— Primary action dock (desktop) ——
-   End turn / Pass block / Pass counter float at the right end of the board's
-   midline instead of the side rail. Fixed, anchored by getBoundingClientRect
-   (so the tilted mat needs no special case), above the raised hand fan (16) and
-   below prompts / HUD. Its box never changes size: the armed End turn wraps
-   inside it and "Waiting for opponent" takes the same slot. */
+/* Anchored by getBoundingClientRect so the tilted mat needs no special case; above the raised hand fan (16), below prompts / HUD. The box never changes size: the armed End turn wraps inside it. */
 .primary-dock {
   --dock-w: 13rem;
   position: fixed;
@@ -16,8 +11,6 @@
   pointer-events: none;
 }
 
-/* The primary (or the wait) keeps its slot at the right end; extra phase-wide
-   buttons (Mulligan, Resolve trigger) grow the dock to the left of it. */
 .primary-dock-main {
   display: flex;
   width: var(--dock-w);
@@ -72,16 +65,13 @@
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 0, 0, 0.35);
 }
 
-/* The battle line stays clear of the dock. PrimaryDock measures how far the
-   dock reaches into the strip (it can sit well inside the strip's right edge). */
+/* PrimaryDock measures how far the dock reaches into the strip (it can sit well inside the strip's right edge). */
 .arena .midline.midline-docked {
   box-sizing: border-box;
   padding-right: var(--dock-reserve, calc(13rem + 1.25rem));
 }
 
-/* Beside the dock the strip has little room at 1280 wide: a long matchup
-   ("Edward.Newgate (5000) → Marshall.D.Teach (5000)") takes a second line in
-   the same fixed-height strip instead of being cut off. */
+/* Beside the dock the strip has little room at 1280 wide, so a long matchup takes a second line instead of being cut off. */
 .arena.arena-wide .midline.midline-docked .prompt {
   display: flex;
   align-items: center;
@@ -122,14 +112,12 @@
   }
 }
 
-/* Shortcut key tags off (Gameplay setting): no "Space" tab on the primary. */
 .arena.arena-wide:not(.arena-lp) .board-col .intent-primary.no-key-tag::after,
 .primary-dock.has-primary.no-key-tag .primary-dock-main::after {
   content: none;
 }
 
-/* Waiting for the opponent: same slot and size as the primary button. Fixed
-   dark colours: it sits on the (always dark) playmat in light mode too. */
+/* Fixed dark colours: it sits on the (always dark) playmat in light mode too. */
 .waiting-opp {
   box-sizing: border-box;
   display: flex;
@@ -154,7 +142,6 @@
 
 .waiting-opp-text strong {
   font-size: 0.85rem;
-  /* Wraps in a narrow rail (landscape phone) instead of running off it. */
   overflow-wrap: anywhere;
 }
 
@@ -214,7 +201,6 @@
   }
 }
 
-/* In the phone / landscape action bar the indicator is the bar. */
 .intent-bar-waiting {
   padding: 0;
   background: none;

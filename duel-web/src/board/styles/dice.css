@@ -1,7 +1,4 @@
-/* —— Opening dice roll (#1190) ——
-   Shown over the empty mat where "Waiting for opponent" was. The card keeps one size and every
-   control keeps its place from step to step: the die, a two-line status, and one fixed-height
-   action slot whose contents change (High / Low, Roll, Go first / Go second, or waiting text). */
+/* The card keeps one size and every control keeps its place from step to step: one fixed-height action slot whose contents change. */
 
 .arena-pending .pending-dice {
   position: absolute;
@@ -80,7 +77,6 @@
   color: var(--muted);
 }
 
-/* The die: ivory body, dark pips, from the theme's own ink / deep tokens. */
 .dice-die {
   position: relative;
   box-sizing: border-box;
@@ -212,7 +208,6 @@
   color: var(--muted);
 }
 
-/* Short landscape screens (phones on their side): die and seats on the left, the status and controls on the right. */
 @media (orientation: landscape) and (max-height: 520px) {
   .dice-phase {
     --die: 3.4rem;

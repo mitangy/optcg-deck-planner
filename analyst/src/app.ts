@@ -1,11 +1,3 @@
-/**
- * The HTTP layer of the Log Pose service: MCP over Streamable HTTP (stateless), /health, and the in-app chat
- * routes streamed as server-sent events. `createApp` only builds the Express app (no listening, no env reads),
- * so tests can serve it on a free port with fake planner and model dependencies; `index.ts` wires the real ones.
- *
- * Add `<public URL>/mcp/<ANALYST_CONNECTOR_KEY>` in Claude under Settings > Connectors, or a personal
- * `<public URL>/mcp/u/<token>` link made in the duel app's Settings.
- */
 import { createMcpExpressApp } from "@modelcontextprotocol/sdk/server/express.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { NextFunction, Request, Response } from "express";
@@ -27,13 +19,10 @@ import type { ChatDeps, SseEvent } from "./types";
 export type AppDeps = {
   catalog: Catalog;
   knowledge: Knowledge;
-  /** The planner API (its service secret and fetch), shared by the MCP links and the chat routes. */
   api: PlannerApi;
-  /** The in-app chat's dependencies; null (no Claude key or service secret) answers the chat routes with a 503. */
   chat: ChatDeps | null;
 };
 
-/** How long a personal link checked with the planner is trusted before it is checked again. */
 export const TOKEN_CHECK_MS = 5 * 60_000;
 
 type Run<T> = (deps: ChatDeps, token: string, body: T, emit: (e: SseEvent) => void, signal: AbortSignal) => Promise<void>;
@@ -46,7 +35,6 @@ export function createApp(config: Config, deps: AppDeps) {
     res.json({ ok: true, cards: catalog.cards.size, playbookNotes: knowledge.playbook?.notes.size ?? 0 });
   });
 
-  /** Personal links checked recently, so each MCP request doesn't wait on the planner API. */
   const validTokens = new Map<string, number>();
 
   async function personalContext(token: string): Promise<PersonalContext | null> {
@@ -97,14 +85,12 @@ export function createApp(config: Config, deps: AppDeps) {
     res.status(405).set("Allow", "POST").json({ jsonrpc: "2.0", error: { code: -32000, message: "Method not allowed." }, id: null });
   };
 
-  // Personal links (/mcp/u/<token>) come from the duel app's Settings and add the player's own games and decks.
   for (const path of [config.connectorKey ? "/mcp/:key" : "/mcp", "/mcp/u/:token"]) {
     app.post(path, handleMcp);
     app.get(path, notAllowed);
     app.delete(path, notAllowed);
   }
 
-  // In-app chat panel and post-game analysis (duel app and deck planner), streamed as server-sent events.
   function chatCors(req: Request, res: Response, next: NextFunction) {
     const origin = req.headers.origin;
     if (originAllowed(config.chatOrigins, origin)) {
@@ -161,7 +147,6 @@ export function createApp(config: Config, deps: AppDeps) {
   app.use(["/chat", "/review-match", "/brief"], chatCors);
   app.post("/chat", sse("chat", chatBody, runChat));
   app.post("/review-match", sse("review", reviewBody, runReview));
-  // A brief checks the token first and the budget only when it has to write one: a saved brief is free.
   app.post("/brief", sse("brief", briefBody, runBrief, admitToken));
 
   return app;

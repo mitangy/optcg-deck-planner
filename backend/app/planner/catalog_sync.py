@@ -1,4 +1,3 @@
-"""TCGCSV catalog sync into Postgres."""
 
 from __future__ import annotations
 
@@ -30,7 +29,6 @@ log = logging.getLogger("uvicorn.error")
 # out. It is launched as a background job instead; this guard keeps at most one
 # sync running at a time and records the outcome for observability.
 _sync_lock = threading.Lock()
-# Held across workers while this one syncs (see try_claim_sync_slot).
 _sync_advisory = None
 _sync_state: dict[str, Any] = {
     "running": False,
@@ -57,7 +55,6 @@ def try_claim_sync_slot() -> bool:
     """
     if not _sync_lock.acquire(blocking=False):
         return False
-    # The thread lock only covers this worker; the advisory lock keeps the others out too.
     global _sync_advisory
     from app.core.db import CATALOG_SYNC_LOCK_KEY, try_advisory_lock
 
@@ -79,7 +76,6 @@ def try_claim_sync_slot() -> bool:
 
 
 def _default_session_factory() -> Session:
-    # Imported lazily so importing this module never triggers engine creation.
     from app.core.db import SessionLocal
 
     return SessionLocal()
@@ -90,14 +86,6 @@ def run_catalog_sync_job(
     *,
     already_claimed: bool = False,
 ) -> dict[str, Any] | None:
-    """Run a full catalog sync in its own DB session (for background execution).
-
-    Returns the sync result, or ``None`` if a sync was already running (the
-    non-blocking lock keeps concurrent syncs from clobbering the catalog).
-
-    Pass ``already_claimed=True`` when the caller used :func:`try_claim_sync_slot`
-    so the lock/state are not acquired twice.
-    """
     global _sync_advisory
     if not already_claimed and not try_claim_sync_slot():
         return None
@@ -124,7 +112,6 @@ def run_catalog_sync_job(
 
 
 def _is_transient(exc: BaseException) -> bool:
-    """Timeouts, connect/transport errors and 5xx/429 responses are worth retrying; 4xx are not."""
     if isinstance(exc, httpx.HTTPStatusError):
         status = exc.response.status_code
         return status == 429 or status >= 500
@@ -137,7 +124,7 @@ _retry_wait = wait_exponential(multiplier=0.5, max=4)
 @retry(
     retry=retry_if_exception(_is_transient),
     stop=stop_after_attempt(3),
-    wait=lambda state: _retry_wait(state),  # looked up per call so tests can patch it
+    wait=lambda state: _retry_wait(state),
     reraise=True,
 )
 def _get_json(client: httpx.Client, url: str) -> dict[str, Any]:
@@ -155,7 +142,6 @@ def _extended_map(product: dict[str, Any]) -> dict[str, str]:
 
 
 def resolve_catalog_card_id(product: dict[str, Any], ed: dict[str, str] | None = None) -> str | None:
-    """Return catalog card_id for a TCGCSV product, or None if it should be skipped."""
     fields = ed if ed is not None else _extended_map(product)
     product_id = int(product["productId"])
     name = product.get("name") or ""
@@ -188,7 +174,6 @@ def _pick_price(price_rows: list[dict[str, Any]]) -> dict[str, Any] | None:
 
 
 def _printing_sort_key(entry: dict[str, Any]) -> tuple:
-    """Prefer standard (non-special) then cheapest market."""
     return (
         entry["is_special"],
         entry["market_price"] if entry["market_price"] is not None else 1e9,
@@ -204,16 +189,9 @@ def _orm_printing_sort_key(row: CatalogPrinting) -> tuple:
 
 
 def _special_flags(printings: list[tuple[int, str, float | None]]) -> dict[int, int]:
-    """is_special per product id for one card number (#761).
-
-    The alt-art id list (#763) may flag any printing except the one the name
-    markers alone would pick as primary: duel-web sometimes uses a pre-release
-    as a card's main art and lists the real base printing as an alt.
-    """
     marker = {pid: is_special_printing(name) for pid, name, _ in printings}
     primary = min(
         printings,
-        # On a price tie, an id-listed printing is the alt rather than the primary.
         key=lambda p: (
             marker[p[0]],
             p[2] if p[2] is not None else 1e9,
@@ -228,11 +206,6 @@ def _special_flags(printings: list[tuple[int, str, float | None]]) -> dict[int, 
 
 
 def refresh_special_flags(db: Session, card_ids: set[str] | None = None) -> dict[str, int]:
-    """Recompute is_special from stored names and re-pick preferred catalog rows.
-
-    Lets deploys that only widen SPECIAL_NAME_MARKERS update alt-art visibility
-    without waiting on a full TCGCSV pull. `card_ids` limits it to those cards.
-    """
     query = select(CatalogPrinting)
     if card_ids is not None:
         if not card_ids:
@@ -295,7 +268,6 @@ def _published_date(value: Any) -> date | None:
 
 
 def store_groups(db: Session, groups: list[dict[str, Any]]) -> None:
-    """Upsert the TCGCSV set list, so a printing's release date can be found by group name (#946)."""
     existing = {g.group_id: g for g in db.scalars(select(CatalogGroup)).all()}
     for group in groups:
         group_id = int(group["groupId"])
@@ -313,9 +285,7 @@ def store_groups(db: Session, groups: list[dict[str, Any]]) -> None:
 
 
 def sync_catalog(db: Session) -> dict[str, Any]:
-    """Full TCGCSV pull; stores all printings and a preferred CatalogCard per number."""
     by_card: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    # Groups whose fetch failed this run: their printings were not seen, not removed upstream.
     skipped_groups: set[str] = set()
 
     with httpx.Client() as client:
@@ -361,15 +331,12 @@ def sync_catalog(db: Session) -> dict[str, Any]:
                     "image_url": product.get("imageUrl") or "",
                     "tcgplayer_url": product.get("url") or "",
                     "group_name": group_name,
-                    "is_special": 0,  # set per card below, once all printings are known
+                    "is_special": 0,
                 }
                 by_card[card_id].append(entry)
 
     now = datetime.now(timezone.utc)
 
-    # Upsert by (card_id, product_id) rather than delete-all-then-insert, so a
-    # printing's id survives across syncs — only rows TCGCSV no longer lists
-    # are removed, at the end.
     existing_printings = {
         (row.card_id, row.product_id): row for row in db.scalars(select(CatalogPrinting)).all()
     }
@@ -377,7 +344,6 @@ def sync_catalog(db: Session) -> dict[str, Any]:
 
     printing_count = 0
     for card_id, entries in by_card.items():
-        # Dedupe by product_id (same product shouldn't appear twice)
         unique: dict[int, dict[str, Any]] = {}
         for entry in entries:
             unique[entry["product_id"]] = entry
@@ -458,7 +424,6 @@ def sync_catalog(db: Session) -> dict[str, Any]:
     store_groups(db, groups)
     db.commit()
 
-    # Today's market price for every stored printing joins the price history (#946).
     from app.planner.price_history import record_prices_safely
 
     record_prices_safely(

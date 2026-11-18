@@ -64,7 +64,7 @@ function describeEvents(events: GameEvent[]): string[] {
         lines.push(`  P${e.seat} prompted: ${e.prompt}`);
         break;
       case "pending_choice_resolved":
-        if (e.kind === "life_trigger") break; // narrated by trigger_resolved
+        if (e.kind === "life_trigger") break;
         lines.push(
           `  P${e.seat} ${e.accepted ? "accepts" : "declines"} ${getCardDef(e.cardDefId).name}'s ${e.kind.replace(/_/g, " ")}`,
         );

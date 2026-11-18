@@ -7,29 +7,14 @@ import {
 } from "./seatArtPrefs";
 import { getArtPrefs, getSelectedDeck, setDeckArtPref, type SavedDeck } from "./storage";
 
-/**
- * Stored in a deck's artPrefs to pin standard art over a global alt pick.
- * It never matches a real alt id, so image lookup falls back to the base art.
- */
 export const STANDARD_ART_ID = "standard";
 
-/**
- * Stored in a deck's artPrefs for an any-number card (#1292): every copy shows a different art, cycling
- * through the standard art then the alternates by the copy's rank (`artCopy`). Like STANDARD_ART_ID it never
- * matches a real alt id, and the planner ignores it.
- */
 export const EACH_ART_ID = "each";
 
 export type ResolveCardImageOpts = {
-  /**
-   * Explicit deck for artPrefs (configure page).
-   * Ignored when `ownerSeat` is set and that seat is live.
-   */
   deck?: SavedDeck | null;
-  /** Prefer this seat's live cosmetics map for cards owned by that seat. */
   ownerSeat?: Seat;
   size?: CardImageSize;
-  /** Which copy of an any-number card this is (from the engine view); picks the art when the pref is "each". */
   artCopy?: number;
 };
 
@@ -62,12 +47,10 @@ function resolveAltId(
   return deck?.artPrefs?.[defId] ?? getArtPrefs()[defId];
 }
 
-/** True for a card a deck may hold any number of that also has an alternate art to spread copies over (#1292). */
 export function canUseEachArt(defId: string): boolean {
   return maxCopiesFor(defId) === Infinity && (lookupCard(defId).altArts?.length ?? 0) > 0;
 }
 
-/** `[standard, ...alternates][artCopy % count]`: 8 copies over 3 arts show 3 / 3 / 2, standard art first. */
 function artUrlForCopy(defId: string, artCopy: number): string | undefined {
   const entry = lookupCard(defId);
   const urls = [entry.imageUrl ?? previewArtPath(defId) ?? undefined, ...(entry.altArts ?? []).map((a) => a.imageUrl)];
@@ -90,14 +73,6 @@ function rawCardImageUrl(
   return entry.imageUrl ?? previewArtPath(defId) ?? undefined;
 }
 
-/**
- * Resolve display art for a card (seat / deck prefs + CDN size rewrite).
- *
- * Call shapes:
- * - `resolveCardImageUrl(id)` / `resolveCardImageUrl(id, "thumb"|"large")`
- * - `resolveCardImageUrl(id, savedDeck)`
- * - `resolveCardImageUrl(id, { deck?, ownerSeat?, size? })`
- */
 export function resolveCardImageUrl(
   defId: string,
   opts?: ResolveCardImageOpts | CardImageSize | SavedDeck | null,
@@ -125,20 +100,12 @@ export function resolveCardImageUrl(
   return cardImageUrl(raw, size) || raw;
 }
 
-/**
- * The alt id a deck actually shows for a card (deck pref, else the global pref,
- * the same order the image uses). "" means standard art.
- */
 export function resolveDeckAltId(defId: string, deck: SavedDeck): string {
   const id = deck.artPrefs?.[defId] ?? getArtPrefs()[defId];
   if (!id || id === STANDARD_ART_ID) return "";
   return lookupCard(defId).altArts?.some((a) => a.id === id) ? id : "";
 }
 
-/**
- * What the deck's art picker shows for a card: "" (standard), an alt id, or EACH_ART_ID (#1292).
- * "each" only counts for a card that can use it, so a stale pref falls back to standard.
- */
 export function resolveDeckArtChoice(defId: string, deck: SavedDeck): string {
   const id = (deck.artPrefs ?? {})[defId] ?? getArtPrefs()[defId];
   if (id === EACH_ART_ID) return canUseEachArt(defId) ? EACH_ART_ID : "";

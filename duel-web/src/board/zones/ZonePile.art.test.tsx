@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-// Every card currently has official art, so the card preview list can be empty: use a fixed one (#1299).
+// Every card currently has official art, so the card preview list can be empty: use a fixed one.
 vi.mock("../../../../packages/ui/src/cardArt/previewArt.json", () => ({ default: ["OP18-003", "OP18-031"] }));
 
 import { isPreviewArtPath } from "@optcg/ui/cardArt";
@@ -11,9 +11,7 @@ import catalog from "../../assets/cardCatalog.json";
 import { resolveCardImageUrl } from "../../decks/artPrefs";
 import { lifeFaceArt, ZonePile } from "./ZonePile";
 
-// A card with preview art and a TCGPlayer image in the catalog: the first try is the
-// TCGPlayer CDN (which can 403 for new cards), then the thumbnail falls back to the preview.
-// Taken from the preview list, so it follows sync_preview_art.py as previews come and go.
+// The first try is the TCGPlayer CDN (which can 403 for new cards), then the thumbnail falls back to the preview.
 const PREVIEWED = previewIds.find((id) => (catalog as Record<string, { imageUrl?: string }>)[id]?.imageUrl)!;
 
 let root: Root | null = null;

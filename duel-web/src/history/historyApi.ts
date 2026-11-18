@@ -1,4 +1,3 @@
-/** Duel-web ↔ FastAPI: your match history and your personal Log Pose connector link. */
 import { apiCall } from "../api/http";
 
 export type MatchHistoryEntry = {
@@ -16,20 +15,15 @@ export type MatchHistoryEntry = {
   rating_after: number;
   has_replay: boolean;
   has_log?: boolean;
-  /** False for a game that never sent a result; its log runs to the last saved turn. */
   finished?: boolean;
-  /** The recording can be opened in the replay viewer. */
   replay_ready?: boolean;
-  /** Log Pose has a chat about this game. */
   has_chat?: boolean;
 };
 
-/** One seat's log of a finished game (`SeatLog` in @optcg/rules); events are already projected for that seat. */
 export type SeatLogJson = {
   schema: number;
   seat: 0 | 1;
   openingHand: string[];
-  /** The opponent's hand after mulligans; only in logs of games that can no longer be played. */
   opponentOpeningHand?: string[];
   turns: { turn: number; activeSeat: 0 | 1; events: unknown[]; hand?: string[]; opponentHandCount?: number; opponentHand?: string[] }[];
   boardCards: [string, string, 0 | 1][];
@@ -56,7 +50,6 @@ export function fetchAnalystLink(): Promise<AnalystLinkStatus> {
   return call<AnalystLinkStatus>("/analyst/token", {}, "Could not check your Log Pose link");
 }
 
-/** A new link; any earlier one stops working. */
 export function createAnalystLink(): Promise<AnalystLinkCreated> {
   return call<AnalystLinkCreated>("/analyst/token", { method: "POST" }, "Could not make a link");
 }
@@ -74,13 +67,11 @@ export type AnalystLesson = {
   opponent_id: string | null;
   cards: string[];
   match_ids: string[];
-  /** "bots": drafted from bot-vs-real game lines (#915); an older server omits it, which means "player". */
   source?: "player" | "bots";
   created_at: string | null;
   reviewed_at: string | null;
 };
 
-/** Whether your games count toward Log Pose matchup stats (on unless you turn it off). */
 export async function fetchAnalystSharing(): Promise<boolean> {
   return (await call<{ share_matches: boolean }>("/analyst/sharing", {}, "Could not load your stats setting")).share_matches;
 }
@@ -94,7 +85,6 @@ export async function setAnalystSharing(share: boolean): Promise<boolean> {
   return body.share_matches;
 }
 
-/** Lessons Claude drafted from your games, newest first. */
 export async function fetchAnalystLessons(): Promise<AnalystLesson[]> {
   return (await call<{ lessons: AnalystLesson[] }>("/analyst/lessons/review", {}, "Could not load lessons")).lessons;
 }
@@ -113,7 +103,6 @@ export function deleteAnalystLesson(id: number): Promise<void> {
 
 export type SimImportResult = { imported: number; skipped_duplicates: number; skipped_invalid: number; total: number };
 
-/** Send raw OPTCGSim match records; the server drops player names and skips games you already imported (#1030). */
 export function importSimGames(games: unknown[]): Promise<SimImportResult> {
   return call<SimImportResult>(
     "/analyst/sim-games/import",
@@ -122,7 +111,6 @@ export function importSimGames(games: unknown[]): Promise<SimImportResult> {
   );
 }
 
-/** How many OPTCGSim games you have imported. */
 export async function fetchSimGameCount(): Promise<number> {
   return (await call<{ total: number }>("/analyst/sim-games?limit=1", {}, "Could not count your imported games")).total;
 }

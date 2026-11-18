@@ -17,7 +17,6 @@ describe("buildSharedSkin", () => {
     };
     const shared = await buildSharedSkin({}, sources);
     expect(shared).toEqual({ skin: { playmat: PATH, cardBack: JPEG, donArt: 512345 }, usesPath: true });
-    // The playmat is never shrunk to base64 when it has a path.
     expect(dataUrl.mock.calls.map(([k]) => k)).toEqual(["cardBack"]);
   });
 });

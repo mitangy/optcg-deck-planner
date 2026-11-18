@@ -1,4 +1,3 @@
-/** 04-custom-art (8s): Settings > Appearance: playmat and card back uploads, a DON!! card, then the board wearing them. */
 import { join } from "node:path";
 import { easeScrollTo, layoutSettled, sleep } from "../lib/util";
 import { ASSET_DIR } from "../lib/env";
@@ -53,14 +52,12 @@ export async function run(): Promise<void> {
     await sleep(300);
     await upload("#card-back", "cardback.png");
     await shot("2");
-    // DON!! art: the next panel down, pick the gold Luffy printing.
     await easeScrollTo(p, "#don-card", { ms: 850 });
     await sleep(300);
     const tile = p.locator("#don-card .don-art-tile", { hasText: "Gold" }).first();
     await t.pointer.click(tile, { ms: 800, settle: 60 });
     await sleep(900);
     await shot("3");
-    // Off camera: into a match so the board can show all three.
     t.rec.cut();
     await t.goto("/");
     await sleep(1500);

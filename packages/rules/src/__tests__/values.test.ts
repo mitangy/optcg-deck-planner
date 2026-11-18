@@ -3,18 +3,15 @@ import { ctxFor, evalCond, evalCount, evalValue } from "../engine/queries.js";
 import { Harness } from "../testing/harness.js";
 import type { Seat } from "../types.js";
 
-// Effect value and condition evaluation: counts, sums and conditions over picked cards.
-
-const KAROO = "ST01-003"; // vanilla 1-cost {Animal}/{Alabasta}
+const KAROO = "ST01-003";
 
 function ids(h: Harness, seat: Seat): string[] {
   return h.state.players[seat].characters.map((c) => c.defId);
 }
 
 describe("count values", () => {
-  const LOKI = "OP17-119"; // This Character gains +12 cost; 6-cost 8000
-  const SAI = "OP01-012"; // vanilla 2-cost 4000
-  // KAROO: vanilla 1-cost 3000
+  const LOKI = "OP17-119";
+  const SAI = "OP01-012";
 
   const count = (h: Harness, expr: Parameters<typeof evalCount>[2], vars: Record<string, string[]> = {}) => evalCount(h.state, ctxFor(0, h.state.players[0].leader, vars), expr);
 
@@ -110,7 +107,7 @@ describe("count values", () => {
 describe("conditions on a list of picked cards", () => {
   it("all-match needs at least one card and every card to match; any-match needs one match (#753)", () => {
     const h = new Harness();
-    const [karoo, sai] = h.field(0, KAROO, "OP01-012"); // 1-cost and 2-cost vanilla
+    const [karoo, sai] = h.field(0, KAROO, "OP01-012");
     const cond = (c: "var_all_match" | "var_any_match", ids: string[]) => evalCond(h.state, ctxFor(0, h.state.players[0].leader, { _p: ids }), { c, name: "_p", filter: { cost: { op: "<=", value: 1 } } });
     expect(cond("var_all_match", [karoo!.id])).toBe(true);
     expect(cond("var_all_match", [karoo!.id, sai!.id])).toBe(false);

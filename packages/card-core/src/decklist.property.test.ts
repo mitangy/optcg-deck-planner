@@ -62,7 +62,6 @@ describe("parseDecklist properties (#1322)", () => {
       } catch (e) {
         expect(e).toBeInstanceOf(Error);
       }
-      // "0xID" is rejected outright, so no 0-count line can come back
       expect(lines).toBeUndefined();
     },
   );

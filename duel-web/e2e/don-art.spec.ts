@@ -1,4 +1,3 @@
-/** Choosing the DON!! card art (#440): Settings picker, and each side's DON!! on the board. */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 

@@ -1,4 +1,3 @@
-/** Main phase: spend DON!! on plays, activate cheap abilities, power up attackers, attack, end the turn. */
 import { abilitiesFor } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { Intent } from "../types.js";
@@ -10,7 +9,6 @@ import { boardValue, defValue, findBoardCard, isBlocker, pickBest, type BoardCar
 /** What the bot has already done this turn (kept by the caller per rng), so it never loops on a repeatable ability. */
 export interface TurnMemory { count: number; activated: Set<string> }
 
-/** After this many bot intents in one turn the bot just ends it. */
 export const MAX_INTENTS_PER_TURN = 60;
 
 type Play = Extract<Intent, { type: "play_card" }>;
@@ -22,7 +20,6 @@ function myCard(view: BotView, id: string): BoardCard | undefined {
   return findBoardCard(view, id)?.card ?? (view.you.stage?.id === id ? view.you.stage : undefined);
 }
 
-/** Easy: a random legal move that still ends the turn, never wastes DON!! on a stage-sick board, and attacks only when sane. */
 export function chooseEasyMain(view: BotView, rng: Rng, memory: TurnMemory): Intent {
   const legal = view.legalIntents;
   const end = legal.find((i) => i.type === "end_turn");
@@ -41,20 +38,16 @@ function abilityIsCheap(view: BotView, intent: Activate): boolean {
   const source = myCard(view, intent.sourceId);
   const ability = source && abilitiesFor(source.defId).find((a) => a.id === intent.abilityId);
   if (!ability) return false;
-  // Free once-per-turn abilities, or ones priced in a single DON!! or in resting the source itself.
   return (ability.costs ?? []).every((c) => (c.k === "rest_don" && c.count <= 1) || c.k === "rest_self");
 }
 
 function chooseAbility(view: BotView, memory: TurnMemory, rng: Rng, pb?: LeaderPlaybook): Activate | undefined {
-  // A playbook can veto the Leader's own ability (#1173).
   const leaderOk = pb?.allowLeaderActivate?.(view) ?? true;
   const options = view.legalIntents.filter((i): i is Activate => i.type === "activate_ability" && !memory.activated.has(`${i.sourceId}:${i.abilityId}`) && abilityIsCheap(view, i) && (leaderOk || i.sourceId !== view.you.leader.id));
   return pickBest(options, () => 0, rng);
 }
 
-/** Highest-value card that fits in the DON!! on hand; a full board only makes room for a clearly better card. */
 function choosePlay(view: BotView, rng: Rng, reserve = 0, pb?: LeaderPlaybook): Play | undefined {
-  // `reserve` (a playbook's donReserve): a play that would leave fewer active DON!! than that is skipped.
   const plays = view.legalIntents.filter((i): i is Play => i.type === "play_card" && (reserve <= 0 || (view.you.hand[i.handIndex]?.playCost ?? getCardDef(view.you.hand[i.handIndex]!.defId).cost) <= view.you.activeDonCount - reserve));
   const weakest = (id?: string) => (id ? view.you.characters.find((c) => c.id === id) : undefined);
   const score = (p: Play): number => {
@@ -63,11 +56,9 @@ function choosePlay(view: BotView, rng: Rng, reserve = 0, pb?: LeaderPlaybook): 
     let s = defValue(card.defId) + (card.playCost ?? def.cost) * 0.5 + (pb?.playBonus?.(view, card.defId) ?? 0);
     if (def.type === "event") s -= 1.5;
     if (p.trashCharacterId) {
-      // Replacing a Character is only worth it when the new card is clearly better than the one lost.
       const lost = weakest(p.trashCharacterId);
       const gain = defValue(card.defId) - (lost ? boardValue(lost) : 0);
       if (gain < 3) return -Infinity;
-      // Among replacements of the same new card, lose the cheapest Character.
       s -= (lost ? boardValue(lost) : 0) * 0.1;
     }
     // Every Character played also adds a blocker/attacker; cost-0 filler is not worth a hand card on a full board.
@@ -81,7 +72,6 @@ function attacksOf(view: BotView): Attack[] {
   return view.legalIntents.filter((i): i is Attack => i.type === "declare_attack");
 }
 
-/** DON!! to attach so some attacker reaches the opposing Leader's power, or a spare DON!! onto the Leader. */
 function chooseGive(view: BotView, rng: Rng, donReserve = 0): Give | undefined {
   const gives = view.legalIntents.filter((i): i is Give => i.type === "give_don");
   if (!gives.length) return undefined;
@@ -100,7 +90,6 @@ function chooseGive(view: BotView, rng: Rng, donReserve = 0): Give | undefined {
   const to = pickBest(needs, (x) => -x.need * 10 + (x.c.id === view.you.leader.id ? 1 : 0), rng);
   const give = (id: string) => gives.find((g) => g.targetId === id);
   if (to) return give(to.c.id);
-  // Everything that can connect already does: pile spare DON!! on the Leader (keep what a hand Counter Event needs).
   let reserve = 0;
   for (const c of view.you.hand) {
     const def = getCardDef(c.defId);
@@ -114,7 +103,8 @@ function chooseAttack(view: BotView, rng: Rng): Attack | undefined {
   const oppLife = view.opponent.lifeCount;
   const leaderPower = view.opponent.leader.power;
   const scored: { a: Attack; score: number; power: number }[] = [];
-  // Lethal on board (#1192): more attackers that reach the Leader than Life + 1 + active Blockers can each be stopped once, so go face with all of them.
+  // Lethal on board: more attackers that reach the Leader than Life + 1 + active Blockers can each be stopped once, so
+  // go face with all of them.
   const reaching = new Set<string>();
   for (const a of attacksOf(view)) {
     const atk = myCard(view, a.attackerId);
@@ -143,7 +133,6 @@ function chooseAttack(view: BotView, rng: Rng): Attack | undefined {
   return best?.a;
 }
 
-/** Normal-level main-phase move: always one of `view.legalIntents`. */
 export function chooseNormalMain(view: BotView, rng: Rng, memory: TurnMemory, pb?: LeaderPlaybook): Intent {
   const legal = view.legalIntents;
   const end = legal.find((i) => i.type === "end_turn") ?? legal[0]!;

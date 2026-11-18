@@ -1,28 +1,13 @@
-/**
- * Playwright fixtures for click-through tests against a real game server.
- *
- * The browser talks to the local game server for real (Colyseus rooms, the
- * @optcg/rules engine). The FastAPI backend is replaced by `page.route`: the
- * only calls a practice match needs are `/health` and the guest token mint,
- * and tokens are signed here with the game server's GAME_TOKEN_SECRET.
- */
 import { createHmac } from "node:crypto";
 import { test as base, expect, type Page } from "@playwright/test";
 import { auditPage, formatIssues, issueKey, type AuditIssue } from "./audit";
 
 export const GAME_TOKEN_SECRET = "e2e-secret";
 export const FAKE_API = "http://127.0.0.1:8765";
-/** The local game server; E2E_GAME_SERVER moves it when another run already holds the default port. */
 export const GAME_SERVER = process.env.E2E_GAME_SERVER ?? "http://127.0.0.1:2567";
 
 export type DeckList = { leaderId: string; cards: string[] };
 
-/**
- * A 1280x720 window gets the Grid hand by default (the "auto" hand layout, any
- * desktop window at least 680 px tall). Tests about the fanned hand call this
- * after their own settings init scripts: it adds `handLayout: "fan"` to the
- * stored settings unless a test already chose a layout.
- */
 export async function preferFan(page: Page): Promise<void> {
   await page.addInitScript(() => {
     const key = "optcg-duel:settings";
@@ -31,10 +16,9 @@ export async function preferFan(page: Page): Promise<void> {
   });
 }
 
-/** 50-card mono-red list of plain Characters: games are decided by attacks, not effects. */
 /**
  * Practice: both players keep their opening hands. The device passes to the second player after the first keeps, so
- * the second tap waits for that; tapped straight away it can land on the first player's button again (#445).
+ * the second tap waits for that; tapped straight away it can land on the first player's button again.
  */
 export async function keepBothHands(page: Page): Promise<void> {
   const root = page.locator(".board-root");
@@ -54,7 +38,6 @@ function b64url(buf: Buffer | string): string {
   return Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-/** Same format as FastAPI's game token (`body.sig`, HMAC-SHA256). */
 export function mintGameToken(uid: number, name: string): string {
   const body = b64url(JSON.stringify({ uid, email: `${name}@e2e.test`, exp: Math.floor(Date.now() / 1000) + 3600, name }));
   return `${body}.${b64url(createHmac("sha256", GAME_TOKEN_SECRET).update(body).digest())}`;
@@ -62,13 +45,6 @@ export function mintGameToken(uid: number, name: string): string {
 
 export type FakeAccount = { uid: number; name: string; username?: string };
 
-/**
- * Make `page` a signed-in browser: the fake `/auth/me` answers as `account` and
- * `/duel/token` mints that account's game token, so a second browser context
- * given the same account is the same player on another device (#451). Other
- * paths fall through to whatever route was registered before this one (the
- * `duel` fixture's guest-token mint), then to a 404 so the lobby panels stay empty.
- */
 export async function signInAs(page: Page, account: FakeAccount): Promise<void> {
   const user = { id: account.uid, email: `${account.name}@e2e.test`, name: account.name, username: account.username ?? account.name };
   await page.route(`${FAKE_API}/**`, (route) => {
@@ -90,7 +66,6 @@ export async function signInAs(page: Page, account: FakeAccount): Promise<void> 
   });
 }
 
-/** Seed the saved decks a lobby needs before it can start anything. */
 export async function seedDecks(page: Page, you: DeckList = RED_VANILLA): Promise<void> {
   await page.addInitScript((d) => {
     if (sessionStorage.getItem("e2e-seeded")) return;
@@ -102,23 +77,12 @@ export async function seedDecks(page: Page, you: DeckList = RED_VANILLA): Promis
 }
 
 type Duel = {
-  /** Lobby → Practice → Start practice, with fixed decks and a fixed shuffle seed. */
-  /** `storage` is written to localStorage after the profile is cleared, before the app loads. */
   startPractice(opts: { seed: number; you?: DeckList; opponent?: DeckList; storage?: Record<string, string> }): Promise<void>;
-  /** Audit the current screen; issues matching `known` keys are dropped. */
   audit(opts?: { ignore?: string[] }): Promise<AuditIssue[]>;
-  /** Page errors and console errors collected so far (network noise excluded). */
   errors: string[];
 };
 
 export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
-  /**
-   * Specs written before #529 expect the two-column board with the card preview docked in a column; this
-   * fills those two settings in (never over a value the spec stored itself). Specs written before #556 also
-   * expect the normal-size board with the buttons floating between the mats (Bigger playing area and Buttons
-   * beside the board are on by default now), so those two are turned off here too. A spec about the new
-   * defaults turns it off with `test.use({ legacyLayout: false })`.
-   */
   legacyLayout: [true, { option: true }],
   page: async ({ page, legacyLayout }, use) => {
     if (legacyLayout) {
@@ -169,8 +133,6 @@ export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
     const duel: Duel = {
       errors,
       async startPractice({ seed, you = RED_VANILLA, opponent = RED_VANILLA, storage = {} }) {
-        // The browser never sends a seed; add one to the room-create request so
-        // shuffles (and therefore the whole game) repeat run to run.
         await page.route(`${GAME_SERVER}/matchmake/create/**`, (route) => {
           const body = JSON.parse(route.request().postData() ?? "{}");
           return route.continue({ postData: JSON.stringify({ ...body, seed }) });

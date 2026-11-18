@@ -1,13 +1,7 @@
-// Tournament ("meta") deck text, shared by the planner and the duel app so the same list reads the
-// same in both. Pure: no React, no network.
-
-/** Longest deck name POST /decks accepts. */
 export const DECK_NAME_MAX = 200;
 
-/** Default look-back window of the meta pages, in days. */
 export const META_DEFAULT_DAYS = 30;
 
-/** 1 -> "1st", 2 -> "2nd", 11 -> "11th", 22 -> "22nd". */
 export function ordinal(n: number): string {
   const mod100 = n % 100;
   if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
@@ -23,12 +17,10 @@ export function ordinal(n: number): string {
   }
 }
 
-/** A real placing: 1 and up. Missing, 0 and negative values mean "no placing". */
 function hasPlacing(placing: number | null | undefined): placing is number {
   return placing != null && placing > 0;
 }
 
-/** "Silvers Rayleigh – 1st Weekly Cup"; without a placing, "Silvers Rayleigh – Weekly Cup". */
 export function metaDeckName(
   leaderName: string,
   leaderId: string,
@@ -49,10 +41,6 @@ export function formatMetaDate(iso: string): string {
   return month ? `${month} ${Number(m[3])}` : iso;
 }
 
-/**
- * "1st of 128 · Sep 28 · 7-0-0", or with `event` set "1st of 128 · Weekly Cup · Sep 28 · 7-0-0".
- * Without a placing it reads "128 players · ...".
- */
 export function formatDeckRow(
   deck: {
     placing: number | null | undefined;
@@ -69,7 +57,6 @@ export function formatDeckRow(
   return parts.join(" · ");
 }
 
-/** 0.081 -> "8.1%"; missing -> "—". */
 export function formatPercent(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "—";
   return `${(value * 100).toFixed(1)}%`;

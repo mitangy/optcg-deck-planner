@@ -12,7 +12,6 @@ import type { GameAskResult, LogPoseGame } from "./types";
 
 export const NOT_SENT: GameAskResult = { sent: false, plan: false, choice: false, error: false, aborted: false };
 
-/** How an answer changes the player's credit: its done event carries the new figures; a refusal switches the input for a notice. */
 export type CreditHooks = { apply: (d: DonePayload) => void; refuse: (code: RefusalCode) => void; refresh: () => void };
 
 export function useChat(
@@ -59,7 +58,6 @@ export function useChat(
     setMessages(t.messages.map(fromHistory));
   }, []);
 
-  /** Shows the chat of the page's scope: the newest the server lists for it, with the remembered one on screen first. */
   const startSync = useCallback(
     (target: LogPoseScope) => {
       const e = ++epoch.current;
@@ -97,10 +95,7 @@ export function useChat(
     [apiBase, show],
   );
 
-  /**
-   * Makes the chat on show the page's. Waits while an answer is in flight (it must land in the chat it was asked
-   * in; the effects below try again when it ends), and leaves a chat the player picked alone until the page's scope changes.
-   */
+  // Waits while an answer is in flight: it must land in the chat it was asked in.
   const sync = useCallback((): Promise<void> => {
     if (!busyRef.current && syncedKey.current !== activeRef.current.key) startSync(activeRef.current);
     return loading.current;
@@ -111,7 +106,6 @@ export function useChat(
     if (syncedKey.current !== null) void sync();
   }, [active.key, busy, sync]);
 
-  /** Opens a chat from the Chats list, in place. */
   const openThread = useCallback(
     (row: { id: number; title: string; scope: string }) => {
       if (busyRef.current) return;
@@ -170,13 +164,9 @@ export function useChat(
             onThread: (id) => keepThread(id, sendScope, at),
             onStatus: setStatus,
             onText: (delta) => patchLast((m) => ({ ...m, text: m.text + delta })),
-            // A citation follows the text streamed so far.
             onCite: (cites: Citation[]) => patchLast((m) => ({ ...m, citations: [...m.citations, ...placeAt(cites, m.text.length)] })),
-            // A suggested deck edit shows as an Apply card under this answer.
             onProposal: (p) => patchLast((m) => ({ ...m, proposals: [...(m.proposals ?? []).filter((x) => x.id !== p.id), p] })),
-            // A new deck shows as a New deck card under this answer, and the app opens its create page.
             onDraft: (d) => patchLast((m) => ({ ...m, drafts: [...(m.drafts ?? []).filter((x) => x.id !== d.id), d] })),
-            // A turn plan shows as a Turn plan card under this answer.
             // The board hears of it here, from the live stream only: an answer read back from a saved chat never starts a plan.
             onPlan: (plan) => {
               const stamped = stampPlan(plan, context);
@@ -184,7 +174,6 @@ export function useChat(
               patchLast((m) => ({ ...m, plans: [...(m.plans ?? []).filter((x) => x.id !== plan.id), stamped] }));
               live.current?.onLivePlan?.(stamped);
             },
-            // A choice Log Pose answered for the player (the board is playing the turn): a line under this answer, and the board applies it.
             onChoice: (answer) => {
               const stamped = stampChoice(answer, context);
               out.choice = true;
@@ -200,7 +189,6 @@ export function useChat(
             },
             onError: (e) => {
               out.error = true;
-              // A limit shows as a notice in place of the input, not as an error line.
               if (isRefusalCode(e.code)) {
                 credit.refuse(e.code);
                 credit.refresh();
@@ -221,7 +209,6 @@ export function useChat(
         if (abort.current === ctrl) abort.current = null;
         // A chat reset while this ran may already have started the next message: leave its busy state alone.
         const latest = abort.current === null;
-        // Drop an empty answer bubble (error before any text), unless it was stopped on purpose.
         setMessages((cur) => {
           const last = cur[cur.length - 1];
           return last?.role === "assistant" && isEmptyAnswer(last) ? cur.slice(0, -1) : cur;
@@ -240,7 +227,6 @@ export function useChat(
 
   const stop = useCallback(() => abort.current?.abort(), []);
 
-  /** Resolves true once no answer is in flight, false if `signal` aborts first. */
   const whenIdle = useCallback(
     (signal?: AbortSignal) =>
       new Promise<boolean>((resolve) => {
@@ -256,7 +242,6 @@ export function useChat(
     abort.current?.abort();
     abort.current = null;
     epoch.current++;
-    // A fresh chat in the scope on show; the older ones stay in the Chats list.
     writeThreadHint(scopeRef.current.key, null);
     threadRef.current = null;
     setThreadId(null);

@@ -1,6 +1,3 @@
-/* ——— Collection redesign (#748) ———
-   Stat cards, round colour chips, type chips, a pill toolbar and art-first grid tiles.
-   Everything uses the page tokens, so light and dark both follow the theme. */
 .collection-head {
   margin-bottom: 0.85rem;
 }
@@ -36,7 +33,6 @@
   color: var(--muted);
 }
 
-/* Card-colour dots are the one place the planner hard-codes colour (they stand for the printed card colours). */
 .color-dot {
   display: inline-block;
   flex: 0 0 auto;
@@ -225,7 +221,6 @@
   gap: 0.45rem;
 }
 
-/* The badge keeps its footprint when empty, so the first filter on moves nothing. */
 .collection-filter-badge {
   display: inline-grid;
   place-items: center;
@@ -279,7 +274,6 @@
   min-height: 2.2rem;
 }
 
-/* The shared mobile rules stretch the sort button and the toggle to the full row; here they share it. */
 .collection-toolbar .sort-menu,
 .collection-toolbar .layout-toggle {
   width: auto;
@@ -295,7 +289,6 @@
   min-height: 1.35em;
 }
 
-/* Grid tiles: art first, copies badge on the art, then name, id + price, colours. */
 .collection-grid {
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: var(--space-3);
@@ -422,7 +415,6 @@
     text-align: left;
   }
 
-  /* Icon-only List / Grid on phones keeps the tools on one line. */
   .layout-toggle.with-icons .layout-label {
     position: absolute;
     width: 1px;

@@ -1,9 +1,7 @@
-/** TCGPlayer Mass Entry helpers for shopping and group-buy export fallbacks. */
 
 export const TCGPLAYER_MASS_ENTRY_BASE = "https://www.tcgplayer.com/massentry";
 export const TCGPLAYER_PRODUCT_LINE = "One Piece Card Game";
 
-/** Stay under common proxy/browser URL limits (414 on long Mass Entry links). */
 export const MASS_ENTRY_URL_MAX_LEN = 1800;
 
 export type MassEntryCard = {
@@ -14,17 +12,11 @@ export type MassEntryCard = {
 };
 
 export type MassEntryExport = {
-  /** Lines suitable for pasting into Mass Entry (product ids + name fallbacks). */
   pasteText: string;
-  /** Deep link when short enough; null if empty or too long for a GET URL. */
   url: string | null;
-  /** Cards included with still_need > 0. */
   includedCount: number;
-  /** Copies summed across included cards. */
   copyCount: number;
-  /** Included cards that have a TCGPlayer product id. */
   withProductId: number;
-  /** Included cards missing product id (name+number fallback only). */
   missingProductId: number;
 };
 
@@ -47,7 +39,6 @@ export function buildMassEntryExport(cards: MassEntryCard[]): MassEntryExport {
 
   for (const card of included) {
     copyCount += card.still_need;
-    // Alt copies the user owns already lower still_need; buy the rest as standard.
     const buys = [
       {
         product_id: card.product_id != null && card.product_id > 0 ? card.product_id : null,

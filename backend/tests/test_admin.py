@@ -1,4 +1,3 @@
-"""Admin page API, roles and bans (#667)."""
 
 from __future__ import annotations
 
@@ -87,7 +86,6 @@ def login(c, SessionLocal, uid: int) -> None:
 
 
 def seat(db: Session, match_id: str, user_id: int, leader: str, won: bool, at: datetime, ranked: bool = True) -> None:
-    # Its finished match first: Postgres enforces the seat's foreign key to duel_matches.
     db.add(
         DuelMatch(
             match_id=match_id, seat0_user_id=user_id, seat1_user_id=user_id, winner_seat=0 if won else 1,
@@ -102,8 +100,6 @@ def seat(db: Session, match_id: str, user_id: int, leader: str, won: bool, at: d
 def user_obj(id: int, role: str = "user", banned: bool = False):
     return User(id=id, email=f"u{id}@x.test", name="n", google_sub=f"s{id}", role=role, banned_at=NOW if banned else None)
 
-
-# ------------------------------------------------------------------ pure rules
 
 def test_moderators_ban_only_players_and_nobody_bans_the_admin_or_themselves_667():
     admin, mod, mod2, player = user_obj(1, "admin"), user_obj(2, "moderator"), user_obj(3, "moderator"), user_obj(4)
@@ -134,8 +130,6 @@ def test_only_the_admin_deletes_accounts_and_not_their_own_667():
     assert can_delete(admin, user_obj(8, "admin")) is not None
     assert can_delete(mod, player) is not None
 
-
-# ------------------------------------------------------------------ access levels
 
 def test_analytics_are_admin_only_and_the_user_list_is_staff_only_667(api):
     c, S = api
@@ -179,8 +173,6 @@ def test_the_admin_role_counts_as_chat_owner_and_model_admin_667():
     assert not is_chat_owner(settings, user_obj(2, "moderator")) and not is_model_admin(settings, user_obj(2, "moderator"))
 
 
-# ------------------------------------------------------------------ roles
-
 def test_admin_sets_moderator_and_user_but_never_admin_or_own_role_667(api):
     c, S = api
     admin, plain = mk(S, ADMIN_EMAIL, "admin"), mk(S, "p@x.test")
@@ -196,8 +188,6 @@ def test_admin_sets_moderator_and_user_but_never_admin_or_own_role_667(api):
         assert db.get(User, plain).role == "user" and db.get(User, admin).role == "admin"
 
 
-# ------------------------------------------------------------------ bans
-
 def test_ban_signs_the_player_out_everywhere_and_records_who_and_why_667(api):
     c, S = api
     mod, plain = mk(S, "mod@x.test", "moderator"), mk(S, "p@x.test")
@@ -209,11 +199,9 @@ def test_ban_signs_the_player_out_everywhere_and_records_who_and_why_667(api):
     with S() as db:
         u = db.get(User, plain)
         assert (u.banned_by, u.session_version) == (mod, 1)
-    # The cookie they held before the ban no longer works.
     c.cookies.clear()
     c.cookies.set(SESSION_COOKIE, create_session_token(plain, 0, get_settings()))
     assert c.get("/auth/me").json() is None
-    # Unbanning does not revive it: the ban signed that session out for good.
     login(c, S, mod)
     assert c.post(f"/admin/users/{plain}/unban").status_code == 200
     c.cookies.clear()
@@ -398,8 +386,6 @@ def test_a_banned_guest_cannot_mint_a_duel_token_667(api):
     assert c.post("/duel/guest-token", json={"guest_id": gid}).status_code == 403
 
 
-# ------------------------------------------------------------------ delete
-
 def test_deleting_a_user_removes_their_data_but_not_other_accounts_667(api):
     c, S = api
     admin, mod, victim, other = mk(S, ADMIN_EMAIL, "admin"), mk(S, "m@x.test", "moderator"), mk(S, "v@x.test"), mk(S, "o@x.test")
@@ -421,8 +407,6 @@ def test_deleting_a_user_removes_their_data_but_not_other_accounts_667(api):
         assert db.get(User, other) is not None
     assert c.delete(f"/admin/users/{mod}").status_code == 204
 
-
-# ------------------------------------------------------------------ user list
 
 def test_user_list_hides_guests_searches_and_puts_staff_first_667(api):
     c, S = api
@@ -457,21 +441,18 @@ def _ids(c, **params) -> list[int]:
 
 def test_users_sort_by_shown_name_role_and_joined_in_both_directions_1323(api):
     c, S = api
-    # Default order is staff first, then newest: mod, c_new, a_mid, b_old. None of the sorts below equals it.
     mod = mk(S, "zzz@x.test", "moderator", name="Mod", created_at=NOW - timedelta(days=50))
-    b_old = mk(S, "m@x.test", name="", username="Bravo", created_at=NOW - timedelta(days=30))  # shown as "Bravo"
-    a_mid = mk(S, "a@x.test", name="alpha", created_at=NOW - timedelta(days=20))  # shown as "alpha" (case-blind)
-    c_new = mk(S, "c@x.test", name="", username=None, created_at=NOW - timedelta(days=10))  # shown as its email "c@x.test"
+    b_old = mk(S, "m@x.test", name="", username="Bravo", created_at=NOW - timedelta(days=30))
+    a_mid = mk(S, "a@x.test", name="alpha", created_at=NOW - timedelta(days=20))
+    c_new = mk(S, "c@x.test", name="", username=None, created_at=NOW - timedelta(days=10))
     login(c, S, mod)
     assert _ids(c) == [mod, c_new, a_mid, b_old]
     assert _ids(c, sort="user", dir="asc") == [a_mid, b_old, c_new, mod]
     assert _ids(c, sort="user", dir="desc") == [mod, c_new, b_old, a_mid]
     assert _ids(c, sort="joined", dir="asc") == [mod, b_old, a_mid, c_new]
     assert _ids(c, sort="joined", dir="desc") == [c_new, a_mid, b_old, mod]
-    # role is alphabetical (moderator before user), ties by id ascending in both directions.
     assert _ids(c, sort="role", dir="asc") == [mod, b_old, a_mid, c_new]
     assert _ids(c, sort="role", dir="desc") == [b_old, a_mid, c_new, mod]
-    # dir defaults to asc, and a sort keeps the search and the page.
     assert _ids(c, sort="user") == [a_mid, b_old, c_new, mod]
     assert _ids(c, sort="user", dir="desc", limit=2, offset=1) == [c_new, b_old]
     assert _ids(c, sort="user", q="x.test", limit=1) == [a_mid]
@@ -485,7 +466,6 @@ def test_users_sort_by_source_uses_the_shown_text_and_puts_unknown_last_1323(api
     direct = mk(S, "d@x.test", signup_source="{}", created_at=NOW - timedelta(days=3))
     unknown = mk(S, "u@x.test", created_at=NOW - timedelta(days=4))
     login(c, S, admin)
-    # Shown texts: "direct" < "google.com" < "utm: reddit / social"; the admin and `unknown` have no source.
     assert _ids(c, sort="source", dir="asc") == [direct, google, reddit, admin, unknown]
     assert _ids(c, sort="source", dir="desc") == [reddit, google, direct, admin, unknown]
     assert _ids(c, sort="source", dir="desc", limit=2, offset=2) == [direct, admin]
@@ -499,7 +479,6 @@ def test_users_sort_by_each_game_count_with_ties_by_id_1323(api):
     p3 = mk(S, "p3@x.test", created_at=NOW - timedelta(days=3))
     with S() as db:
         at = NOW - timedelta(hours=5)
-        # ranked: p3 has 2, p1 has 1. bot: p2 has 3, p3 has 1. practice: p1 has 1.
         seat(db, "r1", p3, "OP01-001", True, at)
         seat(db, "r2", p3, "OP01-001", False, at)
         seat(db, "r3", p1, "OP01-001", True, at)
@@ -533,10 +512,8 @@ def test_a_sorted_user_list_pages_without_repeats_or_gaps_1323(api):
             paged = [i for off in range(0, 6, 2) for i in _ids(c, sort=sort, dir=direction, limit=2, offset=off)]
             assert len(paged) == len(set(paged)) == 6, (sort, direction, paged)
             assert paged == _ids(c, sort=sort, dir=direction), (sort, direction)
-    # Equal keys come out in id order, so the order is the same on every request.
     assert _ids(c, sort="bot", dir="desc") == everyone
     assert [i for i in _ids(c, sort="user", dir="desc") if i != admin] == ids
-    # Five accounts share the source "direct"; the admin has none and is last either way.
     assert _ids(c, sort="source", dir="asc") == [*ids, admin] and _ids(c, sort="source", dir="desc") == [*ids, admin]
 
 
@@ -560,7 +537,6 @@ def test_a_game_count_sort_never_sends_every_account_id_to_the_database_1328(api
     finally:
         event.remove(engine, "before_cursor_execute", watch)
     assert got == sorted([admin, *guests])[:5]
-    # One id list per statement would be 61 parameters; the sort selects accounts in SQL and binds only the page.
     assert biggest < 30, biggest
 
 
@@ -572,8 +548,6 @@ def test_users_refuse_an_unknown_sort_or_direction_1323(api):
     assert c.get("/admin/users", params={"sort": "user", "dir": "sideways"}).status_code == 422
     assert c.get("/admin/users", params={"sort": "joined", "dir": "desc"}).status_code == 200
 
-
-# ------------------------------------------------------------------ analytics
 
 def test_overview_counts_real_players_guests_and_recent_signups_667(api):
     c, S = api
@@ -611,10 +585,10 @@ def test_overview_signups_and_matches_are_bucketed_per_day_and_zero_filled_667(a
     assert signups[-1]["day"] == NOW.date().isoformat()
     day = {s["day"]: s for s in signups}[(NOW - timedelta(days=2)).date().isoformat()]
     assert (day["real"], day["guests"]) == (2, 1)
-    assert sum(s["real"] + s["guests"] for s in signups) == 3  # the 45-day-old admin is outside the window
+    assert sum(s["real"] + s["guests"] for s in signups) == 3
     assert (matches[-1]["ranked"], matches[-1]["casual"]) == (1, 1)
     assert (matches[-2]["ranked"], matches[-2]["casual"]) == (1, 0)
-    assert sum(m["ranked"] + m["casual"] for m in matches) == 3  # the 40-day-old match is outside it
+    assert sum(m["ranked"] + m["casual"] for m in matches) == 3
     assert data["matches"] == {"total": 4, "last_7d": 3, "ranked_7d": 2, "avg_turns_30d": 8.0}
 
 
@@ -623,7 +597,6 @@ def test_overview_active_players_and_top_leaders_use_their_windows_667(api):
     admin = mk(S, ADMIN_EMAIL, "admin")
     p1, p2, p3, guest, p4 = mk(S, "1@x.test"), mk(S, "2@x.test"), mk(S, "3@x.test"), mk(S, "g@localhost"), mk(S, "4@x.test")
     with S() as db:
-        # p4 only shows up in a finished match, not in the seat table.
         db.add(
             DuelMatch(
                 match_id="only-match", seat0_user_id=p4, seat1_user_id=p1, winner_seat=0, turns=5,
@@ -666,8 +639,7 @@ def test_overview_days_picks_the_window_for_the_charts_and_top_leaders_691(api):
     quarter = c.get("/admin/overview?days=90").json()
     assert len(quarter["matches_by_day"]) == 90
     assert sorted(l["leader_id"] for l in quarter["top_leaders"]) == ["OP01-001", "OP05-060", "OP09-001"]
-    assert sum(s["real"] for s in quarter["signups_by_day"]) == 2  # the admin from 200 days ago is outside
-    # The old key stays the last 30 days whatever the window.
+    assert sum(s["real"] for s in quarter["signups_by_day"]) == 2
     assert sorted(l["leader_id"] for l in quarter["top_leaders_30d"]) == ["OP01-001", "OP05-060"]
 
 
@@ -705,7 +677,7 @@ def test_bots_by_day_follows_days_and_leaves_out_older_games_691(api):
     assert len(week["bot_games"]["by_day"]) == 7 and sum(d["games"] for d in week["bot_games"]["by_day"]) == 1
     quarter = c.get("/admin/bots?days=90").json()
     assert len(quarter["bot_games"]["by_day"]) == 90 and sum(d["games"] for d in quarter["bot_games"]["by_day"]) == 3
-    assert quarter["bot_games"]["total"] == 3  # the totals are not windowed
+    assert quarter["bot_games"]["total"] == 3
 
 
 def test_matches_on_a_day_lists_that_days_duels_with_seats_and_is_admin_only_691(api):
@@ -730,7 +702,6 @@ def test_matches_on_a_day_lists_that_days_duels_with_seats_and_is_admin_only_691
                 )
             )
         db.flush()
-        # A match from before leaders were stored on it keeps its leader in the seat row.
         db.add(DuelMatchSeat(match_id="early", seat=1, user_id=bob, leader_id="OP02-001", won=True, ranked=True, created_at=day))
         db.commit()
     url = f"/admin/matches?day={day.date().isoformat()}"
@@ -776,8 +747,6 @@ def test_overview_counts_planner_decks_and_log_pose_use_667(api):
     assert data["log_pose"] == {"questions_month": 1, "spend_month_usd": 0.75, "users_with_access": 1}
 
 
-# ------------------------------------------------------------------ bots and evals
-
 def _bot(db: Session, i: int, at: datetime, winner: int | None, first: int | None, turns: int | None, a="OP01-001", b="OP05-060", batch="n1") -> None:
     db.add(
         BotMatch(
@@ -809,7 +778,7 @@ def test_bots_summary_counts_games_matchups_and_first_seat_wins_667(api):
     assert len(by_day) == 14 and by_day[-1]["day"] == NOW.date().isoformat()
     day = {d["day"]: d for d in by_day}[(NOW - timedelta(days=1)).date().isoformat()]
     assert (day["games"], day["finished"]) == (2, 1)
-    assert sum(d["games"] for d in by_day) == 4  # the 30-day-old game is outside the 14 days
+    assert sum(d["games"] for d in by_day) == 4
 
 
 def test_bots_with_no_games_report_nulls_not_errors_667(api):
@@ -824,7 +793,7 @@ def test_the_two_historic_eval_runs_are_seeded_once_oldest_first_667(api):
     login(c, S, mk(S, ADMIN_EMAIL, "admin"))
     bind = S.kw["bind"]
     seed.seed_eval_runs(bind)
-    seed.seed_eval_runs(bind)  # a restart must not add them again
+    seed.seed_eval_runs(bind)
     evals = c.get("/admin/bots").json()["evals"]
     assert [(e["label"], e["correct"], e["total"]) for e in evals] == [("Baseline", 43.5, 50), ("PR #415 prompt + grader", 48.5, 50)]
     assert evals[1]["groups"]["D"] == {"correct": 9, "total": 10}
@@ -841,7 +810,6 @@ def test_eval_upload_needs_the_service_secret_and_lands_in_the_history_667(api):
     assert c.post("/admin/evals", json={**body, "correct": 51}, headers=SERVICE).status_code == 422
     r = c.post("/admin/evals", json=body, headers=SERVICE)
     assert r.status_code == 201 and r.json()["label"] == "nightly"
-    # The login cookie of a plain admin is not the service secret.
     login(c, S, mk(S, ADMIN_EMAIL, "admin"))
     assert c.post("/admin/evals", json=body).status_code == 403
     evals = c.get("/admin/bots").json()["evals"]
@@ -898,8 +866,6 @@ def test_an_eval_run_needs_a_score_or_a_whole_metric_679(api):
     assert c.post("/admin/evals", json={"correct": 3, "metric_name": "m", "metric_value": 1.0}, headers=SERVICE).status_code == 422
     assert c.post("/admin/evals", json={"total": 3, "metric_name": "m", "metric_value": 1.0}, headers=SERVICE).status_code == 422
 
-
-# ------------------------------------------------------------------ hosting
 
 def _mock(monkeypatch: pytest.MonkeyPatch, handler) -> list[httpx.Request]:
     seen: list[httpx.Request] = []
@@ -1034,8 +1000,6 @@ def test_hosting_reads_github_and_treats_hidden_traffic_as_null_667(api, monkeyp
     assert gh["ci_runs"][0]["conclusion"] == "success" and gh["bot_runs"][0]["conclusion"] == "failure"
 
 
-# ------------------------------------------------------------------ traffic
-
 def _day(offset: int = 0) -> str:
     return (datetime.now(timezone.utc).date() - timedelta(days=offset)).isoformat()
 
@@ -1051,7 +1015,6 @@ def _web(request: httpx.Request, *, broken: tuple[str, ...] = ()) -> httpx.Respo
         return httpx.Response(200, json={"data": {"pageviews": 90, "visitors": 20}})
     by = q["by"]
     if by == "day":
-        # Two active days; the days between have no row at all.
         return httpx.Response(200, json={"data": [
             {"timestamp": f"{_day(2)}T00:00:00.000Z", "visitors": 14, "pageviews": 76},
             {"timestamp": f"{_day(0)}T00:00:00.000Z", "visitors": 9, "pageviews": 14},
@@ -1090,7 +1053,6 @@ def test_traffic_reads_vercel_with_zero_filled_days_and_totals_from_the_count_10
     p = v["projects"][0]
     assert [d["date"] for d in p["daily"]] == [_day(i) for i in range(6, -1, -1)]
     assert [(d["visitors"], d["pageviews"]) for d in p["daily"]] == [(0, 0)] * 4 + [(14, 76), (0, 0), (9, 14)]
-    # 14 + 9 would be wrong: a visitor on two days is one visitor.
     assert p["totals"] == {"visitors": 20, "pageviews": 90}
     assert p["pages"] == [{"key": "/", "visitors": 12, "pageviews": 40}]
     assert p["referrers"][0] == {"key": "", "visitors": 66, "pageviews": 321}
@@ -1127,7 +1089,7 @@ def test_traffic_caches_each_window_for_ten_minutes_unless_refreshed_1020(api, m
     c.get("/admin/traffic", params={"days": 7})
     assert len(seen) == n
     c.get("/admin/traffic", params={"days": 14})
-    assert len(seen) == 2 * n  # the other window is its own cache entry
+    assert len(seen) == 2 * n
     c.get("/admin/traffic", params={"days": 7, "refresh": 1})
     assert len(seen) == 3 * n
 
@@ -1161,7 +1123,6 @@ def _render_handler(request: httpx.Request) -> httpx.Response:
         assert int(q["resolutionSeconds"]) * 100 >= 30 * 86400
         two = path.endswith("cpu")
         a, b = (0.25, 0.5) if two else (100.0, 300.0)
-        # Two instances: they add up at each timestamp (0.25 + 0.25, 0.5 + 0.5).
         return httpx.Response(200, json=[_series(None, [(yesterday, a), (today, b)]), _series(None, [(yesterday, a), (today, b)])])
     if path == "/v1/metrics/cpu-limit":
         return httpx.Response(200, json=[_series(None, [(today, 1.0)])])
@@ -1177,14 +1138,14 @@ def test_traffic_reads_render_summing_instances_counting_5xx_and_clamping_to_30_
     r = c.get("/admin/traffic", params={"days": 90})
     rd = r.json()["render"]
     assert rd["configured"] is True and rd["days"] == 30
-    assert [s["name"] for s in rd["services"]] == ["optcg-api", "flaky"]  # the suspended one is skipped
+    assert [s["name"] for s in rd["services"]] == ["optcg-api", "flaky"]
     svc = rd["services"][0]
     assert len(svc["requests_daily"]) == 30
     assert svc["requests_daily"][0] == {"date": _day(29), "total": 0, "errors_5xx": 0}
     assert svc["requests_daily"][-2:] == [{"date": _day(1), "total": 103, "errors_5xx": 3}, {"date": _day(0), "total": 57, "errors_5xx": 3}]
     assert (svc["requests"], svc["errors_5xx"], svc["errors_4xx"]) == (160, 6, 4)
     assert (svc["cpu_avg"], svc["cpu_peak"], svc["cpu_limit"]) == (0.75, 1.0, 1.0)
-    assert (svc["memory_avg"], svc["memory_peak"], svc["memory_limit"]) == (400, 600, None)  # a missing limit is null, not an error
+    assert (svc["memory_avg"], svc["memory_peak"], svc["memory_limit"]) == (400, 600, None)
     assert rd["services"][1] == {"name": "flaky", "error": "HTTP 500"}
     starts = {rq.url.params["startTime"] for rq in seen if "startTime" in rq.url.params}
     assert starts == {f"{_day(29)}T00:00:00Z"}
@@ -1211,8 +1172,6 @@ def test_a_traffic_provider_error_never_carries_the_token_and_is_not_cached_1020
     c.get("/admin/traffic", params={"days": 7})
     assert len(seen) == 2 * n
 
-
-# ------------------------------------------------------------------ startup
 
 def test_startup_makes_only_the_admin_email_admin_667(startup_engine):
     app_db.init_db()
@@ -1287,8 +1246,6 @@ def test_admin_opens_a_closed_cut_off_game_but_a_game_still_being_played_stays_4
     assert c.get("/duel/matches/me/live/replay").status_code == 404
 
 
-# ------------------------------------------------------------------ games per mode and the user page (#988)
-
 def duel_game(db: Session, match_id: str, p0: int, p1: int, winner: int, at: datetime, ranked: bool = False,
               leaders: tuple[str, str] = ("OP01-001", "OP02-001"), log: bool = False) -> None:
     db.add(
@@ -1317,7 +1274,6 @@ def solo(db: Session, game_id: str, uid: int, mode: str, at: datetime, won: bool
 def test_casual_game_against_a_friend_counts_as_friends_and_one_against_a_stranger_as_private_988(api):
     c, S = api
     admin = mk(S, ADMIN_EMAIL, "admin")
-    # One friend with a lower id than me and one with a higher id, so both orders of the pair are exercised.
     friend = mk(S, "fr@x.test")
     me, friend_hi, stranger, pending = (mk(S, f"{n}@x.test") for n in ("me", "frhi", "st", "pe"))
     with S() as db:
@@ -1325,11 +1281,11 @@ def test_casual_game_against_a_friend_counts_as_friends_and_one_against_a_strang
         befriend(db, me, friend_hi)
         befriend(db, me, pending, "pending")
         duel_game(db, "f1", me, friend, 0, NOW - timedelta(days=4))
-        duel_game(db, "f2", friend, me, 0, NOW - timedelta(days=3))  # me in seat 1, lost
+        duel_game(db, "f2", friend, me, 0, NOW - timedelta(days=3))
         duel_game(db, "p1", me, stranger, 0, NOW - timedelta(days=2))
         duel_game(db, "p2", me, pending, 1, NOW - timedelta(days=1))
         duel_game(db, "f3", me, friend_hi, 0, NOW - timedelta(days=2, hours=1))
-        duel_game(db, "r1", me, friend, 0, NOW - timedelta(hours=5), ranked=True)  # friends but ranked: ranked
+        duel_game(db, "r1", me, friend, 0, NOW - timedelta(hours=5), ranked=True)
         db.commit()
     login(c, S, admin)
     rows = {u["id"]: u for u in c.get("/admin/users").json()["users"]}
@@ -1357,7 +1313,7 @@ def test_bot_and_practice_games_count_per_mode_and_only_bot_games_have_wins_988(
     assert {m["mode"]: (m["games"], m["wins"]) for m in detail["modes"]} == {
         "ranked": (0, 0), "friends": (0, 0), "private": (0, 0), "bot": (3, 2), "practice": (1, 0),
     }
-    assert detail["user"]["matches"] == 0  # solo games are not duel matches
+    assert detail["user"]["matches"] == 0
     assert detail["solo_tracked_since"] is not None
 
 
@@ -1420,7 +1376,7 @@ def test_user_detail_recent_matches_stop_at_25_988(api):
     c, S = api
     admin, me, foe = mk(S, ADMIN_EMAIL, "admin"), mk(S, "me@x.test"), mk(S, "foe@x.test")
     with S() as db:
-        for i in range(15):  # 30 games in all, interleaved newest first: s0, d0, s1, d1, ...
+        for i in range(15):
             solo(db, f"s{i}", me, "bot", NOW - timedelta(minutes=2 * i), won=True)
             duel_game(db, f"d{i}", me, foe, 0, NOW - timedelta(minutes=2 * i + 1))
         db.commit()
@@ -1490,8 +1446,8 @@ def test_user_detail_planner_duel_and_presence_sections_988(api):
                     DuelCosmetic(user_id=me, kind="cardBack", mime="image/png", data=b"x", size=1, taken_down_at=NOW)])
         befriend(db, me, f1)
         befriend(db, f2, me)
-        befriend(db, f3, me, "pending")  # incoming request
-        befriend(db, me, f4, "pending")  # one I sent: not waiting on me
+        befriend(db, f3, me, "pending")
+        befriend(db, me, f4, "pending")
         db.add(DuelPresence(user_id=f2, room_id="done", instance_id="i", role="player", phase="finished", updated_at=NOW))
         db.add(DuelRating(user_id=me, rating=1111, games_played=4))
         db.add(DuelPresence(user_id=me, room_id="r1", instance_id="i", role="player", phase="playing", ranked=True, updated_at=NOW))

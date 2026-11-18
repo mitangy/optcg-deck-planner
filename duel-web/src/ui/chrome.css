@@ -1,5 +1,3 @@
-/* —— App chrome: full-bleed top bar, constrained inner —— */
-
 .topbar {
   width: 100%;
   border-bottom: 1px solid var(--line);
@@ -8,7 +6,6 @@
   position: sticky;
   top: 0;
   z-index: var(--z-topbar);
-  /* Bar stays full-bleed under the status bar; the inner row clears it. */
   padding-top: var(--safe-t);
 }
 

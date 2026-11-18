@@ -1,4 +1,3 @@
-"""What a friend may see of your decks and collection, and the spares math (#703)."""
 
 from __future__ import annotations
 
@@ -25,7 +24,6 @@ Scope = Literal["profile", "decks", "collection", "trades"]
 
 
 def not_found() -> NotFound:
-    # One answer for every failure so nobody can probe who exists or what they share.
     return NotFound("Not found.")
 
 
@@ -60,7 +58,6 @@ def are_friends(db: Session, a: int, b: int) -> bool:
 
 
 def require_friend_view(db: Session, viewer: User, owner_id: int, scope: Scope) -> tuple[User, Sharing]:
-    """The owner and their sharing, or 404 when ``viewer`` may not look at ``scope``."""
     if owner_id == viewer.id:
         raise not_found()
     owner = db.get(User, owner_id)
@@ -90,8 +87,6 @@ def _is_don(card_id: str, cat: CatalogCard | None) -> bool:
 
 @dataclass
 class Holdings:
-    """One user's stock of a card against what their decks reserve."""
-
     owned_total: int
     reserved: int
     keep: int
@@ -100,12 +95,10 @@ class Holdings:
 
     @property
     def base_owned(self) -> int:
-        """Copies of the standard printing (total minus alt-printing copies)."""
         return max(0, self.owned_total - sum(self.alts.values()))
 
 
 def total_owned(db: Session, user_id: int) -> dict[str, int]:
-    """card_id -> base copies + alt-printing copies."""
     base = catalog_repo.owned_map(db, user_id)
     alts = catalog_repo.alt_owned_map(db, user_id)
     out = {card_id: qty for card_id, qty in base.items() if qty > 0}
@@ -115,7 +108,6 @@ def total_owned(db: Session, user_id: int) -> dict[str, int]:
 
 
 def wants(db: Session, user: User, deck_ids: list[int] | None = None) -> dict[str, int]:
-    """card_id -> copies still to buy on the user's shopping list (only `deck_ids` when given, #799)."""
     return {
         i.card_id: i.still_need
         for i in shopping_svc.shopping_list(db, user, deck_ids=deck_ids).items
@@ -124,10 +116,8 @@ def wants(db: Session, user: User, deck_ids: list[int] | None = None) -> dict[st
 
 
 def holdings(db: Session, user: User) -> tuple[dict[str, Holdings], dict[str, CatalogCard]]:
-    """Per-card holdings for every card the user owns or keeps (DON!! excluded)."""
     owned = total_owned(db, user.id)
     alts = catalog_repo.alt_owned_map(db, user.id)
-    # Copies a collector want claims are held back too (`have` is capped at the want, #1032).
     reserved = {
         i.card_id: i.need + sum(line.have for line in i.collector_wants)
         for i in shopping_svc.shopping_list(db, user).items
@@ -163,7 +153,6 @@ def spare_items(
     want: dict[str, int],
     card_ids: list[str],
 ) -> list[SpareItem]:
-    """SpareItem rows (sorted by name) for ``card_ids`` out of ``held``."""
     pids = {pid for c in card_ids for pid in held[c].alts}
     printings: dict[int, CatalogPrinting] = {}
     if pids:

@@ -1,4 +1,3 @@
-/** The game review (#967) on the replay controls: the grade badge, the strip under the controls, and the summary. */
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
   CLASS_LABEL,
@@ -19,7 +18,6 @@ import type { ReviewState } from "./useGameReview";
 
 const ESTIMATE_NOTE = "Grades are bot-simulation estimates.";
 
-/** The class's mark inside its disc (24x24 box). Shapes, not colour, tell the classes apart. */
 function Glyph({ cls }: { cls: MoveClass }) {
   switch (cls) {
     case "best":
@@ -46,7 +44,6 @@ function Glyph({ cls }: { cls: MoveClass }) {
   }
 }
 
-/** A chess.com-style grade badge: a coloured disc with the class's mark. The name is for screen readers (and always shown beside it). */
 export function GradeBadge({ cls, size = 22, label = true }: { cls: MoveClass; size?: number; label?: boolean }) {
   return (
     <svg className={`rv-badge rv-${cls}`} viewBox="0 0 24 24" width={size} height={size} role={label ? "img" : undefined} aria-label={label ? CLASS_LABEL[cls] : undefined} aria-hidden={label ? undefined : true} focusable="false">
@@ -58,7 +55,6 @@ export function GradeBadge({ cls, size = 22, label = true }: { cls: MoveClass; s
   );
 }
 
-/** A small mark for the turn list. */
 export function TurnGlyph({ mark }: { mark: TurnMark }) {
   return mark === "good" ? (
     <span className="rv-turn-mark rv-turn-good" title="Good turn" aria-label="good turn">
@@ -73,10 +69,6 @@ export function TurnGlyph({ mark }: { mark: TurnMark }) {
 
 export type ReviewViewer = { step: number; total: number; branch: boolean; yourSeat: Seat; playerNames: [string, string] };
 
-/**
- * The strip under the controls: the win-chance line, then the grade of the move that led here with the best
- * alternative. It is always the same height (rows are reserved), so results arriving or a new text never move the controls.
- */
 export function ReviewStrip({ review, viewer, onShowBest }: { review: ReviewState; viewer: ReviewViewer; onShowBest(step: number, moves: ReturnType<typeof showBestRequest>["moves"]): string | null }) {
   const { step, total, branch, yourSeat } = viewer;
   const running = review.status === "running";
@@ -166,7 +158,6 @@ function momentTitle(m: KeyMoment): string {
   return CLASS_LABEL[m.cls];
 }
 
-/** The summary: accuracy and counts per player, then the moments worth going to. */
 export function ReviewSummary({
   review,
   viewer,
@@ -181,9 +172,7 @@ export function ReviewSummary({
   onGo(step: number): void;
   onClose(): void;
   headingRef?: React.Ref<HTMLHeadingElement>;
-  /** The floating panel's keyboard move grip (desktop). */
   grip?: ReactNode;
-  /** The move the replay is at, in full (phones: the strip there keeps to two lines, #986). */
   now?: ReviewedMove | null;
 }) {
   const { playerNames, yourSeat } = viewer;

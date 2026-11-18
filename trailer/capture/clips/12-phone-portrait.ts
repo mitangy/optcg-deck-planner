@@ -1,8 +1,3 @@
-/**
- * 12-phone-portrait: a real practice game on a 375x812 phone (device pixel ratio 2, touch layout):
- * drag a card up from the fan to play it, tap a DON!! chip then the Leader to give it, drag the Leader
- * onto the opponent's to attack, end the turn, then answer the opponent's attack from the defend tray.
- */
 import { sleep } from "../lib/util";
 import { finishTake, startTake } from "../lib/take";
 import { MIKO } from "../lib/data";
@@ -28,7 +23,6 @@ export async function run(): Promise<void> {
     await t.goto("/");
     await sleep(2500);
     await toSecondTurn(p);
-    // Park the pointer on the hand, then hide the touch ring: it fades in with the first move, and End turn shows no hover tip.
     await t.pointer.park(300, 700);
     await p.evaluate(() => document.getElementById("__trailer-cursor")?.classList.remove("on"));
     await sleep(400);

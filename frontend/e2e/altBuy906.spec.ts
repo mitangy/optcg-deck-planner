@@ -1,9 +1,3 @@
-/**
- * Buying alt arts from the planner (#906): on a card with alt arts that still needs copies, its
- * remaining price opens a "Buy your N copies as…" popover (a bottom sheet on phones) that splits
- * them between the base art and each alt. The picks reprice Remaining and Est. cost, show as
- * "Buy ×N" on the alt tiles and save with the same want group buys use.
- */
 import type { Page } from "@playwright/test";
 import { expect, formatIssues, test } from "./fixtures";
 
@@ -37,7 +31,6 @@ test("Master Shopping: the remaining price splits the buy between base and alt a
   await expect(dialog(page)).toContainText("Buy your 2 copies as…");
   await expect(dialog(page).getByLabel("Base copies to buy")).toHaveText("×2");
   await expect(dialog(page)).toContainText("Total$2.50");
-  // Opening the panel does not move the trigger.
   expect(await trigger(page).boundingBox()).toEqual(before);
   await shot(page, "popover-open", testInfo);
 
@@ -64,25 +57,21 @@ test("Master Shopping: the remaining price splits the buy between base and alt a
   await incAlt(page).click();
   await expect(dialog(page).getByLabel("Base copies to buy")).toHaveText("×1");
   await expect(dialog(page)).toContainText("Total$16.24");
-  // 1 alt at $14.99 + 1 base at $1.25 (was 2 x $1.25).
   await expect(trigger(page)).toContainText("$16.24");
   await expect(trigger(page)).toContainText("1 alt + 1 base");
   expect(planner.altWants.get(`${IZO}:${ALT}`)).toBe(1);
   expect(planner.requests).toContain(`PUT /cards/${IZO}/printings/${ALT}`);
   expect(await estCost(page)).not.toBe(estBefore);
 
-  // Escape closes it and focus returns to the trigger.
   await page.keyboard.press("Escape");
   await expect(dialog(page)).toBeHidden();
   await expect(trigger(page)).toBeFocused();
   await shot(page, "after-pick", testInfo);
 
-  // The alt's tile says how many are bought, read-only.
   const tile = page.locator(".alt-want-label:visible", { hasText: "Buying ×1" });
   await expect(tile).toHaveCount(1);
   await expect(tile).not.toHaveRole("button");
 
-  // The last still-needed copy goes to the alt too: + is then disabled with the reason.
   await trigger(page).click();
   await incAlt(page).click();
   await expect(dialog(page).getByLabel("Base copies to buy")).toHaveText("×0");
@@ -91,7 +80,6 @@ test("Master Shopping: the remaining price splits the buy between base and alt a
   await expect(trigger(page)).toContainText("$29.98");
   await expect(trigger(page)).toContainText("2 alt");
 
-  // Audit the page itself, not the open sheet over its dimmed backdrop.
   await page.keyboard.press("Escape");
   await expect(dialog(page)).toBeHidden();
   const issues = await planner.audit();
@@ -112,10 +100,8 @@ test("Phone: the page behind the buy split sheet is dimmed and a tap on it close
     const r = el.getBoundingClientRect();
     return { x: r.x, y: r.y, w: r.width, h: r.height, bg: getComputedStyle(el).backgroundColor };
   });
-  // Covers the whole screen with a see-through dark shade.
   expect(shade).toMatchObject({ x: 0, y: 0, w: viewport.width, h: viewport.height });
   expect(shade.bg).toMatch(/rgba\(\d+, \d+, \d+, 0\.[1-9]/);
-  // The list above the sheet is under the shade; the sheet itself stays on top of it.
   const top = await page.evaluate(() => document.elementFromPoint(window.innerWidth / 2, 40)?.getAttribute("data-testid"));
   expect(top).toBe("buy-split-backdrop");
   const sheet = (await dialog(page).boundingBox())!;

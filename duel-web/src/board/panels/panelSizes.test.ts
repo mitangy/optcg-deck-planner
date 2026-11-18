@@ -78,7 +78,6 @@ describe("panel sizes (#347)", () => {
   });
 
   it("the action buttons' slot in a column does not turn its minimum width into NaN (#556)", () => {
-    // The column's children include [data-panel="actions"] and "defend", which are not panel ids.
     expect(columnMinPx(["oppHand", "turn", "actions", "hand"] as never)).toBe(250);
     expect(columnMinPx(["actions", "defend"] as never)).toBe(180);
   });
@@ -90,10 +89,8 @@ describe("panel sizes (#347)", () => {
     expect(panelMinHeight("preview", 0, 0)).toBe(140);
     expect(panelMinHeight("log", 200, 0)).toBe(200);
     const minTurn = panelMinHeight("turn", 0, 250);
-    // Dragging the Turn / Actions divider fully up: Turn is above, Actions below.
     expect(splitHeights(300, 200, -900, minTurn, 72)).toEqual([250, 250]);
     expect(splitHeights(300, 200, -900, 72, 72)).toEqual([72, 428]);
-    // Dragging the divider above Turn fully down: Turn is below.
     expect(splitHeights(300, 300, 900, 72, minTurn)).toEqual([350, 250]);
   });
 });

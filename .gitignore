@@ -20,16 +20,13 @@ htmlcov/
 # Log Pose eval output: traces hold official text from tool results
 analyst/evals/out/
 
-# mutation-check crash-recovery journal
 tools/mutation-check/.pending-restore.json
 tools/mutation-check/.run.lock
 tools/mutation-check/suites/.base-*
 
-# breadth mutation tool (Stryker)
 packages/rules/reports/
 packages/rules/.stryker-tmp/
 
-# trailer (issue #754): capture + render outputs
 trailer/out/
 trailer/clips/
 trailer/video/node_modules/
@@ -38,8 +35,6 @@ trailer/video/public/infographics/
 trailer/video/public/music.mp3
 trailer/video/src/generated.json
 
-# PR screenshots/recordings live on the pr-assets branch, never in the code (#783).
-# Upload with tools/pr-assets/upload.sh; see CLAUDE.md "PR screenshots and recordings".
 docs/pr-shots/
 docs/pr-proofs/
 artifacts/**/*.png

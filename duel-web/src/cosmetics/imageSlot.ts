@@ -1,45 +1,28 @@
-/**
- * Persistence for user-uploaded cosmetic images (playmat, card back).
- *
- * Pure logic only — no DOM access at import time — so it can be unit tested in
- * node. Browser-specific pieces (IndexedDB, canvas encode) are injected.
- */
-
 import { createStore } from "../lib/createStore";
 
-/** Minimal async key/value store for Blobs. */
 export type BlobBackend = {
   get(key: string): Promise<Blob | undefined>;
   put(key: string, blob: Blob): Promise<void>;
   delete(key: string): Promise<void>;
 };
 
-/** One rung of the re-encode ladder: tried in order until a save fits. */
 export type EncodeStep = { maxWidth: number; quality: number };
 
 export type ImageSlotOptions = {
   key: string;
   backend: BlobBackend;
-  /** Crop / scale / re-encode the upload for one ladder step. */
   encode: (file: Blob, step: EncodeStep) => Promise<Blob>;
-  /** Largest first; smaller steps are used when storage quota is tight. */
   ladder: readonly EncodeStep[];
-  /** Blob → displayable URL (defaults to URL.createObjectURL). */
   toUrl?: (blob: Blob) => string;
   revokeUrl?: (url: string) => void;
-  /** Called after a successful save (e.g. navigator.storage.persist()). */
   afterSave?: () => void;
 };
 
 export type ImageSlot = {
-  /** Cached URL: undefined = not loaded yet, null = none stored. */
   current(): string | null | undefined;
   load(): Promise<string | null>;
-  /** Encode and store an upload; resolves to the stored (re-encoded) image. */
   save(file: Blob): Promise<Blob>;
-  /** Store an already-encoded image as-is (e.g. one downloaded from the account). */
   put(blob: Blob): Promise<void>;
-  /** The stored image itself (null when none). */
   blob(): Promise<Blob | null>;
   clear(): Promise<void>;
   subscribe(listener: () => void): () => void;
@@ -59,7 +42,6 @@ export function isQuotaError(e: unknown): boolean {
   return typeof err.message === "string" && /quota/i.test(err.message);
 }
 
-/** Center cover-crop rectangle of `aspect` (w/h) inside a srcW × srcH image. */
 export function coverCropRect(
   srcW: number,
   srcH: number,
@@ -72,7 +54,6 @@ export function coverCropRect(
   return { sx: (srcW - sw) / 2, sy: (srcH - sh) / 2, sw, sh };
 }
 
-/** Output size for a crop: never upscales, capped at maxWidth. */
 export function outputSize(
   cropWidth: number,
   aspect: number,
@@ -126,10 +107,6 @@ export function dataUrlToBlob(url: string): Blob | undefined {
   return new Blob([bytes], { type: m[1] || "application/octet-stream" });
 }
 
-/**
- * localStorage backend (data URLs). Used only when IndexedDB is unavailable;
- * `maxChars` keeps one image from eating the ~5 MB origin budget.
- */
 export function localStorageBackend(
   storage: Pick<Storage, "getItem" | "setItem" | "removeItem">,
   prefix: string,
@@ -191,7 +168,6 @@ export function createImageSlot(opts: ImageSlotOptions): ImageSlot {
         .then((blob) => (blob ? toUrl(blob) : null))
         .catch(() => null)
         .then((url) => {
-          // A save/clear may have landed while we were reading.
           if (cached === undefined) cached = url;
           else if (url) revoke(url);
           loading = null;

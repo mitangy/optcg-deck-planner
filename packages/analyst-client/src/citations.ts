@@ -1,17 +1,6 @@
-/**
- * Sources and citations in Log Pose answers. The analyst names each source `kind:id[#part]`
- * (card:OP01-006, rule:6-5-3, ruling:OP14-020#2, stats:<leader>~<opp>, playbook:<leader>[~<opp>],
- * match:<id>#t3, game:<id>#t3, deck:<hash>, odds:<shape>, lesson:<id>, sim:<hash>[#curve|#cards|#line], bot self-play
- * botsim:<leader>[~<opp>][#<line>], botgame:<id>#t3, position:<game id>#t3 (estimates from bot simulations), price:<card>[#<product id>] (TCGPlayer price history), and from Limitless TCG tournaments
- * tourney:<leader>[~<opp>|#<card>] and event:<limitless event id>) and sends each citation
- * with the text offset (UTF-16) it follows. Everything here is pure, so it is tested without React.
- */
-
 export type Citation = { source: string; title: string; cited_text: string };
-/** A citation placed in an answer: `at` is the offset in the answer's text it follows. */
 export type PlacedCitation = Citation & { at: number };
 
-/** Citations from a stream event or the API, as the panel can trust them: a source id, text for the rest, a sane offset. */
 export function parseCitations(raw: unknown, placed: true): PlacedCitation[];
 export function parseCitations(raw: unknown, placed?: false): Citation[];
 export function parseCitations(raw: unknown, placed = false): Citation[] | PlacedCitation[] {
@@ -26,12 +15,10 @@ export function parseCitations(raw: unknown, placed = false): Citation[] | Place
   return placed ? out : out.map(({ at: _at, ...c }) => c);
 }
 
-/** Citations that arrive while an answer streams: they follow the text received so far, which is `at` long. */
 export function placeAt(citations: readonly Citation[], at: number): PlacedCitation[] {
   return citations.map((c) => ({ ...c, at }));
 }
 
-/** A link the host app gave for a source, only when it is a path in the app or an http(s) address. */
 export function safeLink(href: string | null | undefined): string | null {
   if (!href) return null;
   return /^(\/(?!\/)|https?:\/\/)/i.test(href) ? href : null;
@@ -41,13 +28,9 @@ export type SourceKind = "card" | "rule" | "ruling" | "stats" | "tourney" | "eve
 
 export type ParsedSource = {
   kind: SourceKind;
-  /** The part before "#": a card number, rule section, leader, match id… */
   id: string;
-  /** The part after "#" (turn, ruling number, card), when there is one. */
   part?: string;
-  /** For stats, tourney and playbook, the opponent in `leader~opponent`. */
   opponent?: string;
-  /** For match and game sources, the turn in `#t3`. */
   turn?: number;
   raw: string;
 };
@@ -76,7 +59,6 @@ export function parseSource(source: string): ParsedSource {
   return out;
 }
 
-/** The short badge a source gets in lists and popovers. */
 export function kindLabel(p: ParsedSource): string {
   switch (p.kind) {
     case "card":
@@ -118,18 +100,14 @@ export function kindLabel(p: ParsedSource): string {
   }
 }
 
-/** Where a Limitless TCG tournament page lives; `event:<id>` sources link here. */
 const LIMITLESS_TOURNAMENT = "https://play.limitlesstcg.com/tournament/";
 
-/** The Limitless TCG page of an `event:` source, or null for any other source or an id that isn't a plain event id. */
 export function eventLink(p: ParsedSource): string | null {
   return p.kind === "event" && /^[A-Za-z0-9_-]{1,64}$/.test(p.id) ? `${LIMITLESS_TOURNAMENT}${p.id}` : null;
 }
 
-/** Whether a source's quote is a win-record sentence: optcgduel.app win rates (stats), tournament records (tourney) and bot-simulation records (botsim). */
 export const hasRecord = (p: ParsedSource): boolean => p.kind === "stats" || p.kind === "tourney" || p.kind === "botsim";
 
-/** "Reviewed" or "Draft" and the set a playbook note was written for, read from its title ("Sabo playbook (Draft, OP17, stale)"). */
 export function playbookStatus(title: string): { status: "Reviewed" | "Draft"; set: string; stale: boolean } | null {
   const m = /\((Draft|Reviewed), ([^,)]+)(, stale)?\)\s*$/.exec(title);
   return m ? { status: m[1] as "Reviewed" | "Draft", set: m[2]!, stale: Boolean(m[3]) } : null;
@@ -137,7 +115,6 @@ export function playbookStatus(title: string): { status: "Reviewed" | "Draft"; s
 
 export type StatsDetail = { games: number; interval?: [number, number]; tooFew: boolean };
 
-/** Games and the 95% interval out of a win-record sentence the analyst wrote ("… 65 wins in 120 games (95% interval 45.1% to 62.8%)."). */
 export function statsDetail(quote: string): StatsDetail | null {
   const few = /too few games \((\d+)\)/i.exec(quote);
   if (few) return { games: Number(few[1]), tooFew: true };
@@ -146,18 +123,15 @@ export function statsDetail(quote: string): StatsDetail | null {
 }
 
 export type SourceEntry = {
-  /** The number shown on its markers and in the list (1-based, in order of first citation). */
   n: number;
   source: string;
   parsed: ParsedSource;
   title: string;
-  /** Every distinct quote cited from it. */
   quotes: string[];
 };
 
 export type Mark = { at: number; n: number; citation: PlacedCitation };
 
-/** The sources an answer cites, deduplicated, and one marker per citation numbered by its source. */
 export function buildSources(citations: readonly PlacedCitation[]): { entries: SourceEntry[]; marks: Mark[] } {
   const byId = new Map<string, SourceEntry>();
   const marks: Mark[] = [];
@@ -173,18 +147,13 @@ export function buildSources(citations: readonly PlacedCitation[]): { entries: S
   return { entries: [...byId.values()], marks };
 }
 
-/** Private-use characters that carry a marker through the Markdown parser: open, the mark's index, close. */
+// Private-use characters carry a marker through the Markdown parser.
 export const MARK_OPEN = "";
 export const MARK_CLOSE = "";
 export const MARK_RE = /(\d+)/g;
 const PRIVATE = /[]/g;
 
-/**
- * The answer's text with a marker after each citation's text, ready for the Markdown renderer.
- * A marker sits on the last visible character before its offset (never on a following blank line),
- * never splits a surrogate pair, and any private-use character already in the text is removed
- * so the model's own text can't forge a marker.
- */
+// A marker never splits a surrogate pair, and private-use characters already in the text are removed so the model's own text can't forge one.
 export function placeMarkers(text: string, marks: readonly Mark[]): string {
   const spots = marks
     .map((m, index) => {
@@ -204,7 +173,6 @@ export function placeMarkers(text: string, marks: readonly Mark[]): string {
   return out + text.slice(from).replace(PRIVATE, "");
 }
 
-/** A text node cut at its markers: plain strings and marker indexes. */
 export function splitMarks(text: string): (string | number)[] {
   const out: (string | number)[] = [];
   let last = 0;
@@ -219,10 +187,6 @@ export function splitMarks(text: string): (string | number)[] {
 
 export type Rect = { left: number; top: number; width: number; height: number };
 
-/**
- * Where a popover of `size` goes next to its marker: below it when there is room, else above, and kept
- * inside the viewport (`gap` from every edge) horizontally and vertically.
- */
 export function placePopover(anchor: Rect, size: { w: number; h: number }, vp: { w: number; h: number }, gap = 8): { left: number; top: number; above: boolean } {
   const w = Math.min(size.w, vp.w - gap * 2);
   const left = Math.min(Math.max(anchor.left + anchor.width / 2 - w / 2, gap), vp.w - w - gap);

@@ -1,5 +1,3 @@
-"""Log Pose in the app: chat sessions and tokens, spend caps, threads, post-game reviews
-and the anonymized game corpus (#377)."""
 
 from __future__ import annotations
 
@@ -21,7 +19,6 @@ def chat(analyst, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "Someone@else.example, DEV@localhost")
     monkeypatch.setenv("ANALYST_CHAT_DAILY_USD", "1.0")
     monkeypatch.setenv("ANALYST_CHAT_MONTHLY_USD", "5.0")
-    # No free spots here: requests wait for an owner, as the access tests expect (#446 tests turn spots on).
     monkeypatch.setenv("ANALYST_FREE_SPOTS", "0")
     get_settings.cache_clear()
     yield analyst
@@ -39,7 +36,6 @@ def _as(token: str) -> dict:
 
 
 def test_the_chat_panel_is_only_on_for_allowlisted_players(analyst, monkeypatch):  # noqa: F811
-    """No token is handed out unless the player's email is on ANALYST_CHAT_EMAILS (#377)."""
     c, _ = analyst
     monkeypatch.setenv("ANALYST_CHAT_EMAILS", "someone@else.example")
     get_settings.cache_clear()
@@ -54,12 +50,11 @@ def test_the_chat_panel_is_only_on_for_allowlisted_players(analyst, monkeypatch)
 
 
 def test_a_chat_token_must_be_signed_and_unexpired(chat):
-    """Tampered or expired chat tokens are turned away (#377)."""
     c, SessionLocal = chat
     me, body = _session(c)
     token = body["token"]
     _, uid, exp, sig = token.split(".")
-    forged = f"chat.{uid}.{int(exp) + 86400}.{sig}"  # stretched expiry, old signature
+    forged = f"chat.{uid}.{int(exp) + 86400}.{sig}"
     assert c.get("/analyst/me", headers={"X-Analyst-Token": forged}).status_code == 401
 
     db = SessionLocal()
@@ -81,7 +76,6 @@ def _spend(SessionLocal, user_id: int, cost: float, when: datetime | None = None
 
 
 def test_the_daily_cap_counts_only_your_spend_today(chat):
-    """Other players' spend and yesterday's don't use up today's cap; reaching it stops chat (#377)."""
     c, SessionLocal = chat
     me, body = _session(c)
     other = _users(c, "alice")[0]
@@ -96,7 +90,6 @@ def test_the_daily_cap_counts_only_your_spend_today(chat):
 
 
 def test_the_monthly_cap_counts_everyone(chat):
-    """The monthly cap is for all players together (#377)."""
     c, SessionLocal = chat
     _, body = _session(c)
     _spend(SessionLocal, _users(c, "alice")[0], 5.0)
@@ -122,7 +115,6 @@ def test_thread_content_is_only_for_the_analyst_service(chat):
 
 
 def test_threads_store_messages_as_sent_and_show_only_the_conversation(chat):
-    """Content round-trips as stored; the panel hides page context and tool turns and joins one answer (#377)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -151,7 +143,6 @@ def _loc(source, quote, title="T"):
 
 
 def test_the_thread_view_places_each_citation_after_the_text_it_cites(chat):
-    """An answer's citations come back with their UTF-16 offsets in the joined text; tool turns stay hidden (#390)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -177,16 +168,14 @@ def test_the_thread_view_places_each_citation_after_the_text_it_cites(chat):
     assert answer["text"] == "Looking.\n\nZoro \U0001F5E1 costs 3. I'd keep him. Blockers rest."
     units = lambda s: len(s.encode("utf-16-le")) // 2  # noqa: E731
     first = units("Looking.\n\nZoro \U0001F5E1 costs 3.")
-    assert first == len("Looking.\n\nZoro  costs 3.") + 2  # the dagger is two UTF-16 units
+    assert first == len("Looking.\n\nZoro  costs 3.") + 2
     assert [(x["at"], x["source"]) for x in answer["citations"]] == [(first, "card:OP01-001"), (units(answer["text"]), "rule:6-5-3")]
     assert answer["citations"][0] == {"at": first, "source": "card:OP01-001", "title": "Zoro", "cited_text": "cost 3"}
     assert len(answer["citations"][1]["cited_text"]) == 800
-    # The stored message keeps the citations as sent.
     assert c.get(f"/analyst/chat/threads/{tid}/content", headers=h).json()["messages"] == messages
 
 
 def test_a_thread_belongs_to_its_player(chat):
-    """Another player's thread is not found, through the analyst or the app (#377)."""
     c, SessionLocal = chat
     _, body = _session(c)
     db = SessionLocal()
@@ -208,7 +197,6 @@ def test_a_thread_belongs_to_its_player(chat):
 
 
 def test_reviews_are_saved_only_for_games_you_played(chat):
-    """The analyst can save a post-game analysis only for the player's own games; the app reads it back (#377)."""
     c, _ = chat
     me, body = _session(c)
     a, b = _users(c, "alice", "bob")
@@ -225,7 +213,6 @@ def test_reviews_are_saved_only_for_games_you_played(chat):
 
 
 def test_a_review_keeps_the_sources_it_cites(chat):
-    """The saved analysis comes back with its citations; one beyond the text is dropped; saving again replaces them (#390)."""
     c, _ = chat
     me, body = _session(c)
     a, _b = _users(c, "alice", "bob")
@@ -245,11 +232,9 @@ def test_a_review_keeps_the_sources_it_cites(chat):
 
 
 def test_the_corpus_is_anonymized_and_puts_the_leader_on_side_a(analyst):
-    """Corpus games carry opaque ids and rating bands, never names or match ids; side A is the asked leader (#377)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
-    # A match id no opaque id can contain by chance (they are letters and digits only).
-    _zoro_vs_lucci(c, "secret-match-", b, a, [(1, 0)])  # seat 0 Zoro (bob), seat 1 Lucci (alice) wins
+    _zoro_vs_lucci(c, "secret-match-", b, a, [(1, 0)])
     r = c.get("/analyst/corpus/games", params={"leader": LUCCI}, headers=SERVICE)
     assert r.status_code == 200, r.text
     out = r.json()
@@ -265,7 +250,6 @@ def test_the_corpus_is_anonymized_and_puts_the_leader_on_side_a(analyst):
 
 
 def test_the_corpus_filters_by_card_and_result(analyst):
-    """Card and result filters apply to side A (#377)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
     _zoro_vs_lucci(c, "w", a, b, [(0, 0)], deck0=[NAMI_CARD] * 4)
@@ -277,7 +261,6 @@ def test_the_corpus_filters_by_card_and_result(analyst):
 
 
 def test_opted_out_players_games_leave_the_corpus(analyst):
-    """Turning sharing off removes a player's games from corpus search and replays, even ids found before (#377)."""
     c, _ = analyst
     me = c.post("/auth/dev-login").json()
     a = _users(c, "alice")[0]
@@ -292,7 +275,6 @@ def test_opted_out_players_games_leave_the_corpus(analyst):
     assert c.get(f"/analyst/corpus/games/{gid}/replay", headers=SERVICE).status_code == 404
 
 def _edit(pid: str, name: str = "Luffy") -> dict:
-    """A deck edit as the analyst saves it (#400)."""
     return {
         "id": pid,
         "version": 1,
@@ -311,7 +293,6 @@ def _edit(pid: str, name: str = "Luffy") -> dict:
 def _propose_turn(call_id: str, answer: str, name: str = "propose_deck_edit") -> list[dict]:
     return [
         {"role": "user", "content": [{"type": "text", "text": "<context>page: deck</context>"}, {"type": "text", "text": f"Review {call_id}"}]},
-        # The turn's tool_use message has no text, like a model that goes straight to the tool.
         {"role": "assistant", "content": [{"type": "tool_use", "id": call_id, "name": name, "input": {}}]},
         {"role": "user", "content": [{"type": "tool_result", "tool_use_id": call_id, "content": "ok"}]},
         {"role": "assistant", "content": [{"type": "text", "text": answer}]},
@@ -319,7 +300,6 @@ def _propose_turn(call_id: str, answer: str, name: str = "propose_deck_edit") ->
 
 
 def test_a_proposal_must_come_from_a_propose_deck_edit_call_in_its_thread(chat):
-    """A deck edit is kept only when its id is a stored propose_deck_edit tool_use of this thread (#400)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -327,21 +307,17 @@ def test_a_proposal_must_come_from_a_propose_deck_edit_call_in_its_thread(chat):
     messages = _propose_turn("t1", "See the card.") + _propose_turn("t2", "Another.", name="get_cards")
     assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
     url = f"/analyst/chat/threads/{tid}/proposals"
-    # Neither an id the thread never had, nor a call to some other tool.
     assert c.post(url, json={"proposals": [_edit("nope")]}, headers=h).status_code == 400
     assert c.post(url, json={"proposals": [_edit("t2")]}, headers=h).status_code == 400
-    # One bad one refuses the batch.
     assert c.post(url, json={"proposals": [_edit("t1"), _edit("nope")]}, headers=h).status_code == 400
     assert [m["proposals"] for m in c.get(f"/analyst/chat/threads/{tid}").json()["messages"]] == [[], [], [], []]
     assert c.post(url, json={"proposals": [_edit("t1")]}, headers=h).status_code == 204
-    # Saving the same one again is ignored; the first stays.
     assert c.post(url, json={"proposals": [_edit("t1", name="Changed")]}, headers=h).status_code == 204
     shown = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
     assert [p["target"]["name"] for m in shown for p in m["proposals"]] == ["Luffy"]
 
 
 def test_the_thread_view_shows_a_deck_edit_under_the_answer_that_made_it(chat):
-    """The edit from the second turn sits on that turn's answer, not the first one's (#400)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -361,12 +337,10 @@ def test_the_thread_view_shows_a_deck_edit_under_the_answer_that_made_it(chat):
         ("assistant", "See the card.", ["t1"]),
     ]
     assert view[3]["proposals"][0] == _edit("t1")
-    # The model's own history is unchanged.
     assert c.get(f"/analyst/chat/threads/{tid}/content", headers=h).json()["messages"] == messages
 
 
 def _draft(did: str, name: str = "Red Luffy") -> dict:
-    """A new deck as the analyst saves it (#726)."""
     return {
         "id": did,
         "version": 1,
@@ -381,7 +355,6 @@ def _draft(did: str, name: str = "Red Luffy") -> dict:
 
 
 def test_a_new_deck_draft_must_come_from_a_propose_new_deck_call_in_its_thread(chat):
-    """A draft is kept only when its id is a stored propose_new_deck tool_use of this thread (#726)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -389,13 +362,11 @@ def test_a_new_deck_draft_must_come_from_a_propose_new_deck_call_in_its_thread(c
     messages = _propose_turn("d1", "Opening it.", name="propose_new_deck") + _propose_turn("t2", "An edit.")
     assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
     url = f"/analyst/chat/threads/{tid}/drafts"
-    # Neither an id the thread never had, nor a call to propose_deck_edit.
     assert c.post(url, json={"drafts": [_draft("nope")]}, headers=h).status_code == 400
     assert c.post(url, json={"drafts": [_draft("t2")]}, headers=h).status_code == 400
     assert c.post(url, json={"drafts": [_draft("d1"), _draft("nope")]}, headers=h).status_code == 400
     assert [m["drafts"] for m in c.get(f"/analyst/chat/threads/{tid}").json()["messages"]] == [[], [], [], []]
     assert c.post(url, json={"drafts": [_draft("d1")]}, headers=h).status_code == 204
-    # Saving the same one again is ignored; the first stays.
     assert c.post(url, json={"drafts": [_draft("d1", name="Changed")]}, headers=h).status_code == 204
     shown = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
     assert [d["name"] for m in shown for d in m["drafts"]] == ["Red Luffy"]
@@ -408,7 +379,6 @@ def test_a_new_deck_draft_must_come_from_a_propose_new_deck_call_in_its_thread(c
 
 
 def test_a_new_deck_draft_keeps_more_than_four_copies_of_an_any_number_card(chat):
-    """Pacifista-style cards run any number, so /drafts takes up to 50 copies of one card (#728)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -423,7 +393,6 @@ def test_a_new_deck_draft_keeps_more_than_four_copies_of_an_any_number_card(chat
 
 
 def test_the_thread_view_shows_a_new_deck_under_the_answer_that_made_it(chat):
-    """The draft sits on the answer that ended its turn, so it comes back on reload (#726)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -446,7 +415,6 @@ def test_the_thread_view_shows_a_new_deck_under_the_answer_that_made_it(chat):
 
 
 def test_an_edit_keeps_its_apply_flag_across_a_reload(chat):
-    """A stored edit remembers whether Log Pose was asked to make it (#726)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -458,9 +426,8 @@ def test_an_edit_keeps_its_apply_flag_across_a_reload(chat):
 
 
 def test_only_the_model_admin_can_change_the_chat_model_428(chat, monkeypatch):
-    """Everyone with the chat sees the model; PUT is for ANALYST_MODEL_ADMIN_EMAILS only, and only for offered models (#428)."""
     c, _ = chat
-    _session(c)  # DEV@localhost is a chat owner but not the model admin
+    _session(c)
     got = c.get("/analyst/settings/model").json()
     assert got == {"model": "claude-sonnet-5-5", "options": ["claude-sonnet-5-5", "claude-opus-5-5", "claude-haiku-5-5", "claude-haiku-4-5"], "can_edit": False}
     assert c.put("/analyst/settings/model", json={"model": "claude-opus-5-5"}).status_code == 403
@@ -475,7 +442,6 @@ def test_only_the_model_admin_can_change_the_chat_model_428(chat, monkeypatch):
 
 
 def test_the_model_admin_can_pick_either_haiku_430(chat, monkeypatch):
-    """Haiku 5.5 and 4.5 are offered too; the saved choice is what the setting and the budget report (#430)."""
     c, _ = chat
     _, body = _session(c)
     monkeypatch.setenv("ANALYST_MODEL_ADMIN_EMAILS", "dev@localhost")
@@ -488,7 +454,6 @@ def test_the_model_admin_can_pick_either_haiku_430(chat, monkeypatch):
 
 
 def test_the_budget_carries_the_saved_chat_model_428(chat, monkeypatch):
-    """The analyst learns the model on the budget call it already makes, the same for every player (#428)."""
     c, _ = chat
     _, body = _session(c)
     assert c.get("/analyst/chat/budget", headers=_as(body["token"])).json()["model"] == "claude-sonnet-5-5"
@@ -507,7 +472,6 @@ def _answered_thread(c, h, scope: str | None = None, title: str = "t") -> int:
 
 
 def test_a_thread_keeps_the_scope_it_was_made_with_970(chat):
-    """The scope is stored on create and comes back on the list and the view; no scope means general (#970)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -531,7 +495,6 @@ def test_a_malformed_thread_scope_is_rejected_970(chat, scope):
 
 
 def test_the_thread_list_filters_by_scope_and_player_970(chat):
-    """?scope= lists only that scope's answered threads, newest first, and never another player's (#970)."""
     c, SessionLocal = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -539,7 +502,7 @@ def test_the_thread_list_filters_by_scope_and_player_970(chat):
     _answered_thread(c, h, "match:g2")
     _answered_thread(c, h)
     newer = _answered_thread(c, h, "match:g1")
-    c.post("/analyst/chat/threads", json={"scope": "match:g1"}, headers=h)  # unanswered: not listed
+    c.post("/analyst/chat/threads", json={"scope": "match:g1"}, headers=h)
     db = SessionLocal()
     try:
         theirs = AnalystThread(user_id=_users(c, "alice")[0], title="theirs", scope="match:g1")
@@ -557,7 +520,6 @@ def test_the_thread_list_filters_by_scope_and_player_970(chat):
 
 
 def test_match_history_flags_only_your_own_chat_about_a_game_970(chat):
-    """has_chat is true for a game you have an answered match-scoped thread on, not for someone else's (#970)."""
     c, SessionLocal = chat
     me, body = _session(c)
     h = _as(body["token"])

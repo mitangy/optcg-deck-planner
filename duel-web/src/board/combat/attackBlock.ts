@@ -1,6 +1,5 @@
 import type { Intent } from "../../net/protocol";
 
-/** The slice of a board card `cantAttackReason` reads. */
 export type AttackBlockCard = {
   id: string;
   rested?: boolean;
@@ -9,21 +8,13 @@ export type AttackBlockCard = {
 };
 
 export type AttackBlockContext = {
-  /** `view.phase`; only "main" can declare attacks. */
   phase: string;
-  /** A battle or a prompt is open: the missing attack is not about this card. */
   busy: boolean;
-  /** Your turns started so far (the first one can't attack). */
+  // The first turn can't attack.
   turnsStarted?: number;
   intents: readonly Intent[];
 };
 
-/**
- * Why this Leader / Character of yours can't attack right now, for the warning
- * shown when the player tries anyway. Null when it can attack (the server
- * listed a declare_attack for it) or when the question doesn't apply (not your
- * main phase, a battle or prompt is open): then no warning is due.
- */
 export function cantAttackReason(card: AttackBlockCard, ctx: AttackBlockContext): string | null {
   if (ctx.phase !== "main" || ctx.busy) return null;
   if (ctx.intents.some((i) => i.type === "declare_attack" && i.attackerId === card.id)) return null;

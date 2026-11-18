@@ -1,7 +1,3 @@
-"""Export a trained embedder checkpoint to ONNX (input 1x3x224x160, output unit vector).
-
-  python scripts/train-embedder/export_onnx.py --ckpt .scan-build/models/embedder_s128.pt --out .scan-build/models/card-embedder.onnx
-"""
 import argparse, os, sys
 import torch
 sys.path.insert(0, os.path.dirname(__file__))

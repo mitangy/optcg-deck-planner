@@ -3,7 +3,6 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { Topbar } from "../app/Topbar";
 import { UpdateNotice, VersionStatus } from "../app/UpdateNotice";
 
-/** Public page: everything that changed in the planner, newest first. Opening it counts as seeing the latest update. */
 export function WhatsNewPage() {
   return (
     <div className="app public-app">

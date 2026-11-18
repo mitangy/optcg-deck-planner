@@ -1,15 +1,3 @@
-/**
- * Holding a card on a phone must not bring up the browser's image sheet (iOS
- * Save / Share) or start an image drag or text selection, and the app's own
- * press-and-hold must still open the card inspector (#445).
- *
- * Chromium has no `-webkit-touch-callout`, so the test reads what it does
- * support from the same rule (`user-select`, `-webkit-user-drag`) and the
- * `draggable` attribute; when the engine knows the callout property it checks that too.
- * Hand and field tiles already had `user-select: none` and `draggable="false"`, so only the
- * card inspector's art (no tile around it) shows the stylesheet rule at work in Chromium; the
- * callout line itself can only be checked on iOS Safari.
- */
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 

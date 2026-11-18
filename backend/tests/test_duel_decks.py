@@ -74,7 +74,6 @@ def test_decks_are_private_to_their_owner_619(client):
     luffy, zoro = _user(S, "luffy"), _user(S, "zoro")
     _put(_as(c, luffy), "d1", 1000)
     assert _as(c, zoro).get("/duel/decks").json() == {"decks": []}
-    # Zoro's delete and write under the same id touch only his own row.
     assert _as(c, zoro).delete("/duel/decks/d1", params={"updatedAt": 5000}).status_code == 200
     _put(c, "d1", 10, _deck("Zoro's"))
     mine = _as(c, luffy).get("/duel/decks").json()["decks"]
@@ -88,7 +87,6 @@ def test_put_keeps_a_newer_stored_deck_and_returns_it_619(client):
     assert res.status_code == 200
     assert (res.json()["updatedAt"], res.json()["deck"]["name"]) == (2000, "New")
     assert c.get("/duel/decks").json()["decks"][0]["deck"]["name"] == "New"
-    # An equal-or-newer write wins.
     assert _put(c, "d1", 2000, _deck("Same time")).json()["deck"]["name"] == "Same time"
 
 
@@ -177,7 +175,6 @@ def test_tombstones_count_toward_a_row_cap_619(client, monkeypatch: pytest.Monke
     assert _put(c, "b", 1).status_code == 200
     assert c.delete("/duel/decks/c", params={"updatedAt": 1}).status_code == 413
     assert _put(c, "c", 1).status_code == 413
-    # Existing rows can still change.
     assert c.delete("/duel/decks/b", params={"updatedAt": 2}).status_code == 200
 
 

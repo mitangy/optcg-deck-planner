@@ -1,13 +1,3 @@
-"""Log Pose's bot game corpus (#635): bot-vs-bot self-play games, kept apart from real duels.
-
-Rows live in `bot_matches`, never in duel_matches / duel_match_seats, so nothing here reaches
-matchup_stats, ratings or the leaderboard. The analyst reads them only through the service-secret
-endpoints, and every number it quotes from here is labelled as a bot simulation.
-
-Sides are "A" (seat 0) and "B" (seat 1). Line stats say how often a bot's side won in games where
-a line happened (a Leader activation, an optional effect accepted, a Counter Event, a cheat-out)
-against games where it did not.
-"""
 
 from __future__ import annotations
 
@@ -45,7 +35,6 @@ def clean_levels(value: str | None) -> str:
 
 
 def _clean_tally(raw: object) -> dict:
-    """Keep only the known tally fields, as non-negative ints."""
     out: dict = {}
     if not isinstance(raw, dict):
         return out
@@ -65,7 +54,6 @@ def _clean_tally(raw: object) -> dict:
 
 
 def clean_tallies(raw: object) -> dict:
-    """{"A": tally, "B": tally} from a [seat0, seat1] list or an {"A", "B"} dict."""
     if isinstance(raw, list) and len(raw) == 2:
         raw = {"A": raw[0], "B": raw[1]}
     if not isinstance(raw, dict):
@@ -98,7 +86,6 @@ def validate_replay(replay: object) -> str | None:
 
 
 def ingest_batch(db: Session, batch_id: str, default_levels: str, games: list[dict]) -> dict:
-    """Store the games of one batch. Safe to send again: a (batch id, index) already stored is skipped."""
     have = set(db.scalars(select(BotMatch.batch_index).where(BotMatch.batch_id == batch_id)).all())
     accepted = duplicates = 0
     rejected: list[dict] = []
@@ -166,8 +153,6 @@ def search_bot_games(
     limit: int = 20,
     offset: int = 0,
 ) -> dict:
-    """Bot games matching the filters, newest first, with the same side rules as the real-game corpus search:
-    with a leader (or only an opponent) side A is that leader's side and result, went_first and card apply to it."""
     q = select(BotMatch).options(defer(BotMatch.replay), defer(BotMatch.tallies)).order_by(BotMatch.created_at.desc(), BotMatch.id.desc())
     if levels:
         q = q.where(BotMatch.levels == levels)
@@ -232,10 +217,7 @@ def bot_game_replay(db: Session, game_id: str) -> dict | None:
     }
 
 
-# --- simulated stats ---------------------------------------------------------------------------
-
 def lines_of(tally: dict) -> set[str]:
-    """The named lines a side played in one game."""
     out: set[str] = set()
     if tally.get("leaderActivations", 0) > 0:
         out.add("leader_activation")
@@ -281,7 +263,6 @@ def _split(rows: list[dict]) -> dict:
 
 
 def _line_stats(rows: list[dict], limit: int) -> list[dict]:
-    """Win rate in games where a line happened vs games where it didn't, for lines with enough games on both sides."""
     names = Counter(n for r in rows for n in r["lines"])
     out = []
     for name, count in names.items():
@@ -294,7 +275,6 @@ def _line_stats(rows: list[dict], limit: int) -> list[dict]:
 
 
 def sim_stats(db: Session, leader: str | None, opponent: str | None, levels: str | None, days: int, rules_version: str | None, line_limit: int = 25) -> dict:
-    """Simulated matchup win rates and line stats from bot games. Only aggregates leave this function."""
     since = datetime.now(timezone.utc) - timedelta(days=days)
     q = select(BotMatch).options(defer(BotMatch.replay)).where(BotMatch.created_at >= since, BotMatch.winner.is_not(None))
     if levels:
@@ -347,11 +327,8 @@ def sim_stats(db: Session, leader: str | None, opponent: str | None, levels: str
     }
 
 
-# ——— lessons both bot games and real games agree on (#915) ———
-
 
 def shared_bot_lessons(db: Session, leader: str, opponent: str | None) -> list[dict]:
-    """Approved bot lessons for a leader (and a matchup when an opponent is given), read by every player's Log Pose."""
     q = select(AnalystLesson).where(
         AnalystLesson.source == "bots",
         AnalystLesson.status == LessonStatus.APPROVED,
@@ -388,7 +365,6 @@ def _posted_text(evidence: str | None) -> str | None:
 
 
 def save_bot_lesson(db: Session, text: str, leader_id: str, opponent_id: str | None, cards: list[str], evidence: str) -> dict:
-    """Save a bot lesson as a draft for the admin to review. A lesson with the same leader, opponent and text in any status is skipped."""
     admin = db.scalar(select(User).where(User.role == Role.ADMIN).order_by(User.id).limit(1))
     if admin is None:
         raise BotLessonError(503, "No admin account to review bot lessons")
@@ -399,7 +375,6 @@ def save_bot_lesson(db: Session, text: str, leader_id: str, opponent_id: str | N
         AnalystLesson.leader_id == leader_id,
         AnalystLesson.opponent_id.is_(None) if opponent_id is None else AnalystLesson.opponent_id == opponent_id,
     )
-    # The admin can edit a lesson's text, so also match the wording as first posted (kept in evidence); rows saved before that match on text.
     if any(text in (t, _posted_text(ev)) for t, ev in db.execute(same).all()):
         return {"skipped": True}
 

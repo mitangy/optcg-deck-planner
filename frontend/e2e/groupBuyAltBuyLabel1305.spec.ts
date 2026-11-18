@@ -1,8 +1,3 @@
-/**
- * Group buy alt tiles say how many copies you buy of that art (#1305), like the Base tile.
- * Real case: OP17-112 Linlin, still need 1, own 1 of the alt, alt Want 1 -> the owned copy
- * covers the want, so the alt buys 0 and Base buys 1.
- */
 import { expect, test } from "./fixtures";
 
 const GB = 12;
@@ -52,7 +47,6 @@ function detail() {
           { product_id: 22, name: "Alternate Art", market_price: 16.03, low_price: 15, image_url: IMG(22), tcgplayer_url: "", group_name: "Test", is_special: true, wanted: 1, owned: 1, collector: 0 },
           { product_id: 23, name: "Manga", market_price: 709.14, low_price: 700, image_url: IMG(23), tcgplayer_url: "", group_name: "Test", is_special: true, wanted: 0, owned: 0, collector: 0 },
         ],
-        // The owned alt copy covers the alt want, so the server sends the one copy to buy as Base.
         art_wants: [{ product_id: 21, user_id: 1, qty: 1 }],
         display_art: 21,
         my_qty: 1,
@@ -90,7 +84,6 @@ for (const layout of ["List", "Grid"] as const) {
     await expect(alt.getByLabel("Alternate Art wanted")).toHaveText("1");
     const manga = page.locator(".alt-art").filter({ has: page.getByText("$709.14") }).first();
     await expect(manga.locator(".alt-buy-label")).toHaveCount(0);
-    // Tiles in the row stay one height, and nothing in a tile spills past it.
     const boxes = await page.locator(".alt-art").evaluateAll((els) =>
       els.map((el) => {
         const r = el.getBoundingClientRect();
@@ -107,7 +100,6 @@ for (const layout of ["List", "Grid"] as const) {
       await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-${layout.toLowerCase()}.png`, fullPage: true });
       for (const [w, h, tag] of [[375, 812, "portrait"], [812, 375, "landscape"]] as const) {
         await page.setViewportSize({ width: w, height: h });
-        // The layout switches at these widths, so wait for the tiles to re-render.
         const card = page.locator(".alt-arts:visible").first();
         await expect(card.locator(".alt-buy-label")).toBeVisible();
         await page.waitForTimeout(300);

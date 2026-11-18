@@ -11,12 +11,6 @@ import { useConfirmKeys } from "../input/useBoardHotkeys";
 
 const EDGE = 8;
 
-/**
- * Yes/No for a card you just used from your hand ("Then, you may rest 1 DON!!…"),
- * shown on that card where it sat in the hand instead of a centred pop-up. The
- * card stays raised in its old spot, with the question just above it. Fixed
- * overlay (portal), clamped to the viewport; never shifts the hand or board.
- */
 export function HandConfirmPrompt({
   choice,
   anchor,
@@ -42,7 +36,6 @@ export function HandConfirmPrompt({
   useLayoutEffect(() => {
     const bubble = ref.current?.querySelector<HTMLElement>(".hand-confirm-bubble");
     setWidth(Math.max(ref.current?.offsetWidth ?? 0, (bubble?.offsetWidth ?? 0) * scale));
-    // The bubble scales up from its bottom centre, so it grows upward past the layout box.
     setHeight((ref.current?.offsetHeight ?? 0) + (bubble?.offsetHeight ?? 0) * (scale - 1));
   }, [choice.id, scale]);
   useEffect(() => {
@@ -57,18 +50,15 @@ export function HandConfirmPrompt({
   const half = width / 2;
   const cx = anchor.left + anchor.width / 2;
   const left = Math.min(Math.max(cx, EDGE + half), Math.max(EDGE + half, vw - EDGE - half));
-  // The hand's header row (Hand / Sort / Hide) stays uncovered: see heldCardSpot.
   const headerEl = [...document.querySelectorAll<HTMLElement>(".hand-rail-head, .hand-dock-head, .hand-fan-head")].find(
     (el) => el.offsetWidth > 0,
   );
   const spot = heldCardSpot(anchor, headerEl ? headerEl.getBoundingClientRect() : null);
   const style: CSSProperties = {
     left,
-    // Kept on screen even when the hand was tucked below the viewport when this was sent.
     top: clampHeldBottom(spot.bottom, spot.lift, height, viewportH, EDGE),
     ["--hold-gap" as string]: `${spot.gap}px`,
     ["--card-lift" as string]: `${spot.lift}px`,
-    // The card's centre stays over its old hand slot even when the bubble is clamped.
     ["--card-shift" as string]: `${cx - left}px`,
   };
 

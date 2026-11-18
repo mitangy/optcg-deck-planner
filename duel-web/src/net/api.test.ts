@@ -39,7 +39,6 @@ describe("token mint retries (#1224)", () => {
     vi.unstubAllGlobals();
   });
 
-  /** Runs a mint to its end, letting the backoff waits pass. */
   async function mint() {
     const result = mintGuestGameToken("browserguestid001").then(
       (t) => t,

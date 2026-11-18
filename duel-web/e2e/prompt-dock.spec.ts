@@ -1,9 +1,3 @@
-/**
- * Docking the choice pop-up into a side column (#449): drag its header onto a
- * column (or use the dock buttons), it sits at the top of that column with the
- * other panels shrunk, picks survive, the side is remembered, and phones keep
- * their floating pop-up.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -19,7 +13,6 @@ async function open(page: Page, prompt = "order") {
   await expect(page.locator(PROMPT)).toBeVisible();
 }
 
-/** Drag the header by the mouse to (x, y). */
 async function dragHeaderTo(page: Page, x: number, y: number) {
   const h = (await page.locator(`${PROMPT} > h3`).boundingBox())!;
   await page.mouse.move(h.x + 40, h.y + h.height / 2);
@@ -30,7 +23,6 @@ async function dragHeaderTo(page: Page, x: number, y: number) {
 
 const box = async (page: Page, selector: string) => (await page.locator(selector).first().boundingBox())!;
 
-/** The pop-up lies inside the column's box, at its top. */
 async function expectDockedIn(page: Page, side: "left" | "right") {
   await expect
     .poll(async () => {
@@ -50,7 +42,6 @@ test.describe("desktop", () => {
   ] as const) {
     test(`dragging the header onto the ${side} column docks it there, shrinks that column's panels, and the next pop-up opens docked (#449)`, async ({ page }) => {
       await page.addInitScript((key) => {
-        // Only the first load: a reload keeps what the page saved.
         if (!localStorage.getItem(key)) localStorage.setItem(key, JSON.stringify({ handLayout: "grid" }));
       }, SETTINGS);
       await open(page);
@@ -60,7 +51,6 @@ test.describe("desktop", () => {
       await expectDockedIn(page, side);
       expect((await stored(page)).promptDock).toBe(side);
       await expect.poll(async () => (await box(page, `[data-panel="${panel}"]`)).height).toBeLessThan(before.height - 100);
-      // The demo keeps one pop-up up, so a reload (a fresh pop-up, settings kept) stands in for the next.
       await page.reload();
       await expect(page.locator(PROMPT)).toBeVisible();
       await expectDockedIn(page, side);
@@ -72,7 +62,6 @@ test.describe("desktop", () => {
     await dragHeaderTo(page, 1279, 300);
     await expectDockedIn(page, "right");
     const h = await box(page, `${PROMPT} > h3`);
-    // Out over the board, well past the pull-loose threshold.
     await dragHeaderTo(page, h.x - 500, h.y + 200);
     await expect.poll(async () => (await stored(page)).promptDock).toBe("");
     await expect(page.locator("[data-prompt-dock-host]")).toHaveCount(0);
@@ -82,7 +71,6 @@ test.describe("desktop", () => {
   });
 
   test("a pop-up can be dragged to the far left edge when only the right column is open, and does not jump into the right column (#1245)", async ({ page }) => {
-    // The fixtures open both columns; the app's default is one combined column on the right.
     await page.addInitScript((key) => {
       const cur = JSON.parse(localStorage.getItem(key) ?? "{}") as Record<string, unknown>;
       localStorage.setItem(key, JSON.stringify({ ...cur, sideColumns: "right" }));

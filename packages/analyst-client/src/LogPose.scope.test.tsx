@@ -14,7 +14,6 @@ const MATCH: LogPoseScope = { key: "match:m1", title: "Luffy vs Zoro" };
 type Thread = { id: number; title: string; scope: string; updated_at: string; messages: { role: "user" | "assistant"; text: string }[] };
 const thread = (id: number, scope: string, title: string, text: string, updated_at = "2026-11-04T10:00:00Z"): Thread => ({ id, title, scope, updated_at, messages: [{ role: "user", text }] });
 
-/** The analyst and API as one fake: the session, the thread endpoints, and a chat stream the test closes when it wants. */
 function backend(threads: Thread[]) {
   const posts: Record<string, unknown>[] = [];
   const lists: string[] = [];
@@ -198,7 +197,6 @@ describe("an answer in flight and the chat on show (#970)", () => {
     await send("rate my deck");
     await show(MATCH);
     await settle();
-    // Still on the deck chat while the answer streams.
     expect(label()).toBe("Deck: New deck");
     be.emit("thread", { thread_id: 40 });
     be.emit("text", { delta: "Looks fine" });
@@ -241,7 +239,6 @@ describe("the Chats list (#970)", () => {
     await pick("Luffy vs Zoro");
     expect(label()).toBe("Match: Luffy vs Zoro");
     expect(body()).toContain("match question");
-    // A match chat can't start another chat, even from a deck page.
     expect(button("New chat")).toBeUndefined();
     expect(document.querySelector(".lp-chats-menu")).toBeNull();
   });

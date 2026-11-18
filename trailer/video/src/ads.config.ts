@@ -1,16 +1,6 @@
-/**
- * Instagram ad cutdowns (issue #793): 15s and 30s edits for 9:16 (Stories / Reels) and 4:5 (feed).
- * Every scene is picked by id from SCENES (scenes.config.ts) with its own start / dur / trim / focus, so the footage,
- * transitions and phone section are the same pieces as the full trailer. Times in seconds on the 0.5s beat grid.
- * The first scene opens straight on gameplay (no logo intro, the frame is on screen from frame 0).
- */
 import {END_CARD, FULL_EDIT, PHONE, SCENES} from './scenes.config';
 import type {CaptionDef, Edit, FocusKey, Rect, SceneDef} from './types';
 
-/**
- * Focus for the near-square footage window of the vertical layouts: view centre (cx, cy) in 0..1 clip coordinates and a
- * zoom (1 = the full clip height, which shows about 56% of its width). Clamped to the footage by the camera.
- */
 export const v = (cx: number, cy: number, zoom = 1): Rect => {
   const h = 1 / zoom;
   const w = h * (9 / 16);
@@ -28,16 +18,12 @@ const pick = (id: string, o: Partial<SceneDef> & Pick<SceneDef, 'start' | 'dur'>
 const em = (t: string, br = false) => ({t, em: true, br});
 const cap = (start: number, end: number, ...words: CaptionDef['words']): CaptionDef => ({start, end, words});
 
-/** End card for the ads: "Play free in your browser", the URL and the disclaimer. */
 const endCard = (start: number, dur: number): Edit['endCard'] => ({
   ...END_CARD, start, dur,
   headline: [{t: 'Play free in', br: true}, em('your browser.')],
   desktop: {...END_CARD.desktop, focus: v(0.5, 0.42, 1)},
 });
 
-// ---------------------------------------------------------------------------------------------------------------
-// Hook (both cuts): the attack on the turn clip, 3s, straight from the first frame.
-// ---------------------------------------------------------------------------------------------------------------
 const hook = (): SceneDef =>
   pick('turn', {
     start: 0, dur: 3, trimStart: 8.3, rate: 1.2, transition: 'cut', eyebrow: 'Unofficial fan-made sim',
@@ -45,9 +31,6 @@ const hook = (): SceneDef =>
   });
 const hookCaption = (end: number) => cap(0, end, {t: 'Play OPTCG', br: true}, em('online, free.'));
 
-// ---------------------------------------------------------------------------------------------------------------
-// 15s: hook 0-3, phone 3-7, make it yours 7-10, friends 10-12.5, end card 12.5-15
-// ---------------------------------------------------------------------------------------------------------------
 const phone15 = {
   ...PHONE, start: 3, turnAt: 5, end: 7,
   portrait: {...PHONE.portrait, trimStart: 0.3, rate: 2.0},
@@ -82,9 +65,6 @@ export const AD15: Edit = {
   ],
 };
 
-// ---------------------------------------------------------------------------------------------------------------
-// 30s: hook 0-3, phone 3-11, make it yours 11-17, friends + spectate 17-22, ranked 22-24.5, Log Pose 24.5-27.5, end 27.5-30
-// ---------------------------------------------------------------------------------------------------------------
 const phone30 = {
   ...PHONE, start: 3, turnAt: 7, end: 11,
   portrait: {...PHONE.portrait, trimStart: 0.3, rate: 1.8},

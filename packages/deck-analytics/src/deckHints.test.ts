@@ -4,7 +4,6 @@ import { computeDeckStats, type DeckStatsCard, type StatsAtlas, type StatsAtlasC
 
 const ch = (over: Partial<StatsAtlasCard>): StatsAtlasCard => ({ t: "character", col: ["red"], cost: 6, ...over });
 
-// A legal, healthy 50-card deck (see `base`). Each test breaks exactly one thing.
 const atlas: StatsAtlas = {
   "T-L": { n: "Luffy", t: "leader", col: ["red"], lt: ["Crew"] },
   "T-LR": { n: "Zoro", t: "leader", col: ["red"], rules: ["max_cost:5"] },
@@ -53,7 +52,6 @@ const withCopies = (cards: DeckStatsCard[], id: string, copies: number) =>
 const hintsFor = (cards: DeckStatsCard[], opts?: HintOptions, leader = "T-L") => computeDeckHints(computeDeckStats(cards, atlas, leader), cards, atlas, leader, opts);
 const idsFor = (cards: DeckStatsCard[], opts?: HintOptions, leader = "T-L") => hintsFor(cards, opts, leader).map((h) => h.id);
 
-/** `n` copies of cost-6 filler cards, at most 4 of each. */
 const filler = (n: number): DeckStatsCard[] => Array.from({ length: Math.ceil(n / 4) }, (_, i) => ({ id: `T-F${i + 1}`, copies: Math.min(4, n - i * 4) }));
 
 describe("computeDeckHints", () => {

@@ -1,8 +1,3 @@
-/**
- * Persist enough state to resume a duel/hotseat after a full page reload.
- * Uses sessionStorage so closing the tab clears the resume blob.
- */
-
 export type DuelResumeBlob = {
   mode: "duel";
   serverUrl: string;
@@ -21,16 +16,13 @@ export type HotseatResumeBlob = {
   useToken: boolean;
   deckWire: { leaderId: string; deck: string[] };
   deckName: string;
-  /** Opponent deck for vs-self (optional for older resume blobs). */
   enemyDeckWire?: { leaderId: string; deck: string[] };
   enemyDeckName?: string;
-  /** Signed-in account that owns both seats, so a fresh fallback match stays movable (#451). */
   owner?: "session" | "dev";
   seats: [
     { reconnectionToken: string },
     { reconnectionToken: string },
   ];
-  /** Which seat had device control when the blob was saved. */
   activeSeat?: 0 | 1;
   savedAt: number;
 };
@@ -38,18 +30,9 @@ export type HotseatResumeBlob = {
 export type MatchResumeBlob = DuelResumeBlob | HotseatResumeBlob;
 
 const KEY = "optcg.duel.matchResume.v1";
-/**
- * Colyseus `allowReconnection` grace is ~120s (`RECONNECT_GRACE_SECONDS`).
- * Keeping the blob for 10 minutes previously caused every refresh after the
- * grace window to burn boot budget on "seat reservation expired" before a
- * fresh hotseat mint — and free-tier cold starts then hit the mint timeout.
- * Keep only a small buffer past grace so resume is attempted only while the
- * server may still reclaim the seat.
- */
 export const RECONNECT_GRACE_MS = 120 * 1000;
 export const MAX_AGE_MS = RECONNECT_GRACE_MS + 15 * 1000;
 
-/** True while Colyseus may still accept the reconnection token. */
 export function isResumeWithinGrace(savedAt: number, now = Date.now()): boolean {
   return now - savedAt <= RECONNECT_GRACE_MS;
 }
@@ -62,11 +45,6 @@ export function saveMatchResume(blob: MatchResumeBlob): void {
   }
 }
 
-/**
- * Mark the saved match as alive now. `savedAt` must track the last moment the
- * socket was up, not when the token was issued: a phone that discards the tab
- * while in another app reloads it later, and the grace check measures from here.
- */
 export function touchMatchResume(now = Date.now()): void {
   try {
     const raw = sessionStorage.getItem(KEY);
@@ -117,13 +95,11 @@ export function clearMatchResume(): void {
 }
 
 
-/** Colyseus matchmake/reconnect failure when the reserved seat timed out. */
 export function isSeatReservationExpiredError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err ?? "");
   return /seat reservation expired/i.test(msg);
 }
 
-/** User-facing copy — never show the raw Colyseus string in the boot UI. */
 export function seatReservationUserMessage(): string {
   return "Could not claim a seat (game server was slow to accept the join). Tap Retry — usually works once the server is warm.";
 }

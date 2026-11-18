@@ -1,7 +1,3 @@
-/**
- * A page per card (#953): /cards/:id shows the art, the price history with When to buy for the chosen art (?art=),
- * and the card's tournament play. Public, so these run signed out. Runs at desktop-1200 and phone-375.
- */
 import { expect, formatIssues, test } from "./fixtures";
 import { LEADER, mockCardApi, ZORO } from "./cardPageFake";
 
@@ -34,7 +30,6 @@ test("a signed-out visitor sees the card, picks an alt art and gets that art's p
   await expect(panel.locator("dl.ph-stats")).toContainText("Now$64.99");
   await expect(page.getByRole("link", { name: "View on TCGPlayer" })).toHaveAttribute("href", "https://www.tcgplayer.com/product/5002");
 
-  // Back to the base art drops ?art from the URL.
   await arts.getByRole("button", { name: /^Base/ }).click();
   await expect(page).toHaveURL(/\/cards\/OP01-025$/);
   await expect(panel.locator("dl.ph-stats")).toContainText("Now$18.50");
@@ -61,7 +56,6 @@ test("tournament play lists the leaders that play the card and links to their me
   await expect(play.getByRole("link", { name: "[OP13] Regional Championship Tokyo" })).toHaveAttribute("href", "https://play.limitlesstcg.com/tournament/101");
   await expect(play.getByRole("link", { name: "Limitless TCG" })).toBeVisible();
 
-  // A longer window asks again and keeps the card on screen.
   await play.locator(".meta-select").getByRole("button").click();
   await page.getByRole("option", { name: "Last 7 days" }).click();
   await expect(page).toHaveURL(/days=7/);
@@ -109,7 +103,6 @@ test("tapping the card page art opens it full size for the chosen art (#958)", a
   const lightbox = page.getByRole("dialog", { name: "Expanded card art" });
   await expect(lightbox).toBeVisible();
   await expect(lightbox.locator("img")).toHaveAttribute("src", /\/product\/5002_in_1000x1000\.jpg$/);
-  // Just the picture: the page already has the shopping and alert controls, and "Card page" would point back here.
   await expect(lightbox.getByRole("link", { name: "Card page" })).toHaveCount(0);
   await expect(lightbox.getByRole("button", { name: /shopping list|alert/i })).toHaveCount(0);
 

@@ -19,8 +19,6 @@ from fastapi.responses import JSONResponse
 
 
 class DomainError(Exception):
-    """A request the API refuses. `detail` is the response's `detail` (the message by default)."""
-
     status_code = 400
 
     def __init__(

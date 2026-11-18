@@ -1,5 +1,3 @@
-/* —— Charts —— */
-
 .adm-chart {
   margin: 0;
   display: flex;
@@ -62,7 +60,6 @@
   margin: 1.2rem 0.75rem 0.2rem 0;
 }
 
-/* A dot is a 24px button (a steady touch target) that draws a 10px dot. */
 .adm-dot {
   position: absolute;
   width: 24px;

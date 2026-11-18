@@ -1,4 +1,3 @@
-"""Group buy (collaborative shopping pool) service."""
 
 from __future__ import annotations
 
@@ -54,7 +53,6 @@ MASS_ENTRY_URL_MAX_LEN = 1800
 
 
 def _display_name(user: User) -> str:
-    """Duel username when set (#903), else the account name as before."""
     if user.username:
         return user.username
     return (user.name or user.email or f"User {user.id}").strip()
@@ -70,7 +68,7 @@ def _parse_deck_ids(raw: str | None) -> list[int] | None:
     if not isinstance(data, list):
         return None
     if not data:
-        return []  # an explicit empty pick: no decks (#1208)
+        return []
     out: list[int] = []
     for item in data:
         try:
@@ -81,7 +79,6 @@ def _parse_deck_ids(raw: str | None) -> list[int] | None:
 
 
 def _dump_deck_ids(deck_ids: list[int] | None) -> str | None:
-    """None = all decks; [] is kept as "[]" = no decks, only added cards / Extra copies (#1208)."""
     if deck_ids is None:
         return None
     return json.dumps(sorted(set(int(x) for x in deck_ids)))
@@ -106,19 +103,16 @@ def _get_group(db: Session, group_id: int) -> GroupBuy:
 
 
 def _member_shopping(db: Session, member: GroupBuyMember):
-    """The member's contribution: their Master Shopping list under their group settings (#1177)."""
     return shopping_svc.shopping_list(
         db,
         member.user,
         deck_ids=_parse_deck_ids(member.deck_ids_json),
         include_extras=bool(member.include_singles),
-        # Keep the owned-alt reserve like Master Shopping; unticked only hides them (#1216).
         include_collector=True,
         show_collector=bool(member.include_extra_copies),
     )
 
 
-# (user_id, card_id upper, product_id) -> Extra copies skipped in this group buy (#1269).
 ExtraSkips = dict[tuple[int, str, int], int]
 
 
@@ -131,7 +125,6 @@ def _extra_skip_map(group: GroupBuy) -> ExtraSkips:
 
 
 def _effective_extras(item, skips: dict[int, int] | None = None) -> list[tuple[int, int, float | None]]:
-    """(product_id, copies still wanted after this group buy's skips, price) per Extra copy."""
     skips = skips or {}
     out = []
     for c in item.collector_wants:
@@ -149,14 +142,12 @@ def _card_skips(skips: ExtraSkips | None, user_id: int, card_id: str) -> dict[in
 
 
 def _suggested_qty(item, skips: dict[int, int] | None = None) -> int:
-    """Copies to buy for a card: deck/single still-need plus Extra copies still missing and not skipped."""
     return item.still_need + sum(q for _pid, q, _price in _effective_extras(item, skips))
 
 
 def _funded_extras(
     item, skips: dict[int, int] | None = None, qty: int | None = None
 ) -> list[tuple[int, int, float | None]]:
-    """Extra copies a buy of ``qty`` copies actually pays for: deck copies come first (#1269)."""
     extra = _effective_extras(item, skips)
     if qty is None:
         return extra
@@ -173,13 +164,7 @@ def _funded_extras(
 def _member_alt_inputs(
     item, skips: dict[int, int] | None = None, qty: int | None = None
 ) -> list[tuple[int, int, float | None]]:
-    """Alt allocation order: Extra copies first (they are the alts the member asked for), then deck picks.
-
-    With ``qty`` below the suggestion, Extra copies are the first to go: only what is left
-    after the deck copies is spent on them (#1269).
-    """
     extra = _funded_extras(item, skips, qty)
-    # Owned copies a collector want does not claim already cover the deck (#1216).
     usable = {a.product_id: a.owned - min(a.owned, a.collector) for a in item.alt_arts}
     return extra + deck_alt_buy_inputs(item.alt_arts, usable)
 
@@ -232,7 +217,6 @@ def _qty_override_map(group: GroupBuy) -> dict[tuple[int, str], int]:
 
 
 def _member_needs_live(db: Session, group: GroupBuy) -> list[MemberNeed]:
-    """Shopping still-need as default, with per-member qty overrides applied."""
     overrides = _qty_override_map(group)
     skips = _extra_skip_map(group)
     needs: list[MemberNeed] = []
@@ -314,7 +298,6 @@ def _viewer_zero_customs(
     group: GroupBuy,
     viewer_user_id: int,
 ) -> dict[str, MergedMemberQty]:
-    """Custom qty=0 rows so the viewer can bump a line back up from the UI."""
     if group.status != GroupBuyStatus.OPEN:
         return {}
     member = next((m for m in group.members if m.user_id == viewer_user_id), None)
@@ -344,7 +327,6 @@ def _viewer_zero_customs(
 def _group_shown_pick(
     card_id: str, member_display: dict[int, dict[str, int]], host_id: int
 ) -> int | None:
-    """Art most members picked with Show (0 = base); ties go to the host's pick, then lowest id."""
     counts: dict[int, int] = {}
     for by_card in member_display.values():
         pick = by_card.get(card_id)
@@ -357,7 +339,6 @@ def _group_shown_pick(
 
 
 def _group_wanted_alt(card_id: str, member_shop_alts: dict[int, dict[str, list]]) -> int | None:
-    """Product id of the alt with the most wanted copies across all members (ties: lowest id)."""
     totals: dict[int, int] = {}
     for by_card in member_shop_alts.values():
         for a in by_card.get(card_id, []):
@@ -389,13 +370,10 @@ def _build_lines(
     viewer_shop_alts: dict[str, list] = {}
     viewer_display: dict[str, int | None] = {}
     viewer_used_in: dict[str, list[str]] = {}
-    # Per-member alt wants for pricing (allocate AA qty, rest at preferred).
     member_shop_alts: dict[int, dict[str, list]] = {}
-    # Each member's shopping items by card: allocation inputs are built per qty (#1177, #1269).
     member_items: dict[int, dict[str, object]] = {}
     skips = _extra_skip_map(group)
     viewer_items: dict[str, object] = {}
-    # Each member's explicit Show pick per card (#893).
     member_display: dict[int, dict[str, int]] = {}
     for member in group.members:
         shop = _member_shopping(db, member)
@@ -459,8 +437,6 @@ def _build_lines(
         elif cat is not None:
             market = cat.market_price
 
-        # Price by each member's alt wants (AA qty × AA price + remainder × preferred),
-        # not total_qty × checkout printing — so wanting 1 AA does not price the whole line as AA.
         line_remaining = 0.0
         priced_ok = True
         any_buy = False
@@ -494,8 +470,6 @@ def _build_lines(
         line_alt_arts = list(viewer_shop_alts.get(card_id) or alts.get(card_id, []))
         line_display_art = viewer_display.get(card_id)
         if line_display_art is None and not viewer_wants.get(card_id):
-            # Viewer has no art preference of their own: show the art members picked with
-            # Show (#893), else the alt the group wants most (#882).
             group_pick = _group_shown_pick(card_id, member_display, group.host_user_id)
             if group_pick is None:
                 group_pick = _group_wanted_alt(card_id, member_shop_alts)
@@ -646,7 +620,6 @@ def _detail_from_group(
                 total_owed=settle.total_owed if settle else 0.0,
             )
         )
-    # Public viewers must not see host receipt paste or undo affordances.
     receipt_text = "" if read_only else (group.receipt_text or "")
     return GroupBuyDetail(
         **_summary_fields(group, user, lines),
@@ -740,7 +713,6 @@ def join_group_buy(db: Session, user: User, token: str) -> GroupBuyDetail:
     if group is None:
         raise NotFound("Invite link not found")
     if group.status in FROZEN_STATUSES:
-        # Allow existing members to open; block new joins.
         try:
             _require_member(group, user)
             return get_group_buy(db, user, group.id)
@@ -788,7 +760,6 @@ def set_public(
     group_id: int,
     is_public: bool,
 ) -> GroupBuyDetail:
-    """Host toggles whether anyone with the link can view this pool read-only."""
     group = _get_group(db, group_id)
     _require_host(group, user)
     group.is_public = bool(is_public)
@@ -802,7 +773,6 @@ def set_title(
     group_id: int,
     title: str,
 ) -> GroupBuyDetail:
-    """Host renames the group buy. Allowed in any status (open, locked, ordered)."""
     group = _get_group(db, group_id)
     _require_host(group, user)
     cleaned = (title or "").strip()
@@ -814,7 +784,6 @@ def set_title(
 
 
 def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
-    """Unauthenticated read-only detail for anyone holding the invite token (#880)."""
     group = db.scalar(
         select(GroupBuy)
         .where(GroupBuy.invite_token == token)
@@ -853,13 +822,6 @@ def update_contribution(
 
 
 def include_deck_in_open_group_buys(db: Session, user: User, deck_id: int) -> None:
-    """Include a newly imported deck in every open group-buy contribution.
-
-    ``deck_ids_json is None`` already means all decks (new decks count automatically).
-    Explicit contribution lists get ``deck_id`` appended so imports are not left out,
-    except an explicit empty pick (no decks, #1208), which stays empty.
-    Locked / ordered / completed pools are left unchanged.
-    """
     members = db.scalars(
         select(GroupBuyMember)
         .join(GroupBuy, GroupBuy.id == GroupBuyMember.group_buy_id)
@@ -872,7 +834,7 @@ def include_deck_in_open_group_buys(db: Session, user: User, deck_id: int) -> No
     for member in members:
         current = _parse_deck_ids(member.deck_ids_json)
         if current == []:
-            continue  # an explicit empty pick stays empty (#1208)
+            continue
         if current is None:
             continue
         if deck_id in current:
@@ -890,7 +852,6 @@ def set_member_qty(
     card_id: str,
     qty: int,
 ) -> GroupBuyDetail:
-    """Set how many copies the current user wants to buy for a card."""
     group = _get_group(db, group_id)
     member = _require_member(group, user)
     if group.status != GroupBuyStatus.OPEN:
@@ -900,7 +861,6 @@ def set_member_qty(
         raise Invalid("card_id is required")
     qty = max(0, min(999, int(qty)))
 
-    # Default (no override) is shopping still-need. If qty matches that, clear override.
     shopping = _member_shopping(db, member)
     my_skips = _card_skips(_extra_skip_map(group), user.id, card_id)
     suggested = next(
@@ -918,8 +878,6 @@ def set_member_qty(
             GroupBuyQtyOverride.card_id == card_id,
         )
     )
-    # Matching a positive shopping still-need clears the override. Qty 0 always
-    # persists as an explicit opt-out ("excluded") even when suggested is already 0.
     if qty == suggested and qty > 0:
         if existing is not None:
             db.delete(existing)
@@ -949,7 +907,6 @@ def set_extra_skip(
     product_id: int,
     skip: int,
 ) -> GroupBuyDetail:
-    """Leave Extra copies of one alt out of this group buy (#1269). Shopping is untouched."""
     group = _get_group(db, group_id)
     member = _require_member(group, user)
     if group.status != GroupBuyStatus.OPEN:
@@ -991,7 +948,6 @@ def set_extra_skip(
     else:
         row.qty = new_skip
 
-    # A custom qty follows the change: skipping one copy lowers it by one (an excluded line stays out).
     override = next(
         (
             r
@@ -1004,8 +960,6 @@ def set_extra_skip(
         skips = _card_skips(_extra_skip_map(group), user.id, card_id)
         skips[product_id] = new_skip
         new_suggested = _suggested_qty(item, skips)
-        # Unticking only frees the copies of this Extra the custom qty actually paid for; a qty at or
-        # below the deck copies never had it, so no deck copy goes with it.
         if new_skip > old_skip:
             before = dict(skips)
             before[product_id] = old_skip
@@ -1030,7 +984,6 @@ def clear_member_qty(
     group_id: int,
     card_id: str,
 ) -> GroupBuyDetail:
-    """Remove a qty override so the line follows shopping still-need again."""
     group = _get_group(db, group_id)
     _require_member(group, user)
     if group.status != GroupBuyStatus.OPEN:
@@ -1050,7 +1003,6 @@ def clear_member_qty(
 
 
 def sync_member_quantities(db: Session, user: User, group_id: int) -> GroupBuyDetail:
-    """Clear all of the current user's qty overrides (back to shopping still-need)."""
     group = _get_group(db, group_id)
     _require_member(group, user)
     if group.status != GroupBuyStatus.OPEN:
@@ -1066,7 +1018,6 @@ def sync_member_quantities(db: Session, user: User, group_id: int) -> GroupBuyDe
 
 
 def _freeze_snapshot(db: Session, group: GroupBuy) -> None:
-    """Replace snapshot lines with current live (shopping + qty overrides) needs."""
     needs = _member_needs_live(db, group)
     db.execute(delete(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id))
     for need in needs:
@@ -1095,7 +1046,6 @@ def _add_owned(db: Session, user_id: int, card_id: str, delta: int) -> None:
 
 
 def _subtract_owned(db: Session, user_id: int, card_id: str, delta: int) -> None:
-    """Remove Owned copies added by a purchase apply (never goes below 0)."""
     if delta <= 0:
         return
     card_id = card_id.upper().strip()
@@ -1155,7 +1105,6 @@ def mark_ordered(
     group_id: int,
     body: GroupBuyOrderUpdate | None = None,
 ) -> GroupBuyDetail:
-    """Record that the bulk order was placed (after lock). Does not change Owned."""
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status == GroupBuyStatus.COMPLETED:
@@ -1180,7 +1129,6 @@ def update_order(
     group_id: int,
     body: GroupBuyOrderUpdate,
 ) -> GroupBuyDetail:
-    """Update order notes / shipping / split while locked, ordered, or completed."""
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status == GroupBuyStatus.OPEN:
@@ -1191,11 +1139,6 @@ def update_order(
 
 
 def complete_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
-    """Mark purchased without a receipt is no longer supported.
-
-    Hosts must import a TCGPlayer receipt and apply matched lines via
-    ``apply_receipt_to_group_buy`` (Mark purchased in the UI).
-    """
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status == GroupBuyStatus.COMPLETED:
@@ -1207,14 +1150,6 @@ def complete_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail
 
 
 def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
-    """Build TCGPlayer Mass Entry paste/URL for a group buy.
-
-    Allocates each member's alt-art wants first (same as pricing), then the
-    remainder at Preferred. Checkout follows only what members picked on the
-    art tiles; there is no host printing override. Dumping total_qty onto one
-    product_id was the disconnect that turned "1 AA + 3 base" into "4× checkout
-    printing".
-    """
     group = _get_group(db, group_id)
     _require_member(group, user)
     lines, _ = _build_lines(db, group, viewer_user_id=user.id)
@@ -1238,7 +1173,6 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
             continue
         copy_count += line.total_qty
 
-        # Match pricing: AA wants first, remainder at Preferred.
         standard_pid = line.preferred_product_id or line.product_id
 
         qty_by_product: dict[int, int] = {}
@@ -1293,7 +1227,6 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
 
 
 def leave_group_buy(db: Session, user: User, group_id: int) -> None:
-    """A non-host member leaves an open group buy; their per-group rows go with them (#881)."""
     group = _get_group(db, group_id)
     member = _require_member(group, user)
     if group.host_user_id == user.id:
@@ -1336,7 +1269,6 @@ def _line_display_name(db: Session, card_id: str, fallback: str = "") -> str:
 
 
 def save_receipt_text(db: Session, user: User, group_id: int, receipt_text: str) -> None:
-    """Persist the host's TCGPlayer receipt paste (survives refresh)."""
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
@@ -1353,7 +1285,6 @@ def build_receipt_match_report(
     group_id: int,
     receipt_text: str,
 ) -> GroupBuyReceiptMatchReport:
-    """Parse a TCGPlayer receipt and compare it to the group-buy pool."""
     group = _get_group(db, group_id)
     _require_member(group, user)
 
@@ -1375,7 +1306,6 @@ def build_receipt_match_report(
         "staged_copies": 0,
     }
 
-    # Pool cards first (stable by card_id)
     for card_id in sorted(pool.keys()):
         needed = pool[card_id]
         hit = receipt_by_card.pop(card_id, None)
@@ -1412,7 +1342,6 @@ def build_receipt_match_report(
             )
         )
 
-    # Extra receipt cards not in the pool
     for card_id, hit in sorted(receipt_by_card.items()):
         counts["extra"] += 1
         lines_out.append(
@@ -1460,7 +1389,6 @@ def _allocate_across_snapshot(
     snapshot_rows: list[GroupBuySnapshotLine],
     apply_qty: int,
 ) -> list[tuple[GroupBuySnapshotLine, int]]:
-    """Greedy allocation in snapshot row order (stable by id)."""
     remaining = apply_qty
     out: list[tuple[GroupBuySnapshotLine, int]] = []
     for row in sorted(snapshot_rows, key=lambda r: (r.id or 0)):
@@ -1480,12 +1408,6 @@ def apply_receipt_to_group_buy(
     group_id: int,
     body: GroupBuyReceiptApplyRequest,
 ) -> GroupBuyDetail:
-    """Stage receipt matches onto Owned (partial or full), then complete when empty.
-
-    Host only. Group buy must be locked or ordered. Locked pools are marked ordered
-    first. Snapshot lines are reduced by the applied amounts so a later Mark purchased
-    (or another receipt apply) only covers what is still outstanding.
-    """
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status == GroupBuyStatus.COMPLETED:
@@ -1528,7 +1450,6 @@ def apply_receipt_to_group_buy(
             if selected != pool_ids:
                 raise Invalid("Full apply requires staging every pool card")
 
-    # Ensure ordered before mutating owned / snapshot
     status_before = group.status
     set_ordered_at = False
     if group.status == GroupBuyStatus.LOCKED:
@@ -1573,8 +1494,6 @@ def apply_receipt_to_group_buy(
             snap.qty = int(snap.qty) - take
             applied_any = True
             if snap.qty <= 0:
-                # Remove via relationship so delete-orphan cascade actually drops the row
-                # (session.delete alone can be resurrected while still on group.snapshot_lines).
                 if snap in group.snapshot_lines:
                     group.snapshot_lines.remove(snap)
                 else:
@@ -1593,11 +1512,6 @@ def apply_receipt_to_group_buy(
 
 
 def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyDetail:
-    """Reverse the most recent Mark purchased (Owned + snapshot + status).
-
-    Host only. Restores frozen pool quantities and subtracts the Owned copies that
-    apply added. Receipt paste and order settlement fields are left intact.
-    """
     group = _get_group(db, group_id)
     _require_host(group, user)
     if group.status not in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):

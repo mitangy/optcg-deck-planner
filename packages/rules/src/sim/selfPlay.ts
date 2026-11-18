@@ -1,9 +1,3 @@
-/**
- * Self-play recorder (#631): bot vs bot through the real engine, saved as MatchReplays.
- *
- * Usage: npx tsx src/sim/selfPlay.ts --games 100 --seed 1 [--decks decks.json] [--levels normal,normal] [--budget-ms 200] [--samples 3] [--horizon 1|2] [--max-evals N] [--paired] [--out dir]
- * decks.json = [{ "name", "leaderId", "deck": [50 ids] }]; without it every game gets two random decks.
- */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { REGISTRY_HASH } from "../cards/abilities.js";
@@ -16,22 +10,15 @@ import { RULES_VERSION } from "../engine/snapshot.js";
 import type { GameEvent, Intent, MatchState, PlayerDeckConfig, Seat } from "../types.js";
 import { randomDeck } from "./fuzz.js";
 
-/** Counts of the advanced lines a bot played, per level (#631): the evidence that card effects are really used. */
 export interface LineTally {
-  /** Activate: Main intents, and how many of them came from the Leader. */
   activations: number;
   leaderActivations: number;
   activationsByCard: Record<string, number>;
-  /** Optional ("You may ...") effect prompts answered yes / no, by the card that asked. */
   optionalAccepts: Record<string, number>;
   optionalDeclines: Record<string, number>;
-  /** Counter Events played in the counter step, by card. */
   counterEvents: Record<string, number>;
-  /** Characters that entered play other than by the hand's play_card (effects, [Trigger]s), by "card via source". */
   cheatOuts: Record<string, number>;
-  /** Events played from hand with their [Main] effect, by card. */
   mainEvents: Record<string, number>;
-  /** Intents the bot sent and time it spent choosing them. */
   decisions: number;
   decisionMs: number;
 }
@@ -47,7 +34,6 @@ export function mergeTally(into: LineTally, from: LineTally): void {
   for (const key of ["activationsByCard", "optionalAccepts", "optionalDeclines", "counterEvents", "cheatOuts", "mainEvents"] as const) for (const [k, n] of Object.entries(from[key])) bump(into[key], k, n);
 }
 
-/** Update `tally` for one accepted intent: `before` is the state it was applied to, `events` what it caused. */
 export function tallyIntent(tally: LineTally, before: MatchState, seat: Seat, intent: Intent, events: readonly GameEvent[], lastActivated: string[]): void {
   const p = before.players[seat];
   if (intent.type === "activate_ability") {
@@ -78,23 +64,15 @@ export interface BotGameConfig {
   seed: number;
   players: [PlayerDeckConfig, PlayerDeckConfig];
   levels: [BotLevel, BotLevel];
-  /** Hard bots: time budget per decision in ms (default 200), determinized samples (default 3) and horizon in turns (1 or 2). */
   budgetMs?: number;
   samples?: number;
   horizonTurns?: 1 | 2;
-  /** Hard bots: stop each search after this many candidate evaluations (with `budgetMs: Infinity`, independent of the clock). */
   maxEvals?: number;
-  /** Per-seat bot options on top of the ones above (#635): evalMode, prior, opponentModel, mulligan ... */
   seatOpts?: [Partial<BotOptions> | undefined, Partial<BotOptions> | undefined];
-  /** Same for both seats (the seat's own `seatOpts` win). */
   allOpts?: Partial<BotOptions>;
-  /** Replace the bot of a seat by any function of the state (an older version of the bot, for comparison). */
   chooser?: [Chooser | undefined, Chooser | undefined];
-  /** Called when a bot's own answer was rejected by the engine (the engine default is played instead). */
   onRejected?: (info: { state: MatchState; seat: Seat; intent: Intent; message: string }) => void;
-  /** Defaults to a seat derived from the seed. */
   firstSeat?: Seat;
-  /** Safety cap on accepted intents (default 3000). */
   maxIntents?: number;
 }
 
@@ -103,11 +81,8 @@ export interface BotGameResult {
   winner: Seat | null;
   turns: number;
   intents: number;
-  /** Why the game did not finish: "max_intents", "no_legal_intents", or "engine_error: ...". */
   stoppedEarly?: string;
-  /** Times a bot's own answer to a pending choice was rejected and the engine default was used instead. */
   fallbacks: number;
-  /** Advanced lines played, by seat (index 0 / 1). */
   lines: [LineTally, LineTally];
 }
 
@@ -174,8 +149,6 @@ export function playBotGame(config: BotGameConfig): BotGameResult {
   return { replay, winner: state.winner, turns: state.turnNumber, intents: replay.intents.length, fallbacks, lines, ...(stoppedEarly ? { stoppedEarly } : {}) };
 }
 
-// --- CLI --------------------------------------------------------------------------------------
-
 interface DeckFile { name?: string; leaderId: string; deck: string[] }
 
 export interface SelfPlaySummary {
@@ -187,14 +160,12 @@ export interface SelfPlaySummary {
   fallbacks: number;
   gamesPerSec: number;
   winsBySeat: [number, number];
-  /** Wins by level when the levels differ: index = seat 0 / seat 1 level. */
   winsByLevel: Record<string, number>;
   byLeader: Record<string, { games: number; wins: number }>;
-  /** Advanced lines per level (both seats of that level, all games). */
   lines: Record<string, LineTally>;
 }
 
-export function runSelfPlay(opts: { games: number; seed: number; levels: [BotLevel, BotLevel]; decks?: DeckFile[]; /** Levels differ: play games in pairs with the same decks, shuffles and seats, levels swapped. */ paired?: boolean; budgetMs?: number; samples?: number; horizonTurns?: 1 | 2; maxEvals?: number; onReplay?: (r: MatchReplay) => void }): SelfPlaySummary {
+export function runSelfPlay(opts: { games: number; seed: number; levels: [BotLevel, BotLevel]; decks?: DeckFile[]; paired?: boolean; budgetMs?: number; samples?: number; horizonTurns?: 1 | 2; maxEvals?: number; onReplay?: (r: MatchReplay) => void }): SelfPlaySummary {
   const summary: SelfPlaySummary = { games: 0, finished: 0, stopped: {}, avgTurns: 0, avgIntents: 0, fallbacks: 0, gamesPerSec: 0, winsBySeat: [0, 0], winsByLevel: {}, byLeader: {}, lines: {} };
   const started = Date.now();
   let turns = 0;

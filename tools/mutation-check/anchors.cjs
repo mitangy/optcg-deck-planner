@@ -1,33 +1,15 @@
-/**
- * Anchor matching shared by run.cjs (--check-anchors, applying a mutation) and
- * locate.cjs (--locate-stale). Pure functions, no I/O.
- *
- * An anchor (`from`) is matched exactly first. Only when that finds nothing do
- * we fall back to a whitespace-tolerant match, so a formatter or a move that
- * re-indents code does not make every anchor stale: one-or-more whitespace in
- * `from` matches one-or-more whitespace in the source (a line break plus
- * indentation counts as one run), and leading/trailing whitespace of `from` is
- * ignored. Whitespace is never added or removed next to punctuation, so
- * `a(b)` does not match `a( b )`.
- */
+// An anchor is matched exactly first; only when that finds nothing does the whitespace-tolerant fallback apply, so a formatter or move that re-indents code does not make every anchor stale. Whitespace is never added or removed next to punctuation, so `a(b)` does not match `a( b )`.
 "use strict";
 
 const crlf = (x) => x.split("\n").join("\r\n");
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Whitespace-tolerant regex for `from`, or null when it is all whitespace. */
 function looseRegex(from) {
   const tokens = from.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) return null;
   return new RegExp(tokens.map(escapeRe).join("\\s+"), "g");
 }
 
-/**
- * Find `from` in `text`. Returns { count, mode, spans, from } where mode is
- * "exact" (including the CRLF spelling of `from`, returned as `from`) or
- * "loose" (whitespace-tolerant fallback), and spans lists [start, end) of each
- * match. count 0 means stale.
- */
 function findAnchor(text, from) {
   const variant = !text.includes(from) && text.includes(crlf(from)) ? crlf(from) : from;
   const spans = [];
@@ -39,12 +21,7 @@ function findAnchor(text, from) {
   return { count: loose.length, mode: loose.length ? "loose" : "exact", spans: loose, from };
 }
 
-/**
- * Replace the single match of `from` in `text` with `to`. Returns
- * { updated, mode } or { error, count }. A loose match replaces only the span
- * the trimmed anchor covers, so outer whitespace that `from` and `to` share
- * (usually indentation and the final newline) stays as the source has it.
- */
+// A loose match replaces only the span the trimmed anchor covers, so outer whitespace that `from` and `to` share stays as the source has it.
 function applyAnchor(text, from, to) {
   const found = findAnchor(text, from);
   if (found.count !== 1) return { error: true, count: found.count };

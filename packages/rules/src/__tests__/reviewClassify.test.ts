@@ -20,9 +20,7 @@ describe("review classification (#967)", () => {
   });
 
   it("loss is the best option minus the played one, so a worse move than the best is penalised (#967)", () => {
-    // Played 50 while another option had 60: a 10-point loss, an inaccuracy.
     expect(classifyMove(50, [60, 40])).toEqual({ loss: 10, cls: "inaccuracy" });
-    // Played the top option: no loss, never negative.
     expect(classifyMove(60, [50, 40]).loss).toBe(0);
     expect(classifyMove(95, [10]).loss).toBe(0);
   });
@@ -33,7 +31,6 @@ describe("review classification (#967)", () => {
     expect(classifyMove(70, [61]).cls).toBe("best");
     // Within a point of the top is still "best", but not Great: the real top option is right there.
     expect(classifyMove(60, [60.5, 10]).cls).toBe("best");
-    // A single ranked option has no gap to measure.
     expect(classifyMove(60, []).cls).toBe("best");
   });
 

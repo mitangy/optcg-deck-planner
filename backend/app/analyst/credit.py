@@ -1,4 +1,3 @@
-"""Log Pose credit: each approved player has a monthly allowance, on top of the daily and monthly spend caps (#446)."""
 
 from __future__ import annotations
 
@@ -12,7 +11,6 @@ from app.core.config import Settings
 from app.analyst.models import AnalystAccess, AnalystUsage
 from app.core.models import User
 
-# What an owner's "Add $5" grants for the rest of the month.
 TOPUP_USD = 5.0
 
 
@@ -41,10 +39,6 @@ def spent_since(db: Session, since: datetime, user_id: int | None = None) -> flo
 
 
 def credit_for(settings: Settings, user: User, row: AnalystAccess | None, now: datetime) -> float | None:
-    """This month's credit for a player in dollars, or None for an owner (who has no limit of their own).
-
-    A player's allowance is their own `credit_usd`, or the default when that is null; an owner's top-up adds to it
-    only in the month it was granted."""
     if is_chat_owner(settings, user):
         return None
     credit = row.credit_usd if row is not None and row.credit_usd is not None else settings.analyst_user_credit_usd
@@ -54,7 +48,6 @@ def credit_for(settings: Settings, user: User, row: AnalystAccess | None, now: d
 
 
 def refusal_for(settings: Settings, *, spent_today: float, spent_month: float, credit: float | None, credit_spent: float) -> str | None:
-    """Which limit stops this request: everyone's monthly cap first, then the player's credit, then their daily cap."""
     if spent_month >= settings.analyst_chat_monthly_usd:
         return "monthly"
     if credit is not None and credit_spent >= credit:

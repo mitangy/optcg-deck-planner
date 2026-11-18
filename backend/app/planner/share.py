@@ -1,4 +1,3 @@
-"""Public share links for decks and shopping lists."""
 
 from __future__ import annotations
 
@@ -41,7 +40,7 @@ def _share_deck_ids(link: ShareLink) -> list[int] | None:
     if not isinstance(parsed, list):
         return None
     if not parsed:
-        return []  # no decks ticked: only added cards (#1208)
+        return []
     out: list[int] = []
     for x in parsed:
         try:
@@ -102,7 +101,6 @@ def create_or_update_share(
         db.refresh(link)
         return _share_info(link)
 
-    # shopping — reuse one active link per user; refresh deck filter if provided
     existing = db.scalar(
         select(ShareLink).where(
             ShareLink.user_id == user.id,
@@ -171,7 +169,6 @@ def public_share_view(
     owner = db.get(User, link.user_id)
     if owner is None:
         raise NotFound("Share link not found")
-    # Duel username when set (#903), else the account name as before.
     owner_name = owner.username or (owner.name or owner.email.split("@")[0] or "Collector").strip()
     viewer_signed_in = viewer is not None
     viewer_is_owner = viewer is not None and viewer.id == owner.id
@@ -179,8 +176,6 @@ def public_share_view(
     if link.kind == "deck":
         if link.deck_id is None:
             raise NotFound("Share link not found")
-        # The owner's deck gives the card list and catalog info; owned counts
-        # come from whoever opened the link (#741).
         detail = get_deck_detail(db, owner, link.deck_id)
         if viewer is not None:
             viewer_owned = owned_map(db, viewer.id)
@@ -265,7 +260,6 @@ def public_share_view(
 
 
 def copy_shared_deck(db: Session, viewer: User, token: str) -> Deck:
-    """Copy the deck behind a public deck share link into the viewer's decks (#741)."""
     link = _active_share_link(db, token)
     if link.kind != "deck":
         raise Invalid("Only shared decks can be copied")

@@ -12,12 +12,6 @@ import { loadMatchResume, touchMatchResume } from "../net/matchResume";
 import type { Intent, RematchAction, Seat } from "../net/protocol";
 import { HotseatSession, hasParkedHotseat, type HotseatNavState } from "../state/HotseatSession";
 
-/**
- * One browser, two seats — pass the device between turns.
- * Refresh auto-reconnects both seats from the sessionStorage resume blob.
- * Boot, sockets, resume and StrictMode parking live in state/HotseatSession.ts; this page renders the seat
- * whose turn it is from that session's per-seat match stores.
- */
 export function HotseatPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -28,7 +22,6 @@ export function HotseatPage() {
   const resumeOnMount = useRef(
     (() => {
       const existing = loadMatchResume();
-      // A takeover launch starts from the server's room, never from this tab's old blob.
       if ((location.state as HotseatNavState | null)?.takeover) return null;
       return existing?.mode === "hotseat" ? existing : null;
     })(),
@@ -37,13 +30,10 @@ export function HotseatPage() {
 
   const [matchId, setMatchId] = useState<string | null>(resumeHotseat?.roomId ?? null);
   const [bootError, setBootError] = useState<string | null>(null);
-  /** Bump to remount the boot effect for Retry (fresh match). */
   const [bootKey, setBootKey] = useState(0);
   const [ready, setReady] = useState(false);
   const [resuming, setResuming] = useState(Boolean(resumeHotseat));
-  /** Another device took this practice match over (#451). */
   const [takenOver, setTakenOver] = useState(false);
-  /** Extra boot phase label (waking servers / minting) for the Starting screen. */
   const [bootPhase, setBootPhase] = useState<string | null>(null);
 
   const sessionRef = useRef<HotseatSession | null>(null);
@@ -54,13 +44,9 @@ export function HotseatPage() {
     );
   }
   const session = sessionRef.current;
-  // Fresh lobby navigation (blob cleared before navigate) updates nav once.
-  // Only a new navigation replaces nav: "Play here instead" edits it in place.
   session.noteRouteNav(navFromRoute);
   const nav = session.nav;
-  // Re-render on any change to either seat's match store (or when the seats are replaced).
   useSyncExternalStore(session.subscribe, session.getVersion, session.getVersion);
-  // The session moves the device to the seat that has to act before the page renders that seat's view.
   const activeSeat = session.activeSeat;
 
   useEffect(() => {
@@ -73,9 +59,6 @@ export function HotseatPage() {
 
   useEffect(() => {
     if (!ready) return;
-    // Shared in-process maps — no cosmetics network relay for hotseat.
-    // Seed once when the match becomes ready; do not re-seed on seat switch
-    // or divergent per-seat alt picks would be wiped.
     setCosmeticsPublisher(null);
     initSeatArtPrefsFromStorage(0);
     initSeatArtPrefsFromStorage(1);
@@ -86,9 +69,6 @@ export function HotseatPage() {
     session.persistResume();
   }, [activeSeat, ready, session]);
 
-  // Same as an online duel: keep the resume blob's clock at "last seen alive"
-  // while the phone is in another app, and on return reload into the saved
-  // match if either seat's socket died (a Home Screen app has no reload button).
   useEffect(() => {
     if (!ready) return;
     let checking = false;
@@ -154,7 +134,6 @@ export function HotseatPage() {
     bag?.client.sendIntent(intent);
   }
 
-  /** Take both seats back: re-run the boot as a takeover of this room. */
   function playHere(roomId: string) {
     session.prepareTakeover(roomId);
     setTakenOver(false);
@@ -201,7 +180,6 @@ export function HotseatPage() {
   }
 
   if (!ready || !state?.view) {
-    // The board is up from the first frame; waking servers / minting happens behind it.
     return (
       <div className="duel-root">
         <DuelBoard
@@ -243,8 +221,6 @@ export function HotseatPage() {
           autoAccept: true,
           deckOptions: rematchDecks,
           onAction: (action: RematchAction, decks) => {
-            // Both seats are this player: agree from both, and let the losing
-            // seat's client pick the turn order.
             const rematchState = state.rematch;
             const targets =
               action === "request" || action === "decline"
@@ -254,7 +230,6 @@ export function HotseatPage() {
                   : [];
             for (const b of targets) {
               try {
-                // Each seat's client carries its own seat's deck pick.
                 const s = session.seats.indexOf(b);
                 b?.client.sendRematch(action, action === "request" && s >= 0 ? decks?.[s] : undefined);
               } catch {

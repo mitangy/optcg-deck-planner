@@ -1,4 +1,3 @@
-/** `npm run eval:compare -w @optcg/analyst -- out/v1`: the committed baseline against a run, by group and by flipped case. */
 import { existsSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join, resolve } from "node:path";

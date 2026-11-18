@@ -1,18 +1,15 @@
 import { formatPercent, ordinal, type MetaDeck, type MetaLeader } from "../decks/meta";
 import { formatUpdated } from "./snapshot";
 
-/** "Green;Red" → ["green", "red"]. */
 export function colorList(color: string): string[] {
   return color.split(/[;/]/).map((c) => c.trim().toLowerCase()).filter(Boolean);
 }
 
-/** ["green", "red"] → "green and red"; ["a","b","c"] → "a, b and c". */
 export function joinWords(words: readonly string[]): string {
   if (words.length <= 1) return words.join("");
   return `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
 }
 
-/** Names of the cards that sit in every sample list, most copies first. */
 export function sharedCards(decks: readonly MetaDeck[]): { name: string; avg: number }[] {
   if (decks.length < 2) return [];
   const totals = new Map<string, { name: string; sum: number; seen: number }>();
@@ -30,17 +27,12 @@ export function sharedCards(decks: readonly MetaDeck[]): { name: string; avg: nu
     .sort((a, b) => b.avg - a.avg || a.name.localeCompare(b.name));
 }
 
-/** The best finish among the sample lists, or null when none has a placing. */
 export function bestFinish(decks: readonly MetaDeck[]): MetaDeck | null {
   const placed = decks.filter((d) => d.placing != null && d.placing > 0);
   if (placed.length === 0) return null;
   return placed.reduce((best, d) => ((d.placing as number) < (best.placing as number) ? d : best));
 }
 
-/**
- * A few sentences about one leader built from its numbers, so every leader page says something of its own
- * rather than repeating a template with a different name. `rank` is 1 for the most played leader.
- */
 export function leaderIntro(args: { leader: MetaLeader; rank: number; of: number; days: number; decks: readonly MetaDeck[] }): string[] {
   const { leader, rank, of, days, decks } = args;
   const name = leader.name || leader.leader_id;
@@ -74,7 +66,6 @@ export function leaderIntro(args: { leader: MetaLeader; rank: number; of: number
   return out;
 }
 
-/** ", last 30 days, updated Nov 3, 2026." (what follows the source name in the page's data line) */
 export function dataTail(days: number, updatedAt: string | null): string {
   return `, last ${days} days${updatedAt ? `, updated ${formatUpdated(updatedAt)}` : ""}.`;
 }

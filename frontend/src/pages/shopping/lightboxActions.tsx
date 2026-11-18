@@ -10,7 +10,6 @@ import { LightboxPriceHistoryControl } from "../../prices/PriceHistory";
 import { LightboxPanelProvider } from "../../prices/lightboxPanel";
 import { qk } from "../../cache/queryKeys";
 
-/** Every card on the shopping list for the ticked decks (+ added directly), keyed by card id. */
 function useFullShoppingState(deckIds?: number[]): { byId: Map<string, ShoppingItem>; loaded: boolean } {
   const q = useQuery({
     queryKey: qk.shopping.full(deckIds),
@@ -24,12 +23,10 @@ export function useFullShoppingById(deckIds?: number[]): Map<string, ShoppingIte
   return useFullShoppingState(deckIds).byId;
 }
 
-/** Copies bought as the alt after a + or − on its search row: one step with the stepper, never above the added copies (#1165). */
 export function nextAltPick(current: number, extraTarget: number, adding: boolean): number {
   return Math.max(0, Math.min(adding ? current + 1 : current - 1, extraTarget));
 }
 
-/** "Add" for a card that needs nothing yet; otherwise a copies-to-buy stepper. Same footprint either way. */
 export function ShoppingExtraControl({
   cardId,
   item,
@@ -44,7 +41,6 @@ export function ShoppingExtraControl({
   addLabel?: string;
   /** The list or owned counts are still loading: item/owned are placeholders, so a press would overwrite a saved target (#845). */
   loading?: boolean;
-  /** Set on an alt-art search row: adding also makes that alt the card's shown art. */
   altProductId?: number;
 }) {
   const qc = useQueryClient();
@@ -54,11 +50,7 @@ export function ShoppingExtraControl({
   const save = useMutation({
     mutationFn: async ({ target, adding }: { target: number; adding: boolean }) => {
       const res = await api.setShoppingExtra(cardId, target);
-      // Adding from an alt-art row also shows that art for the card.
       if (adding && altProductId > 0) await api.setDisplayArt(cardId, altProductId);
-      // An alt-art row also buys that copy as the alt (#1165), never more of them than the added copies.
-      // deck_ids [] writes only this direct-add pick, never the alt picks inside the decks; target 0 already
-      // cleared it with the extra row, and a write with no extra row would 404.
       if (altProductId > 0 && target > 0) {
         const altQty = nextAltPick(altPicked, target, adding);
         if (altQty !== altPicked) await api.setCardPrinting(cardId, altProductId, altQty, []);
@@ -84,7 +76,6 @@ export function ShoppingExtraControl({
             type="button"
             className="owned-btn"
             aria-label={`Buy fewer ${cardId}${altProductId > 0 ? " alt art" : ""}`}
-            // Deck-driven copies are changed in the deck; only direct targets step down here.
             disabled={loading || save.isPending || extraQty === 0}
             onClick={() => step(-1)}
           >
@@ -119,7 +110,6 @@ export function ShoppingExtraControl({
   );
 }
 
-/** Owned copies and the shopping row for a card, matching how the backend computes still_need (#626). */
 export function useShoppingCardState(deckIds?: number[]) {
   const { byId: shoppingById, loaded: shoppingLoaded } = useFullShoppingState(deckIds);
   const ownedQ = useQuery({ queryKey: qk.owned.all(), queryFn: () => api.ownedCollection() });
@@ -135,7 +125,6 @@ export function useShoppingCardState(deckIds?: number[]) {
   return { shoppingById, ownedOf, loading };
 }
 
-/** Under an enlarged card: what you own and need, and a one-press way onto the shopping list (#842). */
 export function LightboxShoppingControl({ cardId }: { cardId: string }) {
   const { shoppingById, ownedOf, loading } = useShoppingCardState(useSavedShoppingDeckIds());
   const item = shoppingById.get(cardId);
@@ -156,7 +145,6 @@ export function LightboxShoppingControl({ cardId }: { cardId: string }) {
   );
 }
 
-/** A scanned card's shopping control on the Shopping page (#842). */
 export function ShoppingScanHitAction({ cardId }: { cardId: string }) {
   const { shoppingById, ownedOf, loading } = useShoppingCardState(useSavedShoppingDeckIds());
   return (
@@ -173,7 +161,6 @@ export function ShoppingScanHitAction({ cardId }: { cardId: string }) {
   );
 }
 
-/** Owned count, shopping list and price alert on the card page (#953), for the art it shows. */
 export const renderCardPageActions = (cardId: string, productId: number) => (
   <>
     <LightboxShoppingControl cardId={cardId} />

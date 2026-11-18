@@ -1,7 +1,3 @@
-/**
- * TCGPlayer prints some timing keywords with different casing ("[On your Opponent's Attack]"). The text compiler folds
- * the bracketed keyword to its canonical form so the card compiles like its Bandai-cased siblings (#628).
- */
 import { describe, expect, it } from "vitest";
 import { cardDataFor } from "../../cards/cardData.js";
 import { compileCardText } from "../../tools/cardText/compileCard.js";

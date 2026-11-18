@@ -17,7 +17,6 @@ import { busyProductFor } from "../../cache/busyKey";
 import { OwnedInput } from "../OwnedInputs";
 import { COLSORT_DECK_KEY } from "../../storage/keys";
 
-/** "4 go to Luffy first" when earlier leaders use some of the owned copies. */
 function OwnedClaimNote({ card }: { card: CardView }) {
   const earlier = card.earlier_leaders_need ?? 0;
   const claimed = Math.min(card.owned, earlier);
@@ -34,7 +33,6 @@ function OwnedClaimNote({ card }: { card: CardView }) {
   );
 }
 
-/** Copies drawn as a stack: the deck's count, except DON!! (it runs up to ten identical cards). */
 function stackCopies(c: CardView): number | undefined {
   return c.section === "don" || isDonCardType(c.card_type) ? undefined : c.needed;
 }
@@ -58,7 +56,6 @@ function deckColumnValue(c: CardView, key: string) {
   }
 }
 
-// Value columns in the wide layout: Owned, Still needed, Market, Type, Cost.
 const STRIP_COLS = 5;
 
 export function CardTable({
@@ -84,19 +81,13 @@ export function CardTable({
   onNeededChange?: (cardId: string, needed: number) => void;
   neededBusyId?: string | null;
   onAltOwnedChange?: (cardId: string, productId: number, qty: number) => void;
-  /** `${cardId}:${productId}` while an alt owned save is in flight. */
   altOwnedBusyKey?: string | null;
-  /** Owner pages only: pick which art the card shows (0 = base). */
   onDisplayArtChange?: (cardId: string, productId: number) => void;
-  /** Owner pages only: saves how many still-needed copies are bought as one alt art (#906). */
   onAltBuyChange?: (cardId: string, productId: number, qty: number) => void;
-  /** Owner pages only: want an alt art as a collector copy on top of the deck's copies (#1035). */
   onCollectorChange?: (cardId: string, productId: number, qty: number) => void;
-  /** `${cardId}:${productId}` while a collector save is in flight. */
   collectorBusyKey?: string | null;
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_DECK_KEY);
-  // The still-needed line is the buy-split trigger on cards with alt arts (owner pages only).
   const buySplit = (c: CardView) =>
     onAltBuyChange && canSplitBuy(c) ? (
       <BuySplit
@@ -110,10 +101,8 @@ export function CardTable({
       />
     ) : null;
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
-  // Wide screens (#1329): no Alt arts column; each card's alt tiles sit in a strip row under its numbers.
   const wide = useWideListRows();
   const altCol = showAltArts && !wide;
-  // With editable alt tiles on screen, the base count is edited under the Base tile.
   const ownedCell = (c: CardView) => (
     <OwnedCell
       isTotal={ownedCellIsTotal(showAltArts, c.alt_arts?.length ?? 0, Boolean(onAltOwnedChange))}

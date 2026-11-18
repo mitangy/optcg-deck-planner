@@ -1,18 +1,6 @@
 import { useEffect, type RefObject } from "react";
 
-/**
- * Writes two vars on the board root for phone pop-ups:
- * `--hud-h`: how far down the top bar's bottom edge sits in the viewport (safe-area
- * padding included), so pop-ups keep below it and never cover Undo or the menu (#660).
- * `--hand-room`: how much of the viewport's bottom the hand rail (and the bar under it)
- * takes, so pop-ups keep above it and never cover the hand (#663).
- * `--replay-room`: how much of the viewport's bottom a phone's replay bar takes, so the
- * field-pick bar sits above the replay controls instead of covering them (#1095).
- * All are 0 on wide layouts or when there is nothing to measure. `ready` flips once
- * the root has mounted.
- * `--board-top` (every layout): where the board area starts in the viewport, i.e. just
- * below the top bar, so the spectator's far fan can hang from it (it is a fixed box).
- */
+// `--board-top`: where the board area starts, so the spectator's far fan (a fixed box) can hang from it.
 export function useHudHeight(rootRef: RefObject<HTMLElement | null>, wide: boolean, ready: boolean) {
   useEffect(() => {
     const root = rootRef.current;
@@ -45,7 +33,6 @@ export function useHudHeight(rootRef: RefObject<HTMLElement | null>, wide: boole
       body = swap(body, root.querySelector<HTMLElement>(":scope > .arena-body"));
       bar = swap(bar, wide ? null : root.querySelector<HTMLElement>(":scope > .hud-bar"));
       replayBar = swap(replayBar, wide ? null : root.querySelector<HTMLElement>(".replay-bar"));
-      // The hand rail, or whatever fills its place (the defend tray).
       rail = swap(rail, wide ? null : root.querySelector<HTMLElement>(".arena-rail"));
       hand = swap(hand, wide ? null : root.querySelector<HTMLElement>(".arena-rail > .hand-rail, .arena-rail > :first-child"));
       write();
@@ -56,7 +43,6 @@ export function useHudHeight(rootRef: RefObject<HTMLElement | null>, wide: boole
     };
     ro?.observe(root);
     find();
-    // The bars and the hand come and go, and fold, with the layout.
     const mo = new MutationObserver(later);
     mo.observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "hidden"] });
     window.addEventListener("resize", write);

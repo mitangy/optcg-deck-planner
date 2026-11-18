@@ -12,22 +12,18 @@ import { BOT_META_DECKS } from "@optcg/rules/botMetaDecks";
 import { BOT_DECK_RANDOM, BOT_DECK_RANDOM_META, metaDeckValue, metaSavedDeck } from "../../home/botGame";
 import { leaderGlow } from "../../home/leaderGlow";
 
-/** The leader's name; a dash until the card data (its own chunk) has loaded, so the line keeps its height. */
 function leaderName(leaderId: string, ready: boolean): string {
   return ready ? lookupCard(leaderId).name : "—";
 }
 
-/** The non-selectable "Your decks" header row of the bot picker. */
 const BOT_YOUR_DECKS_GROUP = "__your-decks__";
 
-/** Value prefix of the non-selectable Leader header rows of the pickers (#1294). */
 const LEADER_GROUP = "__leader__:";
 
 function deckLabel(d: SavedDeck, ready: boolean): string {
   return `${d.name} — ${leaderName(d.leaderId, ready)} (${d.cards.length}${isIncompleteDeck(d) ? "/50" : ""})`;
 }
 
-/** A Leader's decks under its header row: disabled options, so the picker skips them. */
 function leaderGroupOptions(decks: SavedDeck[], ready: boolean, nested: boolean) {
   return groupByLeader(decks, (d) => d.leaderId).flatMap((g) => [
     {
@@ -70,14 +66,8 @@ export function DeckPicker({
   decks: SavedDeck[];
   value: string;
   onChange: (id: string) => void;
-  /** Adds a first option with an empty value that plays this deck (e.g. "Same as your deck"). */
   mirror?: { label: string; deck: SavedDeck | null };
-  /** Adds an option (BOT_DECK_RANDOM) that picks a deck when the game starts; `hint` shows while it is chosen. */
   random?: { label: string; hint: string };
-  /**
-   * The bot's deck (#1180): Random meta deck, the top 10 meta decks, then a "Your decks" group. Replaces
-   * `mirror` / `random`.
-   */
   botMeta?: boolean;
 }) {
   const cardsReady = useCardDataReady();
@@ -93,7 +83,6 @@ export function DeckPicker({
       : metaPick
         ? metaSavedDeck(metaPick)
         : (decks.find((d) => d.id === value) ?? (mirrored ? (mirror.deck ?? null) : null));
-  // A mirror of a deck that is itself random is just as unknown: the same "?" placeholder.
   const unknown = isRandom || randomMeta || (mirrored && mirror.deck === null);
   return (
     <div className="field">
@@ -164,16 +153,9 @@ function LeaderThumb({ deck, className }: { deck: SavedDeck; className: string }
   );
 }
 
-/** Rows of the switcher's footer: they ride in the Listbox so the keyboard reaches them like a deck. */
 const NEW_DECK = "__new-deck__";
 const MANAGE_DECKS = "__manage-decks__";
 
-/**
- * "Sailing with" trigger + a Headless UI Listbox to switch decks. Arrow keys, Home / End, type-ahead,
- * Enter, Escape (focus back on the trigger) and outside click come from the Listbox; the list floats
- * under the trigger in a portal, so opening it never moves the page. The footer's New deck and
- * Manage decks are options too (picking one navigates), so the keyboard reaches them.
- */
 export function DeckSwitcher({
   decks,
   selectedDeck,

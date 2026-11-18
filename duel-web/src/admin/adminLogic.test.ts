@@ -5,7 +5,6 @@ import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, us
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
 });
-/** A review-facts run: wrong claims per review, lower is better. */
 const facts = (run_at: string, wrongPerReview: number, over: Partial<EvalRun> = {}): EvalRun => ({
   ...run(run_at, 0), suite: "review_facts", correct: null, total: null, metric_name: "Wrong claims per review", metric_value: wrongPerReview, lower_is_better: true, ...over,
 });
@@ -33,7 +32,6 @@ describe("bot games eval verdict (#667)", () => {
     const after = run("2026-10-21T09:00:00Z", 50, { D: { correct: 10, total: 10 }, A: { correct: 15, total: 15 } });
     const v = evalVerdict([baseline, improved, after], "2026-10-19T02:00:00Z");
     if (v.kind !== "compared") throw new Error("expected a comparison");
-    // Against the later pre-bot run (97.0%), not the baseline.
     expect(v.text).toBe("Log Pose accuracy improved: 97.0% before bot games, 100.0% after (+3.0 points).");
     expect(v.groups.map((g) => [g.group, g.before, g.after])).toEqual([
       ["A", "100.0%", "100.0%"],
@@ -131,7 +129,6 @@ describe("eval history per suite (#679)", () => {
   });
 
   it("keeps the bot-games verdict to the main suite (#679)", () => {
-    // A review-facts run after the first bot game, with a supported/checkable score, is not a main eval run.
     const v = evalVerdict([run("2026-10-08T00:00:00Z", 40), facts("2026-10-20T00:00:00Z", 0.5, { correct: 45, total: 50 })], "2026-10-19T02:00:00Z");
     expect(v.kind).toBe("no-eval-since");
   });

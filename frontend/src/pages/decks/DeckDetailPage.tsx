@@ -63,7 +63,6 @@ function filterCards(
   return [...list].sort((a, b) => compareCardOrder(a, b, sorts));
 }
 
-/** Error state for a page-level fetch: message plus a Retry that keeps its size while refetching. */
 function LoadErrorBlock({ title, message, retrying, onRetry }: { title: string; message: string; retrying: boolean; onRetry: () => void }) {
   return (
     <div className="load-error" role="alert">
@@ -101,7 +100,6 @@ export function DeckDetailPage() {
   const [layout, setLayout] = useCardLayout();
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
-  // Wide enough for the dock column: the editor takes that column (sticky) while editing, stats move to the pill.
   const sideEdit = useMediaQuery(DOCK_QUERY) && editing;
   const [rowFlash, setRowFlash] = useState<{ id: string; n: number } | null>(null);
   useEffect(() => {
@@ -170,13 +168,11 @@ export function DeckDetailPage() {
   };
 
   const applyDeckUpdate = (detail: DeckDetail) => {
-    // The response counts every deck's claims; with Include decks narrowed, refetch the filtered view.
     if (savedDeckIds) void qc.invalidateQueries({ queryKey: qk.deck.byId(deckId) });
     else qc.setQueryData(qk.deck.byId(deckId), detail);
     invalidateAltWantViews(qc);
   };
 
-  // Log Pose's Apply card: what is owned (for the chips) and how this page saves a suggested change.
   const { data: ownedData } = useQuery({ queryKey: qk.owned.all(), queryFn: () => api.ownedCollection(), staleTime: 300_000 });
   const logPoseEditor = useMemo<DeckEditor | null>(() => {
     if (!data || !logPoseDeck) return null;
@@ -190,7 +186,6 @@ export function DeckDetailPage() {
           const detail = await applyPlannerEdit((cardId, needed) => setDeckCardNeeded(deckId, cardId, needed), ops);
           if (detail) applyDeckUpdate(detail);
         } catch (e) {
-          // A rollback may have run: show the deck as the server has it.
           void qc.invalidateQueries({ queryKey: qk.deck.byId(deckId) });
           throw e;
         }
@@ -247,7 +242,6 @@ export function DeckDetailPage() {
       applyDeckUpdate(detail);
       setRenaming(false);
       void qc.invalidateQueries({ queryKey: qk.decks() });
-      // Same-leader decks list this one by name under "Compared to Main".
       void qc.invalidateQueries({ queryKey: qk.deck.all() });
     },
   });
@@ -317,9 +311,7 @@ export function DeckDetailPage() {
     () => progressCards.map((c) => ({ id: c.card_id, copies: c.needed })),
     [progressCards],
   );
-  // While editing the 50-card count stays quiet; once the user is done (or just viewing) it is checked.
   const baseHints = useDeckHints(deckId, statsCards, data?.leader_card_id ?? null, !editing);
-  // "Why? Ask Log Pose" on a hint, only while Log Pose can answer here.
   const askLogPose = useLogPoseAsk();
   const hints = useMemo(
     () => (askLogPose ? { ...baseHints, onAsk: (h: DeckHint) => askLogPose(hintAsk(h)) } : baseHints),

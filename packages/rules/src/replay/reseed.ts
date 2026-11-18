@@ -2,10 +2,8 @@ import { createSeededRng } from "../rng.js";
 import type { MatchState } from "../types.js";
 
 /**
- * Restart the match rng from `seed` and, with `shuffleDecks`, reshuffle both
- * Decks (the deck zone only; Life and hands stay as they are). The room does
- * this after an agreed undo so the order both players just saw is no longer
- * the real one, and replayMatch repeats it at the same point (#369).
+ * The room does this after an agreed undo so the order both players just saw is no longer the real one, and
+ * replayMatch repeats it at the same point.
  */
 export function reseedMatch(state: MatchState, seed: number, shuffleDecks: boolean): MatchState {
   const next = structuredClone(state) as MatchState;

@@ -29,7 +29,6 @@ describe("donFanOrder", () => {
   const z = (s: ReturnType<typeof donFanOrder>, k: string) => Number((s as Record<string, number>)[k]);
 
   it("puts a rested card's DON!! under a standing neighbour when both fan at each other (#1249)", () => {
-    // Your standing Karoo (fans to the next card) beside your rested Chopper (fans back to it).
     const standing = donFanOrder(0, 4, false);
     const rested = donFanOrder(1, 4, true);
     expect(z(rested, "--fan-z-prev")).toBeLessThan(z(standing, "--fan-z-next"));

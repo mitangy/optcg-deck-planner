@@ -1,7 +1,3 @@
-/**
- * Deck-advice cases (#678): every meta deck as it is ("tune this list for the current meta"), and a sabotaged copy
- * of each (see sabotage.ts) with the planted cards recorded. Both are asked the same way.
- */
 import type { Catalog } from "../../src/catalog";
 import { metaFrequency, rng, sabotage, seedOf, shuffled, type Copies, type MetaDeck } from "./sabotage";
 
@@ -9,20 +5,15 @@ export type AdviceCase = {
   id: string;
   kind: "meta" | "sabotaged";
   leaderId: string;
-  /** Name from the meta deck file. */
   name: string;
-  /** Index of the source deck in the meta deck list (it is left out of this case's opposing field). */
   source: number;
-  /** The deck the player has: the meta deck, or its sabotaged copy. */
   cards: Copies[];
-  /** The meta deck as played (the ceiling for a sabotaged case). */
   original: Copies[];
   planted: Copies[];
   removed: Copies[];
   k: number | null;
   question: string;
   deckText: string;
-  /** What the player sends: the question and the pasted deck. */
   message: string;
 };
 

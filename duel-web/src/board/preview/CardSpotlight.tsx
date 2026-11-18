@@ -1,11 +1,3 @@
-/**
- * Card spotlight layer: the card that was just played or trashed, big over
- * its owner's half of the board, then shrinking into the spot it went to (its
- * field tile, the trash, or your hand for the card you drew). Planning lives in cardSpotlight.ts.
- *
- * Never gates input: the layer ignores the pointer, the board is already
- * updated underneath, and any pointer or key press ends the batch on screen.
- */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { lookupCard } from "../../cards/atlas";
@@ -23,14 +15,8 @@ import {
 } from "./spotlightModel";
 import { motionPlan } from "../motion/motionSpeed";
 
-/** Batches waiting beyond this are dropped (oldest first): the board moved on. */
 const MAX_QUEUED = 3;
 
-/**
- * Queue of spotlight batches, one per log update that played or trashed a
- * card (never on mount, resync or undo). `enabled` = the setting is on and the
- * match is live; the log is tracked either way so turning it on never replays.
- */
 export function useCardSpotlights(battleLog: readonly BattleLogEntry[], enabled: boolean) {
   const [queue, setQueue] = useState<SpotlightBatch[]>([]);
   const prevLast = useRef<string | null | undefined>(undefined);
@@ -61,7 +47,6 @@ export function CardSpotlightLayer({
   onDone: () => void;
 }) {
   const layer = useRef<HTMLDivElement>(null);
-  // Speed and queue length are read once, when the batch comes up.
   const timing = useMemo<SpotlightTiming | null>(
     () =>
       batch && canAnimate()
@@ -70,7 +55,6 @@ export function CardSpotlightLayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [batch],
   );
-  // Animations Off: the batch is dropped unseen.
   useEffect(() => {
     if (batch && !timing) onDone();
   }, [batch, timing, onDone]);
@@ -155,7 +139,6 @@ function SpotlightCardView({ card }: { card: SpotlightCard }) {
   return (
     <div className="card-spotlight-card" data-entry-id={card.entryId} data-def-id={card.defId}>
       <div className="card-spotlight-art">
-        {/* Shown until the art loads, and instead of art that fails. */}
         <span className="card-spotlight-name">{entry.name || card.defId}</span>
         {src ? (
           <img src={src} alt={entry.name} draggable={false} onError={fail} />
@@ -170,8 +153,6 @@ function canAnimate(): boolean {
   return typeof Element !== "undefined" && typeof Element.prototype.animate === "function";
 }
 
-// —— DOM lookups (all optional: a layout without the element fades in place) ——
-
 function esc(id: string): string {
   return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"');
 }
@@ -185,7 +166,6 @@ function sideOf(seat: 0 | 1, oppSeat: 0 | 1): "you" | "opp" {
   return seat === oppSeat ? "opp" : "you";
 }
 
-/** Centre the group over its owner's half of the board, kept inside the window. */
 function placeGroup(g: HTMLElement) {
   const half = visibleRect(document.querySelector(`.side-field.side-${g.dataset.side}`));
   const vw = window.innerWidth;
@@ -199,14 +179,9 @@ function placeGroup(g: HTMLElement) {
   g.style.top = `${Math.round(top)}px`;
 }
 
-/** Hand zones by layout: desktop fan, phone rail, dock, plain row (same order as BoardMotion). */
 const HAND_ZONES = [".hand-fan-cards", ".rail-hand-cards", ".hand-dock-cards", ".hand-row-inner", ".hand-row"];
 
-/**
- * Where a drawn card went: a card-sized spot at the middle of the visible hand.
- * (Not the new tile: it is still flying in from the deck when the spotlight
- * plans its exit.) Null, so the card fades in place, when no hand is on screen.
- */
+// Not the new tile: it is still flying in from the deck when the spotlight plans its exit.
 function handLandingRect(): DOMRect | null {
   for (const sel of HAND_ZONES) {
     const zr = visibleRect(document.querySelector(sel));
@@ -218,10 +193,7 @@ function handLandingRect(): DOMRect | null {
   return null;
 }
 
-/**
- * Where the card went: its field tile for a Character or Stage that stayed in
- * play, otherwise its owner's trash (an Event resolves into the trash too).
- */
+// An Event resolves into the trash too.
 function landingRect(card: SpotlightCard, oppSeat: 0 | 1): DOMRect | null {
   if (card.kind === "draw") return handLandingRect();
   const side = sideOf(card.ownerSeat, oppSeat);

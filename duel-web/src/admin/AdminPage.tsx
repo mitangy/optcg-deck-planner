@@ -25,11 +25,6 @@ import { UsersTab } from "./UsersTab";
 
 type Load<T> = { status: "loading" } | { status: "error"; message: string } | { status: "ready"; data: T };
 
-/**
- * One tab's data: fetched when the tab first opens, again on Refresh, and again when `key` changes (a new date range).
- * The data on screen stays until the new response lands, so the page does not blank or jump; a response for an
- * older key is dropped.
- */
 function useTabData<T>(active: boolean, fetcher: (force: boolean) => Promise<T>, key: string | number = "") {
   const [state, setState] = useState<Load<T>>({ status: "loading" });
   const [started, setStarted] = useState(false);
@@ -66,7 +61,6 @@ export default function AdminPage() {
   const tabs = who.status === "ok" ? tabsForRole(who.me.role) : [];
   const current = tab && tabs.some((t) => t.id === tab) ? tab : (tabs[0]?.id ?? null);
 
-  // Each tab keeps its own date range, so switching tabs does not reset the other one.
   const [overviewDays, setOverviewDays] = useState<RangeDays>(30);
   const [botsDays, setBotsDays] = useState<RangeDays>(14);
   const overview = useTabData<AdminOverview>(current === "players", () => fetchAdminOverview(overviewDays), overviewDays);

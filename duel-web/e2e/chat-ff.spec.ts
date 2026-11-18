@@ -1,7 +1,3 @@
-/**
- * `/ff` in the match chat (#449): starts the concede flow with a confirm step
- * instead of posting, and says so inline when conceding isn't available.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 

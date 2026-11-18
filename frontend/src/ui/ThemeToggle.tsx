@@ -41,7 +41,6 @@ function ThemeIcon({ pref }: { pref: ThemePref }) {
       </svg>
     );
   }
-  // Auto: half-filled disc.
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true">
       <circle cx="10" cy="10" r="6.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
@@ -50,7 +49,6 @@ function ThemeIcon({ pref }: { pref: ThemePref }) {
   );
 }
 
-/** Cycles match-system → dark → light. */
 export function ThemeToggle() {
   const [pref, setPref] = useState<ThemePref>(readThemePref);
   const next = ORDER[(ORDER.indexOf(pref) + 1) % ORDER.length];

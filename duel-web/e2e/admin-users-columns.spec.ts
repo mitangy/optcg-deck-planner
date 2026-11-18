@@ -1,9 +1,3 @@
-/**
- * Admin Users tab column titles (#1018): "Source" used to run into "Rkd" because the Source column
- * collapsed to nothing while its title kept its width. At every width the titles must stay inside their
- * own column and the rows must not scroll sideways. The FastAPI backend is faked in the browser and the
- * admin is a fake account (no production sign-in).
- */
 import { expect, test, FAKE_API, signInAs } from "./fixtures";
 
 const GAMES = { ranked: 120, friends: 34, private: 5, bot: 1200, practice: 9 };
@@ -44,7 +38,6 @@ test("admin Users column titles do not overlap (#1018)", async ({ page }) => {
     const result = await page.evaluate(() => {
       const head = document.querySelector<HTMLElement>(".adm-uhead")!;
       const spans = [...head.children] as HTMLElement[];
-      // The text's own box, so a title spilling past its column shows even when the span clips nothing.
       const texts = spans.map((s) => {
         const range = document.createRange();
         range.selectNodeContents(s);
@@ -72,7 +65,6 @@ test("admin Users column titles do not overlap (#1018)", async ({ page }) => {
   }
 });
 
-/** The panel's inner right edge: the row's action buttons must end inside it (#1323). */
 test("admin Users row buttons stay inside the panel at every width (#1323)", async ({ page }) => {
   await signInAs(page, { uid: 1, name: "boss" });
   await page.route(`${FAKE_API}/admin/**`, (route) => {
@@ -85,7 +77,6 @@ test("admin Users row buttons stay inside the panel at every width (#1323)", asy
   await page.getByRole("tab", { name: "Users", exact: true }).click();
   await expect(page.locator(".adm-urow:not(.adm-uhead)")).toHaveCount(USERS.length);
 
-  // The second pass is a bigger default text size (browser setting or OS scaling): the grid's rem columns grow, the panel does not.
   const passes = [2560, 1280, 1150, 1100, 1060, 1031, 1000, 800, 600, 375, 320].flatMap((w) => [{ width: w, text: 16 }, { width: w, text: 20 }]);
   for (const { width, text } of passes) {
     await page.setViewportSize({ width, height: 800 });

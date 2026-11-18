@@ -1,8 +1,3 @@
-/**
- * Admin Users tab sorting (#1323). Header buttons (desktop grid) and the "Sort by" control (stacked layout) ask the
- * server for the order, because the list is paged. The FastAPI backend is faked in the browser and the admin is a
- * fake account (no production sign-in).
- */
 import { expect, test, FAKE_API, signInAs, type Page } from "./fixtures";
 
 const mk = (id: number, name: string, bot: number) => ({
@@ -53,7 +48,6 @@ test("a header click sorts on the server, shows an arrow and the next click flip
   await expect(header).toHaveAttribute("aria-sort", "descending");
   await expect(button.locator(".adm-usort-arrow.active")).toBeVisible();
   await expect.poll(() => names(page)).toEqual(["Brook", "Chopper", "Ace"]);
-  // The arrow lives in a fixed slot: the column and its label stay where they were.
   expect(await header.boundingBox()).toEqual(before);
   expect(await button.locator(".adm-usort-label").boundingBox()).toEqual(labelBefore);
 
@@ -62,13 +56,11 @@ test("a header click sorts on the server, shows an arrow and the next click flip
   await expect(header).toHaveAttribute("aria-sort", "ascending");
   await expect.poll(() => names(page)).toEqual(["Ace", "Chopper", "Brook"]);
 
-  // A text column starts A to Z, and only one column is active.
   await page.getByRole("button", { name: "Sort by User" }).click();
   await expect.poll(() => calls.at(-1)?.get("sort")).toBe("user");
   expect(calls.at(-1)?.get("dir")).toBe("asc");
   await expect(header).toHaveAttribute("aria-sort", "none");
 
-  // The choice is remembered.
   await page.reload();
   await page.getByRole("tab", { name: "Users", exact: true }).click();
   await expect(page.getByRole("columnheader", { name: "Sort by User" })).toHaveAttribute("aria-sort", "ascending");
@@ -145,6 +137,5 @@ test("a Show more page that lands after a re-sort is dropped, not appended to th
   await expect(rows).toHaveCount(PAGE);
   expect((await names(page)).filter((n) => n.startsWith("Stale"))).toEqual([]);
   expect((await names(page)).every((n) => n.startsWith("Sorted"))).toBe(true);
-  // The old request no longer locks the button for the new list.
   await expect(page.getByRole("button", { name: "Show more" })).toBeEnabled();
 });

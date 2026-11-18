@@ -6,7 +6,6 @@ import { DECK_STATS_COLLAPSED_KEY } from "../../storage/keys";
 import { bool01, usePersistedState } from "@optcg/ui/storage";
 import { DeckStatsPanel, type HintsState } from "@optcg/deck-analytics/ui";
 
-/** Wide enough for the page to sit beside a stats column (matches the CSS breakpoint). */
 export const DOCK_QUERY = "(min-width: 1200px)";
 
 function useStatsCollapsed() {
@@ -29,13 +28,7 @@ function Chevron({ dir }: { dir: "left" | "right" }) {
   );
 }
 
-/**
- * Deck stats beside the deck list. Wide screens: a sticky right column that collapses to a slim
- * rail. Narrow screens: a floating "Stats" pill that opens a bottom sheet, so the list stays put.
- * `hints` (owner only) puts the build-hint tray at the top and its count on the rail / pill.
- */
 export function DeckStatsDock({ cards, leaderId, hints, compact = false }: { cards: DeckStatsCard[]; leaderId: string | null; hints?: HintsState; compact?: boolean }) {
-  // `compact` keeps the pill + sheet even on a wide screen (the editor is using the dock's column).
   const wide = useMediaQuery(DOCK_QUERY) && !compact;
   const [collapsed, setCollapsed] = useStatsCollapsed();
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -51,7 +44,6 @@ export function DeckStatsDock({ cards, leaderId, hints, compact = false }: { car
   ) : null;
 
   const sheetShown = sheetOpen && !wide;
-  // Swapping the rail and the panel unmounts the focused button; hand focus to its counterpart.
   useEffect(() => {
     if (!toggled.current) return;
     toggled.current = false;
@@ -61,7 +53,6 @@ export function DeckStatsDock({ cards, leaderId, hints, compact = false }: { car
     toggled.current = true;
     setCollapsed(next);
   };
-  // The pill sits over the list: tuck it away while scrolling down, bring it back on scroll up.
   useEffect(() => {
     if (wide) return;
     let last = window.scrollY;
@@ -105,7 +96,6 @@ export function DeckStatsDock({ cards, leaderId, hints, compact = false }: { car
     );
   }
 
-  // Log Pose opens outside the sheet, and the modal sheet keeps the page behind it inert: step the sheet aside first.
   const sheetHints: HintsState | undefined = hints?.onAsk
     ? {
         ...hints,

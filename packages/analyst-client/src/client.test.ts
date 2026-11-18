@@ -7,7 +7,6 @@ const iso = (msFromNow: number) => new Date(NOW + msFromNow).toISOString();
 
 type Call = { url: string; init: RequestInit };
 
-/** A fetch that answers the session endpoint with successive tokens and the chat URL with `chat`. */
 function fakeFetch(expiries: number[], chat: (auth: string) => Response) {
   const calls: Call[] = [];
   let minted = 0;

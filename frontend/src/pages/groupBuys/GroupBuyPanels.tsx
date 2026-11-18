@@ -6,12 +6,10 @@ import { MemberModeTag } from "./memberParts";
 import { SHIPPING_SPLIT_LABELS } from "./shipping";
 import { MEMBERS_OPEN_KEY, SETTLEMENT_OPEN_KEY } from "../../storage/keys";
 
-/** Locked, ordered or purchased group buys show shipping, tax and what each member owes. */
 export function hasOrderPanel(detail: Pick<GroupBuyDetail, "status">): boolean {
   return detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
 }
 
-/** Members drawer: who is in, their copies and cost (plus ship / tax / owes once ordering starts). */
 export function GroupBuyMembersList({ detail }: { detail: GroupBuyDetail }) {
   const members = detail.members ?? [];
   const showOrderPanel = hasOrderPanel(detail);
@@ -52,7 +50,6 @@ export function GroupBuyMembersList({ detail }: { detail: GroupBuyDetail }) {
   );
 }
 
-/** Shipping / tax / order notes as plain text, for anyone who cannot edit them. */
 export function GroupBuyOrderDetails({ detail }: { detail: GroupBuyDetail }) {
   return (
     <div className="group-buy-order-readonly">
@@ -76,14 +73,12 @@ export function GroupBuyOrderDetails({ detail }: { detail: GroupBuyDetail }) {
   );
 }
 
-/** Order & settlement drawer with the cards + shipping + tax total; `children` add what the host can edit. */
 export function GroupBuySettlement({
   detail,
   readOnly = false,
   children,
 }: {
   detail: GroupBuyDetail;
-  /** The invite view skips the host-facing next-step hint. */
   readOnly?: boolean;
   children?: ReactNode;
 }) {

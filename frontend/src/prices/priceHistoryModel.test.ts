@@ -27,7 +27,6 @@ describe("price history helpers (#946)", () => {
       ["2026-09-15", 30],
       ["2026-11-01", 20],
     ]);
-    // 3M back from Nov 1 is Aug 1.
     expect(pointsInRange(points, range("3m")).map((p) => p.date)).toEqual(["2026-08-01", "2026-09-15", "2026-11-01"]);
     expect(pointsInRange(points, range("1m")).map((p) => p.date)).toEqual(["2026-11-01"]);
     expect(pointsInRange(points, range("max"))).toHaveLength(4);
@@ -126,7 +125,6 @@ describe("Ask Log Pose about when to buy (#946)", () => {
 });
 
 describe("When to buy input (#949 follow-up)", () => {
-  // A base SR released 30 days ago, now $10: the base SR curve is still falling (wait), the all-singles one is closer to done (soon).
   const data = { name: "Portgas.D.Ace", released: "2026-10-06", current: 10 };
   const today = "2026-11-05";
   const points = pts([["2026-10-06", 10], ["2026-11-05", 10]]);
@@ -147,7 +145,6 @@ describe("When to buy input (#949 follow-up)", () => {
     expect(buyTimingInput({ ...data, reprints: ["2026-12-20"] }, points, null, today).reprints).toEqual(["2026-12-20"]);
     expect(buyTimingInput(data, points, null, today).reprints).toEqual([]);
     expect(buyTimingInput({ ...data, reprints: null }, points, null, today).reprints).toEqual([]);
-    // A reprint a month and a half out turns a "soon" into a wait.
     const withReprint = buyTimingInput({ ...data, rarity: null, reprints: ["2026-12-20"] }, points, null, today);
     expect(buyTiming(buyTimingInput({ ...data, rarity: null }, points, null, today)).verdict).toBe("soon");
     expect(buyTiming(withReprint).verdict).toBe("wait");

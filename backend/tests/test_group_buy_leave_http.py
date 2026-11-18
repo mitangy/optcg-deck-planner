@@ -1,4 +1,3 @@
-"""POST /group-buys/{id}/leave status codes (#881)."""
 
 from __future__ import annotations
 

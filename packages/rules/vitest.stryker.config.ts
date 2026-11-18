@@ -1,16 +1,10 @@
 import { configDefaults, defineConfig, mergeConfig } from "vitest/config";
 import base from "./vitest.config";
 
-// Stryker runs the suite from a sandbox copy of packages/rules, so tests that
-// read files elsewhere in the repo can't find them. The deckStats.json sync
-// check is one; it guards a generated planner file, not the engine code
-// Stryker mutates, so leave it out of the mutation run.
-//
-// The hard bot suites play whole searched games and take about 75% of the
-// suite's time. Stryker reruns them for nearly every engine mutant, which
-// pushed the runtime.ts and queries.ts shards past the job timeout on
-// 2026-10-25. They test src/bot, which Stryker doesn't mutate, so leave them
-// out too; the engine rules they touch have their own scenario tests.
+// Stryker runs the suite from a sandbox copy of packages/rules, so tests that read files elsewhere in the repo (the
+// deckStats.json sync check) can't find them.
+// The hard bot suites take about 75% of the suite's time and pushed the engine shards past the job timeout. They test
+// src/bot, which Stryker doesn't mutate, so leave them out.
 export default mergeConfig(
   base,
   defineConfig({

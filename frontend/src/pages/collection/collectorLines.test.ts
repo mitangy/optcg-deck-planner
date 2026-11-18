@@ -93,9 +93,7 @@ describe("collector copies (#1031)", () => {
   });
 
   it("owned copies held back for a collector want do not count toward decks (#1031)", () => {
-    // Own 2 gold with a collector want of 1: one is reserved, one counts for decks.
     expect(deckOwnedOfAlt({ owned: 2, collector: 1 })).toBe(1);
-    // Own 1 gold with want 3: the only copy is reserved.
     expect(deckOwnedOfAlt({ owned: 1, collector: 3 })).toBe(0);
     expect(deckOwnedOfAlt({ owned: 2, collector: 0 })).toBe(2);
     expect(deckAltsOwned(3, [alt({ owned: 2, collector: 1 }), alt({ product_id: 203, owned: 1 })])).toBe(2);
@@ -159,7 +157,6 @@ describe("collector copies (#1031)", () => {
     expect(l).toMatchObject({ have: 1, still_need: 1, remaining_cost: 30 });
     const [done] = refreshCollectorHave([line()], 202, 5)!;
     expect(done).toMatchObject({ have: 1, still_need: 0, remaining_cost: 0 });
-    // another printing's count never touches this line
     expect(refreshCollectorHave([line()], 999, 5)![0]!.have).toBe(0);
   });
 

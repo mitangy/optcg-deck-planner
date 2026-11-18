@@ -1,5 +1,3 @@
-/* Giveaway event banner on the home page, its join dialog and the official-rules page (#794). */
-
 .event-banner {
   display: flex;
   flex-direction: column;
@@ -21,7 +19,6 @@
   overflow-wrap: anywhere;
 }
 
-/* Always on its own line, so the text changing between phases never moves the lines below it. */
 .event-status {
   display: block;
   font-family: var(--font-num);
@@ -53,7 +50,6 @@
   color: var(--ink);
 }
 
-/* One fixed height for the button, the progress text and "entries closed", so joining shifts nothing. */
 .event-action {
   display: flex;
   align-items: center;
@@ -90,7 +86,6 @@
   color: var(--muted);
 }
 
-/* Staff may play but are not in the draw (#834). */
 .event-staff-note {
   margin: 0;
   font-size: 0.78rem;
@@ -163,7 +158,6 @@
   color: var(--chrome);
 }
 
-/* Reserves the line, so an error appearing does not resize the dialog. */
 .event-dialog-error {
   min-height: 1.3rem;
   margin: 0 0 0.4rem;
@@ -191,7 +185,6 @@
   }
 }
 
-/* Official rules page. */
 .rules-page .legal-doc {
   max-width: 70ch;
 }
@@ -212,7 +205,6 @@
   font-weight: 700;
 }
 
-/* The admin's description keeps its line breaks. */
 .rules-description {
   white-space: pre-line;
 }

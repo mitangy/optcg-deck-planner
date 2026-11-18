@@ -1,5 +1,3 @@
-/* ——— Sources: markers, popover, list, own-judgement note ——— */
-
 .lp-cite {
   font: inherit;
   font-size: 0.7rem;
@@ -65,7 +63,6 @@
   overflow-wrap: anywhere;
 }
 
-/* A card a Log Pose answer names: a plain-looking word that shows the card (hover, focus or tap). */
 .lp-mention {
   display: inline;
   margin: 0;
@@ -93,7 +90,6 @@
   border-radius: var(--radius-3);
 }
 
-/* Over the panel and its source popover, never in the pointer's way. */
 .lp-peek {
   position: fixed;
   z-index: calc(var(--lp-z-panel, var(--z-lp-panel)) + 20);

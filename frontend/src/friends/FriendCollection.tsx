@@ -29,7 +29,6 @@ function sortCollection(items: FriendOwnedItem[], key: SortKey): FriendOwnedItem
   return out;
 }
 
-/** The cards a friend owns: read only, no buying. */
 export function FriendCollection({ friendId, username }: { friendId: number; username: string }) {
   const { data, isLoading, error, refetch } = useQuery({ queryKey: qk.friend.collection(friendId), queryFn: () => friendsApi.collection(friendId) });
   const [layout, setLayout] = useCardLayout();

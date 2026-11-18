@@ -1,4 +1,3 @@
-"""Friends' decks, collection and spares, plus your own sharing settings (#703)."""
 
 from __future__ import annotations
 
@@ -67,7 +66,6 @@ def put_my_sharing(
     if row is None:
         row = UserSharing(user_id=user.id)
         db.add(row)
-    # Column defaults only apply on flush; fill them so a fresh row reads back right.
     row.decks = row.decks or "friends"
     row.collection = row.collection or "friends"
     row.trades_open = bool(row.trades_open)
@@ -81,8 +79,6 @@ def put_my_sharing(
     db.commit()
     return _sharing_out(fv.get_sharing(db, user.id))
 
-
-# --- friend views -----------------------------------------------------------
 
 
 @router.get("/{friend_id}/profile", response_model=FriendProfileOut)
@@ -305,8 +301,6 @@ def friend_spares(
         they_need=fv.spare_items(db, mine, my_cat, their_want, they_need_ids),
     )
 
-
-# --- my spares ----------------------------------------------------------------
 
 
 @me_router.get("/spares", response_model=MySparesOut)

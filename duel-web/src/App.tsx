@@ -19,13 +19,10 @@ import { useMediaQuery } from "@optcg/ui/hooks";
 
 export function App() {
   const { reduceMotion, theme, colorMode, textSize, popupSize, previewPopupSize } = useDuelSettings();
-  // Re-applies when the device switches light / dark while on "Match my device".
   const deviceLight = useMediaQuery(LIGHT_QUERY);
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  // A player out of Log Pose credit can use it on their own Claude plan: that link is made in Settings.
   const ownClaude = useMemo(() => ({ onSelect: () => navigate("/settings#log-pose") }), [navigate]);
-  // A deck Log Pose builds opens the create-deck page; it never takes the player off a live board by itself (#726).
   const pathRef = useRef(pathname);
   pathRef.current = pathname;
   const [leaving, setLeaving] = useState<(() => void) | null>(null);
@@ -33,13 +30,10 @@ export function App() {
     () => ({ ...SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o), () => pathRef.current, (go) => setLeaving(() => go)) }),
     [navigate],
   );
-  // Before paint, so switching theme (or loading it from the account) never
-  // flashes the old palette.
   useLayoutEffect(() => applyTheme(theme, colorMode), [theme, colorMode, deviceLight]);
   useLayoutEffect(() => applyTextSize(textSize), [textSize]);
   useLayoutEffect(() => applyPopupSize(popupSize), [popupSize]);
   useLayoutEffect(() => applyPopupSize(previewPopupSize, document.documentElement, "previewPopupSize"), [previewPopupSize]);
-  // CSS mirrors its prefers-reduced-motion rules under [data-motion="reduce"].
   useEffect(() => {
     if (reduceMotion) document.documentElement.dataset.motion = "reduce";
     else delete document.documentElement.dataset.motion;
@@ -50,7 +44,6 @@ export function App() {
   return (
     <LogPoseProvider apiBase={getApiBaseUrl()} hidden={chrome.hidden} launcher={chrome.launcher} defaultPage={logPosePage} sources={sources} ownClaude={ownClaude}>
       <RouteMeta />
-      {/* One stable fallback for every lazy route: it only reserves the viewport, so nothing jumps when the page lands. */}
       <Suspense fallback={<div className="route-fallback" aria-busy="true" />}>
         <Routes>
           {APP_ROUTES.map((r) => (

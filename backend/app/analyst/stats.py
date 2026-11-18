@@ -1,9 +1,3 @@
-"""Log Pose matchup stats: one row per side of each finished duel, and aggregates over them.
-
-Only aggregates leave this module: win rates with a Wilson interval and sample size,
-going first or second, and card inclusion. Games of players who turned sharing off
-are left out entirely, as are matches without known leaders.
-"""
 
 from __future__ import annotations
 
@@ -28,7 +22,6 @@ def _deck_counts(cards: object) -> dict[str, int] | None:
 
 
 def seats_for(match: DuelMatch, replay: dict | None) -> list[DuelMatchSeat]:
-    """Both sides of a match, or none when either leader is unknown."""
     players = replay.get("players") if isinstance(replay, dict) else None
     first = replay.get("firstSeat") if isinstance(replay, dict) else None
     rows: list[DuelMatchSeat] = []
@@ -57,7 +50,6 @@ def seats_for(match: DuelMatch, replay: dict | None) -> list[DuelMatchSeat]:
 
 
 def backfill_seats(db: Session) -> int:
-    """Add seat rows for matches recorded before stats existed. Safe to run on every start."""
     have = select(DuelMatchSeat.match_id)
     missing = db.scalars(select(DuelMatch).where(DuelMatch.match_id.not_in(have))).all()
     added = 0
@@ -76,7 +68,6 @@ def backfill_seats(db: Session) -> int:
 
 
 def wilson(wins: int, games: int, z: float = 1.96) -> tuple[float, float] | None:
-    """95% Wilson score interval for a win rate."""
     if games == 0:
         return None
     p = wins / games
@@ -87,7 +78,6 @@ def wilson(wins: int, games: int, z: float = 1.96) -> tuple[float, float] | None
 
 
 def _record(games: int, wins: int) -> dict:
-    """A win record; under MIN_GAMES only the game count, so no single game's result shows."""
     if games < MIN_GAMES:
         return {"games": games, "wins": None, "win_rate": None, "interval": None, "too_few_games": True}
     return {
@@ -100,10 +90,8 @@ def _record(games: int, wins: int) -> dict:
 
 
 def _pairs(db: Session, days: int, ranked_only: bool, leader: str | None) -> list[tuple[DuelMatchSeat, DuelMatchSeat]]:
-    """(side, opponent side) for every shared match in the window; with a leader, only its sides."""
     since = datetime.now(timezone.utc) - timedelta(days=days)
     opted_out = set(db.scalars(select(AnalystPrefs.user_id).where(AnalystPrefs.share_matches.is_(False))).all())
-    # Date by the match: backfilled seat rows were stamped when the backfill ran.
     q = select(DuelMatchSeat).join(DuelMatch, DuelMatch.match_id == DuelMatchSeat.match_id).where(DuelMatch.created_at >= since)
     if ranked_only:
         q = q.where(DuelMatchSeat.ranked.is_(True))
@@ -134,7 +122,6 @@ def _split(pairs: list[tuple[DuelMatchSeat, DuelMatchSeat]]) -> dict:
 
 
 def _card_rates(pairs: list[tuple[DuelMatchSeat, DuelMatchSeat]]) -> list[dict]:
-    """Win rate with and without each card, for cards with enough games on both sides."""
     decks = [(json.loads(s.deck), s.won) for s, _ in pairs if s.deck]
     out = []
     for card in sorted({c for d, _ in decks for c in d}):
@@ -169,7 +156,6 @@ def matchup_stats(db: Session, leader: str | None, opponent: str | None, days: i
     if opponent is not None:
         vs = [(s, o) for s, o in pairs if o.leader_id == opponent]
         if opponent == leader:
-            # In a mirror every game is one win and one loss for the same leader.
             return {**window, "leader": leader, "opponent": opponent, "mirror": True, "games": len(vs) // 2}
         return {**window, "leader": leader, "opponent": opponent, **_split(vs)}
     by_opp: dict[str, list] = defaultdict(list)

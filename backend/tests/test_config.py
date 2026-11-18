@@ -97,8 +97,6 @@ def test_local_sqlite_http_is_not_production(monkeypatch):
     ],
 )
 def test_postgres_urls_use_the_installed_psycopg2_driver(url):
-    # SQLAlchemy 2.1 made psycopg (v3) the default for bare postgresql:// URLs,
-    # but only psycopg2-binary is installed; the app must name its driver.
     from sqlalchemy import create_engine
 
     from app.core.config import Settings

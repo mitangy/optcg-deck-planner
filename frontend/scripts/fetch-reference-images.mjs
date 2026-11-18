@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-/** Download one reference image per catalog printing, for descriptor extraction.
- *
- * Sourced from TCGCSV (the same feed the backend catalog sync uses) rather
- * than the app's own API, so this can run without credentials and without
- * waking the API instance.
- *
- * Writes an `index.json` alongside the images in the shape
- * `extract-descriptors.mjs` expects.
- */
 import { mkdirSync, writeFileSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -15,9 +6,7 @@ const CATEGORY_ID = 68;
 const TCGCSV_BASE = `https://tcgcsv.com/tcgplayer/${CATEGORY_ID}`;
 const UA = "OPTCGWebTracker/1.0";
 
-/** Matches the backend sync's throttle — same feed, same courtesy. */
 const REQUEST_PAUSE_MS = 120;
-/** TCGPlayer's own CDN is a different host; keep concurrency modest anyway. */
 const IMAGE_CONCURRENCY = 6;
 const IMAGE_PAUSE_MS = 30;
 
@@ -104,7 +93,6 @@ async function main() {
     const dest = join(outDir, file);
     if (!existsSync(dest)) {
       try {
-        // _400w is the largest variant the CDN serves without a 403.
         const url = p.imageUrl.replace("_200w", "_400w");
         const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);

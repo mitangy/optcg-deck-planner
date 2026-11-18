@@ -25,7 +25,6 @@ describe("chart series toggles (#691)", () => {
   it("totals and the axis max follow only the series that are shown (#691)", () => {
     expect(visibleTotals(3, series, values, new Set())).toEqual([6, 9, 3]);
     expect(visibleMax(visibleTotals(3, series, values, new Set()))).toBe(9);
-    // Hiding casual drops the 9-high day: the axis comes down to the ranked maximum.
     expect(visibleTotals(3, series, values, new Set(["casual"]))).toEqual([4, 0, 2]);
     expect(visibleMax(visibleTotals(3, series, values, new Set(["casual"])))).toBe(4);
     expect(visibleMax([0, 0])).toBe(1);
@@ -82,7 +81,6 @@ describe("top leaders sorting (#691)", () => {
     expect(ids({ key: "games", dir: "desc" })).toEqual(["C-1", "A-1", "D-1", "B-1"]);
     expect(ids({ key: "games", dir: "asc" })).toEqual(["B-1", "A-1", "D-1", "C-1"]);
     expect(ids({ key: "wins", dir: "desc" })).toEqual(["C-1", "A-1", "D-1", "B-1"]);
-    // Win rate is wins over games, not wins: Bravo is 100% with only 2 wins.
     expect(ids({ key: "rate", dir: "desc" })).toEqual(["B-1", "A-1", "D-1", "C-1"]);
     expect(ids({ key: "rate", dir: "asc" })).toEqual(["C-1", "A-1", "D-1", "B-1"]);
     expect(ids({ key: "name", dir: "asc" })).toEqual(["A-1", "B-1", "C-1", "D-1"]);
@@ -106,7 +104,6 @@ describe("eval run table sorting (#691)", () => {
   const run = (run_at: string, correct: number, spend: number | null): EvalRun => ({
     suite: "main", run_at, label: run_at.slice(5, 10), model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups: {}, spend_usd: spend, notes: "",
   });
-  // Oldest first: 80% -> 90% -> 84%.
   const runs = [run("2026-10-01T00:00:00Z", 40, 1), run("2026-10-02T00:00:00Z", 45, null), run("2026-10-03T00:00:00Z", 42, 0.5)];
   const labels = (rows: { run: EvalRun }[]) => rows.map((r) => r.run.label);
 

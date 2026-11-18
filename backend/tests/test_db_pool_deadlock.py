@@ -40,14 +40,10 @@ def test_more_requests_than_threads_and_connections_all_finish_802(tmp_path, mon
 
     @app.get("/me")
     def me(user: User = Depends(get_current_user), db=Depends(app_db.get_db)) -> dict:
-        # A real route: auth reads the user (taking the only connection), then this
-        # sync body needs a second worker thread while the connection is still held.
         time.sleep(0.05)
         return {"id": user.id}
 
     async def run() -> list[int]:
-        # Only 2 worker threads for 6 requests: the threads that wait for the
-        # single connection must not starve the request that holds it.
         anyio.to_thread.current_default_thread_limiter().total_tokens = 2
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url="http://t") as c:

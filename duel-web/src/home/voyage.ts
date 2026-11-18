@@ -1,12 +1,5 @@
-/** Numbers for the Your voyage card. */
-
 export type Streak = { won: boolean; count: number };
 
-/**
- * The run of equal results from the newest finished game. Games that were cut
- * off never sent a result, so they neither extend nor break a streak.
- * `games` is newest first.
- */
 export function streak(games: { won: boolean; finished?: boolean }[]): Streak | null {
   let run: Streak | null = null;
   for (const g of games) {

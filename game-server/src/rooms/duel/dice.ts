@@ -14,10 +14,9 @@ import { BOT_SEAT, botPacing } from "./bots.js";
 import type { DuelCore, WireBody } from "./context.js";
 import type { TimerHandle } from "./time.js";
 
-/** How long the bot lets a roll sit on screen before it picks first (the clients tumble the die meanwhile). */
+/** The clients tumble the die while the bot lets a roll sit before it picks first. */
 export const DICE_REVEAL_MS = 1500;
 
-/** The caller wins on High (4-6) with a 4, 5 or 6 and on Low (1-3) with a 1, 2 or 3. */
 export function rollMatchesCall(call: DiceCall, roll: number): boolean {
   return call === "high" ? roll >= 4 : roll <= 3;
 }
@@ -32,11 +31,6 @@ type Phase = {
   deadline: number | null;
 };
 
-/**
- * The opening dice roll of a room's first game (#1190): the server picks a roller, the other seat calls High or Low,
- * the roller rolls a d6, and whoever the roll favors picks first or second. A step nobody answers in
- * DICE_STEP_SECONDS is answered by the server for that seat. Rematches never roll (the loser chooses, see Rematch).
- */
 export class FirstSeatDice {
   private phase: Phase | null = null;
   private stepTimer: TimerHandle | null = null;
@@ -47,7 +41,6 @@ export class FirstSeatDice {
     private readonly core: Pick<DuelCore, "game" | "config" | "io" | "time" | "seats" | "spectators" | "sync" | "startMatch">,
   ) {}
 
-  /** Test seam: tests replace this to script the roller, the bot's call and the roll. */
   randomInt(maxExclusive: number): number {
     // Deployed servers draw from the CSPRNG; local ones and tests from the room's seed so a game repeats.
     if (this.core.config.requireGameToken) return randomInt(maxExclusive);
@@ -55,12 +48,11 @@ export class FirstSeatDice {
     return this.rng.nextInt(maxExclusive);
   }
 
-  /** A dice phase is running (a new seat cannot join; a ranked no-show timer must not close the room). */
+  /** A new seat cannot join and a ranked no-show timer must not close the room. */
   get active(): boolean {
     return this.phase !== null;
   }
 
-  /** A room rolls for its first game's turn order when it asked to (or is deployed), unless it is a practice game (one account on both seats). */
   private enabled(): boolean {
     const { config, seats } = this.core;
     if (!config.diceRoll) return false;
@@ -68,7 +60,6 @@ export class FirstSeatDice {
     return !(owner0 != null && owner0 === owner1);
   }
 
-  /** Both seats are filled: start the roll. False when this room flips a coin instead (the caller starts the match). */
   begin(): boolean {
     if (this.phase) return true;
     if (!this.enabled()) return false;
@@ -87,7 +78,6 @@ export class FirstSeatDice {
     return true;
   }
 
-  /** The seat whose move the current step waits on. */
   private actor(p: Phase): Seat | null {
     switch (p.step) {
       case "call":
@@ -101,7 +91,6 @@ export class FirstSeatDice {
     }
   }
 
-  /** Enter `step`: restart its time limit, tell everyone, and let the bot act if it is the bot's move. */
   private advance(step: "call" | "roll" | "choose") {
     const p = this.phase!;
     const { time } = this.core;
@@ -116,7 +105,6 @@ export class FirstSeatDice {
     }
   }
 
-  /** What the server plays for a seat that is a bot or ran out of time. */
   private defaultAction(step: "call" | "roll" | "choose"): DiceAction {
     if (step === "call") return { action: "call", call: this.randomInt(2) === 0 ? "high" : "low" };
     return step === "roll" ? { action: "roll" } : { action: "first" };
@@ -135,7 +123,6 @@ export class FirstSeatDice {
     this.apply(seat, action);
   }
 
-  /** A client's `dice` message. */
   handle(client: Client, seat: Seat, message: unknown) {
     const { io } = this.core;
     let action: DiceAction;
@@ -149,7 +136,6 @@ export class FirstSeatDice {
     if (problem) io.sendError(client, problem.code, problem.message);
   }
 
-  /** Play `action` for `seat`; the refusal when it is not that seat's move. */
   private apply(seat: Seat, action: DiceAction): { code: ErrorCode; message: string } | null {
     const p = this.phase;
     if (!p) return { code: "match_not_ready", message: "There is no dice roll right now" };
@@ -176,7 +162,6 @@ export class FirstSeatDice {
     }
   }
 
-  /** The winner picked: start the game with them as the chooser. */
   private finish(pick: "first" | "second") {
     const { game, io } = this.core;
     const p = this.phase!;
@@ -192,11 +177,7 @@ export class FirstSeatDice {
     this.core.startMatch(firstSeat, winner);
   }
 
-  /**
-   * A seat left by consent while the roll ran. Both leaders are already revealed, so the leaver does not get a free
-   * exit: the roll ends with the seat that stayed going first and the match starts, for the caller to forfeit the
-   * leaver's seat (a loss, like leaving a live match). False when there is no roll.
-   */
+  // Both leaders are already revealed, so the leaver gets no free exit: the seat that stayed goes first and the caller forfeits the leaver's seat.
   abandon(stayer: Seat): boolean {
     const p = this.phase;
     if (!p) return false;
@@ -211,7 +192,6 @@ export class FirstSeatDice {
     return true;
   }
 
-  /** A seat left for good: stop the roll and send the clients back to waiting for an opponent. */
   cancel() {
     const p = this.phase;
     if (!p) return;
@@ -223,7 +203,6 @@ export class FirstSeatDice {
     this.phase = null;
   }
 
-  /** Room disposal. */
   clearTimers() {
     this.stepTimer?.clear();
     this.stepTimer = null;
@@ -231,7 +210,7 @@ export class FirstSeatDice {
     this.botTimer = null;
   }
 
-  /** The state as `seat` / `role` sees it (the names come along: there is no welcome yet). */
+  /** The names come along: there is no welcome yet. */
   private body(p: Phase, seat: Seat, role: "player" | "spectator"): WireBody<DiceStateMessage> {
     return {
       roller: p.roller,
@@ -247,7 +226,6 @@ export class FirstSeatDice {
     };
   }
 
-  /** Send one client the current state. False when no dice phase is running. */
   sendState(client: Client): boolean {
     const p = this.phase;
     if (!p) return false;

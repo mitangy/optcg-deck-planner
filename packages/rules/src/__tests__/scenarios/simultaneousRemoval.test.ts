@@ -1,12 +1,8 @@
-/**
- * Replacements that protect "your Characters" cover every Character removed at the same time (#594).
- * One acceptance (and one payment) saves the whole batch (OP17-023 Nami, OP17-095 Zoro Q&A).
- */
 import { runScenarios, type CardScenario } from "../../testing/scenario.js";
 
-const ARAMAKI = "OP17-059"; // [On Play] DON!! -1: Draw 1 card and K.O. up to 2 of your opponent's Characters with a cost of 2 or less.
-const ALVIDA = "OP03-023"; // vanilla 1-cost {East Blue}
-const BLUE = "OP03-052"; // vanilla 1-cost {East Blue}
+const ARAMAKI = "OP17-059";
+const ALVIDA = "OP03-023";
+const BLUE = "OP03-052";
 const NAMI = "OP17-023";
 const ZORO = "OP17-095";
 const KAROO = "ST01-003";
@@ -30,8 +26,8 @@ const rows: CardScenario[] = [
 
 runScenarios("simultaneous removal replacement (#594)", rows);
 
-const BEGE = "OP11-101"; // [Once Per Turn] a Supernovas Character would be removed by an opponent's effect: add it to the top of your Life face-down instead.
-const DEMON_FACE = "OP01-056"; // [Main] K.O. up to 2 of your opponent's rested Characters with a cost of 5 or less.
+const BEGE = "OP11-101";
+const DEMON_FACE = "OP01-056";
 const SUPERNOVA_A = "OP02-043";
 const SUPERNOVA_B = "OP14-008";
 

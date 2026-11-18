@@ -1,4 +1,3 @@
-# Build from monorepo root: docker build -f game-server/Dockerfile .
 FROM node:22-bookworm-slim
 
 WORKDIR /app

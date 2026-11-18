@@ -1,7 +1,3 @@
-/**
- * The game review of a finished recording (#967), made in a Web Worker once the timeline is built, in slices:
- * progress and the grades so far arrive as they are made. A finished review is kept per match (reviewCache.ts).
- */
 import { useEffect, useState } from "react";
 import { REGISTRY_HASH, RULES_VERSION, type MatchReplay } from "@optcg/rules/replay/replayTimeline";
 import { clearLegacyReviewCacheOnce, readCachedReview, reviewCacheKey, writeCachedReview } from "./reviewCache";
@@ -9,11 +5,8 @@ import type { ReviewMessage, ReviewRequest } from "./reviewProtocol";
 import type { GameReview } from "./reviewModel";
 
 export type ReviewState = {
-  /** "off": not a finished game, or the timeline is not built yet. */
   status: "off" | "running" | "done" | "failed";
-  /** 0 to 1. */
   progress: number;
-  /** The grades so far while running, all of them once done. */
   review: GameReview | null;
 };
 
@@ -32,7 +25,6 @@ export function useGameReview(matchId: string, replay: MatchReplay, enabled: boo
     let cancelled = false;
     let worker: Worker | null = null;
     setState({ status: "running", progress: 0, review: null });
-    // The cache read is async: the strip shows "running" meanwhile, then a hit swaps in the kept review.
     void readCachedReview(key).then((cached) => {
       if (cancelled) return;
       if (cached) {

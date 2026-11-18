@@ -4,10 +4,6 @@ export type DeckGroup = { key: string; label: string; decks: DeckSummary[] };
 
 export const NO_LEADER_LABEL = "No leader";
 
-/**
- * "Include decks" chips grouped by leader (#1184). Groups run in the order of their earliest deck
- * (lowest sort_order); decks inside a group keep the order they came in.
- */
 export function groupDecksByLeader(decks: DeckSummary[]): DeckGroup[] {
   const groups = new Map<string, DeckGroup & { first: number }>();
   for (const d of decks) {
@@ -38,10 +34,6 @@ export function groupState(groupIds: number[], selected: number[]): GroupState {
   return on === groupIds.length ? "all" : "some";
 }
 
-/**
- * Ticks every deck of a leader, or unticks them when all are ticked. Unticking the last ticked
- * group leaves no deck selected (#1208).
- */
 export function toggleGroupDecks(current: number[], groupIds: number[]): number[] {
   if (groupState(groupIds, current) === "all") {
     return current.filter((id) => !groupIds.includes(id));
@@ -49,12 +41,10 @@ export function toggleGroupDecks(current: number[], groupIds: number[]): number[
   return [...current, ...groupIds.filter((id) => !current.includes(id))];
 }
 
-/** The Extra copies chip shows when the user has any, or while it is off so it can be turned back on. */
 export function showExtraCopiesChip(hasCollectorWants: boolean, includeCollector: boolean): boolean {
   return hasCollectorWants || !includeCollector;
 }
 
-/** Filter-summary words for the chips outside the decks: "No added cards", "No extra copies". */
 export function otherChipSummary(includeExtras: boolean, includeCollector: boolean): string[] {
   const parts: string[] = [];
   if (!includeExtras) parts.push("No added cards");

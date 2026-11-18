@@ -1,9 +1,3 @@
-"""Status values of the state machines stored as plain strings (refactor D-11).
-
-Every member's value is exactly the string the database column holds and the API returns, so rows
-and JSON do not change. ``StrEnum`` members compare equal to those strings, so a stored value can
-still be checked against a member (and the other way round), and ``str(member)`` is the value.
-"""
 
 from __future__ import annotations
 
@@ -18,8 +12,6 @@ class GroupBuyStatus(StrEnum):
 
 
 class ReceiptLineStatus(StrEnum):
-    """How a TCGplayer receipt line compares with the group buy's pool (not stored; part of the match report)."""
-
     MISSING = "missing"
     EXACT = "exact"
     SURPLUS = "surplus"
@@ -28,8 +20,6 @@ class ReceiptLineStatus(StrEnum):
 
 
 class AccessStatus(StrEnum):
-    """Log Pose chat access (AnalystAccess)."""
-
     PENDING = "pending"
     APPROVED = "approved"
     DENIED = "denied"
@@ -57,16 +47,12 @@ class TradeStatus(StrEnum):
 
 
 class FeedbackStatus(StrEnum):
-    """Feedback and card reports share one triage flow."""
-
     OPEN = "open"
     FIXED = "fixed"
     WONTFIX = "wontfix"
 
 
 class ReportStatus(StrEnum):
-    """Player reports (PlayerReport)."""
-
     OPEN = "open"
     DISMISSED = "dismissed"
     ACTIONED = "actioned"

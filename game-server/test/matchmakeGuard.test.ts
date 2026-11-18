@@ -3,7 +3,6 @@ import { assertProductionAuthConfig, requireGameToken } from "../src/env.js";
 import { gameFirstSeat, gameSeed } from "../src/matchmakeGuard.js";
 import { parseCreateOptions } from "../src/protocol.js";
 
-/** Runs `fn` with REQUIRE_GAME_TOKEN=true, as on the deployed server. */
 async function withTokensRequired<T>(fn: () => Promise<T> | T): Promise<T> {
   const prev = process.env.REQUIRE_GAME_TOKEN;
   process.env.REQUIRE_GAME_TOKEN = "true";

@@ -16,13 +16,11 @@ function inZone(iso: string, timeZone: string, withDate = true): string {
   }).format(new Date(iso));
 }
 
-/** "Monday, November 23, 2026": the day after the event ends, Eastern time. */
 function drawDay(endsAt: string): string {
   const next = new Date(Date.parse(endsAt) + 24 * 3_600_000);
   return new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "America/New_York" }).format(next);
 }
 
-/** The prize text from the admin, one paragraph per line; the short summary when there are no details. */
 function prizeParagraphs(event: DuelEvent): string[] {
   const lines = event.prize_details.split("\n").map((l) => l.trim()).filter(Boolean);
   if (lines.length > 0) return lines;
@@ -169,11 +167,8 @@ print(sorted(eligible_ids, key=rank))`}</pre>
   );
 }
 
-/** Official rules of a giveaway event: /events/:eventId/rules (#794). */
 export function EventRulesPage() {
   const { eventId } = useParams();
-  // By id, not "current": the banner drops an ended event after a week, but the rules, seed and
-  // eligible ids must stay readable through the draw and the winner's reply window (#795).
   const res = useAsyncResource(() => fetchEventById(eventId ?? ""), [eventId]);
   const state = useMemo<{ status: "loading" } | { status: "none" } | { status: "ready"; event: DuelEvent }>(() => {
     if (res.status === "loading") return { status: "loading" };

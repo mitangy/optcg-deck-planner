@@ -2,10 +2,6 @@ import { lookupCard } from "../../cards/atlas";
 import { endReasonLabel } from "./matchResult";
 import { playerLabel } from "./playerNames";
 
-/**
- * Visual weight of a log line. `routine` lines (phases, DON!!, draws, buffs)
- * are dimmed; everything else gets an icon + accent color in the panel.
- */
 export type LogTone =
   | "routine"
   | "phase"
@@ -24,7 +20,6 @@ export type LogTone =
   | "reveal"
   | "win";
 
-/** A run of plain text, or a card name the panel renders as an inspect button. */
 export type LogSegment =
   | { kind: "text"; text: string }
   | { kind: "card"; defId: string; name: string; ownerSeat?: 0 | 1 };
@@ -32,32 +27,15 @@ export type LogSegment =
 export type BattleLogEntry = {
   id: string;
   turn: number;
-  /** Plain-text rendering of `segments` (tests, a11y, copy). */
   text: string;
   tone: LogTone;
-  /** Key moment: bold + accent (counters, K.O.s, Life, searches, discards…). */
   important: boolean;
   segments: LogSegment[];
-  /**
-   * Intents the room had applied when this line happened (the `step` of its
-   * events message). An undo to step N drops the lines past N (#497).
-   */
   step?: number;
-  /**
-   * Set when the line shows a card being revealed (a reveal, or a search that
-   * reveals and adds to hand): the card to put on screen for the viewer.
-   */
   reveal?: { defId: string; ownerSeat: 0 | 1 };
-  /** Set when the line shows a card being played or trashed: the card the spotlight shows. */
   spotlight?: CardSpotlight;
 };
 
-/**
- * A played or trashed card for the board spotlight (see cardSpotlight.ts).
- * `play` ends on the field (`instanceId`, when the card stays there); `trash`
- * ends in its owner's trash; `draw` (the viewer's own Draw Phase card) ends in
- * their hand. `label` is the short caption under the card.
- */
 export type CardSpotlight = {
   defId: string;
   ownerSeat: 0 | 1;
@@ -66,7 +44,6 @@ export type CardSpotlight = {
   instanceId?: string;
 };
 
-/** Board instance → card identity, remembered across views (K.O.'d cards too). */
 export type InstanceIndex = Map<string, { defId: string; seat: 0 | 1 }>;
 
 type LooseEvent = { type?: string; [key: string]: unknown };
@@ -77,7 +54,6 @@ type ViewLike = {
   opponent: { leader: { id: string; defId: string }; characters: { id: string; defId: string }[]; stage: { id: string; defId: string } | null };
 };
 
-/** Record every visible board card so later events can name attackers / blockers. */
 export function indexViewInstances(view: ViewLike | null | undefined, into: InstanceIndex): void {
   if (!view) return;
   const you = view.seat === 1 ? 1 : 0;
@@ -104,7 +80,6 @@ function asSeat(seat: unknown): 0 | 1 | undefined {
   return seat === 0 || seat === 1 ? seat : undefined;
 }
 
-/** Card segment, or plain "a card" when the identity is hidden from this viewer. */
 function card(defId: unknown, seat?: unknown, fallback = "a card"): LogSegment {
   if (isHiddenDef(defId)) return { kind: "text", text: fallback };
   const id = defId as string;
@@ -128,7 +103,6 @@ function isYou(seat: unknown, youSeat: number | null): boolean {
   return (youSeat === 0 || youSeat === 1) && seat === youSeat;
 }
 
-/** "You play" / "Opponent plays" */
 function act(seat: unknown, youSeat: number | null, youVerb: string, theyVerb: string): string {
   return `${seatLabel(seat, youSeat)} ${isYou(seat, youSeat) ? youVerb : theyVerb}`;
 }
@@ -139,7 +113,6 @@ function line(tone: LogTone, important: boolean, ...parts: Part[]): Line {
   return { tone, important, parts };
 }
 
-/** The line with a spotlight card, unless the card is hidden from this viewer. */
 function spotted(
   l: Line,
   e: LooseEvent,
@@ -165,15 +138,8 @@ function toSegments(parts: Part[]): LogSegment[] {
   return out;
 }
 
-/** A log segment plus the punctuation that must stay on the same line (cards only). */
 export type GluedSegment = { seg: LogSegment; glued: string };
 
-/**
- * A card name carries the text right after it up to the next space ("'s", ".",
- * ")"). The name is a button, an atomic inline box, so without this a narrow
- * column can wrap right after it and strand "'s effect" on the next line,
- * which reads as a stray space ("Edward.Newgate 's effect").
- */
 export function glueSegments(segments: readonly LogSegment[]): GluedSegment[] {
   const out: GluedSegment[] = [];
   for (let i = 0; i < segments.length; i += 1) {
@@ -210,11 +176,6 @@ function signed(n: number): string {
   return n >= 0 ? `+${n}` : `${n}`;
 }
 
-/**
- * Narrate raw `events` payloads from the game server.
- * Event `type` strings must match `@optcg/rules` `GameEvent` (no rules import in SPA).
- * Events are already projected per viewer: hidden cards arrive as `"HIDDEN"`.
- */
 export function narrateEvents(
   events: readonly unknown[],
   opts: { youSeat: number | null; turnNumber: number; instances?: InstanceIndex },
@@ -227,7 +188,6 @@ export function narrateEvents(
   for (let idx = 0; idx < list.length; idx += 1) {
     const e = list[idx] ?? {};
     const next = list[idx + 1];
-    // A revealed search reads as one line ("reveals and adds X to hand").
     if (
       e.type === "card_revealed" &&
       next?.type === "card_moved" &&
@@ -264,16 +224,11 @@ function instanceCard(ctx: Ctx, id: unknown, fallback: string): LogSegment {
   return hit ? card(hit.defId, hit.seat) : { kind: "text", text: fallback };
 }
 
-/** The visible card of a `card_revealed` event (hidden for a viewer who can't see it). */
 function revealOf(e: LooseEvent): BattleLogEntry["reveal"] {
   const seat = asSeat(e.seat);
   return seat != null && !isHiddenDef(e.defId) ? { defId: e.defId as string, ownerSeat: seat } : undefined;
 }
 
-/**
- * "You draw <card>" for the viewer's own Draw Phase card, which the server sends
- * only to the drawer; every other draw (an effect, the opponent's) stays a count.
- */
 function drawLine(e: LooseEvent, youSeat: number | null): Line {
   const defId = Array.isArray(e.defIds) && e.defIds.length === 1 ? e.defIds[0] : undefined;
   if (e.turnDraw === true && isYou(e.seat, youSeat) && typeof defId === "string" && !isHiddenDef(defId)) {
@@ -292,14 +247,12 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
         `${act(e.seat, youSeat, e.didMulligan ? "mulligan" : "keep", e.didMulligan ? "mulligans" : "keeps")} opening hand`,
       );
     case "phase_changed":
-      // Only the Main phase rule is news: the turn header already names the rest.
       if (e.phase === "main") return line("phase", false, `—— Main phase · ${seatLabel(e.activeSeat, youSeat)} ——`);
       return null;
     case "drew":
       return drawLine(e, youSeat);
     case "don_placed": {
       const count = Number(e.count) || 0;
-      // "You place 0 DON!!" (an empty DON!! deck) is noise.
       if (count <= 0) return null;
       return line("routine", false, `${act(e.seat, youSeat, "place", "places")} ${count} DON!!`);
     }
@@ -340,7 +293,6 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
       const target = e.target as { kind?: string; instanceId?: string } | undefined;
       const defSeat = typeof e.seat === "number" ? 1 - e.seat : undefined;
       const tgtCard = instanceCard(ctx, target?.instanceId, "a Character");
-      // Mid-sentence: "attacks your Leader", not "attacks Your Leader".
       const defPoss = possessive(defSeat, youSeat).replace(/^Your$/, "your");
       const tgt: Part[] =
         target?.kind === "leader"
@@ -395,7 +347,6 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
       );
     case "life_taken": {
       const who = act(e.seat, youSeat, "take", "takes");
-      // Every hit is a private Life check now: never hint at hand vs [Trigger] to the opponent (#352).
       if (isHiddenDef(e.defId)) return line("damage", true, `${who} 1 damage`);
       return line("damage", true, `${who} 1 damage (`, card(e.defId, e.seat), e.toHand ? " → hand)" : ")");
     }
@@ -408,12 +359,11 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
         ` to Life${e.faceUp ? " face-up" : ""}`,
       );
     case "trigger_available":
-      // Old stored logs only: it told the opponent the Life card had a Trigger (#352).
       if (e.seat !== youSeat) return null;
       return line("trigger", true, `${possessive(e.seat, youSeat)} Life card has a Trigger (`, card(e.defId, e.seat, "hidden"), ")");
     case "trigger_resolved":
       if (e.accepted) return line("trigger", true, `${act(e.seat, youSeat, "activate", "activates")} the Trigger`);
-      return null; // the card_moved line ("adds a Life card to hand") follows; never say a Trigger was declined (#352)
+      return null;
     case "card_revealed":
       return line("reveal", true, `${act(e.seat, youSeat, "reveal", "reveals")} `, card(e.defId, e.seat));
     case "card_moved":
@@ -430,19 +380,16 @@ function narrateOne(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Line
       return line("routine", false, card(e.targetDefId, e.seat), ` ${signed(amount)} power${dur}`);
     }
     case "pending_choice_added": {
-      // Mandatory effect prompts are already narrated by the ability line.
       if (e.kind === "effect" && !e.optional) return null;
       if (e.kind === "order_effects") return null;
-      // Every Life hit opens this check; "life trigger" wording would suggest a [Trigger]. life_taken narrates it (#352).
       if (e.kind === "life_trigger") return null;
       const kind = typeof e.kind === "string" ? e.kind.replace(/_/g, " ") : "ability";
       return line("routine", false, `${seatLabel(e.seat, youSeat)} may resolve `, card(e.cardDefId, e.seat, "a hidden card"), `'s ${kind}`);
     }
     case "pending_choice_resolved": {
       if (e.kind === "order_effects") return null;
-      if (e.kind === "life_trigger") return null; // trigger_resolved narrates the outcome (#352)
+      if (e.kind === "life_trigger") return null;
       if (e.kind === "effect") {
-        // Picks/looks are implied by the lines that follow; only a skip is news.
         if (e.accepted) return null;
         return line("routine", false, `${act(e.seat, youSeat, "decline", "declines")} `, card(e.cardDefId, e.seat, "a hidden card"), "'s effect");
       }
@@ -513,7 +460,6 @@ function narrateMove(e: LooseEvent, ctx: Ctx, prev: LooseEvent | undefined): Lin
   return line("routine", false, `${act(e.seat, youSeat, "move", "moves")} `, c, ` from ${fromLabel} to ${toLabel}`);
 }
 
-/** Group flat entries into turn sections (ascending turn number). */
 export function groupBattleLogByTurn(
   entries: readonly BattleLogEntry[],
 ): { turn: number; lines: BattleLogEntry[] }[] {
@@ -528,13 +474,7 @@ export function groupBattleLogByTurn(
     .map(([turn, lines]) => ({ turn, lines }));
 }
 
-/**
- * Battle log after an accepted undo: what the rewound action(s) did no longer
- * happened, so those lines go (replayed ones would otherwise merge into them)
- * and a marker names the action taken back. Lines carry the room's intent
- * count (`step`): the ones past `toStep` go. Lines without a step (older
- * servers) fall back to dropping turns after `toTurn`.
- */
+// Replayed lines would otherwise merge into the rewound ones. Lines without a step (older servers) fall back to dropping turns after `toTurn`.
 export function rewindBattleLog(
   entries: readonly BattleLogEntry[],
   toTurn: number,

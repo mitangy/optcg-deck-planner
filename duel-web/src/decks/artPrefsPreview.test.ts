@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from "vitest";
-// Every card currently has official art, so the card preview list can be empty: use a fixed one (#1299).
 vi.mock("../../../packages/ui/src/cardArt/previewArt.json", () => ({ default: ["OP18-003", "OP18-031"] }));
 
 
@@ -28,7 +27,6 @@ describe("resolveCardImageUrl preview art", () => {
     expect(resolveCardImageUrl("OP01-016", null)).toBe(
       "https://tcgplayer-cdn.tcgplayer.com/product/1_400w.jpg",
     );
-    // OP18-031 has a preview file too, but its real art stays the primary.
     expect(resolveCardImageUrl("OP18-031", null)).toBe(
       "https://tcgplayer-cdn.tcgplayer.com/product/1_400w.jpg",
     );

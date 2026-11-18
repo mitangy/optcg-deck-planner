@@ -94,17 +94,14 @@ describe("protocol parsers", () => {
     expect(() => assertNoOpponentHand(view)).toThrow(/private choice/i);
     view.pendingChoices = [{ ...look, request: { ...look.request, options: [{ id: "o0", defId: "HIDDEN", eligible: false }] } }];
     expect(() => assertNoOpponentHand(view)).not.toThrow();
-    // Public field targets (they carry an instanceId) may be visible even in the other player's private choice.
     view.pendingChoices = [{ ...look, request: { type: "select", min: 0, max: 1, options: [{ id: "o0", defId: "OP09-086", zone: "character", instanceId: "c1", eligible: true }] } }];
     expect(() => assertNoOpponentHand(view)).not.toThrow();
-    // The choosing player sees their own private options.
     view.pendingChoices = [{ ...look, seat: 0, privateToSeat: 0 as unknown as 1 }];
     expect(() => assertNoOpponentHand(view)).not.toThrow();
   });
 
   it("lets spectators see a public choice's trash options but not a private choice's (#494)", () => {
     const base = sampleView();
-    // Seat 0 on purpose: a spectator whose seat equals privateToSeat must still be treated as hidden.
     const view = { ...base, seat: 0 as const, spectator: true, you: { ...base.you, hand: [], handCount: 5 } } as unknown as PlayerView;
     const publicSelect = {
       id: "sel_1",
@@ -240,11 +237,9 @@ describe("welcome brief ticket (#401)", () => {
     expect(ok.ranked).toBe(false);
     expect(ok.brief).toEqual(ticket);
 
-    // An older server says nothing about ranked.
     expect(parseWelcome({ ...base, view: sampleView() }).ranked).toBeUndefined();
     expect(parseWelcome({ ...base, view: sampleView(), ranked: "no" }).ranked).toBeUndefined();
 
-    // Every part must be the right shape.
     for (const bad of [
       { ...ticket, ticket: 5 },
       { ...ticket, leaderId: undefined },
@@ -256,7 +251,6 @@ describe("welcome brief ticket (#401)", () => {
       expect(parseWelcome({ ...base, view: sampleView(), ranked: false, brief: bad }).brief, JSON.stringify(bad)).toBeUndefined();
     }
 
-    // A spectator never gets one, even if a server sent it.
     const spec = sampleView();
     const specView = { ...spec, spectator: true, you: { ...spec.you, hand: [], handCount: 5 } } as unknown as PlayerView;
     const watched = parseWelcome({ ...base, role: "spectator", view: specView, ranked: false, brief: ticket });

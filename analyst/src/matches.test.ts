@@ -17,7 +17,6 @@ import { describe, expect, it } from "vitest";
 import { groupTurns } from "./sources";
 import { draftLesson, matchupStats, myLessons, narrateGame, narrateReplay, reviewMatch, tokenIsValid, tournamentStats } from "./matches";
 
-/** Play legal moves until a Life card is taken as damage. */
 function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, { type: "life_taken" }> } {
   const players: MatchReplay["players"] = [
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
@@ -52,7 +51,6 @@ function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, {
 
 const { replay, taken } = gameWithLifeTaken();
 
-/** A game with the mulligan step played, as duel-web records it: each seat's choice, then seat 0 and seat 1 end a turn each. */
 function gameWithMulligans(seed: number, redraw: [boolean, boolean]) {
   const players: MatchReplay["players"] = [
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
@@ -79,7 +77,6 @@ function gameWithMulligans(seed: number, redraw: [boolean, boolean]) {
 }
 const lifeCard = getCardDef(taken.defId).name;
 
-/** Play legal moves, taking the first legal intent of the earliest type in `prefer`, for a fixed number of steps. */
 function scriptedGame(prefer: string[], steps: number, decks: [string[], string[]] = [buildTestDeck(20), buildTestDeck(20)]): MatchReplay {
   const players: MatchReplay["players"] = [
     { leaderId: DEFAULT_LEADER_ID, deck: decks[0] },
@@ -99,9 +96,7 @@ function scriptedGame(prefer: string[], steps: number, decks: [string[], string[
   }
   return { schema: MATCH_REPLAY_SCHEMA, rulesVersion: "t", registryHash: "t", seed, firstSeat: 0, skipMulligans: true, lifeCheckEveryHit: true, privateChoicesV2: true, players, intents, end: { winner: 1, reason: "concede" } };
 }
-/** Characters are played and the leader attacks: a rested Leader and Characters show up. */
 const playingGame = scriptedGame(["play_card", "give_don", "declare_attack"], 25);
-/** Every DON!! goes onto the Leader, so attached DON!! shows up. */
 const donGame = scriptedGame(["give_don", "play_card"], 12);
 
 describe("match review", () => {
@@ -121,7 +116,6 @@ describe("match review", () => {
     expect(narrateReplay(replay, 1).wentFirst).toBe(false);
     expect(narrateReplay(replay, 0).log[0]).toBe("--- Turn 1 (your turn) ---");
     expect(narrateReplay(replay, 1).log[0]).toBe("--- Turn 1 (opponent's turn) ---");
-    // Each player sees their own opening hand, and the two differ.
     const hands = [narrateReplay(replay, 0).yourOpeningHand, narrateReplay(replay, 1).yourOpeningHand];
     expect(hands[0]).toHaveLength(5);
     expect(hands[0]).not.toEqual(hands[1]);
@@ -145,7 +139,6 @@ describe("match review", () => {
     expect(review.finalState.turn).toBe(3);
     const headers = review.log.filter((l) => l.startsWith("---"));
     expect(headers).toEqual(["--- Turn 1 (your turn) ---", "--- Turn 2 (opponent's turn) ---", "--- Turn 3 (your turn) ---"]);
-    // Seat 0's first turn (no draw, one DON!!) is read under Turn 1, including with fromTurn/toTurn.
     const turn1 = narrateReplay(played, 0, { fromTurn: 1, toTurn: 1 }).log;
     expect(turn1[0]).toBe("--- Turn 1 (your turn) ---");
     expect(turn1.length).toBeGreaterThan(1);
@@ -188,7 +181,6 @@ describe("match review", () => {
     expect(handLines.every((l) => l.startsWith("Your hand after the draw: "))).toBe(true);
     expect(review.log.join("\n")).not.toContain("Opponent's hand");
     expect(review).not.toHaveProperty("opponentOpeningHand");
-    // The first player skips the draw, so turn 1 shows the hand kept after the mulligan.
     expect(review.log.find((l) => l.startsWith("Your hand after the draw: "))!.replace(/ \(counter \d+\)/g, "")).toBe(`Your hand after the draw: ${kept[0]!.join(", ")}.`);
     expect(narrateReplay(replay, 0).opponentOpeningHand).toEqual(narrateReplay(replay, 1).yourOpeningHand);
     expect(narrateReplay(replay, 0).opponentOpeningHand).not.toEqual(narrateReplay(replay, 0).yourOpeningHand);
@@ -207,19 +199,15 @@ describe("match review", () => {
 
   it("lists both boards each turn with power, rested cards, Life, deck, DON!! and trash, opponent's board included (#472)", () => {
     const turn4 = groupTurns(narrateReplay(playingGame, 0).log).find((g) => g.turn === 4)!.lines;
-    // Seat 0 attacked on turn 3: its Leader and Karoo are still rested, Nico Robin (just played) is not; the opponent's board is different.
     expect(turn4).toContain("Your board: Leader Monkey.D.Luffy 5000 rested; Characters: Karoo 3000 rested, Nico Robin 5000; Stage: none. Life 5, deck 9, DON!! 0 active / 3 rested / 7 in DON!! deck, trash 0.");
     expect(turn4).toContain("Opponent's board: Leader Monkey.D.Luffy 5000; Characters: Karoo 3000, Tony Tony.Chopper 1000; Stage: none. Life 4, deck 8, DON!! 4 active / 0 rested / 6 in DON!! deck, trash 0.");
-    // The other seat reads the same boards the other way round.
     const flipped = groupTurns(narrateReplay(playingGame, 1).log).find((g) => g.turn === 4)!.lines;
     expect(flipped).toContain("Opponent's board: Leader Monkey.D.Luffy 5000 rested; Characters: Karoo 3000 rested, Nico Robin 5000; Stage: none. Life 5, deck 9, DON!! 0 active / 3 rested / 7 in DON!! deck, trash 0.");
-    // Turn 1 is the opening state (no mulligan step).
     expect(narrateReplay(playingGame, 0).log[3]).toBe("Your board: Leader Monkey.D.Luffy 5000; Characters: none; Stage: none. Life 5, deck 10, DON!! 1 active / 0 rested / 9 in DON!! deck, trash 0.");
   });
 
   it("counts DON!! attached to a Leader on its board line (#472)", () => {
     const lines = (seat: Seat, turn: number) => groupTurns(narrateReplay(donGame, seat).log).find((g) => g.turn === turn)!.lines;
-    // Turn 2: seat 0's DON!! is still on its Leader (power stays 5000 on the opponent's turn); the opponent has none yet.
     expect(lines(0, 2)).toContain("Your board: Leader Monkey.D.Luffy 5000 +1 DON!!; Characters: none; Stage: none. Life 5, deck 10, DON!! 0 active / 0 rested / 9 in DON!! deck, trash 0.");
     expect(lines(0, 2).find((l) => l.startsWith("Opponent's board"))).not.toContain("+");
     expect(lines(0, 3).find((l) => l.startsWith("Opponent's board"))).toContain("Leader Monkey.D.Luffy 5000 +2 DON!!;");
@@ -239,16 +227,13 @@ describe("match review", () => {
 
   it("writes a card's counter value after its name in the hand, for both hands and in a corpus game (#472)", () => {
     const turn1 = groupTurns(narrateReplay(playingGame, 0).log)[0]!.lines;
-    // Karoo and Nico Robin have +1000, Chopper none; the opponent holds Edward.Newgate (+2000).
     expect(turn1[0]).toBe("Your hand after the draw: Karoo (counter 1000), Nico Robin (counter 1000), Tony Tony.Chopper, Tony Tony.Chopper, Tony Tony.Chopper.");
     expect(turn1[1]).toContain("Edward.Newgate (counter 2000), Karoo (counter 1000)");
     expect(groupTurns(narrateGame(playingGame).log)[0]!.lines[0]).toContain("Karoo (counter 1000), Nico Robin (counter 1000), Tony Tony.Chopper,");
-    // Opening hands stay plain names.
     expect(narrateReplay(playingGame, 0).yourOpeningHand).toContain("Karoo");
   });
 
   it("lists your deck always and the opponent's deck only once the game is over (#472)", () => {
-    // Different decks: 4 each of ST01-003 and ST01-006 against the 20-card list.
     const decks = scriptedGame([], 0, [buildTestDeck(20), buildTestDeck(8)]);
     const over = narrateReplay(decks, 0);
     expect(over.yourDeck.reduce((n, d) => n + d.copies, 0)).toBe(20);

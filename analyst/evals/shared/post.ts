@@ -13,15 +13,12 @@ export const EVAL_SUITES = ["main", "review_facts", "puzzles", "deck_advice"] as
 export type EvalSuite = (typeof EVAL_SUITES)[number];
 
 export type EvalRunPost = {
-  /** Which eval this is. Omitted means the main Log Pose eval. */
   suite?: EvalSuite;
   run_at?: string;
   label?: string;
   model?: string;
-  /** A score: correct out of total (cases, or any count). Leave both out for a run that only has a metric. */
   correct?: number;
   total?: number;
-  /** The headline when a suite is not a score, e.g. "Wrong claims per review" 0.85 with lower_is_better. */
   metric_name?: string;
   metric_value?: number;
   lower_is_better?: boolean;

@@ -1,4 +1,3 @@
-"""Shopping list: what to buy for the selected decks, given owned and wanted copies."""
 
 from __future__ import annotations
 
@@ -42,11 +41,6 @@ def allocate_still_need_buys(
     standard_product_id: int | None,
     standard_price: float | None,
 ) -> list[tuple[int | None, int, float | None]]:
-    """Allocate still_need copies: alt wants first (in list order), then standard.
-
-    Each alt entry is (product_id, wanted_qty, market_price).
-    Returns list of (product_id|None, qty, unit_price).
-    """
     if still_need <= 0:
         return []
     remaining = still_need
@@ -64,7 +58,6 @@ def allocate_still_need_buys(
 
 
 def remaining_cost_for_buys(buys: list[tuple[int | None, int, float | None]]) -> float | None:
-    """Sum qty * unit_price; None if any buy line is missing a price."""
     if not buys:
         return 0.0
     total = 0.0
@@ -76,7 +69,6 @@ def remaining_cost_for_buys(buys: list[tuple[int | None, int, float | None]]) ->
 
 
 def _selected_decks(db: Session, user: User, deck_ids: list[int] | None) -> list[Deck]:
-    """The user's decks in sort order, narrowed to ``deck_ids`` when given."""
     decks = db.scalars(
         select(Deck)
         .where(Deck.user_id == user.id)
@@ -92,8 +84,6 @@ def _selected_decks(db: Session, user: User, deck_ids: list[int] | None) -> list
 def _deck_need(
     decks: list[Deck], sum_leaders: bool
 ) -> tuple[dict[str, dict[str, int]], dict[str, list[str]], dict[str, list[int]], dict[str, int]]:
-    """Per card: need by leader group, decks using it, deck indexes using it, and the combined need."""
-    # Max per (card, leader group); Need is the max or sum of those groups.
     need_by_group: dict[str, dict[str, int]] = defaultdict(dict)
     used_in: dict[str, list[str]] = defaultdict(list)
     card_deck_indexes: dict[str, list[int]] = defaultdict(list)
@@ -101,7 +91,6 @@ def _deck_need(
         group = _leader_group_id(deck)
         seen_in_deck: set[str] = set()
         for card in deck.cards:
-            # Max within a leader — sharing a playset covers every list that uses it.
             by_group = need_by_group[card.card_id]
             by_group[group] = max(by_group.get(group, 0), card.needed)
             if deck.name not in used_in[card.card_id]:
@@ -117,7 +106,6 @@ def _deck_need(
 
 
 def _leader_group_order(decks: list[Deck]) -> tuple[dict[str, int], dict[str, list[int]]]:
-    """Leader group order = earliest selected deck for that leader, plus each group's deck indexes."""
     leader_group_rank: dict[str, int] = {}
     leader_deck_indexes: dict[str, list[int]] = defaultdict(list)
     for deck_idx, deck in enumerate(decks):
@@ -147,8 +135,6 @@ def _merged_alt_wants(
     need: dict[str, int],
     sum_leaders: bool,
 ) -> dict[str, dict[int, int]]:
-    # Max alt-want per product within each leader, combined across leaders the
-    # same way as Need (max, or sum), then clamp sum to shopping need.
     wants_by_deck = _printing_wants_for_decks(db, [d.id for d in decks])
     group_wants: dict[str, dict[int, dict[str, int]]] = defaultdict(lambda: defaultdict(dict))
     for deck in decks:
@@ -188,12 +174,10 @@ def _deck_sort_context(
     leader_deck_indexes: dict[str, list[int]],
     catalog: dict[str, CatalogCard],
 ) -> tuple[str, str | None, str | None, int]:
-    """Where a card sorts (``deck_sort_key``), its primary leader card id and name, and its leader count."""
     primary_idx = indexes[0] if indexes else 9999
     primary_deck = decks[primary_idx] if indexes else None
     primary_group = _leader_group_id(primary_deck) if primary_deck else "__none"
     group_rank = leader_group_rank.get(primary_group, 9999)
-    # Within a leader: cards from the first same-leader deck, then later additions.
     within_rank = 9999
     for wi, deck_idx in enumerate(leader_deck_indexes.get(primary_group, [])):
         if deck_idx in indexes:
@@ -201,7 +185,6 @@ def _deck_sort_context(
             break
     deck_sort_key = f"{group_rank:04d}-{within_rank:04d}-{primary_idx:04d}"
     if not indexes:
-        # Added directly: after every deck card.
         deck_sort_key = "9999-9999-9999"
 
     card_leader_ids = {
@@ -263,8 +246,6 @@ def shopping_list(
             need[card_id] = max(need.get(card_id, 0), qty)
     collector = _collector_map(db, user.id) if include_collector else {}
     if show_collector:
-        # Extra copies show whatever the deck filter or "Added directly" says (#1208): a card
-        # with only a collector want still needs a parent row (need 0).
         for card_id in collector:
             need.setdefault(card_id, 0)
     leader_group_rank, leader_deck_indexes = _leader_group_order(decks)
@@ -307,10 +288,6 @@ def shopping_list(
         cat = catalog.get(card_id)
         market = cat.market_price if cat else None
         card_alts = alts.get(card_id, [])
-        # Alt arts the user picked to buy (#906) are priced at their own market
-        # price, in list order; whatever is left of still_need is the standard art.
-        # still_need already drops the alt copies the user owns, so those come off
-        # the pick too (#908): an owned picked copy is not bought, nor priced, again.
         buys = allocate_still_need_buys(
             still,
             deck_alt_buy_inputs(card_alts, deck_alt_owned.get(card_id, {})),
@@ -404,10 +381,6 @@ def shopping_list(
 
 
 def set_shopping_extra(db: Session, user: User, card_id: str, qty: int) -> int:
-    """Set the target copies to own for a card added directly to Master Shopping.
-
-    qty 0 removes it. Unknown card ids are rejected so typos leave no junk rows.
-    """
     card_id = card_id.upper().strip()
     row = db.scalar(
         select(ShoppingExtra).where(
@@ -432,7 +405,6 @@ def set_shopping_extra(db: Session, user: User, card_id: str, qty: int) -> int:
         db.add(ShoppingExtra(user_id=user.id, card_id=card_id, qty=qty))
     else:
         row.qty = qty
-    # Trim saved alt picks to the new Want, like a deck does when Need drops.
     picks = db.scalars(
         select(ShoppingExtraPrinting).where(
             ShoppingExtraPrinting.user_id == user.id,

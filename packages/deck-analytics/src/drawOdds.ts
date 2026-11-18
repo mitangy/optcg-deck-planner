@@ -1,13 +1,8 @@
-/**
- * Draw and searcher odds (pure, no React). Hypergeometric maths plus the OPTCG turn
- * model; card data comes from the same atlas as `deckStats.ts`.
- */
 import { normalizeCardId } from "@optcg/card-core";
 import { OPENING_HAND, type DeckStatsCard, type StatsAtlas, type StatsAtlasCard } from "./deckStats";
 
 export const ODDS_TURNS = 6;
 
-/** Largest deck the odds maths will build its table for (a real deck is 50). */
 export const MAX_ODDS_DECK = 1000;
 
 const logFactCache: number[] = [0, 0];
@@ -18,14 +13,12 @@ function logFact(n: number): number {
   return logFactCache[n]!;
 }
 
-/** P(exactly j hits) drawing n of N cards when K are hits. Zero outside the support. */
 export function hypergeomPmf(N: number, K: number, n: number, j: number): number {
   if (j < 0 || j > K || j > n || n - j > N - K || n > N) return 0;
   const logC = (a: number, b: number) => logFact(a) - logFact(b) - logFact(a - b);
   return Math.exp(logC(K, j) + logC(N - K, n - j) - logC(N, n));
 }
 
-/** P(at least k hits) drawing n of N cards when K are hits. */
 export function hypergeomAtLeast(N: number, K: number, n: number, k: number): number {
   if (k <= 0) return 1;
   const draws = Math.min(n, N);
@@ -34,26 +27,12 @@ export function hypergeomAtLeast(N: number, K: number, n: number, k: number): nu
   return Math.min(1, Math.max(0, 1 - below));
 }
 
-/**
- * Cards seen by the start of your turn t (after its draw step). Both players draw an
- * opening hand of 5; the player going first skips the draw on turn 1.
- * First: 5 + (t - 1). Second: 5 + t. Life cards are unseen random cards, so they do not matter.
- */
+// Both players open with 5 cards and the player going first skips the draw on turn 1. Life cards are unseen random cards, so they do not matter.
 export function cardsSeen(turn: number, goingFirst: boolean): number {
   return OPENING_HAND + (goingFirst ? turn - 1 : turn);
 }
 
-/**
- * P(at least k hits in `seen` cards) with one optional full-redraw mulligan taken only when
- * the opening 5 has no hit.
- *
- *   P = sum_{j>=1} P(open has j hits) * P(>= k-j hits in the other seen-5 cards from N-5 with K-j hits)
- *     + P(open has 0 hits) * P(>= k hits in `seen` cards of a freshly shuffled deck)
- *
- * The redrawn hand is a fresh 5 and later draws come from the same reshuffled deck, so the
- * mulligan branch equals the plain odds for `seen` cards. For k = 1 this reduces to
- * p5 + (1 - p5) * p(seen).
- */
+// The redrawn hand is a fresh 5 and later draws come from the same reshuffled deck, so the mulligan branch equals the plain odds for `seen` cards.
 export function atLeastWithMulligan(N: number, K: number, seen: number, k: number): number {
   const open = Math.min(OPENING_HAND, N);
   const total = Math.min(seen, N);
@@ -67,17 +46,12 @@ export function atLeastWithMulligan(N: number, K: number, seen: number, k: numbe
 
 export type OddsOptions = { deckSize: number; hits: number; atLeast: number; goingFirst: boolean; mulligan: boolean; turns?: number };
 
-/** One probability per turn, turn 1 first. */
 export function oddsByTurn(o: OddsOptions): number[] {
   return Array.from({ length: o.turns ?? ODDS_TURNS }, (_, i) => {
     const seen = cardsSeen(i + 1, o.goingFirst);
     return o.mulligan ? atLeastWithMulligan(o.deckSize, o.hits, seen, o.atLeast) : hypergeomAtLeast(o.deckSize, o.hits, seen, o.atLeast);
   });
 }
-
-// ---------------------------------------------------------------------------
-// Hit groups (what counts as a "hit")
-// ---------------------------------------------------------------------------
 
 export type HitGroup =
   | { kind: "card"; id: string }
@@ -100,7 +74,6 @@ export function groupMatches(group: HitGroup, id: string, card: StatsAtlasCard):
 
 export type DeckEntry = { id: string; copies: number; card: StatsAtlasCard };
 
-/** Distinct non-leader deck cards known to the atlas, merged by normalized id. */
 export function deckEntries(cards: readonly DeckStatsCard[], atlas: StatsAtlas): DeckEntry[] {
   const copies = new Map<string, number>();
   for (const c of cards) {
@@ -122,16 +95,12 @@ export function countHits(entries: readonly DeckEntry[], group: HitGroup): numbe
   return entries.reduce((s, e) => s + (groupMatches(group, e.id, e.card) ? e.copies : 0), 0);
 }
 
-/** Highest-copy card, ties broken by id so the default is stable. */
+// Ties broken by id so the default is stable.
 export function defaultHitCardId(entries: readonly DeckEntry[]): string | null {
   let best: DeckEntry | null = null;
   for (const e of entries) if (!best || e.copies > best.copies || (e.copies === best.copies && e.id < best.id)) best = e;
   return best?.id ?? null;
 }
-
-// ---------------------------------------------------------------------------
-// Searchers
-// ---------------------------------------------------------------------------
 
 const cmpOk = (c: unknown, v: number | undefined): boolean | null => {
   if (!c || typeof c !== "object") return null;
@@ -151,11 +120,7 @@ const cmpOk = (c: unknown, v: number | undefined): boolean | null => {
 
 const strings = (v: unknown): string[] | null => (Array.isArray(v) && v.every((x) => typeof x === "string") ? (v as string[]) : null);
 
-/**
- * Does `card` satisfy the ability-DSL filter? Mirrors `filterMatches` in packages/rules for
- * the keys present in the atlas. Returns null when the filter uses a key (or a value shape)
- * that cannot be evaluated from the atlas, so callers can say "can't estimate".
- */
+// Null when the filter uses a key (or value shape) the atlas cannot evaluate, so callers can say "can't estimate".
 export function matchesFilter(card: StatsAtlasCard, filter: Record<string, unknown>): boolean | null {
   const names = [card.n, ...(card.al ?? [])].filter((n): n is string => typeof n === "string");
   let matched = true;
@@ -191,10 +156,6 @@ export function matchesFilter(card: StatsAtlasCard, filter: Record<string, unkno
   return matched;
 }
 
-/**
- * Label that tells same-named cards apart: `Nami · Cost 1 · OP01-016 (4x)`.
- * Cost is omitted when the atlas has none (leaders); copies only when given.
- */
 export function cardLabel(id: string, card: StatsAtlasCard, copies?: number): string {
   const parts = [card.n ?? id];
   if (typeof card.cost === "number") parts.push(`Cost ${card.cost}`);
@@ -205,15 +166,12 @@ export function cardLabel(id: string, card: StatsAtlasCard, copies?: number): st
 export type SearcherRow = {
   id: string;
   name: string;
-  /** Printed cost, when the atlas has one. */
   cost?: number;
   look: number;
-  /** Matching cards left in the deck (the searcher itself never counts). Null when the filter can't be evaluated. */
   hits: number | null;
   chance: number | null;
 };
 
-/** One row per search effect on each distinct searcher in the deck, lowest chance first. */
 export function searcherOdds(entries: readonly DeckEntry[]): SearcherRow[] {
   const total = deckSizeOf(entries);
   const rows: SearcherRow[] = [];

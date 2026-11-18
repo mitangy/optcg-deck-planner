@@ -1,4 +1,3 @@
-"""Log Pose personal connector: tokens and the analyst's reads for one player (#244)."""
 
 from __future__ import annotations
 
@@ -28,7 +27,6 @@ def _me_and_token(c) -> tuple[dict, str]:
 
 
 def test_a_new_link_replaces_the_old_one_and_revoking_ends_it(analyst):
-    """Making a link stores only its hash, a new link kills the old one, and revoking ends it (#244)."""
     c, SessionLocal = analyst
     me, first = _me_and_token(c)
     assert c.post("/analyst/token").json()["connector_url"].startswith("https://analyst.example/mcp/u/")
@@ -53,7 +51,6 @@ def test_a_new_link_replaces_the_old_one_and_revoking_ends_it(analyst):
 
 
 def test_the_analyst_lists_only_the_link_owners_games(analyst):
-    """A personal link reads its owner's match history and nobody else's (#244)."""
     c, _ = analyst
     a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
     b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
@@ -67,7 +64,6 @@ def test_the_analyst_lists_only_the_link_owners_games(analyst):
 
 
 def test_full_replays_need_the_service_secret_and_a_seat_in_the_game(analyst):
-    """Only the analyst service reads a replay, and only for a game the link owner played (#244)."""
     c, _ = analyst
     me, token = _me_and_token(c)
     a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
@@ -86,7 +82,6 @@ def test_full_replays_need_the_service_secret_and_a_seat_in_the_game(analyst):
 
 
 def test_replays_stay_closed_without_a_service_secret(client, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
-    """With no ANALYST_SERVICE_SECRET set, no header opens a replay (#244)."""
     c, _ = client
     monkeypatch.setenv("ANALYST_SERVICE_SECRET", "")
     get_settings.cache_clear()
@@ -98,7 +93,6 @@ def test_replays_stay_closed_without_a_service_secret(client, monkeypatch: pytes
 
 
 def test_the_analyst_reads_the_link_owners_planner_decks(analyst):
-    """Decks come from the link owner's planner, without cards they need zero of (#244)."""
     c, SessionLocal = analyst
     me, token = _me_and_token(c)
     db = SessionLocal()

@@ -1,6 +1,3 @@
-/**
- * Static ability layer: which continuous abilities are active, what they apply to, and the per-state query cache.
- */
 import { abilitiesFor } from "../cards/abilities.js";
 import type { Ability, Cond, Static } from "../effects/types.js";
 import type { CardInstance, InstanceId, MatchState, Modifier, Seat } from "../types.js";
@@ -9,10 +6,6 @@ import { ctxFor } from "./evalCtx.js";
 import { selectorMatches } from "./selectors.js";
 import { evalCond } from "./evaluate.js";
 
-// ---------------------------------------------------------------------------
-// Static ability layer
-// ---------------------------------------------------------------------------
-
 export interface StaticEntry {
   seat: Seat;
   card: CardInstance;
@@ -20,28 +13,18 @@ export interface StaticEntry {
   ability: Ability;
 }
 
-// Call-scoped module state (query cache below, and the static / negate / cost re-entrancy guards): all of
-// it is entered and left inside one synchronous call (`try`/`finally`), so it never outlives a call and
-// never crosses an `await`. The guards are recursion breakers that must also hold for uncached calls and
-// across nested queries, so a per-call context would have to be threaded through every query function;
-// they stay module-level (see the synchronous-only invariant documented in `engine.ts`).
+// The guards are recursion breakers that must also hold for uncached calls and across nested queries, so they stay
+// module-level instead of threading a per-call context through every query function.
 let staticGuard = 0;
 
-/** True while the general static pass is resolving (cost lookups then use the cost-only pass). */
 export function staticPassActive(): boolean {
   return staticGuard > 0;
 }
 
-// ---------------------------------------------------------------------------
-// Per-state query cache
-// ---------------------------------------------------------------------------
-
 /**
- * Memo of static-ability results for one state object, active only inside
- * `withQueryCache`. Queries are otherwise recomputed from scratch because the
- * engine mutates its working state while resolving an intent. Static results
- * depend on the re-entrancy guards (nested queries see fewer statics), so only
- * top-level queries, made with no guard raised, read or fill those entries.
+ * Queries are otherwise recomputed from scratch because the engine mutates its working state while resolving an
+ * intent. Static results depend on the re-entrancy guards, so only top-level queries, made with no guard raised, read
+ * or fill these entries.
  */
 interface QueryCache {
   state: MatchState;
@@ -55,16 +38,10 @@ interface QueryCache {
 let queryCache: QueryCache | null = null;
 let queryCacheEnabled = true;
 
-/** Turns `withQueryCache` into a plain call (for equivalence tests and the benchmark baseline). */
 export function setQueryCacheEnabled(enabled: boolean): void {
   queryCacheEnabled = enabled;
 }
 
-/**
- * Runs `fn` with derived static-ability results memoized for `state`. The state
- * must not be mutated while `fn` runs; read-only work such as building views
- * and listing legal intents qualifies. The cache is dropped when `fn` returns.
- */
 export function withQueryCache<T>(state: MatchState, fn: () => T): T {
   if (!queryCacheEnabled || queryCache?.state === state) return fn();
   const outer = queryCache;
@@ -80,12 +57,10 @@ function cacheOf(state: MatchState): QueryCache | null {
   return queryCache !== null && queryCache.state === state ? queryCache : null;
 }
 
-/** The cache for static-ability results: only queries made with no re-entrancy guard raised use it. */
 function topLevelCacheOf(state: MatchState): QueryCache | null {
   return staticGuard === 0 && negateGuard === 0 && costGuard === 0 ? cacheOf(state) : null;
 }
 
-/** `locate` memoized while a query cache is active. Callers must not mutate the result. */
 export function locateCard(state: MatchState, id: InstanceId): Located | null {
   const cache = cacheOf(state);
   if (!cache) return locate(state, id);
@@ -94,7 +69,7 @@ export function locateCard(state: MatchState, id: InstanceId): Located | null {
   return hit;
 }
 
-// Static abilities per card definition. The ability registry is frozen, so these never go stale.
+// The ability registry is frozen, so these never go stale.
 const staticAbilityCache = new Map<string, { field: readonly Ability[]; hand: readonly Ability[]; negate: readonly Ability[]; cost: readonly Ability[] }>();
 function staticAbilitiesOf(defId: string) {
   let hit = staticAbilityCache.get(defId);

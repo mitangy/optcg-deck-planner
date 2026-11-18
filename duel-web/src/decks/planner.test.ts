@@ -111,7 +111,6 @@ describe("saveDeck planner link", () => {
 });
 
 describe("refreshLinkedDeck", () => {
-  // OP09-118: p1 = product 597065, p2 = 597066.
   const alts = [{ product_id: 597065 }, { product_id: 597066 }];
   const planner = (display_art: number) =>
     detail({
@@ -219,7 +218,6 @@ describe("applyPlannerDeepLink", () => {
 });
 
 describe("alt arts picked in the planner (#1003)", () => {
-  // OP09-118: p1 = product 597065, p2 = 597066. OP09-093: p1 = 597035, p2 = 597036.
   const alts118 = [
     { product_id: 597065, owned: 1 },
     { product_id: 597066, owned: 3 },
@@ -280,8 +278,8 @@ describe("alt arts picked in the planner (#1003)", () => {
       ]));
     pull(597065);
     expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP09-118": "p1", "OP09-093": "p2" });
-    setDeckArtPref("planner-7", "OP09-118", "p2"); // changed in duel
-    setDeckArtPref("planner-7", "OP09-093", null); // back to base in duel
+    setDeckArtPref("planner-7", "OP09-118", "p2");
+    setDeckArtPref("planner-7", "OP09-093", null);
     pull(597065);
     pull(597065);
     expect(getSavedDeck("planner-7")?.artPrefs).toEqual({ "OP09-118": "p2" });
@@ -315,7 +313,6 @@ describe("alt arts picked in the planner (#1003)", () => {
 });
 
 describe("Duel alt arts shown in the planner (#1017)", () => {
-  // OP09-118: p2 = product 597066. OP09-093 has alts too but this deck leaves it on base art.
   const mk = () =>
     saveDeck({
       id: "linked",

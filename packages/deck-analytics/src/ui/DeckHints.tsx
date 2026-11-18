@@ -11,7 +11,6 @@ export type HintsState = {
   dismissed: DeckHint[];
   dismiss: (id: string) => void;
   restore: (id: string) => void;
-  /** Set by the app when it can answer "Why?" (Log Pose is on here): adds the button to a hint's popover. */
   onAsk?: (hint: DeckHint) => void;
 };
 
@@ -26,7 +25,6 @@ function readDismissed(deckId: number | string): string[] {
   }
 }
 
-/** Hints for one deck plus per-deck dismissals (kept in localStorage when it is available). */
 export function useDeckHints(deckId: number | string, cards: DeckStatsCard[], leaderId: string | null, finished: boolean): HintsState {
   const { data: atlas, isLoading } = useStatsAtlas();
   const [dismissedIds, setDismissedIds] = useState<string[]>(() => readDismissed(deckId));
@@ -58,7 +56,6 @@ export function useDeckHints(deckId: number | string, cards: DeckStatsCard[], le
 const POP_WIDTH = 320;
 const MAX_LISTED = 12;
 
-/** One chip and its popover: a Headless UI Popover, floating under the chip so opening it never moves the tray. */
 function HintChip({ hint: h, dismissed, hints }: { hint: DeckHint; dismissed: boolean; hints: HintsState }) {
   const listed = h.cardIds ?? [];
   return (
@@ -180,7 +177,6 @@ export function DeckHintsTray({ hints }: { hints: HintsState }) {
   );
 }
 
-/** The popover's action row: "Why? Ask Log Pose" (only when the app can answer it), then Dismiss or Restore. */
 export function HintActions({ dismissed, onDismiss, onRestore, onAsk }: { dismissed: boolean; onDismiss: () => void; onRestore: () => void; onAsk?: () => void }) {
   return (
     <div className="dh-pop-actions">

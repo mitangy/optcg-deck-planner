@@ -1,28 +1,15 @@
-/**
- * Click-through tests: the real duel-web UI against a real local game server.
- *
- *   npm run e2e                 # starts both servers, runs every spec
- *   npm run e2e -- --project=phone-375
- *
- * The FastAPI backend is faked per test (see e2e/fixtures.ts), so no Python,
- * Postgres or network access is needed.
- */
 import { defineConfig } from "@playwright/test";
 
 const GAME_TOKEN_SECRET = "e2e-secret";
-// Ports are overridable so two checkouts (git worktrees) can run e2e side by side.
 const WEB_PORT = process.env.E2E_WEB_PORT ?? "5174";
 const GAME_PORT = process.env.E2E_GAME_PORT ?? "2567";
-// Specs read these (workers inherit the env the config sets).
 process.env.E2E_PAGE_ORIGIN ??= `http://127.0.0.1:${WEB_PORT}`;
 process.env.E2E_GAME_SERVER ??= `http://127.0.0.1:${GAME_PORT}`;
 
 export default defineConfig({
   testDir: "e2e",
   timeout: 180_000,
-  // One game server; matches are independent rooms, so specs can still run in parallel.
   workers: process.env.CI ? 2 : undefined,
-  // The JSON report lives outside test-results/ (Playwright wipes that at start); it feeds scripts/e2e-shards.mjs --update.
   reporter: process.env.CI
     ? [["list"], ["html", { open: "never" }], ["json", { outputFile: "playwright-report-json/results.json" }]]
     : "list",
@@ -42,7 +29,6 @@ export default defineConfig({
       cwd: "../game-server",
       url: `http://127.0.0.1:${GAME_PORT}/health`,
       env: { GAME_TOKEN_SECRET, PORT: GAME_PORT, LOG_LEVEL: "error", CORS_ORIGINS: `http://127.0.0.1:${WEB_PORT},http://localhost:${WEB_PORT}` },
-      // It retries presence pushes to the (absent) API forever; failures show in the UI anyway.
       stderr: "ignore",
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,

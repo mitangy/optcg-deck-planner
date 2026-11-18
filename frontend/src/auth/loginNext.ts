@@ -1,4 +1,3 @@
-// Where to send someone after they sign in. Kept out of GroupBuys.tsx so the shell and the public pages can use it without pulling the whole group-buy chunk into the entry bundle.
 const NEXT_KEY = "optcg_login_next";
 
 /** Same-origin relative paths only — reject protocol-relative //evil.example. */
@@ -21,7 +20,7 @@ export function rememberLoginNext(path: string) {
   try {
     sessionStorage.setItem(NEXT_KEY, path);
   } catch {
-    /* ignore */
+    /* storage blocked */
   }
 }
 

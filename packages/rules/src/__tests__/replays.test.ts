@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { listReplayNames, loadFixture, playReplay, readGolden } from "../testing/replay.js";
 
-// Goldens are never written from here. After an intended change, review the diff and run
-// `npm run replay:bless` (see README, "Golden replays").
 describe("golden replays", () => {
   const names = listReplayNames();
 

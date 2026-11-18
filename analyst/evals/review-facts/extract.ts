@@ -1,9 +1,3 @@
-/**
- * Claim extraction for the review-facts eval (#675): turn a review's prose into concrete, checkable claims about
- * the game. Only game events are claims; opinions, advice and "if you had..." lines are not.
- * The LLM extractor is a paid call (default Haiku 5.5, priced by costUsd); the scripted one reads the dry run's
- * template sentences and costs nothing.
- */
 import { z } from "zod";
 import { costUsd, type Usage } from "../../src/chat";
 import { MODELS } from "../../src/models";
@@ -67,7 +61,6 @@ export const CLAIMS_JSON_SCHEMA = {
         properties: {
           quote: { type: "string" },
           kind: { type: "string", enum: [...CLAIM_KINDS] },
-          // The API rejects an enum with a list of types (#683), so "no actor" is sent as "none" and read back as null.
           actor: { type: "string", enum: ["you", "opponent", "none"] },
           turn: { type: ["integer", "null"] },
           card: { type: ["string", "null"] },
@@ -86,7 +79,6 @@ const ZERO: Usage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens
 
 type CreateClient = { beta: { messages: { create: (p: never) => Promise<{ model: string; content: { type: string; text?: string }[]; usage: Usage }> } } };
 
-/** Parses the model's JSON, keeping each claim that fits the schema and counting the rest. */
 export function parseClaims(text: string): { claims: Claim[]; invalid: number } {
   const raw = JSON.parse(text) as { claims?: unknown };
   const list = Array.isArray(raw.claims) ? raw.claims : [];
@@ -118,7 +110,6 @@ export function anthropicExtractor(client: CreateClient, model = EXTRACTOR_MODEL
   };
 }
 
-/** Text with curly quotes, dashes, markdown marks and runs of whitespace made plain, for comparing a quote to the review. */
 export const normalizeText = (s: string): string =>
   s
     .replace(/[\u2018\u2019\u02bc]/g, "'")
@@ -128,7 +119,6 @@ export const normalizeText = (s: string): string =>
     .replace(/\s+/g, " ")
     .trim();
 
-/** Keeps only claims whose quote is a real span of the review: a claim the model could not point to is not counted. */
 export function guardQuotes(review: string, claims: readonly Claim[]): { kept: Claim[]; dropped: Claim[] } {
   const hay = normalizeText(review);
   const kept: Claim[] = [];
@@ -140,10 +130,6 @@ export function guardQuotes(review: string, claims: readonly Claim[]): { kept: C
   return { kept, dropped };
 }
 
-/**
- * The dry run's extractor: reads only the sentences scriptedReview() writes ("On turn N, you played X." and so on).
- * It proves the plumbing, not the LLM extractor.
- */
 export const scriptedExtractor: Extractor = async (review) => {
   const claims: Claim[] = [];
   const who = (w: string): "you" | "opponent" => (/^you$/i.test(w) ? "you" : "opponent");

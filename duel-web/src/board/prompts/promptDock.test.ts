@@ -18,7 +18,6 @@ describe("dockAt (#449)", () => {
     expect(dockAt(10, 1280, onlyLeft)).toBe("left");
     expect(dockAt(10, 1280, COLUMNS)).toBe("left");
     expect(dockAt(1270, 1280, COLUMNS)).toBe("right");
-    // Columns set in from the screen's edge: the strip still docks to them.
     const inset = { left: { left: 30, right: 260 }, right: { left: 940, right: 1250 } };
     expect(dockAt(10, 1280, inset)).toBe("left");
     expect(dockAt(1270, 1280, inset)).toBe("right");

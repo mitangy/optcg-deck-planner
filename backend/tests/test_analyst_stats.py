@@ -1,4 +1,3 @@
-"""Log Pose learning loop: matchup stats from recorded duels, sharing opt-out, and lessons (#246)."""
 
 from __future__ import annotations
 
@@ -24,7 +23,6 @@ def _users(c, *keys: str) -> list[int]:
 
 
 def _zoro_vs_lucci(c, prefix: str, seat0: int, seat1: int, results: list[tuple[int, int]], deck0=None):
-    """Seat 0 plays Zoro, seat 1 Lucci; results are (winner seat, first seat) per game."""
     for n, (winner, first) in enumerate(results):
         _ingest(
             c, f"{prefix}{n}", seat0, seat1, winner,
@@ -40,10 +38,8 @@ def _stats(c, **params):
 
 
 def test_matchup_stats_count_wins_by_side_and_by_who_went_first(analyst):  # noqa: F811
-    """A leader pair's record, win rate interval and first/second split come from each side's seat (#246)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
-    # Zoro wins 6 of 10: 4 of the 5 going first, 2 of the 5 going second.
     _zoro_vs_lucci(c, "m", a, b, [(0, 0)] * 4 + [(1, 0)] + [(0, 1)] * 2 + [(1, 1)] * 3)
     s = _stats(c, leader=ZORO, opponent=LUCCI)
     assert (s["games"], s["wins"], s["win_rate"], s["too_few_games"]) == (10, 6, 0.6, False)
@@ -55,13 +51,11 @@ def test_matchup_stats_count_wins_by_side_and_by_who_went_first(analyst):  # noq
 
 
 def test_wilson_interval_matches_the_textbook_value(analyst):  # noqa: F811
-    """4 wins in 6 games gives the 95% Wilson interval 0.300 to 0.903 (#246)."""
     assert analyst_stats.wilson(4, 6) == (0.3, 0.903)
     assert analyst_stats.wilson(0, 0) is None
 
 
 def test_players_who_turn_sharing_off_drop_out_of_every_stat(analyst):  # noqa: F811
-    """Turning sharing off removes the player's games from the aggregates (#246)."""
     c, _ = analyst
     me, _token = _me_and_token(c)
     a, b = _users(c, "alice", "bob")
@@ -76,7 +70,6 @@ def test_players_who_turn_sharing_off_drop_out_of_every_stat(analyst):  # noqa: 
 
 
 def test_a_leaders_overview_leaves_mirrors_out_and_reports_them_on_their_own(analyst):  # noqa: F811
-    """Mirror games are neither wins nor losses for the leader's record (#246)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
     _zoro_vs_lucci(c, "m", a, b, [(0, 0), (1, 0)])
@@ -89,7 +82,6 @@ def test_a_leaders_overview_leaves_mirrors_out_and_reports_them_on_their_own(ana
 
 
 def test_card_rates_need_enough_games_with_and_without_the_card(analyst):  # noqa: F811
-    """A card's with/without win rates appear only with five games on each side (#246)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
     _zoro_vs_lucci(c, "with", a, b, [(0, 0)] * 5, deck0=[NAMI_CARD] * 4 + [VIVI_CARD])
@@ -103,7 +95,6 @@ def test_card_rates_need_enough_games_with_and_without_the_card(analyst):  # noq
 
 
 def test_stats_only_count_games_inside_the_window(analyst):  # noqa: F811
-    """Games older than the asked number of days are left out (#246)."""
     c, SessionLocal = analyst
     a, b = _users(c, "alice", "bob")
     _zoro_vs_lucci(c, "m", a, b, [(0, 0), (1, 0)])
@@ -118,7 +109,6 @@ def test_stats_only_count_games_inside_the_window(analyst):  # noqa: F811
 
 
 def test_backfilled_games_count_in_the_window_of_their_match_not_of_the_backfill_run(analyst):  # noqa: F811
-    """A game played 200 days ago and backfilled today stays out of a 90-day window (#246)."""
     c, SessionLocal = analyst
     a, b = _users(c, "alice", "bob")
     _zoro_vs_lucci(c, "old", a, b, [(0, 0)])
@@ -137,7 +127,6 @@ def test_backfilled_games_count_in_the_window_of_their_match_not_of_the_backfill
 
 
 def test_under_five_games_only_the_game_count_is_given(analyst):  # noqa: F811
-    """Fewer than five games show their count but no wins, rates, intervals or game length, per split too (#246)."""
     c, _ = analyst
     a, b = _users(c, "alice", "bob")
     _zoro_vs_lucci(c, "one", a, b, [(0, 0)])
@@ -149,7 +138,6 @@ def test_under_five_games_only_the_game_count_is_given(analyst):  # noqa: F811
     overview = _stats(c)["leaders"]
     assert [(r["leader"], r["games"], r["wins"], r["average_turns"]) for r in overview] == [(ZORO, 1, None, None), (LUCCI, 1, None, None)]
 
-    # Six games: the whole record shows, but each three-game split is held back on its own.
     _zoro_vs_lucci(c, "more", a, b, [(0, 0), (1, 1), (0, 0), (1, 1), (0, 1)])
     six = _stats(c, leader=ZORO, opponent=LUCCI)
     assert (six["games"], six["wins"], six["too_few_games"], six["average_turns"]) == (6, 4, False, 9.7)
@@ -158,7 +146,6 @@ def test_under_five_games_only_the_game_count_is_given(analyst):  # noqa: F811
 
 
 def test_stats_are_for_the_analyst_service_only(analyst):  # noqa: F811
-    """The stats endpoint needs the service secret (#246)."""
     c, _ = analyst
     assert c.get("/analyst/stats/matchups").status_code == 403
     assert c.get("/analyst/stats/matchups", headers={"X-Analyst-Service": "nope"}).status_code == 403
@@ -166,7 +153,6 @@ def test_stats_are_for_the_analyst_service_only(analyst):  # noqa: F811
 
 
 def test_older_matches_get_seats_from_their_replay_on_startup(analyst):  # noqa: F811
-    """Backfill rebuilds seat rows, decks and who went first from a kept replay (#246)."""
     c, SessionLocal = analyst
     a, b = _users(c, "alice", "bob")
     _zoro_vs_lucci(c, "old", a, b, [(1, 1)])
@@ -184,7 +170,6 @@ def test_older_matches_get_seats_from_their_replay_on_startup(analyst):  # noqa:
 
 
 def test_claude_drafts_lessons_only_from_the_link_owners_games(analyst):  # noqa: F811
-    """A drafted lesson may cite only the owner's matches, and stays out of Claude's reads until approved (#246)."""
     c, _ = analyst
     me, token = _me_and_token(c)
     a, b = _users(c, "alice", "bob")

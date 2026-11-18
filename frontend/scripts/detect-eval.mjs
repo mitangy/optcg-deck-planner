@@ -1,18 +1,4 @@
 #!/usr/bin/env node
-/** Detector (and detector + identification) on the owner's real phone photos (#701).
- *
- * Photos, truth.json and quads.json live in .scan-build/real-photos (gitignored).
- * Detection is scored against the hand-labelled top-card quads by IoU; the full
- * pipeline (`matchAllCardsWith`) against truth.json: a pile counts as found if
- * any detected card's id is in its `ids`.
- *
- *   cd frontend
- *   MODEL=public/scan-data/card-detector.onnx npx tsx scripts/detect-eval.mjs
- *   MODE=classic npx tsx scripts/detect-eval.mjs     # the OpenCV detector alone
- *   IDENTIFY=0 ...                                   # detection numbers only (fast)
- *   SCORE=0.4 NMS=0.6 LONG_SIDE=800 ...              # override the model's decode options
- *   DESC=.scan-build/full-desc  PHOTOS=photo3,photo4  OUT=/tmp/overlays
- */
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import jpeg from "jpeg-js";
@@ -84,7 +70,6 @@ if (MODE === "model") {
   if (LONG || SCORE || NMS) setCardModelDetector((img) => detectWithModel(img, { longSide: LONG, scoreThreshold: SCORE, nmsIoU: NMS }));
 }
 if (process.env.SYNTH) {
-  // The multi-scan harness's synthetic scenes (run multi-scan-harness.mjs once to write them).
   const dir = ".scan-build/scenes";
   const names = readdirSync(dir).filter((f) => f.endsWith(".gt.json")).map((f) => f.replace(".gt.json", "")).sort();
   let gtN = 0, detN = 0, tp = 0, iouSum = 0, ms = 0;
@@ -139,7 +124,6 @@ for (const [photo, gt] of Object.entries(quads)) {
     (IDENTIFY ? `  piles ${pilesFound}/${piles.length}  idOk ${idOk}/${pairs.length}` : "") + `  ${Math.round(ms)}ms`,
   );
   if (IDENTIFY) {
-    // Sure-but-wrong on labelled cards, and what the unlabelled extra detections were read as.
     for (const p of pairs) {
       const accepted = (truth[photo] || []).find((t) => t.ids.includes(gt[p.gi].id))?.ids ?? [gt[p.gi].id];
       const it = items[p.di];

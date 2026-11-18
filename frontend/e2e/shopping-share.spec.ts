@@ -1,7 +1,3 @@
-/**
- * The shopping list (home) and the public share page at /share/:token.
- * Each flow ends with the UI audit; runs at desktop-1200 and phone-375.
- */
 import { DECK_ID, expect, formatIssues, test, SHARE_TOKEN } from "./fixtures";
 import { expectStationary } from "./audit";
 
@@ -12,7 +8,6 @@ test.afterEach(({ planner }) => {
 test("shopping list hides fully owned cards and passes the audit", async ({ page, planner }) => {
   await planner.open("/");
   await expect(page.getByRole("heading", { name: "Master Shopping", level: 1 })).toBeVisible();
-  // "Still need only" is on by default: the fully owned Chopper is not listed.
   await expect(page.getByText("Tony Tony.Chopper")).toHaveCount(0);
   await expect(page.getByText("Kid & Killer").filter({ visible: true }).first()).toBeVisible();
 
@@ -20,9 +15,6 @@ test("shopping list hides fully owned cards and passes the audit", async ({ page
   await expectStationary(price, () => price.click(), "shopping market price");
   const panel = page.getByRole("region", { name: "Last 3 sold prices" });
   await expect(panel).toBeInViewport({ ratio: 1 });
-  // The audit scrolls the whole page and the open panel follows its price off
-  // screen (the Add cards drawer moved the list down, #527); its on-screen fit
-  // is the toBeInViewport check above, as in deck.spec.
   const issues = await planner.audit({ offscreenOk: [".market-sales"] });
   expect(issues, formatIssues(issues)).toEqual([]);
 });

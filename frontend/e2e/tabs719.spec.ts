@@ -1,7 +1,3 @@
-/**
- * The Import page's Paste / Upload row on the shared Headless UI Tabs (#719): real arrow keys, Home / End,
- * and the panel that goes with the selected tab. Runs at desktop-1200 and phone-375.
- */
 import { expect, test } from "./fixtures";
 
 test.afterEach(({ planner }) => {
@@ -34,7 +30,6 @@ test("Import method: arrows and Home / End switch between pasting and uploading,
   await expect(code).toBeVisible();
   await page.keyboard.press("End");
   await expect(upload).toHaveAttribute("aria-selected", "true");
-  // Only the selected tab is in the Tab order, so one Tab leaves the row.
   await expect(paste).toHaveAttribute("tabindex", "-1");
 });
 

@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { fetchUsernameSuggestion, type AuthUser } from "../net/api";
 import { UsernameForm } from "./UsernameForm";
 
-/** Settings → Account: view / change the public duel username. */
 export function UsernameSettings({
   user,
 }: {

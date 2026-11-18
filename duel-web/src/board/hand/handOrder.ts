@@ -1,11 +1,3 @@
-/**
- * Your own hand order when "Sort hand" is off: dragging a hand card onto
- * another spot in the hand moves it there. The order lives on this device
- * only, as card instance ids, so it survives hand updates; cards that leave
- * drop out and new cards join at the end.
- */
-
-/** Saved order kept where the cards are still in hand, then new cards in hand order. */
 export function reconcileHandOrder(saved: readonly string[], handIds: readonly string[]): string[] {
   const inHand = new Set(handIds);
   const kept = saved.filter((id) => inHand.has(id));
@@ -13,7 +5,6 @@ export function reconcileHandOrder(saved: readonly string[], handIds: readonly s
   return [...kept, ...handIds.filter((id) => !seen.has(id))];
 }
 
-/** `order` with `id` moved to `slot`, counted among the other cards. */
 export function moveToSlot(order: readonly string[], id: string, slot: number): string[] {
   const others = order.filter((x) => x !== id);
   const at = Math.max(0, Math.min(slot, others.length));
@@ -27,13 +18,7 @@ export type SlotRect = {
   bottom: number;
 };
 
-/**
- * Where a card dropped at (x, y) lands among the other hand cards (their
- * rects, in display order). Cards are grouped into rows by their centre
- * height, so a fanned hand (arced, tilted) is one row and a wrapping grid
- * is several; the drop goes into the row nearest the pointer, before the
- * first card whose centre is right of it.
- */
+// Rows are grouped by centre height, so a fanned hand (arced, tilted) is one row and a wrapping grid is several.
 export function handDropSlot(others: readonly SlotRect[], x: number, y: number): number {
   type Row = {
     start: number;
@@ -63,15 +48,6 @@ export function handDropSlot(others: readonly SlotRect[], x: number, y: number):
   return best.start + before;
 }
 
-/**
- * A hand card's drag, followed move by move: `measured` is the drop slot
- * under the pointer (null off the hand), `left` whether the card has been
- * off the hand yet this drag. A floating fan steps aside once the card
- * leaves it (see-through, the board under it a drop target), so with
- * `oneWayOut` it never counts as a drop spot again for that drag: a card
- * brought back over the fan onto a board zone under it is played, not
- * moved in the hand (#294).
- */
 export function followHandDrag(
   left: boolean,
   measured: number | null,

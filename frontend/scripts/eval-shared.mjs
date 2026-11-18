@@ -1,4 +1,3 @@
-/** Shared by the eval scripts: load the descriptor bundle (and, if present, the art embedder) from disk. */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as ort from "onnxruntime-web";
@@ -10,17 +9,11 @@ import { DEFAULT_WALK } from "../src/scanner/match/cardScanMatch.ts";
 import { queryTuning } from "../src/scanner/match/cardMatch.ts";
 export { matchRectified } from "../src/scanner/match/cardScanMatch.ts";
 
-// Experiment knobs, so one script can compare settings: CLAHE=<clip|0> QFEAT=<n> WALK_MIN=<n> WALK_MS=<ms>
 if (process.env.CLAHE !== undefined) queryTuning.claheClip = Number(process.env.CLAHE);
 if (process.env.QFEAT) queryTuning.features = Number(process.env.QFEAT);
 if (process.env.WALK_MIN) DEFAULT_WALK.minExamined = Number(process.env.WALK_MIN);
 if (process.env.WALK_MS) DEFAULT_WALK.maxMs = Number(process.env.WALK_MS);
 
-/**
- * Candidates from `<desc>/descriptors.manifest.json`. When `<desc>/card-embedder.json`
- * exists (and NOEMBED is unset) the embedder is registered and embeddings attached,
- * exactly as useScanData does in the browser.
- */
 export async function loadMatchAssets(desc) {
   const manifest = JSON.parse(readFileSync(join(desc, "descriptors.manifest.json"), "utf8"));
   const records = [];

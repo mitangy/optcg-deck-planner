@@ -1,7 +1,3 @@
-/**
- * Log Pose MCP server: the analyst's tools, served to Claude (custom connector) over MCP.
- * The model runs in the Claude app; this server only answers tool calls.
- */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { normalizeCardId } from "@optcg/card-core";
@@ -62,18 +58,13 @@ const compactCard = (c: CardRow) => ({
 const json = jsonResult;
 const failure = failureResult;
 
-/** The signed-in player behind a personal connector link. */
 export type PersonalContext = { api: PlannerApi; token: string };
 
-/** Official rules material and the strategy playbook; tools that need them are left out without them. */
 export type Knowledge = { library?: OfficialLibrary; playbook?: Playbook; stats?: PlannerApi };
 
-/** One analyst tool, served over MCP and to the in-app chat alike. `status` and `sources` come from `TOOL_META`. */
 export type ToolDef = {
   name: ToolName;
-  /** The status line the app shows while the tool runs. */
   status: string;
-  /** Turns this tool's answer value into citable sources; none keeps the plain text. */
   sources?: SourceAdapter;
   title: string;
   description: string;
@@ -100,7 +91,6 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
   return server;
 }
 
-/** Every tool this caller gets: the card tools always, rules, playbook and stats when configured, and the player's own games with a personal context. */
 export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext, knowledge: Knowledge = {}): ToolDef[] {
   const tools: ToolDef[] = [];
   const add: Add = (name, config, handler) => {

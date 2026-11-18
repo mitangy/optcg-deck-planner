@@ -8,7 +8,6 @@ import { readStored, writeStored } from "@optcg/ui/storage";
 
 const OPEN_KEY = "optcg-duel:deck-stats-open";
 
-/** Copies per card id, in first-seen order (the planner's stats input shape). */
 export function deckStatsCards(cards: readonly string[]): DeckStatsCard[] {
   const copies = new Map<string, number>();
   for (const id of cards) copies.set(id, (copies.get(id) ?? 0) + 1);
@@ -19,15 +18,9 @@ function readOpen(): boolean {
   return readStored(OPEN_KEY) === "1";
 }
 
-/**
- * The planner's deck stats, draw odds, searchers and build hints, folded behind a heading
- * in the deck editor. Rule breaks are hints only; nothing here blocks an edit.
- */
 export function DeckStatsSection({ deck }: { deck: SavedDeck }) {
   const cards = useMemo(() => deckStatsCards(deck.cards), [deck.cards]);
-  // The editor is always mid-edit, so the 50-card count stays quiet until the deck goes over.
   const baseHints = useDeckHints(deck.id, cards, deck.leaderId, false);
-  // "Why? Ask Log Pose" on a hint, only while Log Pose can answer here.
   const askLogPose = useLogPoseAsk();
   const hints = useMemo(
     () => (askLogPose ? { ...baseHints, onAsk: (h: DeckHint) => askLogPose(hintAsk(h)) } : baseHints),
@@ -48,7 +41,6 @@ export function DeckStatsSection({ deck }: { deck: SavedDeck }) {
     >
       <summary className="deck-collapsible-summary">
         <h2 className="lobby-section-title">Deck stats</h2>
-        {/* Always rendered so the heading never shifts when hints come and go. */}
         <span className={`deck-stats-badge${count ? "" : " is-empty"}`} aria-label={count ? `${count} build hints` : undefined}>
           {count || ""}
         </span>

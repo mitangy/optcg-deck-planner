@@ -1,17 +1,9 @@
 import type { GameEvent, MatchState, Seat } from "@optcg/rules";
 import type { ArtPrefsMap } from "./protocol.js";
 
-/**
- * Alt-art prefs are keyed by card defId, so relaying a whole map to the other
- * seat or a spectator names every card in the owner's deck (#369). Only prefs
- * for cards the table has already seen go to anyone but the owner.
- */
+// Alt-art prefs are keyed by card defId, so relaying a whole map names every card in the owner's deck.
 
-/**
- * Card defIds `seat` has shown face-up so far: its Leader, and everything in a
- * public zone right now. Pass `into` to accumulate: a card that was seen and
- * went back to hand stays public.
- */
+// A card that was seen and went back to hand stays public (`into` accumulates).
 export function collectPublicDefIds(
   state: MatchState,
   seat: Seat,
@@ -48,7 +40,6 @@ export function collectPublicDefIds(
   return into;
 }
 
-/** The part of a seat's prefs a non-owner may see. */
 export function visibleArtPrefs(prefs: ArtPrefsMap, publicDefIds: ReadonlySet<string>): ArtPrefsMap {
   const out: ArtPrefsMap = {};
   for (const [defId, altId] of Object.entries(prefs)) {

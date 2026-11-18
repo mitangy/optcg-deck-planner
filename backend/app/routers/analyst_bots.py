@@ -1,7 +1,3 @@
-"""Bot self-play corpus for Log Pose (#635): batch ingest and the reads the analyst service makes.
-
-Every route needs the service secret. Bot games never enter duel_matches or any real-player stat.
-"""
 
 from __future__ import annotations
 
@@ -52,7 +48,6 @@ LEVELS_PATTERN = r"^[a-z]{3,12}/[a-z]{3,12}$"
 class BotGameIn(BaseModel):
     index: int = Field(ge=0, le=1_000_000)
     replay: dict[str, Any]
-    # selfPlay.ts tallies by seat: [seat 0, seat 1] or {"A", "B"}.
     tallies: list[dict[str, Any]] | dict[str, Any] | None = None
     turns: int | None = Field(default=None, ge=0, le=500)
     levels: str | None = Field(default=None, max_length=32)

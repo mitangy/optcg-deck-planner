@@ -1,7 +1,3 @@
-/**
- * ffmpeg x11grab -> a near-lossless intermediate, then one encode to the delivery file
- * (H.264, crf 15, yuv420p, no audio). The intermediate is trimmed to the span the script marks.
- */
 import { spawn, type ChildProcess, execFileSync } from "node:child_process";
 import { mkdirSync, existsSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -18,10 +14,8 @@ export class Recorder {
   private dup = 0;
   private drop = 0;
   readonly raw: string;
-  /** Seconds (from the first captured frame) the clip starts and ends. */
   private inAt = 0;
   private outAt: number | null = null;
-  /** Finished spans; a clip with a hidden stretch in the middle (a page load, a setup) has several. */
   private spans: [number, number][] = [];
 
   constructor(
@@ -69,16 +63,13 @@ export class Recorder {
       }
     });
     await Promise.race([gotFrame, sleep(8000).then(() => { throw new Error(`ffmpeg produced no frame: ${this.stderrTail}`); })]);
-    // t0 is when the first frame was reported (the encoder trails the grab by a few frames).
     this.t0 -= 120;
   }
 
-  /** Seconds since recording began. */
   now(): number {
     return (Date.now() - this.t0) / 1000;
   }
 
-  /** The clip begins here (call once the first clean frame is up). */
   markIn(offset = 0): void {
     this.inAt = this.now() + offset;
   }
@@ -87,7 +78,6 @@ export class Recorder {
     this.outAt = this.now() + offset;
   }
 
-  /** Close the current span and hide everything until the next `markIn`. */
   cut(offset = 0): void {
     this.markOut(offset);
     this.spans.push([this.inAt, this.outAt!]);
@@ -104,7 +94,6 @@ export class Recorder {
     });
   }
 
-  /** Trim + encode the delivery file; returns its path and duration. */
   finish(outPath = join(CLIPS_DIR, `${this.id}.mp4`)): { path: string; seconds: number } {
     mkdirSync(dirname(outPath), { recursive: true });
     const end = this.outAt ?? this.now();
@@ -126,7 +115,6 @@ export class Recorder {
   }
 }
 
-/** One still per clip, from the middle of the delivery file (or `at` seconds in). */
 export function still(mp4: string, id: string, at?: number): string {
   const out = join(STILLS_DIR, `${id}.png`);
   const dur = Number(execFileSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", mp4], { encoding: "utf8" }).trim());

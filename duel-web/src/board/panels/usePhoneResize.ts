@@ -18,13 +18,7 @@ type Active = { target: PhoneTarget; startX: number; startW: number };
 const LABEL: Record<PhoneTarget, string> = { rail: "Resize right column", overlay: "Resize side panel" };
 const MIN: Record<PhoneTarget, number> = { rail: RAIL_MIN_PX, overlay: OVERLAY_MIN_PX };
 
-/**
- * Drag handles for landscape phones: the right column's left edge (drag left =
- * wider) and the log / chat overlay's right edge (drag right = wider). The
- * width follows the pointer live and is saved on release; Esc puts it back.
- * Each handle sits inside the element it sizes, so that element's parent is
- * measured for the start width.
- */
+// Each handle sits inside the element it sizes, so that element's parent is measured for the start width.
 export function usePhoneResize(saved: string, onChange: (next: string) => void) {
   const sizes = parsePhoneSizes(saved);
   const [live, setLive] = useState<PhoneSizes | null>(null);
@@ -122,13 +116,11 @@ export function usePhoneResize(saved: string, onChange: (next: string) => void) 
       e.stopPropagation();
       const w = latest.current.saved ? (parsePhoneSizes(latest.current.saved)[target] ?? null) : null;
       const cur = w ?? widthOf(e.currentTarget.parentElement);
-      // The right column grows to the left, the overlay to the right.
       const grow = e.key === (target === "rail" ? "ArrowLeft" : "ArrowRight");
       commit(target, nudgePhoneWidth(target, cur, grow, window.innerWidth));
     },
   });
 
-  /** Inline vars for the board root (`--rail-w`, `--lp-overlay-w`), clamped by CSS for any window. */
   const style: CSSProperties | undefined =
     shown.rail == null && shown.overlay == null
       ? undefined

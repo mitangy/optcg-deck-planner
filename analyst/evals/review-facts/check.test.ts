@@ -10,8 +10,6 @@ const catalog = loadCatalog();
 const replay = fixtureReplay();
 const facts = gameFacts(replay);
 
-// In the fixture seat 0 went first and lost; seat 1 won on turn 10.
-// The default quote states the card and target by name, as a review would (a card the quote lacks counts as inferred, #687).
 const claim = (c: Partial<Claim> & Pick<Claim, "kind">): Claim => ({ quote: [c.card, c.target].filter(Boolean).join(" ") || "q", actor: null, turn: null, card: null, target: null, number: null, ...c });
 const verdict = (c: Partial<Claim> & Pick<Claim, "kind">, seat: Seat = 0) => checkClaim(claim(c), facts, seat, catalog);
 
@@ -40,9 +38,7 @@ describe("checking a claim against the replay", () => {
   });
 
   it("leaves a partial card name that fits two cards unverifiable, and takes one that fits one (#675)", () => {
-    // "Zoro" is both Roronoa Zoro and Zoro-Juurou in this game; "Garp" is only Monkey.D.Garp.
     expect(resolveCard("Zoro", facts, catalog).status).toBe("ambiguous");
-    // Neither Zoro was played by you, so every reading is wrong (#687).
     expect(verdict({ kind: "played", actor: "you", card: "Zoro" }).verdict).toBe("contradicted");
     expect(verdict({ kind: "played", actor: "opponent", turn: 2, card: "Garp" }).verdict).toBe("supported");
     expect(verdict({ kind: "played", actor: "opponent", turn: 2, card: "Monkey D. Garp" }).verdict).toBe("supported");
@@ -61,7 +57,6 @@ describe("checking a claim against the replay", () => {
   });
 
   it("contradicts a Life total outside what the player had that turn (#675)", () => {
-    // Turn 7: you were at 4 the whole turn; turn 8: you fell from 4 to 2.
     expect(verdict({ kind: "life_total", actor: "you", turn: 7, number: 2 }).verdict).toBe("contradicted");
     expect(verdict({ kind: "life_total", actor: "you", turn: 8, number: 2 }).verdict).toBe("supported");
     expect(verdict({ kind: "life_total", actor: "opponent", turn: 8, number: 1 }).verdict).toBe("supported");
@@ -84,7 +79,6 @@ describe("checking a claim against the replay", () => {
   it("checks attacks by attacker and target, and the turn they happened on (#675)", () => {
     expect(verdict({ kind: "attacked", actor: "you", turn: 3, card: "Luffy & Ace", target: "leader" }).verdict).toBe("supported");
     expect(verdict({ kind: "attacked", actor: "opponent", turn: 8, card: "Older Brother Marine", target: "Diamante" }).verdict).toBe("supported");
-    // Marine hit Diamante on turn 8 and went for the Leader on turn 10.
     expect(verdict({ kind: "attacked", actor: "opponent", turn: 8, card: "Older Brother Marine", target: "leader" }).verdict).toBe("wrong_turn");
     expect(verdict({ kind: "attacked", actor: "you", turn: 3, card: "Luffy & Ace", target: "Pearl" }).verdict).toBe("contradicted");
   });
@@ -131,7 +125,6 @@ describe("checking a claim against the replay", () => {
   });
 });
 
-// Synthetic games for the #687 rules: small enough that the data can tell the right answer from the wrong one.
 const NONE = { active: [5, 5], rested: [0, 0], attached: [0, 0], area: [5, 5], field: [5, 5] } as TurnFacts["don"][0];
 const synth = (turns: Partial<TurnFacts>[], universe: string[] = []): GameFacts => ({
   ...facts,
@@ -175,7 +168,6 @@ describe("checking a claim loosely where the audit found the checker wrong (#687
   });
 
   it("counts Life an effect removed as Life taken, with no life_taken event (#687)", () => {
-    // Four Life hits by effect only, and a turn where one battle hit came with two effect losses.
     const f = synth([{ lifeLost: [2, 0] }, { lifeTaken: [hit(0, PEARL)], lifeLost: [3, 0] }, {}]);
     expect(on(f, { kind: "life_taken", actor: "you", turn: 1 }).verdict).toBe("supported");
     expect(on(f, { kind: "life_taken", actor: "you", turn: 1, number: 2 }).verdict).toBe("supported");
@@ -201,7 +193,6 @@ describe("checking a claim loosely where the audit found the checker wrong (#687
       { attacks: [{ seat: 1, attacker: SMOKER, attackerName: "Smoker", target: "leader", targetName: "leader", attackerPower: 6000, defenderPower: 5000, counters: [], hit: true }], lifeLost: [1, 0] },
     ]);
     expect(on(f, { kind: "life_taken", actor: "you", turn: 1, card: "Nami", number: 2 }).verdict).toBe("supported");
-    // Nami was played, but no Life was lost that turn.
     expect(on(f, { kind: "life_taken", actor: "you", turn: 2, card: "Nami" }).verdict).toBe("wrong_turn");
     expect(on(f, { kind: "life_taken", actor: "you", turn: 4, card: "Smoker" }).verdict).toBe("supported");
     expect(on(f, { kind: "life_taken", actor: "you", turn: 4, card: "Magura" }).verdict).toBe("contradicted");
@@ -212,7 +203,6 @@ describe("checking a claim loosely where the audit found the checker wrong (#687
     expect(on(f, { kind: "ko", actor: "you", turn: 1, card: "Magura" }).verdict).toBe("unverifiable");
     expect(on(f, { kind: "ko", actor: "opponent", turn: 1, card: "Magura" }).verdict).toBe("supported");
     expect(on(f, { kind: "trigger", actor: "opponent", turn: 1, card: "Captains Assembled" }).verdict).toBe("unverifiable");
-    // Neither player lost it on that turn, or only on another turn for the other player: still wrong.
     expect(on(f, { kind: "ko", actor: "you", turn: 1, card: "Smoker" }).verdict).toBe("contradicted");
     expect(on(f, { kind: "ko", actor: "you", turn: 1, card: "Pearl" }).verdict).toBe("contradicted");
   });
@@ -230,14 +220,12 @@ describe("checking a claim loosely where the audit found the checker wrong (#687
     // The same claim with the card in the quote is wrong; and an attack that never happened stays wrong either way.
     expect(on(f, { ...inferred, quote: "Smoker attacked the Leader." }).verdict).toBe("contradicted");
     expect(on(f, { ...inferred, actor: "opponent", quote: "They attacked the Leader." }).verdict).toBe("contradicted");
-    // A card number in the claim is stated when the quote has the number.
     const played = synth([{ plays: [play(1, PEARL)] }]);
     expect(on(played, { kind: "played", actor: "you", turn: 1, card: PEARL, quote: `You played ${PEARL}.` }).verdict).toBe("unverifiable");
   });
 
   it("looks up only the part of a name the quote writes (#687)", () => {
     const f = synth([{ plays: [play(0, LUFFY_ACE)] }]);
-    // "a Luffy" could be Luffy & Ace, who was played; Monkey.D.Luffy was not.
     expect(on(f, { kind: "played", actor: "you", turn: 1, card: "Monkey.D.Luffy", quote: "You played a Luffy with 5 DON!!" }).verdict).toBe("supported");
     expect(on(f, { kind: "played", actor: "you", turn: 1, card: "Monkey.D.Luffy", quote: "You played Monkey.D.Luffy with 5 DON!!" }).verdict).toBe("contradicted");
   });
@@ -299,7 +287,6 @@ describe("checking DON!!, hand, board and trash claims (#687)", () => {
     expect(on(f, { kind: "don", actor: "you", turn: 1, number: 4, target: "rested" }).verdict).toBe("contradicted");
     expect(on(f, { kind: "don", actor: "you", turn: 1, number: 1, target: "rested" }).verdict).toBe("supported");
     expect(on(f, { kind: "don", actor: "you", turn: 1, number: 2, target: "attached" }).verdict).toBe("supported");
-    // "On the field" is the cost area, or the cost area plus DON!! given to cards.
     expect(on(f, { kind: "don", actor: "you", turn: 1, number: 5, target: "total" }).verdict).toBe("supported");
     expect(on(f, { kind: "don", actor: "you", turn: 1, number: 7, target: "total" }).verdict).toBe("supported");
     expect(on(f, { kind: "don", actor: "you", turn: 1, number: 8, target: "total" }).verdict).toBe("contradicted");
@@ -362,7 +349,6 @@ describe("checking a claim against the second audit's mistakes (#695)", () => {
     expect(on(f, { kind: "life_taken", actor: "you", turn: 1, card: "Smoker" }).verdict).toBe("unverifiable");
     expect(on(f, { kind: "on_board", actor: "you", turn: 1, card: "Luffy & Ace" }).verdict).toBe("unverifiable");
     expect(on(f, { kind: "trashed", actor: "you", turn: 1, card: "Roronoa Zoro" }).verdict).toBe("unverifiable");
-    // Neither player did it: still wrong.
     expect(on(f, { kind: "played", actor: "you", turn: 1, card: "Magura" }).verdict).toBe("contradicted");
   });
 
@@ -397,7 +383,6 @@ describe("checking a claim against the second audit's mistakes (#695)", () => {
     expect(on(f, { kind: "life_taken", actor: "you", turn: 1, card: "Nami" }).verdict).toBe("supported");
     expect(on(f, { kind: "life_taken", actor: "you", turn: 2, card: "Smoker" }).verdict).toBe("supported");
     expect(on(f, { kind: "life_taken", actor: "you", turn: 3, card: "Pearl" }).verdict).toBe("supported");
-    // A card that only sat on the other player's field did not cause the loss.
     expect(on(f, { kind: "life_taken", actor: "you", turn: 3, card: "Magura" }).verdict).toBe("contradicted");
     expect(on(f, { kind: "life_taken", actor: "you", turn: 4, card: "Pearl" }).verdict).toBe("wrong_turn");
   });

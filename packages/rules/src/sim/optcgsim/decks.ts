@@ -1,7 +1,6 @@
 /**
- * Decks seen in OPTCGSim games, as `{ leaderId, deck }` lists for the bots' deck prior (#1030). Pure.
- * Only the OPPONENT's list is taken: the recording player's own decks are one person's pool, the opponents are
- * whoever they met. Lists that are not exactly 50 cards of known, non-Leader cards are dropped.
+ * Only the OPPONENT's list is taken: the recording player's own decks are one person's pool, the opponents are whoever
+ * they met.
  */
 import { getCardDef, hasCardDef } from "../../cards/definitions.js";
 import type { SimGame } from "./types.js";

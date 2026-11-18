@@ -18,7 +18,6 @@ import sys
 from collections import defaultdict
 from pathlib import Path
 
-# Allow `python3 backend/scripts/export_cosmetics_from_planner_db.py` from repo root.
 _SCRIPTS = Path(__file__).resolve().parent
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
@@ -37,12 +36,10 @@ DEFAULT_SQLITE = ROOT / "backend" / "optcg.db"
 
 
 def _special_markers() -> tuple[str, ...]:
-    """Prefer planner domain markers when the backend package is importable."""
     try:
         sys.path.insert(0, str(ROOT / "backend"))
         from app.planner.domain import SPECIAL_NAME_MARKERS  # type: ignore
 
-        # Union cosmetics + planner markers so either source stays consistent.
         merged = tuple(dict.fromkeys((*SPECIAL_MARKERS, *SPECIAL_NAME_MARKERS)))
         return merged
     except Exception:
@@ -73,7 +70,6 @@ def _connect():
 
 
 def _fetch_rows(conn) -> tuple[list[dict], list[dict]]:
-    """Return (catalog_cards, catalog_printings) as list of dicts."""
     database_url = (os.environ.get("DATABASE_URL") or "").strip()
     if database_url.startswith("postgres"):
         from sqlalchemy import text
@@ -131,11 +127,9 @@ def _build_from_db(
     out: dict[str, dict] = {}
     for card_id, rows in by_card.items():
         preferred = card_by_id.get(card_id)
-        # Preferred face: CatalogCard row when present, else best non-special printing.
         if preferred is not None:
             pref_img = (preferred.get("image_url") or "").strip()
             pref_name = preferred.get("name") or card_id
-            # Match product id to preferred image when possible.
             primary_pid: int | None = product_id_from_image_url(pref_img)
             if not primary_pid:
                 for row in sorted(
@@ -192,7 +186,6 @@ def _build_from_db(
             url = normalize_cosmetics_image_url(row.get("image_url"), pid if pid else None)
             if not url or url in seen_urls:
                 continue
-            # Skip specials that reuse the preferred face art.
             if pref_img and (row.get("image_url") or "").strip() == pref_img:
                 continue
             seen_urls.add(url)
@@ -216,17 +209,14 @@ def re_sub_qty(name: str) -> str:
     return re.sub(r"\s*\(\d+\)\s*$", "", name).strip() or name
 
 
-# Art / identity fields refreshed from the planner DB; gameplay meta is preserved.
 _ART_KEYS = ("imageUrl", "productId", "altArts", "name")
 
 
 def merge_onto_existing(existing: dict[str, dict], exported: dict[str, dict]) -> dict[str, dict]:
-    """Refresh art/productIds/alts; keep effectText/cost/power/type/… from existing."""
     merged = dict(existing)
     for card_id, art in exported.items():
         prev = dict(merged.get(card_id) or {})
         if not prev:
-            # New id from DB only — keep art-focused shape; full meta needs TCGCSV.
             merged[card_id] = {k: v for k, v in art.items() if v is not None and v != []}
             continue
         for key in _ART_KEYS:
@@ -234,7 +224,6 @@ def merge_onto_existing(existing: dict[str, dict], exported: dict[str, dict]) ->
                 prev[key] = art[key]
             elif key == "altArts" and "altArts" not in art:
                 prev.pop("altArts", None)
-        # Ensure id stays canonical.
         prev["id"] = card_id
         merged[card_id] = {k: v for k, v in prev.items() if v is not None and v != []}
     return merged

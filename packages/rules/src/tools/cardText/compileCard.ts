@@ -1,7 +1,3 @@
-/**
- * Compile one card's official text into DSL abilities.
- * Deterministic: the same text always yields the same JSON.
- */
 import { EFFECT_SCHEMA_VERSION, type Ability, type CardAbilities, type Cond, type Cost, type Effect, type EventTrigger, type Replacement, type Static, type Trigger } from "../../effects/types.js";
 import type { CardDataRow } from "../../cards/cardData.js";
 import { isKeywordTag, normalizeText, protect, restoreNames, segment, sentences, type Placeholders } from "./normalize.js";
@@ -135,7 +131,6 @@ function parseEventTrigger(text: string, ctx: Ctx): { trigger: EventTrigger; con
 
 const REPLACEMENT_RE = /^if (this character|this leader|your leader|your (.+?)|(?:one of |any of )?your (.+?)) would (?:be )?(KO'd|removed from the field|leave the field|be removed from the field by your opponent's effect or KO'd)( by (?:an? |your )?(?:opponent's )?effects?| in battle)?(?: by your opponent(?:'s effect)?)?, (you may )?(.+?) instead$/i;
 
-/** "If you would take damage, you may trash this Character instead." */
 const DAMAGE_REPLACEMENT_RE = /^if you would take damage, (you may )?(.+?) instead$/i;
 
 function parseReplacement(text: string, ctx: Ctx): Replacement | null {
@@ -183,7 +178,6 @@ function buildReplacement(when: Pick<Replacement, "event" | "alsoEvents" | "byOp
 }
 
 function splitCostBody(body: string, ctx: Ctx): { costs: Cost[]; optional: boolean; rest: string; conditions: Cond[] } | null {
-  // Top-level ": " not inside a later sentence.
   const firstSentenceEnd = body.search(/\.(\s|$)/);
   const colon = body.indexOf(": ");
   if (colon < 0 || (firstSentenceEnd >= 0 && colon > firstSentenceEnd)) return null;
@@ -223,7 +217,6 @@ type Draft = Omit<Ability, "text">;
 function compileSegment(tags: string[], body: string, ctx: Ctx, nextId: () => string, row: CardDataRow): Draft[] | null {
   const h = header(tags);
   const trimmed = body.trim().replace(/^\/\s*/, "");
-  // Keyword-only segment: "[Blocker]" / "[DON!! x1] [Rush]"
   if (h.keywords.length && !trimmed && h.windows.length === 0) {
     return h.keywords.map((k) => ({ id: nextId(), trigger: "static", ...(h.don ? { don: h.don } : {}), ...(h.conditions.length ? { conditions: h.conditions } : {}), statics: [KEYWORDS[k]!] }));
   }
@@ -232,12 +225,10 @@ function compileSegment(tags: string[], body: string, ctx: Ctx, nextId: () => st
 
   if (h.windows.length === 0) return compileUntimed(h, trimmed, ctx, nextId);
 
-  // Event cards: [Main] / [Counter]; Trigger clause of any card.
   const split = splitCostBody(trimmed, ctx);
   const costs = [...h.costs, ...(split?.costs ?? [])];
   const gateConditions = [...h.conditions, ...(split?.conditions ?? [])];
   const effectText = split ? split.rest : trimmed;
-  // An event-trigger inside a timed header ("[Your Turn] [Once Per Turn] When ..., ...")
   const parsed = parseEffectBody(effectText, ctx, sentences);
   if (!parsed.effect) return null;
   const effect = parsed.effect;
@@ -258,10 +249,8 @@ function compileUntimed(h: Header, body: string, ctx: Ctx, nextId: () => string)
     ...(h.oncePerTurn ? { oncePerTurn: true } : {}),
     ...(h.don ? { don: h.don } : {}),
   };
-  // Replacement effects.
   const replacement = parseReplacement(body, ctx);
   if (replacement) return [{ id: nextId(), trigger: "replacement", ...base, ...(h.conditions.length ? { conditions: h.conditions } : {}), replacement }];
-  // "This effect can be activated when X. EFFECT" / "... at the start of your turn."
   const activatedWhen = /^this effect can be activated (when .+?|at the start of your turn)\. (.+)$/i.exec(body);
   if (activatedWhen) {
     // "can be activated" is optional, and a [Once Per Turn] is only spent when the player uses it: declining
@@ -274,13 +263,11 @@ function compileUntimed(h: Header, body: string, ctx: Ctx, nextId: () => string)
     const inner = compileUntimed(h, activatedWhen[1]! + ", " + activatedWhen[2]!, ctx, nextId);
     return inner ? inner.map((a) => (a.effect && !a.costs?.length ? { ...a, effect: optional(a.effect) } : a)) : null;
   }
-  // Costs before an event trigger: "You may trash 2 cards from your hand: When ..., ...".
   const costFirst = splitCostBody(body, ctx);
   if (costFirst && /^when /i.test(costFirst.rest)) {
     const inner = compileUntimed(h, costFirst.rest, ctx, nextId);
     return inner ? inner.map((a) => ({ ...a, costs: [...(a.costs ?? []), ...costFirst.costs] })) : null;
   }
-  // Event triggers ("When ..., ...").
   const ev = parseEventTrigger(body, ctx);
   if (ev) {
     const split = splitCostBody(ev.rest, ctx);
@@ -288,7 +275,6 @@ function compileUntimed(h: Header, body: string, ctx: Ctx, nextId: () => string)
     if (!parsed.effect) return null;
     return [{ id: nextId(), trigger: "on_event", ...base, eventTrigger: ev.trigger, conditions: [...h.conditions, ...ev.conditions], ...(split?.costs.length ? { costs: split.costs } : {}), effect: parsed.effect }];
   }
-  // Continuous statics, possibly multiple sentences.
   const out: Draft[] = [];
   for (const sentence of sentences(body)) {
     const s = parseStaticSentence(sentence, ctx);

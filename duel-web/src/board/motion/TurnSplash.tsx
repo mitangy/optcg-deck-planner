@@ -2,7 +2,6 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { splashAnchor } from "./splashAnchor";
 
 export type SplashMessage = {
-  /** Changing the key replays the splash. */
   key: string;
   title: string;
   sub?: string;
@@ -10,13 +9,8 @@ export type SplashMessage = {
   ms?: number;
 };
 
-/**
- * Brief center-board banner ("YOUR TURN", "You go FIRST"). Fixed overlay with
- * pointer-events off, so it never shifts or blocks the board.
- */
 export function TurnSplash({ message }: { message: SplashMessage | null }) {
   const [shown, setShown] = useState<SplashMessage | null>(null);
-  /** Desktop: the banner sits over the opponent's mat, clear of the End turn dock and your hand. */
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
   const latest = useRef(message);
   latest.current = message;
@@ -51,7 +45,6 @@ export function TurnSplash({ message }: { message: SplashMessage | null }) {
   );
 }
 
-/** The opponent's mat on the desktop board (null on phones and landscape phones, which keep the centred banner). */
 function measureOppMat() {
   const mat = document.querySelector<HTMLElement>(".arena.arena-wide:not(.arena-lp) .side-opp");
   if (!mat) return null;

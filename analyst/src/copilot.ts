@@ -1,9 +1,3 @@
-/**
- * Log Pose copilot (#416): Log Pose in casual and practice games. The app sends a whitelisted snapshot of the
- * player's own seat view with the matchup-brief ticket; this module re-validates it (unknown keys dropped),
- * checks the ticket with the planner, turns the board into a <game> block for the model, and offers the
- * propose_turn_plan tool, which checks a whole turn against the snapshot and writes nothing.
- */
 import { PLAN_ABILITY_ID_MAX, PLAN_STEP_ID_MAX } from "@optcg/analyst-contract";
 import { z } from "zod";
 import type { Catalog, CardRow } from "./catalog";
@@ -79,7 +73,6 @@ const choiceRequest = z.object({
   options: z.array(choiceOption).max(MAX_CHOICE_OPTIONS).optional(),
   allowTopOrBottom: z.boolean().optional(),
   distinctNames: z.boolean().optional(),
-  /** look: where the cards not taken go (deck_bottom, top_or_bottom, ...). */
   rest: z.string().max(40).optional(),
   /** The request had more options than fit: Log Pose cannot answer it. */
   truncated: z.boolean().optional(),
@@ -89,7 +82,6 @@ const pendingChoice = z.object({
   id: z.string().min(1).max(80).optional(),
   prompt: z.string().max(300),
   kind: z.string().max(60),
-  /** Declining is legal. */
   optional: z.boolean().optional(),
   /** Only declining is legal (a Life card with no [Trigger], a cost that can't be paid). */
   declineOnly: z.boolean().optional(),
@@ -122,9 +114,7 @@ const gameSnapshot = z.object({
 export const gameContext = z.object({
   ticket: z.string().min(10).max(4000),
   snapshot: gameSnapshot,
-  /** False when the player has not turned on the copilot setting: Log Pose coaches in words and plans are refused. */
   plans: z.boolean().optional(),
-  /** The app is playing the turn for the player (they asked Log Pose to play it): choices are answered with answer_choice. */
   autopilot: z.boolean().optional(),
   log: z.array(z.string().max(200)).max(40).optional(),
 });
@@ -135,13 +125,8 @@ type SnapCard = z.infer<typeof snapCard>;
 type LegalAction = z.infer<typeof legalAction>;
 type ChoiceOption = z.infer<typeof choiceOption>;
 
-/** What the planner's brief ticket says about the game. */
 export type GameClaims = { leader: string; opponent: string; deck: { id: string; copies: number }[]; matchId?: string };
 
-/**
- * Checks the game server's ticket with the planner (a ranked or forged one is refused) and that the snapshot is
- * of the game the ticket names. Throws a 400 ChatHttpError; call it before anything that costs money.
- */
 export async function verifyGame(api: PlannerApi, token: string, catalog: Catalog, game: GameContext): Promise<GameClaims> {
   // Loaded here because chat.ts imports this module's schema when it is evaluated.
   const { ChatHttpError, briefVariant } = await import("./chat");
@@ -160,7 +145,6 @@ export async function verifyGame(api: PlannerApi, token: string, catalog: Catalo
 
 const nameOfDef = (catalog: Catalog, id: string) => catalog.cards.get(id)?.name ?? id;
 
-/** Instance id -> card definition id, for everything the snapshot shows. */
 function instances(s: GameSnapshot): Map<string, string> {
   const m = new Map<string, string>();
   for (const side of [s.you, s.opponent]) {
@@ -182,7 +166,6 @@ const MAX_TEXT = 400;
 const MAX_TRIGGER = 200;
 const cap = (t: string, max: number) => (t.length > max ? `${t.slice(0, max - 1)}…` : t);
 
-/** One card of a card reference: id, name, type, colors, life, cost, power, counter, traits, the (truncated) rules text and the card's own "[Trigger] ..." text. */
 export function cardReferenceLine(c: CardRow): string {
   const stats = [
     c.type,
@@ -198,7 +181,6 @@ export function cardReferenceLine(c: CardRow): string {
   return `- ${c.id} ${c.name} (${stats.join(", ")})${text ? `: ${text}` : ""}${trigger}`;
 }
 
-/** The <game> block that starts the user message: the board as the player sees it, readable by the model. */
 export function gameContextBlock(catalog: Catalog, game: GameContext, claims: GameClaims): string {
   const s = game.snapshot;
   const inst = instances(s);
@@ -277,24 +259,20 @@ function choiceLines(catalog: Catalog, c: NonNullable<GameSnapshot["choice"]>): 
   return lines;
 }
 
-/** Cost, then the counter the hand card can give: the app's value, else the printed one, and "counter event" for a [Counter] Event. */
 function handBits(catalog: Catalog, h: GameSnapshot["you"]["hand"][number]): string[] {
   const row = catalog.cards.get(h.defId);
   const counter = h.counter ?? row?.counter;
   return [`cost ${h.cost ?? row?.cost ?? "?"}`, ...(counter ? [`counter ${counter}`] : []), ...(row?.type === "event" && row.text.includes("[Counter]") ? ["counter event"] : [])];
 }
 
-/** Power of each Leader and Character on the board, by id, as the snapshot shows it. */
 function boardPowers(s: GameSnapshot): Map<string, number> {
   const m = new Map<string, number>();
   for (const c of [s.you.leader, ...s.you.characters, s.opponent.leader, ...s.opponent.characters]) if (c.power !== undefined) m.set(c.id, c.power);
   return m;
 }
 
-/** An attack wins when the attacker's power is greater than or equal to the target's (ties go to the attacker). */
 const attackWins = (attacker: number, target: number) => attacker >= target;
 
-/** The note after a battle line like "Your Leader 5000 → their Leader 5000": who is ahead before blocks and counters. */
 function battleMark(battle: string): string {
   const m = /(\d+)\s*→.*?(\d+)\s*$/.exec(battle);
   if (!m) return "";
@@ -352,20 +330,17 @@ type PlanStepInput = z.infer<typeof planStep>;
 
 const MAX_STEPS = 15;
 
-/** The turn plan the app shows (the tool answer plus the tool_use id as `id`). */
 export type TurnPlan = {
   id: string;
   turn: number;
   summary: string;
   steps: ({ label: string; why?: string } & Record<string, unknown>)[];
-  /** The player asked Log Pose to play the turn: the app starts the plan by itself. */
   autoplay?: true;
 };
 
 const spentTooMuch = (at: string, don: number, active: number) =>
   `${at}: the plan uses ${don} DON!! in all (card costs plus DON!! given) but the player has only ${active} active. If an effect in the plan adds DON!!, plan only up to that effect and plan again after it.`;
 
-/** Checks a plan against the snapshot. Returns the plan without an id, or the reason the model should fix. */
 export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summary: string; steps: PlanStepInput[] }): { ok: true; plan: Omit<TurnPlan, "id"> } | { ok: false; error: string } {
   const s = game.snapshot;
   const fail = (error: string) => ({ ok: false as const, error });
@@ -379,13 +354,11 @@ export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summ
   const inst = instances(s);
   const nm = (id: string) => nameOfDef(catalog, inst.get(id) ?? "");
   const hand = new Map(s.you.hand.map((h) => [h.id, h]));
-  // Ids that can take DON!!, attack or activate: the player's board, then characters the plan plays.
   const actors = new Set<string>([s.you.leader.id, ...s.you.characters.map((c) => c.id)]);
   const sources = new Set<string>([...actors, ...(s.you.stage ? [s.you.stage.id] : [])]);
   const targets = new Set<string>([s.opponent.leader.id, ...s.opponent.characters.map((c) => c.id)]);
   const opponents = new Set<string>([...targets, ...(s.opponent.stage ? [s.opponent.stage.id] : [])]);
   const played = new Set<string>();
-  // Power at the moment of each step: the snapshot's, plus DON!! given in the plan; played characters start at their printed power.
   const power = boardPowers(s);
   let don = 0;
   const steps: Omit<TurnPlan, "id">["steps"] = [];
@@ -418,7 +391,6 @@ export function checkTurnPlan(catalog: Catalog, game: GameContext, input: { summ
           if (printed !== undefined) power.set(st.card, printed);
         } else if (kind === "stage") sources.add(st.card);
         const cost = h.cost ?? catalog.cards.get(h.defId)?.cost;
-        // Playing a card rests DON!! for its cost, so it comes out of the same active DON!! as giving it.
         don += cost ?? 0;
         if (don > s.you.donActive) return fail(spentTooMuch(at, don, s.you.donActive));
         steps.push({ label: `Play ${nm(st.card)}${cost !== undefined ? ` (cost ${cost})` : ""}${st.trash ? `, replacing ${nm(st.trash)}` : ""}`, ...why, action: "play", card: st.card, ...(st.trash ? { trash: st.trash } : {}) });
@@ -522,7 +494,6 @@ export function turnPlanTool(catalog: Catalog, game: GameContext | undefined): T
       if (game.plans === false) return refusal("Turn play-out is off for this game; describe the line in words instead.");
       const input = args as { summary: string; steps: PlanStepInput[]; play_now?: boolean };
       const r = checkTurnPlan(catalog, game, input);
-      // Playing is the player's to ask for; the app asking Log Pose to go on (autopilot) is the same request.
       if (!r.ok) return refusal(r.error);
       const plan = { ...r.plan, ...(input.play_now === true || game.autopilot === true ? { autoplay: true as const } : {}) };
       return textOf(plan);
@@ -530,7 +501,6 @@ export function turnPlanTool(catalog: Catalog, game: GameContext | undefined): T
   };
 }
 
-/** What the app applies for an answered choice (the answer_choice tool's result, plus the tool_use id as `id` on the SSE event). */
 export type ChoiceAnswer = {
   id: string;
   choiceId: string;
@@ -538,7 +508,6 @@ export type ChoiceAnswer = {
   selectedOptionIds?: string[];
   orderedOptionIds?: string[];
   topOptionIds?: string[];
-  /** One line for the player: "Chose Nami, Zoro", "Declined". */
   summary: string;
 };
 
@@ -546,10 +515,6 @@ type ChoiceInput = { choiceId: string; accept: boolean; selected?: string[]; ord
 
 const sameSet = (a: readonly string[], b: readonly string[]) => a.length === b.length && new Set(a).size === a.length && b.every((x) => a.includes(x));
 
-/**
- * Checks an answer against the pending choice in the snapshot. Returns the answer in the shapes the game takes
- * (resolve_pending_choice's selected / ordered / top ids), or the reason the model should fix.
- */
 export function checkChoiceAnswer(catalog: Catalog, game: GameContext, input: ChoiceInput): { ok: true; answer: Omit<ChoiceAnswer, "id"> } | { ok: false; error: string } {
   const fail = (error: string) => ({ ok: false as const, error });
   const c = game.snapshot.choice;
@@ -609,7 +574,6 @@ export function checkChoiceAnswer(catalog: Catalog, game: GameContext, input: Ch
         const bad = unknown(top, "top") ?? unique(top, "top");
         if (bad) return fail(bad);
       }
-      // With a top/bottom split the answer lists the top cards first, as the board's own order prompt does.
       const arranged = r.allowTopOrBottom ? [...ordered.filter((id) => top.includes(id)), ...ordered.filter((id) => !top.includes(id))] : ordered;
       return { ok: true, answer: { ...base, accept: true, orderedOptionIds: arranged, ...(r.allowTopOrBottom ? { topOptionIds: top.filter((id) => ordered.includes(id)) } : {}), summary: `Ordered ${names(arranged)}` } };
     }
@@ -623,7 +587,6 @@ export function checkChoiceAnswer(catalog: Catalog, game: GameContext, input: Ch
       if (bad) return fail(bad);
       if (!sameSet(ordered, rest)) return fail("ordered must list exactly the options you did not select, once each.");
       const top = input.top ?? [];
-      // Top or bottom moves the cards that are left together: all on top, or none.
       if (r.rest === "top_or_bottom") {
         if (top.length && !sameSet(top, rest)) return fail("top must be every card you did not select (all on top) or empty (all on the bottom).");
       } else if (top.length) return fail("The cards left over can't be split between top and bottom; leave top out.");

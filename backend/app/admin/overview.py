@@ -1,4 +1,3 @@
-"""Player and planner analytics behind GET /admin/overview (#667), taken out of the admin router (refactor 3.9d)."""
 
 from __future__ import annotations
 
@@ -21,7 +20,6 @@ TOP_LEADERS_LIMIT = 25
 
 
 def last_days(now: datetime, n: int) -> list[date]:
-    """The last n UTC days, oldest first, ending today."""
     today = now.date()
     return [today - timedelta(days=i) for i in range(n - 1, -1, -1)]
 
@@ -111,7 +109,6 @@ def build_overview(db: Session, days: int) -> dict:
         return [{"leader_id": lid, "games": int(g), "wins": int(w or 0)} for lid, g, w in rows]
 
     leaders_window = top_leaders(window_start)
-    # Kept under its old name for older clients: always the last 30 days, whatever the window.
     leaders_30d = leaders_window if days == 30 else top_leaders(d30)
 
     month = month_start(now)

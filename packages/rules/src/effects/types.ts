@@ -1,10 +1,3 @@
-/**
- * Card ability DSL (schema 2). Plain JSON only: definitions are produced by the
- * offline text compiler or written by hand, validated once at registry build,
- * and compiled to flat resumable instructions (`compile.ts`).
- *
- * Player references are relative to the ability's controller.
- */
 import type { CardType } from "../types.js";
 
 export const EFFECT_SCHEMA_VERSION = 2 as const;
@@ -14,7 +7,6 @@ export type RelOrAny = Rel | "any";
 
 export type CmpOp = "<=" | ">=" | "==" | "<" | ">" | "!=";
 
-/** Numeric expression evaluated at resolution time. */
 export type Value =
   | number
   /** floor(count / per) * times + plus */
@@ -71,27 +63,19 @@ export type Zone =
   | "don_field"
   | "resolving";
 
-/** Card predicate. Every present field must match. */
 export interface Filter {
   types?: CardType[];
-  /** Matches when the card has any listed trait. */
   traits?: string[];
-  /** Matches when any trait contains any listed substring ("type including"). */
   traitIncludes?: string[];
   notTraits?: string[];
-  /** Excludes cards with any trait containing any listed substring. */
   notTraitIncludes?: string[];
-  /** No printed effect text ("no base effect"). */
   vanilla?: boolean;
-  /** Printed text (effect + trigger) contains / lacks each listed tag, e.g. "[When Attacking]". */
   textIncludes?: string[];
   textExcludes?: string[];
-  /** Printed or aliased name equals any listed name. */
   names?: string[];
   notNames?: string[];
   nameIncludes?: string[];
   colors?: string[];
-  /** Matches when the card has more than one color. */
   multicolor?: boolean;
   attributes?: string[];
   cost?: Cmp;
@@ -103,29 +87,18 @@ export interface Filter {
   hasTrigger?: boolean;
   rested?: boolean;
   keyword?: Keyword;
-  /** Field cards only: played during the current turn. */
   playedThisTurn?: boolean;
   excludeSelf?: boolean;
-  /** Excludes every card bound to the named variable. */
   excludeVar?: string;
-  /** Only cards bound to the named variable. */
   inVar?: string;
-  /** Face-up Life cards only. */
   faceUp?: boolean;
-  /** Matches cards whose printed [Trigger] text is present. */
   any?: Filter[];
-  /** Every sub-filter must match (ranges such as "5000 to 7000 power"). */
   all?: Filter[];
-  /** Number of DON!! cards given to the card. */
   donGiven?: Cmp;
-  /** Current cost equals the number of DON!! cards given to the card. */
   costEqDonGiven?: boolean;
-  /** Shares no color with any card bound to the named variable. */
   notColorsOfVar?: string;
-  /** Has the same card name as a card bound to the named variable. */
   sameNameAsVar?: string;
   notAttributes?: string[];
-  /** Only the ability's source card. */
   onlySelf?: boolean;
 }
 
@@ -133,7 +106,6 @@ export interface Selector {
   player: RelOrAny;
   zone: Zone;
   filter?: Filter;
-  /** Union with further selectors ("Characters or DON!! cards", "… or Stages"). */
   also?: Selector[];
 }
 
@@ -210,12 +182,9 @@ export type Target =
       selector: Selector;
       min: number;
       max: number;
-      /** Who picks. Defaults to the controller. */
       chooser?: Rel;
       bind?: string;
-      /** Selections must differ in name / have distinct names (rare). */
       distinctNames?: boolean;
-      /** Total cost of selected cards must be at most this value. */
       totalCostAtMost?: Value;
       totalPowerAtMost?: Value;
     }
@@ -257,7 +226,6 @@ export type Cond =
   /** Something happened this turn: events activated, Characters K.O.'d, hand cards trashed. */
   | { c: "this_turn"; what: "event_activated" | "character_koed" | "hand_trashed"; player: Rel; filter?: Filter };
 
-/** Costs are paid in order before the effect body. Paying is required to resolve. */
 export type Cost =
   | { k: "rest_don"; count: number }
   | { k: "return_don"; count: number }
@@ -298,7 +266,6 @@ export type Cost =
   /** "A or B": pay exactly one option (the player picks among payable ones). */
   | { k: "either"; options: Cost[][]; labels: string[] };
 
-/** Which Life cards a face-up/down turn may reach: the top N (default), the top or the bottom N, or any single card. */
 export type LifeFacePosition = "top" | "top_or_bottom" | "any";
 
 export type Placement = "deck_bottom" | "deck_top" | "trash" | "top_or_bottom" | "hand" | "shuffle";
@@ -309,7 +276,6 @@ export interface LookPick {
   max: number;
   dest: "hand" | "life_top" | "life_bottom" | "play" | "play_rested" | "trash" | "deck_top" | "deck_bottom";
   faceUp?: boolean;
-  /** Bind picked cards for later steps. */
   bind?: string;
   totalCostAtMost?: Value;
   distinctNames?: boolean;
@@ -415,7 +381,6 @@ export type Static =
 
 export type StaticTarget = "self" | { all: Selector };
 
-/** Optional per-entry gate on a static (in addition to the ability's conditions). */
 export type GatedStatic = Static & { when?: Cond[] };
 
 export type Trigger =
@@ -471,27 +436,19 @@ export type GameEventKind =
 
 export interface EventTrigger {
   event: GameEventKind;
-  /** Whose card/event: relative to controller. */
   player: RelOrAny;
   filter?: Filter;
-  /** Event must be caused by the opponent's effect. */
   byOpponentEffect?: boolean;
-  /** Event must be caused by any effect (not battle). */
   byEffect?: boolean;
-  /** Event must be caused by the controller's own effect. */
   byYourEffect?: boolean;
-  /** Further events that trigger the same ability ("When A or B"). */
   alsoEvents?: GameEventKind[];
   /**
-   * Further events that trigger the same ability whatever caused them: `byOpponentEffect`, `byEffect` and
-   * `byYourEffect` do not apply to these ("removed from the field by your opponent's effect or K.O.'d").
+   * `byOpponentEffect`, `byEffect` and `byYourEffect` do not apply to these ("removed from the field by your
+   * opponent's effect or K.O.'d").
    */
   anyCauseEvents?: GameEventKind[];
-  /** Minimum count carried by the event (e.g. "2 or more DON!! cards are returned"). */
   minCount?: number;
-  /** Played-from zone for character_played ("played from your trash"). */
   fromZone?: "hand" | "trash" | "deck" | "life";
-  /** The effect's source card must match (e.g. "by your {Navy} type card's effect"). */
   sourceFilter?: Filter;
   /** With both `filter` and `sourceFilter`: either may match. */
   either?: boolean;
@@ -503,14 +460,10 @@ export type ReplacementEvent = "ko" | "ko_by_effect" | "removed_by_opponent_effe
 
 export interface Replacement {
   event: ReplacementEvent;
-  /** "self" or a selector over the controller's field. */
   target: "self" | Selector;
   byOpponent?: boolean;
-  /** Further events the same replacement applies to. */
   alsoEvents?: ReplacementEvent[];
-  /** The replaced effect's source card must match. */
   sourceFilter?: Filter;
-  /** Paid instead of the replaced event. Empty means the event is simply prevented. */
   instead: Effect;
   optional: boolean;
 }
@@ -518,21 +471,19 @@ export interface Replacement {
 export interface Ability {
   id: string;
   trigger: Trigger;
-  /** [Once Per Turn] */
   oncePerTurn?: boolean;
-  /** [DON!! xN] */
   don?: number;
-  /** Gate conditions checked when the ability would activate/apply. */
   conditions?: Cond[];
-  /** Gate conditions checked when a queued trigger is about to resolve instead of when it was queued (a "would do nothing" gate that an earlier effect in the same window can change). */
+  /**
+   * Checked when a queued trigger is about to resolve, not when queued: an earlier effect in the same window can
+   * change a "would do nothing" gate.
+   */
   resolveConditions?: Cond[];
-  /** Costs paid when activated or accepted (a cost makes a trigger optional). */
   costs?: Cost[];
   effect?: Effect;
   statics?: GatedStatic[];
   eventTrigger?: EventTrigger;
   replacement?: Replacement;
-  /** Printed clause text this ability implements (display/audit only). */
   text: string;
 }
 
@@ -542,9 +493,7 @@ export interface CardAbilities {
   id: string;
   schemaVersion: typeof EFFECT_SCHEMA_VERSION;
   abilities: Ability[];
-  /** Printed clauses the compiler/author could not express. */
   unsupported: string[];
   status: SupportStatus;
-  /** Where these abilities came from. */
   origin: "generated" | "manual";
 }

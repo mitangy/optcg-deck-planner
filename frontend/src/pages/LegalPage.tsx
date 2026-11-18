@@ -3,7 +3,6 @@ import { LEGAL_TITLES, LegalDocument, LegalNav, type LegalKind } from "@optcg/si
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { Topbar } from "../app/Topbar";
 
-/** Public Terms & credits / Privacy / Cookies page (no sign-in needed). */
 export function LegalPage({ kind }: { kind: LegalKind }) {
   return (
     <div className="app public-app">

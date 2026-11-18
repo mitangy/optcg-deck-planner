@@ -1,21 +1,13 @@
-/**
- * The `defend` puzzle (#685): the opponent's attack has been declared and it is the defender's block step. The question is how
- * few cards from the hand (Counter Characters trashed for their Counter, Counter Events) it takes to lose no Life and keep every
- * Character, with a block allowed. The gold is found by trying every block the engine allows with every set of Counter
- * cards it allows, so it is exact; a position where any line meets a pending choice is not a fair puzzle and makes none.
- */
 import { applyIntent, listLegalIntents, type Intent, type MatchState, type Rng, type Seat } from "@optcg/rules";
 import type { Catalog } from "../../src/catalog";
 import { boardCards, fullySupported, labelOf, shownCardIds } from "./describe";
 import { finish, headOf, pickOf, type Made } from "./generators";
 import { step, Unfair } from "./search";
 
-/** More Counter-capable cards than this in the hand and the search would try too many sets: no puzzle. */
 export const MAX_COUNTER_CARDS = 6;
 
 const counterIntent = (i: Intent): i is Extract<Intent, { type: "counter_from_hand" | "counter_event" }> => i.type === "counter_from_hand" || i.type === "counter_event";
 
-/** The attack at `intentIndex` of the active seat's legal attacks, declared: the defender's block step with nothing pending. */
 export function blockStepOf(state: MatchState, intentIndex: number): MatchState | null {
   const attacker = state.activeSeat;
   const intent = listLegalIntents(state, attacker).filter((i) => i.type === "declare_attack")[intentIndex];
@@ -25,7 +17,6 @@ export function blockStepOf(state: MatchState, intentIndex: number): MatchState 
   return declared.state;
 }
 
-/** Subsets of `items` with exactly `k` members, in hand order. */
 function subsets<T>(items: readonly T[], k: number): T[][] {
   if (k === 0) return [[]];
   if (items.length < k) return [];
@@ -33,10 +24,6 @@ function subsets<T>(items: readonly T[], k: number): T[][] {
   return [...subsets(rest, k - 1).map((s) => [head!, ...s]), ...subsets(rest, k)];
 }
 
-/**
- * The fewest cards used from the defender's hand over every block option and every set of Counter cards, or -1 when no line
- * keeps all Life and all Characters. Null when the position is not a fair puzzle (a pending choice in some line, too many cards).
- */
 export function fewestCards(blockStep: MatchState, defender: Seat): number | null {
   try {
     return search(blockStep, defender);
@@ -50,13 +37,11 @@ function search(blockStep: MatchState, defender: Seat): number {
   const before = blockStep.players[defender];
   const lifeBefore = before.life.length;
   const charsBefore = before.characters.map((c) => c.id);
-  /** The battle is over and the defender kept all Life and all Characters. */
   const saved = (s: MatchState): boolean => {
     if (s.battle || s.phase !== "main") throw new Unfair("the battle did not end");
     const p = s.players[defender];
     return s.winner === null && p.life.length === lifeBefore && charsBefore.every((id) => p.characters.some((c) => c.id === id));
   };
-  /** Plays `ids` (hand cards by instance) as Counters in order, passes, and says whether the defender is saved. */
   const line = (counterStep: MatchState, ids: readonly string[]): boolean => {
     let s = counterStep;
     for (const id of ids) {
@@ -68,7 +53,6 @@ function search(blockStep: MatchState, defender: Seat): number {
     }
     s = step(s, { type: "pass_counter" }, defender);
     if (s.pendingChoices.length) {
-      // A Life card that was taken is being checked: the Life is lost whatever the check says.
       if (s.pendingChoices.every((c) => c.kind === "life_trigger" && c.seat === defender)) return false;
       throw new Unfair("a choice is pending after the battle");
     }
@@ -80,7 +64,6 @@ function search(blockStep: MatchState, defender: Seat): number {
     const afterBlock = step(blockStep, block, defender);
     if (afterBlock.pendingChoices.length) throw new Unfair("a block opens a choice");
     if (!afterBlock.battle) {
-      // The block ended the battle (a Character left the field); nothing more to play.
       if (saved(afterBlock)) best = 0;
       continue;
     }
@@ -105,7 +88,6 @@ export const DEFEND_MIX: Record<string, number> = { "cards-needed": 0.65, imposs
 
 const KINDS = { "cards-needed": "needed", impossible: "impossible", "no-cards-needed": "none" } as const;
 
-/** `prefer` names the kind of answer to ask about when the position has one (a key of `DEFEND_MIX`). */
 export function defendPuzzle(state: MatchState, catalog: Catalog, rng: Rng, prefer?: string): Made | null {
   const attacker = state.activeSeat;
   const view = (1 - attacker) as Seat;
@@ -119,7 +101,6 @@ export function defendPuzzle(state: MatchState, catalog: Catalog, rng: Rng, pref
     return blockStep && gold !== null ? [{ blockStep, gold }] : [];
   });
   const buckets = { impossible: battles.filter((b) => b.gold < 0), none: battles.filter((b) => b.gold === 0), needed: battles.filter((b) => b.gold > 0) };
-  // Asked for a kind, take it if the position has it, else whatever it has; with no preference, mostly a puzzle that needs cards.
   const wanted = prefer ? KINDS[prefer as keyof typeof KINDS] : undefined;
   const roll = rng.next();
   const kind =

@@ -1,7 +1,3 @@
-/**
- * The enlarged card has a Price history panel for the art it shows (#946): range buttons, whole-history
- * stats and a hover readout. Runs at desktop-1200 and phone-375.
- */
 import { expect, test } from "./fixtures";
 
 test.afterEach(({ planner }) => {
@@ -19,7 +15,6 @@ test("Collection: the lightbox's Price history shows the stats and switches rang
   await toggle.click();
   const panel = lightbox.getByRole("region", { name: "Price history" });
   await expect(panel).toBeVisible();
-  // Opening the panel does not move the button.
   expect(await toggle.boundingBox()).toEqual(before);
 
   const stats = panel.locator("dl.ph-stats");
@@ -31,7 +26,6 @@ test("Collection: the lightbox's Price history shows the stats and switches rang
   await expect(stats).toContainText("Sep 16 '25");
   await expect(stats).toContainText("3 months ago");
 
-  // 3M is the default; Max runs from $60 to $92.
   await expect(panel.getByRole("button", { name: "3M" })).toHaveAttribute("aria-pressed", "true");
   await expect(stats).toContainText("3M change");
   await panel.getByRole("button", { name: "Max" }).click();
@@ -39,11 +33,9 @@ test("Collection: the lightbox's Price history shows the stats and switches rang
   await expect(stats).toContainText("Max change+53.3%");
   await expect(panel.getByRole("img")).toHaveAccessibleName(/from Sep 17, 2025 to Jan 14, 2026/);
 
-  // 1M starts later than Max.
   await panel.getByRole("button", { name: "1M" }).click();
   await expect(panel.getByRole("img")).toHaveAccessibleName(/from Dec 14, 2025 to Jan 14, 2026/);
 
-  // Hovering the chart reads out a date and price.
   const chart = panel.getByRole("img");
   const box = (await chart.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height * 0.5);

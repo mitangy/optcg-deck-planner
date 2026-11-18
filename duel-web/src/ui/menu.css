@@ -1,5 +1,3 @@
-/* —— Menu: hamburger button + left drawer (fixed, portalled to <body>, so the header never moves) —— */
-
 .topbar-left {
   display: flex;
   align-items: center;
@@ -8,20 +6,15 @@
   margin-right: auto;
 }
 
-/* Same 44px hit target as the Back button beside it. */
 .nav-menu-btn {
   width: 44px;
   height: 44px;
 }
 
-/* The drawer is the shared Headless UI Dialog (@optcg/ui/popups): the backdrop is the dialog, the panel slides in from the left and back out on close.
-   The Dialog's `transition` keeps both mounted until these CSS transitions end and sets data-closed / data-enter / data-leave;
-   with no transition (reduced motion) it unmounts at once. */
 .nav-drawer-root {
   z-index: var(--z-nav-drawer);
   display: block;
   padding: 0;
-  /* background: the dialog's own --ui-backdrop (abyss at 72%). */
   transition: opacity 180ms ease-out;
 }
 
@@ -51,7 +44,6 @@
   transform: translateX(-100%);
 }
 
-/* The padding sits on the nav, so its box is the drawer's full width. */
 .nav-drawer-nav {
   padding: max(1rem, var(--safe-t)) 0.75rem max(1rem, var(--safe-b)) max(0.75rem, var(--safe-l));
 }
@@ -111,8 +103,6 @@
 :root[data-motion="reduce"] .nav-drawer {
   transition: none;
 }
-
-/* —— Top bounties link to the full leaderboard —— */
 
 .bounties-title-link,
 .bounties-see-all {

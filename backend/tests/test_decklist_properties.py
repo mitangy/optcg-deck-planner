@@ -33,8 +33,6 @@ fragments = st.one_of(
     st.builds(lambda c, n: f"{c} x{n}", card_ids, st.integers(0, 12)),
     st.builds(lambda c, n, x: f"{c.lower()}{x}{n}", card_ids, st.integers(0, 12), st.sampled_from(["x", "X", " x"])),
     st.builds(lambda z, c: f"{'0' * z}x{c}", st.integers(1, 6), card_ids),
-    # a pasted run of digits longer than int() accepts (Python's 4300-digit limit). Built from a size,
-    # not st.from_regex: Hypothesis never spends 4300 characters of its entropy budget on a regex run.
     st.builds(lambda n, d, c: f"{d * n}x{c}", st.integers(4301, 4400), st.sampled_from(["9", "1", "\u0663"]), card_ids),
     st.sampled_from(["\n", "\r\n", ",", ";", "  ", " ", "# note", "// note", "-", "x", "0", "Nami", "\t"]),
     st.text(max_size=8),

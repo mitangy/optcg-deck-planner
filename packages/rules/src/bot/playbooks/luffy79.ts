@@ -1,19 +1,15 @@
 /**
- * OP17-079 Monkey.D.Luffy (black). My Characters with cost 12+ gain [Blocker], and the deck's cards that "gain +12 cost" (Rodo,
- * Gerd, Saul, Loki) are cheap to play but become 12+ on the field. The first one out turns the whole plan on (Blockers, and
- * the deck's 12+ cost payoffs), so while none is on the field a hand Character that would be 12+ gets a play bonus.
- * The field cost is read from the card's own static "+N cost" abilities (conditions: only {Leader trait} ones are checked).
+ * Cards that "gain +12 cost" are cheap to play but become 12+ on the field; the first one out turns the plan on, so a
+ * hand Character that would be 12+ gets a play bonus.
  */
 import { abilitiesFor } from "../../cards/abilities.js";
 import { getCardDef } from "../../cards/definitions.js";
 import type { BotView } from "../types.js";
 import type { LeaderPlaybook } from "./types.js";
 
-/** Play-score bonus for an enabler while no 12+ cost Character is out. */
 export const LUFFY79_ENABLER_BONUS = 3;
 const BIG_COST = 12;
 
-/** The cost a Character card would have on the field with my Leader, counting its own "+N cost" statics. */
 export function fieldCostIfPlayed(view: BotView, defId: string): number {
   const def = getCardDef(defId);
   const leaderTraits = getCardDef(view.you.leader.defId).traits ?? [];

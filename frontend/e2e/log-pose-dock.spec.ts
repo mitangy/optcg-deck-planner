@@ -1,20 +1,13 @@
-/**
- * Log Pose docked to a side of the planner (#432): the page makes room for the strip, so the top bar and the
- * deck stay out from under it and nothing scrolls sideways; a phone keeps its bottom sheet whatever side was
- * remembered. LP_DOCK_SHOTS=<dir> also saves screenshots there.
- */
 import { test, expect, DECK_ID } from "./fixtures";
 
 const SHOTS = process.env.LP_DOCK_SHOTS;
 
-/** Every top-bar link and button is whole beside the panel (not under it) and no link label runs onto a second line. */
 async function expectNavFits(page: import("@playwright/test").Page, panelLeft: number) {
   const items = await page.locator(".topbar nav a, .topbar .user > *").evaluateAll((els) =>
     els.filter((e) => e.getBoundingClientRect().width > 0).map((e) => ({ text: (e.textContent ?? "").trim(), right: e.getBoundingClientRect().right, h: e.getBoundingClientRect().height, lh: parseFloat(getComputedStyle(e).lineHeight) || 0 })),
   );
   expect(items.length).toBeGreaterThan(4);
   for (const i of items) expect(i.right, `${i.text} is clipped by the panel`).toBeLessThanOrEqual(panelLeft + 1);
-  // Every label is on one line: its text has a single line box.
   const wrapped = await page.locator(".topbar nav a, .topbar .user > *").evaluateAll((els) =>
     els.filter((e) => e.getBoundingClientRect().width > 0 && ((): number => { const r = document.createRange(); r.selectNodeContents(e); return new Set([...r.getClientRects()].map((x) => Math.round(x.top / 6))).size; })() > 1).map((e) => (e.textContent ?? "").trim()),
   );
@@ -41,14 +34,12 @@ test("a panel docked to the right gives the page its room, so the top bar and th
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
   await expectNavFits(page, box.x);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/08-planner-docked-1200.png` });
-  // A wider window leaves more room beside the panel: still fits.
   await page.setViewportSize({ width: 1440, height: 900 });
   const wide = (await panel.boundingBox())!;
   await expectNavFits(page, wide.x);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/08b-planner-docked-1440.png` });
   await page.setViewportSize({ width: 1200, height: 900 });
 
-  // Closing gives the width back.
   await panel.getByRole("button", { name: "Close Log Pose" }).click();
   await expect(panel).toHaveCount(0);
   expect(await page.evaluate(() => parseFloat(getComputedStyle(document.body).paddingRight))).toBe(0);

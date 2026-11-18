@@ -1,6 +1,5 @@
 import {BEAT} from '../theme';
 
-/** Scene start frames (30 fps, 120 BPM: one beat = 15 frames). Every value is a multiple of BEAT. */
 export const S = {
   logo: 0,
   storm: 90,
@@ -12,7 +11,6 @@ export const S = {
   end: 810,
 } as const;
 export const MOTION_TOTAL = 900;
-/** Scenes are drawn this many frames early/late so neighbours cross-dissolve (no dead frames). */
 export const OVERLAP = 9;
 
 export const SCENE_ORDER = Object.entries(S).sort((a, b) => a[1] - b[1]) as [keyof typeof S, number][];

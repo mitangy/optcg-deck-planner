@@ -70,7 +70,6 @@ function toggleSet(set: Set<string>, id: string): Set<string> {
   return next;
 }
 
-/** Generic prompt for every server choice request (protocol 5). */
 export function ChoicePrompt({ choice, mySeat, onSend }: Props) {
   const request: ChoiceRequestView = choice.request ?? { type: "confirm" };
   const options = "options" in request ? request.options : [];
@@ -78,11 +77,9 @@ export function ChoicePrompt({ choice, mySeat, onSend }: Props) {
   const [selected, setSelected] = useState<string[]>([]);
   const [order, setOrder] = useState<string[]>(() => options.map((o) => o.id));
   const [topIds, setTopIds] = useState<Set<string>>(() => new Set(request.type === "order" ? options.map((o) => o.id) : []));
-  // "Top or bottom" moves the rest together: one side for all of them.
   const [restOnTop, setRestOnTop] = useState(true);
   const title = choice.cardDefId && choice.cardDefId !== "HIDDEN" ? lookupCard(choice.cardDefId).name : "Effect";
   const maxPick = request.type === "select" ? request.max : request.type === "look" ? request.maxSelect : 0;
-  // "With different card names": a card whose name is already picked can't be added.
   const nameOf = (o: ChoiceOptionView) => (o.defId && o.defId !== "HIDDEN" ? lookupCard(o.defId).name : null);
   const pickedNames = new Set(options.filter((o) => selected.includes(o.id)).map(nameOf));
   const nameTaken = (o: ChoiceOptionView) => request.type === "select" && !!request.distinctNames && !selected.includes(o.id) && nameOf(o) != null && pickedNames.has(nameOf(o));

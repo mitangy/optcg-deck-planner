@@ -40,7 +40,6 @@ export function FriendPage() {
   const counterId = Number(params.get("counter")) || null;
   const trades = useQuery({ queryKey: qk.trades(), queryFn: friendsApi.trades, enabled: counterId != null });
 
-  // The offer tray lives here so it survives switching tabs.
   const [lines, setLines] = useState<TrayLine[]>([]);
   const [message, setMessage] = useState("");
   const prefilled = useRef<number | null>(null);

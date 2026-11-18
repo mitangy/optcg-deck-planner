@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Montage of generated scenes with their labels drawn, for eyeballing the generator."""
 import sys, glob, os, cv2, numpy as np
 d, out, n = sys.argv[1], sys.argv[2], int(sys.argv[3]) if len(sys.argv) > 3 else 12
 split = sys.argv[4] if len(sys.argv) > 4 else "train"

@@ -1,7 +1,3 @@
-/**
- * Rating Log Pose answers in the panel (#679): thumbs up / down and "This is wrong" with a note. The analyst and the API
- * are faked in the browser; the panel is the real one. Runs at desktop and phone width.
- */
 import type { Page } from "@playwright/test";
 import { test, expect, FAKE_API } from "./fixtures";
 
@@ -85,17 +81,13 @@ test("every saved answer has thumbs and 'This is wrong', and a vote is a quiet T
   await up.click();
   await expect(up).toHaveAttribute("aria-pressed", "true");
   await expect(second.getByRole("status")).toHaveText("Thanks");
-  // The button flips before the POST reaches the fake route, so wait for the post itself.
   await expect.poll(() => st.posts.at(-1)).toMatchObject({ kind: "chat", thread_id: 1, message_index: 1, rating: "up", note: "", starts_with: "Keep the Nami until you can afford the b" });
-  // The vote can be changed; the first answer's own bar is untouched.
   await down.click();
   await expect(down).toHaveAttribute("aria-pressed", "true");
   await expect(up).toHaveAttribute("aria-pressed", "false");
   await expect.poll(() => st.posts.at(-1)).toMatchObject({ message_index: 1, rating: "down" });
   await expect(bars.nth(0).getByRole("button", { pressed: true })).toHaveCount(0);
-  // Nothing moved: not the buttons, not the status.
   expect(await boxes(second)).toEqual(before);
-  // Hit targets: at least 36px, 44px on a touch screen.
   const touch = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
   for (const [, , w, h] of before) expect(Math.min(w!, h!)).toBeGreaterThanOrEqual(touch ? 44 : 36);
 });
@@ -111,7 +103,6 @@ test("'This is wrong' opens a note form below the buttons; Escape closes it; Sen
   await expect(note).toBeFocused();
   await expect(wrong).toHaveAttribute("aria-expanded", "true");
   expect(await boxes(bar)).toEqual(before);
-  // The form sits below the buttons.
   const [formTop, barTop] = [(await bar.locator(".lp-fb-form").boundingBox())!.y, (await bar.boundingBox())!.y];
   expect(formTop - barTop).toBeGreaterThanOrEqual(before[0]![1]! + before[0]![3]!);
   expect(await note.getAttribute("maxlength")).toBe("1000");
@@ -119,7 +110,6 @@ test("'This is wrong' opens a note form below the buttons; Escape closes it; Sen
   await expect(note).toHaveCount(0);
   await expect(wrong).toBeFocused();
   await expect(page.locator(".lp-panel")).toBeVisible();
-  // Open again by keyboard, write, send.
   await page.keyboard.press("Enter");
   await note.fill("The Nami costs 4, not 3.");
   await bar.getByRole("button", { name: "Send" }).click();
@@ -152,7 +142,6 @@ test("the player's earlier votes come back selected after a reload (#679)", asyn
   await expect(bars.nth(0).getByRole("button", { name: "This is wrong" })).toHaveAttribute("aria-pressed", "true");
   await expect(bars.nth(1).getByRole("button", { name: "Good answer" })).toHaveAttribute("aria-pressed", "true");
   await expect(bars.nth(1).getByRole("status")).toHaveText("Thanks");
-  // Opening the form on a 'wrong' vote starts from its note.
   await bars.nth(0).getByRole("button", { name: "This is wrong" }).click();
   await expect(bars.nth(0).getByRole("textbox", { name: /What was wrong/ })).toHaveValue("Nope.");
 });

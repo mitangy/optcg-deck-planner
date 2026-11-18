@@ -16,12 +16,10 @@ type TrayProps = {
   onLines: (next: TrayLine[]) => void;
   message: string;
   onMessage: (next: string) => void;
-  /** Set while answering an offer from this friend: Send becomes a counter. */
   counterId: number | null;
   onClear: () => void;
 };
 
-/** The offer being built. Fixed to the bottom of the screen so adding cards never moves the page. */
 export function TradeTray(props: TrayProps) {
   if (props.lines.length === 0 && props.counterId == null) return null;
   return <TrayInner {...props} />;

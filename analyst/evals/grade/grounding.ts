@@ -18,8 +18,6 @@ export function grounded(answer: string, corpus: { tools: string; user: string }
   const known = extractFacts(source);
   const ungrounded: string[] = [];
   for (const p of facts.percents) {
-    // A tool that printed a whole number (78%) may have rounded it, so half a point either way is accepted.
-    // A whole-number answer ("about 35%") is grounded when it is a tool's percentage (35.3%) rounded to the nearest point.
     const found = known.percents.some(
       (c) =>
         closePercent(p.value, c.value, PERCENT_TOL) ||

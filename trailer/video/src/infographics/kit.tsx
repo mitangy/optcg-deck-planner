@@ -5,7 +5,6 @@ import boxes from './boxes.json';
 
 export type Rect = {x: number; y: number; w: number; h: number};
 
-/** Size of each screenshot in CSS px (the PNGs are 2x desktop, 3x phone). */
 export const SRC = {desktop: {w: 1440, h: 900}, compact: {w: 1040, h: 700}, phone: {w: 390, h: 844}} as const;
 export type Kind = keyof typeof SRC;
 
@@ -25,15 +24,11 @@ export const union = (rs: Rect[]): Rect => {
 };
 
 export type RingSpec = {
-  /** Recorded control(s) to circle. */
   k?: string | string[];
-  /** Or an explicit box in CSS px of the shot (a strip no single control covers). */
   rect?: Rect;
   pad?: number;
   radius?: number;
-  /** Dim everything outside this ring. */
   spot?: boolean;
-  /** Arrow pointing at the ring from this side, with an optional label at its tail. */
   arrow?: 'up' | 'down' | 'left' | 'right';
   label?: string;
 };
@@ -41,18 +36,12 @@ export type RingSpec = {
 export type ShotSpec = {
   src: string;
   kind: Kind;
-  /** Controls the crop must contain (recorded boxes). */
   focus?: string[];
-  /** Explicit crop in CSS px, instead of focus. */
   rect?: Rect;
-  /** Stay inside this recorded box (a dialog panel), so the crop never shows the dimmed page behind it. */
   inside?: string;
-  /** Padding around the focus box, CSS px (one number or [left, top, right, bottom]). */
   pad?: number | [number, number, number, number];
-  /** Crop aspect (w / h); the crop grows to it. */
   ar?: number;
   rings?: RingSpec[];
-  /** Small pill on the crop, e.g. "Phone". */
   tag?: string;
 };
 
@@ -60,7 +49,6 @@ export type Step = {
   text: string;
   keys?: string[];
   shots?: ShotSpec[];
-  /** Big keycaps or a link chip filling the picture area when there is no screenshot. */
   bigKeys?: string[];
   chip?: string;
 };
@@ -73,7 +61,6 @@ export type InfographicSpec = {
   tip?: string;
 };
 
-/** Box of a ring's target in the shot's CSS px. */
 export const ringBox = (src: string, r: RingSpec): Rect => {
   if (r.rect) return r.rect;
   const keys = Array.isArray(r.k) ? r.k : [r.k ?? ''];
@@ -88,13 +75,11 @@ export function resolveCrop(s: ShotSpec): Rect {
   else {
     const focus = s.focus ?? [];
     const rects = focus.map((key) => boxOf(s.src, key));
-    // The crop always holds every ring completely (its pad plus the stroke).
     for (const r of s.rings ?? []) {
       const b = ringBox(s.src, r);
       const e = (r.pad ?? 7) + 5;
       rects.push({x: b.x - e, y: b.y - e, w: b.w + e * 2, h: b.h + e * 2});
       if (r.arrow) {
-        // The arrow and its label sit outside the ring, on `arrow`'s side: keep room for them (about 1.1 px per CSS px).
         const reach = (72 + (r.label ? 24 + r.label.length * 11 : 0)) / 1.1;
         const horizontal = r.arrow === 'left' || r.arrow === 'right';
         const x0 = r.arrow === 'left' ? b.x - e - reach : b.x - e;
@@ -146,7 +131,6 @@ export function fitCol(aspects: number[], W: number, H: number, gap: number): Si
 
 const area = (s: Size[]) => s.reduce((a, b) => a + b.w * b.h, 0);
 
-/** Row or column, whichever gives the pictures more room. */
 export function fitBest(aspects: number[], W: number, H: number, gap: number): {dir: 'row' | 'col'; sizes: Size[]} {
   if (aspects.length === 1) return {dir: 'row', sizes: fitRow(aspects, W, H, gap)};
   const row = fitRow(aspects, W, H, gap);
@@ -154,7 +138,6 @@ export function fitBest(aspects: number[], W: number, H: number, gap: number): {
   return area(row) >= area(col) ? {dir: 'row', sizes: row} : {dir: 'col', sizes: col};
 }
 
-/** Gold, with a dark halo so it reads on both bright card art and dark panels. */
 export const GOLD = COLORS.gold;
 
 const Arrow: React.FC<{ring: Rect; side: 'up' | 'down' | 'left' | 'right'; label?: string; unit: number}> = ({ring, side, label, unit}) => {
@@ -163,8 +146,6 @@ const Arrow: React.FC<{ring: Rect; side: 'up' | 'down' | 'left' | 'right'; label
   const gap = 6 * unit;
   const cx = ring.x + ring.w / 2;
   const cy = ring.y + ring.h / 2;
-  // Tip touches the ring edge (with a gap); tail extends away from it.
-  // `side` is where the arrow sits relative to the ring; it points at the ring.
   const dir = {up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0]}[side];
   const tipX = side === 'right' ? ring.x + ring.w + gap : side === 'left' ? ring.x - gap : cx;
   const tipY = side === 'down' ? ring.y + ring.h + gap : side === 'up' ? ring.y - gap : cy;
@@ -197,7 +178,6 @@ const Arrow: React.FC<{ring: Rect; side: 'up' | 'down' | 'left' | 'right'; label
   );
 };
 
-/** One cropped screenshot at (w x h) px, with its gold rings and arrows. */
 export const Shot: React.FC<{spec: ShotSpec; w: number; h: number}> = ({spec, w, h}) => {
   const crop = resolveCrop(spec);
   const src = SRC[spec.kind];
@@ -257,7 +237,6 @@ export const Key: React.FC<{children: React.ReactNode; size?: number}> = ({child
   </span>
 );
 
-/** "**gold**" spans in a step's text. */
 export const Rich: React.FC<{text: string}> = ({text}) => (
   <>
     {text.split('**').map((part, i) =>

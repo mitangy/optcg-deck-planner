@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
-# Record trailer clips.   trailer/capture/run.sh            every clip
-#                         trailer/capture/run.sh 03 06-friends   some of them (id or number prefix)
-#
-# Starts (and stops again) everything a take needs, on ports of its own so `npm run e2e` is never disturbed:
-#   - Xvfb on :97 (1920x1080), :96 (the portrait phone clips' bigger-pixel screen) and :95 (the landscape phone clip's)
-#   - the local game server (Colyseus + rules engine) on :2667
-#   - the planner's Vite dev server on :5275 (clip 10)
-#   - duel-web's Vite dev server on :5274, pointed at a backend address nothing listens on:
-#     every FastAPI call is answered inside the browser (lib/fakeApi.ts). Nothing touches production.
-# Already-running servers on those ports are reused. Clips land in trailer/clips/, stills in trailer/clips/stills/.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,7 +23,7 @@ cleanup() {
 trap cleanup EXIT
 
 up() { curl -fsS -o /dev/null "$1" 2>/dev/null; }
-wait_for() { # url name
+wait_for() {
   for _ in $(seq 1 90); do up "$1" && return 0; sleep 1; done
   echo "timed out waiting for $2 ($1)" >&2; exit 1
 }
@@ -42,7 +32,7 @@ if [ ! -d "$REPO/node_modules" ]; then (cd "$REPO" && npm ci); fi
 if [ ! -d "$REPO/duel-web/node_modules" ]; then (cd "$REPO/duel-web" && npm ci); fi
 if [ ! -d "$HERE/node_modules" ]; then (cd "$HERE" && npm install --no-audit --no-fund); fi
 
-start_xvfb() { # display WxHxD
+start_xvfb() {
   local n="${1#:}"
   if [ ! -S "/tmp/.X11-unix/X$n" ]; then
     Xvfb "$1" -screen 0 "$2" -nolisten tcp -ac >/tmp/trailer-xvfb-$n.log 2>&1 &
@@ -72,7 +62,6 @@ if ! up "$WEB"; then
 fi
 PLANNER="http://127.0.0.1:$TRAILER_PLANNER_PORT"
 if ! up "$PLANNER"; then
-  # The planner SPA too (clip 10): its API calls go to the same in-browser fake, and "Play in Duel" points at the local duel-web.
   if [ ! -d "$REPO/frontend/node_modules" ]; then (cd "$REPO/frontend" && npm ci); fi
   cd "$REPO/frontend"
   VITE_API_URL="$TRAILER_FAKE_API" VITE_DUEL_URL="$WEB" \

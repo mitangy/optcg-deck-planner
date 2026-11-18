@@ -62,7 +62,6 @@ describe("spend bookkeeping failures are visible (refactor 0.3)", () => {
       "POST /analyst/chat/usage": null,
       "GET /analyst/chat/budget": BUDGET,
     });
-    // The extra= check answers 503; the first (plain) budget read answers normally.
     const fetchImpl = api.fetchImpl;
     const flaky = (async (url: string, init: RequestInit) => (url.includes("extra=") ? new Response("{}", { status: 503 }) : fetchImpl(url, init))) as unknown as typeof fetch;
     const { callModel, seen } = scriptedModel([

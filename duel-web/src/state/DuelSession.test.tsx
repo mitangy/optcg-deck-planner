@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-/** URL each SDK Client was built with (which game server it dials). */
 const sdkClientUrls: string[] = [];
 const sdkReconnect = vi.fn((_token: string) => new Promise<never>(() => {}));
 vi.mock("@colyseus/sdk", () => ({
@@ -18,7 +17,6 @@ vi.mock("@colyseus/sdk", () => ({
   },
 }));
 
-/** The duel room the fake SDK opens; `reclaim` plays the SDK's background seat reclaim. */
 const room = {
   roomId: "room-1",
   reconnectionToken: "room-1:tok",
@@ -54,7 +52,6 @@ vi.stubGlobal("sessionStorage", memoryStorage());
 const { DuelSessionProvider, useDuelSession } = await import("./DuelSession");
 const { rememberAssignedGameServer } = await import("../net/gameServer");
 
-/** A fresh provider, as after a page load; returns its session API. */
 function mountSession(): ReturnType<typeof useDuelSession> {
   let session: ReturnType<typeof useDuelSession> | null = null;
   function Grab() {
@@ -75,12 +72,9 @@ describe("match resume across game server pools", () => {
     const before = mountSession();
     await before.connect({ serverUrl: "https://pool-a.example", gameToken: "t", preferredSeat: 0 }, 0);
 
-    // After the match started, a newer token (another tab, a fresh mint) is assigned pool B.
     rememberAssignedGameServer({ game_server_url: "https://pool-b.example" });
-    // A dropped socket comes back with a rotated token, which is saved again.
     await room.reclaim("room-1:tok2");
 
-    // Page reload: a new provider resumes from sessionStorage.
     sdkClientUrls.length = 0;
     const after = mountSession();
     void after.tryResumeFromStorage();

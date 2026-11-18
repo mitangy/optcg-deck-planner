@@ -44,7 +44,6 @@ describe("planner route meta (#804)", () => {
 
 type VercelRoute = { src?: string; dest?: string; status?: number; handle?: string };
 
-/** What Vercel answers for a path once the filesystem (public/ files) has not matched: first route whose src matches wins. */
 function status(routes: VercelRoute[], path: string): number | null {
   const after = routes.slice(routes.findIndex((r) => r.handle === "filesystem") + 1);
   for (const r of after) {

@@ -1,7 +1,3 @@
-/**
- * Test harness: build a match, then place exact cards in zones and drive
- * intents/choices with assertions. Used by rules tests only.
- */
 import { applyIntent, assertInvariants, createMatch, listLegalIntents, skipMulligans } from "../engine.js";
 import { getPlayerView } from "../engine/views.js";
 import { createSeededRng, type Rng } from "../rng.js";
@@ -23,7 +19,6 @@ export class Harness {
     let state = createMatch({ seed, firstSeat: 0, players: [{ leaderId: opts.leaders?.[0] ?? "ST01-001", deck }, { leaderId: opts.leaders?.[1] ?? "ST01-001", deck }] });
     state = skipMulligans(state);
     this.state = state;
-    // Advance to seat 0's second turn so attacks are legal.
     this.act(0, { type: "end_turn" });
     this.act(1, { type: "end_turn" });
     this.clearHands();
@@ -60,7 +55,6 @@ export class Harness {
     return card;
   }
 
-  /** Put cards on top of the deck (first argument ends up on top). */
   deckTop(seat: Seat, ...defIds: string[]): string[] {
     const p = this.state.players[seat];
     const ids = defIds.map(() => this.id("d"));
@@ -84,7 +78,6 @@ export class Harness {
     return ids;
   }
 
-  /** Set the seat's cost area to `active` active and `rested` rested DON!!. */
   don(seat: Seat, active: number, rested = 0): void {
     const p = this.state.players[seat];
     const all = [...p.donDeck, ...p.costArea, ...p.attachedDons];
@@ -150,7 +143,6 @@ export class Harness {
     return this.act(seat ?? this.choice!.seat, { type: "resolve_pending_choice", accept: false });
   }
 
-  /** Answer a select/mode prompt by card definition ids or option labels. */
   pick(...keys: string[]): this {
     const choice = this.choice!;
     const r = choice.request;
@@ -189,9 +181,8 @@ export class Harness {
   }
 
   /**
-   * Defender passes block and counter, resolving the battle. A Life card without [Trigger] opens a
-   * `noTrigger` check (#352); it is declined (card to hand) unless `resolveLifeChecks: false`.
-   * A [Trigger] card's check is left pending for the test to answer.
+   * A Life card without [Trigger] opens a `noTrigger` check; it is declined (card to hand) unless `resolveLifeChecks:
+   * false`.
    */
   passBattle(opts: { resolveLifeChecks?: boolean } = {}): this {
     const def = (this.state.battle!.attackerSeat === 0 ? 1 : 0) as Seat;
@@ -200,7 +191,6 @@ export class Harness {
     return opts.resolveLifeChecks === false ? this : this.resolveLifeChecks();
   }
 
-  /** Decline every front `noTrigger` Life check (the card goes to hand). Leaves [Trigger] checks and other choices alone. */
   resolveLifeChecks(): this {
     while (this.choice?.kind === "life_trigger" && this.choice.noTrigger) this.decline();
     return this;

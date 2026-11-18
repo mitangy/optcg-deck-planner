@@ -1,9 +1,5 @@
 name: Log Pose review facts
 
-# Manual only: the paid review fact-check (analyst/evals/review-facts, #675). About $2 for 20 games. Never scheduled.
-# Bots play fresh games with the current meta decks, Log Pose reviews each one with the production prompt, and every
-# concrete fact in a review is checked against the replay. Needs the ANTHROPIC_API_KEY secret; the meta decks come
-# from the public backend (ANALYST_API_URL), and without it the bots use random decks.
 on:
   workflow_dispatch:
     inputs:
@@ -41,7 +37,6 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       META_API_URL: ${{ vars.META_API_URL || vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
-      # For --post: the same URL and secret the main Log Pose eval and the bot self-play job use.
       ANALYST_API_URL: ${{ vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
       ANALYST_SERVICE_SECRET: ${{ secrets.ANALYST_SERVICE_SECRET }}
     steps:

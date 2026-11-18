@@ -1,12 +1,3 @@
-/**
- * Pixel snapshots of the planner's key screens at desktop-1200 and phone-375.
- * Tagged @visual so the click-through run skips them (`--grep-invert @visual`)
- * and a separate step runs them alone (`npm run e2e:visual`), both in the CI
- * `frontend` job, so a failing snapshot leaves its diffs in their own artifact. The API, the
- * clock and the card art are all faked (see fixtures.ts), so nothing here
- * depends on the network or the date. Baselines are per platform; re-bless with
- * the "Update planner snapshots" workflow (see playwright.config.ts).
- */
 import type { Page } from "@playwright/test";
 import { expect, test, DECK_ID, SHARE_TOKEN } from "./fixtures";
 

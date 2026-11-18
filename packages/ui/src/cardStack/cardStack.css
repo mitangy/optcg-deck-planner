@@ -1,6 +1,4 @@
-/* Copies peek out up and to the right of the front card. With [data-reserve] the full three steps
-   are always reserved, so a tile never moves when a copy is added or removed.
-   Tune with --card-stack-step-x / -step-y / -radius / -bg on the stack or an ancestor. */
+/* With [data-reserve] all steps stay reserved, so a tile never moves when a copy is added or removed. */
 .card-stack {
   position: relative;
   --card-stack-step-x: 5px;

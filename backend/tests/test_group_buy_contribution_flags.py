@@ -1,4 +1,3 @@
-"""Group buy contribution settings: singles and Extra copies (#1177)."""
 
 from __future__ import annotations
 
@@ -23,9 +22,9 @@ def member(db):
     add_catalog(db, ZORO, name="Zoro", product_id=1002, market=1.0)
     add_catalog(db, LUFFY, name="Luffy", product_id=GOLD, market=9.0, special=True)
     user = make_user(db, email="solo@example.com", name="Solo", sub="sub-solo")
-    add_deck_with_cards(db, user, "Deck", {LUFFY: 2})  # Zoro is in no deck
-    shopping_svc.set_shopping_extra(db, user, ZORO, 3)  # a single added directly
-    owned_svc.set_collector_want(db, user, LUFFY, GOLD, 2)  # Extra copy of the gold
+    add_deck_with_cards(db, user, "Deck", {LUFFY: 2})
+    shopping_svc.set_shopping_extra(db, user, ZORO, 3)
+    owned_svc.set_collector_want(db, user, LUFFY, GOLD, 2)
     return user
 
 
@@ -39,7 +38,7 @@ def _mine(line, user):
 
 def test_cards_not_in_a_deck_leave_the_contribution_when_unchecked_1177(db, member):
     created = group_buy.create_group_buy(db, member, "Singles")
-    assert _mine(_line(created, ZORO), member) == 3  # today's behavior is the default
+    assert _mine(_line(created, ZORO), member) == 3
 
     detail = group_buy.update_contribution(
         db, member, created.id, None, include_singles=False
@@ -47,7 +46,7 @@ def test_cards_not_in_a_deck_leave_the_contribution_when_unchecked_1177(db, memb
 
     zoro = _line(detail, ZORO)
     assert zoro is None or zoro.total_qty == 0
-    assert _line(detail, LUFFY).total_qty == 2  # deck cards stay
+    assert _line(detail, LUFFY).total_qty == 2
 
 
 def test_extra_copies_are_off_by_default_and_added_priced_as_the_alt_when_on_1177(db, member):
@@ -97,7 +96,6 @@ def test_contribution_flags_persist_and_deck_only_put_keeps_them_1177(client):
     me = next(m for m in r.json()["members"] if m["user_id"] == host)
     assert (me["include_singles"], me["include_extra_copies"]) == (False, True)
 
-    # An older client that only sends deck_ids must not reset the flags.
     r = api.put(f"/group-buys/{gid}/contribution", json={"deck_ids": None})
     me = next(m for m in r.json()["members"] if m["user_id"] == host)
     assert (me["include_singles"], me["include_extra_copies"]) == (False, True)
@@ -118,11 +116,11 @@ def test_group_buy_prices_an_owned_picked_alt_at_the_base_art_like_master_shoppi
     user = make_user(db, email="own@example.com", name="Own", sub="sub-own")
     deck = add_deck_with_cards(db, user, "Deck", {LUFFY: 4})
     deck_svc.set_deck_card_printing(db, user, deck.id, LUFFY, GOLD, 2)
-    owned_svc.set_alt_owned(db, user, LUFFY, GOLD, 2)  # both picked golds already owned
+    owned_svc.set_alt_owned(db, user, LUFFY, GOLD, 2)
 
     item, shop = _shopping_item(db, user, LUFFY)
     assert item.still_need == 2
-    assert item.remaining_cost == 5.0  # 2 base copies; the owned golds are not bought again
+    assert item.remaining_cost == 5.0
 
     created = group_buy.create_group_buy(db, user, "Owned alt")
     line = _line(created, LUFFY)
@@ -137,12 +135,12 @@ def test_group_buy_owned_alt_reserved_by_an_extra_copy_does_not_cover_the_deck_1
     user = make_user(db, email="resv@example.com", name="Resv", sub="sub-resv")
     add_deck_with_cards(db, user, "Deck", {LUFFY: 2})
     owned_svc.set_alt_owned(db, user, LUFFY, GOLD, 2)
-    owned_svc.set_collector_want(db, user, LUFFY, GOLD, 2)  # the owned golds are Extra copies
+    owned_svc.set_collector_want(db, user, LUFFY, GOLD, 2)
 
-    item, _ = _shopping_item(db, user, LUFFY)  # Master Shopping with Extra copies hidden
+    item, _ = _shopping_item(db, user, LUFFY)
     assert item.still_need == 2
 
-    created = group_buy.create_group_buy(db, user, "Reserve")  # Extra copies unticked
+    created = group_buy.create_group_buy(db, user, "Reserve")
     line = _line(created, LUFFY)
     assert _mine(line, user) == 2
     assert line.remaining_cost == item.remaining_cost == 5.0

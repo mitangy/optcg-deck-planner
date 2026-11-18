@@ -1,4 +1,3 @@
-/* Watch dialog */
 .alert-dialog {
   position: fixed;
   inset: 0;
@@ -111,7 +110,6 @@
   font-size: 0.85rem;
 }
 
-/* Page */
 .alerts-explainer {
   max-width: 44rem;
 }
@@ -322,7 +320,6 @@
   }
 }
 
-/* "New version available" card: fixed bottom-right in the What's new card's spot, so nothing shifts. */
 .update-card {
   position: fixed;
   z-index: var(--z-popover);

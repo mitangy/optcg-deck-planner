@@ -19,10 +19,6 @@ type Queued = {
   joinedAt: number;
 };
 
-/**
- * Ranked FIFO queue. When two clients are waiting, create a `duel` room and
- * tell each client to `joinById` with their preferred seat.
- */
 export class MatchmakerRoom extends Room {
   // One queue room serves every process in a pool (found through the Redis
   // driver), so it must hold everyone queued at once: a second room would
@@ -31,7 +27,6 @@ export class MatchmakerRoom extends Room {
   maxMessagesPerSecond = 10;
   private queue: Queued[] = [];
 
-  /** Matchmake-time token check (see checkMatchmakeToken); the instance onAuth then reads the identity. */
   static async onAuth(_token: string, options: unknown): Promise<unknown> {
     return checkMatchmakeToken(options);
   }
@@ -48,7 +43,6 @@ export class MatchmakerRoom extends Room {
   }
 
   onAuth(_client: Client, options: unknown) {
-    // Validate early; return identity for onJoin.
     try {
       return this.resolveIdentity(options);
     } catch (e) {

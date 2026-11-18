@@ -19,7 +19,6 @@ const MINUS = "−";
 
 const errorMessage = (e: unknown) => (e instanceof Error && e.message.trim() ? e.message.trim() : "Couldn't save that change. Nothing was changed.");
 
-/** What Log Pose's `propose_deck_edit` shows under an answer: the changes with their reasons, the legality result and Apply / Dismiss (#400). */
 export function DeckEditCard({
   proposal,
   editor,
@@ -29,15 +28,10 @@ export function DeckEditCard({
   onNavigate,
 }: {
   proposal: DeckEditProposal;
-  /** The deck the app has open (null where no deck editor is mounted). */
   editor: DeckEditor | null;
-  /** Sends the "my deck changed" follow-up through the panel. */
   onAskAgain?: () => void;
-  /** Log Pose is answering: Ask again waits. */
   busy?: boolean;
-  /** The edit arrived in this session's answer, not from a saved thread: only a live edit Log Pose was asked to make is applied by itself (#726). */
   live?: boolean;
-  /** The app moved to another page from this card: the panel can get out of the way (phones). */
   onNavigate?: () => void;
 }) {
   const hooks = useContext(SourceHooksContext);

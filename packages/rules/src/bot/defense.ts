@@ -1,4 +1,3 @@
-/** Block and counter steps: the bot is the defender. */
 import { getCardDef } from "../cards/definitions.js";
 import type { Intent } from "../types.js";
 import type { Rng } from "../rng.js";
@@ -8,7 +7,6 @@ import { boardValue, defValue, findBoardCard, type BoardCard } from "./value.js"
 
 type CounterOption = { intent: Intent; boost: number; cost: number; don: number };
 
-/** How much stopping this hit is worth, in the same points as `defValue`. */
 function hitValue(view: BotView, target: BoardCard, onLeader: boolean, dmg: number): number {
   if (!onLeader) return boardValue(target);
   const life = view.you.lifeCount;
@@ -18,7 +16,6 @@ function hitValue(view: BotView, target: BoardCard, onLeader: boolean, dmg: numb
   return (life === 3 ? 1.6 : 0.8) * dmg;
 }
 
-/** Power an Event's [Counter] gives, read from its printed text ("+2000 power"); 0 when it is not a plain boost. */
 function eventBoost(defId: string): number {
   const m = /\+(\d+)\s*power/i.exec(getCardDef(defId).effectText ?? "");
   return m ? Number(m[1]) : 0;
@@ -40,7 +37,6 @@ function counterOptions(view: BotView): CounterOption[] {
   return out.filter((o) => o.boost > 0);
 }
 
-/** Cheapest set of counters (by cards spent) whose boost reaches `need`; null when none does. */
 function cheapestCounters(options: CounterOption[], need: number, donAvailable: number): CounterOption[] | null {
   const pool = [...options].sort((a, b) => b.boost / b.cost - a.boost / a.cost).slice(0, 12);
   let best: CounterOption[] | null = null;
@@ -58,7 +54,6 @@ function cheapestCounters(options: CounterOption[], need: number, donAvailable: 
 
 export function chooseDefense(view: BotView, level: BotLevel, rng: Rng, pb?: LeaderPlaybook): Intent {
   const legal = view.legalIntents;
-  // A playbook's defensive call (#1178): only a legal intent is used.
   const hinted = pb?.defense?.(view);
   if (hinted) {
     const key = JSON.stringify(hinted);
@@ -87,7 +82,6 @@ export function chooseDefense(view: BotView, level: BotLevel, rng: Rng, pb?: Lea
       if (intent.type !== "declare_block") continue;
       const blocker = view.you.characters.find((c) => c.id === intent.blockerId);
       if (!blocker) continue;
-      // A blocker that out-powers the attacker survives for free; otherwise it is the price of the block.
       const price = blocker.power > attacker.power ? 0 : boardValue(blocker);
       const gain = worth - price;
       if (gain > bestGain) { best = intent; bestGain = gain; }
@@ -95,7 +89,6 @@ export function chooseDefense(view: BotView, level: BotLevel, rng: Rng, pb?: Lea
     return best;
   }
 
-  // Counter step: spend the fewest cards that win the battle, and only when the hit is worth it.
   const options = counterOptions(view);
   if (!options.length) return pass;
   const need = attacker.power - target.power + 1;

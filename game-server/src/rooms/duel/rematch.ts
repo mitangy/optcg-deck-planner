@@ -11,16 +11,13 @@ import {
 import { BOT_SEAT, botPacing } from "./bots.js";
 import type { DuelCore, WireBody } from "./context.js";
 
-/** The rematch handshake after a private game: both agree, the loser picks the turn order, a fresh game starts. */
 export class Rematch {
   private rematchRequested: [boolean, boolean] = [false, false];
   private rematchDeclinedBy: Seat | null = null;
-  /** Deck each seat picked with its rematch request (null: keep the current deck). */
   private rematchDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
 
   constructor(private readonly core: Pick<DuelCore, "game" | "io" | "time" | "seats" | "startMatch">) {}
 
-  /** Clear everything tied to one game so a rematch starts clean. */
   resetPerGameState() {
     this.rematchRequested = [false, false];
     this.rematchDeclinedBy = null;
@@ -75,7 +72,6 @@ export class Rematch {
         this.rematchRequested[seat] = true;
         this.rematchDecks[seat] = deck ?? null;
         this.rematchDeclinedBy = null;
-        // The bot always agrees (and keeps its deck), and picks the turn order if it lost.
         if (game.bot) this.rematchRequested[BOT_SEAT] = true;
         this.broadcast();
         this.botPickOrder();
@@ -98,7 +94,6 @@ export class Rematch {
     }
   }
 
-  /** `chooser` (the loser of the last game) picked the turn order; start the next game. */
   private start(chooser: Seat, action: "first" | "second") {
     const { game, io } = this.core;
     const firstSeat: Seat = action === "first" ? chooser : ((1 - chooser) as Seat);
@@ -118,7 +113,6 @@ export class Rematch {
     this.core.startMatch(firstSeat, chooser);
   }
 
-  /** The bot lost the last game and both agreed to a rematch: it goes first. */
   private botPickOrder() {
     if (!this.core.game.bot || this.state().chooser !== BOT_SEAT) return;
     this.core.time.setTimeout(() => {

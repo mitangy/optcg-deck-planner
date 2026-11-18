@@ -3,18 +3,11 @@ import type { TimerMessage } from "../../protocol.js";
 import type { DuelCore, WireBody } from "./context.js";
 import type { TimerHandle } from "./time.js";
 
-/** How often the tick loop checks the clocks. */
 const TICK_MS = 250;
 
-/**
- * The room's three clocks: a per-turn clock, a whole-match clock and a per-seat chess clock (time
- * bank, charged to whoever must act). Runs the 250ms tick loop and ends the game when one expires.
- * All time comes from the injected `time`, so tests can run it on a fake clock.
- */
 export class MatchClocks {
   private turnSeconds: number | null = null;
   private matchSeconds: number | null = null;
-  /** Chess clock: per-seat time banks (ms), charged to whoever must act. */
   private seatSeconds: number | null = null;
   private turnEndsAt: number | null = null;
   matchEndsAt: number | null = null;
@@ -37,12 +30,10 @@ export class MatchClocks {
     this.seatSeconds = timer.seatSeconds;
   }
 
-  /** The configured limits, for the room_created log line. */
   get limits() {
     return { turnSeconds: this.turnSeconds, matchSeconds: this.matchSeconds, seatSeconds: this.seatSeconds };
   }
 
-  /** Clear everything tied to one game so a rematch starts clean. */
   resetPerGameState() {
     this.turnEndsAt = null;
     this.matchEndsAt = null;
@@ -50,7 +41,6 @@ export class MatchClocks {
     this.clockSeat = null;
   }
 
-  /** A new game's clocks: match deadline, fresh banks, the first turn's clock, the tick loop. */
   startGame() {
     this.armMatchClock();
     this.armSeatClocks();
@@ -92,7 +82,6 @@ export class MatchClocks {
     this.lastTimerActiveSeat = match.activeSeat;
   }
 
-  /** After a state change: a new active seat gets a fresh turn clock, the chess clock follows whoever must act. */
   onMatchAdvanced() {
     const match = this.core.game.match;
     if (!match) return;
@@ -117,7 +106,6 @@ export class MatchClocks {
     this.clockSeat = null;
   }
 
-  /** Bill the running seat for time spent since the last charge. */
   private chargeSeatClock(now = this.core.time.now()) {
     if (this.clockSeat === null) return;
     const s = this.clockSeat;
@@ -125,10 +113,7 @@ export class MatchClocks {
     this.clockSince = now;
   }
 
-  /**
-   * Point the chess clock at whoever must act now (none after the end). During the mulligan it
-   * runs for the seat that still has to answer: the first player decides first, then the other.
-   */
+  // During the mulligan the clock runs for the seat that still has to answer: the first player decides first, then the other.
   updateSeatClock() {
     if (this.seatSeconds == null || !this.core.game.match) return;
     const now = this.core.time.now();
@@ -175,7 +160,6 @@ export class MatchClocks {
       seatSeconds: this.seatSeconds,
       seatRemainingMs: seatClocks ? ([...this.seatRemainingMs] as [number, number]) : null,
       clockSeat: seatClocks ? this.clockSeat : null,
-      // Absolute deadline for the running clock (same convention as turnEndsAt).
       clockEndsAt:
         seatClocks && this.clockSeat !== null
           ? this.core.time.now() + this.seatRemainingMs[this.clockSeat]
@@ -210,7 +194,6 @@ export class MatchClocks {
     }
   }
 
-  /** A clock ran out: `winner` takes the game, whatever the seats were doing. */
   private endGameOnClock(winner: Seat, reason: string, event: string, loser: Seat) {
     const { game, io, undo, spectators } = this.core;
     game.endReason = reason;
@@ -234,9 +217,7 @@ export class MatchClocks {
   private expireMatchClock() {
     const { game } = this.core;
     if (!game.match || game.match.winner !== null) return;
-    // The seat the game is waiting on loses: a pending choice's owner, the defender in a
-    // block/counter step, or a seat that has not answered its mulligan. If neither seat has
-    // answered its mulligan, the first player loses as before.
+    // The seat the game is waiting on loses: a pending choice's owner, the defender in a block/counter step, or a seat that has not answered its mulligan (the first player if neither has).
     const m = game.match;
     const bothMulliganing = m.phase === "mulligan" && !m.players[0].mulliganDone && !m.players[1].mulliganDone;
     const loser = bothMulliganing
@@ -246,7 +227,6 @@ export class MatchClocks {
     this.endGameOnClock(winner, "match_timeout", "match_timeout", loser);
   }
 
-  /** A player's own time bank ran out: they lose. */
   private expireSeatClock(loser: Seat) {
     const { game } = this.core;
     if (!game.match || game.match.winner !== null) return;
@@ -254,7 +234,6 @@ export class MatchClocks {
     this.endGameOnClock(winner, "timeout", "seat_clock_timeout", loser);
   }
 
-  /** The turn clock ran out: the seat that must act plays its automatic move (pass, keep, decline). */
   expireTurnClock() {
     const { game, io, bots } = this.core;
     if (!game.match || game.match.winner !== null) return;
@@ -282,7 +261,6 @@ export class MatchClocks {
     }
   }
 
-  /** Seat that must act now (pending choice owner, or battle defender, or active). */
   private actingSeatForTimer(): Seat | null {
     const { match } = this.core.game;
     if (!match) return null;

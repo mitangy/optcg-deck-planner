@@ -6,7 +6,6 @@ import { BIG, board, justPlayed, KAROO, KAROO_LEADER, LUFFY, NEWGATE, rng, VIVI,
 
 const catalog = loadCatalog();
 
-/** The battle played out with real Counter cards from the defender's hand: true when the attack still lands. */
 function attackLands(state: MatchState, attack: Intent, counterCards: number): boolean {
   const apply = (s: MatchState, intent: Intent, seat: Seat) => {
     const r = applyIntent(s, intent, { seat });
@@ -31,12 +30,10 @@ describe("counter_needed gold comes from the engine's battle", () => {
   it("is the Counter at which the attack fails: one step less still lands, the gold fails it (#677)", () => {
     const h = board();
     const [attacker] = h.field(0, BIG);
-    // Newgate has 2 DON!! attached, which do not count on the opponent's turn; six 1000 Counter cards in hand.
     h.attach(1, h.state.players[1].leader, 2);
     h.hand(1, ...Array.from({ length: 6 }, () => KAROO));
     const { intent, index } = attackWith(h.state, attacker!.id);
     const battle = counterBattle(h.state, index)!;
-    // 7000 against 6000: one 1000 Counter makes 7000 against 7000, and the attacker wins ties, so it takes 2000.
     expect(battle.gold).toBe(2000);
     expect(attackLands(h.state, intent, battle.gold / 1000 - 1)).toBe(true);
     expect(attackLands(h.state, intent, battle.gold / 1000)).toBe(false);
@@ -72,7 +69,6 @@ describe("counter_needed gold comes from the engine's battle", () => {
       expect(made.tags).toContain("defender-don-idle");
       if (made.gold.mode === "number") golds.add(made.gold.value);
     }
-    // Leader against Leader is 5000 against 6000 (needs nothing, so it is rarely asked); Big Karoo against Newgate needs 2000.
     expect([...golds]).toEqual([2000]);
   });
 });
@@ -135,10 +131,10 @@ describe("playable gold is the engine's legal plays", () => {
 });
 
 describe("playable question and ability traps (#697)", () => {
-  const BUGGY = "OP09-042"; // Leader: [Activate: Main] rest 5 DON!!, trash 1: play a {Cross Guild} Character from hand
-  const CROSS_GUILD = "OP09-048"; // Character, cost 6
-  const COUNTER_ONLY = "EB01-019"; // Event with only a [Counter]
-  const OPTIONAL_COST = "EB01-051"; // Event: [Main] You may trash 2 cards from the top of your deck: ...
+  const BUGGY = "OP09-042";
+  const CROSS_GUILD = "OP09-048";
+  const COUNTER_ONLY = "EB01-019";
+  const OPTIONAL_COST = "EB01-051";
 
   it("is the engine's reading: an Event with a [Main] counts even if its optional cost is unpaid, a [Counter]-only Event does not (#697)", () => {
     const h = board();
@@ -153,7 +149,6 @@ describe("playable question and ability traps (#697)", () => {
     h.hand(0, CROSS_GUILD, CROSS_GUILD);
     h.don(0, 5);
     expect(listLegalIntents(h.state, 0).some((i) => i.type === "activate_ability")).toBe(true);
-    // Nothing in the hand is playable by paying its cost (the Character costs 6), so only the trap keeps it from being turned down.
     for (let seed = 1; seed <= 12; seed += 1) {
       const made = playablePuzzle(h.state, catalog, rng(seed))!;
       expect(made, `seed ${seed}`).not.toBeNull();
@@ -224,7 +219,6 @@ describe("the position text", () => {
     expect(text).toContain("Card reference:");
     expect(text).toContain("- EB02-001 Karoo (character, red, cost 5, power 7000");
     expect(text).toContain("- OP01-025 Roronoa Zoro");
-    // What the questions ask for is not written down: the board lines carry no power at all.
     expect(text.split("\n").find((l) => l.startsWith("Your Leader:"))).not.toMatch(/power|\d{4}/);
   });
 });

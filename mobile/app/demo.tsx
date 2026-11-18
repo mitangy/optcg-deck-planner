@@ -4,10 +4,6 @@ import { StyleSheet, View } from "react-native";
 import { DuelBoard } from "../src/board/DuelBoard";
 import type { PendingChoiceView, PlayerView } from "../src/net/protocol";
 
-/**
- * Sample board for trying the floating-card prompts without a match:
- * `/demo?prompt=look|satori|effects`. Not linked from the home screen.
- */
 const LOOK_OPTIONS = [
   { id: "o0", defId: "OP09-086", zone: "deck", ownerSeat: 0 as const, eligible: true },
   { id: "o1", defId: "ST01-003", zone: "deck", ownerSeat: 0 as const, eligible: false },

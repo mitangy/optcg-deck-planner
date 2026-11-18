@@ -34,7 +34,7 @@ async function mount() {
   });
 }
 
-/** Press on `from`, drag the pointer down by `dy`, and let go (jsdom has no PointerEvent, so mouse events carry the pointer types). */
+// jsdom has no PointerEvent, so mouse events carry the pointer types.
 async function drag(from: Element, dy: number) {
   const fire = (type: string, y: number) =>
     act(async () => {

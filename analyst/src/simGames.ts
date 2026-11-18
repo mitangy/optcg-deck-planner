@@ -12,14 +12,12 @@ import type { SimBoardSnapshot, SimEvent, SimGame, SimSide } from "@optcg/rules/
 import { getCardDef } from "@optcg/rules";
 import { cardName, DEFAULT_MAX_LINES, getSimGame, listMySimGames, simMatchups, type NarrateOptions, type PlannerApi, type SimGameDetail } from "./matches";
 
-/** The placeholders the planner stores in place of both players' names. */
 const ME = "Me#1";
 const OPP = "Opp#2";
 
 const who = (s: SimSide | null) => (s === "me" ? "You" : s === "opp" ? "Opponent" : "Someone");
 const name = (id: string | null) => (id ? (cardName(id) ?? id) : "a card");
 
-/** "4xOP01-001" lines as id, name and copies, sorted by card number. */
 export function simDeckList(entries: readonly string[]) {
   const out: { id: string; name: string | null; copies: number }[] = [];
   for (const e of entries) {
@@ -38,7 +36,6 @@ const handCard = (id: string) => {
   }
 };
 
-/** One line for a reader event, or null for events that add nothing (draws are in the hand lines). */
 export function describeSimEvent(e: SimEvent): string | null {
   switch (e.kind) {
     case "play":
@@ -72,11 +69,10 @@ export function describeSimEvent(e: SimEvent): string | null {
     case "endTurn":
       return `${who(e.side)} ended the turn.`;
     default:
-      return null; // draws, DON!! draws, setup and unparsed lines
+      return null;
   }
 }
 
-/** One side's board on a line, like review_match's board lines. Power is the card's printed power plus any change in play. */
 function boardLine(b: SimBoardSnapshot, label: string): string {
   const printed = (id: string) => {
     try {
@@ -95,7 +91,6 @@ function boardLine(b: SimBoardSnapshot, label: string): string {
   );
 }
 
-/** The imported game as a turn-by-turn log from the player's seat. */
 export function narrateSimGame(game: SimGame, opts: NarrateOptions = {}) {
   const fromTurn = opts.fromTurn ?? 1;
   const toTurn = opts.toTurn ?? Number.POSITIVE_INFINITY;
@@ -110,7 +105,6 @@ export function narrateSimGame(game: SimGame, opts: NarrateOptions = {}) {
   for (const turn of game.turns) {
     const mine = turn.snapshot.me;
     const theirs = turn.snapshot.opp;
-    // Ids that sat in a visible zone: both leaders, boards and trash, and the player's own hand.
     for (const b of [mine, theirs]) {
       if (b.leader.id) seen.add(b.leader.id);
       for (const c of b.characters) seen.add(c.id);
@@ -121,7 +115,6 @@ export function narrateSimGame(game: SimGame, opts: NarrateOptions = {}) {
     if (turn.number < fromTurn || turn.number > toTurn) continue;
     push(`--- Turn ${turn.number} (${turn.active === "me" ? "your" : "opponent's"} turn) ---`);
     push(`Your hand after the draw: ${mine.knownHandIds.map(handCard).join(", ") || "empty"}.`);
-    // Only cards the player saw go public before entering the hand are named; the rest of the hand is a count.
     push(
       `Opponent's hand: ${theirs.handCount} cards; known to you: ${theirs.knownHandIds.map(handCard).join(", ") || "none"} (the rest were drawn face down).`,
     );
@@ -169,7 +162,6 @@ export function narrateSimGame(game: SimGame, opts: NarrateOptions = {}) {
   };
 }
 
-/** The reader's input for a stored game. Names are the placeholders the planner stored; the log is what was kept. */
 export function simRecord(row: SimGameDetail) {
   return {
     matchKey: row.id,

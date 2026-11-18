@@ -1,17 +1,14 @@
-/** The model Log Pose runs on: one global setting on the planner API, the same in both apps; only its admin can change it. */
 import { MODELS } from "@optcg/analyst-contract";
 
 export type ModelSetting = { model: string; options: string[]; canEdit: boolean };
 
 const FAILED = "Something went wrong. Try again in a moment.";
 
-/** The label a model id is shown with ("claude-opus-5-5" is "Opus 5.5"). */
 export function modelLabel(id: string): string {
   const m = /^claude-([a-z]+)-(\d+)-(\d+)$/.exec(id);
   return m ? `${m[1]![0]!.toUpperCase()}${m[1]!.slice(1)} ${m[2]}.${m[3]}` : id;
 }
 
-/** What the selected model costs next to the default, Sonnet; the picker's note. */
 export function modelCostHint(id: string): string {
   switch (id) {
     case MODELS.sonnet:
@@ -57,9 +54,7 @@ async function call(apiBase: string, init: RequestInit, fetchImpl: typeof fetch)
   return setting;
 }
 
-/** GET /analyst/settings/model. */
 export const getModelSetting = (apiBase: string, fetchImpl: typeof fetch = fetch) => call(apiBase, {}, fetchImpl);
 
-/** PUT /analyst/settings/model (admin only); resolves to the saved setting. */
 export const setModelSetting = (apiBase: string, model: string, fetchImpl: typeof fetch = fetch) =>
   call(apiBase, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model }) }, fetchImpl);

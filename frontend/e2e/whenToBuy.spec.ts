@@ -1,8 +1,3 @@
-/**
- * The price history panel's "When to buy" row (#946): a verdict from how similar cards moved after release,
- * its reasons one tap away, and an Ask Log Pose button where Log Pose is on. FIXED_NOW is 2026-01-15.
- * Runs at desktop-1200 and phone-375. WTB_SHOTS=<dir> also saves screenshots there.
- */
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
@@ -14,7 +9,6 @@ test.afterEach(({ planner }) => {
 
 const day = (iso: string, plus: number) => new Date(Date.parse(`${iso}T00:00:00Z`) + plus * 86_400_000).toISOString().slice(0, 10);
 
-/** The alt art's history answers with this card instead of the fixture's empty one. */
 async function altHistory(page: Page, art: { name: string; released: string; current: number; price: (i: number) => number; days: number }) {
   await page.route("**/api/catalog/cards/*/price-history*", (route) => {
     const url = new URL(route.request().url());
@@ -36,7 +30,6 @@ async function openAltPanel(page: Page, planner: { open(path: string): Promise<v
   return { lightbox, panel: lightbox.getByRole("region", { name: "Price history" }) };
 }
 
-/** The row and the panel fit the screen: nothing runs past an edge, and text is not cut off. */
 async function expectFits(page: Page, panel: ReturnType<Page["locator"]>) {
   const vw = page.viewportSize()!.width;
   const box = (await panel.boundingBox())!;
@@ -62,10 +55,8 @@ test("Collection: a base art about four months old reads Good time, with its rea
   const buy = panel.getByLabel("When to buy");
   await expect(buy.locator(".ph-pill")).toHaveText("Good time");
   await expect(buy).toContainText("A reasonable time to buy");
-  // 121 days old in January, the seasonal peak: the cheaper summer months come first (#1311).
   await expect(buy.locator(".ph-buy-best")).toContainText("Best time: Jun 2026 – Aug 2026");
   await expect(buy).toContainText("Based on how similar cards moved after release and through the year, 2024–2026");
-  // Released Sep 16, 2025: 121 days old, in January, so the season note comes with it.
   const why = buy.getByRole("button", { name: "Why this read?" });
   await expect(why).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByRole("tooltip")).toHaveCount(0);
@@ -77,10 +68,8 @@ test("Collection: a base art about four months old reads Good time, with its rea
   await expect(reasons.getByRole("listitem").first()).toContainText("Most of the typical drop is done at this age.");
   await expect(reasons).toContainText("A pricey time of year: older cards have run about 4% above their yearly average in January, against 8% below in November (2024–2026).");
   await expect(reasons).toContainText("Typical patterns of past sets, not a forecast.");
-  // Opening the reasons does not move the button that opened the panel.
   expect(await toggle.boundingBox()).toEqual(triggerBefore);
   const panelAfter = (await panel.boundingBox())!;
-  // It never grows past the top of the screen; a long list scrolls inside it.
   expect(panelAfter.y).toBeGreaterThanOrEqual(0);
   expect(panelBefore!.y).toBeGreaterThanOrEqual(0);
   await expectFits(page, panel);
@@ -113,7 +102,6 @@ test("the ? icon shows the reasons on hover or tap and the chart stays in view (
     await why.hover();
     await expect(reasons).toContainText("Most of the typical drop is done at this age.");
   }
-  // The chart and the icon stay put while the reasons show, and the reasons stay on screen.
   await expect(chart).toBeVisible();
   expect(await chart.boundingBox()).toEqual(chartBefore);
   expect(await why.boundingBox()).toEqual(whyBefore);
@@ -125,7 +113,6 @@ test("the ? icon shows the reasons on hover or tap and the chart stays in view (
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/why-icon-${test.info().project.name}.png` });
 
   if (phone) {
-    // Tapping the icon again closes it; tapping elsewhere does too.
     await why.tap();
     await expect(reasons).toHaveCount(0);
     await why.tap();
@@ -135,7 +122,6 @@ test("the ? icon shows the reasons on hover or tap and the chart stays in view (
   } else {
     await page.mouse.move(0, 0);
     await expect(reasons).toHaveCount(0);
-    // Keyboard focus shows it too, and Escape closes just the hint, not the enlarged card.
     await why.focus();
     await page.keyboard.press("Shift+Tab");
     await page.keyboard.press("Tab");
@@ -157,7 +143,6 @@ test("Collection: an alt art a month after release says wait and how far similar
     "Similar cards fell another ~26% by 6 months.",
     "Similar cards reached a buyable price about 6 weeks after release and older cards have usually been cheaper around Aug, around 25% below today's price. Half of similar cards landed in this range.",
   ]);
-  // Released Dec 16: buyable Jan 26, but the February peak makes the summer lows the better window (#1311).
   await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Jul 2026 – Sep 2026 · est. $5.56–$13.91");
   await expectFits(page, panel);
   if (SHOTS) await panel.screenshot({ path: `${SHOTS}/alt-wait-open-${test.info().project.name}.png` });
@@ -174,7 +159,6 @@ test("On a 320px phone the best-time estimate moves to a second line instead of 
   const est = (await best.locator(".ph-buy-est").boundingBox())!;
   expect(est.y).toBeGreaterThan(label.y);
   await expectFits(page, panel);
-  // Both lines show in full: the line is tall enough for the wrapped estimate.
   expect(await best.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true);
 });
 
@@ -186,7 +170,6 @@ test("Collection: a Manga art holds its value and is judged against its 30-day a
   await expect(buy).toContainText("Tends to hold its value");
   await buy.getByRole("button", { name: "Why this read?" }).click();
   await expect(page.getByRole("tooltip").getByRole("listitem").nth(1)).toHaveText("Now $80.00, 20% below its 30-day average of $100.00.");
-  // The 30-day low and average are both $100, so the estimate is a single figure.
   await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Now, on a dip · est. ~$100");
   await expectFits(page, panel);
   if (SHOTS) await panel.screenshot({ path: `${SHOTS}/chase-holds-open-${test.info().project.name}.png` });
@@ -201,10 +184,8 @@ test("Collection: an alt art with no price points yet still gets the read from i
   await lightbox.getByRole("button", { name: "Price history" }).click();
   const panel = lightbox.getByRole("region", { name: "Price history" });
   const buy = panel.getByLabel("When to buy");
-  // 121 days old, so an alt art has about 14% of its typical drop left.
   await expect(buy.locator(".ph-pill")).toHaveText("Almost");
   await expect(buy).toContainText("Close to a good price");
-  // Mid-January is the seasonal peak, so the window is the autumn lows, with a lower estimate than today's $15 (#1311).
   await expect(buy.locator(".ph-buy-best")).toHaveText("Best time: Sep 2026 – Nov 2026 · est. $8.47–$18.93");
   await expectFits(page, panel);
 });
@@ -228,20 +209,16 @@ test("Ask Log Pose opens the chat beside the card on desktop and over it on a ph
   await expect(chat.getByText("Because the deck has 15 cards.")).toBeVisible();
   expect(planner.chats).toHaveLength(1);
   expect(planner.chats[0]!.message).toBe("When is the best time to buy Izo (base art, EB01-002)? Use its price history and how much it's being played.");
-  // The card is still up with its price panel open.
   await expect(lightbox).toBeVisible();
   await expect(panel).toBeVisible();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/page-ask-log-pose-${test.info().project.name}.png` });
 
   if (!phone) {
-    // Side by side: the card and its price panel sit left of the chat, and the Close button is not under it.
-    // The panel grows out of the compass: measure it once it has settled.
     await chat.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)));
     const chatBox = (await chat.boundingBox())!;
     for (const box of [(await lightbox.locator(".lightbox-img").boundingBox())!, (await panel.boundingBox())!, (await lightbox.getByRole("button", { name: "Close", exact: true }).boundingBox())!]) {
       expect(box.x + box.width).toBeLessThanOrEqual(chatBox.x + 1);
     }
-    // Both are usable: type and send in the chat, then the card's range buttons still answer.
     const input = chat.getByRole("textbox", { name: "Message Log Pose" });
     await input.click();
     await input.fill("And the alt art?");
@@ -252,7 +229,6 @@ test("Ask Log Pose opens the chat beside the card on desktop and over it on a ph
     await expect(panel.getByRole("button", { name: "1M" })).toHaveAttribute("aria-pressed", "true");
   }
 
-  // Escape closes the chat first; the card stays until the next one.
   if (phone) await chat.getByRole("button", { name: "Close Log Pose" }).click();
   else await page.keyboard.press("Escape");
   await expect(chat).toHaveCount(0);
@@ -283,7 +259,6 @@ test("On a short landscape screen the price panel fits the screen instead of col
   expect(box.height).toBeGreaterThan(200);
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
-  // The When to buy row is within the part of the panel that shows.
   const buy = (await pop.getByLabel("When to buy").boundingBox())!;
   expect(buy.y).toBeGreaterThanOrEqual(box.y);
   expect(buy.y + buy.height).toBeLessThanOrEqual(box.y + box.height + 1);

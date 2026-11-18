@@ -1,41 +1,30 @@
-/**
- * Collector copies (#1031): an alt art a player wants on top of what their decks need.
- * Pure helpers for the Master Shopping line under a card, the "Still need" filter, the
- * price popover's eligibility and the optimistic cache patch.
- */
 import type { CollectorLine, PrintingView, ShoppingItem, ShoppingResponse } from "../../api";
 
 export const COLLECTOR_MAX = 9;
 
 type ItemWithLines = Pick<ShoppingItem, "still_need"> & { collector_wants?: CollectorLine[] | null };
 
-/** "Have 0 of 1" while copies are missing, "✓ Have it" once the want is covered. */
 export function collectorHaveText(line: Pick<CollectorLine, "want" | "have">): string {
   return line.have >= line.want ? "✓ Have it" : `Have ${line.have} of ${line.want}`;
 }
 
-/** "On top of Deck A, Deck B"; blank for a card that is in no deck. */
 export function collectorOnTopOf(usedIn: string[]): string {
   return usedIn.length > 0 ? `On top of ${usedIn.join(", ")}` : "";
 }
 
-/** Whether a card shows under the "Still need" filter: it needs copies, or a collector line does. */
 export function itemNeedsCopies(item: ItemWithLines): boolean {
   return item.still_need > 0 || (item.collector_wants ?? []).some((l) => l.still_need > 0);
 }
 
-/** The collector lines to draw under a card: all of them, or only those still missing copies under "Still need". */
 export function visibleCollectorLines(item: ItemWithLines, onlyNeed: boolean): CollectorLine[] {
   const lines = item.collector_wants ?? [];
   return onlyNeed ? lines.filter((l) => l.still_need > 0) : lines;
 }
 
-/** Collector copies still to buy across a list of cards. */
 export function collectorStillTotal(items: { collector_wants?: CollectorLine[] | null }[]): number {
   return items.reduce((n, i) => n + (i.collector_wants ?? []).reduce((m, l) => m + l.still_need, 0), 0);
 }
 
-/** Money still to spend on collector copies across a list of cards. */
 export function collectorCostTotal(items: { collector_wants?: CollectorLine[] | null }[]): number {
   return items.reduce((n, i) => n + (i.collector_wants ?? []).reduce((m, l) => m + (l.remaining_cost ?? 0), 0), 0);
 }
@@ -56,29 +45,17 @@ type ExtraCostItem = Pick<ShoppingItem, "still_need" | "remaining_cost"> & {
   collector_wants?: Pick<CollectorLine, "still_need" | "remaining_cost">[] | null;
 };
 
-/** Extra copies still to buy on a card (#1211). */
 export function hasExtraCopiesToBuy(item: Pick<ExtraCostItem, "collector_wants">): boolean {
   return (item.collector_wants ?? []).some((l) => l.still_need > 0);
 }
 
-/**
- * What a card (its row plus the Extra copy rows grouped under it) still costs to buy, for sorting (#1211):
- * the deck part plus every Extra copy line still to buy. The price shown on the main row stays deck part only.
- * Null when the deck part is unpriced while copies are needed.
- */
 export function shoppingSortCost(item: ExtraCostItem): number | null {
   const deck = shoppingLeftCost({ still_need: item.still_need, remaining_cost: item.remaining_cost });
   if (deck == null) return null;
-  // A line with nothing left to buy already has remaining_cost 0.
   const extra = (item.collector_wants ?? []).reduce((n, l) => n + (l.remaining_cost ?? 0), 0);
   return Math.round((deck + extra) * 100) / 100;
 }
 
-/**
- * The amount on a card's main row on Master Shopping (#1214): the deck part (#1187), except when the card has nothing
- * left to buy itself and only Extra copies are missing. Then the row shows those Extra copies' price, next to its
- * "★ Extra copy" hint, instead of a bare $0.00. A deck part above zero never adds them, so no dollar shows twice.
- */
 export function shoppingRowAmount(item: ExtraCostItem): number | null {
   if (item.still_need === 0 && hasExtraCopiesToBuy(item)) {
     const extra = (item.collector_wants ?? []).reduce((n, l) => n + (l.still_need > 0 ? (l.remaining_cost ?? 0) : 0), 0);
@@ -87,23 +64,19 @@ export function shoppingRowAmount(item: ExtraCostItem): number | null {
   return shoppingLeftCost({ still_need: item.still_need, remaining_cost: item.remaining_cost });
 }
 
-/** Copies of an alt art that count toward decks: owned minus the ones held back as collector copies. */
 export function deckOwnedOfAlt(alt: Pick<PrintingView, "owned" | "collector">): number {
   const owned = alt.owned ?? 0;
   return Math.max(0, owned - Math.min(owned, alt.collector ?? 0));
 }
 
-/** Alt copies held back as collector copies: they never count toward a deck's needs. */
 export function collectorReserved(alts: Pick<PrintingView, "owned" | "collector">[] | null | undefined): number {
   return (alts ?? []).reduce((n, a) => n + Math.min(a.owned ?? 0, a.collector ?? 0), 0);
 }
 
-/** Alt copies that count toward decks: all owned alt copies minus the collector-reserved ones. */
 export function deckAltsOwned(altsOwned: number | undefined, alts: Pick<PrintingView, "owned" | "collector">[] | null | undefined): number {
   return Math.max(0, (altsOwned ?? 0) - collectorReserved(alts));
 }
 
-/** Whether the price opens the popover: copies to split, or a collector copy to add. */
 export function canOpenBuyPopover(
   card: { still_need: number; alt_arts?: unknown[] | null },
   collectorPickable: boolean,
@@ -112,7 +85,6 @@ export function canOpenBuyPopover(
   return hasAlts && (card.still_need > 0 || collectorPickable);
 }
 
-/** Alt arts a collector copy can be picked from: the special printings (never the base art). */
 export function collectorChoices<A extends { is_special?: boolean }>(alts: A[] | null | undefined): A[] {
   return (alts ?? []).filter((a) => a.is_special !== false);
 }
@@ -132,7 +104,6 @@ function lineFor(alt: PrintingView, qty: number, prev?: CollectorLine): Collecto
   };
 }
 
-/** The collector lines of a card after one alt's owned count changed. */
 export function refreshCollectorHave(
   lines: CollectorLine[] | undefined,
   productId: number,
@@ -148,10 +119,6 @@ export function refreshCollectorHave(
   });
 }
 
-/**
- * Sets one collector want in a cached shopping list: the card's line (added, changed or removed),
- * the alt tile's `collector` mark, and the totals. The server numbers replace this on refetch.
- */
 export function applyCollectorToShopping(
   old: ShoppingResponse,
   cardId: string,
@@ -193,12 +160,10 @@ export function applyCollectorToShopping(
   };
 }
 
-/** The "incl. N collector" note under the Copies stat; null when there are none. */
 export function collectorStatNote(copies: number | undefined): string | null {
   return copies && copies > 0 ? `incl. ${copies} collector` : null;
 }
 
-/** Selection key of a collector line in Master Shopping's selected set (card ids are the other keys). */
 export function collectorSelectKey(cardId: string, productId: number): string {
   return `collector:${cardId}:${productId}`;
 }

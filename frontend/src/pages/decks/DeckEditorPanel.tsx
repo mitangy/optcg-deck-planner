@@ -22,7 +22,6 @@ import { DON_DECK_LIMIT, setDeckCardNeeded, MAIN_DECK_LIMIT } from "./deckEditin
 import { DECK_EDITOR_COLOR_KEY, DECK_EDITOR_TYPE_KEY, DECK_SEARCH_OPEN_KEY } from "../../storage/keys";
 import { useCatalogSearch } from "../../hooks/useCatalogSearch";
 
-/** Main-deck rows (leader included, DON!! excluded) in the shape the stats and hints code reads. */
 function toStatsCards(cards: DeckDetail["cards"]): DeckStatsCard[] {
   return cards
     .filter((c) => c.section !== "don" && !isDonCardType(c.card_type))
@@ -41,9 +40,7 @@ export function DeckEditorPanel({
   deckId: number;
   deck: DeckDetail;
   onUpdated: (detail: DeckDetail) => void;
-  /** Fired after a save that leaves the card in the deck, so the list can point at its row. */
   onChanged?: (cardId: string) => void;
-  /** Opens the "Replace with deck list" dialog (#1016). */
   onReplaceList?: () => void;
 }) {
   const qc = useQueryClient();
@@ -56,7 +53,6 @@ export function DeckEditorPanel({
     return () => window.clearTimeout(t);
   }, [delta]);
 
-  /** Say what an add/remove moved. Purely informational: never blocks or confirms anything. */
   function flashDelta(cardId: string, after: DeckDetail) {
     if (!atlas) return;
     const text = deckDelta(toStatsCards(deck.cards), toStatsCards(after.cards), cardId, atlas, after.leader_card_id);
@@ -102,7 +98,6 @@ export function DeckEditorPanel({
         flashDelta(card.card_id, detail);
         onChanged?.(card.card_id);
         if (card.alt_product_id) {
-          // Adding from an alt-art row also shows that art for the card.
           await api.setDisplayArt(card.card_id, card.alt_product_id);
           invalidateOwnedViews(qc);
         }

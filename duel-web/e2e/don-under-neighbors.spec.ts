@@ -1,10 +1,3 @@
-/**
- * DON!! fanned out from under a Leader / Character slides under the cards
- * next to it, never over them (#1249): sideways within the Characters row
- * (standing and rested, both mats, Upright DON!! on or off) and down onto the
- * Leader row. The viewports are set here, so the spec runs once (in the
- * desktop project).
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -24,9 +17,7 @@ test.beforeEach(({}, info) => {
   test.skip(info.project.name !== "desktop-1280", "sets its own viewports");
 });
 
-/** Points inside another card where one card's DON!! is the top thing painted. */
 async function donOverNeighbors(page: Page) {
-  // The layers ignore the pointer (pure decoration); let hit tests see them.
   await page.addStyleTag({ content: ".don-under, .don-under-layer { pointer-events: auto !important; }" });
   return page.evaluate(() => {
     const hits: string[] = [];
@@ -36,7 +27,6 @@ async function donOverNeighbors(page: Page) {
       const lr = layer.getBoundingClientRect();
       for (const t of tiles) {
         if (t === owner) continue;
-        // Inset past the rounded corners, where nothing of the card is painted.
         const r = t.getBoundingClientRect();
         const x0 = Math.max(lr.left, r.left + 10);
         const x1 = Math.min(lr.right, r.right - 10);

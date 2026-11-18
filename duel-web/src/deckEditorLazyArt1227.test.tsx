@@ -38,7 +38,6 @@ describe("deck editor art loading (#1227)", () => {
       set.call(input, "luffy");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    // The list follows the deferred query: wait for it rather than assume one flush is enough.
     for (let i = 0; i < 20 && !host.querySelector(".deck-search-thumb img"); i++) {
       await act(async () => void (await new Promise((r) => setTimeout(r, 25))));
     }
@@ -66,7 +65,7 @@ describe("deck editor stacks (#1272)", () => {
       ...Array(4).fill("OP01-016"),
       ...Array(2).fill("OP01-025"),
       "OP01-013",
-      ...Array(6).fill("OP01-075"), // Pacifista: any number of copies
+      ...Array(6).fill("OP01-075"),
     ];
     host = document.createElement("div");
     document.body.appendChild(host);

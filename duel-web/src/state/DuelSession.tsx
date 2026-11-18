@@ -59,7 +59,6 @@ type ConnectOpts = {
   preferredSeat?: Seat;
   role?: "player" | "spectator";
   deck?: { leaderId: string; deck: string[] };
-  /** Take over the seat `preferredSeat` this account holds in `roomId` (#451). */
   takeover?: boolean;
   ownerToken?: string;
   createOptions?: {
@@ -79,86 +78,53 @@ type ConnectOpts = {
 
 export { SPECTATOR_CAP_MESSAGE };
 
-/** A match request: the board opens at once and shows this while it resolves. */
 export type MatchLaunch = {
-  /** Board status while connecting ("Searching for an opponent…"). */
   status: string;
-  /** Your deck's Leader for the empty board (null when spectating). */
   leaderId: string | null;
-  /** Private room: show the invite card until the opponent joins. */
   invite: boolean;
-  /** Signed in with friends: the waiting board also shows invites sent to you. */
   friends?: boolean;
 };
 
 type DuelSession = {
   client: DuelClient;
-  /** The latest match request (kept until Leave) for the pre-view board. */
   launch: MatchLaunch | null;
-  /** True while that request's mint / queue / connect is still running. */
   launching: boolean;
-  /**
-   * Open the board now and run `task` (mint, queue, connect) behind it. A
-   * failure lands in errorBanner; Leave before it settles abandons it.
-   * `task` gets the launch's generation to hand to connect / queueRanked.
-   */
   startMatch: (launch: MatchLaunch, task: (launchGen: number) => Promise<void>) => void;
   connected: boolean;
-  /** Another device took this seat over (#451): the board is frozen and nothing reconnects. */
   takenOver: boolean;
-  /**
-   * Move a live match to this device: take over `seat` of `roomId` behind the
-   * board. `mintToken` supplies the account's game token (default: sign-in session).
-   */
   takeOver: (roomId: string, seat: Seat, mintToken?: () => Promise<string>) => void;
   queueing: boolean;
   canReconnect: boolean;
-  /** True while a sessionStorage resume is in flight (blocks lobby redirect). */
   resuming: boolean;
-  /** True while the socket dropped and a reclaim of the seat is in flight. */
   reconnecting: boolean;
   matchId: string | null;
   seat: Seat | null;
   role: "player" | "spectator";
   view: PlayerView | null;
-  /** Seat-indexed display names from the server welcome (usernames when set). */
   players: SeatPlayers | null;
-  /** Whether the room is ranked, from the welcome; null until then or from an older server. */
   ranked: boolean | null;
-  /** How the turn order was decided, from the welcome: null = coin flip, a seat = who chose; undefined from an older server. */
   firstSeatPickedBy: Seat | null | undefined;
-  /** The dice roll that decided this game's order, when it was one (#1190). */
   firstSeatDice: DiceResult | null;
-  /** The opening dice roll in progress (no game yet); null otherwise. */
   dice: DiceStateMessage | null;
   sendDice: (action: DiceAction) => void;
-  /** The key to a Log Pose matchup brief (players of unranked rooms only). */
   brief: BriefTicketWire | null;
-  /** Play vs Bot: the other seat is the server's bot, which cannot be reported. */
   vsBot: boolean;
   battleLog: BattleLogEntry[];
   clearBattleLog: () => void;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
   timer: TimerMessage | null;
-  /** Match chat (online matches only; cleared when a new match starts). */
   chat: ChatLine[];
   sendChat: (text: string) => void;
-  /** Players: tell the room the order of your hand (spectators' fans follow it). */
   sendHandOrder: (ids: string[]) => void;
-  /** Undo availability (private rooms); null until the server reports it. */
   undo: UndoState | null;
-  /** Per seat: epoch ms until which a dropped player may reconnect (else null). */
   awayUntil: [number | null, number | null];
-  /** Per seat: custom playmat / card back shared by that player (online). */
   seatSkins: [SeatSkin | null, SeatSkin | null];
-  /** Rematch vote once the match is over (null until the server reports it). */
   rematch: RematchState | null;
   sendRematch: (action: RematchAction, deck?: PlayerDeckWire) => void;
   sendUndo: (action: UndoAction, opts?: UndoRequestOptions) => void;
   rating: number | null;
   lastServerUrl: string | null;
-  /** `launchGen` is the startMatch generation; a superseded launch never reaches the client. */
   connect: (opts: ConnectOpts, launchGen: number) => Promise<void>;
   queueRanked: (
     opts: Pick<ConnectOpts, "serverUrl" | "devUserId" | "gameToken" | "secret" | "deck">,
@@ -174,7 +140,6 @@ type DuelSession = {
   setRating: (n: number | null) => void;
 };
 
-/** A match request dropped by Leave or a newer request. */
 export class LaunchCancelledError extends Error {
   constructor() {
     super("Match request cancelled");
@@ -208,19 +173,16 @@ const Ctx = createContext<DuelSession | null>(null);
 
 export function DuelSessionProvider({ children }: { children: React.ReactNode }) {
   const clientRef = useRef(new DuelClient());
-  /** Everything the server told us about the match lives in this store (see matchStore.ts); the session below only owns session concerns. */
   const storeRef = useRef<MatchStore | null>(null);
   if (!storeRef.current) {
     storeRef.current = createMatchStore("online", { resuming: loadMatchResume()?.mode === "duel" });
   }
   const store = storeRef.current;
   const serverUrlRef = useRef<string | null>(null);
-  /** The last skin sent carried an account upload path (see skinShare.ts). */
   const skinSentAsPathRef = useRef(false);
   const seatRef = useRef<Seat | null>(null);
   const [launch, setLaunch] = useState<MatchLaunch | null>(null);
   const [launching, setLaunching] = useState(false);
-  /** Bumped by every startMatch / leave: a connect that finishes under an older value was abandoned. */
   const launchGenRef = useRef(0);
   const launchingRef = useRef(false);
   const connectRoleRef = useRef<"player" | "spectator">("player");
@@ -229,14 +191,12 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
 
   const match = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 
-  /** The methods never change identity: they read the store and refs, not render-time state. */
   const actions = useMemo(() => {
     const client = clientRef.current;
     const { dispatch } = store;
 
     function persistToken(token: string, roomId: string) {
       const s = seatRef.current;
-      // The server this match was created on, so a reload rejoins that pool.
       const url = serverUrlRef.current ?? client.serverUrl;
       if (s !== 0 && s !== 1) return;
       if (!url) return;
@@ -255,7 +215,6 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         onWelcome: (info) => {
           const { seat: s, role: r } = info;
           seatRef.current = s;
-          // A welcome starts (or resyncs) a game; the reducer clears the last result / rematch / log.
           dispatch({ type: "welcome", info });
           if (r === "player" && (s === 0 || s === 1)) {
             setCosmeticsPublisher((publishSeat, prefs) => {
@@ -282,7 +241,6 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           const outcome = classifyServerError(err, store.getSnapshot(), connectRoleRef.current);
           if (outcome.kind === "ignore") return;
           if (skinSentAsPathRef.current && isSkinPathRejected(err)) {
-            // A game server from before public paths: share the art as data URLs instead.
             skinSentAsPathRef.current = false;
             void buildSharedSkin({ allowPaths: false }).then((shared) => {
               if (shared) client.sendSkin(shared.skin);
@@ -318,10 +276,6 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       });
     }
 
-    /**
-     * A connect settled after Leave (or a newer request): drop its socket and
-     * state unless a newer request is already using the client.
-     */
     function abandon(): Error {
       if (!launchingRef.current) {
         void client.disconnect(true);
@@ -334,7 +288,6 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       return new LaunchCancelledError();
     }
 
-    /** Session-side half of leaving a match (resume blob, cosmetics, socket); `resetMatch` also clears the store. */
     function resetMatchEffects() {
       clearMatchResume();
       setCosmeticsPublisher(null);
@@ -402,13 +355,10 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       },
       setRating,
       async connect(opts, gen) {
-        // Left or relaunched while the task was minting / fetching the deck:
-        // touch neither the client nor the newer match's state.
         if (launchGenRef.current !== gen) throw cancelled();
         const role = opts.role ?? "player";
         dispatch({ type: "connectStarted", role, vsBot: Boolean(opts.createOptions?.bot) });
         connectRoleRef.current = role;
-        // A new match: forget the last match's server (unset → the client's own).
         serverUrlRef.current = opts.serverUrl ?? null;
         if (opts.serverUrl) setLastServerUrl(opts.serverUrl);
         wireHandlers();
@@ -608,10 +558,6 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     void actions.tryResumeFromStorage();
   }, [actions, store]);
 
-  // Phones suspend the page (and often its socket) while another app is in
-  // front. Keep the resume blob's clock at "last seen alive" so a discarded tab
-  // can still reclaim its seat on reload, and on return reclaim at once instead
-  // of waiting for a tap on the Reconnect banner.
   useEffect(() => {
     let checking = false;
     async function recoverIfDropped() {
@@ -622,7 +568,6 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       checking = true;
       try {
         if (await client.isAlive()) return;
-        // The SDK may have noticed the close while we waited; let it finish.
         if (client.isReconnecting) return;
         await actions.reconnect();
       } catch {

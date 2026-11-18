@@ -5,8 +5,6 @@ import { FILLER, Harness } from "../testing/harness.js";
 import type { Intent, PendingChoice, Seat } from "../types.js";
 import type { TurnMemory } from "../bot/main.js";
 
-/** Hints taken from deck guides (#1204): Xebec, Luffy (OP13), Enel, Rosinante, Hancock, Sabo, Kaido. */
-
 const L = "OP01-001";
 const ROCKS = "OP17-039";
 const LUFFY13 = "OP13-001";
@@ -16,21 +14,20 @@ const HANCOCK = "OP14-041";
 const SABO = "OP13-004";
 const KAIDO = "OP17-058";
 
-const BORSALINO = "EB04-058"; // cost 5, 6000
-const MIHAWK = "OP09-048"; // cost 6, 7000
-const SAKAZUKI = "OP16-065"; // cost 7, 8000
-const WEAK_BLOCKER = "EB01-017"; // cost 2, 2000
-const LAW_6000 = "P-093"; // cost 4, 6000
-const BIG_7000 = "EB01-002"; // cost 5, 7000
-const MID_6000 = "OP07-033"; // cost 5, 6000
-const TEN_COST = "OP17-062"; // Kaido, cost 10
+const BORSALINO = "EB04-058";
+const MIHAWK = "OP09-048";
+const SAKAZUKI = "OP16-065";
+const WEAK_BLOCKER = "EB01-017";
+const LAW_6000 = "P-093";
+const BIG_7000 = "EB01-002";
+const MID_6000 = "OP07-033";
+const TEN_COST = "OP17-062";
 
 type Opts = Partial<BotOptions>;
 const normal = (h: Harness, seat: Seat, opts: Opts = {}): Intent => chooseBotIntent(h.view(seat), { level: "normal", ...opts })!;
 const fillers = (n: number): string[] => Array.from({ length: n }, () => FILLER);
 const MEMORY = null as unknown as TurnMemory;
 const pb = (leader: string) => PLAYBOOKS[leader]!;
-/** The play bonus the leader's playbook gives `defId` in the position of seat 0 (seat 1 is the opponent). */
 const bonus = (leader: string, h: Harness, defId: string): number => pb(leader).playBonus!(h.view(0), defId);
 const confirm = (optional = true): PendingChoice => ({ id: "c", seat: 0, kind: "effect", cardDefId: "x", optional, prompt: "", request: { type: "confirm" } }) as PendingChoice;
 const accept = { type: "resolve_pending_choice", accept: true };
@@ -60,9 +57,7 @@ describe("guide hints: Rocks.D.Xebec (#1204)", () => {
 
   it("Rocks plays its two removal cards only when there is a target they reach (#1204)", () => {
     const vs = (...opp: string[]) => { const h = new Harness({ leaders: [ROCKS, L] }); h.field(1, ...opp); return h; };
-    // OP17-046 (removal up to cost 5): +2 on a 5000+ power cost <= 5 target, -2 otherwise.
     expect([bonus(ROCKS, vs(BORSALINO), "OP17-046"), bonus(ROCKS, vs(WEAK_BLOCKER), "OP17-046"), bonus(ROCKS, vs(MIHAWK), "OP17-046"), bonus(ROCKS, vs(), "OP17-046")]).toEqual([2, -2, -2, -2]);
-    // OP17-054 (removal up to cost 6): +2 on a 5000+ power cost <= 6 target, else nothing.
     expect([bonus(ROCKS, vs(MIHAWK), "OP17-054"), bonus(ROCKS, vs(SAKAZUKI), "OP17-054"), bonus(ROCKS, vs(WEAK_BLOCKER), "OP17-054")]).toEqual([2, 0, 0]);
   });
 
@@ -91,7 +86,6 @@ describe("guide hints: Monkey.D.Luffy OP13-001 (#1204)", () => {
     expect(verdict(pad())).toBe("mulligan");
   });
 
-  /** Seat 1 holds `opp` Characters, each rested if listed in `rested`. */
   function vs(opp: string[], rested: string[], hand: string[] = []): Harness {
     const h = new Harness({ leaders: [LUFFY13, L] });
     h.clearHands();
@@ -102,11 +96,8 @@ describe("guide hints: Monkey.D.Luffy OP13-001 (#1204)", () => {
   }
 
   it("Luffy holds the rest-based Characters and Event while there is nothing rested to hit (#1204)", () => {
-    // OP06-036 needs a rested cost <= 4 target.
     expect([bonus(LUFFY13, vs([LAW_6000], [LAW_6000]), "OP06-036"), bonus(LUFFY13, vs([BORSALINO], [BORSALINO]), "OP06-036"), bonus(LUFFY13, vs([LAW_6000], []), "OP06-036")]).toEqual([0, -3, -3]);
-    // OP06-033 needs any rested Character.
     expect([bonus(LUFFY13, vs([BORSALINO], [BORSALINO]), "OP06-033"), bonus(LUFFY13, vs([BORSALINO], []), "OP06-033")]).toEqual([0, -3]);
-    // OP08-036: -3 with none rested, 0 with one, +2 with two.
     expect([bonus(LUFFY13, vs([BORSALINO], []), "OP08-036"), bonus(LUFFY13, vs([BORSALINO], [BORSALINO]), "OP08-036"), bonus(LUFFY13, vs([BORSALINO, LAW_6000], [BORSALINO, LAW_6000]), "OP08-036")]).toEqual([-3, 0, 2]);
   });
 
@@ -152,7 +143,6 @@ describe("guide hints: Enel OP05-098 (#1204)", () => {
 });
 
 describe("guide hints: Donquixote Rosinante OP12-061 (#1204)", () => {
-  /** Rosinante with a P-093 (cost 4, so 2 with the discount) in hand, `mine` DON!! of its own against `theirs`. */
   function deficit(mine: number, theirs: number): Harness {
     const h = new Harness({ leaders: [ROSINANTE, L] });
     h.clearHands();
@@ -166,7 +156,6 @@ describe("guide hints: Donquixote Rosinante OP12-061 (#1204)", () => {
     // 5 vs 4: ahead by 1, activating makes it level. Without the playbook the Law is simply cast.
     expect(normal(deficit(5, 4), 0)).toMatchObject({ type: "activate_ability", abilityId: "op12-061#1" });
     expect(normal(deficit(5, 4), 0, { playbooks: false }).type).toBe("play_card");
-    // Ahead by 2 (activating would still leave it ahead), level or behind: just cast the Law.
     for (const theirs of [3, 5, 6]) expect(normal(deficit(5, theirs), 0).type).toBe("play_card");
   });
 
@@ -282,11 +271,9 @@ describe("guide hints: Kaido OP17-058 (#1204)", () => {
     expect([6, 5].map((active) => bonus(KAIDO, kaido({ active }), "EB04-031"))).toEqual([3, 0]);
     for (const id of ["OP17-074", "EB04-032"]) expect([4, 5].map((active) => bonus(KAIDO, kaido({ active }), id))).toEqual([2, 0]);
     expect([10, 9].map((active) => bonus(KAIDO, kaido({ active }), TEN_COST))).toEqual([2, 0]);
-    // EB05-034 needs 9 DON!! on the field and an opposing Character.
     expect([bonus(KAIDO, kaido({ active: 9, opp: [BORSALINO] }), "EB05-034"), bonus(KAIDO, kaido({ active: 9 }), "EB05-034"), bonus(KAIDO, kaido({ active: 8, opp: [BORSALINO] }), "EB05-034")]).toEqual([0, -5, -5]);
   });
 
-  /** On my own turn (no battle) with Kaido (OP17-062) on the field and its refund `used` or not, answering an optional yes/no. */
   const refund = (used: boolean, field = [TEN_COST]) => {
     const h = kaido({ field });
     if (used) h.state.players[0].characters[0]!.usedAbilities = { "op17-062#1": h.state.turnNumber };
@@ -304,7 +291,6 @@ describe("guide hints: Kaido OP17-058 (#1204)", () => {
     expect(pb(KAIDO).answerChoice!(h.view(0), select)).toEqual({ type: "resolve_pending_choice", accept: true, selectedOptionIds: [`o-${opp[1]!.id}`] });
   });
 
-  /** Their 6000 attacker hits my Leader; the -2000 is decisive, so the generic answer pays. */
   function attacked(opts: { active: number; hand: string[]; life: number }): Harness {
     const h = new Harness({ leaders: [L, KAIDO] });
     h.clearHands();
@@ -323,7 +309,6 @@ describe("guide hints: Kaido OP17-058 (#1204)", () => {
       return pb(KAIDO).answerChoice!(view, confirm());
     };
     const base = { active: 5, hand: [TEN_COST], life: 4 };
-    // Without a 10-cost in hand the same position pays, so the decline below comes from the hint.
     expect(answer({ ...base, hand: [FILLER] })).toEqual(accept);
     expect(answer(base)).toEqual(decline);
     expect(answer({ ...base, life: 2 })).toEqual(accept);

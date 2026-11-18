@@ -1,10 +1,6 @@
 import { useEffect, useState } from "react";
 import { sameBox, type Box } from "../combat/battleArc";
 
-/**
- * Viewport rect of the card rendered for this id: a board card by its
- * instance id, else a hand card by its motion id.
- */
 export function findInstanceBox(instanceId: string): Box | null {
   if (typeof document === "undefined") return null;
   const id = CSS.escape(instanceId);
@@ -17,12 +13,6 @@ export function findInstanceBox(instanceId: string): Box | null {
   return { left: r.left, top: r.top, width: r.width, height: r.height };
 }
 
-/**
- * Tracks board card rects while `ids` is non-null. A rAF loop (a couple of
- * getBoundingClientRect calls per frame; state only updates on change) keeps
- * overlays glued to cards through resizes, rail scrolls, reflow and zoom
- * without wiring observers onto every ancestor.
- */
 export function useTrackedBoxes(ids: string[] | null): (Box | null)[] | null {
   const [boxes, setBoxes] = useState<(Box | null)[] | null>(null);
   const key = ids?.join("|") ?? "";

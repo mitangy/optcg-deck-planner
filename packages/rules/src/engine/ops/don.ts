@@ -1,6 +1,3 @@
-/**
- * DON!! ops: add, give, set active, rest, return and move.
- */
 import { getCardDef } from "../../cards/definitions.js";
 import { evalValue, playerRestricted, powerOf } from "../queries.js";
 import { activeDon, attachDon, placeDonFromDeck, returnDonById, returnDonToDeck } from "../zones.js";

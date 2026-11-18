@@ -1,29 +1,16 @@
-"""Reject oversized request bodies before a route reads them.
-
-Uvicorn and Starlette buffer a whole body in memory when a route parses it, so
-without a cap one large POST (to any route, signed in or not) can exhaust the
-instance's memory. Most bodies here are a few KB; the few routes that take
-more name their own ceiling.
-"""
 
 from __future__ import annotations
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 DEFAULT_MAX_BODY_BYTES = 1024 * 1024
-# (path prefix, ceiling). Cosmetic uploads stream with their own tighter check;
-# match ingest is secret-gated and carries a replay plus two seat logs.
 ROUTE_MAX_BODY_BYTES: tuple[tuple[str, int], ...] = (
     ("/duel/cosmetics/", 5 * 1024 * 1024),
     ("/duel/matches", 8 * 1024 * 1024),
-    # A bot game's report carries its replay (#1202).
     ("/duel/solo-games", 8 * 1024 * 1024),
-    # A report may carry the image the reporter saw as a data URL.
     ("/duel/reports", 1536 * 1024),
-    # Up to 40 base64 crops of at most 64 KB each (#852).
     ("/scan-samples", 4 * 1024 * 1024),
     ("/analyst/bot-games", 8 * 1024 * 1024),
-    # Up to 500 OPTCGSim games, ~50 KB of combat log each (#1030).
     ("/analyst/sim-games/import", 32 * 1024 * 1024),
 )
 
@@ -58,7 +45,6 @@ class BodySizeLimitMiddleware:
                     await _too_large(send)
                     return
 
-        # Chunked bodies carry no Content-Length: count what actually arrives.
         received = 0
         started = False
 

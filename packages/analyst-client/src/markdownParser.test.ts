@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseInline, parseMarkdown, type Inline } from "./markdownParser";
 
-/** Flattens inline nodes to a compact string so assertions stay readable. */
 function show(nodes: Inline[]): string {
   return nodes
     .map((n) => {
@@ -65,7 +64,6 @@ describe("Log Pose markdown (#377)", () => {
     const line = "# a" + " ".repeat(3000) + "x";
     const t0 = performance.now();
     const blocks = parseMarkdown(line);
-    // Also the paragraph path, which asks startsBlock about every following line.
     const para = parseMarkdown("intro\n" + line + "\nafter");
     const ms = performance.now() - t0;
     expect(ms).toBeLessThan(200);

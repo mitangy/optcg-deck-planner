@@ -1,6 +1,3 @@
-/**
- * The resumable instruction VM: frames, instruction execution, select/look prompts.
- */
 import { abilitiesFor, abilityById, programFor, replacementProgramFor } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import { type Instr, type Program, compileDelayed } from "../effects/compile.js";
@@ -17,10 +14,6 @@ import { execAct } from "./ops.js";
 import { donOptionInfo } from "./donLocation.js";
 import { B, CB, V, getBinding, replKey } from "../effects/bindings.js";
 
-// ---------------------------------------------------------------------------
-// Choices
-// ---------------------------------------------------------------------------
-
 export function pushChoice(sim: Sim, frame: ResolutionFrame, choice: Omit<PendingChoice, "id" | "resolutionFrameId" | "cardDefId" | "sourceInstanceId">): PendingChoice {
   const { state } = sim;
   const full: PendingChoice = { id: alloc(state, "choice"), resolutionFrameId: frame.id, cardDefId: frame.sourceDefId, sourceInstanceId: frame.sourceInstanceId, ...choice };
@@ -36,14 +29,12 @@ function optionFor(state: MatchState, loc: Located, id: string, chooser?: Seat):
     return { id, defId: "DON", zone: "don", ownerSeat: loc.seat, eligible: true, label: info.label, rested: info.rested };
   }
   const public_ = isOnField(loc) || loc.zone === "trash" || (loc.zone === "life" && state.players[loc.seat].faceUpLife[loc.index]);
-  // The chooser may not see face-down Life cards or the opponent's hand.
   const hidden = (loc.zone === "life" && !state.players[loc.seat].faceUpLife[loc.index]) || (loc.zone === "hand" && chooser != null && loc.seat !== chooser);
   return {
     id,
     defId: hidden ? "HIDDEN" : loc.defId,
     zone: loc.zone,
     ownerSeat: loc.seat,
-    // Field cards, and the chooser's own hand cards so the client can pick them in the hand.
     ...((public_ && isOnField(loc)) || (loc.zone === "hand" && chooser === loc.seat) ? { instanceId: loc.id } : {}),
     eligible: true,
     ...(loc.card && isOnField(loc) ? { rested: loc.card.rested } : {}),
@@ -57,10 +48,6 @@ export function frameCtx(frame: ResolutionFrame): EvalCtx {
 export function promptPrefix(frame: ResolutionFrame): string {
   return nameOf(frame.sourceDefId);
 }
-
-// ---------------------------------------------------------------------------
-// VM
-// ---------------------------------------------------------------------------
 
 const TRASH_FOR_SPACE: Program = {
   abilityId: "__trash_for_space",
@@ -107,7 +94,6 @@ function shiftJumps(instr: Instr, by: number): Instr {
 
 export type ExecResult = "next" | "jumped" | "wait" | "interrupt";
 
-/** Run frames until the stack is empty or a choice is pending. */
 export function runFrames(sim: Sim): void {
   const { state } = sim;
   let guard = 0;
@@ -154,7 +140,6 @@ function completeFrame(sim: Sim, frame: ResolutionFrame): void {
     }
     return;
   }
-  // Event / Trigger cards leave resolution for the trash once their effect ends.
   const stillRunning = state.resolutionFrames.some((f) => f.sourceInstanceId === frame.sourceInstanceId);
   if (!stillRunning) {
     const loc = locate(state, frame.sourceInstanceId);
@@ -213,7 +198,6 @@ function exec(sim: Sim, frame: ResolutionFrame, instr: Instr): ExecResult {
   }
 }
 
-/** Whether a card chosen to be played by an effect can enter the field now (play locks such as OP13-118 Luffy). */
 function playableByEffect(state: MatchState, loc: Located): boolean {
   if (isOnField(loc)) return true;
   const def = getCardDef(loc.defId);
@@ -237,7 +221,6 @@ function execSelect(sim: Sim, frame: ResolutionFrame, instr: Extract<Instr, { op
     frame.bindings[instr.bind] = sim.rng.shuffle(list.map((l) => l.id)).slice(0, max);
     return "next";
   }
-  // Forced: every candidate must be chosen and no constraint could reject it.
   if (!askHidden && min === list.length && instr.totalCostAtMost == null && instr.totalPowerAtMost == null) {
     frame.bindings[instr.bind] = list.map((l) => l.id);
     return "next";

@@ -34,15 +34,12 @@ import { useLobbySheet } from "./lobby/useLobbySheet";
 import { SPECTATE_GONE_MESSAGE, useMatchLaunchers } from "./lobby/useMatchLaunchers";
 import { useOtherDeviceMatch } from "./lobby/useOtherDeviceMatch";
 
-// The home page's pieces live in ./lobby; these two names are what tests and other pages import from here.
 export { DeckSwitcher, SPECTATE_GONE_MESSAGE };
 
 export function LobbyPage() {
   const navigate = useNavigate();
   const { cancelQueue, queueing } = useDuelSession();
-  // The board is its own chunk (B-01): fetch it once the lobby is up and the browser is idle, so Play opens it at once.
   useEffect(() => prefetchBoardWhenIdle(), []);
-  // `/watch/:roomId` (a shared spectate link) goes straight into that match.
   const watchRoomId = useParams<{ roomId: string }>().roomId?.trim() || null;
   const [searchParams] = useSearchParams();
   const watchSeat = searchParams.get("seat") === "2" ? 1 : 0;
@@ -65,7 +62,6 @@ export function LobbyPage() {
     // Offer resume instead of forcing it — browser Back from hotseat used to
     // bounce straight back into the match and made Leave feel broken.
     setPendingResume(loadMatchResume());
-    // Invite link (`/?join=<room id>`): open the Join form with the id filled in.
     const inviteRoom = new URLSearchParams(window.location.search).get("join")?.trim();
     if (inviteRoom) {
       sheet.setRoomId(inviteRoom);
@@ -73,7 +69,6 @@ export function LobbyPage() {
       sheet.setSheetOpen(true);
       window.history.replaceState(window.history.state, "", window.location.pathname);
     }
-    // Wake free-tier Render API + game-server so hotseat mint/create is warm.
     warmDuelServices(getApiBaseUrl(), rememberedGameServerUrl() ?? serverUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -86,7 +81,6 @@ export function LobbyPage() {
     friendsEnabled,
     watch: { roomId: watchRoomId, seat: watchSeat },
     onModeStarted: (mode) => {
-      // Play repeats this mode next time; the how-it-works strip has done its job.
       writeLastMode(mode);
       setLastMode(readLastMode());
       markIntroDone();
@@ -95,11 +89,9 @@ export function LobbyPage() {
   });
   const { busy, busyStatus, friendError, watchStarted, confirmSetup } = launch;
 
-  /** Play button or a mode tile: Ranked starts the queue at once, the rest open their setup. */
   function playFrom(at: LastMode | null) {
     const action = primaryAction(at);
     if (action.act === "start") {
-      // Anything that would fail on the spot is shown in the sheet, which has room for the message.
       if (!selectedDeck || (authMode === "dev" && !settings.devUserKey.trim())) {
         sheet.openSheet(action.mode);
         return;
@@ -115,7 +107,6 @@ export function LobbyPage() {
     setIntroClosed(true);
   }
 
-  // A spectate link has no lobby to show: it opens the board as soon as sign-in settles.
   if (watchRoomId && !watchStarted.current && !friendError) {
     return (
       <div className="app-shell home-shell">
@@ -235,7 +226,6 @@ export function LobbyPage() {
         queueing={queueing}
         onConfirm={(mode: PlayMode) => void confirmSetup(mode)}
       />
-      {/* Fixed to the corner, so it takes no room while its chunk loads. */}
       <Suspense fallback={null}>
         <WhatsNewHost />
       </Suspense>

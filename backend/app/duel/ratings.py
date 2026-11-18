@@ -1,4 +1,3 @@
-"""Elo helpers for duel ratings."""
 
 from __future__ import annotations
 
@@ -24,7 +23,6 @@ def apply_elo(
     games_a: int,
     games_b: int,
 ) -> tuple[int, int]:
-    """Return (new_a, new_b). score_a is 1.0 win, 0.0 loss, 0.5 draw."""
     ea = expected_score(rating_a, rating_b)
     eb = 1.0 - ea
     na = int(round(rating_a + elo_k(games_a) * (score_a - ea)))

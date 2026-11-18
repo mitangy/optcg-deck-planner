@@ -25,7 +25,6 @@ import {
 import { qk } from "../cache/queryKeys";
 import { useLightboxPanel } from "./lightboxPanel";
 
-// Chart geometry in viewBox units; the SVG scales to its box, so the aspect ratio (and height) never changes.
 const W = 360;
 const H = 168;
 const PAD = { top: 10, right: 10, bottom: 22, left: 40 };
@@ -54,7 +53,6 @@ function Stat({ label, value, sub, toneClass = "" }: { label: string; value: str
   );
 }
 
-/** " · est. $A–$B" for the best-time line; "~$A" when both ends round to the same dollar, empty without an estimate. */
 function bestEstimate(best: BestBuy): string {
   if (best.estLow == null || best.estHigh == null) return "";
   const whole = Math.min(best.estLow, best.estHigh) >= 10;
@@ -66,11 +64,6 @@ function bestEstimate(best: BestBuy): string {
 
 const PILL: Record<BuyTiming["verdict"], string> = { wait: "Wait", soon: "Almost", good: "Good time", holds: "Holds", unknown: "No read" };
 
-/**
- * The "?" next to the verdict. Hover (mouse) or keyboard focus shows the reasons in a floating panel anchored to the
- * icon; a click or tap pins it open (phones have no hover). Escape and a press outside close it. The panel floats in a
- * portal, so it never moves the chart or the lightbox it sits in.
- */
 function WhyHint({ reasons }: { reasons: string[] }) {
   const [pinned, setPinned] = useState(false);
   const [hover, setHover] = useState(false);
@@ -94,7 +87,6 @@ function WhyHint({ reasons }: { reasons: string[] }) {
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
-      // Only the hint closes, not the enlarged card around it.
       e.stopPropagation();
       closeAll();
     };
@@ -113,7 +105,6 @@ function WhyHint({ reasons }: { reasons: string[] }) {
     window.clearTimeout(leaveTimer.current);
     setHover(true);
   };
-  // A short grace period lets the pointer cross the gap between the icon and the panel.
   const leave = (e: PointerEvent) => {
     if (e.pointerType === "touch") return;
     window.clearTimeout(leaveTimer.current);
@@ -165,10 +156,6 @@ function WhyHint({ reasons }: { reasons: string[] }) {
   );
 }
 
-/**
- * "When to buy": a verdict from how similar cards moved after release, with the reasons one tap away. Its box is
- * the same size while loading, so the panel never jumps. `onAsk` is set only where Log Pose can answer.
- */
 function WhenToBuy({ timing, best, loading, onAsk }: { timing: BuyTiming | null; best: BestBuy | null; loading: boolean; onAsk: (() => void) | null }) {
   const verdict = timing?.verdict ?? "unknown";
   const reasons = timing ? [...timing.reasons, ...(timing.seasonNote ? [timing.seasonNote] : []), ...(best ? [best.basis] : [])] : [];
@@ -298,7 +285,6 @@ function Chart({ points, label }: { points: PricePoint[]; label: string }) {
   );
 }
 
-/** Price history of one art: range buttons, whole-history stats and an SVG line chart. */
 export function PriceHistory({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
   const q = useQuery<PriceHistoryResponse>({
     queryKey: qk.priceHistory(cardId, productId),
@@ -381,7 +367,6 @@ export function PriceHistory({ cardId, productId = 0 }: { cardId: string; produc
   );
 }
 
-/** The lightbox button; the panel floats over the art, so opening it never moves the button. */
 export function LightboxPriceHistoryControl({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
   const [open, setOpen] = useLightboxPanel("history");
   return (

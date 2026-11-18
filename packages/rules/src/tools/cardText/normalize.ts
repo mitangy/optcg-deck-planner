@@ -1,9 +1,6 @@
 /**
- * Text normalization and ability segmentation for the offline card-text compiler.
- *
- * Bracketed names, braced traits and quoted substrings are replaced with
- * placeholders so sentence splitting and pattern matching cannot be confused by
- * periods or keywords inside names ("[Dr. Kureha]", "[Monkey.D.Luffy]").
+ * Bracketed names, braced traits and quoted substrings become placeholders so periods or keywords inside names ("[Dr.
+ * Kureha]", "[Monkey.D.Luffy]") cannot confuse sentence splitting.
  */
 
 export interface Placeholders {
@@ -13,9 +10,7 @@ export interface Placeholders {
 }
 
 export interface Segment {
-  /** Header tags in order, e.g. ["DON!! x1", "When Attacking"]. */
   tags: string[];
-  /** Additional windows joined with "/" to the first timing tag. */
   body: string;
   raw: string;
 }
@@ -91,9 +86,7 @@ export function normalizeText(input: string): string {
   text = text.replace(/DON!!\s*-\s*(\d+)/g, "DON!! -$1");
   text = text.replace(/\[DON!!\s*x\s*(\d+)\]/gi, "[DON!! x$1]");
   text = text.replace(/\s+/g, " ").trim();
-  // Some choose-one lists use " - " instead of "•" bullets.
   text = text.replace(/(chooses? one:|choose one:)((?: - [^•]+?)+)(?=$| \[)/gi, (_m, head: string, list: string) => head + list.replace(/ - (?=[A-Z])/g, " • "));
-  // "Apply each of the following effects based on this Character's power: • If it has 5000 power or more, ...": one conditional sentence per bullet.
   text = text.replace(/Apply each of the following effects based on this Character's power:((?: • If it has \d+ power or more, [^•]+?)+)$/i, (_m, list: string) =>
     list.replace(/ • If it has /g, " If this Character has ").trim(),
   );
@@ -102,7 +95,6 @@ export function normalizeText(input: string): string {
   return text;
 }
 
-/** Replace names/traits/quotes with placeholder tokens. Timing/keyword tags stay bracketed. */
 export function protect(text: string): { text: string; ph: Placeholders } {
   const ph: Placeholders = { names: [], traits: [], quotes: [] };
   let out = text.replace(/\{([^}]*)\}/g, (_m, trait: string) => { ph.traits.push(trait.trim()); return `§T${ph.traits.length - 1}§`; });
@@ -116,10 +108,6 @@ export function protect(text: string): { text: string; ph: Placeholders } {
   return { text: out, ph };
 }
 
-/**
- * Split protected text into abilities. A header tag starts a new ability when
- * it begins the text or follows a sentence end / another header tag / "/".
- */
 export function segment(text: string): Segment[] {
   const segments: Segment[] = [];
   const tagRe = /\[([^\]]+)\]/g;
@@ -170,7 +158,6 @@ export function segment(text: string): Segment[] {
   return segments;
 }
 
-/** Split an effect body into sentences, respecting protected placeholders. */
 export function sentences(body: string): string[] {
   const out: string[] = [];
   let buf = "";

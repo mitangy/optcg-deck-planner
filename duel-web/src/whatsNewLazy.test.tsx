@@ -25,7 +25,6 @@ async function mount(node: React.ReactNode): Promise<HTMLElement> {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
-  // The notes arrive from a dynamic import: let it resolve, then flush the state update it causes.
   await act(async () => {
     root!.render(<MemoryRouter>{node}</MemoryRouter>);
     await new Promise((r) => setTimeout(r, 50));

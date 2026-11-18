@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { officialOverlap, shareable } from "./overlap";
 
-// Synthetic "official" text.
 const official = "alpha bravo charlie delta echo foxtrot golf hotel india juliet kilo lima mike november oscar";
 
 describe("official text guard", () => {

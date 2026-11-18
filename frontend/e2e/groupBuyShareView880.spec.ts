@@ -1,7 +1,3 @@
-/**
- * Group buy invite link (/group-buy/join/:token): shows the read-only group buy
- * with Sign in / Join on top, so people can look before they join (#880).
- */
 import { expect, test } from "./fixtures";
 
 const TOKEN = "gb-invite-880";
@@ -99,7 +95,6 @@ test("Signed out, the invite link shows the cards read-only and Sign in to join 
   await expect(page.getByText("Hosted by Nami · 2 members")).toBeVisible();
   await expect(page.getByText("OP01-001").first()).toBeVisible();
   await expect(page.getByText("OP01-002").first()).toBeVisible();
-  // Read-only: no quantity steppers or host actions.
   await expect(page.getByRole("button", { name: "Join group buy" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Leave group buy" })).toHaveCount(0);
 
@@ -156,7 +151,6 @@ test("The view-only invite page shows the alt art the group picked as the main i
   );
   await page.route(`**/api/public/group-buys/${TOKEN}/view`, (route) => {
     const v = view();
-    // The server picks the group's most-wanted alt as display_art (#882).
     const lines = v.lines as Array<Record<string, unknown>>;
     lines[0] = {
       ...v.lines[0],

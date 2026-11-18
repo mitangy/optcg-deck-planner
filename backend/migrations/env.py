@@ -12,18 +12,14 @@ from alembic import context
 from sqlalchemy import create_engine, pool
 
 from app.core.config import get_settings
-from app.all_models import Base  # imports every domain models module, so autogenerate sees every table
+from app.all_models import Base
 
 config = context.config
-# Startup passes configure_logger=False: fileConfig would replace the app's logging.
 if config.config_file_name is not None and config.attributes.get("configure_logger", True):
     fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 
-# Tables in the database that the API models do not own. The game server
-# creates duel_match_outbox itself (game-server/src/writeback.ts), so
-# autogenerate / `alembic check` must not propose dropping it.
 EXTERNAL_TABLES = frozenset({"duel_match_outbox"})
 
 

@@ -23,19 +23,16 @@ function assertSameOriginApiUrl(mode: string) {
 export default defineConfig(({ mode }) => {
   assertSameOriginApiUrl(mode);
   const gitSha = resolveGitSha();
-  // Bake the commit into import.meta.env.VITE_GIT_SHA for the UI build tag.
   process.env.VITE_GIT_SHA = gitSha;
   return {
     plugins: [
       react(),
       versionFile("planner-version-file", gitSha, new Date().toISOString()),
-      // Public routes become real HTML in dist/ after the build (#914); see src/prerender/entry.tsx.
       prerenderPlugin({ name: "planner", entry: "src/prerender/entry.tsx", configFile: fileURLToPath(import.meta.url), build }),
     ],
     define: {
       "import.meta.env.VITE_GIT_SHA": JSON.stringify(gitSha),
     },
-    // e2e/ holds Playwright specs (`npm run e2e`), not unit tests.
     test: { include: ["src/**/*.test.{ts,tsx}"] },
     server: {
       port: 5173,

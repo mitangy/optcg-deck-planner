@@ -1,4 +1,3 @@
-/** Requests to the analyst service (chat and match reviews) and to the API's chat history. */
 import { parseCitations, type Citation, type PlacedCitation } from "./citations";
 import { PLAN_ABILITY_ID_MAX, PLAN_STEP_ID_MAX, isLimitCode, type DonePayload, type ErrorCode, type HintContext, type LimitCode } from "@optcg/analyst-contract";
 import { parseDraft, type NewDeckDraft } from "./drafts";
@@ -10,12 +9,10 @@ export type DeckContext = {
   name: string;
   leaderId: string | null;
   cards: { id: string; copies: number }[];
-  /** Which saved deck this is ("planner:<id>" or "duel:<id>"), so a suggested edit knows where it applies. */
   ref?: string;
   plannerDeckId?: number;
 };
 
-/** A card on a board as the analyst sees it. `id` is the instance id; `defId` the printed card number. */
 export type SnapCard = {
   id: string;
   defId: string;
@@ -28,7 +25,6 @@ export type SnapCard = {
   status?: string[];
 };
 
-/** One legal move, compacted from the game server's legal intents. */
 export type LegalAction =
   | { type: "play_card"; card: string; trash?: string }
   | { type: "give_don"; target: string }
@@ -40,15 +36,12 @@ export type LegalAction =
   | { type: "pass_counter" }
   | { type: "end_turn" };
 
-/** What one seat can see of a game: never the opponent's hand, only a count. */
 export type GameSnapshot = {
   seat: 0 | 1;
   turn: number;
   phase: string;
   yourTurn: boolean;
-  /** You take turn 1. Only when the view says who goes first. */
   first?: boolean;
-  /** During the mulligan step: you already kept or mulliganed. */
   mulliganDone?: boolean;
   you: {
     leader: SnapCard;
@@ -81,10 +74,8 @@ export type GameSnapshot = {
   legal: LegalAction[];
 };
 
-/** One option of a pending choice as the analyst reads it. */
 export type ChoiceOptionSnap = { id: string; defId?: string; label?: string; inst?: string; zone?: string; owner?: "you" | "opponent"; eligible: boolean };
 
-/** The choice's options; cut to {@link CHOICE_OPTION_LIMIT}, with `truncated` set when some were left out. */
 export type ChoiceRequestSnap = {
   type: "confirm" | "select" | "mode" | "order" | "look";
   min?: number;
@@ -96,7 +87,6 @@ export type ChoiceRequestSnap = {
   truncated?: boolean;
 };
 
-/** The front pending choice, when it is this seat's to answer. */
 export type PendingChoiceSnap = {
   id?: string;
   prompt: string;
@@ -106,27 +96,19 @@ export type PendingChoiceSnap = {
   request?: ChoiceRequestSnap;
 };
 
-/** Must equal MAX_CHOICE_OPTIONS in analyst/src/copilot.ts. */
 export const CHOICE_OPTION_LIMIT = 40;
 
-/** The live game sent with a message: the brief ticket proves an unranked room, the analyst checks it again. */
 export type GameChatContext = { ticket: string; snapshot: GameSnapshot; log?: string[];
-  /** False when only the board is attached (the copilot setting is off): Log Pose answers in words, no turn plans. */
   plans?: boolean;
-  /** The app is playing the turn for the player (they asked Log Pose to): Log Pose answers choices with answer_choice. */
   autopilot?: boolean;
 };
 
-/** What the page the user is on adds to a message. */
 export type ChatContext = { page?: string; deck?: DeckContext; matchId?: string; hint?: HintContext; game?: GameChatContext };
 
-/** `scope` and `scope_title` only count for a new chat (no thread_id): they say what the thread is about. */
 export type ChatRequest = { thread_id?: number; message: string; context?: ChatContext; scope?: string; scope_title?: string };
 export type ReviewRequest = { match_id: string; regenerate?: boolean };
-/** A matchup brief: the game server's ticket, and whether to write one when none is saved (false only looks). */
 export type BriefRequest = { ticket: string; generate: boolean };
 
-/** One step of a turn plan Log Pose proposes. `label` is written by the analyst from the board, not by the model. */
 export type PlanStep = { label: string; why?: string } & (
   | { action: "play"; card: string; trash?: string }
   | { action: "give_don"; target: string; count: number }
@@ -136,22 +118,16 @@ export type PlanStep = { label: string; why?: string } & (
 );
 
 export type TurnPlan = {
-  /** The tool call's id. */
   id: string;
-  /** The game turn the plan was made for. */
   turn: number;
   summary: string;
   steps: PlanStep[];
-  /** The player asked Log Pose to play the turn: the board starts the plan by itself. */
   autoplay?: boolean;
-  /** The game (its ticket's match key) the plan was made for, stamped when the answer arrives. Card ids only mean something in that game. */
+  /** Card ids only mean something in the game the plan was made for. */
   gameKey?: string;
 };
 
-/**
- * The game a brief ticket was minted for: its `mid` claim (the match, or `match-rN` for a rematch). It is the same
- * across the fresh tickets a reconnect brings and differs per game. An unreadable ticket stands for itself.
- */
+// Same across the fresh tickets a reconnect brings, different per game.
 export function ticketGameKey(ticket: string): string {
   try {
     const body = ticket.split(".")[1] ?? "";
@@ -163,7 +139,7 @@ export function ticketGameKey(ticket: string): string {
   }
 }
 
-/** Ties a plan to the game its message was sent for, so a later game never plays it. No game context, no stamp. */
+// A later game must never play an earlier game's plan.
 export function stampPlan(plan: TurnPlan, context: ChatContext | undefined): TurnPlan {
   const ticket = context?.game?.ticket;
   return ticket ? { ...plan, gameKey: ticketGameKey(ticket) } : plan;
@@ -216,10 +192,7 @@ function parseStep(raw: unknown): PlanStep | null {
   }
 }
 
-/**
- * A turn plan from a `plan` event, or null when it is unusable. One bad step drops the whole plan: a plan with a
- * hole in it (a missing Play before its Attack) must never run.
- */
+// One bad step drops the whole plan: a plan with a hole in it (a missing Play before its Attack) must never run.
 export function parseTurnPlan(raw: unknown): TurnPlan | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -236,19 +209,14 @@ export function parseTurnPlan(raw: unknown): TurnPlan | null {
   return { id, turn: o.turn, summary, steps, ...(o.autoplay === true ? { autoplay: true } : {}) };
 }
 
-/** Log Pose's answer to a pending choice while the board plays the turn, from a `choice` event. */
 export type ChoiceAnswer = {
-  /** The tool call's id. */
   id: string;
-  /** The pending choice it answers: the board applies it only when this is still the front choice. */
   choiceId: string;
   accept: boolean;
   selectedOptionIds?: string[];
   orderedOptionIds?: string[];
   topOptionIds?: string[];
-  /** One line for the chat: "Chose Nami, Zoro". */
   summary: string;
-  /** The game it was asked for, stamped when it arrives (like a plan's). */
   gameKey?: string;
 };
 
@@ -266,7 +234,6 @@ const ids = (v: unknown): string[] | undefined | null => {
   return out;
 };
 
-/** A choice answer from a `choice` event, or null when it is unusable (a malformed id list drops the whole answer). */
 export function parseChoiceAnswer(raw: unknown): ChoiceAnswer | null {
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
@@ -288,17 +255,14 @@ export function parseChoiceAnswer(raw: unknown): ChoiceAnswer | null {
   };
 }
 
-/** Ties an answer to the game its message was sent for, like {@link stampPlan}. */
 export function stampChoice(answer: ChoiceAnswer, context: ChatContext | undefined): ChoiceAnswer {
   const ticket = context?.game?.ticket;
   return ticket ? { ...answer, gameKey: ticketGameKey(ticket) } : answer;
 }
 
-/** The prefix of a message the board sends on the player's behalf while Log Pose plays their turn; the panel shows it as a muted line. */
 export const AUTO_PREFIX = "(auto) ";
 export const isAutoMessage = (text: string): boolean => text.startsWith(AUTO_PREFIX);
 export const autoText = (text: string): string => (isAutoMessage(text) ? text.slice(AUTO_PREFIX.length) : text);
-
 
 export type { DonePayload, ErrorCode };
 
@@ -306,18 +270,12 @@ export type StreamHandlers = {
   onThread?: (threadId: number) => void;
   onStatus?: (text: string) => void;
   onText?: (delta: string) => void;
-  /** Sources cited by the text streamed so far: place their markers at its current end. */
   onCite?: (citations: Citation[]) => void;
-  /** A deck edit Log Pose suggests for the open deck, to show as an Apply card under the answer. */
   onProposal?: (proposal: DeckEditProposal) => void;
-  /** A new deck Log Pose built, to show as a New deck card under the answer (and open in the create-deck page). */
   onDraft?: (draft: NewDeckDraft) => void;
-  /** A turn plan Log Pose proposes for the live game, to show as a Turn plan card under the answer. */
   onPlan?: (plan: TurnPlan) => void;
-  /** Log Pose's answer to a pending choice, while the board plays the turn for the player. */
   onChoice?: (answer: ChoiceAnswer) => void;
   onDone?: (done: DonePayload) => void;
-  /** An `error` event inside the stream. */
   onError?: (err: { message: string; code?: ErrorCode }) => void;
 };
 
@@ -328,7 +286,6 @@ export const BUSY_MESSAGE = "Log Pose is still answering your other question. Tr
 export const GENERIC_ERROR = "Log Pose couldn't answer just now. Try again in a moment.";
 export const AUTH_ERROR = "Log Pose needs you to sign in again.";
 
-/** Failure before or outside the stream (HTTP status, no session). */
 export class AnalystError extends Error {
   constructor(
     readonly code: ErrorCode,
@@ -339,7 +296,6 @@ export class AnalystError extends Error {
   }
 }
 
-/** The text to show for an error event or AnalystError. */
 export function errorText(err: { message?: string; code?: string }): string {
   if (err.code === "credit") return CREDIT_MESSAGE;
   if (err.code === "daily") return DAILY_MESSAGE;
@@ -374,7 +330,6 @@ function dispatch(handlers: StreamHandlers, event: string, data: unknown) {
     handlers.onError?.({ message: typeof d.message === "string" ? d.message : "", code: d.code as ErrorCode | undefined });
 }
 
-/** The analyst's own reason from a JSON refusal ({"error": "..."}), when there is one. */
 function refusalReason(body: string): string | null {
   try {
     const parsed = JSON.parse(body) as { error?: unknown };
@@ -384,7 +339,6 @@ function refusalReason(body: string): string | null {
   }
 }
 
-/** Which limit a 429 body names; a 429 that names none is taken as the daily one. */
 export function limitCode(body: string): LimitCode {
   try {
     const code = (JSON.parse(body) as { code?: unknown }).code;
@@ -395,11 +349,6 @@ export function limitCode(body: string): LimitCode {
   return "daily";
 }
 
-/**
- * POSTs `body` to {chat_url}{path} with the session token and streams the answer into
- * `handlers`. A 401 before the stream starts refreshes the session and retries once;
- * 429 throws the error for the limit the analyst names (credit, daily or monthly); any other status throws a generic error.
- */
 export async function streamAnalyst(
   session: SessionManager,
   path: "/chat" | "/review-match" | "/brief",
@@ -441,10 +390,8 @@ export async function streamAnalyst(
 export type ThreadMessage = { role: "user" | "assistant"; text: string; citations?: PlacedCitation[]; proposals?: DeckEditProposal[]; drafts?: NewDeckDraft[] };
 export type ThreadHistory = { id: number; title: string; scope?: string; messages: ThreadMessage[] };
 
-/** A saved chat in the Chats list. */
 export type ThreadSummary = { id: number; title: string; updated_at: string; scope: string };
 
-/** GET {apiBase}/analyst/chat/threads[?scope=]: the player's chats, newest first (one scope, or the latest 50 of all). */
 export async function listThreads(apiBase: string, scope?: string, fetchImpl: typeof fetch = fetch): Promise<ThreadSummary[]> {
   const q = scope ? `?scope=${encodeURIComponent(scope)}` : "";
   const res = await fetchImpl(`${apiBase}/analyst/chat/threads${q}`, { credentials: "include" });
@@ -458,7 +405,6 @@ export async function listThreads(apiBase: string, scope?: string, fetchImpl: ty
   });
 }
 
-/** GET {apiBase}/analyst/chat/threads/{id}; null when it is gone (404). */
 export async function fetchThread(apiBase: string, threadId: number, fetchImpl: typeof fetch = fetch): Promise<ThreadHistory | null> {
   const res = await fetchImpl(`${apiBase}/analyst/chat/threads/${threadId}`, { credentials: "include" });
   if (res.status === 404) return null;
@@ -477,7 +423,6 @@ export async function fetchThread(apiBase: string, threadId: number, fetchImpl: 
 
 export type SavedReview = { match_id: string; text: string; citations: PlacedCitation[]; created_at: string };
 
-/** GET {apiBase}/analyst/reviews/{matchId}; null when none is saved yet (404). */
 export async function fetchSavedReview(apiBase: string, matchId: string, fetchImpl: typeof fetch = fetch): Promise<SavedReview | null> {
   const res = await fetchImpl(`${apiBase}/analyst/reviews/${encodeURIComponent(matchId)}`, { credentials: "include" });
   if (res.status === 404) return null;
@@ -486,7 +431,6 @@ export async function fetchSavedReview(apiBase: string, matchId: string, fetchIm
   return { ...body, citations: parseCitations(body.citations, true) };
 }
 
-/** DELETE {apiBase}/analyst/chat/threads/{id}: the player deletes a chat. What it cost stays in the totals. */
 export async function deleteThread(apiBase: string, threadId: number, fetchImpl: typeof fetch = fetch): Promise<void> {
   const res = await fetchImpl(`${apiBase}/analyst/chat/threads/${threadId}`, { method: "DELETE", credentials: "include" });
   if (!res.ok && res.status !== 404) throw new Error("Couldn't delete that chat. Try again in a moment.");

@@ -1,10 +1,3 @@
-/**
- * The battle attack arrow stays easy to see (#771): it keeps nearly full
- * strength while one of your prompts is open, and a dark outline under the
- * dashed trail keeps it readable on gold art, bright playmats and the light theme.
- * `?attacked&prompt=confirm` is an opposing Character attacking your Leader
- * with one of your choice prompts open.
- */
 import { test, expect } from "./fixtures";
 
 const PROMPT_DEMO = "/demo?attacked&prompt=confirm";

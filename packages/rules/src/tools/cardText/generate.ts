@@ -1,8 +1,3 @@
-/**
- * Regenerate `src/cards/generated/abilities.json` from `cardData.json`.
- * Usage (packages/rules): npx tsx src/tools/cardText/generate.ts
- * `--check` exits non-zero when the checked-in file is stale.
- */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { cardDataFor, listCardDataIds } from "../../cards/cardData.js";

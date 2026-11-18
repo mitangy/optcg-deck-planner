@@ -128,7 +128,6 @@ describe("citation placement and the Sources list (#390)", () => {
     const text = placeMarkers("Zoro hits. Done.", marks);
     expect(splitMarks(text)).toEqual(["Zoro hits.", 0, " Done.", 1]);
     expect(splitMarks(placeMarkers("abc", []))).toEqual(["abc"]);
-    // Marks given out of order still land in text order.
     const c = (at: number) => ({ at, n: 1, citation: cite(at, "card:A") });
     expect(splitMarks(placeMarkers("Zoro hits. Done.", [c(16), c(10)]))).toEqual(["Zoro hits.", 1, " Done.", 0]);
   });
@@ -162,10 +161,8 @@ describe("citation placement and the Sources list (#390)", () => {
     expect(above.above).toBe(true);
     expect(above.top).toBe(600 - 6 - 200);
     expect(above.left).toBe(375 - 320 - 8);
-    // Too tall for either side: pinned inside the screen.
     const tall = placePopover({ left: 10, top: 300, width: 20, height: 18 }, { w: 300, h: 680 }, vp);
     expect(tall.top).toBe(12);
-    // Wider than the screen: shrinks to fit.
     expect(placePopover({ left: 10, top: 10, width: 20, height: 18 }, { w: 500, h: 100 }, vp).left).toBe(8);
   });
 });

@@ -1,7 +1,3 @@
-/**
- * Behavior checks for reviewed manual definitions and the primitives added for
- * them. Each test asserts a concrete state change so a silent no-op fails.
- */
 import { describe, expect, it } from "vitest";
 import { deckConstructionErrors } from "../cards/deckRules.js";
 import { deserializeMatch, serializeMatch } from "../engine/snapshot.js";
@@ -45,7 +41,6 @@ describe("DON!! primitives", () => {
     expect(h.choice?.request?.type).toBe("select");
     h.pick("DON", "DON");
     const p = h.state.players[0];
-    // 5 on field - 2 returned + 1 added active.
     expect(p.costArea.length).toBe(4);
     expect(p.costArea.filter((d) => !d.rested).length).toBe(3);
   });
@@ -238,7 +233,6 @@ describe("granted replacement (EB02-030)", () => {
     h.accept(1);
     h.pick(h.state.players[1].hand[0]!.id);
     expect(h.state.players[1].characters.length).toBe(3);
-    // Second battle in the same turn: the Counter still applies.
     h.attack(attacker!, second!);
     h.passBattle();
     expect(h.choice?.seat).toBe(1);
@@ -486,7 +480,6 @@ describe("EB05-046 Yamato On Your Opponent's Attack (#607)", () => {
 });
 
 describe("Repeat prompts that do nothing (#607)", () => {
-  /** Seat 1 defends; seat 0 has three attackers. */
   function defend(h: Harness, ...attackers: string[]) {
     const mine = h.field(0, ...attackers);
     h.life(1, FILLER, FILLER, FILLER, FILLER);
@@ -582,7 +575,6 @@ describe("Repeat prompts that do nothing (#607)", () => {
       h.don(0, 2);
       h.play(0, "OP11-083");
       h.pick(FILLER, FILLER);
-      // Rush not gained yet: both trashed cards queue a gain, so the player orders them.
       expect(h.choice?.kind).toBe("order_effects");
       h.act(0, { type: "order_pending_effects", orderedIds: h.choice!.unorderedChoices!.map((c) => c.id) });
       expect(keywordsOf(h.state, 0, card!).has("rush")).toBe(true);

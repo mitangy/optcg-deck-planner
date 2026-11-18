@@ -1,8 +1,3 @@
-"""Who is online or in a game, and the friendship rows keyed by user pair.
-
-Lived in the friends router; the duel, reports, admin and tournament code read it too, so it sits
-here and no module has to import a router for it (refactor D-02).
-"""
 
 from __future__ import annotations
 
@@ -16,9 +11,7 @@ from app.duel import live as duel_live
 from app.core.time import as_utc
 from app.social.models import DuelPresence, Friendship
 
-# A game-server snapshot lands every ~15s; allow a few missed pushes.
 PRESENCE_TTL = timedelta(seconds=60)
-# The lobby polls about every 10s while open.
 ONLINE_TTL = timedelta(seconds=45)
 
 
@@ -56,17 +49,13 @@ def live_presence(db: Session, user_ids: list[int], now: datetime) -> dict[int, 
 def friend_status(
     rows: list[DuelPresence], seen_at: datetime | None, now: datetime
 ) -> tuple[str, str | None, bool]:
-    """(status, spectatable room id, ranked) for one friend."""
     players = [r for r in rows if r.role == "player"]
-    # A live game outranks an open lobby room if a player somehow holds both.
     for row in sorted(players, key=lambda r: r.phase == "waiting"):
         if row.phase == "waiting":
-            # Waiting rooms stay private: joining one takes an invite.
             return "waiting", None, row.ranked
         return "in_game", row.room_id, row.ranked
     for row in rows:
         if row.role == "spectator":
-            # Same rule as for players: an unstarted room's id is invite-only.
             room_id = None if row.phase == "waiting" else row.room_id
             return "spectating", room_id, row.ranked
     if seen_at is not None and now - as_utc(seen_at) <= ONLINE_TTL:
@@ -75,5 +64,4 @@ def friend_status(
 
 
 def room_server_url(rows: list[DuelPresence], room_id: str | None) -> str | None:
-    """The pool a room is on, as its game server last reported it."""
     return next((r.server_url for r in rows if r.room_id == room_id and r.server_url), None)

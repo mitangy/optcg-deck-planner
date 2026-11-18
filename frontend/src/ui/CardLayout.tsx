@@ -16,7 +16,6 @@ export function CardLayoutToggle({
 }: {
   layout: CardLayout;
   onChange: (next: CardLayout) => void;
-  /** A list / grid glyph before each label. */
   icons?: boolean;
 }) {
   return (

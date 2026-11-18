@@ -2,14 +2,8 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { toCitation } from "./citations";
 import type { Block, CallModel, Usage } from "./types";
 
-/** The SDK's own request type for a streamed Messages call. */
 type StreamParams = Parameters<Anthropic["beta"]["messages"]["stream"]>[0];
 
-/**
- * The Claude API behind CallModel: a streamed Messages call. `params` is built loosely in the tool loop (blocks
- * are plain records so stored threads and scripted test replies fit), so it is cast to the SDK's type here, at the
- * one place it meets the SDK.
- */
 export function anthropicModel(client: Pick<Anthropic, "beta">): CallModel {
   return async (params, onText, signal, onCite) => {
     const stream = client.beta.messages.stream(params as unknown as StreamParams, { signal });

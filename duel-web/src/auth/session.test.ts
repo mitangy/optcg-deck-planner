@@ -8,7 +8,6 @@ import { AUTH_MAX_AGE_MS, clearAuth, ensureAuth, getAuth, refreshAuth, resetAuth
 const me = vi.mocked(fetchAuthMe);
 const user = (over: Record<string, unknown> = {}) => ({ id: 7, email: "miko@e2e.test", name: "Miko", username: "Miko", ...over }) as never;
 
-/** A /auth/me call the test settles by hand. */
 function deferred() {
   let resolve!: (u: unknown) => void;
   let reject!: (e: unknown) => void;

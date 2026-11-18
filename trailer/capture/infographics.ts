@@ -1,8 +1,3 @@
-/**
- * Screenshots for the help infographics (trailer/video/src/infographics). Same local stack and fake backend as the
- * clips; run with `npm run infographics:shots` in trailer/video (or `TRAILER_MAIN=infographics.ts ./run.sh [group ...]`).
- * Groups: lobby, match, hand, phone. PNGs land in trailer/video/public/infographics/shots/ (gitignored).
- */
 import type { Page, Route } from "playwright";
 import { cors } from "./lib/fakeApi";
 import { applySettings, endTurn, startBotGame, waitFor } from "./lib/game";
@@ -10,7 +5,6 @@ import { openStill, type Still, type StillOpts } from "./lib/stills";
 import { sleep } from "./lib/util";
 import { WEB_ORIGIN } from "./lib/env";
 
-/** The two POSTs the infographics submit: answered in the browser, nothing is stored anywhere. */
 const extra: StillOpts["extra"] = async (route: Route, path: string, method: string) => {
   if (method === "POST" && (path === "/feedback" || path === "/duel/card-reports")) {
     await route.fulfill({ status: 200, headers: cors(route.request().headers()["origin"]), json: { ok: true } });
@@ -19,7 +13,6 @@ const extra: StillOpts["extra"] = async (route: Route, path: string, method: str
   return false;
 };
 
-/** Bot match, played to the start of Miko's second turn (3 DON!!, a full hand), the same way clip 02 does. */
 async function toTurn3(p: Page): Promise<void> {
   await p.goto(`${WEB_ORIGIN}/`);
   await sleep(1800);
@@ -42,7 +35,6 @@ async function lobby(): Promise<void> {
     await p.goto(`${WEB_ORIGIN}/`);
     await sleep(2500);
     await s.shot("fb-lobby", { friendWatch: p.getByRole("button", { name: "Watch", exact: true }).first(), spectate: p.getByRole("button", { name: /^Spectate/ }), send: p.getByRole("button", { name: "Send feedback" }) });
-    // Scrolled to the very bottom the footer has room under it, so a ring around its link is not cut by the screen edge.
     await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await sleep(400);
     await s.shot("fb-lobby-bottom", { whatsnew: p.locator(".site-footer").getByText(/What.s new/), send: p.getByRole("button", { name: "Send feedback" }) });
@@ -63,7 +55,6 @@ async function lobby(): Promise<void> {
     await p.locator("#about").scrollIntoViewIfNeeded();
     await sleep(500);
     await s.shot("fb-settings-about", { about: p.locator("#about"), send: p.locator("#about").getByRole("button", { name: "Send feedback" }) });
-    // Spectate card in the lobby (watch infographic).
     await p.goto(`${WEB_ORIGIN}/`);
     await sleep(1800);
     await p.getByRole("button", { name: /^Spectate/ }).click();
@@ -84,19 +75,16 @@ async function match(): Promise<void> {
     await sleep(300);
     const killer = p.locator(".side-opp .card-tile", { hasText: "Killer" }).first();
     await s.shot("m-board", { end: p.locator(".intent-btn-primary").first(), menu: p.getByRole("button", { name: "Match menu" }), undo: p.getByRole("button", { name: "Undo" }), killer, hand: p.locator(".hand-fan-toggle") });
-    // Match menu: Report a problem / Copy spectate link.
     await p.getByRole("button", { name: "Match menu" }).click();
     await sleep(500);
     await s.shot("m-menu", { list: p.locator(".match-menu"), report: p.locator(".match-menu-item", { hasText: "Report a problem" }), spectate: p.locator(".match-menu-item", { hasText: "Copy spectate link" }), button: p.getByRole("button", { name: "Match menu" }) });
     await p.keyboard.press("Escape");
     await sleep(300);
-    // Shortcuts sheet.
     await p.keyboard.press("?");
     await sleep(600);
     await s.shot("m-help", { sheet: p.locator(".sheet"), space: p.locator(".hotkey-row").nth(0), yn: p.locator(".hotkey-row").nth(1) });
     await p.keyboard.press("Escape");
     await sleep(400);
-    // Card inspect and the report form.
     await killer.click({ button: "right" });
     await sleep(900);
     await s.shot("r-inspect", { ability: p.locator(".card-inspect-effect").first(), report: p.getByRole("button", { name: /Report a problem with this card/ }), dialog: p.locator(".card-inspect") });
@@ -112,13 +100,11 @@ async function match(): Promise<void> {
     await s.shot("r-form-sent", { sent: p.locator(".card-report-sent"), dialog: p.locator(".card-inspect") });
     await p.keyboard.press("Escape");
     await sleep(500);
-    // Action keys on a selected card.
     await p.locator(".side-you .card-tile.attack-ready", { hasText: "Monkey.D.Luffy" }).first().click();
     await sleep(600);
     await s.shot("k-actions", { actions: p.locator(".card-actions"), first: p.locator(".card-actions button").first() });
     await p.keyboard.press("Escape");
     await sleep(400);
-    // Undo: two actions this turn, so both rows exist.
     await p.mouse.move(420, 888);
     await sleep(800);
     await p.locator(".hand-fan-cards .card-tile", { hasText: "Sanji" }).first().click();
@@ -156,7 +142,6 @@ async function hand(): Promise<void> {
     await p.locator(".hand-fan-toggle").hover();
     await sleep(900);
     await s.shot("h-hover", { toggle: p.locator(".hand-fan-toggle"), sort: p.locator(".hand-sort-btn"), grip: p.locator(".hand-fan-grip"), fan: p.locator(".hand-fan-cards .card-tile").first() });
-    // Click Hand: keep it up.
     await p.locator(".hand-fan-toggle").click();
     await p.mouse.move(520, 260);
     await sleep(900);
@@ -164,14 +149,12 @@ async function hand(): Promise<void> {
     await p.locator(".hand-fan-toggle").click();
     await p.mouse.move(520, 260);
     await sleep(900);
-    // Sort.
     await p.locator(".hand-sort-btn").click();
     await p.locator(".hand-fan-toggle").hover();
     await sleep(900);
     await s.shot("h-sorted", { toggle: p.locator(".hand-fan-toggle"), sort: p.locator(".hand-sort-btn"), grip: p.locator(".hand-fan-grip"), fan: p.locator(".hand-fan-cards .card-tile").first() });
     await p.locator(".hand-sort-btn").click();
     await sleep(500);
-    // Drag a card to reorder (mid-drag).
     const cards = p.locator(".hand-fan-cards .card-tile");
     const a = (await cards.nth(1).boundingBox())!;
     const b = (await cards.nth(4).boundingBox())!;
@@ -184,7 +167,6 @@ async function hand(): Promise<void> {
     await p.mouse.up();
     await sleep(700);
     await s.shot("h-reordered", { toggle: p.locator(".hand-fan-toggle"), sort: p.locator(".hand-sort-btn"), grip: p.locator(".hand-fan-grip"), fan: p.locator(".hand-fan-cards .card-tile").first() });
-    // Keep hand open: Hide / Show.
     await applySettings(p, { keepHandOpen: true });
     await sleep(900);
     await p.mouse.move(520, 260);
@@ -196,7 +178,6 @@ async function hand(): Promise<void> {
     await p.locator(".hand-hide-btn").click();
     await applySettings(p, { keepHandOpen: false });
     await sleep(600);
-    // Move the hand by its grip.
     const grip = p.locator(".hand-fan-grip");
     console.log("grip", await grip.count());
     await p.mouse.move(520, 260);
@@ -245,7 +226,6 @@ async function phone(): Promise<void> {
     await s.shot("p-menu", { list: p.locator(".match-menu"), report: p.locator(".match-menu-item", { hasText: "Report a problem" }), spectate: p.locator(".match-menu-item", { hasText: "Copy spectate link" }), button: p.getByRole("button", { name: "Match menu" }) });
     await p.keyboard.press("Escape");
     await sleep(400);
-    // Long-press a card: inspect.
     const killer = p.locator(".side-opp .card-tile", { hasText: "Killer" }).first();
     const b = (await killer.boundingBox())!;
     await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
@@ -267,7 +247,6 @@ async function phone(): Promise<void> {
     await s.shot("p-form", { label: p.locator(".card-report label"), text: p.locator(".card-report-text"), send: p.getByRole("button", { name: "Send report" }), dialog: p.locator(".card-inspect") });
     await p.keyboard.press("Escape");
     await sleep(600);
-    // Hand row: Sort / Hide.
     await p.getByRole("button", { name: /^Sort/ }).first().click();
     await sleep(700);
     await s.shot("p-sorted", { sort: p.getByRole("button", { name: /^Sort/ }).first(), hide: p.locator(".hand-collapse-btn") });
@@ -277,7 +256,6 @@ async function phone(): Promise<void> {
     await s.shot("p-hand-folded", { show: p.locator(".hand-collapse-btn") });
     await p.getByRole("button", { name: /Show your hand/ }).click();
     await sleep(700);
-    // Undo needs two actions this turn.
     await p.locator(".hand-row-inner .card-tile, .hand-fan-cards .card-tile", { hasText: "Sanji" }).first().click();
     await sleep(600);
     await s.shot("p-selected");
@@ -297,7 +275,6 @@ async function phone(): Promise<void> {
   }
 }
 
-/** The real Yes/No prompt, on the app's own demo board (/demo?prompt=confirm, no match needed). */
 async function demo(): Promise<void> {
   const s = await openStill({ kind: "desktop", extra });
   const p = s.page;

@@ -13,10 +13,6 @@ import {
   type Vote,
 } from "./feedbackModel";
 
-/**
- * The player's votes on a thread's answers (or on one game's review) and a way to cast one. Votes load once per
- * thread/game; one cast here replaces the loaded one for that answer.
- */
 export function useFeedback(apiBase: string, scope: { threadId: number } | { matchId: string } | null) {
   const [votes, setVotes] = useState<ReadonlyMap<string, Vote>>(new Map());
   const scopeKey = scope === null ? "" : "threadId" in scope ? `t${scope.threadId}` : `m${scope.matchId}`;
@@ -41,7 +37,6 @@ export function useFeedback(apiBase: string, scope: { threadId: number } | { mat
     },
     [apiBase],
   );
-  /** Drop the vote shown for an answer that was written again, so the new one starts unrated. */
   const forget = useCallback((target: FeedbackTarget) => {
     setVotes((cur) => {
       const next = new Map(cur);
@@ -62,11 +57,6 @@ function Thumb({ down, filled }: { down?: boolean; filled: boolean }) {
   );
 }
 
-/**
- * 👍, 👎 and "This is wrong" under a finished answer. Controlled: `vote` is what the player chose, `onSend` saves a
- * choice (and throws the text to show if it can't). Its parts never change size when a vote is saved or the note form
- * opens: the status text has a slot of its own, and the form is the only thing that opens, below the buttons.
- */
 export function FeedbackBar({ vote, onSend, what }: { vote?: Vote; onSend: (rating: Rating, note: string) => Promise<void>; what: string }) {
   const [form, dispatch] = useReducer(formReducer, CLOSED_FORM);
   const [pending, setPending] = useState<Rating | null>(null);

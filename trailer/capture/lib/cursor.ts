@@ -1,14 +1,8 @@
-/**
- * A visible, good-looking cursor for screen captures. The browser's own cursor never reaches x11grab, so a
- * page overlay follows the (CDP-driven) mouse instead, with a soft click ripple. `Pointer` moves it like a
- * hand: curved paths, eased speed, a beat before clicking.
- */
 import type { BrowserContext, Locator, Page } from "playwright";
 import { easeInOutCubic, easeScrollTo, rng, sleep } from "./util";
 
 export type CursorStyle = "arrow" | "touch";
 
-/** Installed before any page script runs; survives navigations by remembering its place in sessionStorage. */
 export async function installCursor(ctx: BrowserContext, style: CursorStyle = "arrow"): Promise<void> {
   await ctx.addInitScript((styleName: string) => {
     const mount = () => {
@@ -64,9 +58,7 @@ export async function installCursor(ctx: BrowserContext, style: CursorStyle = "a
 }
 
 export type MoveOpts = {
-  /** Total time in ms; default scales with distance. */
   ms?: number;
-  /** 0 = straight, 1 = a big arc. */
   curve?: number;
 };
 
@@ -87,7 +79,6 @@ export class Pointer {
     this.rand = rng(seed);
   }
 
-  /** Put the cursor somewhere without a visible trip (before the recording starts). */
   async park(x: number, y: number): Promise<void> {
     this.x = x;
     this.y = y;
@@ -101,7 +92,6 @@ export class Pointer {
     if (dist < 1.5) return;
     const ms = opts.ms ?? Math.max(260, Math.min(1250, 220 + dist * 0.62));
     const curve = opts.curve ?? 0.35;
-    // A control point to one side of the straight line, so the hand arcs a little.
     const side = this.rand() < 0.5 ? -1 : 1;
     const bend = dist * 0.12 * curve * (0.6 + this.rand() * 0.8) * side;
     const nx = -dy / dist;
@@ -124,10 +114,8 @@ export class Pointer {
     this.y = y;
   }
 
-  /** Centre of an element, nudged a little off true centre like a real click. */
   async centerOf(target: Locator | { x: number; y: number }): Promise<{ x: number; y: number }> {
     if ("x" in target) return target;
-    // Out of view: bring it in with an eased scroll, never Playwright's instant jump.
     const inView = await target.evaluate((n) => {
       const b = n.getBoundingClientRect();
       return b.top >= 80 && b.bottom <= innerHeight - 20;
@@ -167,7 +155,6 @@ export class Pointer {
     await this.page.mouse.up();
   }
 
-  /** Press, travel and release; used for arrows, panels and sliders. `via` adds a stop on the way. */
   async drag(
     from: Locator | { x: number; y: number },
     to: Locator | { x: number; y: number },
@@ -184,7 +171,6 @@ export class Pointer {
     await this.page.mouse.up();
   }
 
-  /** A mouse wheel scroll spread over `ms`. */
   async scroll(totalY: number, ms = 900): Promise<void> {
     const start = performance.now();
     let done = 0;

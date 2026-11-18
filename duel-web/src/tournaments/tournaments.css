@@ -1,5 +1,3 @@
-/* —— Tournaments: list, lobby card, tournament page —— */
-
 .tpage { max-width: 920px; }
 
 .tnote { color: var(--muted); }
@@ -53,7 +51,6 @@
   border-color: var(--chrome);
 }
 
-/* Lobby card */
 .tcard { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
 
 .tcard-head {
@@ -91,7 +88,6 @@
   line-height: 1.45;
 }
 
-/* Tournament rows */
 .trow-list {
   list-style: none;
   margin: 0;
@@ -137,7 +133,6 @@
 .trow-name { font-size: 0.9rem; font-weight: 700; color: var(--ink); }
 .trow-meta { font-size: 0.74rem; color: var(--muted); }
 
-/* Players */
 .tplayers { list-style: none; margin: 0; padding: 0; }
 
 .tplayer {
@@ -177,7 +172,6 @@
 
 .tcopy { min-width: 72px; }
 
-/* Your match */
 .tmine-row {
   display: flex;
   flex-wrap: wrap;
@@ -188,7 +182,6 @@
 .tmine-row .field { flex: 1 1 200px; }
 .tmine-row .btn { flex: 0 0 auto; min-width: 96px; min-height: 44px; }
 
-/* Bracket: scrolls inside its own box, never the page */
 .tbracket {
   display: flex;
   align-items: stretch;
@@ -279,7 +272,6 @@
 .tmatch-actions { display: flex; align-items: center; gap: var(--space-1); }
 .tmatch-actions .btn { white-space: nowrap; }
 
-/* Standings */
 .tscroll { overflow-x: auto; min-width: 0; }
 
 .tstand {

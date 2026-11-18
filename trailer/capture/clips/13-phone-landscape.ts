@@ -1,7 +1,3 @@
-/**
- * 13-phone-landscape: the same game on a phone turned sideways (812x375 CSS px, device pixel ratio 2,
- * 1624x750 px): play a card, give DON!!, attack.
- */
 import { sleep } from "../lib/util";
 import { finishTake, startTake } from "../lib/take";
 import { MIKO } from "../lib/data";

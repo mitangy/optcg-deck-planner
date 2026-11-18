@@ -7,8 +7,8 @@ import { opponentDecksFromSimGames, parseSimGame, samplesFromSimGame, type SimGa
 const fixture = (name: string): SimMatchRecord =>
   JSON.parse(readFileSync(new URL(`../sim/optcgsim/__fixtures__/${name}`, import.meta.url), "utf8")) as SimMatchRecord;
 
-const WON = fixture("game-me-first-won.json"); // me first, me won, 10 turns
-const LOST = fixture("game-me-second-lost.json"); // me second, me lost, 9 turns
+const WON = fixture("game-me-first-won.json");
+const LOST = fixture("game-me-second-lost.json");
 
 const f = (x: number[], name: FeatureName): number => x[FEATURE_NAMES.indexOf(name)]!;
 const clone = (g: SimGame): SimGame => structuredClone(g);
@@ -31,14 +31,13 @@ describe("OPTCGSim games as value-model samples (#1030)", () => {
 
   it("features are the recording player's view: own life, hand and board against the opponent's (#1030)", () => {
     const g = parseSimGame(WON);
-    const t = g.turns[7]!; // turn 8, the opponent's: me has life 4 / 3 cards in hand, opp life 2 / 7 cards
+    const t = g.turns[7]!;
     expect(t.snapshot.me.lifeCount).not.toBe(t.snapshot.opp.lifeCount);
     expect(t.snapshot.me.handCount).not.toBe(t.snapshot.opp.handCount);
     const x = samplesFromSimGame(g, 0)[7]!.x;
     expect(f(x, "life_me")).toBeCloseTo(t.snapshot.me.lifeCount / 5);
     expect(f(x, "life_opp")).toBeCloseTo(t.snapshot.opp.lifeCount / 5);
     expect(f(x, "hand_me")).toBeCloseTo(t.snapshot.me.handCount / 7);
-    // The opponent's hand is only a count, and the count is used.
     expect(f(x, "hand_opp")).toBeCloseTo(t.snapshot.opp.handCount / 7);
     expect(f(x, "chars_me")).toBeCloseTo(t.snapshot.me.characters.length / 5);
     expect(f(x, "chars_opp")).toBeCloseTo(t.snapshot.opp.characters.length / 5);
@@ -46,7 +45,7 @@ describe("OPTCGSim games as value-model samples (#1030)", () => {
 
   it("rested characters, attached and spent DON!! are reflected in the features (#1030)", () => {
     const g = parseSimGame(WON);
-    const t = g.turns[7]!.snapshot.me; // leader rested with 2 attached, one rested Character, 5 rested DON!!, nothing active
+    const t = g.turns[7]!.snapshot.me;
     expect(t.leader.attachedDon).toBe(2);
     expect(t.characters.filter((c) => c.rested)).toHaveLength(1);
     const x = samplesFromSimGame(g, 0)[7]!.x;
@@ -69,7 +68,7 @@ describe("OPTCGSim games as value-model samples (#1030)", () => {
   });
 
   it("each side's started turns count: the first player has started one more turn on their own turn (#1030)", () => {
-    const x = samplesFromSimGame(parseSimGame(WON), 0)[6]!.x; // turn 7: me 4 turns started, opponent 3
+    const x = samplesFromSimGame(parseSimGame(WON), 0)[6]!.x;
     expect(f(x, "turns_started_diff")).toBe(1);
     expect(f(x, "my_turn")).toBe(1);
     expect(f(x, "turn")).toBeCloseTo(0.7);

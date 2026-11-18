@@ -24,27 +24,8 @@ import {
   type ScanCandidate,
 } from "../match/cardScanMatch";
 
-/**
- * Path prefix every blob is stored under. Owned here rather than folded into
- * the configured URL so both sides agree by construction — it must match
- * PREFIX in scripts/upload-descriptors.mjs.
- */
 const SCAN_DATA_PREFIX = "scan-data";
 
-/**
- * Where the chunked descriptor bundle lives.
- *
- * VITE_SCAN_DATA_BASE is the *root* of the store — e.g. a blob storage
- * origin — with the prefix appended here. Empty by default, which resolves
- * to a same-origin `/scan-data`, so a locally generated bundle in public/ is
- * picked up by `npm run dev` with no configuration.
- *
- * Not committed and not served by the API: ~55 MB of descriptors are a build
- * artifact, not source, so keeping them in git would grow the repo
- * permanently for data that is regenerated whenever a set releases. They are
- * immutable by construction — every chunk filename is a hash of its
- * contents — so a CDN can cache them indefinitely.
- */
 const SCAN_DATA_ROOT = ((import.meta.env.VITE_SCAN_DATA_BASE as string | undefined) || "").replace(
   /\/+$/,
   "",
@@ -66,8 +47,6 @@ export function useScanData(active: boolean) {
   const candidatesRef = useRef<ScanCandidate[] | null>(null);
   const modelsRef = useRef<Promise<void> | null>(null);
 
-  // Free the WASM matrices when the scanner closes; they are not garbage
-  // collected with the JS objects that reference them.
   useEffect(() => {
     return () => {
       if (candidatesRef.current) {
@@ -82,8 +61,6 @@ export function useScanData(active: boolean) {
     setState({ kind: "preparing" });
     const candidates = await loadCandidates(manifest);
     candidatesRef.current = candidates;
-    // The art embedder orders the search (see cardEmbed.ts); same pattern as the
-    // detector below: stored copy first, fetch if missing, never block on it.
     const started = Date.now();
     const embedder = (async () => {
       const had = await activateCardEmbedder(candidates);
@@ -93,9 +70,6 @@ export function useScanData(active: boolean) {
       scanLog("scan:embedder-error", err);
       return false;
     });
-    // The learned card detector is an optional upgrade over the OpenCV one:
-    // load it in the background (offline copy first, then fetch it for people
-    // who downloaded the descriptors before it existed); never block on it.
     const detector = (async () => {
       const had = await activateCardDetector();
       await ensureCardDetector(SCAN_DATA_BASE);
@@ -150,7 +124,6 @@ export function useScanData(active: boolean) {
     }
   }, [prepare]);
 
-  /** Resolves when the background detector and embedder loads have settled (immediately if none started). */
   const whenModelsReady = useCallback((): Promise<void> => modelsRef.current ?? Promise.resolve(), []);
 
   return { state, download, whenModelsReady };

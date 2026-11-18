@@ -16,7 +16,6 @@ describe("post-game analysis", () => {
     const { seen, callModel } = scriptedModel([{ content: [{ type: "text", text: "You lost on turn 3." }], stop_reason: "end_turn", usage: usage(5000, 400) }]);
     const events: SseEvent[] = [];
     await runReview(deps(api, callModel), "chat.tok", { match_id: "m1" }, (e) => events.push(e), new AbortController().signal);
-    // The model reads the game from the player's seat: their Life card named, the opponent's hidden.
     const blocks = seen[0]!.messages[0].content as { type: string; source?: string; content?: { text: string }[]; citations?: unknown }[];
     const prompt = blocks.flatMap((b) => b.content ?? []).map((c) => c.text).join("\n");
     expect(prompt).toContain(`Seat ${taken.seat} (you) takes Life (${getCardDef(taken.defId).name})`);
@@ -35,7 +34,6 @@ describe("post-game analysis", () => {
       "POST /analyst/chat/usage": null,
       "PUT /analyst/reviews/m1": { match_id: "m1", text: "x", created_at: null },
     });
-    // Behaves like the API: thinking is spent from max_tokens before any text.
     const callModel: CallModel = async (params, onText) => {
       const maxTokens = params.max_tokens as number;
       if (maxTokens - THINKING <= 0) {

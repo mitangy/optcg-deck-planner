@@ -12,13 +12,11 @@ def test_parse_decklist_qty_after_card_id():
 
 
 def test_parse_decklist_reads_the_log_pose_deck_list_text_728():
-    """The client hands Log Pose's new deck over as `1xLEADER` then `NxID` lines, no spaces."""
     parsed = {c.card_id: c.needed for c in parse_decklist("1xOP01-001\n4xOP01-016\n2xST01-012\n1xOP05-119")}
     assert parsed == {"OP01-001": 1, "OP01-016": 4, "ST01-012": 2, "OP05-119": 1}
 
 
 def test_shopping_need_is_max_across_decks_not_sum(db):
-    """Master shopping need = max copies among decks that use the card."""
     add_catalog(db, "OP01-001", name="Luffy", product_id=1, market=1.0)
     add_catalog(db, "OP01-002", name="Zoro", product_id=2, market=1.0)
     user = make_user(db, email="shop@example.com", name="Shopper", sub="sub-shop")
@@ -28,7 +26,6 @@ def test_shopping_need_is_max_across_decks_not_sum(db):
     shop = shopping_svc.shopping_list(db, user)
     by_id = {item.card_id: item for item in shop.items}
 
-    # Deck A needs 3, Deck B needs 2 → master need is 3 (not 5, not capped-sum 4).
     assert by_id["OP01-001"].need == 3
     assert by_id["OP01-001"].still_need == 3
     assert set(by_id["OP01-001"].used_in) == {"Deck A", "Deck B"}
@@ -75,27 +72,22 @@ def test_deck_pages_split_owned_across_leaders_when_summing(db):
     def card(deck):
         return deck_svc.get_deck_detail(db, user, deck.id).cards[0]
 
-    # Shared mode: every deck is compared against all 5 owned.
     assert [card(d).still_need for d in (luffy_a, sabo, luffy_b, loose)] == [0, 0, 0, 0]
     assert card(sabo).earlier_leaders_need == 0
 
     user.sum_across_leaders = True
     db.commit()
     a, s, b, lo = (card(d) for d in (luffy_a, sabo, luffy_b, loose))
-    # Luffy (first) takes 4 of 5; Sabo gets 1 of its 3; the leaderless deck gets none.
     assert (a.owned, a.still_need, a.earlier_leaders_need) == (5, 0, 0)
-    assert (b.still_need, b.earlier_leaders_need) == (0, 0)  # same leader as A
+    assert (b.still_need, b.earlier_leaders_need) == (0, 0)
     assert (s.owned, s.still_need, s.earlier_leaders_need, s.earlier_leaders) == (5, 2, 4, ["Luffy"])
-    # Luffy B (a later deck) still counts toward Luffy's group, which comes first.
     assert (lo.still_need, lo.earlier_leaders_need, lo.earlier_leaders) == (1, 7, ["Luffy", "Sabo"])
 
-    # One copy per leader group matches Master Shopping (8 need − 5 owned = 3).
     shop_still = shopping_svc.shopping_list(db, user).items[0].still_need
     assert shop_still == 3 == a.still_need + s.still_need + lo.still_need
 
 
 def test_separate_per_leader_skips_decks_filtered_out_of_include_decks_782(db):
-    """Deck pages and Buying counts only let ticked decks claim owned copies first."""
     add_catalog(db, "OP01-003", name="Chopper", product_id=3, market=1.0)
     add_catalog(db, "LUF", name="Luffy", product_id=4, market=1.0)
     user = make_user(db, email="incl@example.com", name="Incl", sub="sub-incl")
@@ -114,7 +106,6 @@ def test_separate_per_leader_skips_decks_filtered_out_of_include_decks_782(db):
     assert (everyone.still_need, everyone.earlier_leaders_need, everyone.earlier_leaders) == (2, 4, ["Luffy"])
     both = sabo_card([luffy.id, sabo.id])
     assert (both.still_need, both.earlier_leaders_need) == (2, 4)
-    # Luffy is unticked: Sabo keeps all 5 owned copies. The deck itself always counts.
     solo = sabo_card([sabo.id])
     assert (solo.still_need, solo.earlier_leaders_need, solo.earlier_leaders) == (0, 0, [])
 
@@ -127,7 +118,6 @@ def test_separate_per_leader_skips_decks_filtered_out_of_include_decks_782(db):
 
 
 def test_shopping_need_sums_across_distinct_leaders_when_enabled(db):
-    """sum_across_leaders: max within a leader, summed across leaders."""
     add_catalog(db, "OP01-003", name="Chopper", product_id=3, market=1.0)
     user = make_user(db, email="sum@example.com", name="Summer", sub="sub-sum")
     luffy_a = add_deck_with_cards(db, user, "Luffy A", {"OP01-003": 4})
@@ -139,12 +129,10 @@ def test_shopping_need_sums_across_distinct_leaders_when_enabled(db):
     sabo.leader_card_id = "OP01-SAB"
     db.commit()
 
-    # Default stays max across decks.
     assert shopping_svc.shopping_list(db, user).items[0].need == 4
 
     user.sum_across_leaders = True
     db.commit()
-    # Luffy max(4, 3) + Sabo 3 + leaderless deck 1.
     shop = shopping_svc.shopping_list(db, user)
     assert shop.items[0].need == 8
     assert shop.cards_still_needed == 8
@@ -153,7 +141,6 @@ def test_shopping_need_sums_across_distinct_leaders_when_enabled(db):
     item = shopping_svc.shopping_list(db, user).items[0]
     assert item.still_need == 3
 
-    # Same leader only → still max, not sum.
     same_leader = shopping_svc.shopping_list(db, user, deck_ids=[luffy_a.id, luffy_b.id])
     assert same_leader.items[0].need == 4
     assert shopping_svc.shopping_list(db, user, deck_ids=[luffy_a.id, sabo.id, leaderless.id]).items[0].need == 8

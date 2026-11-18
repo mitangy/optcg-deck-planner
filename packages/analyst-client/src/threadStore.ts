@@ -1,8 +1,6 @@
 import { GENERAL } from "./scopes";
 
-/** The thread each scope last had open, kept per browser so the panel can show it at once after a reload. The server's list is the authority. */
 export const THREADS_KEY = "optcg-logpose:threads";
-/** The single thread id older versions kept. It is the general chat's hint until that scope writes its own. */
 export const THREAD_KEY = "optcg-logpose:thread";
 const KEEP = 40;
 
@@ -42,7 +40,6 @@ export function writeThreadHint(scope: string, id: number | null): void {
     const map = readMap();
     delete map[scope];
     if (id !== null) map[scope] = id;
-    // Oldest hints go first, so the map stays small.
     const entries = Object.entries(map).slice(-KEEP);
     globalThis.localStorage?.setItem(THREADS_KEY, JSON.stringify(Object.fromEntries(entries)));
     // The old single key was the general chat's: once general has its own value it must not come back.

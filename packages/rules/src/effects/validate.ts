@@ -1,7 +1,3 @@
-/**
- * Runtime validation for DSL ability data (generated JSON and manual overrides).
- * Unknown fields, unknown variants and malformed values are rejected with paths.
- */
 import type { Cond, Cost, Effect, Static, Target } from "./types.js";
 
 type V = (value: unknown, path: string, errors: string[]) => void;

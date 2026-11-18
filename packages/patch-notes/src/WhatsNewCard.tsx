@@ -9,15 +9,7 @@ export type WhatsNewLinkProps = { to: string; className?: string; onClick?: () =
 
 const SHOWN = 3;
 
-/**
- * The once-per-update card: the newest few notes this browser hasn't seen, with
- * "See all" and "Got it". Fixed to the bottom corner, so showing or dismissing
- * it never moves the page. `Link` is the app's router link. Either button
- * records every current note as seen, so the card stays away until the next update.
- *
- * The notes are a separate chunk, fetched after mount (the card is a fixed overlay, so nothing
- * moves when it appears). `notes` skips the fetch: tests and pre-rendering pass them in.
- */
+// The notes are a separate chunk, fetched after mount; `notes` skips the fetch (tests and pre-rendering pass them in).
 export function WhatsNewCard({
   app,
   Link,

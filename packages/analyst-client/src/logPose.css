@@ -1,4 +1,4 @@
-/* Log Pose chat stylesheet. Index only: the partials are imported in their original order, because a later rule overrides an earlier one. */
+/* Partials are imported in their original order: a later rule overrides an earlier one. */
 @import "./logPose/base.css";
 @import "./logPose/compass.css";
 @import "./logPose/panel.css";

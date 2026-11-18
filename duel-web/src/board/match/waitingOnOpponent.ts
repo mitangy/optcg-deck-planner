@@ -4,11 +4,8 @@ export type WaitingKind = "block" | "counter" | "trigger" | "effect" | "mulligan
 
 export type WaitingOnOpponent = {
   kind: WaitingKind;
-  /** Short line shown big: always names the opponent. */
   title: string;
-  /** What they are deciding, e.g. "Choosing a counter". */
   detail: string;
-  /** A real answer is awaited (pulses). Their ordinary turn is not. */
   urgent: boolean;
 };
 
@@ -31,10 +28,6 @@ function waiting(kind: WaitingKind): WaitingOnOpponent {
   };
 }
 
-/**
- * What the game is waiting on the opponent for, when you have nothing to do.
- * Null whenever you can act (any legal intent) or the match is not live.
- */
 export function waitingOnOpponent(
   view: PlayerView | null,
   mySeat: Seat | null,

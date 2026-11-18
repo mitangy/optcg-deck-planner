@@ -6,7 +6,6 @@ import { pinnedYou } from "../home/bounties";
 import { ensureAuth } from "../auth/session";
 import { fetchLeaderboard, fetchRatingMe, type LeaderboardEntry, type RatingMe } from "../net/api";
 
-/** The backend caps the leaderboard at 100 players. */
 const LIMIT = 100;
 
 type State =
@@ -20,7 +19,6 @@ export function LeaderboardPage() {
     () => (res.status === "ready" ? { status: "ready", entries: res.data } : { status: res.status }),
     [res],
   );
-  /** Your Bounty and rank; null when signed out, no ranked games yet, or the call failed. */
   const [me, setMe] = useState<RatingMe | null>(null);
 
   useEffect(() => {

@@ -2,39 +2,35 @@ import { describe, expect, it } from "vitest";
 import { Harness } from "../testing/harness.js";
 import type { Intent, Seat } from "../types.js";
 
-// Battle rules: who may attack or block, K.O. protection in battle, effect damage and the counter step.
+const ROBIN = "ST01-008";
+const KAROO = "ST01-003";
+const KAIDO = "ST09-004";
+const YASAKANI = "OP02-118";
+const UTA_FILM = "ST08-002";
+const SMOKER = "P-025";
+const MARCO = "OP01-023";
+const ROBIN_EB = "EB03-055";
+const ADIO = "OP03-002";
+const MORLEY = "OP02-061";
+const USOPP = "ST01-002";
+const HANCOCK = "OP16-032";
+const BOW_DOWN = "OP13-057";
+const BLUENO = "EB01-017";
+const HIGURASHI = "OP01-100";
+const HINA = "OP02-110";
+const WANDA = "EB03-019";
+const BLOCKER_4000 = "OP02-038";
+const BLOCKER_5000 = "OP04-104";
+const NEWGATE = "OP08-043";
+const NEWGATE_LEADER = "OP02-001";
+const CURIEL = "OP03-004";
+const KOUSHIROU = "OP06-026";
 
-const ROBIN = "ST01-008"; // vanilla 5000
-const KAROO = "ST01-003"; // vanilla 3000
-const KAIDO = "ST09-004"; // 5000, [DON!! x1] If you have 2 or less Life cards, this Character cannot be KO'd in battle.
-const YASAKANI = "OP02-118"; // Event, [Counter] You may trash 1 card from your hand: Select up to 1 of your Characters. It cannot be KO'd during this battle.
-const UTA_FILM = "ST08-002"; // 3000, This Character cannot be KO'd in battle by Leaders.
-const SMOKER = "P-025"; // 5000, [DON!! x1] This Character cannot be KO'd in battle by Characters without a <Special> attribute.
-const MARCO = "OP01-023"; // 5000, <Special> attribute, vanilla
-const ROBIN_EB = "EB03-055"; // 8000, [Opponent's Turn] [On K.O.] You may deal 1 damage to your opponent.
-const ADIO = "OP03-002"; // 5000, [DON!! x1] [When Attacking] The opponent cannot activate a [Blocker] Character that has 2000 or less power during this battle.
-const MORLEY = "OP02-061"; // 5000, [When Attacking] If you have 1 or less cards in your hand, the opponent cannot activate the [Blocker] of any Character with a cost of 5 or less.
-const USOPP = "ST01-002"; // 2000, [DON!! x2] [When Attacking] The opponent cannot activate a [Blocker] Character that has 5000 or more power during this battle.
-const HANCOCK = "OP16-032"; // 9000, printed [Unblockable]
-const BOW_DOWN = "OP13-057"; // Event, [Main] You may rest 1 DON!!: If you have 1 or less Life, the opponent cannot activate [Blocker] whenever your Leader attacks this turn.
-const BLUENO = "EB01-017"; // [Blocker] cost 2, 2000 power
-const HIGURASHI = "OP01-100"; // [Blocker] cost 2, 3000 power
-const HINA = "OP02-110"; // [Blocker] cost 5, 6000 power
-const WANDA = "EB03-019"; // [Blocker] cost 6, 7000 power
-const BLOCKER_4000 = "OP02-038"; // [Blocker] cost 3, 4000 power
-const BLOCKER_5000 = "OP04-104"; // [Blocker] 5000 power
-const NEWGATE = "OP08-043"; // 10-cost, [On Play] If your Leader is Whitebeard Pirates and you have 2 or less Life: the opponent's Characters cannot attack unless they trash 2 cards from hand, until the end of their next turn.
-const NEWGATE_LEADER = "OP02-001"; // {Whitebeard Pirates} Leader
-const CURIEL = "OP03-004"; // 4000, cannot attack a Leader on the turn in which it is played; [DON!! x1] has [Rush].
-const KOUSHIROU = "OP06-026"; // [On Play] Set a <Slash> Character active. Then, you cannot attack a Leader during this turn.
-
-/** End the active seat's turn; the other seat's turn begins. */
 function endTurn(h: Harness): void {
   h.act(h.state.activeSeat, { type: "end_turn" });
 }
 
 describe("K.O. protection in battle", () => {
-  /** Seat 1's 7000-power Character attacks seat 0's rested 5000-power `defenderDef`; seat 0 passes block. Returns the harness at the counter step. */
   function attackDefender(defenderDef: string, setup: (h: Harness, defender: ReturnType<Harness["card"]>) => void, attackerDef: string = ROBIN): Harness {
     const h = new Harness();
     const [defender] = h.field(0, defenderDef);
@@ -89,7 +85,6 @@ describe("K.O. protection in battle", () => {
 });
 
 describe("effect damage", () => {
-  /** Seat 0's Leader K.O.s seat 1's rested EB03-055; seat 1 takes the optional 1 damage. Seat 0 has `life` Life cards. */
   function koRobinAndDamage(life: string[]): Harness {
     const h = new Harness();
     const [robin] = h.field(1, ROBIN_EB);
@@ -104,7 +99,7 @@ describe("effect damage", () => {
 
   it("effect damage takes exactly one Life card and the game goes on (#561)", () => {
     const h = koRobinAndDamage([KAROO, ROBIN]);
-    h.decline(0); // the Life check of the card taken
+    h.decline(0);
     expect(h.state.players[0].life).toEqual([ROBIN]);
     expect(h.choice).toBeUndefined();
     expect(h.state.winner).toBeNull();
@@ -128,7 +123,6 @@ describe("effect damage", () => {
 });
 
 describe("who may block", () => {
-  /** Defending seat 1's Characters that could declare a block now, by definition id. */
   function blockers(h: Harness): string[] {
     return h
       .legal(1)
@@ -136,7 +130,6 @@ describe("who may block", () => {
       .sort();
   }
 
-  /** Seat 0's `attacker` (with `don` attached) attacks seat 1's Leader; seat 1 has `defenders` on the field. */
   function attackIntoBlockers(attackerDef: string, don: number, defenders: string[], setup: (h: Harness) => void = () => {}): Harness {
     const h = new Harness();
     const [attacker] = h.field(0, attackerDef);
@@ -150,7 +143,6 @@ describe("who may block", () => {
 
   it("\"cannot activate a [Blocker] with N power or less\" stops exactly N and below (#561)", () => {
     const h = attackIntoBlockers(ADIO, 1, [BLUENO, HIGURASHI]);
-    // 2000 power is stopped, 3000 power is not.
     expect(blockers(h)).toEqual([HIGURASHI]);
   });
 
@@ -161,7 +153,6 @@ describe("who may block", () => {
 
   it("\"cannot activate the [Blocker] of a Character with a cost of N or less\" stops exactly cost N and below (#561)", () => {
     const h = attackIntoBlockers(MORLEY, 0, [HIGURASHI, HINA, WANDA]);
-    // Cost 2 and cost 5 are stopped; cost 6 is not.
     expect(blockers(h)).toEqual([WANDA]);
   });
 
@@ -207,11 +198,10 @@ describe("who may attack", () => {
       const [attacker] = h.field(1, ROBIN);
       h.play(0, NEWGATE);
       endTurn(h);
-      h.clearHands(); // drop the Draw Phase card
+      h.clearHands();
       h.hand(1, ...Array.from({ length: hand }, () => KAROO));
       const intent = { type: "declare_attack" as const, attackerId: attacker!.id, target: { kind: "leader" as const } };
       expect(h.try(1, intent).ok).toBe(hand === 2);
-      // Only the selected Characters are taxed, not the Leader.
       expect(h.try(1, { ...intent, attackerId: h.state.players[1].leader.id }).ok).toBe(true);
     });
   }
@@ -224,9 +214,8 @@ describe("who may attack", () => {
     h.don(0, 3);
     h.play(0, CURIEL);
     const curiel = h.find(0, CURIEL)!;
-    h.attach(0, curiel, 1); // [DON!! x1] gives [Rush]
+    h.attach(0, curiel, 1);
     expect(attackTargets(h, 0, curiel.id)).toEqual(["character"]);
-    // The Leader is not restricted.
     expect(attackTargets(h, 0, h.state.players[0].leader.id)).toEqual(["character", "leader"]);
   });
 
@@ -238,19 +227,18 @@ describe("who may attack", () => {
     h.hand(0, KOUSHIROU);
     h.don(0, 3);
     h.play(0, KOUSHIROU);
-    expect(h.choice).toBeUndefined(); // no <Slash> Character to set active
+    expect(h.choice).toBeUndefined();
     expect(attackTargets(h, 0, robin!.id)).toEqual(["character"]);
     expect(attackTargets(h, 0, h.state.players[0].leader.id)).toEqual(["character"]);
   });
 });
 
 describe("legal intents in the counter step", () => {
-  const KAROO = "ST01-003"; // vanilla 1-cost, Counter 1000
-  const CHOPPER = "ST01-006"; // 1-cost Character with no Counter value
-  const REPEL = "ST02-016"; // 2-cost Event. [Counter] Up to 1 of your Leader or Character cards gains +4000 power during this battle. Then, set up to 1 of your DON!! cards as active.
-  const NEW_GENESIS = "ST11-004"; // 1-cost Event with only a [Main] effect, no [Counter]
+  const KAROO = "ST01-003";
+  const CHOPPER = "ST01-006";
+  const REPEL = "ST02-016";
+  const NEW_GENESIS = "ST11-004";
 
-  /** Seat 1 holds [Karoo, Chopper, Repel, New Genesis] with the given DON!! while seat 0 attacks the Leader. */
   function counterStep(active: number, rested = 0): { intents: Intent[]; hand: string[] } {
     const h = new Harness();
     h.hand(1, KAROO, CHOPPER, REPEL, NEW_GENESIS);

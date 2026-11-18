@@ -20,12 +20,10 @@ export type SimJob = {
   opp: SimDeck;
   mySeat: Seat;
   firstSeat: Seat;
-  /** [mine, opponent] */
   levels: [BotLevel, BotLevel];
   opponent: number;
 };
 
-/** The game itself. Seat and first player come from the job. */
 export function playJob(job: SimJob): Outcome {
   const players = job.mySeat === 0 ? [job.mine, job.opp] : [job.opp, job.mine];
   const levels = job.mySeat === 0 ? job.levels : ([job.levels[1], job.levels[0]] as [BotLevel, BotLevel]);
@@ -40,13 +38,11 @@ export function playJob(job: SimJob): Outcome {
 }
 
 export type SimOptions = {
-  /** Games against each opponent. */
   games: number;
   seed: number;
   levels?: [BotLevel, BotLevel];
 };
 
-/** The jobs for one deck against a field: `games` per opponent, seat and first player alternating through all four combinations. */
 export function simJobs(mine: SimDeck, field: readonly SimDeck[], opts: SimOptions): SimJob[] {
   const jobs: SimJob[] = [];
   field.forEach((opp, o) => {
@@ -65,7 +61,6 @@ export function simJobs(mine: SimDeck, field: readonly SimDeck[], opts: SimOptio
   return jobs;
 }
 
-/** Plays a batch of jobs. The default runs them here, one after another; the worker pool runs them in threads. */
 export type SimRun = (jobs: SimJob[]) => Promise<Outcome[]>;
 export const inProcess: SimRun = async (jobs) => jobs.map(playJob);
 
@@ -74,9 +69,7 @@ export type SimResult = {
   wins: number;
   losses: number;
   unfinished: number;
-  /** wins / finished games; null when none finished. */
   winRate: number | null;
-  /** 95% Wilson interval of the win rate. */
   interval: [number, number];
 };
 
@@ -93,10 +86,8 @@ export async function simulate(mine: SimDeck, field: readonly SimDeck[], opts: S
 
 export type WinRateChange = { diff: number; lo: number; hi: number; before: SimResult; after: SimResult };
 
-/** After minus before, as a win rate difference with a 95% two-proportion interval (finished games only). */
 export function compareSims(before: SimResult, after: SimResult): WinRateChange {
   return { ...diffOfProportions({ k: before.wins, n: before.wins + before.losses }, { k: after.wins, n: after.wins + after.losses }), before, after };
 }
 
-/** True when the interval lies entirely below zero: the change lost win rate beyond noise. */
 export const lostSignificantly = (c: Pick<WinRateChange, "hi">): boolean => c.hi < 0;

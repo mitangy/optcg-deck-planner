@@ -1,4 +1,3 @@
-/* Card page (#953) */
 .card-page {
   min-width: 0;
 }
@@ -172,8 +171,6 @@
   max-width: 100%;
 }
 
-/* On the card page the editor drops under the alert, over the content below (#1028);
-   floating above like in the lightbox put it off the top of the page. */
 .card-actions .lightbox-alert-pop {
   top: calc(100% + 0.5rem);
   bottom: auto;

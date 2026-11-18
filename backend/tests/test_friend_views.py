@@ -1,4 +1,3 @@
-"""Friends' decks, collection and spares behind the privacy guard (#703)."""
 
 from __future__ import annotations
 
@@ -28,13 +27,10 @@ NOT_FOUND = {"detail": "Not found."}
 
 
 def _pair(S):
-    """Kai (the owner) and Me, his accepted friend."""
     kai, me = make_user(S, "Kai"), make_user(S, "Me")
     befriend(S, kai, me)
     return kai, me
 
-
-# --- the guard ----------------------------------------------------------------
 
 
 def test_a_stranger_cannot_see_your_decks_703(client):
@@ -161,8 +157,6 @@ def test_the_profile_hides_the_collection_value_unless_values_are_shown_703(clie
     assert as_user(c, me).get(f"/friends/{kai}/profile").json()["total_value"] is None
 
 
-# --- hidden decks -------------------------------------------------------------
-
 
 def test_a_hidden_deck_is_left_out_of_the_list_and_the_profile_count_703(client):
     c, S = client
@@ -224,8 +218,6 @@ def test_renaming_a_deck_leaves_it_visible_to_friends_703(client):
     assert as_user(c, kai).patch(f"/decks/{deck}", json={}).status_code == 400
 
 
-# --- sharing settings ---------------------------------------------------------
-
 
 def test_sharing_defaults_share_decks_and_collection_and_ask_first_935(client):
     c, S = client
@@ -256,8 +248,6 @@ def test_saving_sharing_changes_only_what_was_sent_and_marks_prompted_703(client
     assert r.json()["decks"] == "off"
     assert as_user(c, me).get("/me/sharing").json()["prompted"] is True
 
-
-# --- friend collection --------------------------------------------------------
 
 
 def test_a_friends_collection_hides_values_unless_they_show_them_703(client):
@@ -298,15 +288,13 @@ def test_a_friends_collection_does_not_say_which_decks_use_a_card_703(client):
     assert "used_in" not in item and "Secret" not in str(item)
 
 
-# --- friend deck: what I'd need ----------------------------------------------
-
 
 def test_a_friends_deck_counts_what_i_still_need_from_my_own_collection_703(client):
     c, S = client
     kai, me = _pair(S)
     add_card(S, "OP01-001", "Zoro", 2.0)
     add_card(S, "OP01-002", "Nami", 3.0)
-    own(S, kai, "OP01-001", 4)  # the friend owns plenty; that must not count for me
+    own(S, kai, "OP01-001", 4)
     own(S, me, "OP01-001", 1)
     deck = make_deck(S, kai, "Red", {"OP01-001": 3, "OP01-002": 2})
     share(c, kai, decks="friends")
@@ -315,7 +303,7 @@ def test_a_friends_deck_counts_what_i_still_need_from_my_own_collection_703(clie
     assert (cards["OP01-001"]["my_owned"], cards["OP01-001"]["my_still_need"]) == (1, 2)
     assert (cards["OP01-002"]["my_owned"], cards["OP01-002"]["my_still_need"]) == (0, 2)
     assert body["my_missing_copies"] == 4
-    assert body["my_missing_cost"] == 10.0  # 2 x 2.00 + 2 x 3.00
+    assert body["my_missing_cost"] == 10.0
 
 
 def test_my_missing_cost_is_unknown_when_a_needed_card_has_no_price_703(client):
@@ -341,8 +329,6 @@ def test_don_cards_do_not_count_toward_what_i_would_need_703(client):
     assert body["my_missing_copies"] == 1
     assert body["my_missing_cost"] == 2.0
 
-
-# --- copy deck ----------------------------------------------------------------
 
 
 def test_copying_a_friends_deck_gives_me_my_own_copy_of_the_list_703(client):
@@ -389,8 +375,6 @@ def test_a_stranger_cannot_copy_a_deck_703(client):
     assert as_user(c, stranger).get("/decks").json() == []
 
 
-# --- spares -------------------------------------------------------------------
-
 
 def _spares(c, viewer, owner, params=None):
     r = as_user(c, viewer).get(f"/friends/{owner}/spares", params=params)
@@ -419,7 +403,7 @@ def test_you_need_only_counts_the_decks_ticked_under_include_decks_799(client):
     assert needed(_spares(c, me, kai)) == {"OP01-001": 2, "OP01-002": 1}
     assert needed(_spares(c, me, kai, {"deck_ids": [nami]})) == {"OP01-002": 1}
     body = _spares(c, me, kai, {"deck_ids": [nami]})
-    assert _spare_of(body, "OP01-001") == 2  # unticking a deck never changes what the friend can spare
+    assert _spare_of(body, "OP01-001") == 2
     assert needed(_spares(c, me, kai, {"deck_ids": [zoro]})) == {"OP01-001": 2}
 
 
@@ -428,7 +412,6 @@ def test_a_card_needed_by_two_decks_is_reserved_once_at_the_larger_count_703(cli
     kai, me = _pair(S)
     add_card(S, "OP01-001", "Zoro", 2.0)
     own(S, kai, "OP01-001", 4)
-    # Same leader: sharing a playset covers both lists, so reserved is 3 (not 2 + 3).
     make_deck(S, kai, "A", {"OP01-001": 2}, leader="OP01-060", sort_order=1)
     make_deck(S, kai, "B", {"OP01-001": 3}, leader="OP01-060", sort_order=2)
     share(c, kai, trades_open=True)
@@ -443,11 +426,11 @@ def test_decks_with_different_leaders_reserve_separately_only_when_summing_is_on
     make_deck(S, kai, "A", {"OP01-001": 2}, leader="OP01-060", sort_order=1)
     make_deck(S, kai, "B", {"OP01-001": 3}, leader="OP02-001", sort_order=2)
     share(c, kai, trades_open=True)
-    assert _spare_of(_spares(c, me, kai), "OP01-001") == 3  # max(2, 3) reserved
+    assert _spare_of(_spares(c, me, kai), "OP01-001") == 3
     with S() as db:
         db.get(User, kai).sum_across_leaders = True
         db.commit()
-    assert _spare_of(_spares(c, me, kai), "OP01-001") == 1  # 2 + 3 reserved
+    assert _spare_of(_spares(c, me, kai), "OP01-001") == 1
 
 
 def test_copies_you_asked_to_keep_are_not_spare_703(client):
@@ -498,7 +481,7 @@ def test_you_need_lists_only_their_spares_you_still_want_703(client):
     add_card(S, "OP01-002", "Nami", 3.0)
     own(S, kai, "OP01-001", 3)
     own(S, kai, "OP01-002", 2)
-    make_deck(S, me, "Mine", {"OP01-001": 2})  # I want 2 Zoro, nothing else
+    make_deck(S, me, "Mine", {"OP01-001": 2})
     share(c, kai, trades_open=True)
     body = _spares(c, me, kai)
     assert {i["card_id"] for i in body["their_spares"]} == {"OP01-001", "OP01-002"}
@@ -513,7 +496,7 @@ def test_they_need_lists_only_my_spares_they_still_want_703(client):
     add_card(S, "OP01-004", "Sanji", 1.0)
     own(S, me, "OP01-003", 2)
     own(S, me, "OP01-004", 2)
-    make_deck(S, kai, "Kai's", {"OP01-003": 3})  # Kai wants 3 Luffy
+    make_deck(S, kai, "Kai's", {"OP01-003": 3})
     share(c, kai, trades_open=True)
     body = _spares(c, me, kai)
     assert [(i["card_id"], i["spare"], i["want"]) for i in body["they_need"]] == [("OP01-003", 2, 3)]

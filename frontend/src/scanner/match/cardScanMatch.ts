@@ -1,13 +1,3 @@
-/** Identify the card in a photo, entirely on-device.
- *
- * rectify -> extract query features -> order candidates by a cheap hash ->
- * ORB-verify in that order, stopping at the first confident match.
- *
- * Nothing is truncated: the walk can reach every candidate, so the ordering
- * only affects how quickly the answer is found, never whether it is found.
- * Correctness rests on the verifier, which across 3,690 wrong-card
- * comparisons never scored a wrong card above zero.
- */
 
 import { findCardQuad, rectifyToCanvas } from "../geometry/cardRectify";
 import {
@@ -24,15 +14,8 @@ import { loadAllRecords, type DescriptorManifest, type DescriptorRecord } from "
 import { embeddingScores, fuseOrder, getScanEmbedder, rankIndices } from "./cardEmbed";
 import { scanLog } from "../runtime/scanLog";
 
-/**
- * Inliers at or above this stop the walk.
- *
- * Correct matches scored 12-18 while every wrong card scored 0, so this sits
- * in an empty gap rather than on a contested boundary.
- */
 export const CONFIDENT_INLIERS = 10;
 
-/** A confident match must also lead the best rival by this much to be called sure. */
 export const SURE_LEAD = 5;
 
 export type ScanCandidate = {
@@ -40,7 +23,6 @@ export type ScanCandidate = {
   label: string;
   features: Features;
   orderHash: string;
-  /** int8 art embedding (see cardEmbed.ts), attached once the embedder bundle is loaded. */
   embedding?: Int8Array;
 };
 
@@ -48,20 +30,11 @@ export type ScanMatch = {
   cardId: string;
   label: string;
   inliers: number;
-  /** How many candidates were verified before stopping — for diagnostics. */
   examined: number;
-  /** Best score from any *other* card, so the caller can judge separation. */
   runnerUp: number;
-  /** 0-based rank of this card by embedding similarity, when an embedder ran. */
   embedRank?: number;
 };
 
-/**
- * Prepare cached descriptor records for matching.
- *
- * Builds OpenCV matrices, so the result owns WASM memory and must be
- * released with `releaseCandidates`.
- */
 export async function buildCandidates(records: DescriptorRecord[]): Promise<ScanCandidate[]> {
   const out: ScanCandidate[] = [];
   for (const r of records) {
@@ -79,12 +52,10 @@ export async function releaseCandidates(candidates: ScanCandidate[]): Promise<vo
   for (const c of candidates) c.features.desc.delete?.();
 }
 
-/** Load every cached record and prepare it for matching. */
 export async function loadCandidates(manifest: DescriptorManifest): Promise<ScanCandidate[]> {
   return buildCandidates(await loadAllRecords(manifest));
 }
 
-/** Rectify to a canonical card if the outline can be found, else use the frame as-is. */
 export function rectifyForScan(source: ImageData): { pixels: ImageData; rectified: boolean } {
   const quad = findCardQuad(source);
   if (quad) {
@@ -97,12 +68,6 @@ export function rectifyForScan(source: ImageData): { pixels: ImageData; rectifie
   return { pixels: source, rectified: false };
 }
 
-/**
- * Match a photo against prepared candidates.
- *
- * `onProgress` reports how far the walk has gone, since a cold cache or an
- * unlucky ordering can make this take a second or two.
- */
 export async function matchCard(
   photo: ImageData,
   candidates: ScanCandidate[],
@@ -113,33 +78,18 @@ export async function matchCard(
   return matchRectified(pixels, candidates, onProgress);
 }
 
-/** What the walk is allowed to do. Exported so tests and the harness can tighten it. */
 export type WalkPolicy = {
-  /** Candidates verified before a match may be called settled, so `runnerUp` has seen real rivals. */
   minExamined: number;
-  /** Once something confident is found, stop looking for a better one after this many candidates. */
   confirmCap: number;
-  /** Wall-clock cap on the walk once `minExamined` is done. */
   maxMs: number;
 };
 
 export const DEFAULT_WALK: WalkPolicy = { minExamined: 8, confirmCap: 48, maxMs: 1500 };
 
-/** Query height the walk runs at; the references are ~560 px tall (see `resizeToHeight`). */
 export const MATCH_HEIGHT = 560;
 
 export type StopReason = "sure" | "confirm-cap" | "budget" | "exhausted";
 
-/**
- * Decide whether the walk is over. Pure, so the policy can be tested without OpenCV.
- *
- * - "sure": a confident match with a clear lead, after enough rivals were seen.
- * - "confirm-cap": a confident match whose rivals never fell away (reprints of
- *   one illustration tie closely); stop and report it as a close call rather
- *   than reading the whole catalog hoping the tie breaks.
- * - "budget": nothing confident and out of time: report the best weak match as
- *   a check instead of blocking the scan for seconds.
- */
 export function walkStop(
   s: { best: number; runnerUp: number; examined: number; total: number; elapsedMs: number },
   policy: WalkPolicy = DEFAULT_WALK,
@@ -154,7 +104,6 @@ export function walkStop(
   return null;
 }
 
-/** Candidates sorted by order-hash distance to the query; ties keep catalog order. */
 export function orderByHash<T extends { orderHash: string }>(candidates: T[], queryHash: string): T[] {
   return candidates
     .map((c, i) => ({ c, i, d: c.orderHash ? orderDistance(queryHash, c.orderHash) : Number.MAX_SAFE_INTEGER }))
@@ -162,10 +111,6 @@ export function orderByHash<T extends { orderHash: string }>(candidates: T[], qu
     .map((x) => x.c);
 }
 
-/**
- * The order the walk verifies candidates in: the hash order, fused with the
- * embedding order when the embedder ran. A permutation of `candidates` either way.
- */
 export function walkOrder(
   candidates: ScanCandidate[],
   queryHash: string,
@@ -181,7 +126,6 @@ export function walkOrder(
   return { ordered: fused.map((i) => candidates[i]), embedRank };
 }
 
-/** Match pixels that are already a flattened card (no outline search). */
 export async function matchRectified(
   rectified: ImageData,
   candidates: ScanCandidate[],

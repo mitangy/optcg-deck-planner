@@ -14,7 +14,6 @@ const emStyle: React.CSSProperties = {
   WebkitTextFillColor: 'transparent',
 };
 
-/** Kinetic headline: words slide up and de-blur on a stagger, then lift away. Time is local (use inside a <Sequence>). */
 export const Headline: React.FC<{words: CaptionWord[]; durationInFrames: number; size: number; maxW: number; boxH: number; align?: 'center' | 'left'; stagger?: number}> = ({
   words, durationInFrames, size, maxW, boxH, align = 'center', stagger = 3,
 }) => {
@@ -53,7 +52,6 @@ export const Headline: React.FC<{words: CaptionWord[]; durationInFrames: number;
   );
 };
 
-/** Small tracked caps line that sits with the headline. */
 export const Eyebrow: React.FC<{text: string; durationInFrames: number; size: number; width: number}> = ({text, durationInFrames, size, width}) => {
   const frame = useCurrentFrame();
   const inP = interpolate(frame, [0, 12], [0, 1], {extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic)});

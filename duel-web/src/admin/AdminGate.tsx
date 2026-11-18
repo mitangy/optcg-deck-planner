@@ -7,7 +7,6 @@ import type { Actor } from "./UserActions";
 
 export type Who = { status: "loading" } | { status: "none" } | { status: "ok"; me: AdminMe; actor: Actor };
 
-/** Signed-in staff (admin or moderator) or not: the check every admin screen starts with. */
 export function useAdminWho(): Who {
   const res = useAsyncResource(() => Promise.all([ensureAuth(), fetchAdminMe()]), []);
   return useMemo<Who>(() => {

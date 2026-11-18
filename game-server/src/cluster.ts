@@ -1,16 +1,7 @@
 import { RedisDriver, RedisPresence } from "colyseus";
 import type { MatchMakerDriver, Presence } from "colyseus";
 
-/**
- * Several game-server processes share rooms through Redis: any process can
- * create a room, reserve a seat or find a room by id, and each process
- * advertises its own public address so a client's socket goes straight to the
- * process that holds its room. A single process (no REDIS_URL) keeps
- * everything in memory, as before.
- *
- * Pools for blue/green deploys use separate Redis databases (redis://host/1,
- * redis://host/2), so a draining pool keeps its own rooms and queue.
- */
+// Without REDIS_URL everything stays in memory. Blue/green pools use separate Redis databases so a draining pool keeps its own rooms and queue.
 export type ClusterOptions = {
   presence?: Presence;
   driver?: MatchMakerDriver;
@@ -33,11 +24,7 @@ export function clusterOptions(env: NodeJS.ProcessEnv = process.env): ClusterOpt
   return out;
 }
 
-/**
- * permessage-deflate for game messages. A board view is ~3 KB of msgpack and
- * deflates ~3.5x. No context takeover keeps per-socket zlib memory flat, and
- * small messages (timers, pings) skip compression.
- */
+// No context takeover keeps per-socket zlib memory flat; small messages (timers, pings) skip compression.
 export function wsCompression(env: NodeJS.ProcessEnv = process.env) {
   if (env.WS_COMPRESSION === "off") return false as const;
   return {

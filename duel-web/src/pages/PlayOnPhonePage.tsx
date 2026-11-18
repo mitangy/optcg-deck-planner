@@ -4,7 +4,6 @@ import { FAN_DISCLAIMER } from "@optcg/site-legal";
 import "./playOnline.css";
 import "./landing973.css";
 
-/** Answers are shown on the page and published as FAQPage structured data (see prerender/entry.tsx). */
 export const PLAY_ON_PHONE_FAQ: readonly { q: string; a: string }[] = [
   {
     q: "Can I play the One Piece TCG on my phone?",
@@ -53,7 +52,6 @@ const TIPS: readonly { title: string; body: string }[] = [
   { title: "Lock the orientation", body: "Settings can lock a match to portrait or landscape on browsers that allow it, such as Android Chrome in full screen or installed. iPhone Safari does not allow it." },
 ];
 
-/** Public landing page for people searching how to play the One Piece TCG on a phone. */
 export function PlayOnPhonePage() {
   return (
     <PageShell pageClass="play-online" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }}>

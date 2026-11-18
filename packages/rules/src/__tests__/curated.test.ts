@@ -1,7 +1,3 @@
-/**
- * Regression fixtures for the originally curated cards, now driven entirely by
- * generated definitions from official text (no card-specific engine code).
- */
 import { describe, expect, it } from "vitest";
 import { FILLER, Harness } from "../testing/harness.js";
 
@@ -126,7 +122,7 @@ describe("OP17-112 Charlotte Linlin", () => {
     h.play(0, "OP17-112");
     expect(h.choice?.request?.type).toBe("mode");
     h.pick("Add up to 1 card from the top of your deck to the top of your Life cards.");
-    h.accept(0); // "up to 1" is optional (#594)
+    h.accept(0);
     expect(h.state.players[0].life.length).toBe(6);
     expect(h.view(0).you.characters.find((c) => c.id === triggerChar!.id)!.power).toBe(8000);
     h.act(0, { type: "end_turn" });
@@ -184,7 +180,6 @@ describe("OP17-001 Edward.Newgate (Leader)", () => {
     const [attacker, second] = h.field(0, FILLER, FILLER);
     attacker!.summoningSick = false;
     second!.summoningSick = false;
-    // First attack: decline the leader's [On Your Opponent's Attack] ability.
     h.attack(h.state.players[0].leader, "leader");
     expect(h.choice?.seat).toBe(1);
     expect(h.choice?.cardDefId).toBe("OP17-001");
@@ -192,7 +187,6 @@ describe("OP17-001 Edward.Newgate (Leader)", () => {
     h.passBattle();
     expect(h.state.players[1].life.length).toBe(4);
     expect(h.state.players[1].leader.usedAbilities?.["op17-001#0"]).toBeUndefined();
-    // Second attack in the same turn: the ability must be offered again.
     h.attack(attacker!, "leader");
     expect(h.choice?.seat).toBe(1);
     expect(h.choice?.cardDefId).toBe("OP17-001");
@@ -201,7 +195,6 @@ describe("OP17-001 Edward.Newgate (Leader)", () => {
     h.pick(h.state.players[1].leader.defId);
     expect(h.view(1).you.leader.power).toBe(9000);
     h.passBattle();
-    // Once actually used, it is not offered a third time this turn.
     expect(h.state.players[1].leader.usedAbilities?.["op17-001#0"]).toBe(h.state.turnNumber);
     h.attack(second!, "leader");
     expect(h.choice).toBeUndefined();
@@ -261,9 +254,8 @@ describe("EB03-034 Charlotte Linlin", () => {
     h.attack(h.state.players[0].leader, linlin!).passBattle();
     expect(h.choice?.seat).toBe(1);
     h.accept(1);
-    // DON!! −1: choose which DON!! to return.
     h.act(1, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"] });
-    h.accept(1); // "up to 1" is optional (#594)
+    h.accept(1);
     expect(h.state.players[1].life.length).toBe(6);
     expect(h.state.players[1].costArea.length).toBe(2);
   });
@@ -278,7 +270,7 @@ describe("OP15-061 Ohm", () => {
     h.attach(0, leader, 1);
     const handBefore = h.state.players[0].hand.length;
     h.play(0, "OP15-061");
-    h.accept(0); // pay DON!! −1
+    h.accept(0);
     const req = h.choice?.request;
     expect(req?.type).toBe("select");
     if (req?.type !== "select") return;
@@ -289,11 +281,9 @@ describe("OP15-061 Ohm", () => {
     expect(attached).toBeDefined();
     const activeBefore = h.state.players[0].costArea.filter((d) => !d.rested).length;
     h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [attached!.id] });
-    // The attached DON!! went back; active DON!! in the cost area were untouched.
     expect(h.state.players[0].leader.attachedDonIds).toHaveLength(0);
     expect(h.state.players[0].attachedDons).toHaveLength(0);
     expect(h.state.players[0].costArea.filter((d) => !d.rested).length).toBe(activeBefore);
-    // Played Ohm (−1 card), then drew 1.
     expect(h.state.players[0].hand.length).toBe(handBefore);
   });
 });
@@ -411,7 +401,7 @@ describe("OP09-103 Koala", () => {
 
   it("does not draw when nothing is played", () => {
     const h = playKoala(false);
-    expect(h.state.players[0].hand).toHaveLength(2); // the Life card and the unplayed Sabo, no draw
+    expect(h.state.players[0].hand).toHaveLength(2);
   });
 });
 
@@ -449,7 +439,6 @@ describe("OP15-002 Lucy (Leader)", () => {
     const req = h.choice?.request;
     expect(req?.type).toBe("select");
     if (req?.type !== "select") return;
-    // Only Events / Stages are offered, each tagged with its hand card so the client can pick it in the hand.
     expect(req.options.map((o) => o.instanceId)).toEqual(events.map((c) => c.id));
     h.pick(events[0]!.id);
     expect(h.state.players[1].hand.map((c) => c.defId)).toEqual(["ST01-014", FILLER]);

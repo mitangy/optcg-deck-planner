@@ -1,25 +1,15 @@
-/**
- * First-touch traffic source (#905): where a visitor came from before they signed up.
- * The planner and duel-web call `captureFirstTouch()` at startup and send `readFirstTouch()`
- * with POST /auth/claim; the server keeps it only for brand-new accounts.
- */
-
 export const FIRST_TOUCH_KEY = "optcg.firstTouch";
 export const FIRST_TOUCH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 export type FirstTouch = {
-  /** Referring hostname without a leading "www.". */
   ref?: string;
-  /** Landing path (no query string). */
   land?: string;
   utm_source?: string;
   utm_medium?: string;
   utm_campaign?: string;
-  /** When it was captured (ms since epoch). */
   at: number;
 };
 
-/** Our own sites, the API, and Google's OAuth bounce: a visit from these is not a new source. */
 const OWN_HOSTS = ["optcgduel.app", "optcg-deck-planner.app", "onrender.com", "accounts.google.com"];
 
 const UTM_KEYS = ["utm_source", "utm_medium", "utm_campaign"] as const;
@@ -43,10 +33,9 @@ function externalReferrerHost(referrer: string, currentHost: string): string | n
   return host;
 }
 
-/** The stored first touch, or null when there is none or it has expired. */
 export function readFirstTouch(storage?: StorageLike, now: number = Date.now()): FirstTouch | null {
   try {
-    // Resolve the global inside the try: a browser that blocks site data throws on `localStorage` itself (#907).
+    // Resolve the global inside the try: a browser that blocks site data throws on `localStorage` itself.
     const raw = (storage ?? localStorage).getItem(FIRST_TOUCH_KEY);
     if (!raw) return null;
     const v = JSON.parse(raw) as FirstTouch | null;
@@ -58,10 +47,6 @@ export function readFirstTouch(storage?: StorageLike, now: number = Date.now()):
   }
 }
 
-/**
- * Remember an external referrer or utm tags the first time they show up. First touch wins for
- * 30 days; a direct visit stores nothing (direct is the absence of a value).
- */
 export function captureFirstTouch(
   location?: Pick<Location, "hostname" | "pathname" | "search">,
   referrerOverride?: string,
@@ -69,7 +54,7 @@ export function captureFirstTouch(
   now: number = Date.now(),
 ): void {
   try {
-    // Globals are resolved inside the try: blocked site data makes `localStorage` throw (#907).
+    // Globals are resolved inside the try: blocked site data makes `localStorage` throw.
     const loc = location ?? window.location;
     const referrer = referrerOverride ?? document.referrer;
     const storage = storageOverride ?? localStorage;

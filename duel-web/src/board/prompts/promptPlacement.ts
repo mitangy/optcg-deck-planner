@@ -8,14 +8,6 @@ function overlapArea(a: Box, b: Box): number {
   return w > 0 && h > 0 ? w * h : 0;
 }
 
-/**
- * Which end of the board column a centred effect prompt should sit at while a
- * battle is on. It rests at the bottom; if that would cover the card being hit
- * it moves to the top. The defender counts far more than the attacker (a
- * prompt may hide the attacker, never the target), and the bottom wins ties.
- * Boxes are viewport rects; `bottomTop` / `topTop` are the prompt's top edge in
- * each position.
- */
 export function promptSide(o: {
   width: number;
   height: number;
@@ -24,7 +16,6 @@ export function promptSide(o: {
   topTop: number;
   defender: Box | null;
   attacker: Box | null;
-  /** Breathing room around the defender, so the prompt never touches it. */
   pad?: number;
 }): PromptSide {
   const { defender, attacker, pad = 8 } = o;

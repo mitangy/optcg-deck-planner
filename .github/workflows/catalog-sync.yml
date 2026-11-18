@@ -10,7 +10,6 @@ jobs:
     steps:
       - name: Trigger and wait for catalog sync
         env:
-          # Public Render host is the default; optional secret override for staging.
           API_URL: ${{ secrets.API_URL }}
           CATALOG_SYNC_TOKEN: ${{ secrets.CATALOG_SYNC_TOKEN }}
         run: |

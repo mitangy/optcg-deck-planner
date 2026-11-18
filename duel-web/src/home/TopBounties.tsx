@@ -7,13 +7,11 @@ import { pinnedYou } from "./bounties";
 const TOP_N = 5;
 const NONE: LeaderboardEntry[] = [];
 
-/** The five highest Bounties, with your own rank pinned under them when you are further down. Hidden when empty or failed. */
 export function TopBounties({ me }: { me: RatingMe | null | undefined }) {
   const res = useAsyncResource(() => fetchLeaderboard(TOP_N), []);
   return <TopBountiesCard entries={res.status === "ready" ? res.data : NONE} me={me} />;
 }
 
-/** The card itself; hidden when there is nothing to show. */
 export function TopBountiesCard({ entries, me }: { entries: LeaderboardEntry[]; me: RatingMe | null | undefined }) {
   if (entries.length === 0) return null;
   const you = pinnedYou(

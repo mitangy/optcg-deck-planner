@@ -12,7 +12,6 @@ import { MAX_TOOL_ROUNDS, newRounds, runToolRounds, type ClientActions } from ".
 import type { chatBody } from "./schemas";
 import type { Block, ChatDeps, Message, SseEvent } from "./types";
 
-/** What the model wrote in the turn so far, as text. */
 function textWritten(turn: Message[]): string {
   return turn
     .filter((m) => m.role === "assistant")
@@ -58,18 +57,15 @@ export function contextBlock(ctx: z.infer<typeof chatBody>["context"]): string |
   return lines.length ? `<context>\n${lines.join("\n")}\n</context>` : null;
 }
 
-/** Earlier assistant turns without their thinking blocks: a signature is bound to the system prompt and tools it was made under, which can differ now (#424). */
 function withoutOldThinking(history: Message[]): Message[] {
   return history.flatMap((m) => {
     if (m.role !== "assistant" || !Array.isArray(m.content)) return [m];
     const kept = m.content.filter((b) => b.type !== "thinking" && b.type !== "redacted_thinking");
-    // A turn that was only thinking (cut off by max_tokens, say) has nothing left to resend: drop it (#425).
     if (!kept.length) return m.content.length ? [] : [m];
     return [kept.length < m.content.length ? { ...m, content: kept } : m];
   });
 }
 
-/** The turn's user message and the text answered so far as one assistant message (tool calls dropped), or null when nothing was said. */
 export function answeredSoFar(turn: Message[]): Message[] | null {
   const text = turn
     .filter((m) => m.role === "assistant" && Array.isArray(m.content))
@@ -79,7 +75,6 @@ export function answeredSoFar(turn: Message[]): Message[] | null {
   return text ? [turn[0]!, { role: "assistant", content: [{ type: "text", text }] }] : null;
 }
 
-/** One chat turn: the player's message, as many tool rounds as the model needs, the answer streamed. */
 export async function runChat(deps: ChatDeps, token: string, body: z.infer<typeof chatBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
   const release = await claimStream(deps.api, token, "chat");
   try {

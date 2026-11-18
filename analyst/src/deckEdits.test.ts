@@ -40,7 +40,6 @@ describe("deck edit suggestions (#400)", () => {
       legality: { legal: true, count: 50 },
     });
     expect(events.map((e) => e.event)).toEqual(["thread", "status", "proposal", "text", "done"]);
-    // The proposals are saved after the turn's messages.
     const urls = calls.map((c) => c.url.replace("https://api.test", ""));
     expect(urls.indexOf("/analyst/chat/threads/9/proposals")).toBeGreaterThan(urls.indexOf("/analyst/chat/threads/9/messages"));
     expect(calls.find((c) => c.url.endsWith("/threads/9/proposals"))!.body).toEqual({ proposals: [proposal.data] });

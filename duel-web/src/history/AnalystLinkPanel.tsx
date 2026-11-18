@@ -19,10 +19,6 @@ import { SimImportPanel } from "./SimImportPanel";
 const cardName = (id: string) => lookupCard(id).name || id;
 const STATUS_LABEL: Record<AnalystLessonStatus, string> = { draft: "Needs review", approved: "Approved", rejected: "Rejected" };
 
-/**
- * Settings panel: your personal Log Pose connector link for Claude, whether your games count in
- * its matchup stats, and the lessons Claude drafted for you to approve.
- */
 export function AnalystLinkPanel() {
   const [hasLink, setHasLink] = useState<boolean | null>(null);
   const [sharing, setSharing] = useState<boolean | null>(null);
@@ -32,7 +28,6 @@ export function AnalystLinkPanel() {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // "Use Log Pose in your own Claude" in the chat panel lands here.
   useEffect(() => {
     if (window.location.hash === "#log-pose") document.getElementById("log-pose")?.scrollIntoView({ block: "start" });
   }, []);

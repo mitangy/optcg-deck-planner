@@ -1,4 +1,3 @@
-/** A fake card page API (#953): /meta/cards/:id and per-art price history, registered over the planner fixture's routes. */
 import type { Page } from "@playwright/test";
 import type { CardPageResponse, PriceHistoryResponse } from "../src/api";
 import { chaseCardHistory } from "./fixtures";
@@ -75,7 +74,6 @@ const leaderPage = (days: number) => {
   };
 };
 
-/** Shifts and scales the chase-card history so each art charts a different price. */
 function history(productId: number): PriceHistoryResponse {
   const scale = productId === 5002 ? 0.7 : productId === 5003 ? 4.5 : 0.2;
   const current = productId === 5002 ? 64.99 : productId === 5003 ? 410 : 18.5;
@@ -84,7 +82,6 @@ function history(productId: number): PriceHistoryResponse {
   return { card_id: ZORO, product_id: productId || 5001, name, group_name: "Romance Dawn", released: "2025-09-16", current, points };
 }
 
-/** Registers the routes; returns the card page requests the page made (`id?days`). */
 export async function mockCardApi(page: Page): Promise<string[]> {
   const asked: string[] = [];
   await page.route("**/api/meta/cards/*", (route) => {

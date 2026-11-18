@@ -5,7 +5,7 @@
  */
 import { runScenarios, mine, theirs, type CardScenario } from "../../testing/scenario.js";
 
-const PERONA = "OP14-111"; // [On Play]/[On K.O.] Up to 1 of your opponent's Characters with a cost of 6 or less cannot attack until the end of your opponent's next End Phase.
+const PERONA = "OP14-111";
 const KOER = "ST01-010"; // vanilla 4-cost 6000: K.O.s a rested Perona in battle
 const TARGET = "ST01-003"; // vanilla 1-cost 3000: the Character Perona's effect restricts
 

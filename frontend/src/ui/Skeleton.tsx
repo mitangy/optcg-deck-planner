@@ -1,6 +1,5 @@
 import type { CSSProperties, ReactNode } from "react";
 
-/** Soft bone block that breathes while content loads. */
 export function Skeleton({
   className = "",
   style,

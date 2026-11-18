@@ -1,16 +1,3 @@
-/**
- * Log Pose eval runner. `npm run eval -w @optcg/analyst` runs the 50 cases through the real chat loop with the
- * real model (paid: needs ANTHROPIC_API_KEY). `--model-api scripted` is a free dry run with a fake model and judge.
- *
- *   --variant <name>        output folder under evals/out (default baseline; dry-run for --model-api scripted)
- *   --reps <n>              repetitions per case (default 2)
- *   --only <regex>          case ids to run      --group A,B,C,D,E   groups to run (default A,B,C,D)
- *   --concurrency <n>       default 4            --timeout-s <n>     per-case ceiling, default 180
- *   --max-usd <n>           stop dispatching past this measured spend (default 15)
- *   --planner fake|live     live forwards stats/corpus/tournament reads to PLANNER_API_URL (chat/usage stay local)
- *   --model-api anthropic|scripted      --library live|none     --resume     --selftest     --write-baseline
- *   --post                  send the run's score to the admin page (POST /admin/evals; needs ANALYST_API_URL + ANALYST_SERVICE_SECRET)
- */
 import { execSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";

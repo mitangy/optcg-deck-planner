@@ -4,9 +4,7 @@ import { compassRect, growOrigin, popFrames, slideFrames } from "./panelMotion";
 describe("the panel's pop out of the compass (#432)", () => {
   it("scales from the compass centre, measured from the panel's top-left corner (#432)", () => {
     const compass = { left: 1000, top: 700, width: 52, height: 52 };
-    // A drawer on the right edge: the compass is inside it, near the bottom-right.
     expect(growOrigin(compass, { left: 780, top: 0, width: 420, height: 720 })).toEqual({ x: 246, y: 726 });
-    // A window moved to the left: the compass is outside it, so the origin lies beyond its edge.
     expect(growOrigin(compass, { left: 100, top: 50, width: 420, height: 600 })).toEqual({ x: 926, y: 676 });
   });
 

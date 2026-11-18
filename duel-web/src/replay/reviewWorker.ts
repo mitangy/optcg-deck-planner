@@ -1,4 +1,3 @@
-/** Grades the game off the page's thread (#967): the bots' analysis is seconds of work for a whole game. */
 import { createGameReviewer } from "@optcg/rules/review/gameReview";
 import { REVIEW_SLICE, type ReviewMessage, type ReviewRequest } from "./reviewProtocol";
 

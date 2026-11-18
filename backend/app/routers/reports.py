@@ -1,10 +1,3 @@
-"""Player reports (#810): "Report player" in matches, spectating, history and the friends list.
-
-A report names a player (a match seat, or a friend), a reason and optionally the image the
-reporter saw. Image reports copy the bytes at report time so the evidence survives the owner
-deleting or replacing it. Nothing about the reported player is sent back to the reporter.
-Staff review reports under /admin/reports (routers/admin.py).
-"""
 
 from __future__ import annotations
 
@@ -42,7 +35,6 @@ _user_rate = RateLimiter(max_calls=10, period_s=3600, name="player_report_user_r
 _ip_rate = RateLimiter(max_calls=20, period_s=3600, name="player_report_ip_rate")
 _global_rate = RateLimiter(max_calls=200, period_s=3600, name="player_report_global_rate")
 
-# "/duel/cosmetics/{id}/public/{sig}", optionally behind an absolute API base URL.
 _PUBLIC_RE = re.compile(r"^(?:https?://[^/\s]+)?/duel/cosmetics/(\d+)/public/([A-Za-z0-9_-]+)(?:[?#].*)?$")
 _DATA_URL_RE = re.compile(r"^data:image/[a-zA-Z0-9.+-]+;base64,(.+)$", re.DOTALL)
 
@@ -83,7 +75,6 @@ def _seat_users(db: Session, match_id: str) -> tuple[int, int] | None:
 
 def _in_room_as_spectator(db: Session, user: User, match_id: str, now: datetime) -> bool:
     for row in live_presence(db, [user.id], now).get(user.id, []):
-        # A rematch keeps playing under "{match_id}-rN".
         if row.role == "spectator" and (row.room_id == match_id or row.room_id.startswith(f"{match_id}-r")):
             return True
     return False
@@ -101,7 +92,6 @@ def _resolve_reported(db: Session, reporter: User, body: PlayerReportIn, now: da
             raise HTTPException(status_code=403, detail="You can only report your friends this way")
         return target
     seats = _seat_users(db, body.match_id) if body.match_id and body.reported_seat is not None else None
-    # A bot or guest seat holds an id no account has, so it is "not found" like an unknown player.
     target = db.get(User, seats[body.reported_seat]) if seats is not None else None
     if target is None:
         raise HTTPException(status_code=404, detail="Player not found")
@@ -113,7 +103,6 @@ def _resolve_reported(db: Session, reporter: User, body: PlayerReportIn, now: da
 
 
 def _snapshot(db: Session, settings: Settings, target: User, body: PlayerReportIn) -> tuple[int | None, str | None, bytes | None]:
-    """(cosmetic id, mime, bytes) of the reported image, copied now so it outlives the owner's copy."""
     src = body.image_src or ""
     m = _PUBLIC_RE.match(src)
     if m:
@@ -128,7 +117,6 @@ def _snapshot(db: Session, settings: Settings, target: User, body: PlayerReportI
             data = base64.b64decode(d.group(1), validate=False)
         except (binascii.Error, ValueError):
             data = b""
-        # image_src is capped at 800,000 characters, so the decoded image is at most 600 KB.
         mime = sniff_mime(data) if data else None
         if mime:
             return None, mime, data

@@ -1,4 +1,3 @@
-"""Parse and match TCGPlayer order receipts to catalog / group-buy lines."""
 
 from __future__ import annotations
 
@@ -14,8 +13,8 @@ from app.planner.models import CatalogCard, CatalogPrinting
 
 PRODUCT_LINE_PREFIXES = (
     "one piece card game - ",
-    "one piece card game – ",  # en-dash
-    "one piece card game — ",  # em-dash
+    "one piece card game – ",
+    "one piece card game — ",
 )
 
 CONDITIONS = (
@@ -27,20 +26,16 @@ CONDITIONS = (
     "unopened",
 )
 
-# Full OPTCG number inside parentheses, e.g. (OP15-113), (EB04-007), (ST21-003)
 CARD_ID_IN_PARENS_RE = re.compile(
     r"\(([A-Za-z0-9]+-\d+[A-Za-z]?)\)",
     re.IGNORECASE,
 )
-# Standalone id after a dash: "Nami - OP01-016 (Luffy Deck)" / "Boa Hancock - OP14-112"
 CARD_ID_AFTER_DASH_RE = re.compile(
     r"\s[-–—]\s*([A-Za-z0-9]+-\d+[A-Za-z]?)\b",
     re.IGNORECASE,
 )
-# Collector number only: (054), (112), (053)
 COLLECTOR_NUM_RE = re.compile(r"\((\d{2,3})\)\s*$")
 
-# Same markers as catalog sync so receipt lines prefer the matching printing.
 SPECIAL_HINTS = SPECIAL_NAME_MARKERS
 
 LINE_START_RE = re.compile(
@@ -69,7 +64,7 @@ class CatalogMatch:
     name: str
     group_name: str
     is_special: bool
-    confidence: str  # exact_id | name_set | name_only
+    confidence: str
 
 
 @dataclass
@@ -93,11 +88,9 @@ def _normalize_key(value: str) -> str:
 
 
 def _strip_condition(description: str) -> tuple[str, str, bool]:
-    """Return (without_condition, condition, is_foil)."""
     text = description.strip()
     is_foil = False
     lower = text.lower()
-    # Trailing "Foil" (with or without condition)
     if lower.endswith(" foil"):
         is_foil = True
         text = text[: -len(" foil")].rstrip()
@@ -112,9 +105,7 @@ def _strip_condition(description: str) -> tuple[str, str, bool]:
 
 
 def _split_set_and_name(body: str) -> tuple[str, str]:
-    """Split '{set} - {card name}' after product-line prefix was removed."""
     text = body.strip()
-    # Prefer " - " / en/em dashes as separators
     for sep in (" - ", " – ", " — "):
         if sep in text:
             set_name, card_name = text.split(sep, 1)
@@ -123,7 +114,6 @@ def _split_set_and_name(body: str) -> tuple[str, str]:
 
 
 def _extract_hints(card_name: str) -> tuple[str, str | None, str | None, bool]:
-    """Return cleaned name, card_id_hint, collector_number, wants_special."""
     name = card_name.strip()
     wants_special = any(h in name.lower() for h in SPECIAL_HINTS)
 
@@ -137,7 +127,6 @@ def _extract_hints(card_name: str) -> tuple[str, str | None, str | None, bool]:
             card_id_hint = dash_match.group(1).upper()
 
     collector: str | None = None
-    # Only treat (NNN) as collector when it is not a card id / special marker.
     if not card_id_hint:
         coll = COLLECTOR_NUM_RE.search(name)
         if coll:
@@ -161,7 +150,7 @@ def parse_receipt_line(raw: str) -> ParsedReceiptLine | None:
         return None
     try:
         qty = int(match.group(1))
-    except ValueError as exc:  # thousands of digits: int() refuses; stays a 400 with Python's message
+    except ValueError as exc:
         raise Invalid(str(exc)) from exc
     if qty <= 0:
         return None
@@ -238,7 +227,6 @@ def _pick_best_printing(
             score += 30
         elif not wants_special and not row.is_special:
             score += 20
-        # Prefer cheaper / standard when tied
         price = row.market_price if row.market_price is not None else 9999.0
         scored.append((score * 10000 - int(price * 100), row))
     scored.sort(key=lambda x: x[0], reverse=True)
@@ -246,11 +234,9 @@ def _pick_best_printing(
 
 
 def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch | None:
-    """Resolve a receipt line to a catalog card_id / printing."""
     set_key = _normalize_key(line.set_name)
     name_key = _normalize_key(line.card_name)
 
-    # 1) Explicit card id in the description
     if line.card_id_hint:
         rows = list(
             db.scalars(
@@ -259,7 +245,6 @@ def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch 
                 )
             ).all()
         )
-        # Fallback: preferred CatalogCard face only
         if not rows:
             card = db.get(CatalogCard, line.card_id_hint)
             if card is not None:
@@ -277,8 +262,6 @@ def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch 
         if picked is not None:
             return _printing_to_match(picked, "exact_id")
 
-    # 2) Name (+ set) against printings
-    # Strip parenthetical suffixes for looser name compare, keep full string too.
     base_name = re.sub(r"\s*\([^)]*\)\s*", " ", line.card_name)
     base_name = re.sub(r"\s[-–—]\s*[A-Za-z0-9]+-\d+[A-Za-z]?\b", " ", base_name)
     base_key = _normalize_key(base_name)
@@ -295,14 +278,12 @@ def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch 
     )
 
     if not candidates and (name_key or base_key):
-        # Broader contains match limited by set when possible
         like_term = f"%{(base_name or line.card_name).strip()[:80]}%"
         stmt = select(CatalogPrinting).where(CatalogPrinting.name.ilike(like_term))
         if line.set_name:
             stmt = stmt.where(CatalogPrinting.group_name.ilike(f"%{line.set_name[:80]}%"))
         candidates = list(db.scalars(stmt.limit(40)).all())
 
-    # Filter by normalized name equality when we got fuzzy rows
     if candidates and (name_key or base_key):
         tight = [
             c
@@ -314,10 +295,8 @@ def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch 
         if tight:
             candidates = tight
 
-    # Collector number disambiguation: card_id ending
     if line.collector_number and candidates:
         suffix = f"-{line.collector_number.zfill(3)}" if len(line.collector_number) <= 2 else f"-{line.collector_number}"
-        # Prefer ids ending with -054 / -053 etc.
         numbered = [
             c
             for c in candidates
@@ -350,7 +329,6 @@ def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch 
 def aggregate_receipt_matches(
     db: Session, lines: list[ParsedReceiptLine]
 ) -> tuple[list[AggregatedReceiptCard], list[ParsedReceiptLine]]:
-    """Match each line; aggregate qty by card_id. Return (matched, unmatched)."""
     by_card: dict[str, AggregatedReceiptCard] = {}
     unmatched: list[ParsedReceiptLine] = []
     for line in lines:
@@ -373,7 +351,6 @@ def aggregate_receipt_matches(
         else:
             existing.qty += line.qty
             existing.descriptions.append(line.raw_description)
-            # Prefer higher-confidence / special product id when aggregating
             if hit.confidence == "exact_id" and existing.confidence != "exact_id":
                 existing.confidence = hit.confidence
                 existing.product_id = hit.product_id

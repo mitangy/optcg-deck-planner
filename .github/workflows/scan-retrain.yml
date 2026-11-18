@@ -1,14 +1,6 @@
 name: Scan embedder retrain
 
-# Weekly fine-tune of the card-art embedder on the crops users confirmed in the
-# scanner (#852). THE REPO IS PUBLIC: Actions logs and artifacts are world
-# readable, so user crops are never uploaded, cached or printed. Logs and the
-# step summary carry counts and metrics only, and the crops directory is
-# deleted in the final step. Only metrics.json is uploaded as an artifact.
-#
-# A new model is published (blob store + a Scan descriptors run) only when it
-# beats the currently published one on held-out user crops; see
-# frontend/scripts/train-embedder/gate.cjs.
+# THE REPO IS PUBLIC: Actions logs and artifacts are world readable, so user crops are never uploaded, cached or printed. Logs and the step summary carry counts and metrics only, and the crops directory is deleted in the final step.
 on:
   schedule:
     - cron: "0 6 * * 0"
@@ -36,9 +28,7 @@ jobs:
       BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
       GH_TOKEN: ${{ github.token }}
       API_URL: ${{ secrets.API_URL }}
-      # Root of the scan-data blob store the app reads (same value as the planner's
-      # VITE_SCAN_DATA_BASE + /scan-data). Set the SCAN_DATA_BASE repo variable when the
-      # store moves; it must be the store BLOB_READ_WRITE_TOKEN writes to.
+      # It must be the store BLOB_READ_WRITE_TOKEN writes to.
       BLOB_BASE: ${{ vars.SCAN_DATA_BASE || 'https://2jesjagi5xofv6e6.public.blob.vercel-storage.com/scan-data' }}
       MAX_MINUTES: ${{ inputs.max_minutes || '240' }}
     defaults:
@@ -47,7 +37,6 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # frontend/ is an npm workspace: one install from the repo root.
       - uses: ./.github/actions/setup-node-deps
 
       - uses: actions/setup-python@v7

@@ -58,11 +58,7 @@ async function waitUntil(pred: () => boolean, timeoutMs = 5000): Promise<void> {
 }
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/**
- * Joins and reports whether the room turned it away, and with which code. The error
- * message itself is sent before the client can register a handler, so the room's
- * rejectJoin is observed instead.
- */
+// The error message is sent before the client can register a handler, so the room's rejectJoin is observed instead.
 async function joinRefused(
   colyseus: ColyseusTestServer,
   room: DuelRoom,
@@ -100,10 +96,7 @@ const opts = (uid: number, seat: 0 | 1, extra: Record<string, unknown> = {}) => 
   ...extra,
 });
 
-/**
- * Registered inside duelRoom.test.ts's describe: one process can boot only one
- * Colyseus test server, so these share its server and its per-test cleanup.
- */
+// One process can boot only one Colyseus test server, so these share its server and its per-test cleanup.
 export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
   const colyseus = new Proxy({} as ColyseusTestServer, {
     get: (_t, prop) => (getServer() as never as Record<string | symbol, unknown>)[prop],
@@ -141,7 +134,6 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
     };
     const c0b = await colyseus.connectTo(room, opts(101, 0, { takeover: true }));
     const nb = attach(c0b);
-    // The takeover itself sends the seat's welcome to the new device (see syncAll for why we ask again).
     assert.ok(welcomedTo.includes(c0b.sessionId), "new device is welcomed on join");
     await syncAll([c0b, nb]);
     await waitUntil(() => b0.closeCode !== undefined);
@@ -150,7 +142,6 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
     assert.equal(b0.takenOver[0]!.seat, 0);
     assert.equal(b0.closeCode, TAKEN_OVER_CLOSE_CODE);
 
-    // The new device plays; the old one is no longer the seat's connection.
     await sendLegalIntent(c0b, nb);
     assert.equal(nb.errors.length, 0);
     const oldSeen = b0.views.length;
@@ -166,7 +157,6 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
     await withRoomEnv({ reconnectGraceSeconds: 1 }, async () => {
       const { room, c0, b0, c1, b1 } = await startedPair();
       const oldToken = c0.reconnectionToken;
-      // Abnormal drop (no close handshake): the seat is held for reconnection.
       const serverSide = room.clients.find((c) => c.sessionId === c0.sessionId)!;
       (serverSide.ref as unknown as { terminate(): void }).terminate();
       await waitUntil(() => b0.closeCode !== undefined);
@@ -176,7 +166,6 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
       const nb = attach(n);
       await syncAll([n, nb]);
 
-      // The old token is dead.
       let reclaimed = false;
       try {
         const r = await colyseus.sdk.reconnect(oldToken);
@@ -187,7 +176,6 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
       }
       assert.equal(reclaimed, false);
 
-      // Outlast the grace window: the new device keeps the seat and nobody forfeits.
       await sleep(2500);
       assert.equal(b1.over, undefined);
       assert.equal(nb.over, undefined);
@@ -202,7 +190,6 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
     const r = await joinRefused(colyseus, room, opts(999, 0, { takeover: true }));
     assert.equal(r.refused, true);
     assert.equal(r.code, "unauthorized");
-    // Seat 1's owner can't claim seat 0 either.
     const r2 = await joinRefused(colyseus, room, opts(102, 0, { takeover: true }));
     assert.equal(r2.code, "unauthorized");
     await sleep(200);
@@ -230,9 +217,7 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
     const gb1 = attach(g1);
     await syncAll([g0, gb0], [g1, gb1]);
 
-    // Another signed-in account can't.
     assert.equal((await joinRefused(colyseus, room, opts(301, 0, { takeover: true }))).code, "unauthorized");
-    // A guest-id seat isn't owned by whoever merely knows the room id, and a bad ownerToken is ignored.
     assert.equal(
       (await joinRefused(colyseus, room, opts(301, 1, { takeover: true, ownerToken: "not.valid" }))).code,
       "unauthorized",
@@ -275,7 +260,6 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
     await syncAll([c0, b0]);
 
     assert.equal((await joinRefused(colyseus, room, opts(43, 0, { takeover: true }))).code, "unauthorized");
-    // Account 42 is reserved for seat 1, so it can't name seat 0.
     assert.equal((await joinRefused(colyseus, room, opts(42, 0, { takeover: true }))).code, "unauthorized");
     assert.equal(b0.takenOver.length, 0);
 
@@ -359,7 +343,7 @@ export function deviceHandoffTests(getServer: () => ColyseusTestServer): void {
 
     it("answers the CORS preflight and tags responses for an allowlisted origin only (#451)", async () => {
       const previous = matchMaker.controller.getCorsHeaders.bind(matchMaker.controller);
-      installCorsAllowlist(); // as src/index.ts does at startup
+      installCorsAllowlist();
       try {
         const base = `http://localhost:${(colyseus.server as unknown as { port: number }).port}`;
         const origin = "http://localhost:5174";

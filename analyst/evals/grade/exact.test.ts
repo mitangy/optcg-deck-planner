@@ -26,7 +26,6 @@ describe("exact grading", () => {
     expect(gradeC(gold, "No, this deck is not legal.", v({ legal: "not_legal" }), catalog).correct).toBe(0);
     expect(gradeC(gold, "Not legal: OP01-004 has 5 copies.", v({ legal: "not_legal" }), catalog).correct).toBe(1);
     expect(gradeC(gold, "Not legal: Usopp has 5 copies.", v({ legal: "not_legal" }), catalog).correct).toBe(1);
-    // Calling it legal fails even when the answer happens to mention the offending card.
     expect(gradeC(gold, "Yes, legal, though OP01-004 is close to the limit.", v({ legal: "legal" }), catalog).correct).toBe(0);
   });
 

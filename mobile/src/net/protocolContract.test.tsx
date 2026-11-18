@@ -13,8 +13,6 @@ import { PROTOCOL_VERSION as CONFIG_PROTOCOL_VERSION } from "../config";
 import { DuelClient } from "./duelClient";
 import { PROTOCOL_VERSION, intentLabel, parseView, parseWelcome, type ChoiceRequestView, type Intent, type PendingChoiceView, type PlayerView } from "./protocol";
 
-// Golden fixtures generated from the engine (packages/rules/protocol-fixtures);
-// game-server and duel-web run their own contract tests against the same files.
 const dir = fileURLToPath(new URL("../../../packages/rules/protocol-fixtures/", import.meta.url));
 const load = <T,>(file: string): T => JSON.parse(readFileSync(`${dir}${file}`, "utf8")) as T;
 
@@ -27,7 +25,6 @@ const serverFixture = (name: string) => server.find((f) => f.name === name)!;
 const clientFixture = (name: string) => client.find((f) => f.name === name)!;
 const front = (f: ServerFixture) => f.body.view.pendingChoices![0]!;
 
-/** Text nodes of the rendered prompt, in order. */
 function texts(element: React.ReactElement): string[] {
   const html = renderToStaticMarkup(element);
   return [...html.matchAll(/>([^<>]+)</g)].map((m) => m[1]!.replace(/&#x27;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&"));
@@ -41,7 +38,6 @@ describe("protocol contract (golden fixtures)", () => {
   it("speaks the protocol version the fixtures were generated for, when parsing and when sending", () => {
     const version = load<{ protocolVersion: number }>("protocol.json").protocolVersion;
     expect(PROTOCOL_VERSION).toBe(version);
-    // net/duelClient.ts stamps every outgoing message with the config constant.
     expect(CONFIG_PROTOCOL_VERSION).toBe(version);
   });
 

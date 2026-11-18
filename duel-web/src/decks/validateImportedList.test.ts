@@ -33,7 +33,6 @@ describe("validateImportedList", () => {
     const ok = validateImportedList("1xOP01-060\n7xOP16-042");
     expect(ok.errors.filter((e) => /copies/.test(e))).toEqual([]);
     expect(ok.ok).toBe(true);
-    // A normal blue card at 7 copies must still error, so this can tell the cases apart.
     const bad = validateImportedList("1xOP01-060\n7xEB01-022");
     expect(bad.ok).toBe(false);
     expect(bad.errors.some((e) => /EB01-022 has 7 copies \(max 4\)/.test(e))).toBe(true);

@@ -47,7 +47,6 @@ function baseView(seat: Seat, overrides: Partial<PlayerView> = {}): PlayerView {
 
 describe("hotseatControlSeat", () => {
   it("prefers pending choice from either seat view when one socket lags", () => {
-    // Seat 0's socket lags; only seat 1's view has the defender's On Opponent's Attack prompt.
     const stale = baseView(0, {
       activeSeat: 0,
       phase: "block",
@@ -93,7 +92,6 @@ describe("hotseatControlSeat", () => {
   });
 
   it("keeps attacker during block with empty pending (await attack triggers)", () => {
-    // No pass_block yet — engine still resolving When Attacking window.
     const view = baseView(0, {
       activeSeat: 0,
       phase: "block",

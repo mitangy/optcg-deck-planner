@@ -40,7 +40,6 @@ const FIELDS = [
   "orderedIds",
 ] as const;
 
-/** Anything a client could send: wrong types, nesting, odd numbers, hostile keys. */
 const junk = fc.oneof(
   fc.jsonValue(),
   fc.anything(),
@@ -76,7 +75,6 @@ const validFor = (k: string): fc.Arbitrary<unknown> => {
 const field = (k: string) =>
   fc.oneof({ weight: 6, arbitrary: validFor(k) }, { weight: 2, arbitrary: junk }, { weight: 1, arbitrary: fc.constantFrom(undefined, null) });
 
-/** One intent type with every one of its fields valid, junk or missing, plus an unknown extra field. */
 const structured = fc.constantFrom(...INTENT_TYPES).chain((type) =>
   fc
     .tuple(...ALLOWED_KEYS[type].filter((k) => k !== "type").map((k) => fc.tuple(fc.constant(k), field(k))), fc.jsonValue())
@@ -89,21 +87,18 @@ const structured = fc.constantFrom(...INTENT_TYPES).chain((type) =>
 const rawArb = fc.oneof(
   { weight: 1, arbitrary: junk },
   { weight: 4, arbitrary: structured },
-  // a valid `type` with junk or wrong-typed fields
   {
     weight: 1,
     arbitrary: fc
       .tuple(fc.constantFrom(...INTENT_TYPES), fc.array(fc.tuple(fc.constantFrom(...FIELDS), junk), { maxLength: 6 }))
       .map(([type, fields]) => ({ type, ...Object.fromEntries(fields) })),
   },
-  // an attack whose target is junk
   { weight: 1, arbitrary: junk.map((target) => ({ type: "declare_attack", attackerId: "a", target })) },
 );
 
 const isId = (v: unknown) => typeof v === "string" && v.length > 0;
 const isIdList = (v: unknown) => Array.isArray(v) && v.every(isId);
 
-/** What `applyIntent` relies on: right keys only, each with the right primitive type. */
 function expectWellFormed(intent: Intent): void {
   const o = intent as unknown as Record<string, unknown>;
   expect(Object.keys(o).filter((k) => !ALLOWED_KEYS[intent.type].includes(k))).toEqual([]);
@@ -121,7 +116,6 @@ function expectWellFormed(intent: Intent): void {
   for (const k of required) expect(o).toHaveProperty(k);
 }
 
-/** The accepted intent is the raw value's own fields, nothing invented, nothing lost, nothing altered. */
 function expectEchoes(raw: unknown, intent: Intent): void {
   const src = raw as Record<string, unknown>;
   const out = intent as unknown as Record<string, unknown>;

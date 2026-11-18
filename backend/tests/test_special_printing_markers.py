@@ -1,4 +1,3 @@
-"""Alt-art name markers and startup flag refresh."""
 
 from __future__ import annotations
 
@@ -111,7 +110,6 @@ def test_refresh_special_flags_promotes_new_markers_and_repicks_preferred(db):
     assert topper is not None and topper.is_special == 1
     assert full_art is not None and full_art.is_special == 1
 
-    # Preferred catalog row should flip back to the non-special base art.
     card = db.get(CatalogCard, "OP01-008")
     assert card is not None
     assert card.name == "Cavendish"
@@ -141,7 +139,6 @@ def test_alt_arts_map_excludes_preferred_and_same_image(db):
             is_special=0,
         )
     )
-    # Same-art reprint SKU (even if incorrectly flagged special)
     db.add(
         CatalogPrinting(
             card_id="OP01-016",
@@ -153,7 +150,6 @@ def test_alt_arts_map_excludes_preferred_and_same_image(db):
             is_special=1,
         )
     )
-    # True alt art
     db.add(
         CatalogPrinting(
             card_id="OP01-016",
@@ -165,7 +161,6 @@ def test_alt_arts_map_excludes_preferred_and_same_image(db):
             is_special=1,
         )
     )
-    # SP-only card: preferred is the special itself — must not reappear as an alt
     db.add(
         CatalogCard(
             card_id="OP14-029",
@@ -195,7 +190,7 @@ def test_alt_arts_map_excludes_preferred_and_same_image(db):
 
 
 PERONA_NAME = "Perona (Japanese Version 3rd Anniversary Set)"
-PERONA_ANNIVERSARY_PID = 680491  # on the shipped alt-art list, no name marker
+PERONA_ANNIVERSARY_PID = 680491
 
 
 def test_unmarked_promo_is_special_only_when_its_product_is_on_the_alt_list_762():
@@ -249,8 +244,8 @@ def test_refresh_flags_unmarked_listed_promo_and_lists_it_as_alt_art_762(db):
     assert [a.product_id for a in alts.get("OP12-034", [])] == [PERONA_ANNIVERSARY_PID]
 
 
-BOA_BASE_PID = 486398  # real base printing, on the alt-art list, no name marker
-BOA_PRERELEASE_PID = 486712  # duel-web's main art, not on the list, no name marker
+BOA_BASE_PID = 486398
+BOA_PRERELEASE_PID = 486712
 
 
 def test_a_listed_promo_id_never_demotes_the_base_printing_763(db):

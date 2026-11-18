@@ -11,9 +11,7 @@ type Props = {
   heading?: string;
   hint?: string;
   buttonLabel?: string;
-  /** When false, only show paste UI (e.g. new-deck create form uses Submit). */
   showImportButton?: boolean;
-  /** Start folded behind its heading (deck editor); the new-deck form keeps it open. */
   collapsible?: boolean;
 };
 

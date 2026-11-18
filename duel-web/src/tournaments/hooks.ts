@@ -10,7 +10,6 @@ export type Who =
   | { status: "no-username" }
   | { status: "ready"; user: AuthUser };
 
-/** Who is signed in; tournaments need an account with a username. */
 export function useWho(): Who {
   const { status, user } = useAuth();
   return useMemo<Who>(() => {

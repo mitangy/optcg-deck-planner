@@ -1,9 +1,3 @@
-/**
- * Static lints over every compiled ability program (see tools/cardText/programLint.ts).
- *
- *   npm run lint:programs            # findings that are not allowlisted; exit 1 if any
- *   npm run lint:programs -- --all   # also list the allowlisted ones with their reasons
- */
 import { abilityById } from "../cards/abilities.js";
 import { applyAllowlist, PROGRAM_LINT_ALLOWLIST } from "../tools/cardText/programLintAllowlist.js";
 import { formatFinding, lintRegistry, unknownVarFields } from "../tools/cardText/programLint.js";

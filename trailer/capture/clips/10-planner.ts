@@ -1,4 +1,3 @@
-/** 10-planner (5s): the deck planner with market prices (and the last sales behind one), then Play in Duel. */
 import { sleep } from "../lib/util";
 import { PLANNER_ORIGIN } from "../lib/env";
 import { finishTake, startTake } from "../lib/take";
@@ -38,7 +37,6 @@ export async function run(): Promise<void> {
     await shot("1");
     await p.keyboard.press("Escape");
     await sleep(250);
-    // One tab, one window: the link normally opens a new tab.
     await p.evaluate(() => document.querySelector<HTMLAnchorElement>("a.duel-play-btn")?.removeAttribute("target"));
     await t.pointer.click(p.locator("a.duel-play-btn"), { ms: 900, settle: 120 });
     await p.waitForURL(/\/decks\?planner/, { timeout: 15_000 });

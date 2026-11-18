@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import type { AdminHosting } from "./adminApi";
 import { HostingTab } from "./HostingTab";
 
-// The exact shape GET /admin/hosting returns (backend/app/admin/hosting.py).
 const hosting = {
   vercel: { configured: false },
   render: {

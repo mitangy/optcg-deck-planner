@@ -8,7 +8,6 @@ import { checkTextEdits, deckEditTool, NO_DECK_ERROR, proposeDeckEdit, TOO_MANY_
 
 const catalog = loadCatalog();
 
-// Mono-red Luffy: 12 distinct plain red cards, 50 in all.
 const LEADER = "ST01-001";
 const MAIN = [
   ...["ST01-003", "ST01-004", "ST01-005", "ST01-006", "ST01-007", "ST01-008", "ST01-009", "ST01-010", "ST01-011", "ST01-012", "ST01-013", "ST01-014"].map((id) => ({ id, copies: 4 })),
@@ -36,7 +35,6 @@ describe("propose_deck_edit (#400)", () => {
     expect(analyzeDeck(catalog, fixture).legal).toBe(true);
     const r = await propose(open(), [change("ST01-015", -2), change("ST01-016", 2, "Cheaper event")]);
     if (!r.ok) throw new Error(r.error);
-    // Adds come first, then removes.
     expect(r.proposal.lines.map((l) => [l.id, l.before, l.after])).toEqual([
       ["ST01-016", 0, 2],
       ["ST01-015", 2, 0],
@@ -78,7 +76,6 @@ describe("propose_deck_edit (#400)", () => {
   it("refuses a banned card with the ban list (#400)", async () => {
     const lib = library({ banned: ["ST01-016"] });
     expect(await refused(propose(open(), [change("ST01-016", 2), change("ST01-015", -2)], lib))).toMatch(/ST01-016 is banned/);
-    // The same swap is fine when the card is not banned, and the card says the ban list was checked.
     const ok = await propose(open(), [change("ST01-016", 2), change("ST01-015", -2)], library({}));
     expect(ok.ok && ok.proposal.legality.ban_list_checked).toBe(true);
   });
@@ -89,7 +86,7 @@ describe("propose_deck_edit (#400)", () => {
   });
 
   it("lets an incomplete deck move toward 50 but not away (#400)", async () => {
-    const short = open(MAIN.filter((c) => c.id !== "ST01-015")); // 48 cards
+    const short = open(MAIN.filter((c) => c.id !== "ST01-015"));
     const toward = await propose(short, [change("ST01-015", 2)]);
     expect(toward.ok && toward.proposal.legality).toMatchObject({ legal: true, count: 50 });
     const stillShort = await propose(short, [change("ST01-015", 1)]);
@@ -98,7 +95,7 @@ describe("propose_deck_edit (#400)", () => {
   });
 
   it("still proposes a fix for a deck that was already illegal, listing its old problems (#400)", async () => {
-    const short = open(MAIN.filter((c) => c.id !== "ST01-015")); // 48 cards
+    const short = open(MAIN.filter((c) => c.id !== "ST01-015"));
     const r = await propose(short, [change("ST01-014", -1, "Too many"), change("ST01-016", 1, "Better"), change("ST01-015", 1, "Fill")]);
     if (!r.ok) throw new Error(r.error);
     expect(r.proposal.legality).toMatchObject({ legal: false, count: 49, problems: ["49 of 50 cards"] });
@@ -128,7 +125,6 @@ describe("propose_deck_edit (#400)", () => {
     const unasked = await proposeDeckEdit(catalog, undefined, open(), { summary: "Tune the list", changes: swap });
     expect(asked.ok && asked.proposal.apply).toBe(true);
     expect(unasked.ok && unasked.proposal.apply).toBe(false);
-    // A refused change is still refused when apply is set.
     const refusedApply = await proposeDeckEdit(catalog, undefined, open(), { summary: "Tune the list", changes: [change("ST01-016", 2)], apply: true });
     expect(refusedApply.ok).toBe(false);
   });

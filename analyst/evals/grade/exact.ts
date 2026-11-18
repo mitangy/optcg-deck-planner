@@ -1,7 +1,3 @@
-/**
- * Exact-match grading of A, B and C answers against the gold: a verdict, a number, a legality call or a
- * percentage. The verdict itself is read out of the answer by the judge (see judge.ts).
- */
 import type { Catalog } from "../../src/catalog";
 import type { Gold, Verdict } from "../qa/types";
 import { closePercent, extractFacts } from "./extract";
@@ -18,7 +14,6 @@ const mentions = (answer: string, id: string, catalog: Catalog) => {
   return text.includes(id.toLowerCase()) || Boolean(name && text.includes(name));
 };
 
-/** Does a list of strings the judge pulled out name this card, by id or by name? */
 const lists = (items: readonly string[], id: string, catalog: Catalog) =>
   items.some((s) => mentions(s, id, catalog));
 
@@ -41,7 +36,6 @@ export function gradeVerdict(gold: Gold, answer: string, v: Verdict, catalog: Ca
   return yes;
 }
 
-/** C: a legality call that names an offender, or a probability within tolerance. */
 export function gradeC(gold: Gold, answer: string, v: Verdict, catalog: Catalog): Graded {
   const facts = extractFacts(answer);
   if (gold.legal !== undefined) {
