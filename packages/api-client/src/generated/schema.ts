@@ -7714,6 +7714,8 @@ export interface components {
             count: number;
             /** Image Url */
             image_url: string;
+            /** Market Price */
+            market_price?: number | null;
             /** Name */
             name: string;
         };
@@ -7725,6 +7727,8 @@ export interface components {
             image_url: string;
             /** Leader Id */
             leader_id: string;
+            /** Leader Market Price */
+            leader_market_price?: number | null;
             /** Name */
             name: string;
         };
