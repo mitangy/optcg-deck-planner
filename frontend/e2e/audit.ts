@@ -49,7 +49,9 @@ export async function auditPage(
       await page.evaluate((top) => window.scrollTo(0, top), y);
       await settle();
       // Scrolled content passes under the sticky header; that is not overlap.
-      const overlays = y > 0 ? [...(opts.overlays ?? DEFAULT_OVERLAYS), ".topbar"] : opts.overlays;
+      // The phone tab bar is fixed over whatever scrolls under it; the page reserves room for it at the end.
+      const base = [...(opts.overlays ?? DEFAULT_OVERLAYS), ".bottom-nav"];
+      const overlays = y > 0 ? [...base, ".topbar"] : base;
       for (const i of await runAudit(page, { ...opts, overlays })) {
         const k = `${i.kind}|${i.where}|${i.text}`;
         if (!seen.has(k)) {

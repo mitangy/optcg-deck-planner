@@ -208,6 +208,14 @@ a.meta-leader-card:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+.meta-deck-own {
+  min-height: 1.3em;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 .meta-deck-actions {
   display: flex;
   flex-wrap: wrap;

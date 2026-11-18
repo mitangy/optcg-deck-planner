@@ -520,6 +520,7 @@ class MetaDeckCard(BaseModel):
     cost: str
     card_type: str
     image_url: str
+    market_price: float | None = None
 
 
 class MetaDeck(BaseModel):
@@ -541,6 +542,7 @@ class MetaDecks(BaseModel):
     leader_id: str
     name: str
     image_url: str
+    leader_market_price: float | None = None
     decks: list[MetaDeck]
 
 

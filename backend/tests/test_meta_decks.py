@@ -202,9 +202,27 @@ def test_deck_rows_carry_event_record_and_sorted_cards_without_player_data_443(c
     assert deck["date"] == ago(2).date().isoformat()
     assert deck["record"] == {"wins": 6, "losses": 1, "ties": 2}
     assert [(x["card_id"], x["count"]) for x in deck["cards"]] == [("OP01-016", 4), ("OP01-020", 3), ("OP01-030", 4), ("OP01-009", 2), ("OP01-040", 1), ("OP01-999", 1)]
-    assert deck["cards"][0] == {"card_id": "OP01-016", "count": 4, "name": "Nami", "cost": "1", "card_type": "Character", "image_url": "https://img/nami.png"}
+    assert deck["cards"][0] == {"card_id": "OP01-016", "count": 4, "name": "Nami", "cost": "1", "card_type": "Character", "image_url": "https://img/nami.png", "market_price": None}
     assert deck["card_count"] == 15
     assert deck["text"] == "1xOP01-001\n4xOP01-016\n3xOP01-020\n4xOP01-030\n2xOP01-009\n1xOP01-040\n1xOP01-999"
+
+
+def test_deck_cards_and_leader_carry_the_catalog_market_price_1342(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_card(db, A, "Silvers Rayleigh", "Leader", None, "Red")
+        add_card(db, "OP01-016", "Nami")
+        add_card(db, "OP01-030", "Two Drop")
+        db.flush()
+        db.get(CatalogCard, A).market_price = 5.25
+        db.get(CatalogCard, "OP01-016").market_price = 0.4
+        add_event(db, "abc", 2, 64)
+        add_deck(db, "abc", A, placing=1, cards={"OP01-016": 4, "OP01-030": 2})
+        db.commit()
+    out = decks(c, A)
+    assert out["leader_market_price"] == 5.25
+    prices = {x["card_id"]: x["market_price"] for x in out["decks"][0]["cards"]}
+    assert prices == {"OP01-016": 0.4, "OP01-030": None}
 
 
 def test_text_creates_a_planner_deck_with_that_leader_and_those_cards_443(client):

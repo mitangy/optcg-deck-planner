@@ -16,6 +16,8 @@ import {
 } from "./meta";
 import { qk } from "../cache/queryKeys";
 import { cardBackState } from "../cards/cardBack";
+import { listCost, listCostText } from "./listCost";
+import { totalOwnedCopies } from "../pages/shopping/shoppingExtras";
 import { copyText } from "@optcg/ui/clipboard";
 
 const FALLBACK_SOURCE_URL = "https://play.limitlesstcg.com/tournaments/completed?game=OP";
@@ -91,11 +93,16 @@ export function MetaDeckRow({
   leader,
   user,
   leaderPath,
+  owned,
+  leaderPrice,
 }: {
   deck: MetaDeck;
   leader: { id: string; name: string };
   user: User | null;
   leaderPath: string;
+  /** Owned copies per card for a signed-in viewer; undefined while loading or signed out. */
+  owned?: ReadonlyMap<string, number>;
+  leaderPrice?: number | null;
 }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
@@ -151,6 +158,11 @@ export function MetaDeckRow({
         <span className="meta-deck-title">
           <span className="meta-deck-event">{deck.event}</span>
           <span className="muted meta-deck-sub">{formatDeckRow(deck)}</span>
+          {user ? (
+            <span className="meta-deck-own">
+              {owned ? listCostText(listCost(deck.cards, { id: leader.id, price: leaderPrice }, owned)) : "\u00a0"}
+            </span>
+          ) : null}
         </span>
       </button>
       <div className="meta-deck-actions">
@@ -210,6 +222,16 @@ export function MetaPage({ user }: { user: User | null }) {
     enabled: Boolean(leaderId),
     staleTime: META_STALE_MS,
   });
+
+  const ownedQ = useQuery({
+    queryKey: qk.owned.all(),
+    queryFn: () => api.ownedCollection(),
+    enabled: Boolean(user && leaderId),
+  });
+  const ownedById = useMemo(
+    () => (ownedQ.data ? new Map(ownedQ.data.items.map((i) => [i.card_id, totalOwnedCopies(i)])) : undefined),
+    [ownedQ.data],
+  );
 
   function search(next: { leader?: string; days?: number; top8?: boolean }): string {
     const p = new URLSearchParams();
@@ -331,6 +353,8 @@ export function MetaPage({ user }: { user: User | null }) {
                   leader={{ id: leaderId, name: leaderName === leaderId ? "" : leaderName }}
                   user={user}
                   leaderPath={leaderPath}
+                  owned={ownedById}
+                  leaderPrice={decks.data.leader_market_price}
                 />
               ))}
             </ul>

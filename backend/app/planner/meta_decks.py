@@ -103,6 +103,7 @@ def meta_decks(db: Session, leader_id: str, days: int, min_players: int, top: in
         "leader_id": leader_id,
         "name": display_name(leader.name) if leader else "",
         "image_url": leader.image_url if leader else "",
+        "leader_market_price": leader.market_price if leader else None,
         "decks": [],
     }
     if not events:
@@ -133,6 +134,7 @@ def meta_decks(db: Session, leader_id: str, days: int, min_players: int, top: in
                     "cost": (c.cost or "") if c else "",
                     "card_type": c.card_type if c else "",
                     "image_url": c.image_url if c else "",
+                    "market_price": c.market_price if c else None,
                 }
             )
         cards.sort(key=_cost_key)

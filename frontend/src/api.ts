@@ -476,6 +476,7 @@ export type MetaDeckCard = {
   cost: string;
   card_type: string;
   image_url: string;
+  market_price?: number | null;
 };
 
 export type MetaDeck = {
@@ -497,6 +498,7 @@ export type MetaDecksResponse = {
   leader_id: string;
   name: string;
   image_url: string;
+  leader_market_price?: number | null;
   decks: MetaDeck[];
 };
 
