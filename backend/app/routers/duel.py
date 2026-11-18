@@ -26,7 +26,12 @@ from app.core.config import Settings, get_settings
 from app.core.security import OpsToken
 from app.core.time import as_utc
 from app.core.db import get_db
-from app.duel.ratings import INITIAL_RATING, apply_elo
+from app.duel.ratings import (
+    INITIAL_RATING,
+    RANKED_PAIR_DAILY_LIMIT,
+    RANKED_PAIR_WINDOW_HOURS,
+    apply_elo,
+)
 from app.duel.tokens import mint_game_token
 from app.duel.moderation import recent_takedowns
 from app.core.models import User
@@ -49,6 +54,7 @@ from app.duel.matches import (
     lock_match,
     match_history,
     progress_closed,
+    ranked_pair_games_in_window,
     unfinished_entries,
 )
 from app.social.presence import ONLINE_TTL, PRESENCE_TTL
@@ -316,7 +322,11 @@ def ingest_match(
     before0, before1 = r0.rating, r1.rating
     after0, after1 = before0, before1
 
-    if body.ranked:
+    # Win-trading cap: past the daily limit for this pair the game is still saved as ranked, but moves nobody's rating.
+    capped = body.ranked and ranked_pair_games_in_window(
+        db, body.seat0_user_id, body.seat1_user_id, RANKED_PAIR_WINDOW_HOURS
+    ) >= RANKED_PAIR_DAILY_LIMIT
+    if body.ranked and not capped:
         score0 = 1.0 if body.winner_seat == 0 else 0.0
         after0, after1 = apply_elo(
             before0,

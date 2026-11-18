@@ -46,6 +46,14 @@ module.exports = {
   cwd: "backend",
   runner: "pytest",
   mutations: [
+    // Ranked win-trading cap (#1351)
+    { id: "pair-cap-off-by-one", file: "backend/app/routers/duel.py", from: ") >= RANKED_PAIR_DAILY_LIMIT", to: ") > RANKED_PAIR_DAILY_LIMIT", kills: ["test_fourth_ranked_game_between_a_pair_in_a_day_moves_no_ratings_1351"], args: "tests/test_duel.py -k 1351" },
+    { id: "pair-cap-never", file: "backend/app/routers/duel.py", from: ") >= RANKED_PAIR_DAILY_LIMIT", to: ") >= 10**9", kills: ["test_fourth_ranked_game_between_a_pair_in_a_day_moves_no_ratings_1351", "test_pair_cap_counts_games_in_either_seat_order_1351"], args: "tests/test_duel.py -k 1351" },
+    { id: "pair-cap-always", file: "backend/app/routers/duel.py", from: ") >= RANKED_PAIR_DAILY_LIMIT", to: ") >= 0", kills: ["test_third_ranked_game_between_a_pair_in_a_day_still_moves_ratings_1351"], args: "tests/test_duel.py -k 1351" },
+    { id: "pair-cap-ignores-window", file: "backend/app/duel/matches.py", from: "            DuelMatch.created_at >= since,\n", to: "", kills: ["test_ranked_games_older_than_a_day_do_not_count_toward_the_pair_cap_1351"], args: "tests/test_duel.py -k 1351" },
+    { id: "pair-cap-counts-any-opponent", file: "backend/app/duel/matches.py", from: "                (DuelMatch.seat0_user_id == user_a) & (DuelMatch.seat1_user_id == user_b),\n                (DuelMatch.seat0_user_id == user_b) & (DuelMatch.seat1_user_id == user_a),", to: "                (DuelMatch.seat0_user_id == user_a) | (DuelMatch.seat1_user_id == user_a),\n                (DuelMatch.seat0_user_id == user_b) | (DuelMatch.seat1_user_id == user_b),", kills: ["test_ranked_games_against_other_opponents_do_not_count_toward_the_pair_cap_1351"], args: "tests/test_duel.py -k 1351" },
+    { id: "pair-cap-seat-order-matters", file: "backend/app/duel/matches.py", from: "                (DuelMatch.seat0_user_id == user_b) & (DuelMatch.seat1_user_id == user_a),", to: "                (DuelMatch.seat0_user_id == user_a) & (DuelMatch.seat1_user_id == user_b),", kills: ["test_pair_cap_counts_games_in_either_seat_order_1351"], args: "tests/test_duel.py -k 1351" },
+    { id: "pair-cap-counts-unranked", file: "backend/app/duel/matches.py", from: "            DuelMatch.ranked.is_(True),\n", to: "", kills: ["test_unranked_games_do_not_count_toward_the_pair_cap_1351"], args: "tests/test_duel.py -k 1351" },
     // One UTC helper instead of eleven copies (refactor 3.9a)
     { id: "utc-helper-shifts-aware-times", file: "backend/app/core/time.py", from: "    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)\n", to: "    return dt.replace(tzinfo=timezone.utc)\n", kills: ["test_an_aware_time_in_another_zone_is_returned_untouched_refactor_3_9a"], args: "tests/test_core_time.py" },
     { id: "utc-helper-shifts-naive-times", file: "backend/app/core/time.py", from: "    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)\n", to: "    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc) + __import__(\"datetime\").timedelta(hours=1)\n", kills: ["test_a_naive_database_time_is_labelled_utc_not_shifted_refactor_3_9a"], args: "tests/test_core_time.py" },
@@ -334,7 +342,7 @@ module.exports = {
     { id: "game-token-rejects-valid", file: "backend/app/duel/tokens.py", from: "    if not hmac.compare_digest(expected, sig):", to: "    if hmac.compare_digest(expected, sig):", kills: ["test_game_token_roundtrip"] },
     { id: "dev-token-shared-user", file: duel, from: "    email = f\"duel-{body.user_key.lower()}@localhost\"", to: "    email = \"duel-shared@localhost\"", kills: ["test_dev_token_and_match_ingest"] },
     { id: "ingest-retry-created", file: duel, from: "            created=False,", to: "            created=True,", kills: ["test_dev_token_and_match_ingest"] },
-    { id: "ingest-ratings-frozen", file: duel, from: "    if body.ranked:\n        score0", to: "    if False:\n        score0", kills: ["test_dev_token_and_match_ingest"] },
+    { id: "ingest-ratings-frozen", file: duel, from: "    if body.ranked and not capped:\n        score0", to: "    if False:\n        score0", kills: ["test_dev_token_and_match_ingest"] },
     { id: "leaderboard-ascending", file: duel, from: "        .order_by(DuelRating.rating.desc(), DuelRating.games_played.desc())", to: "        .order_by(DuelRating.rating.asc(), DuelRating.games_played.desc())", kills: ["test_dev_token_and_match_ingest"] },
     { id: "leaderboard-leaks-email", edits: [
       { file: "backend/app/duel/schemas.py", from: "    rating: int\n    games_played: int\n\n\nclass DuelLeaderboardOut", to: "    rating: int\n    games_played: int\n    email: str | None = None\n\n\nclass DuelLeaderboardOut" },
