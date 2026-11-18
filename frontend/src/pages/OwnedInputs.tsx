@@ -29,7 +29,7 @@ export function OwnedInput({
   );
 }
 
-export function WantInput({ item, onSaved }: { item: ShoppingItem; onSaved: () => void }) {
+export function WantInput({ item, onSaved, explain }: { item: ShoppingItem; onSaved: () => void; explain?: string }) {
   const qc = useQueryClient();
   return (
     <WantStepper
@@ -40,6 +40,7 @@ export function WantInput({ item, onSaved }: { item: ShoppingItem; onSaved: () =
       extraQty={item.extra_qty ?? 0}
       applyOptimistic={(id, qty) => applyWantOptimistic(qc, id, qty)}
       onSaved={onSaved}
+      explain={explain}
     />
   );
 }

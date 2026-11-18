@@ -186,15 +186,32 @@
   align-items: start;
 }
 
-.card-col {
-  display: grid;
-  gap: var(--space-4);
-  min-width: 0;
-}
-
+/* Phones stack Arts, Price, Tournament play. Wider screens put the tall Price chart on the left and Arts over Tournament play on the right, so both columns fill. */
 @media (min-width: 760px) {
   .card-cols {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "price arts"
+      "price play";
+  }
+
+  .card-cols:not(:has(.card-arts-panel)) {
+    grid-template-areas: "price play";
+  }
+
+  /* The chart stays in view beside a long Tournament play list. */
+  .card-cols > .card-price {
+    grid-area: price;
+    position: sticky;
+    top: 1rem;
+  }
+
+  .card-cols > .card-arts-panel {
+    grid-area: arts;
+  }
+
+  .card-cols > .card-play {
+    grid-area: play;
   }
 }
 

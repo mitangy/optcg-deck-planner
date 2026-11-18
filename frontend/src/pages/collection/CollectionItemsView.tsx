@@ -1,18 +1,20 @@
 import { type ReactNode, Fragment, useMemo } from "react";
 import { money, OwnedCard } from "../../api";
-import { type CardLayout } from "../../ui/CardLayout";
+import { type CardLayout, type ListDensity } from "../../ui/CardLayout";
 import { CardColorChips } from "../../ui/CollectionToolbar";
 import { CardThumb, MobileCardMedia } from "../../ui/CardThumb";
 import { mainImageUrl, shownProductId } from "../../cards/altArt";
 import { MarketPrice } from "../../cards/MarketPrice";
-import { AltStripRow, AltTrayContext, CardBodies, useWideListRows, wideGridAlts } from "../../cards/AltTray";
-import { OwnedCell, ownedCellIsTotal } from "./OwnedCells";
+import { AltChip, AltStripRow, AltTrayContext, CardBodies, altTrayId, useExpandedAlts, useFoldGridAlts, useWideListRows, wideGridAlts } from "../../cards/AltTray";
+import { OwnedCell } from "./OwnedCells";
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { usedInSortValue } from "../shopping/ShoppingItemsView";
 import { OwnedInput } from "../OwnedInputs";
 import { COLSORT_COLLECTION_KEY } from "../../storage/keys";
 
 const STRIP_COLS = 5;
+/** Compact strips span the card column too. */
+const COMPACT_STRIP_COLS = STRIP_COLS + 1;
 
 function collectionColumnValue(item: OwnedCard, key: string) {
   switch (key) {
@@ -36,12 +38,14 @@ function collectionColumnValue(item: OwnedCard, key: string) {
 export function CollectionItemsView({
   items,
   layout,
+  density = "comfortable",
   onOwnedSaved,
   showAltArts,
   altRow,
 }: {
   items: OwnedCard[];
   layout: CardLayout;
+  density?: ListDensity;
   onOwnedSaved: () => void;
   showAltArts: boolean;
   altRow: (item: OwnedCard) => ReactNode;
@@ -49,12 +53,18 @@ export function CollectionItemsView({
   const { sort, onSort } = useColumnSort(COLSORT_COLLECTION_KEY);
   const tableItems = useMemo(() => sortByColumn(items, sort, collectionColumnValue), [items, sort]);
   const wide = useWideListRows();
-  const altCol = showAltArts && !wide;
+  const compact = layout === "list" && density === "compact";
+  const { open: openAlts, toggle: toggleAlts } = useExpandedAlts();
+  const foldGrid = useFoldGridAlts() && layout === "grid";
+  const altCol = showAltArts && !wide && !compact;
   if (items.length === 0) return null;
   const hasAltRow = (item: OwnedCard) => showAltArts && (item.alt_arts?.length ?? 0) > 0;
+  const altChip = (item: OwnedCard) =>
+    (compact || foldGrid) && hasAltRow(item) ? (
+      <AltChip alts={item.alt_arts ?? []} trayKey={item.card_id} expanded={openAlts.has(item.card_id)} onToggle={toggleAlts} />
+    ) : null;
   const ownedCell = (item: OwnedCard) => (
     <OwnedCell
-      isTotal={ownedCellIsTotal(showAltArts, item.alt_arts?.length ?? 0, true)}
       owned={item.owned}
       altsOwned={item.alts_owned}
       stepper={<OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />}
@@ -71,7 +81,12 @@ export function CollectionItemsView({
         {items.map((item) => {
           const copies = item.owned + (item.alts_owned ?? 0);
           const wideAlts = wideGridAlts(wide, item.alt_arts?.length ?? 0, showAltArts);
-          const altsBox = hasAltRow(item) ? <div className="grid-card-alts">{altRow(item)}</div> : null;
+          const altsBox =
+            hasAltRow(item) && (!foldGrid || openAlts.has(item.card_id)) ? (
+              <div id={foldGrid ? altTrayId(item.card_id) : undefined} className="grid-card-alts">
+                {altRow(item)}
+              </div>
+            ) : null;
           return (
             <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
               <div className={`grid-card collection-grid-card${wideAlts.className}`}>
@@ -103,6 +118,7 @@ export function CollectionItemsView({
                       TCGPlayer
                     </a>
                   )}
+                  {foldGrid ? <div className="grid-card-alt-chip">{altChip(item)}</div> : null}
                   {wideAlts.wide ? null : altsBox}
                 </div>
                 {wideAlts.wide ? <AltTrayContext.Provider value={true}>{altsBox}</AltTrayContext.Provider> : null}
@@ -116,7 +132,7 @@ export function CollectionItemsView({
 
   return (
     <>
-      <div className="table-wrap desktop-table">
+      <div className={`table-wrap desktop-table${compact ? " density-compact" : ""}`}>
         <table className="data-table collection-table">
           <thead>
             <tr>
@@ -129,23 +145,24 @@ export function CollectionItemsView({
               {altCol ? <th>Alt arts</th> : null}
             </tr>
           </thead>
-          <CardBodies wide={wide}>
+          <CardBodies wide={wide || compact}>
             {tableItems.map((item) => {
-              const stripped = wide && hasAltRow(item);
+              const stripped = compact ? hasAltRow(item) && openAlts.has(item.card_id) : wide && hasAltRow(item);
               const rows = [
-              <tr key="main" data-card-id={item.card_id} className={wide ? `alt-main-row${stripped ? " has-strip" : ""}` : undefined}>
-                <td className="card-cell" rowSpan={stripped ? 2 : undefined}>
+              <tr key="main" data-card-id={item.card_id} className={wide ? `alt-main-row${stripped && !compact ? " has-strip" : ""}` : undefined}>
+                <td className="card-cell" rowSpan={stripped && !compact ? 2 : undefined}>
                   <div className="card-cell-inner">
                     <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
-                    <div>
+                    <div className="card-cell-text">
                       <div className="card-id">{item.card_id}</div>
-                      <div>{item.name}</div>
+                      <div className="card-cell-name" title={item.name}>{item.name}</div>
                       <CardColorChips color={item.color} />
                       {item.tcgplayer_url && (
                         <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
                           TCGPlayer
                         </a>
                       )}
+                      {altChip(item)}
                     </div>
                   </div>
                 </td>
@@ -159,8 +176,8 @@ export function CollectionItemsView({
                 {altCol ? <td className="alt-arts-cell">{altRow(item)}</td> : null}
               </tr>,
               ];
-              if (stripped) rows.push(<AltStripRow key="strip" colSpan={STRIP_COLS}>{altRow(item)}</AltStripRow>);
-              return wide ? (
+              if (stripped) rows.push(<AltStripRow key="strip" colSpan={compact ? COMPACT_STRIP_COLS : STRIP_COLS} id={compact ? altTrayId(item.card_id) : undefined}>{altRow(item)}</AltStripRow>);
+              return wide || compact ? (
                 <tbody key={item.card_id} className="card-rows">
                   {rows}
                 </tbody>
@@ -172,7 +189,7 @@ export function CollectionItemsView({
         </table>
       </div>
 
-      <div className="mobile-card-list">
+      <div className={`mobile-card-list${compact ? " density-compact" : ""}`}>
         {items.map((item) => (
           <article key={item.card_id} className="mobile-card" data-card-id={item.card_id}>
             <div className="mobile-card-top">
@@ -199,6 +216,7 @@ export function CollectionItemsView({
                         TCGPlayer
                       </a>
                     ) : null}
+                    {altChip(item)}
                   </div>
                   <div className="mobile-card-owned">
                     <span>Owned</span>
@@ -207,7 +225,11 @@ export function CollectionItemsView({
                 </div>
               </div>
             </div>
-            {hasAltRow(item) && <div className="mobile-card-alts">{altRow(item)}</div>}
+            {hasAltRow(item) && (!compact || openAlts.has(item.card_id)) && (
+              <div id={compact ? altTrayId(item.card_id) : undefined} className="mobile-card-alts">
+                {altRow(item)}
+              </div>
+            )}
             <p className={`used-in mobile-used-in${item.used_in.length ? "" : " muted"}`}>{usedIn(item)}</p>
           </article>
         ))}

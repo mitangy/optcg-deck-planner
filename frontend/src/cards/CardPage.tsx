@@ -2,10 +2,11 @@ import { Select } from "@optcg/ui/popups";
 import { usePageMeta } from "@optcg/ui/seo";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
-import { Link, useParams, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { api, money, type CardPageFinish, type CardPageLeader, type CardPageResponse } from "../api";
 import { cardFacts, leaderPlayLine, parseArt, parseDays, printingLabel, selectPrinting, usageHeadline } from "./cardPageModel";
 import { loadCardRules } from "./cardRules";
+import { readCardBack } from "./cardBack";
 import { CardArtImg, CardLightbox, useCardArt } from "../ui/CardThumb";
 import { formatDeckRow, formatPercent, META_DAY_OPTIONS, META_DEFAULT_DAYS } from "../meta/meta";
 import { PriceHistory } from "../prices/PriceHistory";
@@ -225,7 +226,7 @@ function ArtPicker({
   const { printings, card } = data;
   if (printings.length < 2) return null;
   return (
-    <section className="card-panel" aria-label="Arts">
+    <section className="card-panel card-arts-panel" aria-label="Arts">
       <div className="card-panel-head">
         <h2>Arts</h2>
         <span className="muted">{printings.length} printings</span>
@@ -297,6 +298,8 @@ export function CardPage({ renderActions }: { renderActions?: (cardId: string, p
   const { cardId: rawId = "" } = useParams();
   const cardId = rawId.toUpperCase();
   const [params, setParams] = useSearchParams();
+  const { state } = useLocation();
+  const back = readCardBack(state);
   const art = parseArt(params.get("art"));
   const days = parseDays(params.get("days"));
 
@@ -330,7 +333,7 @@ export function CardPage({ renderActions }: { renderActions?: (cardId: string, p
     else p.delete("art");
     if (d !== META_DEFAULT_DAYS) p.set("days", String(d));
     else p.delete("days");
-    setParams(p, { replace: true });
+    setParams(p, { replace: true, state });
   }
 
   if (q.error && !data) return <CardNotFound cardId={cardId} error={q.error as Error & { status?: number }} />;
@@ -349,7 +352,13 @@ export function CardPage({ renderActions }: { renderActions?: (cardId: string, p
         </div>
         <div className="card-head-info">
           <p className="eyebrow">
-            <Link to="/meta">Meta decks</Link> · Card
+            {back ? (
+              <Link to={back.to}>← {back.label}</Link>
+            ) : (
+              <>
+                <Link to="/meta">Meta decks</Link> · Card
+              </>
+            )}
           </p>
           <h1>{card ? card.name : cardId}</h1>
           <p className="muted card-head-sub">
@@ -383,26 +392,22 @@ export function CardPage({ renderActions }: { renderActions?: (cardId: string, p
       </header>
 
       <div className="card-cols">
-        <div className="card-col">
-          {data && <ArtPicker data={data} productId={productId} onPick={(id) => update({ art: id })} />}
-          <section className="card-panel card-price" aria-label="Price">
-            <div className="card-panel-head">
-              <h2>Price</h2>
-            </div>
-            {card ? <PriceHistory key={`${card.card_id}:${productId}`} cardId={card.card_id} productId={productId} /> : <Skeleton className="card-price-skel" />}
-          </section>
-        </div>
-        <div className="card-col">
-          <TournamentPlay
-            data={data}
-            cardId={cardId}
-            days={days}
-            setDays={(d) => update({ days: d })}
-            loading={q.isPending}
-            error={q.error as Error | null}
-            retry={() => void q.refetch()}
-          />
-        </div>
+        {data && <ArtPicker data={data} productId={productId} onPick={(id) => update({ art: id })} />}
+        <section className="card-panel card-price" aria-label="Price">
+          <div className="card-panel-head">
+            <h2>Price</h2>
+          </div>
+          {card ? <PriceHistory key={`${card.card_id}:${productId}`} cardId={card.card_id} productId={productId} /> : <Skeleton className="card-price-skel" />}
+        </section>
+        <TournamentPlay
+          data={data}
+          cardId={cardId}
+          days={days}
+          setDays={(d) => update({ days: d })}
+          loading={q.isPending}
+          error={q.error as Error | null}
+          retry={() => void q.refetch()}
+        />
       </div>
     </section>
   );

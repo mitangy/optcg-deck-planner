@@ -1,6 +1,5 @@
 
-/* Nav: the count floats over the link's corner (into the gap beside it), so it never resizes the link.
-   Where the nav scrolls on its own (phones) the link reserves the room instead, because that row clips overhang. */
+/* Nav: the count floats over the corner of the More button (or sits inline in the menu row), so it never resizes the control. */
 .nav-badge {
   position: absolute;
   top: 0.1rem;
@@ -16,17 +15,6 @@
   line-height: 1.05rem;
   text-align: center;
   pointer-events: none;
-}
-
-@media (max-width: 760px) {
-  .topbar nav a.nav-friends {
-    padding-right: 1.15rem;
-  }
-
-  .nav-badge {
-    top: 0.3rem;
-    right: 0.05rem;
-  }
 }
 
 .friends-page {

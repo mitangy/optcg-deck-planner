@@ -1,0 +1,67 @@
+/* Touch layouts (#1342): every control in the card lists and their toolbar has a hit area of at least 44x44px, and no
+   text is smaller than 12px. Visuals stay as designed; the extra area is an invisible ::after centred on the control
+   (zero specificity, so a control with its own position or ::after keeps it). */
+@media (max-width: 800px) {
+  :where(.card-workspace, .collection-filter-panel, .sort-menu-panel) :where(button, a[href]) {
+    position: relative;
+  }
+
+  :where(.card-workspace, .collection-filter-panel, .sort-menu-panel) :where(button, a[href])::after {
+    content: "";
+    position: absolute;
+    inset: min(0px, calc((100% - 2.75rem) / 2));
+  }
+
+  /* Number boxes cannot take a ::after, so their transparent border grows the box to 44px instead. */
+  .owned-wrap {
+    --owned-vis-h: 2.75rem;
+  }
+
+  .mobile-card-owned .owned-wrap {
+    --owned-vis-h: 2.2rem;
+  }
+
+  .mobile-card-price-row .mobile-card-owned .owned-wrap {
+    --owned-vis-h: 2rem;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-price-row .mobile-card-owned .owned-wrap {
+    --owned-vis-h: 1.75rem;
+  }
+
+  .owned-wrap input.owned {
+    box-sizing: border-box;
+    height: 2.75rem;
+    min-width: 2.75rem;
+    padding-block: 0;
+    border-style: solid;
+    border-color: transparent;
+    border-width: calc((2.75rem - var(--owned-vis-h)) / 2) 0;
+    border-radius: calc(var(--radius-8) + (2.75rem - var(--owned-vis-h)) / 2);
+    background-clip: padding-box;
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, var(--line));
+  }
+
+  .card-workspace .card-search-input,
+  .collection-toolbar .card-search-input {
+    min-height: 2.75rem;
+  }
+
+  /* The invisible border must not make compact cards taller: the hit box overlaps the space around the box. */
+  .mobile-card-list.density-compact .owned-wrap input.owned {
+    margin-block: calc((var(--owned-vis-h) - 2.75rem) / 2);
+  }
+
+  .collection-filter-list label,
+  .collection-filter-panel .deck-filter label,
+  .sort-menu-item label {
+    min-height: 2.75rem;
+  }
+
+  /* Text floor: nothing in the lists is smaller than 12px (0.75rem). */
+  .card-workspace :where(.alt-collector-btn, .alt-show-btn, .alt-chip-chevron, .alt-shown-chip, .alt-want-caption,
+      .buy-split-action-text, .buy-split-chevron, .color-chip, .mobile-card-cost, .mobile-card-rarity,
+      .alt-chip, .grid-card-alt-chip) {
+    font-size: max(0.75rem, 12px);
+  }
+}

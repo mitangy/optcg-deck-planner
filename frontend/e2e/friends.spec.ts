@@ -8,7 +8,12 @@ test.afterEach(({ planner }) => {
 
 const WITH_TRAY = ["[role=dialog]", "[aria-modal=true]", ".market-sales", ".head-popover-panel", ".sort-menu-panel", ".stats-pill", ".trade-tray"];
 
-const nav = (page: import("@playwright/test").Page) => page.locator("nav a.nav-friends");
+/** The waiting-trades count sits on the nav's More button; the Friends page itself is one click inside its menu. */
+const nav = (page: import("@playwright/test").Page) => page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: /^More/ });
+const openFriends = async (page: import("@playwright/test").Page) => {
+  await nav(page).click();
+  await page.getByRole("menuitem", { name: /^Friends/ }).click();
+};
 
 test("adding a friend sends a request, and an incoming request can be accepted (#703)", async ({ page, planner }) => {
   const fake = await installFriendsApi(page, planner.owned);
@@ -257,7 +262,7 @@ test("after we traded, Update my collection changes only my counts, and Undo put
   const link = nav(page);
   await expect(link.locator(".nav-badge")).toHaveText("1");
 
-  await link.click();
+  await openFriends(page);
   await page.getByRole("tab", { name: /Trades/ }).click();
   await expect(link.locator(".nav-badge")).toHaveText("1");
   const widthWithBadge = (await link.boundingBox())!.width;
@@ -276,7 +281,7 @@ test("after we traded, Update my collection changes only my counts, and Undo put
   await page.getByRole("link", { name: "Collection" }).click();
   await expect(page.locator('[data-card-id="EB01-003"]:visible')).toBeVisible();
 
-  await link.click();
+  await openFriends(page);
   await page.getByRole("tab", { name: "Trades" }).click();
   await page.getByRole("button", { name: "Undo collection update" }).click();
   await expect.poll(() => planner.owned.get("EB01-003")).toBe(0);
@@ -302,10 +307,10 @@ test("Keep holds copies back from trades and gives them back (#703)", async ({ p
 
 test("a deck can be hidden from friends in the deck editor menu (#703)", async ({ page, planner }) => {
   await planner.open("/decks/1");
-  await page.getByRole("button", { name: "More" }).click();
+  await page.locator("main").getByRole("button", { name: "More" }).click();
   await page.getByRole("menuitem", { name: /Hide from friends/ }).click();
   await expect.poll(() => planner.deckHidden).toBe(true);
-  await page.getByRole("button", { name: "More" }).click();
+  await page.locator("main").getByRole("button", { name: "More" }).click();
   await expect(page.getByRole("menuitem", { name: /Hidden from friends/ })).toBeVisible();
   await page.getByRole("menuitem", { name: /Hidden from friends/ }).click();
   await expect.poll(() => planner.deckHidden).toBe(false);

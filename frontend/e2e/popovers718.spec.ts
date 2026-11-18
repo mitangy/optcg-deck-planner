@@ -99,8 +99,8 @@ test("the Sort panel stays open while its checkboxes and arrows are used, is rea
   const filters = page.getByRole("button", { name: /^Filters/ });
   if (!(await page.getByRole("button", { name: /^Sort:/ }).isVisible())) await filters.click();
   const sort = page.getByRole("button", { name: /^Sort:/ });
-  const neighbour = page.getByLabel("Show alt arts");
-  await expectStationary(neighbour, () => sort.click(), "Show alt arts beside Sort");
+  const neighbour = page.getByRole("button", { name: /^Filters/ });
+  await expectStationary(neighbour, () => sort.click(), "Filters beside Sort");
   const panel = page.getByRole("dialog", { name: "Sort order" });
   await expect(panel).toBeVisible();
   await expectBelowAndOnScreen(page, sort, panel);
@@ -133,7 +133,7 @@ test("the Sort panel stays open while its checkboxes and arrows are used, is rea
 });
 
 test("a build hint opens in a popover that Escape and a tap outside close, with its chip left where it was (#718)", async ({ page }) => {
-  if (page.viewportSize()!.width < 1000) await page.getByRole("button", { name: /^Stats/ }).click();
+  if (page.viewportSize()!.width < 1000) await page.getByRole("button", { name: /^Deck stats/ }).click();
   const chip = page.locator('[data-hint-id="count"]:visible');
   await expectStationary(chip, () => chip.click(), "hint chip");
   const pop = page.locator(".dh-pop");

@@ -22,7 +22,10 @@ for (const layout of ["List", "Grid"] as const) {
 
     await expect(marketCell(page)).toContainText("$1.25");
 
-    await page.locator(`[aria-label="Show Izo (Alternate Art) as the card's art"]:visible`).first().click();
+    // Phone Grid tiles fold their alt tiles behind a chip (#1342).
+    const show = page.locator(`[aria-label="Show Izo (Alternate Art) as the card's art"]:visible`).first();
+    if (layout === "Grid" && testInfo.project.name === "phone-375") await page.locator(".grid-card-alt-chip .alt-chip").first().click();
+    await show.click();
     await expect(marketCell(page)).toContainText("$14.99");
     await expect(marketCell(page)).not.toContainText("$1.25");
 

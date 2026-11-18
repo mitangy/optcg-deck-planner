@@ -1,5 +1,5 @@
 import { type ReactNode, Fragment, useMemo } from "react";
-import { CollectorLine, money, needBreakdownLabel, ShoppingItem } from "../../api";
+import { CollectorLine, money, ShoppingItem } from "../../api";
 import { BuySplit } from "./BuySplit";
 import { CollectorChip, CollectorRemove, CollectorStepper } from "../collection/CollectorLine";
 import {
@@ -11,33 +11,24 @@ import {
   shoppingSortCost,
   visibleCollectorLines,
 } from "../collection/collectorLines";
-import { type CardLayout } from "../../ui/CardLayout";
+import { type CardLayout, type ListDensity } from "../../ui/CardLayout";
 import { CardThumb } from "../../ui/CardThumb";
 import { GridCard, MobileCard } from "../../ui/PlannerCard";
 import { UsedInCell } from "../../ui/UsedInCell";
 import { mainImageUrl, shownMarket, shownProductId } from "../../cards/altArt";
 import { MarketPrice } from "../../cards/MarketPrice";
-import { AltStripRow, CardBodies, useWideListRows } from "../../cards/AltTray";
-import { OwnedCell, StillNeededCell, ownedCellIsTotal, stillNeededText, totalOwned } from "../collection/OwnedCells";
-import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../ui/columnSort";
+import { AltChip, AltStripRow, CardBodies, altTrayId, useExpandedAlts, useFoldGridAlts, useWideListRows } from "../../cards/AltTray";
+import { OwnedCell, StillNeededCell, toBuyText, totalOwned } from "../collection/OwnedCells";
+import { SortableTh, sortByColumn, useColumnSort } from "../../ui/columnSort";
+import { needExplanation, usedInChips } from "./shoppingBuy";
 import { OwnedInput, WantInput } from "../OwnedInputs";
 import { busyProductFor } from "../../cache/busyKey";
 import { COLSORT_SHOPPING_KEY } from "../../storage/keys";
 
-const STRIP_COLS = 7;
+const STRIP_COLS = 6;
 
 function stopCardSelectBubble(e: { stopPropagation(): void }) {
   e.stopPropagation();
-}
-
-export function sharedUsedIn(item: ShoppingItem): string {
-  return [
-    item.used_in.join(", "),
-    needBreakdownLabel(item),
-    (item.extra_qty ?? 0) > 0 ? "Added directly" : "",
-  ]
-    .filter(Boolean)
-    .join(" · ");
 }
 
 export const usedInSortValue = (decks: string[]) => decks.join(", ");
@@ -56,8 +47,6 @@ export function shoppingColumnValue(item: ShoppingItem, key: string) {
       return shownMarket(item).price;
     case "remaining":
       return shoppingSortCost(item);
-    case "cost":
-      return costSortValue(item.cost);
     case "used":
       return usedInSortValue(item.used_in);
     default:
@@ -80,6 +69,7 @@ export type CollectorControls = {
 export function ShoppingItemsView({
   items,
   layout,
+  density = "comfortable",
   isNarrow,
   selectedCardIds,
   onToggleCard,
@@ -89,7 +79,7 @@ export function ShoppingItemsView({
   altRow,
   onBuyPick,
   buyBusyKey = null,
-  usedInNote,
+  sortingByDeck = false,
   onOwnedSaved,
   onRemoveExtra,
   removingExtraId,
@@ -97,6 +87,8 @@ export function ShoppingItemsView({
 }: {
   items: ShoppingItem[];
   layout: CardLayout;
+  /** Compact folds each row's alt tiles behind one chip; it only applies to the List layout. */
+  density?: ListDensity;
   isNarrow: boolean;
   selectedCardIds: Set<string>;
   onToggleCard: (cardId: string) => void;
@@ -106,7 +98,8 @@ export function ShoppingItemsView({
   altRow: (item: ShoppingItem) => ReactNode;
   onBuyPick?: (cardId: string, productId: number, qty: number) => void;
   buyBusyKey?: string | null;
-  usedInNote: (item: ShoppingItem) => string;
+  /** Sorting by deck: the Need tooltip says which leader a shared card is filed under. */
+  sortingByDeck?: boolean;
   onOwnedSaved: () => void;
   onRemoveExtra: (cardId: string) => void;
   removingExtraId: string | null;
@@ -115,17 +108,33 @@ export function ShoppingItemsView({
   const { sort, onSort } = useColumnSort(COLSORT_SHOPPING_KEY);
   const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
   const wide = useWideListRows();
-  const altCol = showAltArts && !wide;
+  const compact = layout === "list" && density === "compact";
+  const { open: openAlts, toggle: toggleAlts } = useExpandedAlts();
+  const foldGrid = useFoldGridAlts() && layout === "grid";
+  const altCol = showAltArts && !wide && !compact;
   if (items.length === 0) return null;
+  const hasAlts = (item: ShoppingItem) => showAltArts && (item.alt_arts?.length ?? 0) > 0;
+  const altChip = (item: ShoppingItem) =>
+    (compact || foldGrid) && hasAlts(item) ? (
+      <AltChip alts={item.alt_arts ?? []} trayKey={item.card_id} expanded={openAlts.has(item.card_id)} onToggle={toggleAlts} />
+    ) : null;
   const ownedCell = (item: ShoppingItem) => (
     <OwnedCell
-      isTotal={ownedCellIsTotal(showAltArts, item.alt_arts?.length ?? 0, true)}
       owned={item.owned}
       altsOwned={item.alts_owned}
       stepper={<OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />}
     />
   );
-  const wantCell = (item: ShoppingItem) => <WantInput item={item} onSaved={onOwnedSaved} />;
+  const wantCell = (item: ShoppingItem) => (
+    <WantInput
+      item={item}
+      onSaved={onOwnedSaved}
+      explain={needExplanation(
+        item,
+        sortingByDeck && (item.leader_count ?? 1) > 1 ? item.primary_leader_name || item.primary_leader_card_id || "the earliest deck" : undefined,
+      )}
+    />
+  );
   const removeExtraButton = (item: ShoppingItem) =>
     (item.extra_qty ?? 0) > 0 ? (
       <button
@@ -223,21 +232,21 @@ export function ShoppingItemsView({
                 imageSrc={mainImageUrl(item)}
                 imageProductId={shownProductId(item)}
                 onMediaClick={stopCardSelectBubble}
-                alts={showAltArts && (item.alt_arts?.length ?? 0) > 0 ? altRow(item) : undefined}
+                alts={hasAlts(item) && (!foldGrid || openAlts.has(item.card_id)) ? altRow(item) : undefined}
                 altCount={item.alt_arts?.length ?? 0}
                 altsProps={{ onClick: stopCardSelectBubble }}
                 meta={
                   <>
-                    {stillNeededText(item.still_need, item.need)}
+                    {toBuyText(item.still_need, item.need)}
                     {item.still_need > 0 || canOpenBuyPopover(item, Boolean(collector)) ? (
-                      <span className="buy-split-line">{buySplit(item, "Left ")}</span>
+                      <span className="buy-split-line">{buySplit(item, "To buy ")}</span>
                     ) : null}
                   </>
                 }
               >
-                  {item.used_in.length > 0 && (
+                  {usedInChips(item).length > 0 && (
                     <div className="grid-card-used-in" onClick={stopCardSelectBubble}>
-                      <UsedInCell decks={item.used_in} />
+                      <UsedInCell decks={usedInChips(item)} />
                     </div>
                   )}
                   <div className="grid-card-price" onClick={stopCardSelectBubble}>
@@ -245,11 +254,11 @@ export function ShoppingItemsView({
                   </div>
                   <div className="grid-card-steppers">
                     <div className="grid-card-owned" onClick={stopCardSelectBubble}>
-                      <span>Owned</span>
+                      <span>Own</span>
                       {ownedCell(item)}
                     </div>
                     <div className="grid-card-owned grid-card-want" onClick={stopCardSelectBubble}>
-                      <span>Want</span>
+                      <span>Need</span>
                       {wantCell(item)}
                     </div>
                   </div>
@@ -263,6 +272,7 @@ export function ShoppingItemsView({
                       TCGPlayer
                     </a>
                   )}
+                  {foldGrid ? <div className="grid-card-alt-chip">{altChip(item)}</div> : null}
                   {(item.extra_qty ?? 0) > 0 && (
                     <div className="grid-card-extra muted" onClick={stopCardSelectBubble}>
                       <span>Added directly</span>
@@ -323,7 +333,7 @@ export function ShoppingItemsView({
                       <MarketPrice price={line.market_price} productId={line.product_id} />
                     </div>
                     <div className="grid-card-owned grid-card-want" onClick={stopCardSelectBubble}>
-                      <span>Want</span>
+                      <span>Need</span>
                       {lineStepper(item, line)}
                     </div>
                     <div className="grid-card-extra collector-grid-foot" onClick={stopCardSelectBubble}>
@@ -343,7 +353,7 @@ export function ShoppingItemsView({
 
   return (
     <>
-      <div className="table-wrap desktop-table">
+      <div className={`table-wrap desktop-table${compact ? " density-compact" : ""}`}>
         <table className="data-table shopping-table">
           <thead>
             <tr>
@@ -352,29 +362,29 @@ export function ShoppingItemsView({
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={onToggleSelectVisible}
-                  aria-label={allVisibleSelected ? "Deselect visible cards" : "Select visible cards"}
+                  aria-label={allVisibleSelected ? "Deselect all cards" : "Select all cards"}
+                  title={allVisibleSelected ? "Deselect all cards shown" : "Select all cards shown"}
                 />
               </th>
               <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
-              <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="Want" colKey="want" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Own" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Need" colKey="want" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="To buy" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="Remaining" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} className="col-cost" />
+              <SortableTh label="To buy $" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
               {altCol ? <th>Alt arts</th> : null}
             </tr>
           </thead>
-          <CardBodies wide={wide}>
+          <CardBodies wide={wide || compact}>
             {tableItems.map((item: ShoppingItem) => {
               const checked = selectedCardIds.has(item.card_id);
               const lines = linesOf(item);
-              const stripped = wide && showAltArts && (item.alt_arts?.length ?? 0) > 0;
-              const span = stripped ? 2 : undefined;
+              const stripped = compact ? hasAlts(item) && openAlts.has(item.card_id) : wide && hasAlts(item);
+              const span = stripped && !compact ? 2 : undefined;
               const rowClass = `${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}${lines.length > 0 ? " has-collector" : ""}`;
               const mainRow = (
-                <tr className={`${rowClass}${wide ? " alt-main-row" : ""}${stripped ? " has-strip" : ""}`}>
+                <tr className={`${rowClass}${wide ? " alt-main-row" : ""}${stripped && !compact ? " has-strip" : ""}`}>
                   <td className="select-col" rowSpan={span}>
                     <input
                       type="checkbox"
@@ -386,14 +396,15 @@ export function ShoppingItemsView({
                   <td className="card-cell" rowSpan={span}>
                     <div className="card-cell-inner">
                       <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
-                      <div>
+                      <div className="card-cell-text">
                         <div className="card-id">{item.card_id}</div>
-                        <div>{item.name}</div>
+                        <div className="card-cell-name" title={item.name}>{item.name}</div>
                         {item.tcgplayer_url && (
                           <a href={item.tcgplayer_url} target="_blank" rel="noreferrer">
                             TCGPlayer
                           </a>
                         )}
+                        {altChip(item)}
                       </div>
                     </div>
                   </td>
@@ -406,9 +417,8 @@ export function ShoppingItemsView({
                     <ShownMarketPrice item={item} />
                   </td>
                   <td>{buySplit(item)}</td>
-                  <td className="col-cost">{item.cost ?? "—"}</td>
                   <td className="used-in">
-                    <UsedInCell decks={item.used_in} note={usedInNote(item)} action={removeExtraButton(item)} />
+                    <UsedInCell decks={usedInChips(item)} action={removeExtraButton(item)} />
                   </td>
                   {altCol ? (
                     <td className="alt-arts-cell" onClick={stopCardSelectBubble}>
@@ -418,7 +428,12 @@ export function ShoppingItemsView({
                 </tr>
               );
               const stripRow = stripped ? (
-                <AltStripRow colSpan={STRIP_COLS} className={rowClass} onClick={stopCardSelectBubble}>
+                <AltStripRow
+                  colSpan={compact ? STRIP_COLS + 2 : STRIP_COLS}
+                  className={rowClass}
+                  id={compact ? altTrayId(item.card_id) : undefined}
+                  onClick={stopCardSelectBubble}
+                >
                   {altRow(item)}
                 </AltStripRow>
               ) : null;
@@ -459,7 +474,6 @@ export function ShoppingItemsView({
                         <MarketPrice price={line.market_price} productId={line.product_id} />
                       </td>
                       <td>{line.remaining_cost == null ? "—" : money(line.remaining_cost)}</td>
-                      <td className="col-cost" />
                       <td className="used-in">
                         <div className="used-in-cell collector-used-in">
                           <span className="used-in-note">{collectorOnTopOf(item.used_in)}</span>
@@ -470,7 +484,7 @@ export function ShoppingItemsView({
                     </tr>
                   );
                 });
-              if (!wide) {
+              if (!wide && !compact) {
                 return (
                   <Fragment key={item.card_id}>
                     {mainRow}
@@ -496,7 +510,7 @@ export function ShoppingItemsView({
         </table>
       </div>
 
-      <div className="mobile-card-list">
+      <div className={`mobile-card-list${compact ? " density-compact" : ""}`}>
         {items.map((item: ShoppingItem) => {
           const checked = selectedCardIds.has(item.card_id);
           return (
@@ -525,11 +539,11 @@ export function ShoppingItemsView({
               mediaWrapProps={{ onClick: stopCardSelectBubble, onKeyDown: stopCardSelectBubble }}
               meta={
                 <>
-                  {[item.color, stillNeededText(item.still_need, item.need)]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  <span className="mobile-card-meta-text">
+                    {[item.color, toBuyText(item.still_need, item.need)].filter(Boolean).join(" · ")}
+                  </span>
                   {item.still_need > 0 || canOpenBuyPopover(item, Boolean(collector)) ? (
-                    <span className="buy-split-line">{buySplit(item, "Left ")}</span>
+                    <span className="buy-split-line">{buySplit(item, "To buy ")}</span>
                   ) : null}
                 </>
               }
@@ -552,20 +566,22 @@ export function ShoppingItemsView({
                         TCGPlayer
                       </a>
                     ) : null}
+                    {altChip(item)}
                   </div>
                   <div className="mobile-card-owned">
-                    <span>Owned</span>
+                    <span>Own</span>
                     {ownedCell(item)}
                   </div>
                   <div className="mobile-card-owned mobile-card-want">
-                    <span>Want</span>
+                    <span>Need</span>
                     {wantCell(item)}
                   </div>
                 </div>
               }
             >
-              {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
+              {hasAlts(item) && (!compact || openAlts.has(item.card_id)) && (
                 <div
+                  id={compact ? altTrayId(item.card_id) : undefined}
                   className="mobile-card-alts"
                   onClick={stopCardSelectBubble}
                   onKeyDown={stopCardSelectBubble}
@@ -573,12 +589,11 @@ export function ShoppingItemsView({
                   {altRow(item)}
                 </div>
               )}
-              {(item.used_in.length > 0 || (item.extra_qty ?? 0) > 0) && (
+              {usedInChips(item).length > 0 && (
                 <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
                   <UsedInCell
                     className="mobile-used-in"
-                    decks={item.used_in}
-                    note={usedInNote(item)}
+                    decks={usedInChips(item)}
                     action={removeExtraButton(item)}
                   />
                 </div>

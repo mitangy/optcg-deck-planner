@@ -1,0 +1,175 @@
+/* Phone tab bar, the More menu and the short-screen (landscape phone) top bar. Imported after decks.css so it wins over the phone top-bar rules there. */
+
+.bottom-nav {
+  display: none;
+}
+
+.head-popover-menu a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-10);
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.head-popover-menu a:hover,
+.head-popover-menu a[data-focus],
+.head-popover-menu a:focus-visible {
+  background: var(--card-sunk);
+  color: var(--ink);
+}
+
+.head-popover-menu a[aria-current="page"] {
+  color: var(--accent);
+}
+
+.head-popover-menu a .nav-badge {
+  position: static;
+  flex: none;
+}
+
+.nav-more-menu {
+  min-width: 11rem;
+}
+
+@media (max-width: 800px) and (min-height: 500px) {
+  #root {
+    padding-bottom: var(--bottom-nav-h);
+  }
+
+  .topbar .top-nav,
+  .topbar .discord-nav-link {
+    display: none;
+  }
+
+  .topbar .topbar-inner {
+    grid-template-areas: "brand user";
+    padding: 0.5rem 0.75rem;
+  }
+
+  .bottom-nav {
+    position: fixed;
+    inset: auto 0 0 0;
+    z-index: var(--z-sticky);
+    display: flex;
+    align-items: stretch;
+    height: var(--bottom-nav-h);
+    padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    background: linear-gradient(180deg, var(--sea-night) 0%, var(--sea-night-deep) 100%);
+    border-top: 1px solid rgba(226, 180, 88, 0.55);
+  }
+
+  .bottom-nav .nav-more-wrap {
+    flex: 1 1 0;
+    display: flex;
+  }
+
+  .bottom-nav .bottom-nav-item {
+    position: relative;
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 3.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    padding: 0.3rem 0.15rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    color: rgba(239, 230, 210, 0.78);
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    line-height: 1.1;
+    text-decoration: none;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .bottom-nav .bottom-nav-item:hover {
+    color: #fff8e8;
+    background: rgba(255, 255, 255, 0.06);
+  }
+
+  .bottom-nav .bottom-nav-item.active,
+  .bottom-nav .bottom-nav-item[aria-current="page"] {
+    color: var(--gold-bright);
+  }
+
+  .bottom-nav .bottom-nav-item.active::before,
+  .bottom-nav .bottom-nav-item[aria-current="page"]::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 22%;
+    right: 22%;
+    height: 2px;
+    border-radius: var(--radius-2);
+    background: var(--gold);
+  }
+
+  .bottom-nav :focus-visible {
+    outline: 2px solid var(--gold-bright);
+    outline-offset: -3px;
+  }
+
+  .bottom-nav .bottom-nav-more .nav-badge {
+    top: 0.4rem;
+    right: calc(50% - 1.6rem);
+  }
+}
+
+/* Short screens (a phone on its side): one compact row, no bottom bar, scrolls away with the page. */
+@media (max-height: 499px) {
+  .topbar {
+    position: relative;
+    margin-bottom: 0.75rem;
+  }
+
+  .topbar .topbar-inner {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+    padding: 0.35rem max(0.75rem, env(safe-area-inset-left, 0px)) 0.35rem max(0.75rem, env(safe-area-inset-right, 0px));
+  }
+
+  .topbar .brand {
+    flex: none;
+  }
+
+  .topbar .brand a span,
+  .topbar .discord-nav-link,
+  .topbar .user-name {
+    display: none;
+  }
+
+  .topbar .top-nav {
+    order: 0;
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: center;
+    overflow: visible;
+    gap: 0.1rem;
+  }
+
+  .topbar .top-nav a,
+  .topbar .top-nav .nav-more {
+    min-height: 0;
+    padding: 0.3rem 0.5rem;
+    font-size: 0.86rem;
+    border-radius: var(--radius-8);
+  }
+
+  .topbar .user {
+    order: 0;
+    flex: none;
+    gap: 0.4rem;
+  }
+}

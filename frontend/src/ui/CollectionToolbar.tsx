@@ -4,9 +4,10 @@ import { money, type OwnedCollectionResponse } from "../api";
 import { COLOR_ORDER } from "./cardListControls";
 import { cardColorNames } from "../pages/collection/collectionView";
 
-export function CollectionStatCards({ data }: { data: OwnedCollectionResponse | undefined }) {
+/** The collection totals, in the same inline strip the Shopping head uses. */
+export function CollectionStatStrip({ data }: { data: OwnedCollectionResponse | undefined }) {
   return (
-    <ul className="stat-cards" aria-label="Collection totals">
+    <ul className="stat-strip" aria-label="Collection totals">
       <li>
         <span className="stat-label">Unique cards</span>
         <span className="stat-value">{data?.unique_cards ?? 0}</span>
@@ -114,15 +115,17 @@ export function TypeFilterChips({
 
 export function CollectionFilterMenu({
   badge,
+  label = "Filters",
   children,
 }: {
   badge: number;
+  label?: string;
   children: ReactNode;
 }) {
   return (
     <Popover as="div" className="collection-filter-menu">
       <PopoverButton type="button" className="sort-menu-btn collection-filter-btn">
-        Filters
+        {label}
         <span className={`collection-filter-badge${badge ? "" : " empty"}`} aria-hidden={badge ? undefined : true}>
           {badge || ""}
         </span>
@@ -131,7 +134,7 @@ export function CollectionFilterMenu({
       <PopoverPanel
         anchor={{ to: "bottom end", gap: 6, padding: 8 }}
         role="dialog"
-        aria-label="Collection filters"
+        aria-label="Filters"
         className="collection-filter-panel"
       >
         {children}

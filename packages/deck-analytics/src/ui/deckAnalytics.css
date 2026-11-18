@@ -545,8 +545,10 @@
   display: flex;
   align-items: stretch;
   gap: 0.6rem;
-  /* Two chip rows, always: chips coming and going never move what is below. */
-  height: 5.2rem;
+  /* One chip row, always: chips coming and going never move what is below. Chips past the row sit
+     behind "+N more". The tray only grows for the toggles at its side (more + dismissed together). */
+  --dh-row: 2.4rem;
+  min-height: var(--dh-row);
   min-width: 0;
   box-sizing: border-box;
 }
@@ -562,7 +564,7 @@
   position: relative;
   box-sizing: border-box;
   min-width: 0;
-  height: 100%;
+  height: var(--dh-row);
   margin: 0;
   padding: 0.35rem 0 0;
   list-style: none;
@@ -664,7 +666,7 @@
 
 @media (pointer: coarse) {
   .dh-tray {
-    height: 6.4rem;
+    --dh-row: 3.2rem;
   }
 
   .dh-chip {

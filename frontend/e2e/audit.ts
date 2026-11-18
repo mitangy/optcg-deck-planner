@@ -19,7 +19,8 @@ const DEFAULT_STACKS: string[] = [];
 
 const DEFAULT_OFFSCREEN_OK: string[] = [];
 
-const DEFAULT_HSCROLL_OK: string[] = [".topbar nav"];
+// The phone colour and type chips are one row that scrolls sideways on purpose (#1342).
+const DEFAULT_HSCROLL_OK: string[] = [".toolbar-chip-scroll"];
 
 const DEFAULT_OVERLAYS = ["[role=dialog]", "[aria-modal=true]", ".market-sales", ".head-popover-panel", ".sort-menu-panel", ".stats-pill"];
 
@@ -49,7 +50,9 @@ export async function auditPage(
       await page.evaluate((top) => window.scrollTo(0, top), y);
       await settle();
       // Scrolled content passes under the sticky header; that is not overlap.
-      const overlays = y > 0 ? [...(opts.overlays ?? DEFAULT_OVERLAYS), ".topbar"] : opts.overlays;
+      // The phone tab bar is fixed over whatever scrolls under it; the page reserves room for it at the end.
+      const base = [...(opts.overlays ?? DEFAULT_OVERLAYS), ".bottom-nav"];
+      const overlays = y > 0 ? [...base, ".topbar"] : base;
       for (const i of await runAudit(page, { ...opts, overlays })) {
         const k = `${i.kind}|${i.where}|${i.text}`;
         if (!seen.has(k)) {
@@ -163,6 +166,9 @@ function runAudit(
       }
 
       function paintsAt(el: Element, x: number, y: number): boolean {
+        // A point that only reaches the element through its invisible ::after hit-slop is not painted by it.
+        const own = el.getBoundingClientRect();
+        if (x < own.left - 0.5 || x > own.right + 0.5 || y < own.top - 0.5 || y > own.bottom + 0.5) return false;
         if (/^(IMG|CANVAS|VIDEO|INPUT|SELECT|TEXTAREA)$/i.test(el.tagName)) return true;
         if (el instanceof SVGElement) return !(el instanceof SVGSVGElement);
         const s = getComputedStyle(el);
@@ -328,7 +334,8 @@ async function boxOf(trigger: Locator): Promise<Box> {
 }
 
 export async function expectStationary(trigger: Locator, toggle: () => Promise<void>, label: string): Promise<void> {
-  await trigger.scrollIntoViewIfNeeded();
+  // Centre it, clear of the phone tab bar, so the click does not scroll the page by itself.
+  await trigger.evaluate((el) => el.scrollIntoView({ block: "center" }));
   const before = await boxOf(trigger);
   await toggle();
   await trigger.page().evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));

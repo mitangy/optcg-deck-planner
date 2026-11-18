@@ -1,6 +1,6 @@
 import { Select } from "@optcg/ui/popups";
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type MetaDeck, type MetaLeader, type User } from "../api";
 import { CardArtImg, CardThumb } from "../ui/CardThumb";
@@ -15,6 +15,9 @@ import {
   META_DEFAULT_DAYS,
 } from "./meta";
 import { qk } from "../cache/queryKeys";
+import { cardBackState } from "../cards/cardBack";
+import { listCost, listCostText } from "./listCost";
+import { totalOwnedCopies } from "../pages/shopping/shoppingExtras";
 import { copyText } from "@optcg/ui/clipboard";
 
 const FALLBACK_SOURCE_URL = "https://play.limitlesstcg.com/tournaments/completed?game=OP";
@@ -90,14 +93,20 @@ export function MetaDeckRow({
   leader,
   user,
   leaderPath,
+  owned,
+  leaderPrice,
 }: {
   deck: MetaDeck;
   leader: { id: string; name: string };
   user: User | null;
   leaderPath: string;
+  /** Owned copies per card for a signed-in viewer; undefined while loading or signed out. */
+  owned?: ReadonlyMap<string, number>;
+  leaderPrice?: number | null;
 }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -149,6 +158,11 @@ export function MetaDeckRow({
         <span className="meta-deck-title">
           <span className="meta-deck-event">{deck.event}</span>
           <span className="muted meta-deck-sub">{formatDeckRow(deck)}</span>
+          {user ? (
+            <span className="meta-deck-own">
+              {owned ? listCostText(listCost(deck.cards, { id: leader.id, price: leaderPrice }, owned)) : "\u00a0"}
+            </span>
+          ) : null}
         </span>
       </button>
       <div className="meta-deck-actions">
@@ -176,7 +190,7 @@ export function MetaDeckRow({
                       <CardThumb src={c.image_url} cardId={c.card_id} alt={c.name || c.card_id} />
                       <span className="meta-card-count">{c.count}×</span>
                     </div>
-                    <Link className="meta-card-name" to={`/cards/${encodeURIComponent(c.card_id)}`} title={`${c.name || c.card_id}: open card page`}>
+                    <Link className="meta-card-name" to={`/cards/${encodeURIComponent(c.card_id)}`} state={cardBackState(location)} title={`${c.name || c.card_id}: open card page`}>
                       {c.name || c.card_id}
                     </Link>
                   </li>
@@ -208,6 +222,16 @@ export function MetaPage({ user }: { user: User | null }) {
     enabled: Boolean(leaderId),
     staleTime: META_STALE_MS,
   });
+
+  const ownedQ = useQuery({
+    queryKey: qk.owned.all(),
+    queryFn: () => api.ownedCollection(),
+    enabled: Boolean(user && leaderId),
+  });
+  const ownedById = useMemo(
+    () => (ownedQ.data ? new Map(ownedQ.data.items.map((i) => [i.card_id, totalOwnedCopies(i)])) : undefined),
+    [ownedQ.data],
+  );
 
   function search(next: { leader?: string; days?: number; top8?: boolean }): string {
     const p = new URLSearchParams();
@@ -329,6 +353,8 @@ export function MetaPage({ user }: { user: User | null }) {
                   leader={{ id: leaderId, name: leaderName === leaderId ? "" : leaderName }}
                   user={user}
                   leaderPath={leaderPath}
+                  owned={ownedById}
+                  leaderPrice={decks.data.leader_market_price}
                 />
               ))}
             </ul>

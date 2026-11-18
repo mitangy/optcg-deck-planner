@@ -10,8 +10,7 @@ import {
   OwnedCell,
   OwnedStepper,
   StillNeededCell,
-  ownedCellIsTotal,
-  stillNeededText,
+  toBuyText,
   totalOwned,
 } from "./OwnedCells";
 
@@ -60,30 +59,16 @@ describe("Owned shows the total including alt arts (#652)", () => {
     expect(totalOwned(2, undefined)).toBe(2);
   });
 
-  it("the Owned cell is a read-only total, not a stepper, when editable alt tiles are shown (#652)", () => {
-    const host = mount(
-      <OwnedCell isTotal owned={2} altsOwned={1} stepper={<input className="owned" defaultValue="2" />} />,
-    );
-    expect(host.querySelector(".owned-total-num")?.textContent).toBe("3");
-    expect(host.querySelector(".owned-total-split")?.textContent).toBe("2 base + 1 alt");
-    expect(host.querySelector("[aria-label='3 owned in total; change counts under each art']")).not.toBeNull();
-    expect(host.querySelector("input")).toBeNull();
-  });
-
-  it("without alt tiles the Owned cell keeps its stepper and a +N alt note (#652)", () => {
-    const host = mount(
-      <OwnedCell isTotal={false} owned={2} altsOwned={1} stepper={<input className="owned" defaultValue="2" />} />,
-    );
+  it("the Owned cell keeps its stepper for the base art and shows the alt copies and total beside it (#1342)", () => {
+    const host = mount(<OwnedCell owned={2} altsOwned={1} stepper={<input className="owned" defaultValue="2" />} />);
     expect(host.querySelector("input.owned")).not.toBeNull();
-    expect(host.querySelector(".owned-total")).toBeNull();
-    expect(host.querySelector(".alts-owned-note")?.textContent).toBe("+1 alt");
+    expect(host.querySelector(".alts-owned-note")?.textContent).toBe("+1 alt · 3 total");
   });
 
-  it("the total only replaces the stepper when the alt tiles are shown, present and editable (#652)", () => {
-    expect(ownedCellIsTotal(true, 1, true)).toBe(true);
-    expect(ownedCellIsTotal(false, 1, true)).toBe(false);
-    expect(ownedCellIsTotal(true, 0, true)).toBe(false);
-    expect(ownedCellIsTotal(true, 1, false)).toBe(false);
+  it("without alt copies the Owned cell shows only the stepper (#1342)", () => {
+    const host = mount(<OwnedCell owned={2} stepper={<input className="owned" defaultValue="2" />} />);
+    expect(host.querySelector("input.owned")).not.toBeNull();
+    expect(host.querySelector(".alts-owned-note")).toBeNull();
   });
 });
 
@@ -95,9 +80,9 @@ describe("Still needed shows how many more (#652)", () => {
     expect(host.textContent).not.toContain("5/8");
   });
 
-  it("meta text says how many more are needed, or that you have them all (#652)", () => {
-    expect(stillNeededText(5, 8)).toBe("Still need 5 of 8");
-    expect(stillNeededText(0, 8)).toBe("Have all 8");
+  it("meta text says how many to buy, or that you have them all (#652)", () => {
+    expect(toBuyText(5, 8)).toBe("To buy 5 of 8");
+    expect(toBuyText(0, 8)).toBe("Have all 8");
   });
 });
 
