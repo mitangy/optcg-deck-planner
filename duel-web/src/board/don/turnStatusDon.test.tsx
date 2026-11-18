@@ -8,7 +8,7 @@ vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeIt
 const card = (id: string, attachedDonCount?: number) => ({ id, defId: "OP01-006", power: 4000, printedPower: 4000, statusLabels: [], attachedDonCount });
 
 function donCounts(html: string): string[] {
-  return [...html.matchAll(/<dt>DON!!<\/dt><dd>([^<]*(?:<!-- -->[^<]*)*)<\/dd>/g)].map((m) => m[1].replace(/<!-- -->/g, ""));
+  return [...html.matchAll(/<span class="visually-hidden">DON!!<\/span><\/dt><dd>([^<]*(?:<!-- -->[^<]*)*)<\/dd>/g)].map((m) => m[1].replace(/<!-- -->/g, ""));
 }
 
 describe("turn status DON!! counters", () => {
