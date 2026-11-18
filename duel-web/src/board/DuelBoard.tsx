@@ -347,7 +347,9 @@ export function DuelBoard({
     : null;
   const midlineBattle = !!view?.battle && !view?.pendingChoices?.length;
   // Every pending prompt on phones already shows its sentence, so the midline would repeat it; it still blocks other hints from using the strip.
-  const midlineShown = !wide && view?.pendingChoices?.length ? null : midlineText;
+  // Beside the board the pop-up, the floating header or the intent bar carries the sentence for the seat that answers; the side-dock bubble would repeat it, clipped.
+  const ownChoice = view?.pendingChoices?.[0] != null && !spectator && !view.spectator && view.pendingChoices[0].seat === (seat ?? view.seat);
+  const midlineShown = view?.pendingChoices?.length && (!wide || ownChoice) ? null : midlineText;
   const midlineTitle = view?.pendingChoices?.length ? view.pendingChoices[0].prompt : midlineShown;
   useScreenWakeLock(!over);
   const [resultHidden, setResultHidden] = useState(isReplay);

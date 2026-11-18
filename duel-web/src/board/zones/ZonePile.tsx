@@ -6,6 +6,7 @@ import type { Seat } from "../../net/protocol";
 import type { LifeFan } from "../../settings";
 import { inspectOnContextMenu } from "../preview/inspectGestures";
 import { endPreviewHover, hoverPreviewCard } from "../preview/cardPreview";
+import { CountIcon } from "./CountIcon";
 
 export function zonePileCountLabel(count: number, expectedCount?: number): string {
   if (count > 0) return String(count);
@@ -134,7 +135,16 @@ export function ZonePile({
     <>
       {stack}
       <div className="zone-pile-meta">
-        <span className="zone-pile-label">{label}</span>
+        <CountIcon kind={variant} />
+        <span className="zone-pile-label">
+          {variant === "don" && label.startsWith("DON!! ") ? (
+            <>
+              DON!!<span className="zone-pile-rest">{label.slice(5)}</span>
+            </>
+          ) : (
+            label
+          )}
+        </span>
         <span className="zone-pile-count">{countLabel}</span>
       </div>
     </>
