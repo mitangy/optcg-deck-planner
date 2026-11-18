@@ -52,12 +52,14 @@ test("A member leaves a group buy after confirming and lands on the list (#881)"
   await expect(leave).toBeEnabled();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-leave-button.png`, fullPage: true });
 
-  page.once("dialog", (d) => d.dismiss());
+  const confirm = page.getByRole("alertdialog", { name: "Leave this group buy?" });
   await leave.click();
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirm).toHaveCount(0);
   expect(posts).toEqual([]);
 
-  page.once("dialog", (d) => d.accept());
   await leave.click();
+  await confirm.getByRole("button", { name: "Leave" }).click();
   await expect(page).toHaveURL(/\/group-buys$/);
   expect(posts).toEqual(["POST"]);
 });

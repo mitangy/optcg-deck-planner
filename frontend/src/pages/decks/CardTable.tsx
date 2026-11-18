@@ -45,6 +45,8 @@ function deckColumnValue(c: CardView, key: string) {
       return totalOwned(c.owned, c.alts_owned);
     case "still":
       return c.still_need;
+    case "needed":
+      return c.needed;
     case "market":
       return c.market_price;
     case "type":
@@ -204,7 +206,11 @@ export function CardTable({
             <tr>
               <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
               <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+              {editing && onNeededChange ? (
+                <SortableTh label="In deck" colKey="needed" firstDir="desc" sort={sort} onSort={onSort} />
+              ) : (
+                <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+              )}
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Type" colKey="type" firstDir="asc" sort={sort} onSort={onSort} className="col-type" />
               <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
@@ -238,16 +244,14 @@ export function CardTable({
                 </td>
                 <td className="need-cell">
                   {editing && onNeededChange ? (
-                    <>
-                      <span className="still-need-num">{c.still_need}</span>
-                      <span className="still-need-of">of</span>
+                    <span title={c.still_need > 0 ? `Still need ${c.still_need} of ${c.needed}` : `Have all ${c.needed}`}>
                       <NeededStepper
                         cardId={c.card_id}
                         value={c.needed}
                         busy={neededBusyId === c.card_id}
                         onChange={onNeededChange}
                       />
-                    </>
+                    </span>
                   ) : (
                     <>
                       <StillNeededCell still={c.still_need} need={c.needed} />

@@ -384,6 +384,7 @@ export const test = base.extend<{ planner: Planner }>({
             main_cards: mainCards,
             don_cards: 0,
             owned_copies: [...owned.values()].reduce((a, b) => a + b, 0),
+            remaining_cost: 36.8,
             sort_order: 0,
             is_main: true,
           },
@@ -450,9 +451,10 @@ export const test = base.extend<{ planner: Planner }>({
             } satisfies CatalogCardResult)),
           );
         }
-        if (!q) return json([]);
+        const onlyLeaders = (params.get("card_type") ?? "") === "Leader";
+        if (!q && !onlyLeaders) return json([]);
         return json(
-          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q)).map((c) => ({
+          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q) && (!onlyLeaders || c.card_type === "Leader")).map((c) => ({
             card_id: c.card_id,
             name: c.name,
             rarity: c.rarity,

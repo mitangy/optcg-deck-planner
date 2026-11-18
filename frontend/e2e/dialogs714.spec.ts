@@ -19,12 +19,12 @@ async function tabStaysInside(page: Page, dialog: ReturnType<Page["getByRole"]>,
   }
 }
 
-test("Tab stays inside the deck stats sheet and Escape hands focus back to the Stats pill (#714)", async ({ page, planner }) => {
+test("Tab stays inside the deck stats sheet and Escape hands focus back to the Stats button (#714)", async ({ page, planner }) => {
   await planner.open(`/decks/${DECK_ID}`);
   await expect(page.getByRole("heading", { name: "Oden Red/Green", level: 1 })).toBeVisible();
   const edit = page.getByRole("button", { name: "Edit deck" });
   if (await page.locator(".stats-dock").count()) await edit.click();
-  const pill = page.locator(".stats-pill");
+  const pill = page.getByRole("button", { name: /^Deck stats/ });
   await pill.focus();
   await pill.press("Enter");
   const sheet = page.getByRole("dialog", { name: "Deck stats" });

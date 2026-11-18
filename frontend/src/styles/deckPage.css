@@ -146,9 +146,65 @@
 }
 
 @media (max-width: 1199px) {
-  .deck-layout {
+  /* Only the public share page still floats a Stats pill over the page. */
+  .deck-layout:has(> .stats-pill) {
     padding-bottom: calc(2.75rem + 0.5rem);
   }
+}
+
+.deck-stats-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+@media (max-width: 720px) {
+  .deck-head-actions .deck-stats-btn {
+    flex: 0 0 auto;
+    min-height: max(2.75rem, 44px);
+    min-width: max(2.75rem, 44px);
+  }
+}
+
+.deck-stats-btn .stats-dock-icon {
+  flex: 0 0 auto;
+}
+
+.deck-stats-btn .deck-stats-btn-badge {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.1rem;
+  min-width: 1.1rem;
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+  line-height: 1.1rem;
+}
+
+@media (max-width: 720px) {
+  .deck-stats-btn .deck-stats-btn-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 721px) {
+  .deck-stats-btn .deck-stats-btn-badge {
+    position: static;
+  }
+}
+
+/* Under the Add cards panel while editing on a wide, tall screen. */
+.stats-stack {
+  flex: 0 0 auto;
+  max-height: 45dvh;
+  margin-top: var(--space-3);
+  overflow: hidden;
 }
 
 @media (min-width: 1200px) {
@@ -179,11 +235,14 @@
   }
 
   .stats-dock .ds-grid,
-  .stats-dock .ds-tiles {
+  .stats-dock .ds-tiles,
+  .stats-stack .ds-grid,
+  .stats-stack .ds-tiles {
     grid-template-columns: repeat(var(--ds-side-cols, 1), minmax(0, 1fr));
   }
 
-  .stats-dock .ds-tiles {
+  .stats-dock .ds-tiles,
+  .stats-stack .ds-tiles {
     --ds-side-cols: 2;
   }
 
@@ -244,6 +303,19 @@
     flex-wrap: nowrap;
     gap: 0.4rem;
     justify-content: stretch;
+  }
+
+  /* Edit deck and Done keep one width, so toggling edit mode moves nothing in this row. */
+  .deck-head-actions > .deck-edit-toggle {
+    box-sizing: border-box;
+    flex: 0 0 5.6rem;
+    min-width: 5.6rem;
+    max-width: 5.6rem;
+    justify-content: center;
+  }
+
+  .done-editing-extra {
+    display: none;
   }
 
   .deck-head-actions > .btn {
@@ -432,6 +504,11 @@ tr.row-flash > td {
     display: flex;
     flex-direction: column;
     min-width: 0;
+  }
+
+  /* Add cards takes what it needs and gives way first; the stats keep their share beneath it. */
+  .deck-layout-editing .deck-editor-side.has-stats .deck-editor {
+    flex: 0 1 auto;
   }
 
   .deck-editor-side .deck-editor {

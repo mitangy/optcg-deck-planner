@@ -29,10 +29,10 @@ import { CardWorkspace } from "../../ui/CardWorkspace";
 import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
 import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { useMediaQuery } from "@optcg/ui/hooks";
-import { DOCK_QUERY, DeckStatsDock } from "./DeckStats";
+import { DOCK_QUERY, DeckStatsBox, DeckStatsDock, StatsButton, useStatsMode } from "./DeckStats";
 import { type DeckHint } from "@optcg/deck-analytics";
 import { useDeckHints } from "@optcg/deck-analytics/ui";
-import { MenuItem } from "@optcg/ui/popups";
+import { MenuItem, useConfirm } from "@optcg/ui/popups";
 import { HeadMenu, HeadPopover, MoreIcon, ShareIcon } from "../../ui/HeadPopover";
 import { ReplaceDeckListDialog } from "./ReplaceDeckListDialog";
 import { HideFromFriendsItem } from "../../friends/HideFromFriends";
@@ -101,6 +101,12 @@ export function DeckDetailPage() {
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
   const sideEdit = useMediaQuery(DOCK_QUERY) && editing;
+  const statsMode = useStatsMode(editing);
+  const [statsOpen, setStatsOpen] = useState(false);
+  useEffect(() => {
+    if (statsMode !== "sheet") setStatsOpen(false);
+  }, [statsMode]);
+  const { confirm, confirmDialog } = useConfirm();
   const [rowFlash, setRowFlash] = useState<{ id: string; n: number } | null>(null);
   useEffect(() => {
     if (!rowFlash) return;
@@ -460,9 +466,9 @@ export function DeckDetailPage() {
             }}
           >
             {editing ? (
-              <>
+              <span>
                 Done<span className="done-editing-extra"> editing</span>
-              </>
+              </span>
             ) : (
               "Edit deck"
             )}
@@ -497,6 +503,7 @@ export function DeckDetailPage() {
               />
             </div>
           </HeadPopover>
+          {statsMode === "sheet" && <StatsButton hints={hints} open={statsOpen} onClick={() => setStatsOpen(true)} />}
           <HeadMenu label="More" icon={<MoreIcon />} className="btn quiet" width={260}>
             <HideFromFriendsItem deck={data} onUpdated={applyDeckUpdate} />
             {data.leader_card_id && !data.is_main && (
@@ -523,11 +530,14 @@ export function DeckDetailPage() {
               <button
                 type="button"
                 className="danger"
-                onClick={() => {
-                  const ok = window.confirm(
-                    "Reset owned counts to 0 for every card in this deck?\n\n" +
-                      "Owned is shared across decks — those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
-                  );
+                onClick={async () => {
+                  const ok = await confirm({
+                    title: "Reset owned counts to 0?",
+                    message:
+                      "This sets every card in this deck to 0 owned.\n\n" +
+                      "Owned is shared across decks: those cards will also show as unowned in Shopping and other decks, and leave your Collection.",
+                    confirmLabel: "Reset owned",
+                  });
                   if (!ok) return;
                   setResetMsg(null);
                   resetOwned.mutate();
@@ -551,6 +561,7 @@ export function DeckDetailPage() {
         </p>
       )}
 
+      {confirmDialog}
       <ReplaceDeckListDialog
         open={replaceOpen}
         deckId={deckId}
@@ -690,11 +701,19 @@ export function DeckDetailPage() {
       </CardWorkspace>
     </section>
     {sideEdit && (
-      <aside className="deck-editor-side" aria-label="Add cards">
+      <aside className={`deck-editor-side${statsMode === "stack" ? " has-stats" : ""}`} aria-label="Add cards">
         <DeckEditorPanel deckId={deckId} deck={data} onUpdated={applyDeckUpdate} onChanged={flashRow} onReplaceList={() => setReplaceOpen(true)} />
+        {statsMode === "stack" && <DeckStatsBox cards={statsCards} leaderId={data.leader_card_id ?? null} hints={hints} />}
       </aside>
     )}
-    <DeckStatsDock cards={statsCards} leaderId={data.leader_card_id ?? null} hints={hints} compact={sideEdit} />
+    <DeckStatsDock
+      cards={statsCards}
+      leaderId={data.leader_card_id ?? null}
+      hints={hints}
+      mode={statsMode}
+      sheetOpen={statsOpen}
+      onSheetOpenChange={setStatsOpen}
+    />
     </div>
   );
 }

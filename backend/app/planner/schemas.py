@@ -60,6 +60,8 @@ class DeckSummary(BaseModel):
     main_cards: int = 0
     don_cards: int = 0
     owned_copies: int = 0
+    # Dollars left to finish the deck (what the deck page shows as "left"); null when not computed.
+    remaining_cost: float | None = None
     sort_order: int
     is_main: bool = False
     hidden_from_friends: bool = False
