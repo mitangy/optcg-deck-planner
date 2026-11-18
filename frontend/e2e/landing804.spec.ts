@@ -20,7 +20,7 @@ test("signed out, / shows the landing page and is indexable, no redirect to /log
 test("signed in, / is the shopping list and is noindex (#804)", async ({ page, planner }) => {
   await planner.open("/");
   await expect(page.getByRole("heading", { level: 1, name: /deck planner with live market prices/i })).toHaveCount(0);
-  await expect(page.locator(".topbar nav")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex");
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
 });
