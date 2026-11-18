@@ -67,9 +67,9 @@ for (const vp of VIEWPORTS) {
     await page.screenshot({ path: join(outDir, `${vp.name}-deck-order.png`) });
 
     await page.goto(`${baseUrl}/demo?turn0`, { waitUntil: "networkidle" });
-    await page.waitForSelector(".intent-bar-mulligan .intent-btn", { timeout: 15000 }).catch(() => {});
+    await page.waitForSelector(".mulligan-hand-actions .intent-btn", { timeout: 15000 }).catch(() => {});
     const mull = await page.evaluate(() => {
-      const bar = document.querySelector(".intent-bar-mulligan");
+      const bar = document.querySelector(".mulligan-hand-actions");
       if (!bar) return null;
       const edge = bar.getBoundingClientRect().right;
       const buttons = [...bar.querySelectorAll(".intent-btn")];
@@ -81,7 +81,7 @@ for (const vp of VIEWPORTS) {
     });
     if (!mull || mull.buttons < 2) problems.push("mulligan buttons not found on /demo?turn0");
     else {
-      if (mull.past > 1) problems.push(`mulligan button runs ${Math.round(mull.past)}px past the action bar`);
+      if (mull.past > 1) problems.push(`mulligan button runs ${Math.round(mull.past)}px past the opening hand card`);
       if (mull.spill > 1) problems.push(`mulligan button label spills ${mull.spill}px past the button`);
     }
     await page.screenshot({ path: join(outDir, `${vp.name}-mulligan.png`) });
