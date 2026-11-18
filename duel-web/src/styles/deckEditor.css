@@ -810,7 +810,7 @@
 
 /* Room under the page (footer included) so the fixed bar never covers the last line. */
 body:has(.deck-bottom-bar) {
-  padding-bottom: calc(56px + var(--safe-b, 0px));
+  padding-bottom: calc(64px + var(--safe-b, 0px));
 }
 
 .is-compact .deck-tools {
