@@ -32,6 +32,19 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // New deck: Leader start, paste start, shared width, Edit button (#1343)
+    { id: "e2e-newdeck1343-leader-deck-wrong-leader", args: "new-deck-1343.spec", edits: [
+      { file: "duel-web/src/decks/newDeckStart.ts", from: "leaderId: leader.id, cards: []", to: "leaderId: \"ST01-001\", cards: []" },
+    ], kills: ["new-deck-1343.spec.ts > a deck made from a picked Leader opens in the editor with that Leader and a default name (#1343) [desktop-1280]", "new-deck-1343.spec.ts > a deck made from a picked Leader opens in the editor with that Leader and a default name (#1343) [phone-375]"] },
+    { id: "e2e-newdeck1343-paste-ignores-list", args: "new-deck-1343.spec", edits: [
+      { file: "duel-web/src/pages/NewDeckPage.tsx", from: "createDeckFromInput(name, initialList)", to: "createDeckFromInput(name, \"\")" },
+    ], kills: ["new-deck-1343.spec.ts > pasting a list still creates the deck from that list (#1343) [desktop-1280]", "new-deck-1343.spec.ts > pasting a list still creates the deck from that list (#1343) [phone-375]"] },
+    { id: "e2e-newdeck1343-decks-page-wider", args: "new-deck-1343.spec", edits: [
+      { file: "duel-web/src/pages/DeckListPage.tsx", from: "deck-config deck-config-page deck-list-page", to: "deck-config deck-config-wide deck-list-page" },
+    ], kills: ["new-deck-1343.spec.ts > Decks and New deck share one page width, and a deck card has an Edit button (#1343) [desktop-1280]", "new-deck-1343.spec.ts > Decks and New deck share one page width, and a deck card has an Edit button (#1343) [phone-375]"] },
+    { id: "e2e-newdeck1343-no-edit-button", args: "new-deck-1343.spec", edits: [
+      { file: "duel-web/src/pages/DeckListPage.tsx", from: "<button type=\"button\" className=\"deck-card-play\" aria-label={`Edit ${deck.name}`} onClick={onOpen}>\n              Edit\n            </button>", to: "" },
+    ], kills: ["new-deck-1343.spec.ts > Decks and New deck share one page width, and a deck card has an Edit button (#1343) [desktop-1280]", "new-deck-1343.spec.ts > Decks and New deck share one page width, and a deck card has an Edit button (#1343) [phone-375]"] },
     // A pop-up dragged to the far left of the screen floats there instead of jumping into the right column (#1245): the edge strip only docks toward a side with a column, and a folded-away column reports no span. Both layers are reverted.
     { id: "e2e-prompt-edge-drop-jumps-to-open-column", args: "prompt-dock.spec --project=desktop-1280 -g far.left", edits: [
       { file: "duel-web/src/board/prompts/promptDock.ts", from: "  if (x <= EDGE_PX && columns.left) return \"left\";\n  if (x >= viewWidth - EDGE_PX && columns.right) return \"right\";\n", to: "  if (x <= EDGE_PX) return \"left\";\n  if (x >= viewWidth - EDGE_PX) return \"right\";\n" },
