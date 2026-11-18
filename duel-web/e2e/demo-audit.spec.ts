@@ -662,7 +662,7 @@ test("deck editor keeps − count + on one row (#262)", async ({ page }, info) =
   for (const width of [1280, 960]) {
     await page.setViewportSize({ width, height: 800 });
     await openSeededDeck(page, false);
-    const row = page.locator(".deck-stack-edit").first();
+    const row = page.locator(".deck-stack-stepper").first();
     const minus = (await row.getByRole("button", { name: /Remove one/ }).boundingBox())!;
     const plus = (await row.getByRole("button", { name: /Add one/ }).boundingBox())!;
     expect(Math.abs(minus.y - plus.y), `at ${width}px`).toBeLessThan(2);

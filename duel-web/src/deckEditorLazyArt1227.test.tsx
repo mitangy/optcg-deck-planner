@@ -11,6 +11,12 @@ let root: Root | null = null;
 let host: HTMLElement | null = null;
 beforeAll(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes("min-width: 1024px"),
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+  })) as unknown as typeof window.matchMedia;
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
     observe() {}
     unobserve() {}
@@ -76,13 +82,13 @@ describe("deck editor stacks (#1272)", () => {
       expect(tile).toBeTruthy();
       return {
         copies: tile.querySelectorAll(".card-stack-copy").length,
-        badge: tile.querySelector(".deck-stack-badge")?.textContent,
+        badge: tile.querySelector(".deck-stack-qty-label")?.textContent ?? tile.querySelector(".deck-stack-badge")?.textContent,
       };
     };
-    expect(layers("OP01-016")).toEqual({ copies: 3, badge: "×4" });
-    expect(layers("OP01-025")).toEqual({ copies: 1, badge: "×2" });
-    expect(layers("OP01-013")).toEqual({ copies: 0, badge: "×1" });
-    expect(layers("OP01-075")).toEqual({ copies: 3, badge: "×6" });
+    expect(layers("OP01-016")).toEqual({ copies: 3, badge: "4" });
+    expect(layers("OP01-025")).toEqual({ copies: 1, badge: "2" });
+    expect(layers("OP01-013")).toEqual({ copies: 0, badge: "1" });
+    expect(layers("OP01-075")).toEqual({ copies: 3, badge: "6" });
     expect(layers("OP01-001")).toEqual({ copies: 0, badge: "×1" });
   });
 });
