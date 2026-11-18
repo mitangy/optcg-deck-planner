@@ -1,0 +1,485 @@
+{
+  "note": "Expected values come from backend/app/planner (decks._card_view, printings, shopping); web and API must both match.",
+  "cases": [
+    {
+      "id": "plain-need",
+      "name": "plain need, nothing else owned",
+      "need": 4,
+      "owned": 1,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 3,
+        "buys": [
+          {
+            "product_id": null,
+            "qty": 3,
+            "price": 2.5
+          }
+        ],
+        "remaining_cost": 7.5
+      }
+    },
+    {
+      "id": "owned-covers-need",
+      "name": "owned covers the whole need",
+      "need": 3,
+      "owned": 5,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 0,
+        "buys": [],
+        "remaining_cost": 0.0
+      }
+    },
+    {
+      "id": "need-zero",
+      "name": "need of zero",
+      "need": 0,
+      "owned": 0,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 0,
+        "buys": [],
+        "remaining_cost": 0.0
+      }
+    },
+    {
+      "id": "owned-alts-cover-rest",
+      "name": "owned alt copies cover the rest of the need",
+      "need": 4,
+      "owned": 1,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 0,
+          "owned": 3,
+          "collector": 0,
+          "market_price": 20.0
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 3,
+        "still_need": 0,
+        "buys": [],
+        "remaining_cost": 0.0
+      }
+    },
+    {
+      "id": "alt-want-part-of-still",
+      "name": "an alt want takes part of the still-need and the standard print covers the rest",
+      "need": 4,
+      "owned": 1,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 2,
+          "owned": 0,
+          "collector": 0,
+          "market_price": 20.0
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 3,
+        "buys": [
+          {
+            "product_id": 100,
+            "qty": 2,
+            "price": 20.0
+          },
+          {
+            "product_id": null,
+            "qty": 1,
+            "price": 2.5
+          }
+        ],
+        "remaining_cost": 42.5
+      }
+    },
+    {
+      "id": "alt-want-capped-at-still",
+      "name": "an alt want larger than the still-need is capped at it",
+      "need": 4,
+      "owned": 2,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 5,
+          "owned": 0,
+          "collector": 0,
+          "market_price": 20.0
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 2,
+        "buys": [
+          {
+            "product_id": 100,
+            "qty": 2,
+            "price": 20.0
+          }
+        ],
+        "remaining_cost": 40.0
+      }
+    },
+    {
+      "id": "alt-wants-in-listed-order",
+      "name": "two alt wants fill the still-need in listed order",
+      "need": 4,
+      "owned": 1,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 1,
+          "owned": 0,
+          "collector": 0,
+          "market_price": 20.0
+        },
+        {
+          "product_id": 101,
+          "wanted": 3,
+          "owned": 0,
+          "collector": 0,
+          "market_price": 30.0
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 3,
+        "buys": [
+          {
+            "product_id": 100,
+            "qty": 1,
+            "price": 20.0
+          },
+          {
+            "product_id": 101,
+            "qty": 2,
+            "price": 30.0
+          }
+        ],
+        "remaining_cost": 80.0
+      }
+    },
+    {
+      "id": "owned-wanted-alt-not-rebought",
+      "name": "owned copies of a wanted alt are not bought again",
+      "need": 4,
+      "owned": 0,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 3,
+          "owned": 2,
+          "collector": 0,
+          "market_price": 20.0
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 2,
+        "still_need": 2,
+        "buys": [
+          {
+            "product_id": 100,
+            "qty": 1,
+            "price": 20.0
+          },
+          {
+            "product_id": null,
+            "qty": 1,
+            "price": 2.5
+          }
+        ],
+        "remaining_cost": 22.5
+      }
+    },
+    {
+      "id": "no-price-standard",
+      "name": "missing market price on the standard print gives no cost",
+      "need": 2,
+      "owned": 0,
+      "earlier_leaders_need": 0,
+      "market_price": null,
+      "alt_arts": [],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 2,
+        "buys": [
+          {
+            "product_id": null,
+            "qty": 2,
+            "price": null
+          }
+        ],
+        "remaining_cost": null
+      }
+    },
+    {
+      "id": "no-price-standard-alts-cover",
+      "name": "missing market price on the standard print is harmless when alts cover the need",
+      "need": 2,
+      "owned": 0,
+      "earlier_leaders_need": 0,
+      "market_price": null,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 2,
+          "owned": 0,
+          "collector": 0,
+          "market_price": 20.0
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 2,
+        "buys": [
+          {
+            "product_id": 100,
+            "qty": 2,
+            "price": 20.0
+          }
+        ],
+        "remaining_cost": 40.0
+      }
+    },
+    {
+      "id": "no-price-alt",
+      "name": "missing market price on a wanted alt gives no cost",
+      "need": 3,
+      "owned": 0,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 1,
+          "owned": 0,
+          "collector": 0,
+          "market_price": null
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 3,
+        "buys": [
+          {
+            "product_id": 100,
+            "qty": 1,
+            "price": null
+          },
+          {
+            "product_id": null,
+            "qty": 2,
+            "price": 2.5
+          }
+        ],
+        "remaining_cost": null
+      }
+    },
+    {
+      "id": "collector-holds-back-owned",
+      "name": "collector copies hold back owned alts from the deck",
+      "need": 3,
+      "owned": 0,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 0,
+          "owned": 2,
+          "collector": 2,
+          "market_price": 20.0
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 3,
+        "buys": [
+          {
+            "product_id": null,
+            "qty": 3,
+            "price": 2.5
+          }
+        ],
+        "remaining_cost": 7.5
+      }
+    },
+    {
+      "id": "collector-smaller-than-owned",
+      "name": "a collector want smaller than the owned alts releases the rest to the deck",
+      "need": 3,
+      "owned": 0,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 0,
+          "owned": 2,
+          "collector": 1,
+          "market_price": 20.0
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 1,
+        "still_need": 2,
+        "buys": [
+          {
+            "product_id": null,
+            "qty": 2,
+            "price": 2.5
+          }
+        ],
+        "remaining_cost": 5.0
+      }
+    },
+    {
+      "id": "collector-larger-than-owned",
+      "name": "a collector want larger than the owned alts holds back only what is owned",
+      "need": 3,
+      "owned": 0,
+      "earlier_leaders_need": 0,
+      "market_price": 2.5,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 0,
+          "owned": 1,
+          "collector": 4,
+          "market_price": 20.0
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 3,
+        "buys": [
+          {
+            "product_id": null,
+            "qty": 3,
+            "price": 2.5
+          }
+        ],
+        "remaining_cost": 7.5
+      }
+    },
+    {
+      "id": "earlier-leader-comes-off-owned",
+      "name": "copies an earlier leader needs come off what is owned",
+      "need": 4,
+      "owned": 3,
+      "earlier_leaders_need": 2,
+      "market_price": 2.5,
+      "alt_arts": [],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 3,
+        "buys": [
+          {
+            "product_id": null,
+            "qty": 3,
+            "price": 2.5
+          }
+        ],
+        "remaining_cost": 7.5
+      }
+    },
+    {
+      "id": "earlier-leader-exceeds-owned",
+      "name": "earlier leaders needing more than is owned leave the full need",
+      "need": 2,
+      "owned": 1,
+      "earlier_leaders_need": 5,
+      "market_price": 2.5,
+      "alt_arts": [],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 2,
+        "buys": [
+          {
+            "product_id": null,
+            "qty": 2,
+            "price": 2.5
+          }
+        ],
+        "remaining_cost": 5.0
+      }
+    },
+    {
+      "id": "cents-no-float-drift",
+      "name": "cents add up without float drift",
+      "need": 3,
+      "owned": 0,
+      "earlier_leaders_need": 0,
+      "market_price": 0.1,
+      "alt_arts": [],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 3,
+        "buys": [
+          {
+            "product_id": null,
+            "qty": 3,
+            "price": 0.1
+          }
+        ],
+        "remaining_cost": 0.3
+      }
+    },
+    {
+      "id": "cents-alt-plus-standard",
+      "name": "cents add up across the alt and standard print",
+      "need": 5,
+      "owned": 0,
+      "earlier_leaders_need": 0,
+      "market_price": 0.1,
+      "alt_arts": [
+        {
+          "product_id": 100,
+          "wanted": 2,
+          "owned": 0,
+          "collector": 0,
+          "market_price": 19.99
+        }
+      ],
+      "expected": {
+        "deck_alts_owned": 0,
+        "still_need": 5,
+        "buys": [
+          {
+            "product_id": 100,
+            "qty": 2,
+            "price": 19.99
+          },
+          {
+            "product_id": null,
+            "qty": 3,
+            "price": 0.1
+          }
+        ],
+        "remaining_cost": 40.28
+      }
+    }
+  ]
+}

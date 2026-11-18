@@ -112,6 +112,15 @@ def put_group_buy_public(
     return group_buy.set_public(db, user, group_id, body.is_public)
 
 
+@router.post("/group-buys/{group_id}/invite/reset", response_model=GroupBuyDetail)
+def post_group_buy_invite_reset(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return group_buy.reset_invite(db, user, group_id)
+
+
 @router.put("/group-buys/{group_id}/title", response_model=GroupBuyDetail)
 def put_group_buy_title(
     group_id: int,

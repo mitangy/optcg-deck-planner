@@ -31,3 +31,18 @@ def test_leave_route_status_codes_881(client):
     r = as_user(c, friend).post(f"/group-buys/{gid}/leave")
     assert r.status_code == 200
     assert as_user(c, friend).get(f"/group-buys/{gid}").status_code == 403
+
+
+def test_invite_reset_route_is_host_only_and_old_link_404s_1346(client):
+    c, S = client
+    host = make_user(S, "host")
+    friend = make_user(S, "friend")
+    gid = _setup(S, host, friend)
+    old = as_user(c, host).get(f"/group-buys/{gid}").json()["invite_token"]
+
+    assert as_user(c, friend).post(f"/group-buys/{gid}/invite/reset").status_code == 403
+    res = as_user(c, host).post(f"/group-buys/{gid}/invite/reset")
+    assert res.status_code == 200
+    assert res.json()["invite_token"] != old
+    assert c.get(f"/public/group-buys/{old}").status_code == 404
+    assert c.get(f"/public/group-buys/{res.json()['invite_token']}").status_code == 200
