@@ -32,7 +32,7 @@ export function FriendSpares({
   useEffect(() => {
     if (scrollToken === scrolled.current || !othersRef.current) return;
     scrolled.current = scrollToken;
-    othersRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
+    othersRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
   });
 
   if (isLoading) return <p className="muted">Loading…</p>;

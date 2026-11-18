@@ -200,11 +200,12 @@ function FriendsTabPanel() {
                       <span className="friend-avatar" data-tone={avatarTone(f.username)} aria-hidden>
                         {f.username.slice(0, 1).toUpperCase()}
                       </span>
-                      <span className="friend-name">{f.username}</span>
+                      <span className="friend-name" title={f.username}>{f.username}</span>
                     </Link>
                     <span className="friend-row-actions">
-                      <Link to={`${friendPath(f.username)}?tab=spares`} className="btn secondary compact friends-act friends-offer">
-                        Offer a trade
+                      <Link to={`${friendPath(f.username)}?tab=spares`} className="btn secondary compact friends-act friends-offer" aria-label={`Offer a trade to ${f.username}`}>
+                        <span className="friends-offer-long">Offer a trade</span>
+                        <span className="friends-offer-short">Trade</span>
                       </Link>
                       <Menu as="div" className="friends-row-menu">
                         <MenuButton type="button" className="ghost friends-more" aria-label={`More for ${f.username}`}>

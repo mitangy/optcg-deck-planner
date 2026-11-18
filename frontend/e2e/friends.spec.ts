@@ -20,7 +20,7 @@ test("adding a friend sends a request, and an incoming request can be accepted (
   await planner.open("/friends");
   await expect(page.getByRole("heading", { name: "Friends", level: 1 })).toBeVisible();
   const friends = page.getByRole("region", { name: "Your friends" });
-  await expect(friends.getByRole("link", { name: "kai" })).toBeVisible();
+  await expect(friends.getByRole("link", { name: "kai", exact: true })).toBeVisible();
 
   await page.getByLabel("Their username").fill("sora");
   await page.getByRole("button", { name: "Send request" }).click();
@@ -35,7 +35,7 @@ test("adding a friend sends a request, and an incoming request can be accepted (
   await expect(page.getByText("No player with that username.")).toBeVisible();
 
   await page.getByRole("region", { name: "Needs you" }).getByRole("button", { name: "Accept" }).click();
-  await expect(friends.getByRole("link", { name: "zoro" })).toBeVisible();
+  await expect(friends.getByRole("link", { name: "zoro", exact: true })).toBeVisible();
 
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
