@@ -1402,11 +1402,24 @@ span.deck-filter-group-head {
 
 .shopping-head .stat-strip {
   margin: 0;
-  gap: 0.35rem 1.1rem;
+  gap: 0.35rem 0.9rem;
 }
 
 .shopping-head .btn {
-  padding-inline: 0.85rem;
+  padding-inline: 0.7rem;
+}
+
+.tcg-buy-label {
+  display: inline-grid;
+  justify-items: center;
+}
+
+.tcg-buy-label > span {
+  grid-area: 1 / 1;
+}
+
+.tcg-buy-label > span[aria-hidden="true"] {
+  visibility: hidden;
 }
 
 .shopping-head .page-head-actions {

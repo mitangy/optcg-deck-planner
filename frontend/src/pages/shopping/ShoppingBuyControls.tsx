@@ -43,7 +43,12 @@ export function ShoppingBuyButton({
         title={none ? "No cards left to buy" : `Buy on TCGPlayer: open Mass Entry with ${scope}: ${massEntry.includedCount} card${massEntry.includedCount === 1 ? "" : "s"}, ${massEntry.copyCount} cop${massEntry.copyCount === 1 ? "y" : "ies"}`}
         onClick={onBuy}
       >
-        {buyLabel(selected && !plainLabel, massEntry.includedCount)}
+        {/* Both labels are stacked so the button keeps one width and ticking a card cannot re-wrap the head. */}
+        <span className="tcg-buy-label">
+          <span aria-hidden="true">{buyLabel(false, 0)}</span>
+          <span aria-hidden="true">{buyLabel(true, 888)}</span>
+          <span>{buyLabel(selected && !plainLabel, massEntry.includedCount)}</span>
+        </span>
       </button>
       <MenuButton type="button" className="btn primary tcg-buy-caret" aria-label="More ways to buy" title="More ways to buy">
         <span aria-hidden="true">▾</span>
