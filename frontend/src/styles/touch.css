@@ -32,6 +32,7 @@
   .owned-wrap input.owned {
     box-sizing: border-box;
     height: 2.75rem;
+    min-width: 2.75rem;
     padding-block: 0;
     border-style: solid;
     border-color: transparent;
@@ -41,9 +42,21 @@
     box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--gold) 60%, var(--line));
   }
 
+  .card-workspace .card-search-input,
+  .collection-toolbar .card-search-input {
+    min-height: 2.75rem;
+  }
+
   .collection-filter-list label,
   .collection-filter-panel .deck-filter label,
   .sort-menu-item label {
     min-height: 2.75rem;
+  }
+
+  /* Text floor: nothing in the lists is smaller than 12px (0.75rem). */
+  .card-workspace :where(.alt-collector-btn, .alt-show-btn, .alt-chip-chevron, .alt-shown-chip, .alt-want-caption,
+      .buy-split-action-text, .buy-split-chevron, .color-chip, .mobile-card-cost, .mobile-card-rarity,
+      .alt-chip, .grid-card-alt-chip) {
+    font-size: max(0.75rem, 12px);
   }
 }
