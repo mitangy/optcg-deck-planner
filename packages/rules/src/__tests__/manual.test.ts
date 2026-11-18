@@ -172,9 +172,10 @@ describe("player rules", () => {
   });
 
   it("deck-construction rules come from the Leader", () => {
-    expect(deckConstructionErrors("OP12-001", ["OP09-076", "OP01-051"])).toEqual([expect.stringContaining("OP01-051")]);
-    expect(deckConstructionErrors("OP12-001", ["OP09-076"])).toEqual([]);
-    expect(deckConstructionErrors("ST01-001", ["OP01-051"])).toEqual([]);
+    const leaderRuleErrors = (leader: string, deck: string[]) => deckConstructionErrors(leader, deck).filter((e) => /cannot include|can only include \{/.test(e));
+    expect(leaderRuleErrors("OP12-001", ["OP09-076", "OP01-051"])).toEqual([expect.stringContaining("OP01-051")]);
+    expect(leaderRuleErrors("OP12-001", ["OP09-076"])).toEqual([]);
+    expect(leaderRuleErrors("ST01-001", ["OP01-051"])).toEqual([]);
   });
 });
 

@@ -9,6 +9,8 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from app.duel import tournaments as logic
+from app.duel.tokens import game_token_secret
+from app.duel.tournament_tickets import mint_tournament_ticket, verify_tournament_ticket
 from app.core.auth import SESSION_COOKIE, create_session_token
 from app.core.config import get_settings
 from app.core.db import get_db
@@ -91,7 +93,7 @@ def _ready(t):
     return [m for m in t["matches"] if m["status"] == "ready"]
 
 
-def _ingest(c, match_id, seat0, seat1, winner_seat):
+def _ingest(c, match_id, seat0, seat1, winner_seat, tournament=True):
     r = c.post(
         "/duel/matches",
         json={
@@ -101,6 +103,7 @@ def _ingest(c, match_id, seat0, seat1, winner_seat):
             "winner_seat": winner_seat,
             "reason": "life",
             "ranked": False,
+            "tournament": tournament,
         },
         headers=INGEST,
     )
@@ -519,7 +522,8 @@ def test_the_first_player_to_play_hosts_and_the_other_waits_for_the_room_997(cli
     code, ids, t = _setup(c, S, 4)
     m = _ready(t)[0]
     a, b = m["a"]["user_id"], m["b"]["user_id"]
-    assert _play(c, code, m, a).json() == {"action": "host", "room_id": None, "server_url": None}
+    hosted = _play(c, code, m, a).json()
+    assert (hosted["action"], hosted["room_id"], hosted["server_url"]) == ("host", None, None)
     assert _play(c, code, m, b).json()["action"] == "wait"
     assert _play(c, code, m, a).json()["action"] == "host"
 
@@ -662,3 +666,102 @@ def test_a_waiting_match_cannot_be_played_997(client):
     winner = waiting["a"]["user_id"] if waiting["a"] else waiting["b"]["user_id"]
     r = _play(c, code, waiting, winner)
     assert r.status_code == 409 and r.json()["detail"] == "This match is not ready."
+
+
+def _settings():
+    return get_settings()
+
+
+def test_only_the_host_of_a_ready_match_gets_a_room_ticket_1344(client):
+    c, S = client
+    code, ids, t = _setup(c, S, 4)
+    m = _ready(t)[0]
+    a, b = m["a"]["user_id"], m["b"]["user_id"]
+    hosted = _play(c, code, m, a).json()
+    claims = verify_tournament_ticket(hosted["ticket"], _settings(), int(datetime.now(timezone.utc).timestamp()))
+    assert claims is not None
+    assert (claims["tm"], claims["seats"]) == (m["id"], [a, b])
+    waiting = _play(c, code, m, b).json()
+    assert (waiting["action"], waiting["ticket"]) == ("wait", None)
+    _play(c, code, m, a, room_id="room-1344")
+    joined = _play(c, code, m, b).json()
+    assert (joined["action"], joined["ticket"]) == ("join", None)
+    assert _play(c, code, m, a, room_id="room-1344").json()["ticket"] is None
+
+
+def test_a_player_outside_the_match_gets_no_ticket_1344(client):
+    c, S = client
+    code, ids, t = _setup(c, S, 4)
+    m = _ready(t)[0]
+    outsider = next(i for i in ids if i not in (m["a"]["user_id"], m["b"]["user_id"]))
+    refused = _play(c, code, m, outsider)
+    assert refused.status_code == 403 and "ticket" not in refused.json()
+
+
+def test_a_tournament_ticket_is_signed_for_its_purpose_and_expires_1344(client):
+    now = 1_900_000_000
+    s = _settings()
+    ticket = mint_tournament_ticket(match_id=7, seats=(3, 4), settings=s, now=now)
+    assert verify_tournament_ticket(ticket, s, now) == {"k": "tournament_room", "tm": 7, "seats": [3, 4], "exp": now + 15 * 60}
+    assert verify_tournament_ticket(ticket, s, now + 15 * 60 + 1) is None
+    prefix, body, sig = ticket.split(".")
+    assert verify_tournament_ticket(f"{prefix}.{body}.{sig[:-2]}AA", s, now) is None
+    swapped_seats = body[:-4] + ("AAAA" if not body.endswith("AAAA") else "BBBB")
+    assert verify_tournament_ticket(f"{prefix}.{swapped_seats}.{sig}", s, now) is None
+    assert verify_tournament_ticket("tr1.x", s, now) is None
+
+
+def _signed(payload: dict, *, salt: str) -> str:
+    import base64
+    import hashlib
+    import hmac
+    import json
+
+    body = base64.urlsafe_b64encode(json.dumps(payload).encode()).rstrip(b"=").decode()
+    key = (salt + game_token_secret(_settings())).encode()
+    sig = base64.urlsafe_b64encode(hmac.new(key, body.encode(), hashlib.sha256).digest()).rstrip(b"=").decode()
+    return f"tr1.{body}.{sig}"
+
+
+def test_a_game_token_signature_or_another_purpose_is_not_a_tournament_ticket_1344(client):
+    now = 1_900_000_000
+    s = _settings()
+    claims = {"k": "tournament_room", "tm": 7, "seats": [3, 4], "exp": now + 60}
+    assert verify_tournament_ticket(_signed(claims, salt="tournament-room:"), s, now) is not None
+    # The same claims signed with the bare game-token key: what a forged game token would look like.
+    assert verify_tournament_ticket(_signed(claims, salt=""), s, now) is None
+    # Right key, wrong purpose.
+    assert verify_tournament_ticket(_signed({**claims, "k": "match_brief"}, salt="tournament-room:"), s, now) is None
+
+
+def test_the_backend_signs_the_shared_tournament_ticket_vector_1344(monkeypatch):
+    import json
+    from pathlib import Path
+
+    vector = json.loads((Path(__file__).parent / "fixtures" / "tournament_ticket_vector.json").read_text())
+    monkeypatch.setenv("GAME_TOKEN_SECRET", vector["secret"])
+    get_settings.cache_clear()
+    try:
+        got = mint_tournament_ticket(
+            match_id=vector["claims"]["tm"], seats=tuple(vector["claims"]["seats"]), settings=get_settings(), now=vector["now"]
+        )
+        assert got == vector["ticket"]
+    finally:
+        get_settings.cache_clear()
+
+
+def test_a_result_without_the_tournament_flag_cannot_decide_the_match_1344(client):
+    c, S = client
+    code, ids, t = _setup(c, S, 4)
+    m = _ready(t)[0]
+    a, b = m["a"]["user_id"], m["b"]["user_id"]
+    room = _open_room(c, code, m)
+    _ingest(c, room, a, b, 0, tournament=False)
+    row = {x["id"]: x for x in _get(c, a, code)["matches"]}[m["id"]]
+    assert row["status"] == "ready" and row["winner_id"] is None
+    # A second match whose room reports the flag is decided.
+    other = _ready(_get(c, ids[0], code))[1]
+    room2 = _open_room(c, code, other)
+    _ingest(c, room2, other["a"]["user_id"], other["b"]["user_id"], 0, tournament=True)
+    decided = {x["id"]: x for x in _get(c, a, code)["matches"]}[other["id"]]
+    assert decided["status"] == "done" and decided["winner_id"] == other["a"]["user_id"]

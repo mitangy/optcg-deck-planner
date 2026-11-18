@@ -1,4 +1,4 @@
-import { describe, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { fc, test } from "@fast-check/vitest";
 import { applyIntent, createMatch, listLegalIntents } from "../engine.js";
 import { parseIntent } from "../engine/parseIntent.js";
@@ -188,4 +188,16 @@ describe("parseIntent properties (#1322)", () => {
       expect(seen.size).toBeGreaterThan(0);
     },
   );
+
+  it("the fuzz driver acts for the seat that owes a start-of-game choice, before mulligans (#1349)", () => {
+    // Seed 2040490284 seats Imu second: its Stage pick is pending while seat 0 has not mulliganed.
+    const seed = 2040490284;
+    const rng = createSeededRng(seed);
+    const a = randomDeck(rng);
+    const b = randomDeck(rng);
+    const state = createMatch({ seed, firstSeat: (seed % 2) as Seat, players: [a, b] });
+    expect(state.pendingChoices[0]?.seat).toBe(1);
+    expect(actingSeat(state)).toBe(1);
+    expect(listLegalIntents(state, actingSeat(state)).length).toBeGreaterThan(0);
+  });
 });

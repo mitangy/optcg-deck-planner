@@ -46,7 +46,7 @@ export class UndoHistory {
   captureSnapshot(seat: Seat, intent: Intent): UndoSnapshot | null {
     const { game } = this.core;
     const m = game.match;
-    if (game.ranked || !m) return null;
+    if (game.competitive || !m) return null;
     if (m.phase === "mulligan" || m.winner !== null) return null;
     return {
       match: serializeMatch(m),
@@ -60,7 +60,7 @@ export class UndoHistory {
   // A state change voids any open undo request: it named an action relative to the old state.
   recordStep(snap: UndoSnapshot | null, before: MatchState | null, events: GameEvent[]) {
     const after = this.core.game.match;
-    if (this.core.game.ranked || !after) return;
+    if (this.core.game.competitive || !after) return;
     if (snap && before) {
       const reason = revealReason(before, after, events);
       this.stack.push(reason ? { ...snap, revealReason: reason } : snap);
@@ -108,13 +108,13 @@ export class UndoHistory {
 
   state(): WireBody<UndoStateMessage> {
     const { game } = this.core;
-    const enabled = !game.ranked;
+    const enabled = !game.competitive;
     const over = !game.match || game.match.winner !== null || game.matchOverSent;
     const top = enabled && !over ? (this.stack.at(-1) ?? null) : null;
     let options: UndoStateMessage["options"] = null;
     let blockedReason: string | null = null;
     if (!enabled) {
-      blockedReason = "No undo in ranked";
+      blockedReason = "No undo in ranked or tournament games";
     } else if (!over) {
       options = { action: this.option("action"), turn: this.option("turn") };
       if (!options.action.available && !options.turn.available) {
@@ -155,7 +155,7 @@ export class UndoHistory {
       io.sendParseError(client, e);
       return;
     }
-    if (game.ranked) {
+    if (game.competitive) {
       io.sendError(client, "unauthorized", "Undo is only available in private matches");
       return;
     }

@@ -47292,6 +47292,24 @@
     "attribute": "Wisdom",
     "abilitySupport": "ok"
   },
+  "P-161": {
+    "id": "P-161",
+    "name": "Monkey.D.Luffy",
+    "type": "character",
+    "colors": [
+      "yellow"
+    ],
+    "cost": 7,
+    "power": 9000,
+    "counter": 1000,
+    "imageUrl": "/cards/P-161.png",
+    "effectText": "—",
+    "traits": [
+      "Straw Hat Crew"
+    ],
+    "attribute": "Strike",
+    "abilitySupport": "unverified"
+  },
   "PRB01-001": {
     "id": "PRB01-001",
     "name": "Sanji",

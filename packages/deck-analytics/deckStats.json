@@ -2593,6 +2593,7 @@
 "P-155":{"n":"Trafalgar Law","t":"character","col":["yellow"],"cost":4,"pow":5000,"ctr":1000,"tr":["Supernovas","Heart Pirates"],"at":["Slash"],"trg":1,"tm":["When Attacking"]},
 "P-157":{"n":"Monkey.D.Luffy","t":"character","col":["black"],"cost":7,"pow":6000,"ctr":1000,"tr":["Elbaph","The Four Emperors","Straw Hat Crew"],"at":["Strike"],"tm":["On Play"]},
 "P-160":{"n":"Nefeltari Vivi","t":"character","col":["yellow"],"cost":3,"pow":4000,"ctr":1000,"tr":["Alabasta"],"at":["Wisdom"],"trg":1,"tm":["On Play"],"rl":["search"],"srch":[{"look":5,"filter":{"attributes":["Wisdom"]}}]},
+"P-161":{"n":"Monkey.D.Luffy","t":"character","col":["yellow"],"cost":7,"pow":9000,"ctr":1000,"tr":["Straw Hat Crew"],"at":["Strike"]},
 "PRB01-001":{"n":"Sanji","t":"leader","col":["red"],"pow":5000,"life":5,"tr":["Straw Hat Crew"],"at":["Strike"],"tm":["Activate: Main"]},
 "PRB02-001":{"n":"Koby","t":"character","col":["red"],"cost":4,"pow":5000,"ctr":1000,"tr":["Navy","SWORD"],"at":["Strike"],"tm":["When Attacking"],"rl":["draw","removal"]},
 "PRB02-002":{"n":"Trafalgar Law","t":"character","col":["red"],"cost":6,"pow":7000,"ctr":1000,"tr":["Punk Hazard","The Seven Warlords of the Sea","Heart Pirates"],"at":["Slash"],"tm":["When Attacking"]},

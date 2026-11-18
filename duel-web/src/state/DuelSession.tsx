@@ -63,6 +63,7 @@ type ConnectOpts = {
   ownerToken?: string;
   createOptions?: {
     ranked?: boolean;
+    tournamentTicket?: string;
     players?: [
       { leaderId: string; deck: string[] },
       { leaderId: string; deck: string[] },

@@ -43,9 +43,9 @@ export class DuelGame {
   /** Never sent to players. */
   replay: MatchReplay | null = null;
   ranked = true;
+  tournament = false;
   matchStarted = false;
   matchOverSent = false;
-  resultPending: Promise<void> | null = null;
   disposed = false;
   seatDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
   /** Names captured at match start so they survive a seat dropping. */
@@ -57,6 +57,11 @@ export class DuelGame {
   firstSeatPickedBy: Seat | null = null;
   dice: DiceResult | null = null;
   bot: BotSeatConfig | null = null;
+
+  /** Ranked and tournament games share the rules that stop information leaking to a player: no spectator hands, no undo. */
+  get competitive(): boolean {
+    return this.ranked || this.tournament;
+  }
 
   gameKey(): string {
     return this.gameNumber > 1 ? `${this.matchId}-r${this.gameNumber - 1}` : this.matchId;
@@ -94,6 +99,7 @@ export interface DuelCore {
 
   applySeatIntent(seat: Seat, intent: Intent): ApplyResult;
   concedeSeat(seat: Seat): void;
+  endGameOutsideRules(winner: Seat, reason: string): void;
   startMatch(firstSeat: Seat, pickedBy: Seat | null): void;
   syncPublicState(): void;
   maybeSendMatchOver(): void;

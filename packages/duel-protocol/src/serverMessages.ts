@@ -171,6 +171,7 @@ export function parseWelcome(raw: unknown): WelcomeMessage {
     view,
     players: parseSeatPlayers(o.players),
     ranked: typeof o.ranked === "boolean" ? o.ranked : undefined,
+    tournament: typeof o.tournament === "boolean" ? o.tournament : undefined,
     firstSeatPickedBy:
       o.firstSeatPickedBy === null ? null : o.firstSeatPickedBy === 0 || o.firstSeatPickedBy === 1 ? o.firstSeatPickedBy : undefined,
     dice: o.dice === null ? null : parseDiceResult(o.dice),

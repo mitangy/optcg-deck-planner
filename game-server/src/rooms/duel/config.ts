@@ -8,6 +8,7 @@ import {
   isRankedMatchCreateAttested,
   requireGameToken,
 } from "../../env.js";
+import { verifyTournamentTicket } from "../../tournamentTicket.js";
 import type { BotRoomOptions, PlayerDeckWire, parseCreateOptions } from "../../protocol.js";
 export type EnvConfig = {
   devJoinSecret: string | undefined;
@@ -26,6 +27,9 @@ export type RoomConfig = EnvConfig & {
   /** Elo and rated rules: only true when the in-process matchmaker attested the create. */
   ranked: boolean;
   requestedRanked: boolean;
+  /** A valid backend ticket: hands stay hidden from spectators, no undo, and only the ticketed accounts may play. */
+  tournament: boolean;
+  tournamentSeats: [number, number] | undefined;
   timer: { turnSeconds: number | null; matchSeconds: number | null; seatSeconds: number | null };
   bot: BotRoomOptions | undefined;
   players: [PlayerDeckWire, PlayerDeckWire] | undefined;
@@ -50,14 +54,19 @@ export function buildRoomConfig(options: unknown, parsed: ReturnType<typeof pars
   const attestation =
     options && typeof options === "object" ? (options as { rankedAttestation?: unknown }).rankedAttestation : undefined;
   const env = { ...readEnvConfig(), ...roomEnvSource.override };
+  const ranked = parsed.ranked && isRankedMatchCreateAttested(attestation);
+  // A missing or bad ticket only means this is not a tournament room. A bot or ranked room never is one.
+  const ticket = ranked || parsed.bot ? null : verifyTournamentTicket(parsed.tournamentTicket);
   return {
     ...env,
     seed: parsed.seed,
     firstSeat: parsed.firstSeat,
     autoSkipMulligan: parsed.autoSkipMulligan,
     diceRoll: env.requireGameToken || parsed.diceRoll,
-    ranked: parsed.ranked && isRankedMatchCreateAttested(attestation),
+    ranked,
     requestedRanked: parsed.ranked,
+    tournament: ticket !== null,
+    tournamentSeats: ticket?.seats,
     timer: parsed.timer,
     bot: parsed.bot,
     players: parsed.players,

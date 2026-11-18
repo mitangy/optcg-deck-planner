@@ -20,7 +20,7 @@ export class MatchClocks {
   constructor(
     private readonly core: Pick<
       DuelCore,
-      "game" | "io" | "time" | "undo" | "bots" | "spectators" | "syncPublicState" | "maybeSendMatchOver" | "applySeatIntent"
+      "game" | "io" | "time" | "bots" | "maybeSendMatchOver" | "applySeatIntent" | "endGameOutsideRules"
     >,
   ) {}
 
@@ -195,21 +195,8 @@ export class MatchClocks {
   }
 
   private endGameOnClock(winner: Seat, reason: string, event: string, loser: Seat) {
-    const { game, io, undo, spectators } = this.core;
-    game.endReason = reason;
-    game.match = {
-      ...game.match!,
-      winner,
-      winReason: "leader_battle_at_zero_life",
-      phase: "game_over",
-    };
-    this.core.syncPublicState();
-    spectators.broadcastViews([]);
-    undo.request = null;
-    undo.broadcastState();
-    this.stopSeatClock();
-    this.clearTimerLoop();
-    this.broadcastTimer();
+    const { game, io } = this.core;
+    this.core.endGameOutsideRules(winner, reason);
     io.log("info", event, { matchId: game.matchId, winner, loser });
     this.core.maybeSendMatchOver();
   }

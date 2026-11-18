@@ -134,6 +134,7 @@ export class MatchPersistence {
       seat0_user_id: s0,
       seat1_user_id: s1,
       ranked: game.ranked,
+      tournament: game.tournament,
       seat0_leader_id: game.replay?.players[0].leaderId,
       seat1_leader_id: game.replay?.players[1].leaderId,
       turns: game.match?.turnNumber,
