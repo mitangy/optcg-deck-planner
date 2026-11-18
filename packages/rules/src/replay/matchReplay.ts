@@ -11,6 +11,8 @@ export interface MatchReplay {
   rulesVersion: string;
   registryHash: string;
   seed: number;
+  /** 256-bit hex key of a keyed match. Kept server-side until the game is over; a replay without it only replays keyless matches. */
+  rngKey?: string;
   firstSeat: Seat;
   /** The room skipped mulligans with the same rng that then drove every intent. */
   skipMulligans: boolean;
@@ -34,6 +36,7 @@ export interface ReplayStep {
 export function replayStart(replay: MatchReplay): MatchState {
   const state = createMatch({
     seed: replay.seed,
+    ...(replay.rngKey ? { rngKey: replay.rngKey } : {}),
     firstSeat: replay.firstSeat,
     lifeCheckEveryHit: replay.lifeCheckEveryHit ?? false,
     privateChoicesV2: replay.privateChoicesV2 ?? false,

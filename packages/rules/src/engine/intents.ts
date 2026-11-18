@@ -1,6 +1,6 @@
 import { abilitiesFor, REGISTRY_HASH } from "../cards/abilities.js";
 import { ensureDefsForPlayers, getCardDef, normalizeCardDefId } from "../cards/definitions.js";
-import { createSeededRng, type Rng } from "../rng.js";
+import { createKeyedRng, createSeededRng, type Rng } from "../rng.js";
 import { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION } from "./snapshot.js";
 import type { ApplyContext, ApplyResult, AttackTarget, CardInstance, CreateMatchConfig, Intent, MatchState, PendingChoice, PlayerDeckConfig, PlayerState, Seat } from "../types.js";
 import { addModifier } from "./modifiers.js";
@@ -46,7 +46,8 @@ function buildPlayer(state: MatchState, seat: Seat, cfg: PlayerDeckConfig, rng: 
   // independent permutation from its own seed-derived stream, so deck order, draws and later rolls of the match rng
   // stay the same as without the flag.
   if (state.privateChoicesV2) {
-    const idRng = createSeededRng((state.rng.seed ^ 0x5bd1e995 ^ Math.imul(seat + 1, 0x9e3779b1)) >>> 0);
+    const { key } = state.rng;
+    const idRng = key ? createKeyedRng(key, state.rng.seed, 0, seat + 1) : createSeededRng((state.rng.seed ^ 0x5bd1e995 ^ Math.imul(seat + 1, 0x9e3779b1)) >>> 0);
     const ids = idRng.shuffle(dealt.map((c) => c.id));
     shuffled.forEach((c, i) => { c.id = ids[i]!; });
   }
@@ -101,14 +102,15 @@ function resolveStartStage(sim: Sim, choice: PendingChoice, selectedOptionIds: s
 export function createMatch(config: CreateMatchConfig): MatchState {
   const players = config.players.map((p) => ({ leaderId: normalizeCardDefId(p.leaderId), deck: p.deck.map((id) => normalizeCardDefId(id)) })) as CreateMatchConfig["players"];
   ensureDefsForPlayers(players);
-  const rng = createSeededRng(config.seed);
+  const start = { seed: config.seed >>> 0, cursor: 0, ...(config.rngKey ? { key: config.rngKey } : {}) };
+  const rng = createSeededRng(config.rngKey ? start : config.seed);
   const firstSeat: Seat = config.firstSeat ?? 0;
   const state: MatchState = {
     stateVersion: MATCH_STATE_VERSION,
     rulesVersion: RULES_VERSION,
     protocolVersion: RULES_PROTOCOL_VERSION,
     registryHash: REGISTRY_HASH,
-    rng: { seed: config.seed >>> 0, cursor: 0 },
+    rng: start,
     players: [] as unknown as MatchState["players"],
     activeSeat: firstSeat,
     firstSeat,

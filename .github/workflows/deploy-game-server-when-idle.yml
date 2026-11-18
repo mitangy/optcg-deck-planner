@@ -1,0 +1,35 @@
+name: Deploy game server when idle
+
+# Manual only. A deploy ends every live game, so this waits for the game server to report no
+# live matches before it triggers the Render deploy hook. It never deploys if the wait runs out.
+on:
+  workflow_dispatch:
+    inputs:
+      max_wait_minutes:
+        description: "Give up (without deploying) after this many minutes"
+        required: false
+        default: "30"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-game-server-when-idle
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-node-deps
+        with:
+          install: "false"
+          cache: "false"
+      - name: Wait for no live matches, then deploy
+        env:
+          GAME_SERVER_URL: ${{ vars.GAME_SERVER_URL }}
+          RENDER_GAME_SERVER_DEPLOY_HOOK: ${{ secrets.RENDER_GAME_SERVER_DEPLOY_HOOK }}
+          MAX_WAIT_MINUTES: ${{ inputs.max_wait_minutes }}
+        run: node tools/ci/wait-for-idle.cjs

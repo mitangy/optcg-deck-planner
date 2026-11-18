@@ -113,6 +113,7 @@ type DuelSession = {
   battleLog: BattleLogEntry[];
   clearBattleLog: () => void;
   errorBanner: string | null;
+  serverRestart: { seconds: number } | null;
   matchOver: MatchOverMessage["result"] | null;
   timer: TimerMessage | null;
   chat: ChatLine[];
@@ -260,6 +261,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         onChat: (lines) => dispatch({ type: "chat", lines }),
         onUndoState: (state) => dispatch({ type: "undoState", state }),
         onPresence: (awayUntil) => dispatch({ type: "presence", awayUntil }),
+        onServerRestarting: (seconds) => dispatch({ type: "serverRestarting", seconds }),
         onRematchState: (state) => dispatch({ type: "rematchState", state }),
         onDiceState: (state) => dispatch({ type: "diceState", state }),
         onUndoApplied: (info) => dispatch({ type: "undoApplied", info }),
@@ -269,12 +271,23 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           dispatch({ type: "takenOver" });
           clearMatchResume();
         },
-        onDisconnect: () => dispatch({ type: "disconnect" }),
-        onDrop: () => dispatch({ type: "drop" }),
+        onDisconnect: () => {
+          dropRestartedGame();
+          dispatch({ type: "disconnect" });
+        },
+        onDrop: () => {
+          dropRestartedGame();
+          dispatch({ type: "drop" });
+        },
         onReconnect: () => dispatch({ type: "reconnect" }),
         onQueued: () => dispatch({ type: "queued" }),
         onReconnectionToken: (token, roomId) => persistToken(token, roomId),
       });
+    }
+
+    // A game cut off by a restart it was warned about has nothing to reconnect to: stop the SDK retrying and forget the token.
+    function dropRestartedGame() {
+      if (store.getSnapshot().serverRestart) resetMatchEffects();
     }
 
     function abandon(): Error {
@@ -537,6 +550,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       vsBot: match.vsBot,
       battleLog: match.battleLog,
       errorBanner: match.errorBanner,
+      serverRestart: match.serverRestart,
       matchOver: match.matchOver,
       timer: match.timer,
       chat: match.chat,

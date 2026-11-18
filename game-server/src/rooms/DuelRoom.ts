@@ -16,13 +16,13 @@ import { hashToNegativeId } from "../devIdentity.js";
 import { sanitizeDisplayName, verifyGameToken } from "../gameToken.js";
 import { writeLog, type LogLevel } from "../log.js";
 import { SlidingWindowLimiter } from "../rateLimit.js";
-import { checkMatchmakeToken, claimCreatorRoom, releaseCreatorRoom } from "../matchmakeGuard.js";
+import { checkMatchmakeToken, claimCreatorRoom, newRngKey, releaseCreatorRoom } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import {
   PROTOCOL_VERSION,
   TAKEN_OVER_CLOSE_CODE,
   parseCreateOptions,
-  parseIntentMessage,
+  parseIntentEnvelope,
   parseJoinOptions,
   CLIENT_MESSAGE,
   ProtocolError,
@@ -60,6 +60,9 @@ export { BOT_MAX_INTENTS_PER_TURN, botDisplayName, botPacing, botSearch } from "
 const INTENT_RATE_LIMIT = 20;
 const INTENT_RATE_WINDOW_MS = 1000;
 const MAX_MESSAGES_PER_SECOND = 40;
+
+/** How long a live game is warned before a server shutdown closes it. */
+export const RESTART_WARNING_SECONDS = 10;
 
 export class DuelRoom extends Room implements PresenceSource, DuelCore {
   maxClients = 2 + MAX_SPECTATORS;
@@ -248,7 +251,18 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
   }
 
+  // Set once the server is shutting down: dropped seats are the restart's doing, not a forfeit.
+  private shuttingDown = false;
+
   async onBeforeShutdown() {
+    this.shuttingDown = true;
+    // Tell a live game before anything else, then give the players a few seconds to read it. Assumes Render's
+    // default 30 s between SIGTERM and SIGKILL, so this stays well inside that.
+    if (this.game.matchStarted && !this.game.matchOverSent) {
+      this.io.broadcast("server_restarting", { seconds: RESTART_WARNING_SECONDS });
+      this.log("info", "server_restarting", { matchId: this.game.matchId, seconds: RESTART_WARNING_SECONDS });
+      await this.time.sleep(RESTART_WARNING_SECONDS * 1000);
+    }
     // Do not dispose a completed match before its result is durably queued. A rematch can add a write
     // while we wait, so loop until none is left.
     while (this.pendingResultWrites.size > 0) await Promise.all([...this.pendingResultWrites]);
@@ -539,7 +553,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
 
   private forfeitAbsentSeat(seat: Seat, reason: "abandoned" | "disconnect") {
     const { game } = this;
-    if (!game.match || !game.matchStarted || game.matchOverSent) return;
+    if (this.shuttingDown || !game.match || !game.matchStarted || game.matchOverSent) return;
     if (game.match.winner !== null || game.match.phase === "game_over") return;
     if (this.seats.slot(seat)) return;
     const other = (seat === 0 ? 1 : 0) as Seat;
@@ -711,6 +725,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     game.firstSeatPickedBy = pickedBy;
     this.resetPerGameState();
     const { players: createPlayers, autoSkipMulligan } = this.config;
+    game.rngKey = this.config.seedPinned ? null : newRngKey();
     const deckA = game.seatDecks[0]?.deck ?? createPlayers?.[0]?.deck ?? buildTestDeck(20);
     const deckB = game.seatDecks[1]?.deck ?? createPlayers?.[1]?.deck ?? buildTestDeck(20);
     const leaderA =
@@ -722,6 +737,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     try {
       match = createMatch({
         seed: game.seed,
+        ...(game.rngKey ? { rngKey: game.rngKey } : {}),
         firstSeat,
         players: [
           { leaderId: leaderA, deck: [...deckA] },
@@ -754,6 +770,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       rulesVersion: RULES_VERSION,
       registryHash: REGISTRY_HASH,
       seed: game.seed,
+      ...(game.rngKey ? { rngKey: game.rngKey } : {}),
       firstSeat,
       skipMulligans: autoSkipMulligan,
       // createMatch's default: every non-Banish Life hit opens a private Life check.
@@ -836,11 +853,31 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
 
     let intent: Intent;
+    let step: number | undefined;
+    let cardId: string | undefined;
     try {
-      intent = parseIntentMessage(message);
+      ({ intent, step, cardId } = parseIntentEnvelope(message));
     } catch (e) {
       this.io.sendParseError(client, e);
       return;
+    }
+
+    // Omitted guards (older tabs) skip these checks. A stale intent is dropped and the sender resynced.
+    if (step !== undefined && step !== game.stateStep) {
+      this.rejectStale(client, seat, "State changed since the action was taken");
+      return;
+    }
+    if (cardId !== undefined && intentHandIndex(intent) !== undefined) {
+      const hand = game.match.players[seat].hand;
+      if (hand[intentHandIndex(intent)!]?.id !== cardId) {
+        // The same card elsewhere in hand is still what the player meant (the engine re-checks legality); a card that left the hand is stale.
+        const at = hand.findIndex((c) => c.id === cardId);
+        if (at < 0) {
+          this.rejectStale(client, seat, "That card is no longer in your hand");
+          return;
+        }
+        intent = { ...intent, handIndex: at } as Intent;
+      }
     }
 
     const applied = this.applySeatIntent(seat, intent);
@@ -848,6 +885,12 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       this.sendError(client, "illegal_intent", applied.message);
       this.io.send(client, "view", { view: this.spectators.playerView(game.match, seat) });
     }
+  }
+
+  private rejectStale(client: Client, seat: Seat, message: string) {
+    const { game } = this;
+    this.io.send(client, "view", { view: this.spectators.playerView(game.match!, seat), step: game.stateStep });
+    this.sendError(client, "stale_intent", message);
   }
 
   applySeatIntent(seat: Seat, intent: Intent): ApplyResult {
@@ -1016,4 +1059,10 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   private log(level: LogLevel, event: string, data: Record<string, unknown>) {
     writeLog(level, event, data);
   }
+}
+
+function intentHandIndex(intent: Intent): number | undefined {
+  return intent.type === "play_card" || intent.type === "counter_from_hand" || intent.type === "counter_event"
+    ? intent.handIndex
+    : undefined;
 }

@@ -108,6 +108,7 @@ export function DemoPage() {
         seat={0}
         matchId={DEMO_MATCH_ID}
         spectator={params.has("spectate")}
+        serverRestart={params.has("restart") ? { seconds: 10 } : null}
         seatSkins={params.has("oppart") ? [params.has("spectate") ? DEMO_OPP_SKIN : null, DEMO_OPP_SKIN] : undefined}
         players={params.has("oppart") ? [{ name: "Luffy" }, { name: "Zoro" }] : null}
         firstSeatPickedBy={diceResult ? diceResult.result.winner : demoPickedBy(params.get("pickedby"))}
