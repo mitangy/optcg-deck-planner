@@ -324,7 +324,7 @@
   position: fixed;
   z-index: var(--z-popover);
   right: max(1rem, env(safe-area-inset-right, 0px));
-  bottom: max(5rem, calc(env(safe-area-inset-bottom, 0px) + 4.5rem));
+  bottom: max(calc(5rem + var(--bottom-nav-h, 0px)), calc(env(safe-area-inset-bottom, 0px) + 4.5rem));
   box-sizing: border-box;
   width: min(20rem, calc(100vw - 2rem));
   padding: 0.85rem 1rem 0.9rem;

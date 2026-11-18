@@ -11,6 +11,7 @@ export function SiteFooter({
   onFeedback,
   extraLinks,
   externalLinks,
+  trailing,
 }: {
   Link: ComponentType<FooterLinkProps>;
   className?: string;
@@ -18,6 +19,8 @@ export function SiteFooter({
   /** Links to other sites, opened in a new tab (no nofollow: they are our own listings). */
   externalLinks?: readonly { href: string; label: string }[];
   onFeedback?: () => void;
+  /** Small muted text after the links (the planner puts its build id here). */
+  trailing?: ReactNode;
 }) {
   return (
     <footer className={`site-footer${className ? ` ${className}` : ""}`}>
@@ -49,6 +52,7 @@ export function SiteFooter({
               Send feedback
             </button>
           ) : null}
+          {trailing ? <span className="site-footer-trailing">{trailing}</span> : null}
         </nav>
         <p className="site-footer-disclaimer">{FAN_DISCLAIMER}</p>
         <p className="site-footer-notice">{OWNERSHIP_NOTICE}</p>

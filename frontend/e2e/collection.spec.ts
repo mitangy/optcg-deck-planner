@@ -73,7 +73,8 @@ test("Collection picks up copies a group buy's Mark purchased adds and Undo take
   const nav = page.getByRole("navigation", { name: "Primary" });
   const totals = page.getByRole("list", { name: "Collection totals" });
   const toGroupBuy = async () => {
-    await nav.getByRole("link", { name: "Group buys" }).click();
+    await nav.getByRole("button", { name: "More" }).click();
+    await page.getByRole("menuitem", { name: "Group buys" }).click();
     await page.getByRole("link", { name: /Kid & Killer split/ }).click();
     await expect(page.getByRole("heading", { name: "Kid & Killer split", level: 1 })).toBeVisible();
   };

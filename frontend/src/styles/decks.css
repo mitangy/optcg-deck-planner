@@ -687,10 +687,6 @@
     width: 100%;
   }
 
-  .topbar .build-tag {
-    display: none;
-  }
-
   .brand {
     grid-area: brand;
     min-width: 0;

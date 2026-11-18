@@ -19,7 +19,7 @@ const DEFAULT_STACKS: string[] = [];
 
 const DEFAULT_OFFSCREEN_OK: string[] = [];
 
-const DEFAULT_HSCROLL_OK: string[] = [".topbar nav"];
+const DEFAULT_HSCROLL_OK: string[] = [];
 
 const DEFAULT_OVERLAYS = ["[role=dialog]", "[aria-modal=true]", ".market-sales", ".head-popover-panel", ".sort-menu-panel", ".stats-pill"];
 

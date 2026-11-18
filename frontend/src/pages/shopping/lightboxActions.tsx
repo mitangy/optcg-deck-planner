@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { api, ShoppingItem } from "../../api";
 import { useSavedShoppingDeckIds } from "./shoppingDeckFilter";
@@ -34,6 +34,7 @@ export function ShoppingExtraControl({
   addLabel = "Add",
   loading = false,
   altProductId = 0,
+  stepperLabel,
 }: {
   cardId: string;
   item: ShoppingItem | undefined;
@@ -42,7 +43,10 @@ export function ShoppingExtraControl({
   /** The list or owned counts are still loading: item/owned are placeholders, so a press would overwrite a saved target (#845). */
   loading?: boolean;
   altProductId?: number;
+  /** Visible name for the stepper (e.g. "To buy"); also its accessible group name. */
+  stepperLabel?: string;
 }) {
+  const labelId = useId();
   const qc = useQueryClient();
   const stillNeed = item?.still_need ?? 0;
   const extraQty = item?.extra_qty ?? 0;
@@ -69,9 +73,18 @@ export function ShoppingExtraControl({
       adding: delta > 0,
     });
   return (
-    <span className="shopping-extra-control">
+    <span
+      className="shopping-extra-control"
+      role={stepperLabel && stillNeed > 0 ? "group" : undefined}
+      aria-labelledby={stepperLabel && stillNeed > 0 ? labelId : undefined}
+    >
       {stillNeed > 0 ? (
         <>
+          {stepperLabel ? (
+            <span id={labelId} className="shopping-extra-label">
+              {stepperLabel}
+            </span>
+          ) : null}
           <button
             type="button"
             className="owned-btn"
@@ -140,6 +153,7 @@ export function LightboxShoppingControl({ cardId }: { cardId: string }) {
         owned={ownedOf(cardId)}
         addLabel="Add to shopping list"
         loading={loading}
+        stepperLabel="To buy"
       />
     </>
   );

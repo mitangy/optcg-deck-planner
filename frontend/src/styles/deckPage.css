@@ -65,7 +65,7 @@
   position: fixed;
   left: max(0.75rem, env(safe-area-inset-left, 0px));
   transition: transform 0.2s ease, opacity 0.2s ease;
-  bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  bottom: max(calc(0.75rem + var(--bottom-nav-h, 0px)), env(safe-area-inset-bottom, 0px));
   z-index: var(--z-hud);
   display: inline-flex;
   align-items: center;

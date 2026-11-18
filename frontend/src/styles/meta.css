@@ -402,10 +402,6 @@ html[data-lp-dock] .topbar {
   .topbar .user > * {
     white-space: nowrap;
   }
-
-  .topbar .build-tag {
-    display: none;
-  }
 }
 
 .alt-art-base {

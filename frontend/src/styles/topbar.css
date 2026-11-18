@@ -68,7 +68,8 @@
   gap: 0.2rem;
 }
 
-.topbar nav a {
+.topbar nav a,
+.topbar nav .nav-more {
   position: relative;
   text-decoration: none;
   color: rgba(239, 230, 210, 0.78);
@@ -79,19 +80,42 @@
   transition: color 0.15s ease, background-color 0.15s ease;
 }
 
-.topbar nav a:hover {
+.topbar nav .nav-more {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.nav-more-wrap {
+  position: relative;
+  min-width: 0;
+}
+
+.nav-more-chev {
+  font-size: 0.7rem;
+}
+
+.topbar nav a:hover,
+.topbar nav .nav-more:hover {
   color: #fff8e8;
   background: rgba(255, 255, 255, 0.06);
 }
 
 .topbar nav a.active,
-.topbar nav a[aria-current="page"] {
+.topbar nav a[aria-current="page"],
+.topbar nav .nav-more.active {
   color: var(--gold-bright);
   font-weight: 600;
 }
 
 .topbar nav a.active::after,
-.topbar nav a[aria-current="page"]::after {
+.topbar nav a[aria-current="page"]::after,
+.topbar nav .nav-more.active::after {
   content: "";
   position: absolute;
   left: 0.6rem;
@@ -102,7 +126,7 @@
   background: var(--gold);
 }
 
-@media (min-width: 761px) and (max-width: 1439px) {
+@media (min-width: 761px) and (max-width: 1099px) {
   .topbar-inner {
     flex-wrap: wrap;
     row-gap: 0.1rem;
@@ -174,10 +198,6 @@
   opacity: 0.85;
   user-select: all;
   white-space: nowrap;
-}
-
-.topbar .build-tag {
-  color: rgba(239, 230, 210, 0.5);
 }
 
 .build-tag-login {

@@ -40,6 +40,11 @@
   text-underline-offset: 0.15em;
 }
 
+.site-footer-trailing {
+  padding: 0.3rem 0;
+  color: color-mix(in srgb, currentColor 58%, transparent);
+}
+
 .site-footer-disclaimer,
 .site-footer-notice {
   margin: 0;

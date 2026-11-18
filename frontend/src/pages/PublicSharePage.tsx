@@ -20,7 +20,6 @@ import {
   type SortKey,
 } from "../ui/cardListControls";
 import { CardWorkspace } from "../ui/CardWorkspace";
-import { BuildTag } from "@optcg/ui/appShell";
 import { DeckStatsDock } from "./decks/DeckStats";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { CardThumb } from "../ui/CardThumb";
@@ -83,7 +82,6 @@ export function PublicSharePage() {
     <div className="app public-app">
       <UpdateNotice />
       <Topbar brandTo="/login">
-        <BuildTag />
         <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
           Play Duel
         </a>

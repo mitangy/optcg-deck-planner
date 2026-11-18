@@ -10,7 +10,7 @@ test.afterEach(({ planner }) => {
 });
 
 test("More opens on screen under its button, moves nothing and the page does not scroll sideways (#715)", async ({ page }) => {
-  const more = page.getByRole("button", { name: "More" });
+  const more = page.locator("main").getByRole("button", { name: "More" });
   await expectStationary(more, () => more.click(), "More");
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();
@@ -29,7 +29,7 @@ test("More opens on screen under its button, moves nothing and the page does not
 });
 
 test("arrow keys walk the More menu, Enter picks a row and Escape returns focus to the button (#715)", async ({ page, planner }) => {
-  const more = page.getByRole("button", { name: "More" });
+  const more = page.locator("main").getByRole("button", { name: "More" });
   await more.focus();
   await page.keyboard.press("Enter");
   const menu = page.getByRole("menu");
@@ -54,7 +54,7 @@ test("arrow keys walk the More menu, Enter picks a row and Escape returns focus 
 });
 
 test("a tap outside the More menu closes it (#715)", async ({ page }) => {
-  await page.getByRole("button", { name: "More" }).click();
+  await page.locator("main").getByRole("button", { name: "More" }).click();
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();
   const vp = page.viewportSize()!;
