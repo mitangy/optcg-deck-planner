@@ -87,7 +87,8 @@
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--muted);
+  /* Ink, not muted: on the tinted banner backgrounds the muted grey fell under 4.5:1. */
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
@@ -113,7 +114,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 0.72rem;
-  color: var(--muted);
+  color: var(--ink);
 }
 
 .turn-panel-mine .turn-banner {

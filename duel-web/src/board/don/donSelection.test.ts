@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Intent } from "../../net/protocol";
 import {
   attachLabel,
+  railTapDon,
   attachTargetIds,
   beginAttach,
   donIdsForTarget,
@@ -139,3 +140,14 @@ describe("quickAttachLabel", () => {
     expect(quickAttachLabel(2, quickAttachCounts(2))).toBe("Give 2 DON!! (+2000)");
   });
 });
+
+describe("tapping the DON!! area on a touch screen (#1343)", () => {
+  it("picks the first DON!! not yet selected, and returns null once all are picked so the tap clears (#1343)", () => {
+    expect(railTapDon(new Set(), ["a", "b", "c"])).toBe("a");
+    expect(railTapDon(new Set(["a"]), ["a", "b", "c"])).toBe("b");
+    expect(railTapDon(new Set(["a", "c"]), ["a", "b", "c"])).toBe("b");
+    expect(railTapDon(new Set(["a", "b", "c"]), ["a", "b", "c"])).toBeNull();
+    expect(railTapDon(new Set(), [])).toBeNull();
+  });
+});
+

@@ -6,7 +6,7 @@ export function showsSiteFooter(pathname: string): boolean {
   return !NO_FOOTER.some((p) => under(pathname, p));
 }
 
-const FULL_FOOTER = ["/", "/watch", "/play-one-piece-tcg-online", "/optcg-sim-online", "/play-optcg-on-phone", "/leaders", "/terms", "/privacy", "/cookies", "/conduct"];
+const FULL_FOOTER = ["/", "/watch", "/play-one-piece-tcg-online", "/optcg-sim-online", "/play-optcg-on-phone", "/leaders", "/terms", "/privacy", "/cookies", "/conduct", "/whats-new"];
 
 /** The lobby and the public/SEO and legal pages carry every link; other app pages get one compact line (#1343). */
 export function compactSiteFooter(pathname: string): boolean {

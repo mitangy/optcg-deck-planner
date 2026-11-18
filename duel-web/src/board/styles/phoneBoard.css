@@ -445,3 +445,51 @@
   }
 }
 
+/* Touch screens: small controls keep their look but get a 44x44 hit area (a centred pseudo-element), and captions reach 12px where the tile has room. Cards' own names and numbers stay at the size the tile allows. */
+@media (pointer: coarse) {
+  .arena .hud-bar.hud-compact .hud-icon-btn,
+  .arena .hud-bar.hud-compact .hud-menu-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* The two corner pills have the top bar above them and the opponent's count chips below, so they stop at 28px instead of taking those controls' taps. */
+  .battle-log.collapsed .battle-log-toggle,
+  .chat-panel.collapsed .chat-toggle {
+    min-height: 28px;
+  }
+
+  .hand-rail-btn,
+  .count-chip.openable {
+    position: relative;
+  }
+
+  .hand-rail-btn::after,
+  .count-chip.openable::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (pointer: coarse) and (max-width: 899px) {
+  .arena .hud-compact .hud-turn-chip,
+  .arena .side-field .mat-order,
+  .arena .side-counts .opp-counts .mat-order,
+  .arena .hand-rail-btn,
+  .arena .side-field .don-strip-label,
+  .arena .side-field .don-strip-nums,
+  .arena .side-field .zone-pile-meta .zone-pile-label {
+    font-size: 0.75rem;
+  }
+
+  /* "DON!! Deck" at 12px is wider than the corner tile; the word Deck drops and the DON!! pictogram and number stay. */
+  .arena .side-field .zone-pile-meta .zone-pile-rest {
+    display: none;
+  }
+}
+

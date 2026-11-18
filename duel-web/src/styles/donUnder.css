@@ -126,16 +126,31 @@
 
 .settings-jump {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
   margin: 0 0 0.75rem;
+  /* One row: the chips scroll sideways on a narrow screen instead of wrapping. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.settings-jump::-webkit-scrollbar {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .settings-jump a {
+    min-height: 44px;
+  }
 }
 
 .settings-jump a {
+  flex: none;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   min-height: 36px;
-  padding: 0 0.7rem;
+  padding: 0 0.6rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   color: var(--muted);

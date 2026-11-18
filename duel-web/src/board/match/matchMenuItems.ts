@@ -26,3 +26,21 @@ export function matchMenuItems(o: {
   items.push("leave");
   return o.replay ? items.filter((id) => id !== "copy-room" && id !== "copy-spectate" && id !== "concede") : items;
 }
+
+// Room links first, then the match's own view and help rows, then the Full screen and Mute icon pair, then the ways out at the bottom.
+export type MatchMenuGroups = {
+  room: MatchMenuItemId[];
+  view: MatchMenuItemId[];
+  icons: MatchMenuItemId[];
+  exits: MatchMenuItemId[];
+};
+
+export function groupMatchMenu(items: readonly MatchMenuItemId[]): MatchMenuGroups {
+  const pick = (ids: readonly MatchMenuItemId[]) => items.filter((id) => ids.includes(id));
+  return {
+    room: pick(["copy-room", "copy-spectate"]),
+    view: pick(["settings", "hide-art", "reload", "report-player", "report"]),
+    icons: pick(["fullscreen", "mute-tab"]),
+    exits: pick(["concede", "leave"]),
+  };
+}

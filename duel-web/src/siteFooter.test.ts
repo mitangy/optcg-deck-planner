@@ -20,13 +20,13 @@ describe("legal footer placement", () => {
 
 describe("compact footer on app pages (#1343)", () => {
   it("keeps the full footer on the lobby, the public pages and the legal pages (#1343)", () => {
-    for (const path of ["/", "/watch/r1", "/play-one-piece-tcg-online", "/optcg-sim-online", "/play-optcg-on-phone", "/leaders", "/leaders/luffy", "/terms", "/privacy", "/cookies", "/conduct"]) {
+    for (const path of ["/", "/watch/r1", "/play-one-piece-tcg-online", "/optcg-sim-online", "/play-optcg-on-phone", "/leaders", "/leaders/luffy", "/terms", "/privacy", "/cookies", "/conduct", "/whats-new"]) {
       expect(compactSiteFooter(path), path).toBe(false);
     }
   });
 
   it("uses the compact footer on the other app pages (#1343)", () => {
-    for (const path of ["/decks", "/decks/new", "/decks/abc/configure", "/decks/meta", "/settings", "/history", "/history/m1", "/leaderboard", "/tournaments", "/tournaments/AbC", "/whats-new"]) {
+    for (const path of ["/decks", "/decks/new", "/decks/abc/configure", "/decks/meta", "/settings", "/history", "/history/m1", "/leaderboard", "/tournaments", "/tournaments/AbC"]) {
       expect(compactSiteFooter(path), path).toBe(true);
     }
   });
