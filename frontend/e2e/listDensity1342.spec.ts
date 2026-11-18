@@ -74,8 +74,10 @@ test("the alt chip opens that row's alt tiles under it without moving the chip, 
 test("a card with alt arts keeps a base-art stepper in its Owned column (#1342)", async ({ page, planner }, info) => {
   test.skip(info.project.name !== "desktop-1200", "desktop rows");
   planner.defaultDensity = true;
+  planner.altOwned.set(`${IZO}:201`, 1);
   await planner.open("/shopping");
   const row = page.locator("tbody tr", { has: page.getByText(IZO, { exact: true }) }).first();
+  await expect(row.locator(".alts-owned-note")).toContainText("+1 alt");
   const start = planner.owned.get(IZO) ?? 0;
   await row.getByRole("button", { name: "Increase owned", exact: true }).click();
   await expect.poll(() => planner.owned.get(IZO)).toBe(start + 1);
