@@ -587,7 +587,16 @@ function AlertRow({ alert, emailEnabled }: { alert: PriceAlert; emailEnabled: bo
         ) : (
           <span className="alert-now-price">{money(alert.current_price)}</span>
         )}
-        {distance ? <span className={`muted alert-distance${distance.atTarget ? " at" : ""}`}>{distance.text}</span> : null}
+        {distance ? (
+          <span className={`muted alert-distance${distance.atTarget ? " at" : ""}`}>
+            {distance.text.split(" · ").map((part, i) => (
+              <span key={i}>
+                {i > 0 ? " · " : null}
+                <span className="alert-distance-part">{part}</span>
+              </span>
+            ))}
+          </span>
+        ) : null}
       </div>
       <div className="alert-target">
         <span className="alert-target-text">

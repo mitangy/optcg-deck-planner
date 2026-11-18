@@ -296,6 +296,10 @@ a.alert-card-name:hover {
   line-height: 1.3;
 }
 
+.alert-distance-part {
+  white-space: nowrap;
+}
+
 .alert-distance.at {
   color: var(--ok-ink);
   font-weight: 600;
