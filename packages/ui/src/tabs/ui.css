@@ -1,10 +1,3 @@
-/*
- * Structure only. The group and panels wrappers take no part in layout (display: contents), so a
- * tab row and its panels lay out exactly as the plain elements they replace. Looks stay with each
- * app's classes: style the selected tab with [aria-selected="true"] or [data-selected].
- * :where() keeps specificity at zero so an app class on the same element wins.
- */
-
 :where(.ui-tabs, .ui-tab-panels) {
   display: contents;
 }

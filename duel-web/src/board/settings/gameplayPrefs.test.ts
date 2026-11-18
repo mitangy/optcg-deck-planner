@@ -57,7 +57,6 @@ describe("endTurnWarning", () => {
 
   it("always asks in 'always' mode, without a reason, and never in 'never' mode", () => {
     expect(endTurnWarning("always", endOnly)).toEqual({ reason: null });
-    // Something is left here, yet "always" still carries no reason.
     expect(endTurnWarning("always", [give("d1", "l")])).toEqual({ reason: null });
     expect(endTurnWarning("never", [attack("c1")])).toBeNull();
   });

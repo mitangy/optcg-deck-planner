@@ -1,22 +1,5 @@
-/**
- * Card motion layer: shuffle, draw, play, life, KO / discard, DON!! and power
- * cues drawn with the Web Animations API on top of an already-updated board.
- *
- * - Never gates input: the view is on screen before anything moves, ghosts
- *   ignore the pointer, and any pointer or key press finishes every running
- *   animation at once.
- * - Transform (`translate` / `scale`) and opacity only, FLIP style: measure
- *   where a card was, measure where it is now, animate the difference. The
- *   individual `translate` / `scale` properties compose with each tile's own
- *   `transform` (rested rotation, hand fan) instead of replacing it.
- * - Reduced motion (OS or the "Reduce animations" setting): no travel, only a
- *   short fade on the cards that arrived.
- *
- * Class component for `getSnapshotBeforeUpdate`: it runs after React renders
- * the new view but before the DOM changes, which is the only moment the old
- * positions (a hand card about to be played, a Character about to be KO'd)
- * can still be measured.
- */
+// Class component for `getSnapshotBeforeUpdate`: it runs after React renders the new view but before the DOM changes, the only moment the old positions can still be measured.
+// The individual `translate` / `scale` properties compose with each tile's own `transform` (rested rotation, hand fan) instead of replacing it.
 import { Component } from "react";
 import type { PlayerView } from "../../net/protocol";
 import { currentSettings } from "../../settings";
@@ -25,14 +8,12 @@ import { motionPlan, scaledMs } from "./motionSpeed";
 
 type Props = { view: PlayerView | null };
 
-/** Old positions and art captured before the DOM update. */
 type Snapshot = {
   cues: MotionCue[];
   handRects: Map<string, DOMRect>;
   leaving: Map<string, Leaving>;
 };
 
-/** A card that left the DOM: where it was and what its art looked like. */
 type Leaving = { rect: DOMRect; art: string | null; rested: boolean };
 
 export const MOTION_MS = {
@@ -47,10 +28,8 @@ export const MOTION_MS = {
   fade: 120,
 } as const;
 
-// Gentle deceleration: a front-loaded curve would park the card at its target for most of the flight.
 const EASE_OUT = "cubic-bezier(0.25, 0.7, 0.35, 1)";
 const EASE_IN = "cubic-bezier(0.55, 0, 0.9, 0.4)";
-/** Draw flip: the back starts turning at 45% of the flight and is edge-on at 70%. */
 const FLIP_START = 0.45;
 const FLIP_MID = 0.7;
 
@@ -63,7 +42,6 @@ export function prefersReducedMotion(): boolean {
 export class BoardMotion extends Component<Props> {
   private running = new Set<Animation>();
   private layer: HTMLDivElement | null = null;
-  /** Speed multiplier for the batch being played (Fast halves every duration). */
   private scale = 1;
 
   componentDidMount() {
@@ -150,7 +128,6 @@ export class BoardMotion extends Component<Props> {
     return el;
   }
 
-  /** A fixed-position element sized to `rect`; removed when its animation ends. */
   private ghost(rect: DOMRect, node: HTMLElement): HTMLElement {
     node.classList.add("motion-ghost");
     node.removeAttribute("data-instance-id");
@@ -180,12 +157,10 @@ export class BoardMotion extends Component<Props> {
     }
   }
 
-  /** A base duration or delay at this batch's speed. */
   private ms(base: number): number {
     return scaledMs(base, this.scale);
   }
 
-  /** Reduced motion: arrivals fade in place, nothing travels. */
   private fadeCue(cue: MotionCue) {
     const fade = (el: Element | null) => {
       if (!el) return;
@@ -243,7 +218,6 @@ export class BoardMotion extends Component<Props> {
     });
   }
 
-  /** Deck or life → hand. Yours flip face-up in flight; the opponent's stay face-down. */
   private toHand(side: MotionSide, from: "deck" | "life", count: number, ids: string[]) {
     const source = pile(side, from);
     if (!source) return;
@@ -267,11 +241,6 @@ export class BoardMotion extends Component<Props> {
     for (let i = 0; i < Math.min(count, 5); i += 1) this.flyBack(src, to, art, i * step, false);
   }
 
-  /**
-   * A card back travelling `from → to`. With `flip` it turns edge-on part way
-   * (the real card then widens face-up in its place, see `flipIn`); without,
-   * it fades as it reaches the target.
-   */
   private flyBack(from: DOMRect, to: DOMRect, art: string, delay: number, flip: boolean) {
     const node = document.createElement("div");
     node.className = "card-back";
@@ -296,7 +265,6 @@ export class BoardMotion extends Component<Props> {
     );
   }
 
-  /** The real hand card rides the same path, hidden edge-on until the back has turned, then widens. */
   private flipIn(el: Element, from: DOMRect, delay: number) {
     const d = delta(from, el.getBoundingClientRect());
     this.track(
@@ -336,7 +304,6 @@ export class BoardMotion extends Component<Props> {
     }
     const to = el.getBoundingClientRect();
     if (!from || !visible(from)) {
-      // Played from somewhere we can't point at (deck, trash, effect): grow in place.
       this.track(
         el.animate(
           [{ scale: "0.85", opacity: 0 }, { scale: "1.04", opacity: 1, offset: 0.75 }, { scale: "1" }],
@@ -358,12 +325,10 @@ export class BoardMotion extends Component<Props> {
     );
   }
 
-  /** A copy of the card that left drifts into the trash (or just fades if it went elsewhere). */
   private toTrash(side: MotionSide, left: Leaving, toTrash: boolean) {
     const node = left.art ? document.createElement("img") : document.createElement("div");
     if (node instanceof HTMLImageElement && left.art) node.src = left.art;
     else node.className = "card-back";
-    // A rested tile's box is landscape: draw the portrait card rotated inside it.
     const rect = left.rested
       ? new DOMRect(
           left.rect.left + (left.rect.width - left.rect.height) / 2,
@@ -442,8 +407,6 @@ function canAnimate(): boolean {
   );
 }
 
-// —— DOM lookups (all optional: a layout without the element just skips that motion) ——
-
 function esc(id: string): string {
   return typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"');
 }
@@ -478,7 +441,6 @@ function oppHand(): HTMLElement | null {
   return firstVisible([".hand-fan-top .hand-fan-cards", ".spec-far-cards", ".opp-hand-fan-cards", ".opp-hand-backs", ".opp-hand-hint"]);
 }
 
-/** The DON!! that just arrived: active chips come first, so they end the active run. */
 function donChips(side: MotionSide, count: number, activeAfter: number): HTMLElement[] {
   const chips = [
     ...document.querySelectorAll<HTMLElement>(`.side-field.side-${side} .zone-cost .don-chip`),
@@ -487,7 +449,6 @@ function donChips(side: MotionSide, count: number, activeAfter: number): HTMLEle
   return chips.slice(Math.max(0, end - count), end);
 }
 
-/** The top card of a pile rather than the whole pile box (label and count included). */
 function sourceRect(pileEl: HTMLElement): DOMRect {
   const face =
     pileEl.querySelector<HTMLElement>(".zone-pile-face.top") ??
@@ -509,7 +470,6 @@ export function visible(r: { left: number; top: number; width: number; height: n
 
 type Box = { left: number; top: number; width: number; height: number };
 
-/** Translate + uniform scale that puts `to` over `from` (both centre-anchored). */
 export function delta(from: Box, to: Box): { dx: number; dy: number; s: number } {
   const dx = from.left + from.width / 2 - (to.left + to.width / 2);
   const dy = from.top + from.height / 2 - (to.top + to.height / 2);
@@ -517,18 +477,11 @@ export function delta(from: Box, to: Box): { dx: number; dy: number; s: number }
   return { dx, dy, s: Math.max(0.2, Math.min(s, 3)) };
 }
 
-/**
- * Tilted board: a tile's `translate` runs in the leaning plane, so a screen
- * delta has to be turned into a delta on that plane (a screen pixel covers
- * more of the table the further back it is). Maps the tile's centre and the
- * start point back through the board's transform. A no-op on the flat board.
- */
 export function inPlane<D extends { dx: number; dy: number }>(el: HTMLElement, d: D): D {
   const inner = el.closest<HTMLElement>(".arena-tilt .playmat-inner");
   if (!inner) return d;
   const m = new DOMMatrix(getComputedStyle(inner).transform);
   if (m.is2D) return d;
-  // The tilt pivots on the board's bottom edge, which stays where it was laid out.
   const box = inner.getBoundingClientRect();
   const ox = box.left + box.width / 2;
   const oy = box.bottom;
@@ -541,13 +494,11 @@ export function inPlane<D extends { dx: number; dy: number }>(el: HTMLElement, d
   return { ...d, dx: from.x - to.x, dy: from.y - to.y };
 }
 
-/** The point (x, y, 0) on the transformed plane that `m` draws at screen offset (sx, sy). */
 export function unproject(
   m: Pick<DOMMatrix, "m11" | "m12" | "m14" | "m21" | "m22" | "m24" | "m41" | "m42" | "m44">,
   sx: number,
   sy: number,
 ): { x: number; y: number } | null {
-  // sx = X / W and sy = Y / W for [X Y Z W] = m · [x y 0 1]; two linear equations in x, y.
   const a1 = m.m11 - sx * m.m14;
   const b1 = m.m21 - sx * m.m24;
   const c1 = sx * m.m44 - m.m41;
@@ -559,7 +510,6 @@ export function unproject(
   return { x: (c1 * b2 - b1 * c2) / det, y: (a1 * c2 - c1 * a2) / det };
 }
 
-/** A card-sized box centred in a container (a hand zone or fan is wider than one card). */
 function shrinkTo(container: DOMRect, card: Box): DOMRect {
   const w = Math.min(container.width, card.width);
   const h = Math.min(container.height, card.height);
@@ -571,16 +521,10 @@ function shrinkTo(container: DOMRect, card: Box): DOMRect {
   );
 }
 
-/** Several cards in one update leave in quick succession, never more than ~240ms in total. */
 export function staggerMs(count: number): number {
   return count <= 1 ? 0 : Math.min(60, Math.floor(240 / (count - 1)));
 }
 
-/**
- * One keyframe of a flight from `d` (offset 0) to home (offset 1): the path and
- * size interpolate linearly, and `widthScale` squeezes the card horizontally
- * (0 = edge-on) for the flip.
- */
 function flightFrame(d: { dx: number; dy: number; s: number }, t: number, widthScale: number): Keyframe {
   const k = 1 - t;
   const s = d.s + (1 - d.s) * t;

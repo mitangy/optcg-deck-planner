@@ -1,6 +1,5 @@
 import { useId } from "react";
 
-/** The OPTCG Duel logo: a gold card behind a navy straw hat card. Fixed brand colours, the same in every theme. */
 export function BrandMark({ className }: { className?: string }) {
   const clip = `brand-crown-${useId().replace(/:/g, "")}`;
   return (
@@ -23,7 +22,6 @@ export function BrandMark({ className }: { className?: string }) {
   );
 }
 
-/** Logo plus "optcg" + gold "duel" wordmark, for topbars. */
 export function BrandWordmark() {
   return (
     <>

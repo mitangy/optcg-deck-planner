@@ -1,7 +1,3 @@
-/**
- * Life stack direction (#499): your Life fans down or up by setting, and the
- * opponent's fans the other way so the two mirror across the midline.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -11,7 +7,6 @@ async function openDemo(page: Page, settings: Record<string, unknown>) {
   await page.locator(".board-root").waitFor();
 }
 
-/** Where the top card (last face, drawn in front) sits against the bottom of the fan. */
 async function topCardIs(page: Page, side: "you" | "opp"): Promise<"above" | "below"> {
   const faces = page.locator(`.side-${side} .zone-pile-life .zone-pile-face`);
   await expect(faces.first()).toBeVisible();
@@ -24,7 +19,6 @@ async function topCardIs(page: Page, side: "you" | "opp"): Promise<"above" | "be
 test("Life fans down on your mat and up on the opponent's by default (#499)", async ({ page }, info) => {
   await openDemo(page, {});
   expect(await topCardIs(page, "you")).toBe("below");
-  // Portrait phones draw the opponent's mat as a count row, with no faces.
   if (await page.locator(".side-opp .zone-pile-life").count()) expect(await topCardIs(page, "opp")).toBe("above");
   else expect(info.project.name).toBe("phone-375");
 });

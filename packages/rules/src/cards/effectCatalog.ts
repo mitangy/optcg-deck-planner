@@ -1,8 +1,3 @@
-/**
- * Card support manifest derived from the ability registry. A card is "ok"
- * only when every printed clause maps to executable DSL; display text alone
- * never establishes support.
- */
 import { abilitiesFor, cardAbilities } from "./abilities.js";
 import { getCardDef, hasCardDef, listCardDefs } from "./definitions.js";
 import type { Ability } from "../effects/types.js";
@@ -59,7 +54,6 @@ export function buildEffectCatalog(): CardEffectEntry[] {
   return listCardDefs().flatMap((def) => effectsForCard(def.id));
 }
 
-/** Every catalog id receives an explicit card-level support state. */
 export function buildCardSupportManifest(): Record<string, AbilitySupport> {
   return Object.fromEntries(listCardDefs().filter((d) => d.dataSource !== "stub").map((def) => [def.id, abilitySupportForCard(def.id)]));
 }
@@ -82,7 +76,6 @@ export function summarizeEffectCoverage(): { cards: number; abilities: number; u
 
 export type CardSupportIssue = { cardId: string; support: AbilitySupport };
 
-/** Cards that block ranked play: anything not fully executable or not verified. */
 export function unsupportedCardsForDeck(deck: { leaderId: string; deck: readonly string[] }): CardSupportIssue[] {
   const ids = [...new Set([deck.leaderId, ...deck.deck].map((id) => id.trim().toUpperCase()))];
   return ids.flatMap((cardId) => {
@@ -91,11 +84,9 @@ export function unsupportedCardsForDeck(deck: { leaderId: string; deck: readonly
   });
 }
 
-/** Attach abilitySupport (and unsupported clause text) to atlas entries. */
 export function enrichAtlasAbilitySupport<T extends { abilitySupport?: AbilitySupport; unsupportedText?: string[]; deckRules?: string[] }>(atlas: Record<string, T>): Record<string, T> {
   for (const id of Object.keys(atlas)) {
     const unsupported = cardAbilities(id)?.unsupported ?? [];
-    // Deck-construction rules (leader rules, see deckRules.ts, plus card-level `any_number`) so clients can validate without the engine.
     const deckRules = abilitiesFor(id).flatMap((a) => (a.statics ?? []).flatMap((s) => (s.s === "deck_rule" && /^(max_cost|no_events_cost_ge|only_trait):|^any_number$/.test(s.rule) ? [s.rule] : [])));
     atlas[id] = { ...atlas[id]!, abilitySupport: abilitySupportForCard(id), ...(unsupported.length ? { unsupportedText: [...unsupported] } : {}), ...(deckRules.length ? { deckRules } : {}) };
   }

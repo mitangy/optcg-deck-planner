@@ -1,36 +1,26 @@
 /**
- * Table-driven card scenarios on top of the Harness. A row names one card,
- * lays out both seats, replays a few steps, and states the resulting board.
- * `runScenarios` turns each row into a vitest case named "<card> <name>", so a
- * mutation can target a row by that fragment.
- *
- * Seat 0 ("me") is the active player when the steps begin. Cards in `field` can
- * attack and activate (they are not summoning sick). Unless a seat sets `don`,
- * it keeps the DON!! the Harness left it with.
+ * `runScenarios` turns each row into a vitest case named "<card> <name>", so a mutation can target a row by that
+ * fragment.
  */
 import { describe, expect, it } from "vitest";
 import { powerOf, keywordsOf } from "../engine/queries.js";
 import type { CardInstance, Seat } from "../types.js";
 import { Harness } from "./harness.js";
 
-/** A card on a seat's board (Leader, Character or Stage), found by definition id. */
 export interface Where { seat: Seat; card: string }
 export const mine = (card: string): Where => ({ seat: 0, card });
 export const theirs = (card: string): Where => ({ seat: 1, card });
 
-export type FieldCard = string | { card: string; rested?: boolean; /** DON!! attached */ don?: number };
+export type FieldCard = string | { card: string; rested?: boolean; don?: number };
 
 export interface SeatSetup {
   hand?: string[];
   field?: FieldCard[];
   stage?: string;
-  /** Life cards, top (next damage) first. */
   life?: string[];
   trash?: string[];
-  /** Deck cards, top first. */
   deckTop?: string[];
   don?: { active: number; rested?: number };
-  /** DON!! attached to the Leader. */
   leaderDon?: number;
 }
 
@@ -53,31 +43,20 @@ export type Step =
   | { endTurn: true };
 
 export interface SeatExpect {
-  /** Definition ids in hand, any order. */
   hand?: string[];
-  /** Definition ids of Characters on the field, any order. */
   field?: string[];
   stage?: string | null;
-  /** Life count, or the exact Life cards top first. */
   life?: number | string[];
   trash?: string[];
-  /** Deck size change since setup. */
   deckDelta?: number;
   deckTop?: string;
-  /** Definition id of the last card in the deck. */
   deckBottom?: string;
   don?: { active?: number; rested?: number; attached?: number; deck?: number };
-  /** Field Characters that are rested, by definition id. */
   rested?: string[];
-  /** Power of Leader/Characters by definition id. */
   power?: Record<string, number>;
-  /** DON!! attached to Leader/Characters by definition id. */
   attached?: Record<string, number>;
-  /** Face-up flags of the Life cards, top first. */
   faceUp?: boolean[];
-  /** Characters this seat could block with right now, by definition id. */
   blockers?: string[];
-  /** Keywords a Leader/Character currently has. */
   keywords?: Record<string, string[]>;
 }
 
@@ -92,7 +71,6 @@ export interface CardScenario {
   expect: {
     me?: SeatExpect;
     opp?: SeatExpect;
-    /** Front pending choice: "none" or its request type. */
     pending?: string;
     winner?: Seat | null;
   };
@@ -219,7 +197,6 @@ export function runScenario(row: CardScenario): void {
   if (row.expect.winner !== undefined) expect(h.state.winner).toBe(row.expect.winner);
 }
 
-/** One vitest case per row, named "<card> <name>". */
 export function runScenarios(title: string, rows: readonly CardScenario[]): void {
   const names = new Set<string>();
   describe(title, () => {

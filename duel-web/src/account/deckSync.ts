@@ -1,4 +1,3 @@
-/** Saved duel decks kept in the signed-in player's account; localStorage stays as the cache. */
 import {
   applyRemoteDecks,
   clearLocalDecks,
@@ -26,16 +25,12 @@ const OWNER_KEY = "optcg.duel.savedDecks.owner.v1";
 const PENDING_KEY = "optcg.duel.savedDecks.pending.v1";
 const PUSH_DELAY_MS = 600;
 const BULK_CHUNK = 50;
-/** The account refuses longer names (the planner allows this many). */
 const MAX_NAME = 200;
 
-/** Deck id -> 0 (saved here, not yet sent) or the time it was deleted here and not yet sent. */
 type Pending = Record<string, number>;
 
 let stop: (() => void) | null = null;
-/** Sends every waiting edit now (set while a sync runs). */
 let flushNow: (() => Promise<void>) | null = null;
-/** Bumped by every start / stop: a load that settles under an older value was cancelled. */
 let syncGen = 0;
 
 export function getDeckCacheOwner(): number | null {
@@ -95,13 +90,11 @@ function fromAccount(r: AccountDeck): SavedDeck | null {
   };
 }
 
-/** The account holds a newer copy than the one just sent: take it. */
 function adoptIfNewer(sent: number, theirs: AccountDeck, localTime: number | undefined) {
   if (theirs.updatedAt <= sent) return;
   if (localTime !== undefined && localTime > theirs.updatedAt) return;
   const deck = fromAccount(theirs);
   if (deck) return applyRemoteDecks({ upsert: [deck], remove: [] });
-  // The account kept an identical synced deck instead of this one: keep the player on it.
   const wasSelected = getSelectedDeckId() === theirs.id;
   applyRemoteDecks({ upsert: [], remove: [theirs.id] });
   if (wasSelected && theirs.mergedInto) setSelectedDeckId(theirs.mergedInto);
@@ -113,7 +106,6 @@ async function pushOne(id: string): Promise<void> {
   if (value > 0) {
     const res = await deleteAccountDeck(id, value);
     clearPending(id, value);
-    // Edited elsewhere after this delete: the deck lives on.
     if (!res.deleted && !getSavedDeck(id)) adoptIfNewer(value, res, undefined);
     return;
   }
@@ -149,7 +141,6 @@ export async function syncDecks(userId: number): Promise<void> {
       }, PUSH_DELAY_MS),
     );
   };
-  // Edits made while the account list loads are only remembered; they go up after the merge.
   const unsubscribe = onLocalDecksChange((c: LocalDeckChange) => {
     if (c.kind === "upsert") markPending(c.deck.id, 0);
     else markPending(c.id, c.at);
@@ -184,7 +175,6 @@ export async function syncDecks(userId: number): Promise<void> {
   setDeckCacheOwner(userId);
   loaded = true;
 
-  // Dropped decks that were waiting to go up belonged to someone else; forget them.
   for (const id of plan.applyDelete) clearPending(id, 0);
   for (const d of plan.applyUpsert) clearPending(d.id, 0);
   for (const id of Object.keys(localDeletes)) {
@@ -211,13 +201,11 @@ export async function syncDecks(userId: number): Promise<void> {
     markPending(u.id, u.at);
     schedule(u.id);
   }
-  // Anything still pending (an earlier failed push) goes up now that the account is reachable.
   for (const id of Object.keys(readPending())) {
     if (!timers.has(id)) schedule(id);
   }
 }
 
-/** Sign-out: send edits still waiting on the push delay before the session ends (gives up after `timeoutMs`). */
 export async function flushDeckSync(timeoutMs = 3000): Promise<void> {
   const run = flushNow;
   if (!run) return;
@@ -230,10 +218,6 @@ export function stopDeckSync(): void {
   stop = null;
 }
 
-/**
- * Sign-out: the decks in this browser belonged to the account, so remove them and give guests the starters.
- * A deck the account never received (refused, offline, over the cap) is kept as a guest deck rather than lost.
- */
 export function clearAccountDecks(): void {
   stopDeckSync();
   const unsent = new Set(Object.keys(readPending()).filter((id) => readPending()[id] === 0));

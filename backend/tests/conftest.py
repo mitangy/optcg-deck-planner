@@ -9,9 +9,6 @@ import fakeredis
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
-# app.core.db builds its module-level engine from DATABASE_URL at import time, and every
-# `with TestClient(app)` runs the real lifespan (init_db, backfills) against it. Point it at
-# a throwaway file before anything imports app.core.db, or the suite writes backend/optcg.db.
 _APP_DB_DIR = tempfile.mkdtemp(prefix="optcg-test-app-db-")
 atexit.register(shutil.rmtree, _APP_DB_DIR, ignore_errors=True)
 os.environ["DATABASE_URL"] = f"sqlite:///{_APP_DB_DIR}/app.core.db"
@@ -26,7 +23,6 @@ from tests.db_support import make_bare_engine, make_test_engine
 
 @pytest.fixture(scope="module")
 def vcr_config() -> dict:
-    # Keep credentials out of any (re-)recorded cassette.
     return {
         "filter_headers": ["authorization", "cookie", "set-cookie", "x-api-key", "x-catalog-token"],
         "filter_query_parameters": ["api_key", "apikey", "access_token", "token"],
@@ -36,7 +32,6 @@ def vcr_config() -> dict:
 
 @pytest.fixture(autouse=True)
 def _fresh_rate_limits():
-    # Limiters are module globals; one test's requests must not spend another's budget.
     RateLimiter.reset_all()
     yield
     RateLimiter.reset_all()
@@ -44,7 +39,6 @@ def _fresh_rate_limits():
 
 @pytest.fixture(autouse=True)
 def _fresh_fuzzy_index():
-    # The catalog search index is cached per process; each test builds its own catalog.
     from app.planner.catalog_search import _FUZZY_INDEX
 
     _FUZZY_INDEX.clear()
@@ -53,7 +47,6 @@ def _fresh_fuzzy_index():
 
 @pytest.fixture(autouse=True)
 def _no_redis(monkeypatch: pytest.MonkeyPatch):
-    # Tests run without Redis (today's behaviour) unless they ask for fake_redis.
     monkeypatch.delenv("REDIS_URL", raising=False)
     monkeypatch.setattr(redis_client, "_override", None)
     redis_client.reset_failure()
@@ -99,7 +92,6 @@ def add_catalog(
     market: float,
     special: bool = False,
 ) -> None:
-    # Keep CatalogCard as the preferred (non-special) face unless this is the first insert.
     existing = db.get(CatalogCard, card_id)
     if existing is None or not special:
         db.merge(

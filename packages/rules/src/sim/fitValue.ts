@@ -1,30 +1,3 @@
-/**
- * Fits the learned value model (#635): logistic regression over bot/features.ts on positions from self-play games.
- *
- * Usage: npx tsx src/sim/fitValue.ts --in a.jsonl,dir [--out src/bot/valueWeights.json] [--holdout 0.2] [--l2 0.01] [--iters 3000] [--every-intent 0] [--cache samples.json] [--refit-all]
- *   [--compare current.json] [--gate] [--report report.json] [--min-gain 0.002] [--min-samples 2000] [--sim exports.json,dir]
- * --in entries may be directories (every *.jsonl inside, recursively). --compare scores the committed weights and the new
- * fit on the same held-out games (#915); --gate writes --out only when refitDecision accepts (final model refit on all
- * games) and always writes the --report JSON.
- * --sim adds OPTCGSim exports (#1030): each entry is a Card Kaizoku /matches JSON array (or a directory of *.json). Games are parsed
- * by sim/optcgsim, sampled from the recording player's seat only (samplesFromSimGame) and held out BY GAME with the same stride as
- * replays (game numbers continue after the replays). Held-out numbers are printed for replay games and sim games separately.
- *   npx tsx src/sim/fitValue.ts --in corpus.jsonl --sim ~/optcgsim-matches.json --compare src/bot/valueWeights.json --gate --report r.json
- * Each line of the input is a MatchReplay. Every game is replayed with replayMatch; at the start of every turn the
- * position is sampled from both seats' points of view with label 1 when that seat went on to win. Games without a
- * winner are skipped. Every 1/holdout-th game is held out; the report compares log-loss and accuracy on those games
- * with the hand-tuned evaluate() (squashed with 1/(1+exp(-e/4)), and again after fitting its scale and offset on the training games).
- *
- * Experiments with richer models (the default path above is unchanged and still full-batch):
- *   --features v1|v2     v2 = v1 + leader colours, attack-pressure features and the sparse card bag (bot/features.ts)
- *   --model linear|mlp   mlp = one ReLU hidden layer (--hidden 32). Anything other than v1+linear trains with seeded mini-batch Adam:
- *   --epochs 20 --batch 512 --lr 0.003 --l2 (default 0.01 full batch, 1e-4 mini-batch) --seed 1 --min-card-count 200
- * The v2 card vocabulary is every card that is on a field or in the fitted seat's own hand in at least --min-card-count training positions.
- *   --no-bag             v2 without the card bag: the vocabulary is empty (what the committed model uses; the bag did not help, see HARD_DEFAULTS.evalMode)
- *   --like-compare       take --features, --model, --hidden, --epochs, --batch, --lr, --l2, --seed and --no-bag from the --compare model (its `fit` record),
- *                        so a refit makes the same kind of model as the committed one. A flag given on the command line still wins.
- * --cache stores the samples (with the feature set and, for v2, the card table), so changing model options never replays games again.
- */
 import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { evaluate } from "../bot/evaluate.js";
@@ -41,11 +14,9 @@ export interface Sample {
   hand: number;
   turn: number;
   game: number;
-  /** v2 only: the sparse card bag as flat [slotKey, value, ...] pairs; slotKey = 2 * (index in the corpus CardTable) + slot. */
   sp?: number[];
 }
 
-/** Every card id seen while building samples, in first-seen order (the v2 bag refers to cards by index here). */
 export class CardTable {
   ids: string[] = [];
   private index = new Map<string, number>();
@@ -57,7 +28,6 @@ export class CardTable {
   static from(ids: string[]): CardTable { const t = new CardTable(); for (const id of ids) t.lookup(id); return t; }
 }
 
-/** Positions at every turn start (both seats' views) of one finished replay. */
 export function samplesFromReplay(replay: MatchReplay, game: number, everyIntent = 0, featureSet: FeatureSet = "v1", table?: CardTable): Sample[] {
   if (featureSet === "v2" && !table) throw new Error("feature set v2 needs a CardTable");
   const winner = replay.end?.winner;
@@ -86,7 +56,7 @@ export function samplesFromReplay(replay: MatchReplay, game: number, everyIntent
 
 const logLoss = (p: number, y: number): number => -(y ? Math.log(Math.max(1e-9, p)) : Math.log(Math.max(1e-9, 1 - p)));
 
-export function fitLogistic(train: Sample[], opts: { l2: number; iters: number; /** Features the penalty does not touch (default hand_eval: the fit starts from the hand-tuned score and corrects it). */ free?: string[] }): ValueWeights {
+export function fitLogistic(train: Sample[], opts: { l2: number; iters: number; free?: string[] }): ValueWeights {
   const free = new Set(opts.free ?? ["hand_eval"]);
   const d = FEATURE_NAMES.length;
   const mean = new Array<number>(d).fill(0);
@@ -118,19 +88,16 @@ export function fitLogistic(train: Sample[], opts: { l2: number; iters: number; 
       if (j < d) w[j]! -= step; else b -= step;
     }
   }
-  // Back to raw feature space.
   const raw = w.map((wj, j) => wj / std[j]!);
   const bias = b - w.reduce((n, wj, j) => n + (wj * mean[j]!) / std[j]!, 0);
   return { names: [...FEATURE_NAMES], weights: raw, bias };
 }
 
-/** A v2 vocabulary seen from a CardTable: table index -> vocab index (-1 = not in the vocabulary). */
 function vocabMap(table: CardTable, vocab: readonly string[]): Int32Array {
   const at = new Map(vocab.map((id, i) => [id, i]));
   return Int32Array.from(table.ids, (id) => at.get(id) ?? -1);
 }
 
-/** A sample's bag in vocabulary slots (parallel idx / val arrays). */
 function bagOf(sp: readonly number[] | undefined, toVocab: Int32Array | null): { idx: number[]; val: number[] } {
   const idx: number[] = [];
   const val: number[] = [];
@@ -143,7 +110,7 @@ function bagOf(sp: readonly number[] | undefined, toVocab: Int32Array | null): {
   return { idx, val };
 }
 
-/** Log-loss and accuracy, through the same inference code the bot runs (a fit that disagrees with it shows up here). `table` is needed for v2 models. */
+/** Runs the same inference code the bot runs, so a fit that disagrees with it shows up here. */
 export function evalModel(samples: Sample[], w: ValueModel, table?: CardTable): { logLoss: number; accuracy: number } {
   const toVocab = table && w.vocab ? vocabMap(table, w.vocab) : null;
   const plain = w.kind !== "mlp" && !toVocab;
@@ -159,8 +126,6 @@ export function evalModel(samples: Sample[], w: ValueModel, table?: CardTable): 
   return { logLoss: ll / samples.length, accuracy: ok / samples.length };
 }
 
-// --- mini-batch fits (v2 features and / or the MLP) ---------------------------------------------------------------
-
 export interface BatchFitOptions {
   model: "linear" | "mlp";
   featureSet: FeatureSet;
@@ -171,14 +136,11 @@ export interface BatchFitOptions {
   l2: number;
   seed: number;
   minCardCount: number;
-  /** v2 only: false = no card bag (empty vocabulary), whatever minCardCount is. Default true. */
   bag?: boolean;
-  /** Held-out positions to report on while training. */
   monitor?: Sample[];
   log?: (line: string) => void;
 }
 
-/** Cards that appear (nonzero in any bag slot) in at least `minCount` of the positions, most frequent first. */
 export function buildVocab(samples: Sample[], table: CardTable, minCount: number): string[] {
   const counts = new Int32Array(table.ids.length);
   for (const s of samples) {
@@ -194,11 +156,7 @@ export function buildVocab(samples: Sample[], table: CardTable, minCount: number
   return table.ids.map((id, i) => ({ id, n: counts[i]! })).filter((c) => c.n >= minCount).sort((a, b) => b.n - a.n || a.id.localeCompare(b.id)).map((c) => c.id);
 }
 
-/**
- * Seeded mini-batch Adam on log-loss for a linear or one-hidden-layer ReLU model over the dense features (standardised on
- * `train`) plus the sparse card bag (not standardised: it would stop being sparse). The bag is dotted sparsely both ways.
- * A linear result is folded back to raw feature space like fitLogistic's; an MLP keeps mean/std inside the model.
- */
+/** The sparse card bag is not standardised: it would stop being sparse. */
 export function fitBatched(train: Sample[], table: CardTable | undefined, o: BatchFitOptions): ValueModel {
   const names: string[] = o.featureSet === "v2" ? [...FEATURE_NAMES_V2] : [...FEATURE_NAMES];
   const dd = names.length;
@@ -211,7 +169,6 @@ export function fitBatched(train: Sample[], table: CardTable | undefined, o: Bat
   const log = o.log ?? (() => undefined);
   log(`fit ${o.model} on ${o.featureSet}: ${n} positions, ${dd} dense inputs, ${vocab ? `${vocab.length} cards in the bag (${ns} slots)` : "no bag"}${mlp ? `, ${h} hidden units` : ""}`);
 
-  // Standardise the dense inputs on the training positions.
   const mean = new Array<number>(dd).fill(0);
   const std = new Array<number>(dd).fill(0);
   for (const s of train) for (let j = 0; j < dd; j += 1) mean[j]! += s.x[j]! / n;
@@ -232,7 +189,6 @@ export function fitBatched(train: Sample[], table: CardTable | undefined, o: Bat
   const SI = Int32Array.from(bagIdx);
   const SV = Float64Array.from(bagVal);
 
-  // One flat parameter vector (and gradient, Adam moments, L2 multipliers) with named views.
   const nW = mlp ? h * dd : dd;
   const nS = mlp ? ns * h : ns;
   const nB1 = mlp ? h : 0;
@@ -351,7 +307,6 @@ export function fitBatched(train: Sample[], table: CardTable | undefined, o: Bat
   return snapshot();
 }
 
-/** Fit p = sigmoid(a * hand + c) on `train` (the hand-tuned evaluator, recalibrated), a fair baseline. */
 function calibrateHand(train: Sample[]): { a: number; c: number } {
   let a = 0.25;
   let c = 0;
@@ -375,16 +330,13 @@ function handStats(samples: Sample[], f: (h: number) => number): { logLoss: numb
 export const DEFAULT_MIN_GAIN = 0.002;
 export const DEFAULT_MIN_SAMPLES = 2000;
 
-/** One model scored on the held-out games. `logLoss` is null for weights that cannot be scored (stale feature names). */
-export interface ModelScore { names: string[]; logLoss: number | null; accuracy: number | null; /** Present (as "v2") only for non-v1 models. */ featureSet?: FeatureSet }
+export interface ModelScore { names: string[]; logLoss: number | null; accuracy: number | null; featureSet?: FeatureSet }
 
-/** Whether `names` is the current feature list of `featureSet`. */
 const namesMatch = (names: readonly string[], featureSet: FeatureSet = "v1"): boolean => {
   const expected = featureSet === "v2" ? FEATURE_NAMES_V2 : FEATURE_NAMES;
   return names.length === expected.length && names.every((n, i) => n === expected[i]);
 };
 
-/** Score the committed weights and a candidate on the same held-out samples. */
 export function compareModels(test: Sample[], current: ValueModel, candidate: ValueModel, table?: CardTable): { current: ModelScore; candidate: ModelScore } {
   const score = (w: ValueModel): ModelScore => {
     const fs = featureSetOf(w);
@@ -395,11 +347,6 @@ export function compareModels(test: Sample[], current: ValueModel, candidate: Va
   return { current: score(current), candidate: score(candidate) };
 }
 
-/**
- * Whether a candidate refit should replace the committed weights (#915). Never on too few held-out samples or a
- * candidate that does not match FEATURE_NAMES; otherwise when the current weights are stale or the candidate's
- * held-out log-loss beats theirs by at least `minGain`.
- */
 export function refitDecision(current: ModelScore, candidate: ModelScore, opts: { heldOutSamples: number; minGain?: number; minSamples?: number }): { accept: boolean; reason: string } {
   const minGain = opts.minGain ?? DEFAULT_MIN_GAIN;
   const minSamples = opts.minSamples ?? DEFAULT_MIN_SAMPLES;
@@ -411,7 +358,6 @@ export function refitDecision(current: ModelScore, candidate: ModelScore, opts: 
   return { accept: false, reason: `held-out log-loss gain ${gain.toFixed(4)} is below ${minGain} (${current.logLoss.toFixed(4)} -> ${candidate.logLoss.toFixed(4)})` };
 }
 
-/** Expand `--in` entries: files stay, directories become every *.jsonl inside (recursively, sorted). */
 export function expandInputs(entries: string[]): string[] {
   const out: string[] = [];
   const walk = (dir: string): void => {
@@ -425,7 +371,6 @@ export function expandInputs(entries: string[]): string[] {
   return out;
 }
 
-/** Split replays (JSONL lines) into train and held-out samples; every stride-th game, by game, is held out. */
 export function buildDataset(lines: Iterable<string>, opts: { holdout: number; every: number; featureSet?: FeatureSet; table?: CardTable }): { train: Sample[]; test: Sample[]; games: number; skipped: number } {
   const stride = Math.max(2, Math.round(1 / opts.holdout));
   const train: Sample[] = [];
@@ -444,15 +389,11 @@ export function buildDataset(lines: Iterable<string>, opts: { holdout: number; e
   return { train, test, games: game, skipped };
 }
 
-/** Expand `--sim` entries: files stay, directories become every *.json inside (recursively, sorted). */
 export function expandSimInputs(entries: string[]): string[] {
   return entries.flatMap((e) => (statSync(e).isDirectory() ? readdirSync(e, { recursive: true, encoding: "utf8" }).filter((n) => n.endsWith(".json")).sort().map((n) => join(e, n)) : [e]));
 }
 
-/**
- * Samples of parsed sim exports split into train and held-out BY GAME (every stride-th game is held out), numbering games
- * from `firstGame` so they never collide with replay games. Games with no winner or an unknown card id yield no rows and count as skipped.
- */
+/** Split by game, numbering games from `firstGame` so they never collide with replay games. */
 export function buildSimDataset(exports: Iterable<readonly SimMatchRecord[]>, opts: { holdout: number; firstGame: number; featureSet?: FeatureSet; table?: CardTable }): { train: Sample[]; test: Sample[]; games: number; skipped: number } {
   const stride = Math.max(2, Math.round(1 / opts.holdout));
   const train: Sample[] = [];
@@ -470,10 +411,6 @@ export function buildSimDataset(exports: Iterable<readonly SimMatchRecord[]>, op
   return { train, test, games, skipped };
 }
 
-/**
- * The fit options that reproduce `model` (--like-compare): flag name -> value, from the model's own fields and the `fit` record
- * written by a refit. A model without such a record (the old linear v1 file) is the plain `--features v1 --model linear` fit.
- */
 export function likeOptions(model: ValueModel): { values: Record<string, string>; noBag: boolean } {
   const values: Record<string, string> = { features: featureSetOf(model), model: model.kind === "mlp" ? "mlp" : "linear" };
   const fit = (model.fit ?? {}) as Record<string, unknown>;
@@ -483,11 +420,9 @@ export function likeOptions(model: ValueModel): { values: Record<string, string>
   return { values, noBag: featureSetOf(model) === "v2" && (model.vocab?.length ?? 0) === 0 };
 }
 
-/** The model-shaping command-line options of a fit, with the --like-compare model's values as defaults (`compare` is that model, or null). */
 export function fitFlags(argv: string[], compare: ValueModel | null) {
   const get = (name: string): string | undefined => { const i = argv.indexOf(`--${name}`); return i >= 0 ? argv[i + 1] : undefined; };
   const like = compare ? likeOptions(compare) : { values: {} as Record<string, string>, noBag: false };
-  /** A command-line flag, else the --compare model's value under --like-compare. */
   const opt = (name: string): string | undefined => get(name) ?? like.values[name];
   const featureSet = (opt("features") ?? "v1") as FeatureSet;
   const kind = (opt("model") ?? "linear") as "linear" | "mlp";
@@ -578,7 +513,6 @@ function main(): void {
   const config = classic ? {} : { featureSet, model: kind, hidden: kind === "mlp" ? batched.hidden : undefined, epochs: batched.epochs, batch: batched.batch, lr: batched.lr, l2, seed: batched.seed, vocab: model.vocab?.length ?? 0 };
   const report = { ...config, games: game, trainSamples: train.length, heldOutSamples: test.length, learned, trainLearned: trainFit, handTunedRaw: raw, handTunedCalibrated: { ...calibrated, scale: cal.a, offset: cal.c }, constantPrior: prior };
   console.log(JSON.stringify(report, null, 1));
-  // Held-out accuracy by turn bucket.
   for (const [lo, hi] of [[1, 4], [5, 8], [9, 12], [13, 99]] as const) {
     const part = test.filter((s) => s.turn >= lo && s.turn <= hi);
     if (!part.length) continue;

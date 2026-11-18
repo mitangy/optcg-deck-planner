@@ -76,7 +76,6 @@ describe("NewDeckCard (#726)", () => {
     );
     await act(async () => open().click());
     expect(openNewDeck).toHaveBeenCalledWith({ name: "Red Luffy", list: LIST }, { auto: false });
-    // The panel gets out of the way (phones) after the button too.
     expect(onOpened).toHaveBeenCalledTimes(1);
   });
 

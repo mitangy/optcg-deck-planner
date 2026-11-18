@@ -70,7 +70,6 @@ describe("DeckEditCard auto-apply (#726)", () => {
     ]);
     expect(JSON.parse(localStorage.getItem(AUTO_APPLIED_KEY)!)).toEqual(["t1"]);
 
-    // The app saved it: the card shows it applied by Log Pose, with Undo.
     await render({ live: true, editor: editor(AFTER, apply) });
     expect(text()).toContain("Applied by Log Pose");
     expect(text()).toContain("Edit by Log Pose");
@@ -78,7 +77,6 @@ describe("DeckEditCard auto-apply (#726)", () => {
     expect(calls).toHaveLength(2);
     expect(calls[1]![0]).toEqual({ id: "ST01-016", before: 2, after: 0 });
 
-    // Undone: the deck is back at "ready", and the card stays that way instead of applying again.
     await render({ live: true, editor: editor(BEFORE, apply) });
     await render({ live: true, editor: editor([...BEFORE], apply) });
     expect(calls).toHaveLength(2);

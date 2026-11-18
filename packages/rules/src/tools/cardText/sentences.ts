@@ -1,8 +1,3 @@
-/**
- * Sentence-level failure report: for every unsupported clause, find the first
- * sentence (or cost / header) that does not parse, and group by normalized shape.
- * Usage: npx tsx src/tools/cardText/sentences.ts [limit] [regex]
- */
 import { cardDataFor, listCardDataIds } from "../../cards/cardData.js";
 import { compileCardText } from "./compileCard.js";
 import { clean, parseCondition, parseCosts, parseStatement, parseStaticSentence } from "./grammar/index.js";

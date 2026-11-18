@@ -1,7 +1,3 @@
-/**
- * Yes/No prompt keys (#324): Y or Space answers Yes, N answers No, on the
- * centred Yes/No prompt and on the Yes/No shown on a card used from the hand.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 

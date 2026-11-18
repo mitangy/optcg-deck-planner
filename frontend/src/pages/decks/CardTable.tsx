@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { CardView, money } from "../../api";
 import { remainingCostForCard } from "../shopping/deckCost";
 import { BuySplit, canSplitBuy } from "../shopping/BuySplit";
@@ -10,13 +10,13 @@ import { isDonCardType } from "../../cards/donCards";
 import { GridCard, MobileCard } from "../../ui/PlannerCard";
 import { baseTileFor, mainImageUrl, shownProductId } from "../../cards/altArt";
 import { AltArtsRow, MarketPrice } from "../../cards/MarketPrice";
+import { AltStripRow, CardBodies, useWideListRows } from "../../cards/AltTray";
 import { OwnedCell, StillNeededCell, ownedCellIsTotal, stillNeededText, totalOwned } from "../collection/OwnedCells";
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { busyProductFor } from "../../cache/busyKey";
 import { OwnedInput } from "../OwnedInputs";
 import { COLSORT_DECK_KEY } from "../../storage/keys";
 
-/** "4 go to Luffy first" when earlier leaders use some of the owned copies. */
 function OwnedClaimNote({ card }: { card: CardView }) {
   const earlier = card.earlier_leaders_need ?? 0;
   const claimed = Math.min(card.owned, earlier);
@@ -33,7 +33,6 @@ function OwnedClaimNote({ card }: { card: CardView }) {
   );
 }
 
-/** Copies drawn as a stack: the deck's count, except DON!! (it runs up to ten identical cards). */
 function stackCopies(c: CardView): number | undefined {
   return c.section === "don" || isDonCardType(c.card_type) ? undefined : c.needed;
 }
@@ -56,6 +55,8 @@ function deckColumnValue(c: CardView, key: string) {
       return null;
   }
 }
+
+const STRIP_COLS = 5;
 
 export function CardTable({
   cards,
@@ -80,19 +81,13 @@ export function CardTable({
   onNeededChange?: (cardId: string, needed: number) => void;
   neededBusyId?: string | null;
   onAltOwnedChange?: (cardId: string, productId: number, qty: number) => void;
-  /** `${cardId}:${productId}` while an alt owned save is in flight. */
   altOwnedBusyKey?: string | null;
-  /** Owner pages only: pick which art the card shows (0 = base). */
   onDisplayArtChange?: (cardId: string, productId: number) => void;
-  /** Owner pages only: saves how many still-needed copies are bought as one alt art (#906). */
   onAltBuyChange?: (cardId: string, productId: number, qty: number) => void;
-  /** Owner pages only: want an alt art as a collector copy on top of the deck's copies (#1035). */
   onCollectorChange?: (cardId: string, productId: number, qty: number) => void;
-  /** `${cardId}:${productId}` while a collector save is in flight. */
   collectorBusyKey?: string | null;
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_DECK_KEY);
-  // The still-needed line is the buy-split trigger on cards with alt arts (owner pages only).
   const buySplit = (c: CardView) =>
     onAltBuyChange && canSplitBuy(c) ? (
       <BuySplit
@@ -106,7 +101,8 @@ export function CardTable({
       />
     ) : null;
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
-  // With editable alt tiles on screen, the base count is edited under the Base tile.
+  const wide = useWideListRows();
+  const altCol = showAltArts && !wide;
   const ownedCell = (c: CardView) => (
     <OwnedCell
       isTotal={ownedCellIsTotal(showAltArts, c.alt_arts?.length ?? 0, Boolean(onAltOwnedChange))}
@@ -158,6 +154,8 @@ export function CardTable({
             imageSrc={mainImageUrl(c)}
             imageProductId={shownProductId(c)}
             copies={stackCopies(c)}
+            alts={showAltArts && (c.alt_arts?.length ?? 0) > 0 ? altRow(c) : undefined}
+            altCount={c.alt_arts?.length ?? 0}
             meta={
               <>
                 {[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
@@ -192,9 +190,6 @@ export function CardTable({
                   TCGPlayer
                 </a>
               )}
-              {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
-                <div className="grid-card-alts">{altRow(c)}</div>
-              )}
           </GridCard>
         ))}
       </div>
@@ -213,13 +208,16 @@ export function CardTable({
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Type" colKey="type" firstDir="asc" sort={sort} onSort={onSort} className="col-type" />
               <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
-              {showAltArts ? <th>Alt arts</th> : null}
+              {altCol ? <th>Alt arts</th> : null}
             </tr>
           </thead>
-          <tbody>
-            {tableCards.map((c) => (
-              <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
-                <td className="card-cell">
+          <CardBodies wide={wide}>
+            {tableCards.map((c) => {
+              const stripped = wide && showAltArts && (c.alt_arts?.length ?? 0) > 0;
+              const rowClass = c.still_need > 0 ? "need" : "done";
+              const rows = [
+              <tr key="main" data-card-id={c.card_id} className={`${rowClass}${wide ? " alt-main-row" : ""}${stripped ? " has-strip" : ""}`}>
+                <td className="card-cell" rowSpan={stripped ? 2 : undefined}>
                   <div className="card-cell-inner">
                     <StackedThumb copies={stackCopies(c)} src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} productId={shownProductId(c)} />
                     <div>
@@ -262,10 +260,26 @@ export function CardTable({
                 </td>
                 <td className="col-type">{c.card_type || "—"}</td>
                 <td>{c.cost ?? "—"}</td>
-                {showAltArts ? <td className="alt-arts-cell">{altRow(c)}</td> : null}
-              </tr>
-            ))}
-          </tbody>
+                {altCol ? <td className="alt-arts-cell">{altRow(c)}</td> : null}
+              </tr>,
+              ];
+              if (stripped) {
+                rows.push(
+                  <AltStripRow key="strip" colSpan={STRIP_COLS} className={rowClass}>
+                    {altRow(c)}
+                  </AltStripRow>,
+                );
+              }
+              const key = `${c.section}-${c.card_id}`;
+              return wide ? (
+                <tbody key={key} className="card-rows">
+                  {rows}
+                </tbody>
+              ) : (
+                <Fragment key={key}>{rows[0]}</Fragment>
+              );
+            })}
+          </CardBodies>
         </table>
       </div>
 

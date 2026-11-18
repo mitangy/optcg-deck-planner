@@ -6,7 +6,6 @@ export type Seat = 0 | 1;
 type CosmeticsPublisher = (seat: Seat, prefs: ArtPrefsMap) => void;
 
 let maps: [ArtPrefsMap, ArtPrefsMap] = [{}, {}];
-/** Once a seat is live, missing keys mean standard art (no deck/global fallthrough). */
 let live: [boolean, boolean] = [false, false];
 let tick = 0;
 const listeners = new Set<() => void>();
@@ -28,7 +27,6 @@ export function subscribeArtPrefs(listener: () => void): () => void {
   };
 }
 
-/** Optional hook so online sessions can relay prefs without importing the net client here. */
 export function setCosmeticsPublisher(publisher: CosmeticsPublisher | null) {
   cosmeticsPublisher = publisher;
 }
@@ -55,17 +53,12 @@ export function setSeatArtPref(seat: Seat, defId: string, altId: string | null) 
   cosmeticsPublisher?.(seat, next);
 }
 
-/** Replace a seat's live map (e.g. opponent cosmetics message). */
 export function replaceSeatArtPrefs(seat: Seat, prefs: ArtPrefsMap) {
   maps[seat] = { ...prefs };
   live[seat] = true;
   emit();
 }
 
-/**
- * Seed a seat from selected-deck + global prefs and mark it live.
- * Hotseat seeds both seats; online seeds the local seat on join.
- */
 export function initSeatArtPrefsFromStorage(seat: Seat) {
   const deck = getSelectedDeck();
   const global = getArtPrefs();
@@ -81,7 +74,6 @@ export function resetAllSeatArtPrefs() {
   emit();
 }
 
-/** Test helper — wipe listeners and maps between unit tests. */
 export function _resetSeatArtPrefsForTests() {
   maps = [{}, {}];
   live = [false, false];

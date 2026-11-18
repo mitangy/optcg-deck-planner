@@ -1,7 +1,3 @@
-/**
- * Master Shopping Price sort counts picked alt arts (#926): the sort uses what you still pay for a
- * card (alt arts you picked to buy at their own price), not just the base market price.
- */
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
@@ -18,7 +14,6 @@ test("Master Shopping: Price sort puts a card with picked alt arts by its total,
   await planner.open("/");
   await expect(rows(page)).toHaveCount(4);
 
-  // Both Izo copies as the $14.99 alt: $29.98, more than EB01-003's $27.20.
   const trigger = page.locator(`[data-buy-split="${IZO}"]:visible`).first();
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Buy Izo as" });

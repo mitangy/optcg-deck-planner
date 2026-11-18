@@ -6,16 +6,11 @@
 export type RuleSection = { id: string; text: string };
 export type RulesDoc = { title: string; version: string | null; updated: string | null; sections: RuleSection[] };
 
-// The PDF numbers some sections with dots ("8.4. Activation and Resolution"); those become "8-4".
 const SECTION = /^(\d{1,2}(?:[-.]\d{1,3})*)\.\s*(.*)$/;
 const PAGE_NUMBER = /^\d{1,3}$/;
 
 const parentOf = (id: string) => (id.includes("-") ? id.slice(0, id.lastIndexOf("-")) : null);
 
-/**
- * A line opens a section when it starts with a number that fits the outline: a child of a section we
- * already have, or the next chapter. Wrapped lines that happen to start with a number stay in the text.
- */
 export function parseRules(lines: readonly string[]): RulesDoc {
   const sections: RuleSection[] = [];
   const byId = new Map<string, RuleSection>();
@@ -32,7 +27,6 @@ export function parseRules(lines: readonly string[]): RulesDoc {
     if (m) {
       const id = m[1]!.replace(/\./g, "-");
       const parent = parentOf(id);
-      // Chapters are short capitalised titles ("2. Card Information"), unlike a wrapped "2. may ..." line.
       const fits = parent ? byId.has(parent) && !byId.has(id) : Number(id) === chapter + 1 && /^[A-Z][^.]{0,60}$/.test(m[2]!.trim());
       if (fits) {
         if (!parent) chapter = Number(id);
@@ -49,7 +43,6 @@ export function parseRules(lines: readonly string[]): RulesDoc {
 
 const depth = (id: string) => id.split("-").length;
 
-/** Chapter and parent headings for a section, e.g. "7. Card Attacks and Battles > 7-1. Attack Step". */
 export function sectionPath(doc: RulesDoc, id: string): string {
   const parts: string[] = [];
   for (let p = parentOf(id); p; p = parentOf(p)) {
@@ -59,21 +52,15 @@ export function sectionPath(doc: RulesDoc, id: string): string {
   return parts.join(" > ");
 }
 
-/** A section and everything under it, in order. */
 export function sectionWithChildren(doc: RulesDoc, id: string, max = 60): RuleSection[] {
   const prefix = `${id}-`;
   return doc.sections.filter((s) => s.id === id || s.id.startsWith(prefix)).slice(0, max);
 }
 
-/** Question filler that says nothing about the rules. Game words (turn, play, draw, life, don, counter...) stay. */
 const STOPWORDS = new Set(
   "a an the i me my mine we our you your yours own it its is are was were be been am do does did done can could would should will what whats when whenever how why which who if then than so to of in on at for with from by as this that these those there get gets got happen happens and or but any also just about into".split(" "),
 );
 
-/**
- * Player slang and everyday wording, mapped to the terms the official rules use. Keys are whole words or phrases
- * (matched on word boundaries, longest first); a phrase in the values is matched as a phrase.
- */
 export const SYNONYMS: Readonly<Record<string, readonly string[]>> = {
   "summoning sickness": ["cannot attack on the turn in which they are played", "rush"],
   "summoning sick": ["cannot attack on the turn in which they are played", "rush"],
@@ -110,9 +97,8 @@ export const SYNONYMS: Readonly<Record<string, readonly string[]>> = {
   "five characters": ["up to 5 character cards"],
 };
 const SYNONYM_KEYS = Object.keys(SYNONYMS).sort((a, b) => b.length - a.length);
-const KO = "\u0001"; // stands in for "k.o." while the query is split on punctuation
+const KO = "\u0001";
 
-/** The terms to look for in rules or Q&A text: slang mapped to official wording, stopwords dropped, "k.o." kept whole. */
 export function queryTerms(q: string): string[] {
   let text = ` ${q.toLowerCase().replace(/[’‘]/g, "'")} `.replace(/\bk\.?o\.?(?:'?d|ed)?(?![a-z0-9])/g, ` ${KO} `);
   const out: string[] = [];
@@ -152,7 +138,6 @@ export function searchRules(doc: RulesDoc, query: string, limit = 8): RuleSectio
       for (const t of terms) if (text.includes(t)) score += weight.get(t)!;
       const total = [...weight.values()].reduce((a, b) => a + b, 0);
       if (phrase.length > 3 && text.includes(phrase)) score += total;
-      // A heading that is just the phrase ("[Blocker]") is where that term is defined.
       if (text.replace(/[[\]]/g, "").trim() === phrase.replace(/[[\]]/g, "")) score += total + 1;
       return { s, i, score };
     })

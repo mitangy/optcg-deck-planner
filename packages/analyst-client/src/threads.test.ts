@@ -7,7 +7,6 @@ type Row = { id: number; title: string; updated_at: string; scope: string };
 const row = (id: number, scope: string): Row => ({ id, title: `t${id}`, updated_at: "2026-11-04T10:00:00Z", scope });
 const thread = (id: number, text: string) => ({ id, title: `t${id}`, scope: "general", messages: [{ role: "user", text }] });
 
-/** A fetch fake for the thread endpoints: `lists` by scope ("" for all), `threads` by id. A missing thread is a 404. */
 function fake(o: { lists?: Record<string, Row[] | "fail">; threads?: Record<number, unknown | "fail"> }) {
   const calls: string[] = [];
   const impl = (async (url: string | URL | Request) => {

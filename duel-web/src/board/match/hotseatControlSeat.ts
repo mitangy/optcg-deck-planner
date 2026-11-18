@@ -31,24 +31,8 @@ function seatHasBlockOrCounterIntents(
   );
 }
 
-/**
- * Which seat should hold the device in hotseat so the player who can act
- * sees ChoicePrompt / IntentBar (e.g. When Attacking or On Opponent's Attack choices).
- *
- * Priority: pending choice → attack-window hold on attacker (block/counter with
- * empty pending and no block/counter intents yet) → defender once block/counter
- * is actually actionable → unfinished mulligan → turn player. Returns null when
- * no automatic handoff is needed.
- *
- * During block/counter, do NOT hand to the defender while pending is briefly
- * empty after declare_attack — Rocks/Teach triggers arrive a tick later and
- * `pass_block` is illegal until they resolve. Keep control on the attacker
- * until a pending choice appears, or until the defender's view lists real
- * block/counter intents (triggers drained).
- *
- * Pass both seat views when available — pending queues are global, and either
- * socket can briefly lag behind during Colyseus event/view delivery.
- */
+// During block/counter, do NOT hand to the defender while pending is briefly empty after declare_attack: Rocks/Teach triggers arrive a tick later and `pass_block` is illegal until they resolve.
+// Either socket can lag during Colyseus event/view delivery, so pass both seat views when available.
 export function hotseatControlSeat(
   view: PlayerView | null | undefined,
   seat0View?: PlayerView | null,
@@ -71,13 +55,10 @@ export function hotseatControlSeat(
     if (attacker === 0 || attacker === 1) {
       const defender: Seat = attacker === 0 ? 1 : 0;
       const defenderView = defender === 0 ? v0 : v1;
-      // Once attack-window triggers have cleared, the engine exposes block/
-      // counter intents to the defender — hand the device over then.
       if (seatHasBlockOrCounterIntents(defenderView)) {
         return defender;
       }
-      // Race: pending When Attacking / On Opponent's Attack not in either
-      // view yet (and pass_block still illegal). Stay on the attacker.
+      // Race: pending When Attacking / On Opponent's Attack not in either view yet (and pass_block still illegal). Stay on the attacker.
       return attacker;
     }
   }

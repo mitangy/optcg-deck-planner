@@ -7,12 +7,6 @@ import { activeNavHref, navItemsFor } from "./navItems";
 import { useAccountRole } from "../auth/session";
 import { useStickyHeadHeight } from "./useStickyHeadHeight";
 
-/**
- * The hamburger button every page header starts with, and the left drawer it opens.
- * The drawer is a shared Headless UI Dialog (#715): fixed and portalled to <body>, so opening it
- * moves nothing in the header; it slides in and out (the Dialog's `transition`); it traps Tab, closes on Escape or a tap on the backdrop, and
- * hands focus back to the button.
- */
 export function NavMenu() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
@@ -25,7 +19,6 @@ export function NavMenu() {
 
   useStickyHeadHeight(buttonRef);
 
-  // A navigation (link, back button) closes the drawer.
   useEffect(() => setOpen(false), [pathname]);
 
   return (
@@ -58,7 +51,6 @@ export function NavMenu() {
               <li key={item.href}>
                 <Link
                   to={item.href}
-                  // Headless UI puts focus here on open (the first thing a keyboard user can pick).
                   data-autofocus={i === 0 ? "" : undefined}
                   className="nav-link"
                   aria-current={item.href === active ? "page" : undefined}

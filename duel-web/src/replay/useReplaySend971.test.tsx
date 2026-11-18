@@ -44,7 +44,6 @@ describe("replay moves", () => {
     const r = await ready();
     await act(async () => r.actions.goTo(2));
     expect((latest as Extract<Replay, { phase: "ready" }>).controls.step).toBe(2);
-    // Recorded intents 2 and 3: attach two DON in one handler, with no render between the sends.
     await act(async () => {
       const send = (latest as Extract<Replay, { phase: "ready" }>).sendIntent;
       send(giveDon("don_63"));
@@ -59,7 +58,6 @@ describe("replay moves", () => {
   it("two moves of the viewer's own line sent at once both land on the line (#971)", async () => {
     const r = await ready();
     await act(async () => r.actions.goTo(2));
-    // The recording attached don_63 first, so this order leaves it: the first send opens a line, the second extends it.
     await act(async () => {
       const send = (latest as Extract<Replay, { phase: "ready" }>).sendIntent;
       send(giveDon("don_64"));

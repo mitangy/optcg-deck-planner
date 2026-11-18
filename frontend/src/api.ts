@@ -6,11 +6,8 @@ export type User = {
   id: number;
   email: string;
   name: string;
-  /** Shopping Need sums copies across distinct leaders instead of max across decks. */
   sum_across_leaders?: boolean;
-  /** Public handle shared with duel-web; null until picked. */
   username?: string | null;
-  /** Photo-scanner crops of the cards you add are shared to improve the scanner (default on). */
   share_scans?: boolean;
 };
 
@@ -32,14 +29,10 @@ export type DeckSummary = {
   total_cards: number;
   main_cards?: number;
   don_cards?: number;
-  /** Non-DON copies covered by Owned (min(owned, needed) per card), out of main_cards. */
   owned_copies?: number;
   sort_order: number;
-  /** Effective Main for this leader (explicit or earliest same-leader fallback). */
   is_main?: boolean;
-  /** Friends can't see this deck. */
   hidden_from_friends?: boolean;
-  /** Every card in the deck (copies > 0), for finding which decks run a card (#1315). */
   cards?: { card_id: string; name: string; qty: number }[];
 };
 
@@ -52,26 +45,19 @@ export type PrintingView = {
   tcgplayer_url: string;
   group_name: string;
   is_special: boolean;
-  /** Per-deck (or shopping max-across-decks) alt want for play. */
   wanted?: number;
-  /** Copies of this alt the user owns. */
   owned?: number;
-  /** Collector copies of this alt the user wants on top of their decks (#1031); 0 when none. */
   collector?: number;
 };
 
-/** One collector copy line under a Master Shopping card (#1031). */
 export type CollectorLine = {
   product_id: number;
-  /** The printing's label as the alt tiles show it, e.g. "Gold-stamped". */
   label: string;
   image_url: string | null;
   market_price: number | null;
   want: number;
-  /** min(owned of this printing, want). */
   have: number;
   still_need: number;
-  /** still_need * price; null when unpriced and something is still needed. */
   remaining_cost: number | null;
 };
 
@@ -80,10 +66,8 @@ export type AlertDirection = "below" | "above";
 export type PriceAlert = {
   id: number;
   card_id: string;
-  /** 0 = the card's base art; otherwise a specific printing's product id. */
   product_id: number;
   card_name: string;
-  /** Printing name for alt arts, "Base" for product 0. */
   art_name: string;
   image_url: string;
   tcgplayer_url: string;
@@ -94,12 +78,9 @@ export type PriceAlert = {
   notify_email: boolean;
   notify_app: boolean;
   paused: boolean;
-  /** True while the alert can still fire; firing disarms it until the price crosses back. */
   armed: boolean;
-  /** The price already meets the target right now. */
   met_now: boolean;
   triggered_at: string | null;
-  /** Price when it last fired. */
   triggered_price?: number | null;
   created_at: string;
 };
@@ -146,9 +127,7 @@ export type CatalogCardResult = {
   image_url: string;
   tcgplayer_url: string;
   group_name: string;
-  /** Set on alt-art rows (search with alts); null/absent = the base card row. */
   alt_product_id?: number | null;
-  /** Viewer's owned copies of that alt printing (alt rows only). */
   owned?: number;
 };
 
@@ -160,12 +139,9 @@ export type CardView = {
   card_type: string;
   cost: number | string | null;
   needed: number;
-  /** Total owned, shared by every deck (what the Owned stepper edits). */
   owned: number;
-  /** Copies owned across alt printings; they count toward Owned for still_need. */
   alts_owned?: number;
   still_need: number;
-  /** Separate per leader: copies leaders earlier in deck order use first (0 when shared). */
   earlier_leaders_need?: number;
   earlier_leaders?: string[];
   market_price: number | null;
@@ -175,9 +151,7 @@ export type CardView = {
   product_id?: number | null;
   section: "main" | "additional" | "don" | string;
   alt_arts: PrintingView[];
-  /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
   display_art?: number | null;
-  /** Collector copies wanted on top of this deck's needs, summed over the card's alt printings (#1031). */
   collector_want?: number;
 };
 
@@ -186,7 +160,6 @@ export type DeckDetail = {
   name: string;
   leader_card_id: string | null;
   leader_name: string | null;
-  /** Name of the Main deck this list is compared against (empty when this is Main). */
   prior_decks: string[];
   is_main?: boolean;
   cards: CardView[];
@@ -214,25 +187,18 @@ export type ShoppingItem = {
   product_id?: number | null;
   used_in: string[];
   alt_arts: PrintingView[];
-  /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
   display_art?: number | null;
   deck_sort_key?: string;
   primary_leader_card_id?: string | null;
   primary_leader_name?: string | null;
   leader_count?: number;
-  /** Per-leader Need in deck order; only set when 2+ leaders use the card. */
   need_by_leader?: { label: string; need: number }[];
-  /** True when `need` adds need_by_leader together; false when it takes the max. */
   need_summed?: boolean;
-  /** Target copies added straight to Master Shopping without a deck; 0 when none. */
   extra_qty?: number;
-  /** Need from decks alone (`need` also folds in `extra_qty` by max). */
   deck_need?: number;
-  /** Collector copies wanted on top of the decks, one line per printing (#1031). */
   collector_wants?: CollectorLine[];
 };
 
-/** "Need 7 = Luffy 4 + Sabo 3" / "Need 4 = most of Luffy 4, Sabo 3"; "" for one leader. */
 export function needBreakdownLabel(item: ShoppingItem): string {
   const parts = item.need_by_leader ?? [];
   if (parts.length < 2) return "";
@@ -263,12 +229,9 @@ export type PriceHistoryResponse = {
   name: string;
   group_name: string;
   released: string | null;
-  /** The card's rarity (SR, SEC, L...); null when unknown. */
   rarity?: string | null;
   current: number | null;
-  /** [YYYY-MM-DD, market price], oldest first. */
   points: [string, number][];
-  /** Release dates of later plain reprints of this card in other sets, sorted. */
   reprints?: string[];
 };
 
@@ -277,7 +240,6 @@ export type ShoppingResponse = {
   cards_still_needed: number;
   remaining_market: number;
   unique_cards: number;
-  /** Collector copies wanted across all lines (#1031); the totals above already include what is still needed. */
   collector_copies?: number;
 };
 
@@ -289,21 +251,16 @@ export type OwnedCard = {
   card_type: string;
   cost: number | string | null;
   owned: number;
-  /** Copies owned across alt printings (on top of `owned`). */
   alts_owned?: number;
   market_price: number | null;
   low_price: number | null;
-  /** Base copies at the standard price plus alt copies at their own prices; null when any is unpriced. */
   value: number | null;
   image_url: string;
   tcgplayer_url: string;
   product_id?: number | null;
   used_in: string[];
-  /** Copies still to buy on the full shopping list (decks + added directly); 0 when covered. */
   buying?: number;
-  /** Every alt printing of the card (owned or not), each with the viewer's owned count. */
   alt_arts?: PrintingView[];
-  /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
   display_art?: number | null;
 };
 
@@ -312,7 +269,6 @@ export type OwnedCollectionResponse = {
   unique_cards: number;
   total_copies: number;
   total_value: number;
-  /** Owned cards with no market price (not in total_value). */
   unpriced_cards: number;
 };
 
@@ -346,11 +302,8 @@ export type GroupBuyMember = {
   display_name: string;
   role: string;
   deck_ids: number[] | null;
-  /** Cards added straight to Master Shopping (in no deck) count (#1177). */
   include_singles?: boolean;
-  /** Extra copy wants (alt arts) count (#1177). */
   include_extra_copies?: boolean;
-  /** Member's Copies needed mode; null/absent once quantities are frozen. */
   sum_across_leaders?: boolean | null;
   cards_still_needed: number;
   remaining_market: number;
@@ -370,7 +323,6 @@ export type GroupBuyOrderUpdate = {
 
 export type GroupBuyArtWant = { product_id: number; user_id: number; qty: number };
 
-/** One of the viewer's Extra copies on a card and how many they leave out of this buy (#1269). */
 export type GroupBuyMyExtra = {
   product_id: number;
   name: string;
@@ -394,25 +346,18 @@ export type GroupBuyLine = {
   preferred_market_price?: number | null;
   tcgplayer_url: string;
   image_url: string;
-  /** Art of the preferred (base) printing; `image_url` is the host's checkout printing. */
   base_image_url?: string;
   members: GroupBuyMemberQty[];
   alt_arts: PrintingView[];
-  /** Every member's copies per art (alts first, rest on the preferred printing). */
   art_wants?: GroupBuyArtWant[];
-  /** Chosen display art: null = automatic, 0 = base, >0 = product id. */
   display_art?: number | null;
   my_qty: number;
   my_suggested_qty: number;
   my_is_custom: boolean;
   my_excluded?: boolean;
-  /** Viewer's play Need for this card — caps alt want steppers. */
   my_need?: number;
-  /** The viewer's own selected decks that use the card (#1266). */
   my_used_in?: string[];
-  /** The viewer's deck/single still-need part of my_suggested_qty (#1269). */
   my_deck_qty?: number;
-  /** The viewer's Extra copies on this card (#1269). */
   my_extras?: GroupBuyMyExtra[];
 };
 
@@ -538,7 +483,6 @@ export type MetaDeck = {
   event_id: string;
   event: string;
   event_url: string;
-  /** YYYY-MM-DD */
   date: string;
   set_label?: string | null;
   players: number;
@@ -546,7 +490,6 @@ export type MetaDeck = {
   record: { wins: number; losses: number; ties: number };
   cards: MetaDeckCard[];
   card_count: number;
-  /** OPTCGSim paste format, accepted as-is by POST /decks. */
   text: string;
 };
 
@@ -557,7 +500,6 @@ export type MetaDecksResponse = {
   decks: MetaDeck[];
 };
 
-/** One printing of a card on its page (#953); the first is the base art. */
 export type CardPagePrinting = {
   product_id: number;
   name: string;
@@ -573,10 +515,8 @@ export type CardPageLeader = {
   name: string;
   color: string;
   image_url: string;
-  /** Decks with a stored list that this leader played. */
   leader_decks: number;
   decks_with_card: number;
-  /** Share of that leader's decks that ran the card. */
   rate: number;
   average_copies: number;
 };
@@ -585,7 +525,6 @@ export type CardPageFinish = {
   id: number;
   event: string;
   event_url: string;
-  /** YYYY-MM-DD */
   date: string;
   players: number;
   placing: number | null;
@@ -602,10 +541,8 @@ export type CardPageUsage = {
   events: number;
   total_decks: number;
   is_leader: boolean;
-  /** Decks that ran the card (a Leader: decks it led). */
   decks_with_card: number;
   rate: number;
-  /** Null for a Leader or a card nobody ran. */
   average_copies: number | null;
   leaders: CardPageLeader[];
   top_decks: CardPageFinish[];
@@ -648,7 +585,6 @@ export const api = {
     request<MetaDecksResponse>(
       `/meta/decks?leader=${encodeURIComponent(leader)}&days=${days}&top=${top}&limit=50`,
     ),
-  /** A card's page: printings and tournament usage. Public; 404 for an unknown card. */
   cardDetail: (cardId: string, days: number) =>
     request<CardPageResponse>(`/meta/cards/${encodeURIComponent(cardId)}?days=${days}`),
   decks: () => request<DeckSummary[]>("/decks"),
@@ -664,7 +600,6 @@ export const api = {
       body: JSON.stringify({ name, decklist }),
       timeoutMs: LONG_TIMEOUT_MS,
     }),
-  /** Overwrite a deck's leader and cards with a pasted OPTCGSim deck code (#1016). Name and id stay. */
   replaceDeckList: (id: number, decklist: string) =>
     request<DeckDetail>(`/decks/${id}/decklist`, {
       method: "PUT",
@@ -771,9 +706,7 @@ export const api = {
     for (const id of deckIds ?? []) params.append("deck_ids", String(id));
     // undefined = every deck; [] = none (#1208), which a missing deck_ids can't say.
     if (deckIds && deckIds.length === 0) params.set("no_decks", "true");
-    // Directly added cards are on by default; only the off state needs sending.
     if (opts?.extras === false) params.set("extras", "false");
-    // Extra copies are on by default; off keeps the owned-copy reserve but lists none (#1184).
     if (opts?.collector === false) params.set("collector", "false");
     const qs = params.toString();
     return request<ShoppingResponse>(`/shopping${qs ? `?${qs}` : ""}`);
@@ -784,7 +717,6 @@ export const api = {
     const qs = params.toString();
     return request<OwnedCollectionResponse>(`/owned${qs ? `?${qs}` : ""}`);
   },
-  /** Set the target copies to own for a card added straight to Master Shopping; 0 removes it. */
   setShoppingExtra: (cardId: string, qty: number) =>
     request<{ card_id: string; qty: number }>(`/shopping/extras/${encodeURIComponent(cardId)}`, {
       method: "PUT",
@@ -795,14 +727,12 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ qty }),
     }),
-  /** Add copies on top of the current Owned counts, one request for many cards. */
   addOwned: (items: { card_id: string; add: number }[]) =>
     request<{ items: { card_id: string; owned: number }[] }>("/owned/add", {
       method: "POST",
       body: JSON.stringify({ items }),
       timeoutMs: LONG_TIMEOUT_MS,
     }),
-  /** Max 40 items per request; 403 when the user switched sharing off. */
   uploadScanSamples: (items: ScanSampleUpload[]) =>
     request<{ saved: number }>("/scan-samples", {
       method: "POST",
@@ -813,7 +743,6 @@ export const api = {
   deleteMyScanSamples: () => request<{ deleted: number }>("/scan-samples/mine", { method: "DELETE" }),
   recentSales: (productId: number, limit = 3) =>
     request<RecentSalesResponse>(`/catalog/sales/${productId}?limit=${limit}`),
-  /** productId 0 = the card's base art. */
   priceHistory: (cardId: string, productId = 0) =>
     request<PriceHistoryResponse>(`/catalog/cards/${encodeURIComponent(cardId)}/price-history?product_id=${productId}`),
   getShoppingShare: () => request<ShareInfo | null>("/share/shopping"),

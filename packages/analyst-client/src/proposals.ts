@@ -1,38 +1,24 @@
-/**
- * Deck edit suggestions as the apps see them (#400): reading a proposal from the wire, working out what its
- * Apply card should offer for the deck that is open now, and the reverse diff Undo applies. React-free.
- */
 import { normalizeCardId } from "@optcg/card-core";
 
 export type DeckEditLine = { id: string; name: string; before: number; after: number; reason: string };
 
 export type DeckEditProposal = {
-  /** The model's tool_use id. */
   id: string;
   target: { ref: string; name: string; leaderId: string | null };
   summary: string;
-  /** The player asked Log Pose to make this change: the card applies it once to the open deck (#726). */
   apply: boolean;
   lines: DeckEditLine[];
-  /** The deck as the model saw it, with normalized ids. */
   base: { id: string; copies: number }[];
   legality: { legal: boolean; count: number; problems: string[]; upcoming: string[]; banListChecked: boolean };
 };
 
-/** One card's change: from `before` copies to `after`. */
 export type DeckEditOp = { id: string; before: number; after: number };
 
-/** The deck an app has open, and how it saves a change to it. */
 export type DeckEditor = {
-  /** "planner:<deckId>" or "duel:<savedDeckId>", the same ref the app sends in the chat context. */
   ref: string;
-  /** The open deck's main cards as they are now (leader and DON!! left out). */
   cards: { id: string; copies: number }[];
-  /** Saves the ops with the app's own deck save path; rejects with a message the card shows. */
   apply: (ops: DeckEditOp[]) => Promise<void>;
-  /** How many copies of a card the player owns, when the app knows. */
   owned?: (id: string) => number | undefined;
-  /** A muted line the card shows for this deck (e.g. that a linked planner deck is not updated). */
   note?: string;
 };
 
@@ -41,7 +27,6 @@ const str = (v: unknown, max = 400): string | null => (typeof v === "string" ? v
 const count = (v: unknown): number | null => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 500 ? v : null);
 const strings = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string").slice(0, 20) : []);
 
-/** A proposal from an SSE event or a stored thread (snake_case on the wire), or null when its target or lines are unusable. Bad lines are dropped. */
 export function parseProposal(raw: unknown): DeckEditProposal | null {
   if (!isRec(raw)) return null;
   const id = str(raw.id, 64);
@@ -89,9 +74,7 @@ export type ProposalKind = "ready" | "applied" | "conflict" | "elsewhere" | "dis
 
 export type ProposalState = {
   kind: ProposalKind;
-  /** Other cards (not in the proposal) differ from the deck the model saw. */
   drifted: boolean;
-  /** For a conflict: the touched cards that are not at `before`, with their copies now. */
   changed: { id: string; now: number }[];
 };
 
@@ -101,7 +84,7 @@ function copiesOf(cards: readonly { id: string; copies: number }[]): Map<string,
   return m;
 }
 
-/** What the card offers now, from the live deck: derived every time, so it survives a reload and Undo needs no memory. */
+// Derived every time, so it survives a reload and Undo needs no memory.
 export function proposalState(p: DeckEditProposal, editor: DeckEditor | null | undefined, dismissed: readonly string[] | ReadonlySet<string> = []): ProposalState {
   if (!editor || editor.ref !== p.target.ref) return { kind: "elsewhere", drifted: false, changed: [] };
   const now = copiesOf(editor.cards);
@@ -119,17 +102,13 @@ export function proposalState(p: DeckEditProposal, editor: DeckEditor | null | u
   return { kind, drifted, changed: kind === "conflict" || kind === "dismissed" ? changed : [] };
 }
 
-/** The ops Apply sends: every line, from `before` to `after`. */
 export const applyOps = (p: DeckEditProposal): DeckEditOp[] => p.lines.map((l) => ({ id: l.id, before: l.before, after: l.after }));
 
-/** The ops Undo sends: each line back from `after` to `before`. */
 export const undoOps = (p: DeckEditProposal): DeckEditOp[] => p.lines.map((l) => ({ id: l.id, before: l.after, after: l.before }));
 
-/** An answer bubble worth keeping: it has text, a deck edit, a new deck, a turn plan, a choice Log Pose answered, or was stopped on purpose. */
 export const isEmptyAnswer = (m: { text: string; proposals?: readonly unknown[]; drafts?: readonly unknown[]; plans?: readonly unknown[]; choices?: readonly unknown[]; stopped?: boolean }): boolean =>
   !m.text && !m.proposals?.length && !m.drafts?.length && !m.plans?.length && !m.choices?.length && !m.stopped;
 
-/** Whether the card should apply this edit now: Log Pose was asked to make it, it arrived live (not from a saved thread), the open deck is untouched, and it was not applied before. */
 export function shouldAutoApply(
   p: DeckEditProposal,
   state: ProposalState,
@@ -141,14 +120,13 @@ export function shouldAutoApply(
 }
 
 export const DISMISSED_KEY = "optcg-logpose:dismissed";
-/** Edits Log Pose already applied (or tried to) on this device, so a re-render, a reload or Undo never applies one again. */
+// A re-render, a reload or Undo must never apply an edit again.
 export const AUTO_APPLIED_KEY = "optcg-logpose:auto-applied";
 const MAX_DISMISSED = 200;
 
 type ReadStore = Pick<Storage, "getItem">;
 type WriteStore = Pick<Storage, "getItem" | "setItem">;
 
-/** The ids kept under `key` in localStorage (newest 200). Never throws. */
 export function readIds(key: string, storage: ReadStore | null): string[] {
   try {
     const parsed: unknown = JSON.parse(storage?.getItem(key) ?? "[]");
@@ -158,7 +136,6 @@ export function readIds(key: string, storage: ReadStore | null): string[] {
   }
 }
 
-/** Adds (or removes) one id under `key`, keeping the newest 200. Never throws. */
 export function writeIds(key: string, id: string, on: boolean, storage: WriteStore | null): string[] {
   const next = readIds(key, storage).filter((x) => x !== id);
   if (on) next.push(id);
@@ -171,16 +148,12 @@ export function writeIds(key: string, id: string, on: boolean, storage: WriteSto
   return kept;
 }
 
-/** The ids of the edits the player dismissed on this device. Never throws; empty when storage is blocked. */
 export const readDismissed = (storage: ReadStore | null = safeStorage()): string[] => readIds(DISMISSED_KEY, storage);
 
-/** Remembers (or forgets) one dismissed edit, keeping the newest 200. */
 export const writeDismissed = (id: string, dismissed: boolean, storage: WriteStore | null = safeStorage()): string[] => writeIds(DISMISSED_KEY, id, dismissed, storage);
 
-/** The ids of the edits Log Pose already applied on this device. Never throws. */
 export const readAutoApplied = (storage: ReadStore | null = safeStorage()): string[] => readIds(AUTO_APPLIED_KEY, storage);
 
-/** Remembers that an edit was handled, keeping the newest 200. */
 export const markAutoApplied = (id: string, storage: WriteStore | null = safeStorage()): string[] => writeIds(AUTO_APPLIED_KEY, id, true, storage);
 
 export function safeStorage(): Storage | null {

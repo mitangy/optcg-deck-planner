@@ -9,18 +9,17 @@ import type { Intent, MatchState, PendingChoice, Seat } from "../types.js";
 import metaDecks from "./fixtures/meta-decks.json";
 
 const META = metaDecks as { name: string; leaderId: string; deck: string[] }[];
-const PUDDING = "OP08-058"; // [When Attacking] You may turn 2 Life cards face-up: add 1 DON!! rested
-const L = "OP01-001"; // Leader, 5000
-const STRONG_LEADER = "OP02-001"; // 6000
-const RAFFLESIA = "OP01-028"; // Counter Event, cost 1: give 1 of the opponent's Leader or Characters -2000 power this turn
-const CHOPPER = "OP04-010"; // cost 3, [On Play] play an {Animal} Character with 3000 power or less from hand
-const ANIMAL = "OP17-028"; // cost 4, 3000, {Animal}
+const PUDDING = "OP08-058";
+const L = "OP01-001";
+const STRONG_LEADER = "OP02-001";
+const RAFFLESIA = "OP01-028";
+const CHOPPER = "OP04-010";
+const ANIMAL = "OP17-028";
 
 /** Fixed knobs that make the search independent of the clock. */
 const exact = { level: "hard", budgetMs: Infinity, samples: 2, maxEvals: 10 } as const;
 const rng = (seed = 7) => createSeededRng(seed);
 
-/** Positions (state + the seat to move) from a normal-vs-normal game on two meta decks. */
 function positions(seed: number, every: number): { state: MatchState; seat: Seat }[] {
   const game = playBotGame({ seed, players: [META[seed % META.length]!, META[(seed * 5 + 3) % META.length]!], levels: ["normal", "normal"] });
   const out: { state: MatchState; seat: Seat }[] = [];
@@ -78,7 +77,6 @@ describe("hard bot: determinization (#631)", () => {
         if (d.players[seat].deck.some((x, i) => x !== state.players[seat].deck[i])) movedOwnDeck += 1;
       }
     }
-    // The reshuffle really happens.
     expect(movedOpponent).toBeGreaterThan(5);
     expect(movedOwnDeck).toBeGreaterThan(5);
   }, 60_000);
@@ -94,7 +92,6 @@ describe("hard bot: determinization (#631)", () => {
     // Fill the opponent's deck with other cards so a reshuffle has somewhere to move things.
     opp.deck = Array.from({ length: 10 }, (_, i) => `OP01-0${20 + i}`);
     opp.zoneInstanceIds.deck = opp.deck.map((_, i) => `od${i}`);
-    // The seat is resolving a search that shows its own deck cards od-like ids: pin two of them.
     const own = h.state.players[0];
     own.deck = Array.from({ length: 10 }, (_, i) => `OP02-0${20 + i}`);
     own.zoneInstanceIds.deck = own.deck.map((_, i) => `wd${i}`);
@@ -108,8 +105,8 @@ describe("hard bot: determinization (#631)", () => {
     for (let seed = 1; seed <= 6; seed += 1) {
       const d = determinize(h.state, 0, rng(seed));
       assertInvariants(d);
-      expect(d.players[1].life[0]).toBe(opp.life[0]); // face-up
-      expect(d.players[1].hand[0]!.defId).toBe(opp.hand[0]!.defId); // revealed
+      expect(d.players[1].life[0]).toBe(opp.life[0]);
+      expect(d.players[1].hand[0]!.defId).toBe(opp.hand[0]!.defId);
       expect(d.players[0].deck[2]).toBe(own.deck[2]);
       expect(d.players[0].deck[5]).toBe(own.deck[5]);
       if (d.players[1].hand[1]!.defId !== opp.hand[1]!.defId || d.players[1].deck.some((x, i) => x !== opp.deck[i])) sawMoved = true;
@@ -123,9 +120,7 @@ describe("hard bot: determinization (#631)", () => {
       for (const { state, seat } of positions(seed, 6)) {
         if (ownsPendingChoice(state, seat)) continue;
         const other = hiddenDealtDifferently(state, seat, seed * 31);
-        // Both copies look identical to the seat ...
         expect(getPlayerView(other, seat)).toEqual(getPlayerView(state, seat));
-        // ... so its choice must be identical too.
         const a = chooseBotIntentFromState(state, seat, { ...exact, rng: rng() });
         const b = chooseBotIntentFromState(other, seat, { ...exact, rng: rng() });
         expect(b).toEqual(a);
@@ -157,7 +152,6 @@ describe("hard bot: lines (#631)", () => {
     expect(chooseBotIntentFromState(h.state, 0, { ...exact, evalMode: "hand", rng: rng() })).toEqual({ type: "resolve_pending_choice", accept: false });
   });
 
-  /** Seat 0's Leader (6000 + 1 DON!! = 7000) attacks seat 1's 5000 Leader, which has no Life left. */
   function lethalAttack(setup: (h: Harness) => void): Harness {
     const h = new Harness({ leaders: [STRONG_LEADER, L] });
     h.life(1);
@@ -179,7 +173,6 @@ describe("hard bot: lines (#631)", () => {
       const first = chooseBotIntentFromState(h.state, 1, { ...exact, evalMode, rng: rng() });
       expect(first).toEqual({ type: "counter_event", handIndex: 1 });
       h.act(1, first!);
-      // Rafflesia asks for its target before the battle goes on.
       while (h.choice) h.act(1, chooseBotIntentFromState(h.state, 1, { ...exact, evalMode, rng: rng() })!);
       const second = chooseBotIntentFromState(h.state, 1, { ...exact, evalMode, rng: rng() });
       expect(second).toMatchObject({ type: "counter_from_hand" });
@@ -193,7 +186,6 @@ describe("hard bot: lines (#631)", () => {
     const h = new Harness({ leaders: [L, L] });
     h.don(0, 4);
     h.hand(0, ANIMAL, CHOPPER);
-    // Normal buys the most expensive card it can pay for.
     const normal = chooseBotIntent(getPlayerView(h.state, 0), { level: "normal", rng: rng() }) as Extract<Intent, { type: "play_card" }>;
     expect(h.state.players[0].hand[normal.handIndex]!.defId).toBe(ANIMAL);
     // Hard sees that Chopper (3 DON!!) brings the {Animal} along. Scored with the hand-tuned evaluator: this checks that the rollout
@@ -275,7 +267,6 @@ describe("hard bot: self-play line tally (#631)", () => {
     expect(result.ok).toBe(true);
     let state = result.state;
     const events = [...result.events];
-    // The On Play asks which {Animal} to play.
     const tally = emptyTally();
     const last: string[] = [];
     tallyIntent(tally, before, 0, intent, result.events, last);

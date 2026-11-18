@@ -14,7 +14,6 @@ from tests.db_support import make_bare_engine, requires_postgres
 
 @pytest.fixture(autouse=True)
 def _reset_sync_state():
-    # Ensure a clean module-level guard/state around each test.
     if catalog_sync._sync_lock.locked():  # pragma: no cover - safety
         catalog_sync._sync_lock.release()
     catalog_sync._sync_state.update(
@@ -40,8 +39,8 @@ def test_run_job_uses_own_session_and_records_result(monkeypatch):
     result = catalog_sync.run_catalog_sync_job(session_factory=lambda: fake_session)
 
     assert result == {"card_count": 3, "printing_count": 5}
-    assert calls == [fake_session]  # ran against the job's own session
-    fake_session.close.assert_called_once()  # session always closed
+    assert calls == [fake_session]
+    fake_session.close.assert_called_once()
     status = catalog_sync.sync_status()
     assert status["running"] is False
     assert status["last_result"] == {"card_count": 3, "printing_count": 5}
@@ -68,7 +67,6 @@ def test_concurrent_job_is_skipped_while_one_runs(monkeypatch):
     assert started.wait(timeout=5)
     assert catalog_sync.sync_in_progress()
 
-    # Second attempt while the first holds the lock is a no-op.
     second_session = MagicMock()
     assert catalog_sync.run_catalog_sync_job(session_factory=lambda: second_session) is None
     second_session.assert_not_called()
@@ -90,7 +88,6 @@ def test_job_records_error_and_reraises(monkeypatch):
     status = catalog_sync.sync_status()
     assert status["running"] is False
     assert status["last_error"] == "tcgcsv down"
-    # Lock is released even on failure, so a later sync can run.
     assert not catalog_sync._sync_lock.locked()
 
 
@@ -101,7 +98,6 @@ def test_try_claim_marks_running_before_job_body(monkeypatch):
     assert status["finished_at"] is None
     assert status["started_at"] is not None
 
-    # Second claim fails while the first holds the lock.
     assert not catalog_sync.try_claim_sync_slot()
 
     monkeypatch.setattr(
@@ -120,20 +116,18 @@ def test_try_claim_marks_running_before_job_body(monkeypatch):
 
 @requires_postgres
 def test_catalog_sync_waits_out_another_workers_run_682(monkeypatch):
-    """With several API workers, the thread lock is per worker: Postgres decides who syncs."""
     engine = make_bare_engine()
     monkeypatch.setattr(app_db, "engine", engine)
     with engine.connect() as other_worker:
         other_worker.execute(text("SELECT pg_advisory_lock(:key)"), {"key": app_db.CATALOG_SYNC_LOCK_KEY})
         assert not catalog_sync.try_claim_sync_slot()
-        assert not catalog_sync._sync_lock.locked()  # a refused claim leaves this worker free to try again
+        assert not catalog_sync._sync_lock.locked()
         assert not catalog_sync.sync_in_progress()
         other_worker.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": app_db.CATALOG_SYNC_LOCK_KEY})
         other_worker.commit()
 
     monkeypatch.setattr(catalog_sync, "sync_catalog", lambda db: {"card_count": 1, "printing_count": 1})
     assert catalog_sync.run_catalog_sync_job(session_factory=MagicMock()) == {"card_count": 1, "printing_count": 1}
-    # The job gave the lock back when it finished.
     again = app_db.try_advisory_lock(app_db.CATALOG_SYNC_LOCK_KEY, engine)
     assert again is not None
     again.release()
@@ -142,19 +136,14 @@ def test_catalog_sync_waits_out_another_workers_run_682(monkeypatch):
 
 @requires_postgres
 def test_job_lock_ends_with_its_transaction_behind_a_pooler_647():
-    """Behind Neon's transaction pooler a session lock outlives the transaction and leaks.
-
-    The pooler hands the server backend back after each transaction, so the lock
-    must live and die with one open transaction: once it ends, the lock is gone.
-    """
     engine = make_bare_engine()
     key = app_db.CATALOG_SYNC_LOCK_KEY
     held = app_db.try_advisory_lock(key, engine)
     assert held is not None
     second = None
     try:
-        assert app_db.try_advisory_lock(key, engine) is None  # still held while the job runs
-        held._conn.rollback()  # what the pooler does between transactions
+        assert app_db.try_advisory_lock(key, engine) is None
+        held._conn.rollback()
         second = app_db.try_advisory_lock(key, engine)
         assert second is not None
     finally:

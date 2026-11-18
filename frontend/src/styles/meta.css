@@ -1,4 +1,3 @@
-/* ---- Meta (tournament decks) ---- */
 .meta-page {
   min-width: 0;
 }
@@ -31,7 +30,7 @@
 
 .meta-leader-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(17.5rem, 1fr));
   gap: var(--space-4);
 }
 
@@ -69,8 +68,8 @@ a.meta-leader-card:focus-visible {
 
 .meta-leader-art {
   flex: 0 0 auto;
-  width: 72px;
-  height: 100px;
+  width: 4.5rem;
+  height: 6.25rem;
   object-fit: cover;
   border-radius: var(--radius-10);
   border: 1px solid var(--line);
@@ -258,7 +257,7 @@ a.meta-leader-card:focus-visible {
 
 .meta-card {
   flex: 0 0 auto;
-  width: 72px;
+  width: 4.5rem;
 }
 
 .meta-deck-groups {
@@ -357,8 +356,6 @@ a.meta-card-name:focus-visible {
 }
 
 
-/* Log Pose docked to a side (#432): the top bar has less room than the window, so it lays out like the narrow
-   one (brand and user on a row, the nav under them) whenever the room left beside the panel is under 1200px. */
 html[data-lp-dock] .topbar {
   container: topbar / inline-size;
 }
@@ -411,7 +408,6 @@ html[data-lp-dock] .topbar {
   }
 }
 
-/* Base art tile beside the alt arts once an owned alt is the main image. */
 .alt-art-base {
   border-style: dashed;
 }
@@ -421,9 +417,6 @@ html[data-lp-dock] .topbar {
   color: var(--muted);
 }
 
-/* Photo scan review tray (Collection). The dialog keeps one fixed height while
-   reviewing, so editing rows never resizes it; only the list scrolls and the
-   footer stays pinned. */
 .scan-dialog.multi {
   width: min(36rem, 100%);
 }
@@ -644,7 +637,6 @@ button.ghost.scan-tray-fix {
   background: var(--card);
 }
 
-/* Sharing switch + delete line (#852). Fixed-size controls; nothing here changes size while saving. */
 .scan-share {
   flex: none;
   padding-top: 0.5rem;
@@ -757,7 +749,6 @@ button.ghost.scan-tray-fix {
     padding-block: 0.3rem;
   }
 
-  /* One line for the footer so the list keeps the height. */
   .scan-tray-foot {
     display: flex;
     align-items: center;
@@ -779,8 +770,6 @@ button.ghost.scan-tray-fix {
   }
 }
 
-/* Show / Shown control under each alt-art tile (#702). Same box for both so
-   switching the displayed art never moves neighbouring controls. */
 .alt-show-btn,
 .alt-shown-chip {
   box-sizing: border-box;

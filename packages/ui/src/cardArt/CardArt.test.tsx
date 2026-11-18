@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-// Every card currently has official art, so the card preview list can be empty: use a fixed one (#1299).
+// Every card currently has official art, so the card preview list can be empty: use a fixed one.
 vi.mock("./previewArt.json", () => ({ default: ["OP18-003", "OP18-031"] }));
 
 import { CardArt, CardArtImg } from "./CardArt";
@@ -37,7 +37,6 @@ const img = () => host!.querySelector("img");
 const srcNow = () => img()?.getAttribute("src");
 const fail = () => act(() => void img()!.dispatchEvent(new Event("error")));
 
-/** Fires `load` for an image whose natural size is w x h. */
 function load(w: number, h: number) {
   const el = img()!;
   Object.defineProperty(el, "naturalWidth", { value: w, configurable: true });

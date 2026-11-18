@@ -1,10 +1,3 @@
-/**
- * A small Markdown subset for assistant answers, parsed to a tree that Markdown.tsx renders
- * as React elements (never as HTML strings): paragraphs, headings, bullet and numbered lists,
- * **bold**, *italic*, `code`, fenced code blocks, pipe tables, rules and http(s) links.
- * Anything else, HTML included, stays literal text.
- */
-
 export type Inline =
   | { t: "text"; v: string }
   | { t: "b"; c: Inline[] }
@@ -22,7 +15,6 @@ export type Block =
   | { t: "table"; head: Inline[][]; rows: Inline[][][] }
   | { t: "hr" };
 
-/** The URL if it is an absolute http(s) link, else null (javascript:, data:, relative…). */
 export function safeHref(raw: string): string | null {
   const s = raw.trim();
   let url: URL;
@@ -43,7 +35,6 @@ function pushText(out: Inline[], v: string) {
   else out.push({ t: "text", v });
 }
 
-/** Finds the closing `marker` after `from`, with non-space content before it. */
 function closing(s: string, marker: string, from: number): number {
   let j = s.indexOf(marker, from);
   while (j >= 0) {
@@ -119,7 +110,6 @@ export function parseInline(s: string): Inline[] {
   return out;
 }
 
-/** Soft line breaks inside a paragraph render as <br>, as chat users expect. */
 function inlineLines(lines: string[]): Inline[] {
   const out: Inline[] = [];
   lines.forEach((l, k) => {
@@ -130,13 +120,12 @@ function inlineLines(lines: string[]): Inline[] {
 }
 
 const FENCE = /^\s*(```|~~~)\s*([\w+-]*)\s*$/;
-// Linear on purpose (#1219): the closing `#`s and trailing blanks are stripped by matchHeading, not by a lazy `(.*?)\s*#*\s*$`, which backtracks cubically on a long run of spaces.
+// Linear on purpose: matchHeading strips the closing `#`s and trailing blanks, because a lazy `(.*?)\s*#*\s*$` backtracks cubically on a long run of spaces.
 const HEADING = /^\s{0,3}(#{1,6})\s+([\s\S]*)$/;
 const RULE = /^\s{0,3}([-*_])(?:\s*\1){2,}\s*$/;
 const BULLET = /^\s*[-*+]\s+(.*)$/;
 const NUMBERED = /^\s*(\d{1,9})[.)]\s+(.*)$/;
 
-/** An ATX heading line, or null. Closing `#`s and the blanks around them are not part of the text. */
 function matchHeading(line: string): { level: number; text: string } | null {
   const m = HEADING.exec(line);
   if (!m) return null;
@@ -144,7 +133,6 @@ function matchHeading(line: string): { level: number; text: string } | null {
   let end = raw.trimEnd().length;
   while (end > 0 && raw[end - 1] === "#") end--;
   const text = raw.slice(0, end).trimEnd();
-  // A line separator inside the text never counted as part of a heading line (the old `.`).
   if (/[\u2028\u2029]/.test(text)) return null;
   return { level: m[1]!.length, text };
 }
@@ -242,7 +230,6 @@ export function parseMarkdown(text: string): Block[] {
           items.push([ordered ? m[2]! : m[1]!]);
           i++;
         } else if (l.trim() && /^\s+/.test(l) && (!startsBlock(lines, i) || BULLET.test(l) || NUMBERED.test(l))) {
-          // An indented line continues the item above; a nested list of the other kind stays as its text.
           items[items.length - 1]!.push(l);
           i++;
         } else break;

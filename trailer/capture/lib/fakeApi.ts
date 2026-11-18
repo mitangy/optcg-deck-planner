@@ -1,8 +1,3 @@
-/**
- * The FastAPI backend, faked in the browser (`context.route`) like duel-web/e2e/fixtures.ts does. Nothing listens
- * on FAKE_API, nothing goes to production, and no account is ever created: the "accounts" below are names in a
- * script. The game server is the real local one; game tokens are signed with its (local) secret.
- */
 import { createHmac } from "node:crypto";
 import type { BrowserContext, Route } from "playwright";
 import { FAKE_ANALYST, FAKE_API, GAME_SERVER, GAME_TOKEN_SECRET, gitSha } from "./env";
@@ -32,11 +27,9 @@ export type FakeMatch = {
 
 export type FakeBoardEntry = { user_id: number; name: string; username: string; rating: number; games_played: number };
 
-/** State shared by every browser in one take (the "server"): friends' presence and the invites between them. */
 export class World {
   invites: { toUid: number; id: number; from: Person; room_id: string; server_url: string | null; expires_at: number }[] = [];
   private nextInvite = 1;
-  /** Called after an invite is stored, so a capture script can nudge the invited browser's poll. */
   onInvite: ((toUid: number) => void) | null = null;
   presence = new Map<number, { status: FriendStatus; room_id: string | null; ranked: boolean }>();
 
@@ -49,29 +42,22 @@ export class World {
 }
 
 export type FakeOptions = {
-  /** Signed in as this player, or null for a guest. */
   me: (Person & { rating?: number; wins?: number; losses?: number; rank?: number | null; games?: number }) | null;
   world?: World;
   friends?: FakeFriend[];
   leaderboard?: FakeBoardEntry[];
   matches?: FakeMatch[];
-  /** match id -> recording body (see e2e/data/replay-purple-red.json). */
   replays?: Record<string, unknown>;
-  /** match id -> { match, log }: what the written match log page loads. */
   details?: Record<string, unknown>;
   live?: { online: number; matches: number };
-  /** Settings the account already has (they win over the browser's on sign-in). */
   accountSettings?: Record<string, unknown> | null;
-  /** Log Pose chat enabled for this player (the analyst service itself is faked per clip, see FAKE_ANALYST). */
   logPose?: boolean;
-  /** Anything else: first match wins. Return true when handled. */
   extra?: (route: Route, path: string, method: string) => Promise<boolean> | boolean;
   log?: (line: string) => void;
 };
 
 const b64url = (buf: Buffer | string) => Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-/** Same format as the real API's game token (`body.sig`, HMAC-SHA256), signed with the local game server's secret. */
 export function mintGameToken(uid: number, name: string): string {
   const body = b64url(JSON.stringify({ uid, email: `${name.toLowerCase()}@example.invalid`, exp: Math.floor(Date.now() / 1000) + 6 * 3600, name }));
   return `${body}.${b64url(createHmac("sha256", GAME_TOKEN_SECRET).update(body).digest())}`;
@@ -192,7 +178,6 @@ export async function installFakeApi(ctx: BrowserContext, opts: FakeOptions): Pr
       return body ? json(body) : fail(404, "No recording");
     }
 
-    // —— Log Pose ——
     if (path === "/analyst/chat/session") {
       return opts.logPose && me
         ? json({ enabled: true, token: "chat.1.9999999999.x", expires_at: new Date(Date.now() + 6 * 3_600_000).toISOString(), chat_url: FAKE_ANALYST })
@@ -200,7 +185,6 @@ export async function installFakeApi(ctx: BrowserContext, opts: FakeOptions): Pr
     }
     if (path.startsWith("/analyst/chat/threads") || path.startsWith("/analyst/reviews/")) return fail(404, "none");
 
-    // —— friends ——
     if (path === "/friends" && me) {
       const rows = (opts.friends ?? []).map((f) => friendRow(f, world));
       const invites = world.invites

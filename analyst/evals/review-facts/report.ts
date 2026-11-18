@@ -1,4 +1,3 @@
-/** report.md for the review-facts eval (#675). */
 import type { EvalRunPost } from "../shared/post";
 import { wilson } from "../qa/stats";
 import type { ClaimRow, ReviewRow } from "./pipeline";
@@ -22,7 +21,6 @@ export type Totals = {
   interval: [number, number];
 };
 
-/** Wrong = contradicted + wrong_turn. Checkable = supported + wrong. Unverifiable and dropped claims are in neither. */
 export function totals(rows: readonly ReviewRow[]): Totals {
   const sum = (k: "claims" | "supported" | "contradicted" | "wrong_turn" | "unverifiable" | "dropped") => rows.reduce((s, r) => s + r[k], 0);
   const supported = sum("supported");
@@ -46,7 +44,6 @@ export function totals(rows: readonly ReviewRow[]): Totals {
   };
 }
 
-/** The run as POST /admin/evals takes it (#679): wrong claims per review is the headline, lower is better; supported out of checkable is the score. */
 export function reviewFactsRunPayload(i: { variant: string; model: string; rows: readonly ReviewRow[]; notes?: string }): EvalRunPost {
   const t = totals(i.rows);
   const cost = i.rows.reduce((s, r) => s + r.review_cost_usd + r.extract_cost_usd, 0);
@@ -64,7 +61,6 @@ export function reviewFactsRunPayload(i: { variant: string; model: string; rows:
   };
 }
 
-/** The claims most likely to be real errors: contradicted before wrong_turn. */
 export function worstClaims(claims: readonly ClaimRow[], n = 10): ClaimRow[] {
   const rank = (c: ClaimRow) => (c.verdict === "contradicted" ? 0 : 1);
   return claims.filter((c) => c.verdict === "contradicted" || c.verdict === "wrong_turn").sort((a, b) => rank(a) - rank(b)).slice(0, n);

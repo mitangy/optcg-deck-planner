@@ -1,15 +1,8 @@
-/**
- * OPTCGSim / planner-style decklist parser.
- * Accepts the same shapes as backend `parse_decklist` (`backend/app/planner/domain.py`); both run the
- * cases in `fixtures/decklists.json`, so they cannot drift apart.
- */
-
 export type ParsedDeckLine = { cardId: string; count: number };
 
 const LINE_RE =
   /^\s*(?:(\d+)\s*[xX]\s*)?([A-Za-z0-9]+-\d+[A-Za-z]?)\s*(.*)?$/;
 const TOKEN_RE = /(?:(\d+)\s*[xX]?\s*)?([A-Za-z0-9]+-\d+[A-Za-z]?)/gi;
-/** "OP01-001 4" / "OP01-001 x4": the count written after the card number. */
 const TRAILING_QTY_RE = /^[xX]\s*(\d+)$|^(\d+)$/;
 
 export function parseDecklist(text: string): ParsedDeckLine[] {
@@ -34,7 +27,6 @@ export function parseDecklist(text: string): ParsedDeckLine[] {
   }
 
   for (const line of expanded) {
-    // Trailing qty: "ST01-014 x4" / "ST01-014x4"
     const trailing = line.match(
       /^\s*([A-Za-z0-9]+-\d+[A-Za-z]?)\s*[xX]\s*(\d+)\s*(.*)?$/,
     );
@@ -49,7 +41,6 @@ export function parseDecklist(text: string): ParsedDeckLine[] {
     if (m) {
       const rest = (m[3] ?? "").trim();
       const id = m[2]!.toUpperCase();
-      // Backend parity: "OP01-001 4" when no count came first.
       const bare = rest && !m[1] ? TRAILING_QTY_RE.exec(rest) : null;
       // A line that holds more codes ("2xOP01-001 3xOP01-016") falls through to the token scan.
       if (bare || !rest || !new RegExp(TOKEN_RE.source, "i").test(rest)) {

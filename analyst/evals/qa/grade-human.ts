@@ -72,7 +72,6 @@ for (const c of CASES.filter((x) => x.group === "D")) {
 }
 rl.close();
 
-// Judge-human agreement per item for this session, ignoring items either side marked as not applying.
 console.log("\nJudge-human agreement (this session):");
 for (const [id, t] of Object.entries(tally)) console.log(`  ${id}: ${t.agree}/${t.total} (${Math.round((100 * t.agree) / t.total)}%)`);
 console.log("If any item is below 90%, fix the judge prompt (or move D to claude-opus-5-5 as judge) and grade again.");

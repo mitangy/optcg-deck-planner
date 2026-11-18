@@ -14,12 +14,10 @@ const STATUS_LABEL: Record<string, string> = {
   extra: "Extra",
 };
 
-/** Lines that are clean receipt↔pool matches (hidden by default). */
 function isMatchedLine(line: GroupBuyReceiptLine): boolean {
   return line.status === "exact";
 }
 
-/** Problem / mismatch lines shown by default in the report table. */
 function isMismatchLine(line: GroupBuyReceiptLine): boolean {
   return !isMatchedLine(line);
 }
@@ -46,11 +44,9 @@ type Props = {
   groupId: number;
   isHost: boolean;
   status: string;
-  /** Saved paste from the server (survives refresh). */
   initialReceiptText?: string;
   onDraftChange: (draft: ReceiptApplyDraft | null) => void;
   onError: (message: string) => void;
-  /** Called after a successful match so the parent can refresh has_receipt. */
   onReceiptSaved?: () => void;
 };
 
@@ -97,7 +93,6 @@ export function ReceiptImportPanel({
     }
   }, [canUse]);
 
-  // Hydrate from server-saved paste when the panel mounts / group changes.
   useEffect(() => {
     if (!canUse) return;
     const next = (initialReceiptText || "").trim();
@@ -135,7 +130,6 @@ export function ReceiptImportPanel({
     onError: (e: Error) => onErrorRef.current(e.message),
   });
 
-  // After refresh, rematch the server-saved receipt so Mark purchased stays available.
   useEffect(() => {
     if (!canUse) return;
     const paste = text.trim();

@@ -1,16 +1,3 @@
-/**
- * Import cards Bandai has not published yet from TCGPlayer (tcgcsv.com) into
- * `src/cards/cardData.json`.
- *
- * Usage (from packages/rules):
- *   npx tsx src/tools/importTcgplayerCards.ts --group 24820 [--group <id> ...] [--all] [--dry-run]
- *
- * `--all` walks every group in TCGPlayer category 68 (One Piece), newest first.
- * Merge rules: `bandai` rows are never overwritten; ids that are missing or
- * `bundled` become `source: "tcgplayer"`; existing `tcgplayer` rows are
- * refreshed. A group only contributes ids under its own set prefix (reprints of
- * other sets are ignored) unless the id is missing from cardData entirely.
- */
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -41,7 +28,6 @@ function field(product: TcgProduct, name: string): string | undefined {
   return product.extendedData?.find((e) => e.name === name)?.value;
 }
 
-/** Product `Number` (card id), or null for sealed product and other non-cards. */
 export function productCardId(product: TcgProduct): string | null {
   const id = field(product, "Number")?.trim().toUpperCase();
   return id && /^[A-Z0-9]+-\d+$/.test(id) ? id : null;
@@ -58,9 +44,9 @@ function decodeEntities(text: string): string {
 }
 
 /**
- * Join description lines with spaces. Bandai ends every text line with a period, which the
- * card-text compiler needs to split abilities; TCGPlayer omits it ("gains [Rush]\n[On Play] ...").
- * Only a line followed by an ability tag gets one. A line of only bracketed tags ("[Blocker]") stays unpunctuated, as on Bandai rows.
+ * Bandai ends every text line with a period, which the card-text compiler needs to split abilities; TCGPlayer omits
+ * it. Only a line followed by an ability tag gets one; a line of only bracketed tags ("[Blocker]") stays unpunctuated,
+ * as on Bandai rows.
  */
 function joinLines(lines: string[]): string {
   return lines
@@ -74,12 +60,7 @@ function joinLines(lines: string[]): string {
     .join(" ");
 }
 
-/**
- * Convert a TCGPlayer description to Bandai-style text: tags stripped, line
- * breaks collapsed to single spaces, and "Characters-4000 power" / "DON!! -1"
- * written with U+2212 like the Bandai rows. The [Trigger] clause is the line
- * that starts with the tag, so "a [Trigger]" inside a sentence is not a split.
- */
+/** The [Trigger] clause is the line that starts with the tag, so "a [Trigger]" inside a sentence is not a split. */
 export function convertDescription(html: string): { text: string; trigger: string } {
   const lines = html
     .replace(/<br\s*\/?>/gi, "\n")
@@ -113,7 +94,6 @@ function splitList(value: string | undefined): string[] {
   return (value ?? "").split(";").map((v) => v.trim()).filter(Boolean);
 }
 
-/** One product (the base printing, i.e. its lowest product id) to a `tcgplayer` row. */
 export function productToRow(product: TcgProduct): CardDataRow | null {
   const type = TYPES[(field(product, "CardType") ?? "").trim().toLowerCase()];
   if (!type) return null;
@@ -139,7 +119,6 @@ export function productToRow(product: TcgProduct): CardDataRow | null {
   };
 }
 
-/** The set prefix of a group: the most common prefix among its card numbers. */
 export function groupPrefix(products: TcgProduct[]): string | null {
   const counts = new Map<string, number>();
   for (const p of products) {
@@ -149,7 +128,6 @@ export function groupPrefix(products: TcgProduct[]): string | null {
   return [...counts].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
-/** Merge TCGPlayer products from one group into the card table (pure). */
 export function mergeProducts(existing: Record<string, CardDataRow>, products: TcgProduct[]): ImportResult {
   const out: ImportResult = { cards: { ...existing }, added: [], upgraded: [], refreshed: [], skippedBandai: [], ignoredForeign: [] };
   const prefix = groupPrefix(products);

@@ -1,6 +1,3 @@
-/* —— Interactive charts and tables (#691) —— */
-
-/* Legend entries that switch a series: a steady box, so hiding one never reflows the row. */
 .adm-legend-btn {
   min-height: 32px;
   padding: 0 0.6rem;
@@ -63,7 +60,6 @@
   fill: rgb(var(--chrome-rgb) / 0.3);
 }
 
-/* Over the chart, out of flow, kept inside the plot by tipPlacement(). */
 .adm-tip {
   position: absolute;
   z-index: var(--z-raise-5);
@@ -203,7 +199,6 @@
   }
 }
 
-/* Old numbers stay up while new ones load: dimmed and inert, but the same size. */
 .adm-stale {
   opacity: 0.55;
   pointer-events: none;
@@ -230,7 +225,6 @@
   color: var(--ink);
 }
 
-/* The arrow's slot is always there, so sorting never nudges the heading. */
 .adm-sort-mark {
   display: inline-block;
   width: 0.8em;

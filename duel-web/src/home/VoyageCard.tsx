@@ -13,15 +13,10 @@ const SHOWN_GAMES = 3;
 
 const CHIP: Record<ReturnType<typeof outcomeKey>, string> = { won: "W", lost: "L", unfinished: "Cut off" };
 
-/**
- * Your Bounty, record, streak and last games (Google sign-in only). `me` is
- * undefined while loading and null when the rating call failed.
- */
 export function VoyageCard({ me }: { me: RatingMe | null | undefined }) {
   const res = useAsyncResource(() => fetchMatchHistory(HISTORY_LIMIT), []);
   const games = res.status === "loading" ? undefined : res.status === "error" ? null : res.data;
 
-  // Opponent leader names come from the card data (its own chunk): hold the rows until it is in.
   const cardsReady = useCardDataReady();
   const rows = games && cardsReady ? games.slice(0, SHOWN_GAMES).map((m) => matchRow(m, (id) => lookupCard(id).name)) : [];
   const failed = games === null || me === null;

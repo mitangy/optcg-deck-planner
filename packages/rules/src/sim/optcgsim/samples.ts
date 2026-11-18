@@ -1,23 +1,3 @@
-/**
- * OPTCGSim games as value-model training samples (#1030).
- *
- * `samplesFromSimGame` turns every turn snapshot of a parsed sim game into one `Sample` (the same shape
- * `samplesFromReplay` produces in sim/fitValue.ts) by building a synthetic MatchState and running the bot's own
- * `extractFeatures` / `evaluate` on it. Pure: no I/O.
- *
- * Only the recording player (`me`) is sampled, labelled with whether `me` won. We know `me`'s hand ids; the
- * opponent's hand is a COUNT only (their face-down draws are not knowable from the recording player's seat, and the
- * features never read the opponent's hand contents anyway). Sampling the opponent's seat would train on a view
- * nobody could have had. `samplesFromReplay` samples both seats; that difference halves the sim yield per game.
- *
- * Feature gaps against replay samples (stand-ins, all neutral):
- *  - Life cards are an unknown vanilla filler and face-down (`faceup_*` is always 0; the life counts are exact).
- *  - The opponent's hand and both decks are filler cards; only the counts are real.
- *  - Leader power carries no sim buff (`powerDelta` is only recorded for characters).
- *  - Character power is base + the logged delta; static abilities of the card defs still apply as in the engine.
- *  - Samples are taken at the start of each turn (after refresh/draw/DON), as samplesFromReplay does, but the last
- *    turn of a game that ends mid-turn is still sampled (a replay skips positions that already have a winner).
- */
 import { createMatch } from "../../engine.js";
 import { getCardDef, hasCardDef } from "../../cards/definitions.js";
 import { cardBag, denseFeaturesV2, extractFeatures } from "../../bot/features.js";
@@ -27,18 +7,15 @@ import type { CardInstance, DonInstance, MatchState, PlayerState, Seat } from ".
 import type { CardTable, Sample } from "../fitValue.js";
 import type { SimBoardSnapshot, SimGame, SimSide } from "./types.js";
 
-/** Vanilla filler used for every card whose identity is unknown or irrelevant (same as the test harness). */
 const FILLER = "ST01-003";
 const ME: Seat = 0;
 const OPP: Seat = 1;
 const seatOf = (side: SimSide): Seat => (side === "me" ? ME : OPP);
 
-/** Every card id the synthetic states would reference. */
 function boardIds(b: SimBoardSnapshot): string[] {
   return [...b.characters.map((c) => c.id), ...(b.stage ? [b.stage] : []), ...b.knownHandIds, ...b.trashIds];
 }
 
-/** True when every card the game's snapshots mention has a card definition (and both leaders are Leaders). */
 export function simGameIsKnown(game: SimGame): boolean {
   for (const t of game.turns) {
     for (const side of ["me", "opp"] as const) {
@@ -65,7 +42,6 @@ function fillBoard(state: MatchState, seat: Seat, b: SimBoardSnapshot, turnsStar
   });
   p.stage = b.stage ? card(b.stage, { playedTurn: 0 }) : null;
   p.hand = handIds.map((id) => card(id));
-  // Zones whose contents are unknown: filler of the right size.
   p.deck = Array.from({ length: b.deckCount }, () => FILLER);
   p.zoneInstanceIds.deck = p.deck.map(() => nextId("d"));
   p.trash = [...b.trashIds];
@@ -74,7 +50,6 @@ function fillBoard(state: MatchState, seat: Seat, b: SimBoardSnapshot, turnsStar
   p.zoneInstanceIds.life = p.life.map(() => nextId("l"));
   p.faceUpLife = p.life.map(() => false);
   p.resolving = [];
-  // DON!!: cost area (active/rested), attached to the leader and characters, the rest in the DON!! deck.
   const don = (rested: boolean, attachedTo: string | null = null): DonInstance => ({ id: nextId("don"), rested, attachedTo });
   p.costArea = [...Array.from({ length: b.donActive }, () => don(false)), ...Array.from({ length: b.donRested }, () => don(true))];
   p.attachedDons = [];
@@ -92,7 +67,6 @@ function fillBoard(state: MatchState, seat: Seat, b: SimBoardSnapshot, turnsStar
   p.turnsStarted = turnsStarted;
 }
 
-/** One sample per turn of a parsed sim game, from the recording player's seat. [] for games with no winner or an unknown card id. */
 export function samplesFromSimGame(game: SimGame, gameIndex: number, featureSet: FeatureSet = "v1", table?: CardTable): Sample[] {
   if (featureSet === "v2" && !table) throw new Error("feature set v2 needs a CardTable");
   if (!game.winner || !simGameIsKnown(game)) return [];
@@ -115,11 +89,9 @@ export function samplesFromSimGame(game: SimGame, gameIndex: number, featureSet:
     state.turnNumber = turn.number;
     state.activeSeat = seatOf(turn.active);
     fillBoard(state, ME, me, started.me, me.knownHandIds);
-    // The opponent's hand is a count of unknown cards.
     fillBoard(state, OPP, opp, started.opp, Array.from({ length: opp.handCount }, () => FILLER));
     const row: Sample = { x: featureSet === "v2" ? denseFeaturesV2(state, ME) : extractFeatures(state, ME), y, hand: evaluate(state, ME), turn: turn.number, game: gameIndex };
     if (featureSet === "v2") {
-      // The card bag reads only my own hand ids (known) and both boards; the opponent hand stays filler.
       const bag = cardBag(state, ME, table!.lookup);
       row.sp = bag.idx.flatMap((k, i) => [k, bag.val[i]!]);
     }

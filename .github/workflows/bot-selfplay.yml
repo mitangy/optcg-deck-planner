@@ -1,13 +1,5 @@
 name: Bot self-play corpus
 
-# Nightly: the current meta decks (Limitless top finishes, from the public backend) play each other as Hard bots
-# through the real duel engine, and the games are uploaded to Log Pose's bot game corpus (#635). Log Pose reads them
-# as "bot simulations", apart from real games and tournaments.
-#
-# Needs ANALYST_API_URL (the backend's base URL, e.g. https://optcg-backend.onrender.com; a repository variable or a
-# secret) and a
-# secret ANALYST_SERVICE_SECRET (the same value as the backend's ANALYST_SERVICE_SECRET). Without both it does nothing.
-# Optional variable META_API_URL if the public /meta endpoints live somewhere else.
 on:
   schedule:
     - cron: "30 8 * * *"

@@ -1,4 +1,3 @@
-/** Display order for hand cards: cost asc, then defId (groups duplicates), then stable index. */
 export function sortHandIndices(
   hand: ReadonlyArray<{ defId: string }>,
   lookupCost: (defId: string) => number,

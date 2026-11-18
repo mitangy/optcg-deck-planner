@@ -1,37 +1,23 @@
 import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
-/**
- * Where the desktop Game review panel floats (#986): a box the viewer drags by its header and resizes from its
- * edges, remembered between sessions. Pure helpers, so clamping and remembering are tested without a browser.
- * The box is kept as its top-left corner and size in viewport pixels and is clamped when drawn, never in
- * storage, so a window that grows again gives the remembered place back.
- *
- * (The Log Pose window keeps a bottom-right anchored position and fixed limits in `@optcg/analyst-client`
- * panelPos/panelSize, and the prompts keep a centre offset in `board/promptDrag`; neither fits a free box with its
- * own limits, so this is the small shared piece for a top-left box.)
- */
 export type Rect = { x: number; y: number; w: number; h: number };
 export type Size = { w: number; h: number };
 export type Edge = "top" | "bottom" | "left" | "right" | "top-left" | "top-right" | "bottom-left" | "bottom-right";
 
 export const REVIEW_RECT_KEY = "optcg-duel:review-panel";
-/** The smallest the panel goes (it keeps the header and a couple of rows) and the widest (rows stay readable). */
 export const PANEL_MIN: Size = { w: 260, h: 200 };
 export const PANEL_MAX_W = 720;
-/** Gap kept to the viewport edges. */
 export const PANEL_GAP = 8;
 export const PANEL_KEY_STEP = 16;
 export const PANEL_KEY_STEP_BIG = 64;
 
 const clampDim = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
-export type Limits = { vp: Size; /** The highest the top edge may go (below the top bar). */ top?: number };
+export type Limits = { vp: Size; top?: number };
 
-/** The room the panel can use: the viewport less the gap, and below `top`. */
 function room({ vp, top }: Limits): { left: number; top: number; right: number; bottom: number } {
   return { left: PANEL_GAP, top: Math.max(top ?? 0, PANEL_GAP), right: Math.max(vp.w - PANEL_GAP, PANEL_GAP), bottom: Math.max(vp.h - PANEL_GAP, PANEL_GAP) };
 }
 
-/** `rect` within the minimum and maximum size and entirely on screen (the room wins over the minimum on a tiny window). */
 export function clampRect(rect: Rect, limits: Limits): Rect {
   const r = room(limits);
   const w = Math.round(clampDim(rect.w, PANEL_MIN.w, Math.min(PANEL_MAX_W, r.right - r.left)));
@@ -44,12 +30,10 @@ export function clampRect(rect: Rect, limits: Limits): Rect {
   };
 }
 
-/** The box after dragging its header by (dx, dy) from `start`. */
 export function moveRect(start: Rect, dx: number, dy: number, limits: Limits): Rect {
   return clampRect({ ...start, x: start.x + dx, y: start.y + dy }, limits);
 }
 
-/** The box after dragging `edge` by (dx, dy) from `start`: the edge opposite the dragged one stays where it is, even when a limit stops the drag. */
 export function resizeRect(start: Rect, edge: Edge, dx: number, dy: number, limits: Limits): Rect {
   const r = room(limits);
   const maxW = Math.min(PANEL_MAX_W, r.right - r.left);
@@ -69,20 +53,17 @@ export function resizeRect(start: Rect, edge: Edge, dx: number, dy: number, limi
   return clampRect({ x, y, w, h }, limits);
 }
 
-/** The arrow keys' direction as a (dx, dy) step; null for other keys. */
 function arrow(key: string, big: boolean): [number, number] | null {
   const step = big ? PANEL_KEY_STEP_BIG : PANEL_KEY_STEP;
   const move = { ArrowUp: [0, -step], ArrowLeft: [-step, 0], ArrowDown: [0, step], ArrowRight: [step, 0] }[key];
   return (move as [number, number] | undefined) ?? null;
 }
 
-/** The box after an arrow key on the move grip (it goes the way the arrow points); null for other keys. */
 export function keyMove(start: Rect, key: string, big: boolean, limits: Limits): Rect | null {
   const d = arrow(key, big);
   return d ? moveRect(start, d[0], d[1], limits) : null;
 }
 
-/** The box after an arrow key on an edge handle (arrows point the way the edge moves); null for a key across a side edge's own axis. */
 export function keyResize(start: Rect, edge: Edge, key: string, big: boolean, limits: Limits): Rect | null {
   const d = arrow(key, big);
   if (!d) return null;
@@ -92,13 +73,8 @@ export function keyResize(start: Rect, edge: Edge, key: string, big: boolean, li
   return resizeRect(start, edge, d[0], d[1], limits);
 }
 
-/** The least room above the anchor that is worth opening in (below that the panel opens beside it). */
 export const PANEL_ABOVE_MIN_H = 320;
 
-/**
- * Where the panel opens until it has been moved: above `anchor` (the replay controls), right-aligned with it, as tall
- * as `idealSize.h` allows; when there is too little room above (a short window), beside it on its left, full height.
- */
 export function defaultRect(anchor: { top: number; left: number; right: number }, idealSize: Size, limits: Limits): Rect {
   const r = room(limits);
   const above = anchor.top - PANEL_GAP - r.top;
@@ -128,9 +104,7 @@ export function readRect(): Rect | null {
   }
 }
 
-/** Remembers the box; null forgets it (back to the docked default). */
 export function writeRect(rect: Rect | null): void {
-  // Storage blocked: the box just isn't remembered.
   if (rect) writeStored(REVIEW_RECT_KEY, JSON.stringify(rect));
   else removeStored(REVIEW_RECT_KEY);
 }

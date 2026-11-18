@@ -1,8 +1,5 @@
-/** A tiny text/event-stream reader for POST requests (EventSource only does GET). */
-
 export type SseEvent = { event: string; data: unknown };
 
-/** The server answered with a non-2xx status before any event arrived. */
 export class SseHttpError extends Error {
   constructor(
     readonly status: number,
@@ -13,11 +10,7 @@ export class SseHttpError extends Error {
   }
 }
 
-/**
- * Incremental parser: `push` any slice of the stream (a chunk may end in the middle of a
- * line, a field or a `\r\n` pair) and every complete event (`event:` + `data:` lines ended
- * by a blank line) is handed to `onEvent`. `data` is parsed as JSON when it is JSON.
- */
+// A chunk may end in the middle of a line, a field or a `\r\n` pair.
 export function createSseParser(onEvent: (e: SseEvent) => void) {
   let buf = "";
   let eventName = "";
@@ -40,7 +33,7 @@ export function createSseParser(onEvent: (e: SseEvent) => void) {
 
   const line = (l: string) => {
     if (l === "") return dispatch();
-    if (l.startsWith(":")) return; // comment / keep-alive
+    if (l.startsWith(":")) return;
     const i = l.indexOf(":");
     const field = i < 0 ? l : l.slice(0, i);
     let value = i < 0 ? "" : l.slice(i + 1);
@@ -64,7 +57,6 @@ export function createSseParser(onEvent: (e: SseEvent) => void) {
       }
       buf = buf.slice(start);
     },
-    /** End of stream: flush a last line and event that had no trailing blank line. */
     end() {
       if (buf) line(buf.replace(/\r$/, ""));
       buf = "";
@@ -73,11 +65,6 @@ export function createSseParser(onEvent: (e: SseEvent) => void) {
   };
 }
 
-/**
- * POSTs (or whatever `init.method` says) and reads the response as an event stream, calling
- * `onEvent` for each event. Resolves when the stream ends; rejects with SseHttpError on a
- * non-2xx answer, or with the fetch AbortError when `init.signal` aborts.
- */
 export async function streamSse(
   url: string,
   init: RequestInit,

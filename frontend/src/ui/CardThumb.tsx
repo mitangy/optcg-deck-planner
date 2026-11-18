@@ -5,7 +5,6 @@ import { Dialog } from "@optcg/ui/popups";
 import { DUEL_URL } from "../app/duelLink";
 import { useLogPoseLayer } from "@optcg/analyst-client";
 
-/** The planner's art: preview files are hosted by the duel app (`DUEL_URL`). */
 export function useCardArt(
   src: string | undefined | null,
   cardId: string | undefined | null,
@@ -14,20 +13,12 @@ export function useCardArt(
   return useSharedCardArt(src, cardId, size, DUEL_URL);
 }
 
-/** Bare card art `<img>` with the preview fallback; `fallback` shows once every step failed. */
 export function CardArtImg(props: Omit<ComponentProps<typeof SharedCardArtImg>, "origin">) {
   return <SharedCardArtImg {...props} origin={DUEL_URL} />;
 }
 
-/**
- * Lets the app shell put an action (e.g. "Add to shopping list") under the enlarged
- * card. Null where there is none, such as public pages, so those lightboxes stay plain.
- * `productId` is the printing the tile shows (0 = base art); undefined where the thumb is not
- * tied to one art. `close` closes the lightbox, for actions that open something else (Log Pose).
- */
 export const CardLightboxActionContext = createContext<((cardId: string, productId?: number, close?: () => void) => ReactNode) | null>(null);
 
-/** The enlarged card: big art, optional `children` (actions) under it, and a Close button. */
 export function CardLightbox({
   src,
   cardId,
@@ -42,7 +33,6 @@ export function CardLightbox({
   children?: ReactNode;
 }) {
   const large = useCardArt(src, cardId, "large");
-  // Log Pose opens inside the card (not behind it), so the chat and the card are both usable.
   const [chatLayer, setChatLayer] = useState<HTMLElement | null>(null);
   useLogPoseLayer(chatLayer);
   return (
@@ -66,7 +56,6 @@ export function CardThumb({
   src?: string;
   cardId?: string | null;
   alt?: string;
-  /** Which art this thumb shows (0 = base), handed to the lightbox action. */
   productId?: number;
 }) {
   const [open, setOpen] = useState(false);
@@ -111,11 +100,6 @@ export function CardThumb({
   );
 }
 
-/**
- * A thumb that, given `copies`, is drawn as a pile of that many cards (up to four) with the
- * space always reserved, so a row of tiles stays aligned. Without `copies` it is a plain thumb.
- * The layers are lazy plain images; only the front card is clickable.
- */
 export function StackedThumb({
   copies,
   src,
@@ -158,7 +142,6 @@ export function MobileCardMedia({
   alt: string;
   cost: number | string | null;
   rarity?: string;
-  /** Deck page: copies in the deck, drawn as a stack. */
   copies?: number;
 }) {
   return (

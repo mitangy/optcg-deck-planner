@@ -1,4 +1,3 @@
-"""Members can leave an open group buy (#881)."""
 
 from __future__ import annotations
 
@@ -17,7 +16,7 @@ def pool(db):
     friend = make_user(db, email="friend@example.com", name="Friend", sub="sub-friend")
     add_deck_with_cards(db, host, "Host Deck", {"OP01-001": 4})
     add_deck_with_cards(db, friend, "Friend Deck", {"OP01-001": 3})
-    set_owned(db, host, "OP01-001", 1)  # host needs 3
+    set_owned(db, host, "OP01-001", 1)
     created = group_buy.create_group_buy(db, host, "Leave pool")
     group_buy.join_group_buy(db, friend, created.invite_token)
     return host, friend, created

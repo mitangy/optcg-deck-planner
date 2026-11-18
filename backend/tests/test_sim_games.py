@@ -1,4 +1,3 @@
-"""Imported OPTCGSim games: owner-only reads, dedupe and name scrubbing (#1030)."""
 
 from __future__ import annotations
 
@@ -165,7 +164,6 @@ def test_scrubbing_a_log_with_thousands_of_distinct_player_names_stays_fast_and_
     out = scrub_names(log, ME, OPP)
     elapsed = time.perf_counter() - start
     assert elapsed < 2.0, f"scrubbing took {elapsed:.1f}s"
-    # Keep failure messages short: the log is ~400k chars and pytest would print it.
     names_left = "AlphaName" in out or "BetaName" in out
     assert not names_left, "a real player name survived scrubbing"
     swapped = "[Me#1] Chose to go First\n[Opp#2] Mulligan\n" in out

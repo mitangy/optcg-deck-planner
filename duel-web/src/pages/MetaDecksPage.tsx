@@ -125,7 +125,6 @@ function MetaDeckItem({
 
   async function add() {
     setError(null);
-    // Saving a deck checks its cards against the card data, which loads on its own (B-02).
     try {
       await loadCardData();
     } catch {
@@ -236,7 +235,6 @@ function DeckPanel({ leader, days }: { leader: MetaLeader | undefined; days: num
   );
 }
 
-/** The pre-rendered snapshot as the page's first state, so the leaders are there before the live API answers (#914). */
 function seedFrom(snap: MetaSnapshot | null, days: number): Load<MetaLeadersResponse> {
   if (!snap || snap.days !== days) return { status: "loading" };
   return {
@@ -256,11 +254,9 @@ export function MetaDecksPage() {
 
   useEffect(() => {
     let cancelled = false;
-    // Keep what is on screen (the snapshot) while the live meta for the same window loads.
     setState((s) => (s.status === "ready" && s.data.days === days ? s : { status: "loading" }));
     fetchMetaLeaders(days)
       .then((data) => !cancelled && setState({ status: "ready", data }))
-      // A failed refresh keeps the leaders already on screen (the snapshot) rather than replacing them with an error.
       .catch(
         (e) =>
           !cancelled &&
@@ -288,7 +284,6 @@ export function MetaDecksPage() {
 
   const data = state.status === "ready" ? state.data : null;
   const selected = data?.leaders.find((l) => l.leader_id === selectedId);
-  // A deep link to a leader outside the loaded window still lists its decks.
   const showDetail = Boolean(selectedId) && state.status !== "error";
 
   return (

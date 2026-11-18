@@ -19,7 +19,6 @@ describe("tallies of saved bot games (#635)", () => {
       }
       expect(counted.turns).toBe(played.turns);
     }
-    // The games played some advanced lines, so equal tallies mean something.
     expect(seenLines).toBeGreaterThan(0);
   });
 });

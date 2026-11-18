@@ -1,19 +1,13 @@
-/**
- * Reading an OPTCGSim upload for import (#1030): the optcgsim-matches export (a JSON array of games), or one
- * pasted combat log. Pure; the server validates every game again and drops all player names.
- */
 import type { SimImportResult } from "./historyApi";
 
 const ZW = /[​‌‍﻿]/g;
 export const normalizeName = (s: string) => s.replace(ZW, "").trim();
 
-/** Games per request: the export holds ~50 KB of log per game and the server caps a body and a batch. */
 export const BATCH_GAMES = 25;
 export const BATCH_BYTES = 3_000_000;
 
 export type SimUpload = { kind: "games"; games: unknown[] } | { kind: "log"; log: string } | { kind: "error"; message: string };
 
-/** A JSON array of games (or `{games: [...]}` / one game object), or else text taken as a single combat log. */
 export function readSimUpload(text: string): SimUpload {
   const trimmed = text.trim();
   if (!trimmed) return { kind: "error", message: "Nothing to import. Choose the export file or paste a combat log." };
@@ -38,7 +32,6 @@ export function readSimUpload(text: string): SimUpload {
   return { kind: "log", log: trimmed };
 }
 
-/** Split games into request-sized batches, in order. */
 export function batchGames(games: unknown[]): unknown[][] {
   const out: unknown[][] = [];
   let cur: unknown[] = [];
@@ -68,7 +61,6 @@ export function addResults(a: SimImportResult, b: SimImportResult): SimImportRes
 
 export const NO_RESULT: SimImportResult = { imported: 0, skipped_duplicates: 0, skipped_invalid: 0, total: 0 };
 
-/** "Imported 3, skipped 2 (1 already imported, 1 not usable)." */
 export function describeImport(r: SimImportResult): string {
   const skipped = r.skipped_duplicates + r.skipped_invalid;
   if (skipped === 0) return `Imported ${r.imported}.`;
@@ -78,7 +70,6 @@ export function describeImport(r: SimImportResult): string {
 
 export type LogPlayer = { name: string; leaderId: string };
 
-/** The two players a combat log names (from its PLY lines), in owner order. */
 export function logPlayers(log: string): LogPlayer[] {
   const seen = new Map<number, LogPlayer>();
   for (const m of log.replace(ZW, "").matchAll(/^RZ1\|PLY\|(\d+)\|([^|\n]*)\|([^|\n]*)/gm)) {
@@ -87,7 +78,6 @@ export function logPlayers(log: string): LogPlayer[] {
   return [...seen.entries()].sort((a, b) => a[0] - b[0]).map(([, p]) => p);
 }
 
-/** Cards each player took out of their deck, as "2xOP01-001" lines. A pasted log has no deck list, so this is the cards seen. */
 function seenCards(log: string, owner: number): string[] {
   const counts = new Map<string, number>();
   for (const line of log.split("\n")) {
@@ -98,7 +88,6 @@ function seenCards(log: string, owner: number): string[] {
   return [...counts].sort(([a], [b]) => a.localeCompare(b)).map(([id, n]) => `${n}x${id}`);
 }
 
-/** A one-game record from a pasted combat log; `myIndex` is which PLY player is the one importing (0 or 1). */
 export function logToGame(log: string, myIndex: 0 | 1, won: boolean, key: string): Record<string, unknown> | null {
   const players = logPlayers(log);
   const me = players[myIndex];
@@ -121,7 +110,6 @@ export function logToGame(log: string, myIndex: 0 | 1, won: boolean, key: string
   };
 }
 
-/** A stable key for a pasted log, so pasting the same game twice imports it once. */
 export async function logKey(log: string): Promise<string> {
   const data = new TextEncoder().encode(log);
   try {

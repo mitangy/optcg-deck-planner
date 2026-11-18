@@ -1,8 +1,3 @@
-/**
- * Watching a finished game again (#476): History's Watch button opens the recording on the board, read-only, with
- * step / turn / play controls, a "What I saw" / "Reveal all" switch and a flip. The FastAPI backend is faked in the
- * browser; the recording is a real golden game (e2e/data/replay-purple-red.json) that the page re-runs in the browser.
- */
 import { readFileSync } from "node:fs";
 import { test, expect, signInAs, FAKE_API } from "./fixtures";
 import type { Page } from "@playwright/test";
@@ -27,7 +22,6 @@ const entry = (id: string, ready: boolean) => ({
   replay_ready: ready,
 });
 
-/** Signed in, with a history of two games (only m1 can be watched) and `replayRoute` answering for m1's recording. */
 async function setUp(page: Page, replayRoute: { status?: number; body?: unknown } = {}): Promise<string[]> {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -47,14 +41,12 @@ async function openFromHistory(page: Page): Promise<void> {
   await page.goto("/history");
   await page.getByRole("link", { name: /^Watch replay/ }).click();
   await expect(page).toHaveURL(/\/replay\/m1$/);
-  // The engine rebuilds the game in the browser first.
   await expect(page.getByRole("group", { name: "Replay controls" })).toBeVisible({ timeout: 30_000 });
 }
 
 const slider = (page: Page) => page.getByRole("slider", { name: "Position in the game" });
 const stepNow = async (page: Page) => Number(await slider(page).inputValue());
 const turnNow = async (page: Page) => Number(await page.locator(".board-root").getAttribute("data-turn"));
-// The hand across the table: its cards face up (tiles) or as backs. Some layouts keep a CSS-hidden second copy mounted, so only what shows counts.
 const FAR_CLASSES = ".opp-hand-face, .opp-fan-face, .opp-corner-face, .opp-compact-face";
 const FAR_FACE_UP = `.card-tile:is(${FAR_CLASSES})`;
 const FAR_FACE_DOWN = ".opp-hand-fan .card-back, .opp-hand-backs .card-back, .opp-hand-faces .card-back, .card-back.opp-corner-card, .card-back.opp-hand-face, .opp-compact .card-back";
@@ -67,14 +59,12 @@ test("History offers Watch only on games that can be watched, and it opens the b
   const errors = await setUp(page);
   await page.goto("/history");
   await expect(page.getByRole("link", { name: /^Watch replay/ })).toHaveCount(1);
-  // A row without a recording keeps the Watch button's room, so every row ends at the same edge.
   const widths = await page.locator(".history-item > .history-row-link").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
   expect(widths).toHaveLength(2);
   expect(widths[0]).toBe(widths[1]);
   await openFromHistory(page);
   expect(await stepNow(page)).toBe(0);
   await expect(page.locator(".board-root")).toBeVisible();
-  // The board is live (#966), but it is not a room: no room link, no concede.
   await expect(endTurn(page)).toBeVisible();
   await expect(page.getByRole("button", { name: /^Copy/ })).toHaveCount(0);
   await expect(page.getByRole("button", { name: /concede/i })).toHaveCount(0);
@@ -100,7 +90,6 @@ test("stepping moves the log, next turn moves the turn, and the keys do the same
   await page.getByRole("button", { name: "Previous turn" }).click();
   await expect.poll(() => turnNow(page)).toBeLessThan(next);
 
-  // Keys, with the focus on the board rather than a control.
   await page.locator(".board-root").click({ position: { x: 4, y: 200 } });
   const before = await stepNow(page);
   await page.keyboard.press("ArrowRight");
@@ -122,13 +111,11 @@ test("at the last step the result lives inside the controls on a phone and shows
   }, Number(max));
   const show = page.getByRole("button", { name: "Show result" });
   await expect(show).toBeVisible();
-  // Not a floating pill over the board: the button sits inside the controls group.
   await expect(page.locator(".match-result-pill")).toHaveCount(0);
   const group = await page.getByRole("group", { name: "Replay controls" }).boundingBox();
   const btn = await show.boundingBox();
   expect(btn!.y).toBeGreaterThanOrEqual(group!.y);
   expect(btn!.y + btn!.height).toBeLessThanOrEqual(group!.y + group!.height);
-  // The game is over, so What I saw shows the other hand too (#482).
   await page.getByRole("button", { name: "What I saw" }).click();
   await expect(farDown(page)).toHaveCount(0);
   await expect(farUp(page).first()).toBeVisible();
@@ -178,7 +165,6 @@ test("the board follows the seat to act, and that seat's hand is the one in hand
   const board = page.locator(".board-root");
   await expect(board).toHaveAttribute("data-seat", "0");
   await page.getByRole("button", { name: "What I saw" }).click();
-  // Turn 2 is the other player's: the camera goes to their side with their hand to play, and yours is the one across the table.
   await page.getByRole("button", { name: "Next turn" }).click();
   await expect(board).toHaveAttribute("data-seat", "1");
   await expect(farUp(page).first()).toBeVisible();
@@ -191,14 +177,12 @@ test("playing the move that was played just goes on; a different one opens your 
   const errors = await setUp(page);
   await openFromHistory(page);
   const board = page.locator(".board-root");
-  // Step 1's recorded move is the end of the turn: playing it is the game carrying on.
   await page.getByRole("button", { name: "Step forward" }).click();
   expect(await stepNow(page)).toBe(1);
   await endTurn(page).click();
   await expect.poll(() => stepNow(page)).toBe(2);
   await expect(line(page)).toHaveCount(0);
 
-  // Back at the start, ending the turn is not what was played (a card was): a line opens at turn 1.
   await slider(page).fill("0");
   expect(await stepNow(page)).toBe(0);
   await expect(board).toHaveAttribute("data-turn", "1");
@@ -207,14 +191,11 @@ test("playing the move that was played just goes on; a different one opens your 
   await expect(line(page)).toContainText("Your line");
   await expect(line(page)).toContainText(/turn 1|T1/);
   await expect(line(page)).toContainText("1 move");
-  // The line carries on from the new state (the other player's turn 2) while the scrubber stays on the step it left.
   await expect(board).toHaveAttribute("data-turn", "2");
   await expect(board).toHaveAttribute("data-seat", "1");
   expect(await stepNow(page)).toBe(0);
-  // The log: the recording up to there, then the line's own moves.
   await expect(page.locator(".battle-log-count").first()).not.toHaveText("0");
 
-  // The bar takes the mode toggle's row: the transport above it does not move.
   await page.getByRole("button", { name: "Undo move" }).click();
   await expect(line(page)).toHaveCount(0);
   await expect(board).toHaveAttribute("data-turn", "1");
@@ -232,7 +213,6 @@ test("Back to game and the main controls leave your line (#966)", async ({ page 
 
   await endTurn(page).click();
   await expect(line(page)).toBeVisible();
-  // Opening the bar moves nothing: the transport buttons keep their place.
   expect(await play.boundingBox()).toEqual(before);
   await endTurn(page).click();
   await expect(line(page)).toContainText("2 moves");
@@ -241,7 +221,6 @@ test("Back to game and the main controls leave your line (#966)", async ({ page 
   expect(await stepNow(page)).toBe(0);
   await expect(board).toHaveAttribute("data-turn", "1");
 
-  // Any main-line control does the same: stepping on from the step the line left.
   await endTurn(page).click();
   await expect(line(page)).toBeVisible();
   await page.getByRole("button", { name: "Step forward" }).click();
@@ -255,7 +234,6 @@ test("a move pauses playback (#966)", async ({ page }) => {
   await openFromHistory(page);
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await expect.poll(() => stepNow(page), { timeout: 8_000 }).toBeGreaterThan(0);
-  // Whatever step playback is on, the viewer plays their own move: it stops there.
   await endTurn(page).click();
   await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
   const at = await stepNow(page);
@@ -302,10 +280,8 @@ test.describe("landscape phone", () => {
       expect(b!.x + b!.width, name).toBeLessThanOrEqual(vp.width);
     }
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    // Neither mode label is clipped by its half of the toggle.
     const clipped = await page.locator(".replay-seg-btn").evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth).map((e) => e.textContent));
     expect(clipped).toEqual([]);
-    // The near hand keeps its room above the controls instead of hiding behind them.
     const hand = await page.locator(".rail-hand-cards .card-tile, .hand-fan-cards .card-tile, .rail-hand-spec .card-tile").first().boundingBox();
     expect(hand).not.toBeNull();
     expect(hand!.y + hand!.height).toBeLessThanOrEqual(box!.y + 1);
@@ -326,8 +302,6 @@ test("a replay never answers an attack for you, even with response stops on auto
   await expect(line(page)).toHaveCount(0);
 });
 
-// The bots grade the finished game in a worker (#967): a badge on the move that led to the step shown, a summary,
-// and a way to see what the bots would have played instead.
 test.describe("game review (#967)", () => {
   test.setTimeout(150_000);
   const reviewBtn = (page: Page) => page.getByRole("button", { name: "Game review", exact: true });
@@ -337,7 +311,6 @@ test.describe("game review (#967)", () => {
   async function openReview(page: Page): Promise<void> {
     await setUp(page);
     await openFromHistory(page);
-    // While it runs the strip says so; the summary appears with its note once every move is graded.
     await expect(strip(page)).toBeVisible();
     await reviewBtn(page).click();
     await expect(page.getByText("Grades are bot-simulation estimates.")).toBeVisible({ timeout: 100_000 });
@@ -348,30 +321,24 @@ test.describe("game review (#967)", () => {
     page.on("pageerror", (e) => errors.push(e.message));
     await openReview(page);
     await expect(page.getByRole("heading", { name: "Key moments" })).toBeVisible();
-    // The slider's track carries a tick for every big moment, in the class's colour.
     await expect(page.locator(".rv-tick-mistake, .rv-tick-blunder").first()).toBeAttached();
     const bad = page.locator(".rv-moment").filter({ has: page.locator(".rv-ink-mistake, .rv-ink-blunder") }).first();
     await expect(bad).toBeVisible();
     await bad.click();
-    // The summary on a phone is a sheet that closes to show the board; on desktop it stays docked.
     if (page.viewportSize()!.width < 900) await expect(page.getByRole("dialog", { name: "Game review" })).toHaveCount(0);
     expect(await stepNow(page)).toBeGreaterThan(0);
     await expect(grade(page)).toHaveAttribute("aria-label", /^(Mistake|Blunder)$/);
-    // Phones keep the strip to one line (the best move's name is on the Show best button); desktop spells it out.
     if (page.viewportSize()!.width >= 900) await expect(strip(page).locator(".rv-alt-text")).toContainText("Best:");
     else await expect(page.getByRole("button", { name: "Show best move" })).toHaveAttribute("title", /^Play .+ from here$/);
     await expect(line(page)).toHaveCount(0);
     const before = await stepNow(page);
     await page.getByRole("button", { name: "Show best move" }).click();
     await expect(line(page)).toContainText("Your line");
-    // The line starts from the position the move was made in.
     expect(await stepNow(page)).toBe(before - 1);
-    // Nothing is graded on a line of your own, and the strip keeps its height.
     await expect(strip(page)).toContainText("not graded");
     expect(errors).toEqual([]);
   });
 
-  // Text is wrapped, never cut off: no ellipsis, nothing wider or taller than its box (#986).
   const uncut = (page: Page, selector: string) =>
     page.locator(selector).evaluateAll((els) =>
       els.map((el) => {
@@ -393,10 +360,8 @@ test.describe("game review (#967)", () => {
     await expect(page.getByText("Grades are bot-simulation estimates.")).toBeVisible({ timeout: 100_000 });
     const box = async () => (await popup(page).boundingBox())!;
     const first = await box();
-    // Opening it moves nothing in the dock.
     expect(await controls.boundingBox()).toEqual(dockBefore);
 
-    // The header is the grip.
     const head = (await popup(page).locator(".rv-summary-head").boundingBox())!;
     const grab = { x: head.x + head.width / 2, y: head.y + head.height / 2 };
     await page.mouse.move(grab.x, grab.y);
@@ -410,7 +375,6 @@ test.describe("game review (#967)", () => {
     expect(moved.width).toBe(first.width);
     expect(await controls.boundingBox()).toEqual(dockBefore);
 
-    // The left edge widens it and leaves the right edge where it is.
     const edge = async (name: string) => (await popup(page).locator(`[data-edge="${name}"]`).boundingBox())!;
     let e = await edge("left");
     await page.mouse.move(e.x + e.width / 2, e.y + e.height / 2);
@@ -420,7 +384,6 @@ test.describe("game review (#967)", () => {
     const wider = await box();
     expect(Math.abs(wider.width - (moved.width + 60))).toBeLessThanOrEqual(1);
     expect(Math.abs(wider.x + wider.width - (moved.x + moved.width))).toBeLessThanOrEqual(1);
-    // The bottom-right corner resizes both ways.
     e = await edge("bottom-right");
     await page.mouse.move(e.x + e.width / 2, e.y + e.height / 2);
     await page.mouse.down();
@@ -430,19 +393,16 @@ test.describe("game review (#967)", () => {
     expect(Math.abs(sized.width - (wider.width + 40))).toBeLessThanOrEqual(1);
     expect(Math.abs(sized.height - (wider.height - 80))).toBeLessThanOrEqual(1);
     expect(sized.x).toBe(wider.x);
-    // The arrow keys on a handle resize too.
     await popup(page).locator('[data-edge="right"]').focus();
     await page.keyboard.press("ArrowRight");
     expect(Math.abs((await box()).width - (sized.width + 16))).toBeLessThanOrEqual(1);
     await popup(page).locator('[data-edge="right"]').press("ArrowLeft");
 
-    // Not modal: the board and the controls still work while it is open.
     const before = await stepNow(page);
     await page.getByRole("button", { name: "Step forward" }).click();
     expect(await stepNow(page)).toBe(before + 1);
     await expect(popup(page)).toBeVisible();
 
-    // Reload: the panel opens where and as big as it was left.
     const placed = await box();
     await page.reload();
     await expect(controls).toBeVisible({ timeout: 30_000 });
@@ -450,7 +410,6 @@ test.describe("game review (#967)", () => {
     await expect(popup(page)).toBeVisible();
     expect(await box()).toEqual(placed);
 
-    // Dragged to the bottom-right corner, a smaller window pulls it back inside; a bigger one gives the remembered place back.
     const grip = (await popup(page).locator(".rv-summary-head").boundingBox())!;
     await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
     await page.mouse.down();
@@ -467,7 +426,6 @@ test.describe("game review (#967)", () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     expect(await box()).toEqual(corner);
 
-    // Double-clicking the header puts it back where it opens, and Escape closes it.
     const h2 = (await popup(page).locator(".rv-summary-head").boundingBox())!;
     await page.mouse.dblclick(h2.x + h2.width / 2, h2.y + h2.height / 2);
     expect(await box()).toEqual(first);
@@ -485,7 +443,6 @@ test.describe("game review (#967)", () => {
     expect(await uncut(page, ".rv-moment-sub, .rv-moment-top")).toEqual(expect.not.arrayContaining([expect.objectContaining({ ellipsis: true })]));
     expect((await uncut(page, ".rv-moment-sub, .rv-moment-top")).filter((r) => r.wide)).toEqual([]);
     if (desktop) {
-      // Squeezed to its narrowest, the longest "→ best:" line takes a second line instead of an ellipsis.
       const left = (await popup(page).locator('[data-edge="left"]').boundingBox())!;
       await page.mouse.move(left.x + left.width / 2, left.y + left.height / 2);
       await page.mouse.down();
@@ -510,9 +467,7 @@ test.describe("game review (#967)", () => {
     await openReview(page);
     const transport = page.locator(".replay-transport");
     const rest = (await transport.boundingBox())!;
-    // The dock hangs from the bottom of the window, so a taller strip would push its own top up: it must keep its box too.
     const stripRest = (await strip(page).boundingBox())!;
-    // Every move that has a grade: the transport row stays where it is, and what the bar says is not cut off.
     const ticks = await page.locator(".rv-moment").filter({ has: page.locator(".rv-ink-mistake, .rv-ink-blunder") }).count();
     expect(ticks).toBeGreaterThan(0);
     for (let i = 0; i < Math.min(ticks, 3); i += 1) {
@@ -525,7 +480,6 @@ test.describe("game review (#967)", () => {
         expect(bar.length).toBeGreaterThan(0);
         expect(bar.filter((r) => r.ellipsis || r.wide || r.tall)).toEqual([]);
       } else {
-        // The sheet spells out the move on screen and the best one in full.
         await reviewBtn(page).click();
         const now = page.locator(".rv-now");
         await expect(now).toContainText("Best:");
@@ -536,7 +490,6 @@ test.describe("game review (#967)", () => {
     }
   });
 
-  // Step 14 of this recording has a pick open (return a card to the DON!! deck). Its field-pick bar used to sit over the replay controls.
   for (const [label, size] of [["portrait", { width: 375, height: 812 }], ["landscape", { width: 812, height: 375 }]] as const) {
     test(`a pick open at a step never covers the review or transport buttons, ${label} (#1095)`, async ({ page }, info) => {
       await page.setViewportSize(size);
@@ -547,7 +500,6 @@ test.describe("game review (#967)", () => {
       await expect(page.locator(".field-bar")).toBeVisible();
       for (const name of ["Game review", "Previous turn", "Step back", "Play", "Step forward", "Next turn"]) {
         const btn = page.getByRole("button", { name, exact: true });
-        // Landscape phones keep the review in the More sheet, so only what is on screen is checked.
         if (!(await btn.count())) {
           expect(label === "landscape" && name === "Game review", `${name} is missing`).toBe(true);
           continue;

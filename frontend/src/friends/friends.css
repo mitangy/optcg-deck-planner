@@ -1,4 +1,3 @@
-/* Friends, spares and trades (#703). Theme tokens only, so light and dark both follow styles.css. */
 
 /* Nav: the count floats over the link's corner (into the gap beside it), so it never resizes the link.
    Where the nav scrolls on its own (phones) the link reserves the room instead, because that row clips overhang. */
@@ -105,7 +104,6 @@
   margin: 0.5rem 0;
 }
 
-/* Tabs: equal widths, so a count appearing never resizes the trigger. */
 .friend-tabs {
   display: flex;
   gap: var(--space-1);
@@ -150,7 +148,6 @@
   line-height: 1.15rem;
 }
 
-/* Forms */
 .friend-field {
   display: grid;
   gap: 0.3rem;
@@ -220,7 +217,6 @@
   max-width: 28rem;
 }
 
-/* Sharing */
 .sharing-loading {
   min-height: 12rem;
 }
@@ -280,7 +276,6 @@
   font-size: 0.9rem;
 }
 
-/* Friend list */
 .friend-list {
   display: grid;
   gap: 0.35rem;
@@ -344,7 +339,6 @@
   padding: 1.75rem 1rem;
 }
 
-/* Card rows */
 .friend-card-list {
   display: grid;
   gap: 0.55rem;
@@ -485,7 +479,6 @@
   }
 }
 
-/* Toolbar and grids */
 .friend-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -572,7 +565,6 @@
   font-size: 1.15rem;
 }
 
-/* Trades */
 .trades-panel {
   display: grid;
   gap: 1.5rem;
@@ -728,8 +720,6 @@
   display: none;
 }
 
-/* Trade tray: fixed to the bottom edge. It grows upward over the page, so nothing on the page moves.
-   The room under the page (footer included) is only for scrolling to the very end. */
 body:has(.trade-tray) {
   padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
 }
@@ -826,7 +816,6 @@ body:has(.trade-tray) {
   flex: 0 0 auto;
 }
 
-/* The Log Pose button sits in the same corner: lift it above the tray while an offer is being built. */
 body:has(.trade-tray) .lp-compass {
   bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 4.25rem);
 }

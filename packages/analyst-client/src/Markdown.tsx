@@ -2,10 +2,8 @@ import { Fragment, useMemo, type ReactNode } from "react";
 import { MARK_RE, splitMarks } from "./citations";
 import { parseMarkdown, type Block, type Inline } from "./markdownParser";
 
-/** Draws the citation marker with this index (see placeMarkers). */
 type RenderMark = (index: number) => ReactNode;
 
-/** Draws a stretch of plain text (not code, not link text), so the host can decorate parts of it. */
 type RenderText = (text: string) => ReactNode;
 
 function inlines(nodes: Inline[], mark?: RenderMark, text?: RenderText): ReactNode[] {
@@ -96,7 +94,6 @@ function block(b: Block, k: number, mark?: RenderMark, text?: RenderText): React
   }
 }
 
-/** Assistant text rendered from the safe Markdown subset (see markdown.ts). No HTML is ever injected. */
 export function Markdown({ text, className, renderMark, renderText }: { text: string; className?: string; renderMark?: RenderMark; renderText?: RenderText }) {
   const blocks = useMemo(() => parseMarkdown(text), [text]);
   return <div className={className ? `lp-md ${className}` : "lp-md"}>{blocks.map((b, k) => block(b, k, renderMark, renderText))}</div>;

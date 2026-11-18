@@ -1,6 +1,3 @@
-/**
- * Player choice resolution for pending effect choices.
- */
 import { getCardDef } from "../cards/definitions.js";
 import type { LookPick, Placement } from "../effects/types.js";
 import type { ChoiceRequest, MatchState, PendingChoice, ResolutionFrame, Seat } from "../types.js";
@@ -11,10 +8,6 @@ import { beginPlay } from "./zoneActions.js";
 import { frameCtx } from "./vm.js";
 import { B, CB, getBinding } from "../effects/bindings.js";
 
-// ---------------------------------------------------------------------------
-// Choice resolution
-// ---------------------------------------------------------------------------
-
 export interface ChoiceAnswer {
   accept: boolean;
   selectedOptionIds?: string[];
@@ -22,7 +15,6 @@ export interface ChoiceAnswer {
   topOptionIds?: string[];
 }
 
-/** Validate and apply an answer to the front effect choice. Returns an error string on rejection (no mutation). */
 export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: ChoiceAnswer): string | null {
   const { state } = sim;
   const frame = state.resolutionFrames.find((f) => f.id === choice.resolutionFrameId);
@@ -88,7 +80,6 @@ export function resolveEffectChoice(sim: Sim, choice: PendingChoice, answer: Cho
       const top = answer.topOptionIds ?? (request.allowTopOrBottom ? ordered : []);
       if (!request.allowTopOrBottom && (answer.topOptionIds ?? []).length) return "This effect does not allow bottom placement";
       if (top.some((id) => !ids.includes(id))) return "Invalid top placement";
-      // "Top or bottom" moves the cards together: all on top or all on the bottom.
       if (top.length !== 0 && new Set(top).size !== ids.length) return "Place every card on the same side";
       apply = () => {
         const meta = JSON.parse(b.__lifeOrder!) as { seat: Seat; count: number; topOrBottom: boolean };
@@ -128,14 +119,12 @@ function validateLook(state: MatchState, request: Extract<ChoiceRequest, { type:
     if (ordered.length !== remaining.length || new Set(ordered).size !== ordered.length || ordered.some((id) => !remaining.includes(id))) return "Remainder order must include every unselected card exactly once";
     if ((answer.topOptionIds ?? []).some((id) => !remaining.includes(id))) return "Top placements must be unselected cards";
     if (request.rest !== "top_or_bottom" && (answer.topOptionIds ?? []).length) return "This effect places the rest in one location";
-    // "Top or bottom" moves the rest together: all on top or all on the bottom.
     const tops = answer.topOptionIds ?? [];
     if (tops.length !== 0 && new Set(tops).size !== remaining.length) return "Place every card on the same side";
   }
   return null;
 }
 
-/** Can each picked option be assigned to a distinct slot of a group that accepts it? */
 function assignGroups(picked: string[], groups: { max: number; eligibleIds: string[] }[]): boolean {
   const capacity = groups.map((g) => g.max);
   const assign = (i: number): boolean => {
@@ -179,7 +168,6 @@ function applyLook(sim: Sim, frame: ResolutionFrame, choice: PendingChoice, answ
   const picked = answer.selectedOptionIds ?? [];
   const groupOf = groupAssignment(picked, request.groups);
   const idFor = (optionId: string) => b[optionId]!;
-  // Pull the looked-at cards off the deck, keeping identities.
   const entries = new Map<string, { id: string; defId: string }>();
   for (const option of request.options) {
     const id = idFor(option.id);
@@ -246,7 +234,6 @@ function applyLook(sim: Sim, frame: ResolutionFrame, choice: PendingChoice, answ
   frame.operationIndex += 1;
 }
 
-/** Default legal answer for timers/bots: minimum selection, decline when optional. */
 export function defaultAnswer(choice: PendingChoice): ChoiceAnswer {
   const r = choice.request;
   if (!r) return { accept: !choice.optional };

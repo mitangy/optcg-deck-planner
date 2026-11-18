@@ -4,11 +4,6 @@ import type { BattleLogEntry } from "../match/battleLog";
 import { getLastHoverAt, getPreviewCard, setAutoPreviewCard, shouldAutoPreview } from "../preview/cardPreview";
 import { latestOpponentPlay, opponentPlayCaption } from "./opponentPlay";
 
-/**
- * Desktop: the big preview follows the opponent's latest play, so one you
- * looked away from is still readable. Hovering a card wins for a moment.
- * Returns the opponent's seat (the board's other seat).
- */
 export function useOppPlayPreview({
   battleLog,
   seat,
@@ -36,11 +31,9 @@ export function useOppPlayPreview({
       caption: opponentPlayCaption(oppPlay),
     };
     if (prev === undefined) {
-      // First mount: only fill an empty panel.
       if (!getPreviewCard()) setAutoPreviewCard(auto);
       return;
     }
-    // A log replaced wholesale (resync / undo) is not a new play.
     if (prev !== null && !battleLog.some((e) => e.id === prev)) return;
     if (shouldAutoPreview(Date.now(), getLastHoverAt())) setAutoPreviewCard(auto);
     // eslint-disable-next-line react-hooks/exhaustive-deps

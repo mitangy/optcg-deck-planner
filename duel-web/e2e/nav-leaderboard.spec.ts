@@ -1,7 +1,3 @@
-/**
- * The menu on every page and the full leaderboard (#460). The FastAPI backend is
- * faked in the browser; nothing here signs in for real or creates an account.
- */
 import { test as base, expect, type Page } from "@playwright/test";
 import { FAKE_API, RED_VANILLA } from "./fixtures";
 
@@ -79,28 +75,22 @@ async function menuWorks(page: Page): Promise<void> {
     "Discord ↗",
   ]);
   await expect(drawer.getByRole("link", { name: /Discord/ })).toHaveAttribute("href", "https://discord.gg/XYweKSE3zG");
-  // Opening the drawer moves nothing in the header.
   expect(await button.boundingBox()).toEqual(before);
   expect(await page.locator(".page-title").boundingBox()).toEqual(title);
-  // Focus moves into the drawer: onto its first link, or (Headless UI, on a touch screen) the drawer itself.
   await expect.poll(() => page.evaluate(() => document.querySelector('[role="dialog"]')?.contains(document.activeElement) ?? false)).toBe(true);
 
-  // Esc closes it and hands focus back to the button.
   await page.keyboard.press("Escape");
   await expect(drawer).toBeHidden();
   await expect(button).toBeFocused();
 
-  // So does a tap on the backdrop, past the drawer's right edge.
   await button.click();
   await expect(drawer).toBeVisible();
-  // Wait for the slide-in to finish before aiming past its edge.
   await expect.poll(async () => (await drawer.boundingBox())?.x).toBe(0);
   const drawerBox = (await drawer.boundingBox())!;
   const vp = page.viewportSize()!;
   await page.mouse.click(Math.min(vp.width - 4, drawerBox.x + drawerBox.width + 12), vp.height - 8);
   await expect(drawer).toBeHidden();
 
-  // A link lands on that page and closes the drawer.
   await button.click();
   await drawer.getByRole("link", { name: "Home" }).click();
   await expect(page).toHaveURL(/\/$/);
@@ -108,10 +98,8 @@ async function menuWorks(page: Page): Promise<void> {
   await expect(page.locator(".home-deck")).toBeVisible();
   await noSidewaysScroll(page);
 
-  // The lobby has the button too, and the menu takes you on from there.
   await page.getByRole("button", { name: "Menu" }).click();
   await expect(page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
-  // Choosing the page you are already on closes the drawer too.
   await page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Home" }).click();
   await expect(page.getByRole("navigation", { name: "Site menu" })).toBeHidden();
   await page.getByRole("button", { name: "Menu" }).click();
@@ -131,13 +119,11 @@ async function leaderboardRows(page: Page): Promise<void> {
   await expect(first.locator(".bounty-rank")).toHaveText("1");
   await expect(first.locator(".bounty-amount")).toHaveAccessibleName("Bounty 1,800 berries");
   await expect(first.locator(".leaderboard-games")).toHaveText("60");
-  // Your row is highlighted in place; nothing is pinned under the list.
   await expect(rows.nth(4)).toHaveClass(/\bme\b/);
   await expect(rows.nth(4)).toContainText("You");
   await expect(page.locator(".bounty-row.pinned")).toHaveCount(0);
   await expect(page.getByText(/rating/i)).toHaveCount(0);
   await noSidewaysScroll(page);
-  // Every row keeps all four columns inside the viewport.
   const vp = page.viewportSize()!;
   for (const i of [0, 4, 99]) {
     await rows.nth(i).scrollIntoViewIfNeeded();
@@ -170,7 +156,6 @@ for (const [label, size] of [
     if (size) test.use({ viewport: size, hasTouch: true });
 
     test.beforeEach(({}, testInfo) => {
-      // The landscape size is set here, so one project covers it.
       if (size) test.skip(testInfo.project.name !== "desktop-1280", "viewport is set by the describe; one project is enough");
     });
 
@@ -193,7 +178,6 @@ test("every page's header starts with the menu button (#460)", async ({ page }) 
   for (const path of ["/", "/leaderboard", "/decks", "/decks/meta", "/decks/new", "/decks/e2e-you/configure", "/history", "/history/m1", "/whats-new", "/settings", "/terms", "/privacy", "/cookies"]) {
     await page.goto(path);
     await expect(page.locator("header").first(), path).toBeVisible();
-    // The menu is the first control in the header, ahead of the Back link or the wordmark.
     const firstControl = await page.evaluate(() => document.querySelector("header")?.querySelector("a[href], button")?.getAttribute("aria-label"));
     expect(firstControl, path).toBe("Menu");
     await noSidewaysScroll(page);

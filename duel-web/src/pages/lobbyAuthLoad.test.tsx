@@ -52,7 +52,6 @@ afterEach(() => {
 
 describe("a cold lobby load (refactor 2.1b)", () => {
   it("asks /auth/me once for the app start, the nav menu and the lobby together, not once each", async () => {
-    // main.tsx starts the account sync before anything renders.
     stopWatching = watchAccountSync();
     host = document.createElement("div");
     document.body.appendChild(host);
@@ -72,7 +71,6 @@ describe("a cold lobby load (refactor 2.1b)", () => {
       await new Promise((r) => setTimeout(r, 200));
     });
     expect(paths.filter((p) => p === "/auth/me")).toHaveLength(1);
-    // The lobby did take the answer: it reads the signed-in player's Bounty.
     expect(paths).toContain("/duel/rating/me");
   });
 });

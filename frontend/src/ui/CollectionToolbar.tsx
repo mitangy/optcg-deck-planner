@@ -4,7 +4,6 @@ import { money, type OwnedCollectionResponse } from "../api";
 import { COLOR_ORDER } from "./cardListControls";
 import { cardColorNames } from "../pages/collection/collectionView";
 
-/** Summary cards under the page title: unique cards, total copies and estimated value. */
 export function CollectionStatCards({ data }: { data: OwnedCollectionResponse | undefined }) {
   return (
     <ul className="stat-cards" aria-label="Collection totals">
@@ -29,7 +28,6 @@ function ColorDot({ color }: { color: string }) {
   return <span className="color-dot" data-color={color.toLowerCase()} aria-hidden="true" />;
 }
 
-/** A small pill per colour of a card (a two-colour card gets two). */
 export function CardColorChips({ color }: { color: string }) {
   const names = cardColorNames({ color });
   if (!names.length) return null;
@@ -45,7 +43,6 @@ export function CardColorChips({ color }: { color: string }) {
   );
 }
 
-/** Round colour buttons; any number can be on at once. */
 export function ColorFilterChips({
   selected,
   onToggle,
@@ -88,7 +85,6 @@ export function ColorFilterChips({
   );
 }
 
-/** "All" plus one pill per card type in the collection (single choice). */
 export function TypeFilterChips({
   types,
   value,
@@ -116,12 +112,10 @@ export function TypeFilterChips({
   );
 }
 
-/** The Collection page's yes/no filters, in a Headless UI popover so opening it moves nothing. */
 export function CollectionFilterMenu({
   badge,
   children,
 }: {
-  /** Filters that differ from their defaults. */
   badge: number;
   children: ReactNode;
 }) {

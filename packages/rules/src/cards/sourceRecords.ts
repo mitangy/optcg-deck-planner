@@ -16,10 +16,6 @@ export interface CardSourceRecord {
   };
 }
 
-/**
- * Provenance per card. Official-list rows are verified against the captured
- * Bandai snapshot (`CARD_DATA_CANDIDATE`); errata are not tracked there.
- */
 export const CARD_SOURCE_RECORDS: Readonly<Record<CardDefId, CardSourceRecord>> = Object.freeze(
   Object.fromEntries(listCardDataIds().map((cardDefId) => {
     const row = cardDataFor(cardDefId)!;

@@ -1,4 +1,3 @@
-"""Friends tournaments: bracket and schedule maths, standings, and the DB steps that move a bracket along."""
 
 from __future__ import annotations
 
@@ -21,14 +20,12 @@ RR_MIN, RR_MAX = 3, 8
 
 
 def player_limits(format: str, size: int) -> tuple[int, int]:
-    """(fewest, most) joined players. A bracket needs more than half full so no bye meets a bye."""
     if format == "single_elim":
         return size // 2 + 1, size
     return RR_MIN, size
 
 
 def bracket_order(size: int) -> list[int]:
-    """Seed numbers in bracket position order; neighbours meet in round 1 (1 v size, ...)."""
     order = [1, 2]
     while len(order) < size:
         n = len(order) * 2
@@ -37,7 +34,6 @@ def bracket_order(size: int) -> list[int]:
 
 
 def first_round(size: int, seeded_ids: list[int]) -> list[tuple[int | None, int | None]]:
-    """Round 1 pairings. Seeds nobody filled are byes, so byes go to the top seeds."""
     order = bracket_order(size)
 
     def who(seed: int) -> int | None:
@@ -51,12 +47,10 @@ def rounds_for(size: int) -> int:
 
 
 def next_slot(round: int, slot: int) -> tuple[int, int, str]:
-    """Where the winner of (round, slot) goes: (round, slot, side)."""
     return round + 1, slot // 2, "a" if slot % 2 == 0 else "b"
 
 
 def round_robin_schedule(ids: list[int]) -> list[list[tuple[int, int]]]:
-    """Circle method: every pair once; with an odd count one player sits out each round."""
     ring: list[int | None] = list(ids)
     if len(ring) % 2:
         ring.append(None)
@@ -85,7 +79,6 @@ class Row(NamedTuple):
 
 
 def standings(player_ids_by_seed: list[int], matches: list[_Pairing]) -> list[Row]:
-    """Wins, then head-to-head wins among the players tied on wins, then seed. Equal on both share a rank."""
     done = [m for m in matches if m.status == TournamentMatchStatus.DONE and m.winner_id is not None]
     wins = {p: 0 for p in player_ids_by_seed}
     played = {p: 0 for p in player_ids_by_seed}
@@ -114,7 +107,6 @@ def standings(player_ids_by_seed: list[int], matches: list[_Pairing]) -> list[Ro
 
 
 def round_robin_winner(rows: list[Row]) -> int | None:
-    """The sole rank 1 once everyone has played everyone, else None."""
     if not rows or any(r.played != len(rows) - 1 for r in rows):
         return None
     top = [r for r in rows if r.rank == 1]
@@ -141,7 +133,6 @@ def joined_ids_by_seed(db: Session, t: DuelTournament) -> list[int]:
 
 
 def start(db: Session, t: DuelTournament) -> None:
-    """Seed the joined players at random, drop open invites, build the matches and resolve byes."""
     players = list(
         db.scalars(
             select(DuelTournamentPlayer).where(
@@ -194,7 +185,6 @@ def decide(
     decided_by: str,
     result_match_id: str | None = None,
 ) -> None:
-    """Record a result and move the bracket along. The caller commits."""
     m.winner_id = winner_id
     m.status = TournamentMatchStatus.DONE
     m.decided_by = decided_by
@@ -239,10 +229,6 @@ def decide(
 def record_game(
     db: Session, match_id: str, seat0_user_id: int, seat1_user_id: int, winner_seat: int
 ) -> bool:
-    """A finished game: if it was a ready tournament match's room between exactly these two, record it.
-
-    Only game 1 of a room has ``match_id == room id``; rematches (``<room>-r1``) never match. Commits on success.
-    """
     m = db.scalar(
         select(DuelTournamentMatch)
         .join(DuelTournament, DuelTournament.id == DuelTournamentMatch.tournament_id)

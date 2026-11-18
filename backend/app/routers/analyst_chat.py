@@ -1,8 +1,3 @@
-"""Log Pose in the app: chat sessions, threads, spend caps, post-game reviews and the game corpus.
-
-The browser gets a short-lived chat token from /analyst/chat/session and talks to the analyst
-service, which reads and writes everything here with that token plus the service secret.
-"""
 
 from __future__ import annotations
 
@@ -108,7 +103,6 @@ def chat_session(
     token, exp = mint_chat_token(settings, user, int(datetime.now(timezone.utc).timestamp()))
     expires_at = datetime.fromtimestamp(exp, timezone.utc).isoformat()
     owner = is_chat_owner(settings, user)
-    # Waiting requests: players on the waitlist and players who asked for more credit.
     pending = (
         db.scalar(
             select(func.count())
@@ -130,9 +124,6 @@ def chat_session(
 
 
 def budget_for(db: Session, settings: Settings, user: User, extra: float = 0.0) -> AnalystChatBudget:
-    """This player's spend today, their credit this month and everyone's spend this month, against the limits.
-
-    `extra` is what a running answer has cost so far (not saved yet); it counts toward every limit."""
     now = datetime.now(timezone.utc)
     today = spent_since(db, day_start(now), user.id) + extra
     month = spent_since(db, month_start(now)) + extra
@@ -290,7 +281,6 @@ def record_usage(
     user: Annotated[User, Depends(analyst_user)],
 ) -> None:
     fields = body.model_dump()
-    # A thread id only sticks to the player's own thread.
     if body.thread_id is not None:
         own = db.get(AnalystThread, body.thread_id)
         if own is None or own.user_id != user.id:
@@ -378,7 +368,6 @@ def append_messages(
 
 
 def _save_cards(db: Session, row: AnalystThread, items: list, tool: str, what: str) -> None:
-    """Keeps cards that each come from a call to `tool` stored in the thread; repeats are ignored."""
     made = {i for m in _messages(db, row.id) if m.role == "assistant" for i in tool_ids(json.loads(m.content), tool)}
     if any(p.id not in made for p in items):
         raise HTTPException(status_code=400, detail=f"A {what} must come from a {tool} call in this thread")
@@ -421,7 +410,6 @@ def save_drafts(
 
 
 def _stored_cards(db: Session, thread_id: int) -> tuple[dict[str, AnalystDeckEdit], dict[str, AnalystDeckDraft]]:
-    """The thread's saved deck edits and new decks. A new deck's payload has `cards` and no `target`."""
     edits: dict[str, AnalystDeckEdit] = {}
     drafts: dict[str, AnalystDeckDraft] = {}
     for r in db.scalars(select(AnalystProposal).where(AnalystProposal.thread_id == thread_id).order_by(AnalystProposal.created_at)).all():
@@ -511,7 +499,6 @@ def put_review(
     )
     if played is None:
         raise HTTPException(status_code=404, detail="Match not found")
-    # A citation can only follow text that is there.
     limit = utf16_len(body.text)
     citations = json.dumps([c.model_dump() for c in body.citations if c.at <= limit])
     row = db.get(AnalystMatchReview, (user.id, match_id))
@@ -531,7 +518,6 @@ BRIEF_TTL = timedelta(days=7)
 
 
 def _brief_claims(body: AnalystBriefLookupIn, settings: Settings) -> BriefClaims:
-    """The ticket's claims; a forged, expired, ranked or non-ticket string is a 403."""
     claims = verify_brief_ticket(body.ticket, settings, int(time.time()))
     if claims is None:
         raise HTTPException(status_code=403, detail="Not a valid brief ticket")
@@ -581,7 +567,6 @@ def put_brief(
     """The analyst saves a matchup brief for the ticket's leaders and deck (the ticket is checked again)."""
     claims = _brief_claims(body, settings)
     key = brief_key(claims, body.variant)
-    # A citation can only follow text that is there.
     limit = utf16_len(body.text)
     citations = json.dumps([c.model_dump() for c in body.citations if c.at <= limit])
     row = db.get(AnalystMatchBrief, key)

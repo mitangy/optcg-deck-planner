@@ -1,5 +1,3 @@
-/* ——— Chats: which chat is open, and the list of others ——— */
-
 /* Always one row, so opening the list or switching chat moves nothing. The list is an overlay under it. */
 .lp-scope {
   flex: none;
@@ -12,7 +10,6 @@
   border-bottom: 1px solid var(--lp-line-d);
 }
 
-/* Short windows: the chat's name is the header's title and Chats sits beside it; the menu drops from the header's edge (#970). */
 .lp-head[data-scope-inline] {
   position: relative;
 }

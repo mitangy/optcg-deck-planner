@@ -1,12 +1,5 @@
-/**
- * A small pool of worker threads that run the Hard bot's search (#635), so a 1.5 second lookahead never blocks a room's
- * event loop (and with it every other game on the process). Size comes from BOT_WORKERS (default 1: the Render
- * starter instance has one CPU, so a second worker would only compete with the game loop).
- *
- * `run` answers with the worker's result, or rejects when the worker fails, the job times out or the job is cancelled;
- * the caller then plays a Normal move in its own thread. A worker that failed or timed out is terminated and a fresh one
- * is started for the next job. Workers start on first use, so a server that never hosts a Hard bot never pays for them.
- */
+// Default size 1: the Render starter instance has one CPU, so a second worker would only compete with the game loop.
+// Workers start on first use, so a server that never hosts a Hard bot never pays for them.
 import { Worker } from "node:worker_threads";
 import type { BotJob, BotJobResult } from "./botWorker.js";
 
@@ -24,7 +17,6 @@ interface Pending {
 
 export interface BotPoolOptions {
   size?: number;
-  /** Created per worker; tests pass a stub. */
   spawn?: () => Worker;
   idleMs?: number;
 }
@@ -40,7 +32,7 @@ export class BotPool {
   private readonly spawn: () => Worker;
   private idle: Worker[] = [];
   private idleTimer: NodeJS.Timeout | null = null;
-  /** An idle worker is shut down after this long (each holds about 150 MB of card data); the next job starts a new one. */
+  /** Each worker holds about 150 MB of card data. */
   readonly idleMs: number;
   private busy = 0;
   private queue: Pending[] = [];
@@ -54,7 +46,6 @@ export class BotPool {
     this.idleMs = opts.idleMs ?? 120_000;
   }
 
-  /** False when the pool has no workers to offer (size 0 or closed): the room then searches in its own thread. */
   enabled(): boolean { return !this.closed && this.size > 0; }
 
   private armIdleTimer(): void {
@@ -69,16 +60,14 @@ export class BotPool {
     this.idleTimer.unref();
   }
 
-  /** Start one idle worker ahead of the first job (loading the card data takes most of a second). */
+  /** Loading the card data takes most of a second. */
   warm(): void {
     if (this.closed || this.size === 0 || this.idle.length + this.busy > 0) return;
     try { this.idle.push(this.spawn()); this.armIdleTimer(); } catch { /* the first job reports it */ }
   }
 
-  /** Jobs running plus waiting. */
   get load(): number { return this.busy + this.queue.length; }
 
-  /** Run one search. `timeoutMs` counts from now, queue time included. Resolves with a job id through `onId` so the caller can cancel. */
   run(input: BotJobInput, timeoutMs: number, onId?: (id: number) => void): Promise<BotJobOutput> {
     if (this.closed || this.size === 0) return Promise.reject(new Error("bot pool unavailable"));
     return new Promise<BotJobOutput>((resolve, reject) => {
@@ -92,7 +81,6 @@ export class BotPool {
     });
   }
 
-  /** Drop a job whose answer is no longer wanted. A running job costs its worker, which is replaced. */
   cancel(id: number): void {
     const p = this.pendingById.get(id);
     if (p) this.fail(p, new Error("bot job cancelled"), true);
@@ -154,7 +142,7 @@ export class BotPool {
     this.pendingById.delete(p.job.id);
   }
 
-  /** Reject a job; a job already on a worker takes that worker down with it (its search cannot be interrupted). */
+  // A job already on a worker takes that worker down with it: its search cannot be interrupted.
   private fail(p: Pending, error: Error, terminate: boolean): void {
     if (!this.pendingById.has(p.job.id)) return;
     this.finish(p);
@@ -170,19 +158,16 @@ export class BotPool {
   }
 }
 
-/** The pool the game server's rooms share. */
 let shared: BotPool | null = null;
 export function sharedBotPool(): BotPool {
   const size = Number(process.env.BOT_WORKERS ?? 1);
   return (shared ??= new BotPool({ size: Number.isFinite(size) ? size : 1 }));
 }
-/** For tests: drop the shared pool (closing its workers) so the next use starts fresh. */
 export async function resetSharedBotPool(): Promise<void> {
   const p = shared;
   shared = null;
   await p?.close();
 }
-/** For tests: use `pool` for every room (null restores the default). */
 export function setSharedBotPool(pool: BotPool | null): void {
   shared = pool;
 }

@@ -10,7 +10,6 @@ const costs: Record<string, number> = {
 
 describe("sortHandIndices", () => {
   it("sorts by cost then groups identical defIds", () => {
-    // Cost order differs from id order, and duplicates are interleaved.
     const cost: Record<string, number> = { "ST01-001": 2, "ST01-002": 1, "ST01-003": 2 };
     const hand = [
       { defId: "ST01-003" },

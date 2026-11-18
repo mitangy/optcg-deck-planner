@@ -1,19 +1,10 @@
-// A small model of how Vercel answers a request for a static site with a `routes` table (#914).
-// Used by serve-dist.mjs (to look at a build locally) and by the route tests.
-//
-// Order, as the Vercel docs describe it: routes before `{"handle": "filesystem"}` run first; then a file
-// in the output that matches the path is served (a directory serves its index.html); then the routes
-// after the handler run, and the first whose `src` matches wins. A `dest` is a file in the output, and
-// `status` is the response code (404 pages still send the file in `dest`).
-
 const stripQuery = (p) => p.split(/[?#]/)[0];
 
 /**
  * @param {{ src?: string; dest?: string; status?: number; handle?: string; check?: boolean }[]} routes
- * @param {ReadonlySet<string>} files output files without a leading slash, e.g. "leaders/index.html"
- * @param {string} rawPath request path
- * @param {{ directoryIndex?: boolean }} [opts] directoryIndex (default true): a path that names a directory serves its index.html.
- *   Turn it off to see what the routes alone give when the platform does not do that.
+ * @param {ReadonlySet<string>} files
+ * @param {string} rawPath
+ * @param {{ directoryIndex?: boolean }} [opts]
  * @returns {{ file: string | null; status: number; via: "filesystem" | "route" | "none"; src?: string }}
  */
 export function resolveRequest(routes, files, rawPath, { directoryIndex = true } = {}) {

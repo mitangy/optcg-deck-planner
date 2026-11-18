@@ -1,10 +1,3 @@
-/** Browser timing for the learned detector (dev tool, #701).
- *
- * Served by `npm run dev`; driven by `bench.mjs` (Playwright). Loads the model
- * through the real browser path (`loadCardDetector` with no ORT passed, so the
- * dynamic onnxruntime-web import and its WASM asset resolve exactly as in the app),
- * then times `detectWithModel` on each photo.
- */
 import { detectWithModel, loadCardDetector } from "../../src/scanner/detect/cardDetectModel";
 
 const params = new URLSearchParams(location.search);

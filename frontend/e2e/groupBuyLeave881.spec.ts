@@ -1,7 +1,3 @@
-/**
- * Group buy detail (/group-buys/:id): non-host members can leave an open group
- * buy; the host never sees Leave (#881).
- */
 import { expect, test } from "./fixtures";
 
 const GB = 9;
@@ -56,7 +52,6 @@ test("A member leaves a group buy after confirming and lands on the list (#881)"
   await expect(leave).toBeEnabled();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-leave-button.png`, fullPage: true });
 
-  // Dismissing the confirm sends nothing.
   page.once("dialog", (d) => d.dismiss());
   await leave.click();
   expect(posts).toEqual([]);

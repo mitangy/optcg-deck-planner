@@ -2,7 +2,6 @@ import { createStore } from "../../lib/createStore";
 import type { ScreenOrientationPref } from "../../settings";
 import { readStored, writeStored } from "@optcg/ui/storage";
 
-/** The lock to ask the browser for, or null (follow the phone / nothing to lock with). */
 export function orientationLockTarget(
   setting: ScreenOrientationPref,
   canLock: boolean,
@@ -11,11 +10,6 @@ export function orientationLockTarget(
   return setting;
 }
 
-/**
- * The "rotate for bigger cards" toast: once per browser, on a phone held in
- * portrait, unless the player chose portrait on purpose or shares one device
- * between two seats (hotseat).
- */
 export function shouldShowRotateHint(o: {
   portrait: boolean;
   phone: boolean;
@@ -26,7 +20,6 @@ export function shouldShowRotateHint(o: {
   return o.portrait && o.phone && o.setting !== "portrait" && !o.seen && !o.hotseat;
 }
 
-/** The settings note: only when a lock was picked and it cannot be had. */
 export function lockNoteVisible(
   setting: ScreenOrientationPref,
   apiAvailable: boolean,
@@ -45,7 +38,7 @@ function lockable(): LockableOrientation | null {
   return o && typeof o.lock === "function" ? o : null;
 }
 
-/** Whether this browser has the lock API at all (iPhone Safari does not). */
+// iPhone Safari lacks the lock API.
 export function lockApiAvailable(): boolean {
   return lockable() != null;
 }
@@ -56,7 +49,6 @@ function setLockFailed(v: boolean) {
   lockFailed.set(v);
 }
 
-/** Free the orientation (leaving the match, or back to "follow my phone"). */
 export function releaseOrientationLock(): void {
   try {
     screen.orientation?.unlock?.();
@@ -65,11 +57,7 @@ export function releaseOrientationLock(): void {
   }
 }
 
-/**
- * Apply the setting: lock when it names an orientation and the browser will
- * (Android Chrome, in full screen or installed), unlock on "auto". A refused
- * lock is remembered so the settings note can say so.
- */
+// A refused lock is remembered so the settings note can say so.
 export async function syncOrientationLock(setting: ScreenOrientationPref): Promise<void> {
   const target = orientationLockTarget(setting, lockApiAvailable());
   if (!target) {
@@ -85,7 +73,6 @@ export async function syncOrientationLock(setting: ScreenOrientationPref): Promi
   }
 }
 
-/** True when the settings should tell the player the lock is unavailable. */
 export function useLockNote(setting: ScreenOrientationPref): boolean {
   const failed = lockFailed.use();
   return lockNoteVisible(setting, lockApiAvailable(), failed);
@@ -98,6 +85,5 @@ export function rotateHintSeen(): boolean {
 }
 
 export function markRotateHintSeen(): void {
-  // Private mode: the hint may show again next visit.
   writeStored(SEEN_KEY, "1");
 }

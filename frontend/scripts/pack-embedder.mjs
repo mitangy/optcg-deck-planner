@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-/** Embed every reference printing with the trained model and write the bundle (#701).
- *
- *   npx tsx scripts/pack-embedder.mjs <refsDir> <model.onnx> <outDir>
- *
- * Writes into <outDir> (next to the descriptor chunks):
- *   card-embedder-<hash>.onnx   the model, content-addressed
- *   embeddings-<hash>.bin       int8 embedding per printing (cardEmbed.encodeEmbeddings)
- *   card-embedder.json          pointer the client downloads first
- *
- * Reference preprocessing is `embedderInput` from src/scanner/match/cardEmbed.ts, the same
- * function the browser runs on the query, so the two sides cannot drift. The
- * model is trained by scripts/train-embedder and is not committed.
- */
 import { createHash } from "node:crypto";
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -66,7 +53,6 @@ const pointer = {
 };
 writeFileSync(join(outDir, "card-embedder.json"), JSON.stringify(pointer) + "\n");
 
-// Drop superseded files so regenerating does not grow the directory.
 let pruned = 0;
 for (const f of readdirSync(outDir)) {
   const stale =

@@ -1,12 +1,3 @@
-/**
- * Importing OPTCGSim games into Log Pose (#1030), clicked through Settings > Log Pose.
- *
- * The planner API is faked in the browser: the import route keeps the games it is sent, skips a match key it
- * already has and a record with no result, and answers like the real one. What it proves: an export file is
- * imported and the result says how many were skipped and why, a pasted combat log asks which player you were
- * (and sends that player and the result), Clear removes them all, and none of it moves the controls or makes the
- * page scroll sideways, on a desktop, a portrait phone and a landscape phone.
- */
 import { readFileSync } from "node:fs";
 import { test, expect, signInAs, FAKE_API, type Page } from "./fixtures";
 
@@ -71,7 +62,6 @@ async function flow(page: Page, shot: string) {
   await expect(clearBtn).toBeDisabled();
   const before = [round(await importBtn.boundingBox()), round(await textarea.boundingBox())];
 
-  // An export file: two new games, one repeated, one with no result.
   const file = JSON.stringify([game("key-aaaaaaaa"), game("key-bbbbbbbb", { result: "Lost" }), game("key-aaaaaaaa"), game("key-cccccccc", { result: "" })]);
   await panel.getByLabel("OPTCGSim export file").setInputFiles({ name: "optcgsim-matches.json", mimeType: "application/json", buffer: Buffer.from(file) });
   await expect(panel.getByRole("status")).toHaveText("Imported 2, skipped 2 (1 already imported, 1 not usable).");
@@ -81,7 +71,6 @@ async function flow(page: Page, shot: string) {
   expect([round(await importBtn.boundingBox()), round(await textarea.boundingBox())]).toEqual(before);
   await expect(clearBtn).toBeEnabled();
 
-  // A pasted log: say which player you were.
   const mine = panel.getByLabel("I played as");
   await expect(mine).toBeDisabled();
   await textarea.fill(LOG);
@@ -98,19 +87,16 @@ async function flow(page: Page, shot: string) {
   expect(String(sent.matchKey)).toMatch(/^paste-/);
   await expect(textarea).toHaveValue("");
 
-  // The same log again is a duplicate.
   await textarea.fill(LOG);
   await importBtn.click();
   await expect(panel.getByRole("status")).toHaveText("Imported 0, skipped 1 (1 already imported).");
 
-  // Something that is not an export.
   await textarea.fill("not a game");
   await importBtn.click();
   await expect(panel.getByRole("alert")).toHaveText(/not an OPTCGSim export/);
 
   await textarea.fill("");
   if (SHOTS) await panel.screenshot({ path: `${SHOTS}/${shot}.png` });
-  // Declining the question keeps every game.
   page.once("dialog", (d) => void d.dismiss());
   await clearBtn.click();
   await expect(panel.getByText("3 OPTCGSim games imported.")).toBeVisible();

@@ -1,7 +1,3 @@
-/**
- * What to do when this browser's saved decks meet the account's.
- * Pure so it can be unit tested; account/deckSync.ts carries it out.
- */
 import type { SavedDeck } from "../decks/storage";
 
 export type RemoteDeck = {
@@ -13,22 +9,16 @@ export type RemoteDeck = {
 
 export type DeckSyncInput = {
   userId: number;
-  /** Account that last synced this browser's cache; null = never (guest decks). */
   cacheOwner: number | null;
   local: SavedDeck[];
-  /** Decks deleted here while the account could not be told (id -> delete time). */
   localDeletes: Record<string, number>;
   remote: RemoteDeck[];
 };
 
 export type DeckSyncPlan = {
-  /** Account copies to write into this browser. */
   applyUpsert: SavedDeck[];
-  /** Deck ids to remove from this browser. */
   applyDelete: string[];
-  /** Local decks to send to the account. */
   uploadDecks: SavedDeck[];
-  /** Local deletes to send to the account. */
   uploadDeletes: { id: string; at: number }[];
 };
 
@@ -38,7 +28,6 @@ function fromRemote(r: RemoteDeck): SavedDeck | null {
 
 export function planDeckSync(input: DeckSyncInput): DeckSyncPlan {
   const plan: DeckSyncPlan = { applyUpsert: [], applyDelete: [], uploadDecks: [], uploadDeletes: [] };
-  // A cache that belonged to another account is not this player's: take the account's decks only.
   const foreign = input.cacheOwner !== null && input.cacheOwner !== input.userId;
   const local = new Map(input.local.map((d) => [d.id, d]));
   const deletes = foreign ? {} : input.localDeletes;

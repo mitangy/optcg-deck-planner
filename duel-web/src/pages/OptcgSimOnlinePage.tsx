@@ -4,7 +4,6 @@ import { FAN_DISCLAIMER } from "@optcg/site-legal";
 import "./playOnline.css";
 import "./landing973.css";
 
-/** Answers are shown on the page and published as FAQPage structured data (see prerender/entry.tsx). */
 export const OPTCG_SIM_FAQ: readonly { q: string; a: string }[] = [
   {
     q: "Is OPTCG Duel free?",
@@ -55,7 +54,6 @@ const FEATURES: readonly { title: string; body: string }[] = [
   { title: "Crew themes", body: "Pick a crew or place for the look of the board, in light or dark." },
 ];
 
-/** Public landing page for people searching "OPTCG sim online". */
 export function OptcgSimOnlinePage() {
   return (
     <PageShell pageClass="play-online" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }}>

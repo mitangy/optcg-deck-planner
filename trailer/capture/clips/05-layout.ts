@@ -1,4 +1,3 @@
-/** 05-layout (6s): make the board yours: drag a side panel across, move the fanned hand, tilt the board. */
 import { sleep } from "../lib/util";
 import { finishTake, startTake } from "../lib/take";
 import { MIKO } from "../lib/data";
@@ -25,7 +24,6 @@ export async function run(): Promise<void> {
     await t.rec.start();
     t.rec.markIn(0.2);
     await sleep(400);
-    // 1. a side panel across to the other column
     const log = p.locator('[data-panel="log"]');
     await t.pointer.hover(log, { ms: 420 });
     await sleep(120);
@@ -33,14 +31,12 @@ export async function run(): Promise<void> {
     await t.pointer.drag(grip, { x: 1750, y: 640 }, { ms: 650, hold: 90 });
     await sleep(350);
     await shot("1");
-    // 2. the fanned hand somewhere else
     const fan = p.locator(".hand-fan-grip");
     await t.pointer.hover({ x: 900, y: 900 }, { ms: 380 });
     await sleep(120);
     await t.pointer.drag(fan, { x: 720, y: 1074 }, { ms: 600, hold: 90 });
     await sleep(350);
     await shot("2");
-    // 3. tilt the board
     await t.pointer.click(p.getByRole("button", { name: "Match menu" }), { ms: 520, settle: 40 });
     await sleep(150);
     await t.pointer.click(p.getByRole("menuitem", { name: "Gameplay settings" }), { ms: 300, settle: 40 });

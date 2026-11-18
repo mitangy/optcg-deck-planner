@@ -1,11 +1,7 @@
-# Keeps the pinned GitHub Actions current (the Node 20 runtime deprecation, #485),
-# the root npm workspace (packages, game-server, analyst, frontend, duel-web: one
-# lockfile) and the backend's Python requirements. One weekly PR per ecosystem.
 # mobile/ and trailer/ are outside the workspace and are not watched.
 version: 2
 updates:
   - package-ecosystem: "github-actions"
-    # "/" covers the workflows; the composite actions in .github/actions/* pin actions too.
     directories:
       - "/"
       - "/.github/actions/*"
@@ -35,7 +31,6 @@ updates:
       - dependency-name: "@playwright/test"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
-  # backend/requirements.in is the hand-edited list; requirements.txt is the compiled pin file.
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:

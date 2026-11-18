@@ -1,25 +1,5 @@
 #!/usr/bin/env node
-/**
- * Run only the mutations that are new or changed versus a base git ref, so a
- * PR proves the tests it adds or edits without paying for a full run.
- *
- *   node tools/mutation-check/changed.cjs <base-ref> [--list | --matrix]
- *
- * Every suite file under suites/ is loaded at <base-ref> (via `git show`) and at
- * HEAD's working tree; entries are matched by `id` and compared by a serialized
- * signature. A suite that does not exist at the base counts entirely as new.
- * Then each suite with changed ids runs `run.cjs <suite> --only '^(a|b)$'`.
- * Exit 1 when any of those runs fails.
- *
- * --list prints "<suite>: <id>, <id>" per suite on stdout and runs nothing
- * (messages go to stderr, so empty stdout means nothing changed).
- * --matrix prints one line of JSON on stdout and runs nothing: an array of
- * {suite, part, only, count} parts that CI fans out over parallel runners, each
- * running `run.cjs <suite> --only <only>`. `[]` when nothing changed.
- * Playwright suites (duel-e2e, frontend-e2e) are not run here: they start
- * servers and take too long for a PR job, so run them locally.
- * Writes a short summary to $GITHUB_STEP_SUMMARY when it is set.
- */
+// Playwright suites (duel-e2e, frontend-e2e) are not run here: they start servers and take too long for a PR job.
 "use strict";
 const crypto = require("crypto");
 const fs = require("fs");
@@ -53,7 +33,6 @@ try {
   process.exit(2);
 }
 
-/** A stable string for one mutation: sorted keys, functions as their source. */
 function serialize(value) {
   return JSON.stringify(value, (key, v) => {
     if (typeof v === "function") return `fn:${v.toString()}`;
@@ -62,12 +41,7 @@ function serialize(value) {
   });
 }
 
-/**
- * Signature of a mutation. A function's source misses closed-over values (the
- * `scn` helper in rules.cjs wraps its `patch`), so every json patch is also
- * applied to the same current data file and the result hashed: changing what a
- * patch does changes the signature even when its source text is identical.
- */
+// A function's source misses closed-over values (the `scn` helper in rules.cjs wraps its `patch`), so every json patch is also applied to the current data file and the result hashed.
 function signature(mutation) {
   const edits = mutation.edits ?? (mutation.json ? [mutation] : []);
   const applied = edits.filter((e) => e.json).map((e) => {
@@ -82,18 +56,13 @@ function signature(mutation) {
   return serialize(mutation) + JSON.stringify(applied);
 }
 
-/** Map id -> [signature, ...] for a suite module (a list, in case an id repeats). */
 function signatures(suite) {
   const map = new Map();
   for (const m of suite.mutations) map.set(m.id, [...(map.get(m.id) ?? []), signature(m)]);
   return map;
 }
 
-/**
- * Load a suite as it was at the base. The copy is written next to the real
- * suite file so any relative require in it resolves the same way, and removed
- * right after. Returns null when the suite did not exist at the base.
- */
+// Written next to the real suite file so any relative require in it resolves the same way, and removed right after.
 function loadBase(file) {
   let text;
   try { text = git("show", `${base}:tools/mutation-check/suites/${file}`); } catch { return { missing: true }; }
@@ -103,7 +72,7 @@ function loadBase(file) {
   try { return { suite: require(copy) }; } finally { fs.unlinkSync(copy); }
 }
 
-const changed = []; // { name, runner, ids, narrow }
+const changed = [];
 for (const file of fs.readdirSync(SUITES_DIR).filter((f) => f.endsWith(".cjs")).sort()) {
   const name = file.replace(/\.cjs$/, "");
   const head = require(path.join(SUITES_DIR, file));
@@ -111,7 +80,7 @@ for (const file of fs.readdirSync(SUITES_DIR).filter((f) => f.endsWith(".cjs")).
   if (old.same) continue;
   const before = old.suite ? signatures(old.suite) : new Map();
   const ids = [];
-  const narrow = new Set(head.mutations.filter((m) => m.args).map((m) => m.id)); // ids that run one test file
+  const narrow = new Set(head.mutations.filter((m) => m.args).map((m) => m.id));
   for (const [id, sigs] of signatures(head)) {
     const was = before.get(id);
     if (!was || was.length !== sigs.length || sigs.some((s, i) => s !== was[i])) ids.push(id);
@@ -122,36 +91,18 @@ for (const file of fs.readdirSync(SUITES_DIR).filter((f) => f.endsWith(".cjs")).
 const escapeRegex = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const onlyPattern = (ids) => `^(${ids.map(escapeRegex).join("|")})$`;
 
-/**
- * Seconds for one full run of a suite, observed in CI (#737). A mutation without
- * `args` re-runs the whole suite: duel-web about 45 s (1424 tests; run 40169242767
- * took 3.8 min for 4), analyst about 74 s (588 tests; the #729 run took 21 min per
- * part for 24). Every part also pays one baseline full run. Rules and frontend were
- * re-measured in #1147: rules about 50 s (51 in 45 min), frontend about 17 s (158 in 45 min).
- */
+// Observed CI seconds for one full run of a suite; a mutation without `args` re-runs the whole suite, and every part also pays one baseline full run.
 const SECONDS_PER_MUTATION = { rules: 50, "game-server": 25, "duel-web": 45, frontend: 17, analyst: 74, mobile: 5, backend: 15, "analyst-client": 3, "card-core": 3, "api-client": 3, "analyst-contract": 3, "deck-analytics": 3, "price-timing": 3, "patch-notes": 3, ui: 3, "site-legal": 3, "duel-protocol": 3 };
 const DEFAULT_SECONDS = 5;
-/** A mutation with `args` runs one test file: about 5-7 s (#729: 11 narrow duel-web mutations took about 1 min per part). */
 const NARROW_SECONDS = 6;
-/** Narrow runs that cost more than a single test file: analyst `src/` (15 test files, about 16 s, #739). */
+/** Narrow runs that cost more than a single test file: analyst `src/` runs 15 test files. */
 const NARROW_SECONDS_BY_SUITE = { analyst: 16 };
 const MAX_PARTS = 8;
 const TARGET_PART_SECONDS = 150;
-/**
- * Past MAX_PARTS, a part that would still run longer than this gets split again (up to
- * HARD_MAX_PARTS), so a big file move stays inside the parts job's 45-minute timeout.
- * #1147: 10 suites took all 8 parts and a 414-id frontend part timed out; 4.3b re-runs
- * 1160 duel-web mutations (about 14 runner-hours).
- */
+// Past MAX_PARTS, a part that would still run longer than this is split again (up to HARD_MAX_PARTS), so a big file move stays inside the parts job's 45-minute timeout.
 const MAX_PART_SECONDS = 25 * 60;
 const HARD_MAX_PARTS = 48;
 
-/**
- * Split changed ids into parts for parallel runners. An id with `args` costs
- * NARROW_SECONDS, any other the suite's full-run weight; every part also pays
- * one baseline full run. Greedily gives the costliest suite another part while
- * the cap allows (or, past the cap, while a part would exceed MAX_PART_SECONDS), and fills each part longest id first onto the lightest part.
- */
 function planMatrix(suites) {
   const plan = suites.map(({ name, ids, narrow }) => {
     const w = SECONDS_PER_MUTATION[name] ?? DEFAULT_SECONDS;
@@ -179,7 +130,7 @@ function planMatrix(suites) {
   const out = [];
   for (const s of plan) {
     split(s, s.parts).forEach((bin, i) => {
-      const ids = s.ids.filter((id) => bin.ids.includes(id)); // keep suite order inside a part
+      const ids = s.ids.filter((id) => bin.ids.includes(id));
       out.push({ suite: s.name, part: `${i + 1}/${s.parts}`, only: onlyPattern(ids), count: ids.length, seconds: s.w + bin.load, ids });
     });
   }

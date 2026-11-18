@@ -1,10 +1,3 @@
-/**
- * Settings groups (#496): the Gameplay settings are headed groups (Turns and prompts, Hand, Board and layout,
- * Visual aids, Animations, Sound and alerts) with jump chips. In the in-match sheet the chip row stays at the top
- * while the groups scroll under it; the Settings page puts the look panels under one Appearance heading.
- * Desktop runs 1280x720; the phone project runs portrait 375x812 and landscape 812x375.
- * SETTINGS_GROUPS_SHOTS=<dir> also saves screenshots there.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -38,7 +31,6 @@ for (const size of SIZES) {
       await page.goto("/demo?full");
       await page.locator(".board-root").waitFor();
       await page.waitForTimeout(300);
-      // The desktop bar has a ⚙ button; phones reach it through the ⋯ match menu.
       const gear = page.getByRole("button", { name: "Gameplay settings" });
       if (await gear.count()) await gear.click();
       else {
@@ -54,15 +46,11 @@ for (const size of SIZES) {
       await page.waitForTimeout(250);
       await shot(page, `sheet-top-${size.name}`);
 
-      // Each chip hits at least 36px.
       for (const b of await nav.getByRole("button").all()) expect((await b.boundingBox())!.height).toBeGreaterThanOrEqual(35);
 
       await nav.getByRole("button", { name: "Sound" }).click();
       const heading = sheet.getByRole("heading", { name: "Sound and alerts" });
-      // Smooth scrolling settles on its own. Wait for where it should end up, not just for a pause:
-      // on a busy runner two samples can match mid-scroll.
       const boxes = async () => ({
-        // The dialog role sits on the full-screen backdrop; the sheet is its panel.
         sheetBox: (await sheet.locator(".sheet").boundingBox())!,
         navBox: (await nav.boundingBox())!,
         headBox: (await heading.boundingBox())!,
@@ -82,7 +70,6 @@ for (const size of SIZES) {
         )
         .toBe(true);
       const { sheetBox, navBox, headBox } = await boxes();
-      // The chip row is still at the top of the sheet, and the heading is in view just under it (not hidden behind it).
       expect(navBox.y).toBeGreaterThanOrEqual(sheetBox.y - 1);
       expect(navBox.y).toBeLessThanOrEqual(sheetBox.y + 6);
       expect(headBox.y).toBeGreaterThanOrEqual(navBox.y + navBox.height - 1);
@@ -104,7 +91,6 @@ for (const size of SIZES) {
       for (const title of TITLES) await expect(page.locator("#gameplay").getByRole("heading", { name: title, level: 3 })).toHaveCount(1);
 
       if (size.project === "desktop-1280") {
-        // Wide: Gameplay on the right, Appearance on the left under Account.
         const a = (await appearance.boundingBox())!;
         const g = (await page.locator("#gameplay").boundingBox())!;
         const acc = (await page.locator("#account").boundingBox())!;
@@ -121,7 +107,7 @@ for (const size of SIZES) {
   });
 }
 
-// Phone landscape wraps the seven chips onto two rows; a jumped-to heading must land under both, not behind the second (#937).
+// Phone landscape wraps the seven chips onto two rows; a jumped-to heading must land under both, not behind the second.
 test("a chip jumps its heading below a two-row chip row in phone landscape (#937)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "phone landscape runs in phone-375");
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -132,13 +118,11 @@ test("a chip jumps its heading below a two-row chip row in phone landscape (#937
   await page.getByRole("menuitem", { name: /Gameplay settings/ }).click();
   const sheet = page.getByRole("dialog", { name: "Gameplay settings" });
   const nav = sheet.getByRole("navigation", { name: "Gameplay sections" });
-  // The case only exists while the chips wrap.
   const chipTops = new Set<number>();
   for (const b of await nav.getByRole("button").all()) chipTops.add(Math.round((await b.boundingBox())!.y));
   expect(chipTops.size).toBeGreaterThan(1);
   await nav.getByRole("button", { name: "Visual aids" }).click();
   const heading = sheet.getByRole("heading", { name: "Visual aids", level: 3 });
-  // Reduced motion makes the jump instant, so one reading is where it settles (a smooth scroll passes under the row on its way).
   await page.waitForTimeout(150);
   const n = (await nav.boundingBox())!;
   const h = (await heading.boundingBox())!;

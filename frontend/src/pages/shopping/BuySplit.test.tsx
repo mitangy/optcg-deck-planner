@@ -83,12 +83,10 @@ describe("BuySplitEditor (#906)", () => {
 
   it("the footer totals the alt picks at their own price and the rest at base (#906)", () => {
     const host = mount(<BuySplitEditor card={card(3, [alt(1, 10, 1), alt(2, 20, 1)])} onPick={() => {}} />);
-    // 10 + 20 + 1 base copy at $1.00
     expect(host.querySelector(".buy-split-total")?.textContent).toBe("Total$31.00");
   });
 
   it("owned picked alt copies are not counted against Base, the caption or the total again (#908)", () => {
-    // Need 4, pick 2 of Alt 1, own both: still_need 2 is all base.
     const owned = { ...alt(1, 10, 2), owned: 2 };
     const host = mount(<BuySplitEditor card={card(2, [owned])} onPick={() => {}} />);
     expect(host.querySelector("[aria-label='Base copies to buy']")?.textContent).toBe("×2");

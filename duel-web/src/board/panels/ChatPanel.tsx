@@ -6,12 +6,9 @@ import { playerLabel } from "../match/playerNames";
 
 type Props = {
   lines: readonly ChatLine[];
-  /** Your seat, or null when spectating (read-only). */
   mySeat: Seat | null;
   onSend: (text: string) => void;
-  /** Concede the match; undefined when conceding is unavailable (`/ff` then shows a hint). */
   onConcede?: () => void;
-  /** Start expanded (wide layouts, where chat has its own rail slot). */
   defaultOpen?: boolean;
 };
 
@@ -20,11 +17,9 @@ function speaker(seat: Seat, mySeat: Seat | null): string {
   return seat === mySeat ? "You" : "Opponent";
 }
 
-/** Collapsible match chat; mirrors the battle log panel's placement. */
 export function ChatPanel({ lines, mySeat, onSend, onConcede, defaultOpen = false }: Props) {
   const [open, setOpen] = useState(defaultOpen);
   const [draft, setDraft] = useState("");
-  /** Inline result of a `/ff`: asks to confirm, or says conceding is unavailable. */
   const [command, setCommand] = useState<"confirm" | "unavailable" | null>(null);
   const [lastSeenId, setLastSeenId] = useState<string | null>(null);
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -132,7 +127,6 @@ export function ChatPanel({ lines, mySeat, onSend, onConcede, defaultOpen = fals
                   setDraft(e.target.value);
                   if (command === "unavailable") setCommand(null);
                 }}
-                // Keep board shortcuts (Esc clears DON!! selection) from firing while typing.
                 onKeyDown={(e) => e.stopPropagation()}
               />
               <button type="submit" className="chat-send" disabled={!draft.trim()}>

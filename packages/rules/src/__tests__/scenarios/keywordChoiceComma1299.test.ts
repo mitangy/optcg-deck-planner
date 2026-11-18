@@ -1,6 +1,6 @@
 /**
- * Bandai prints a keyword choice as "[A], [B] or [C]" (no comma before "or"); TCGPlayer printed "[A], [B], or [C]".
- * Both must compile to the same pick-one-keyword effect (#1299).
+ * Bandai prints a keyword choice without the comma before "or"; TCGPlayer prints it with one. Both must compile the
+ * same.
  */
 import { describe, expect, it } from "vitest";
 import { cardDataFor } from "../../cards/cardData.js";

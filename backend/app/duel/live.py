@@ -29,9 +29,7 @@ from app.core.time import as_utc
 from app.duel.models import DuelMatchProgress
 from app.social.models import DuelPresence
 
-# Snapshots land every ~15 s; readers also skip entries older than friends.PRESENCE_TTL.
 PRESENCE_KEY_TTL_S = 60
-# A game nobody has touched for this long is gone from the unfinished list.
 PROGRESS_TTL_S = 6 * 3600
 
 
@@ -58,11 +56,8 @@ def _parse_time(value: str) -> datetime:
     return as_utc(datetime.fromisoformat(value))
 
 
-# --- presence -----------------------------------------------------------------
-
 
 def write_presence_snapshot(r, instance_id: str, entries: Iterable, now: datetime) -> None:
-    """Replace one game-server process's presence with ``entries`` (already filtered and de-duplicated)."""
     entries = list(entries)
     members = {f"{e.user_id}|{e.room_id}" for e in entries}
     previous = r.smembers(_presence_inst_key(instance_id))
@@ -76,7 +71,6 @@ def write_presence_snapshot(r, instance_id: str, entries: Iterable, now: datetim
 
     pipe = r.pipeline(transaction=True)
     for (uid, room), raw in zip(gone, owners):
-        # A room that moved to another process belongs to that process's snapshot now.
         if raw and json.loads(raw).get("instance_id") == instance_id:
             pipe.hdel(_presence_user_key(int(uid)), room)
     stamp = now.isoformat()
@@ -107,7 +101,6 @@ def write_presence_snapshot(r, instance_id: str, entries: Iterable, now: datetim
 
 
 def read_presence(r, user_ids: list[int]) -> list[DuelPresence]:
-    """Every presence entry of these users (freshness is the caller's call)."""
     pipe = r.pipeline(transaction=False)
     for uid in user_ids:
         pipe.hgetall(_presence_user_key(uid))
@@ -129,8 +122,6 @@ def read_presence(r, user_ids: list[int]) -> list[DuelPresence]:
             )
     return rows
 
-
-# --- per-turn progress --------------------------------------------------------
 
 _PROGRESS_FIELDS = (
     "seat0_user_id",
@@ -159,7 +150,6 @@ def _progress_from_json(match_id: str, raw: str) -> DuelMatchProgress:
 
 
 def write_progress(r, row: DuelMatchProgress) -> None:
-    """Store the latest snapshot and index it under both players."""
     data = {f: getattr(row, f) for f in _PROGRESS_FIELDS}
     data["updated_at"] = row.updated_at.isoformat()
     score = row.updated_at.timestamp()
@@ -169,7 +159,6 @@ def write_progress(r, row: DuelMatchProgress) -> None:
     pipe.expire(PROGRESS_INDEX_KEY, PROGRESS_TTL_S)
     for uid in (row.seat0_user_id, row.seat1_user_id):
         pipe.zadd(_progress_user_key(uid), {row.match_id: score})
-        # Index entries older than the snapshots themselves point at nothing.
         pipe.zremrangebyscore(_progress_user_key(uid), "-inf", score - PROGRESS_TTL_S)
         pipe.expire(_progress_user_key(uid), PROGRESS_TTL_S)
     pipe.execute()
@@ -185,7 +174,6 @@ def delete_progress(r, match_id: str, user_ids: Iterable[int]) -> None:
 
 
 def user_progress(r, user_id: int, limit: int) -> list[DuelMatchProgress]:
-    """A player's unfinished games in Redis, newest first."""
     match_ids = r.zrevrange(_progress_user_key(user_id), 0, limit - 1)
     if not match_ids:
         return []
@@ -194,10 +182,8 @@ def user_progress(r, user_id: int, limit: int) -> list[DuelMatchProgress]:
 
 
 def idle_progress_ids(r, older_than: datetime, limit: int) -> list[str]:
-    """Match ids whose latest snapshot is older than ``older_than``, oldest first."""
     return r.zrangebyscore(PROGRESS_INDEX_KEY, "-inf", older_than.timestamp(), start=0, num=limit)
 
 
 def drop_index_entry(r, match_id: str) -> None:
-    """Forget an index entry whose snapshot already expired."""
     r.zrem(PROGRESS_INDEX_KEY, match_id)

@@ -11,7 +11,6 @@ import type { UndoUi } from "../match/undoHud";
 
 export type MatchMenuPlacement = "top" | "left" | "anchor";
 
-/** Mute this tab: a fixed-size speaker so flipping state never moves its neighbours (#934). */
 function MuteTabButton({ className, tabMute, tabMuteText }: { className: string; tabMute: TabMute; tabMuteText: { label: string; title: string } }) {
   return (
     <button
@@ -44,7 +43,6 @@ function FullscreenButton({ className, isFullscreen, onToggle }: { className: st
   );
 }
 
-/** MULLIGAN / YOUR TURN / OPPONENT'S TURN, and the SPECTATOR / REPLAY chip. */
 function TurnChips({
   mulliganPhase,
   decidingMulligan,
@@ -74,7 +72,6 @@ function TurnChips({
   );
 }
 
-/** The undo (or "waiting for the answer, cancel") button and the hotseat pass-the-device button. */
 export function HudUndoPass({
   ui,
   hidden,
@@ -83,7 +80,6 @@ export function HudUndoPass({
   hotseatPass,
 }: {
   ui: UndoUi;
-  /** The Undo menu is not offered right now (their request is up, or nothing to undo on the compact bar). */
   hidden: boolean;
   spectating: boolean;
   over: boolean;
@@ -116,7 +112,6 @@ export function HudUndoPass({
       )
     ) : null}
     {hotseatPass ? (
-      // The phone bar is tight: "→ P2" here, the full wording in its name.
       <button
         type="button"
         className="hud-pass-btn"
@@ -132,7 +127,6 @@ export function HudUndoPass({
 }
 
 export type BoardHudProps = {
-  /** `full`: the computer's top bar. `compact`: the phone bar. `column`: the no-top-bar action row. */
   variant: "full" | "compact" | "column";
   view: PlayerView;
   players: SeatPlayers | null;
@@ -148,15 +142,12 @@ export type BoardHudProps = {
   decidingMulligan: boolean;
   youFirst: boolean;
   orderLabel: string;
-  /** The chess-clock readouts, formatted once by the board. */
   turnClock: string | null;
   matchClock: string | null;
   seatClocks: SeatClocks | null;
   logPoseButton: ReactNode;
-  /** The match menu for a placement (the board owns its items). */
   matchMenu: (placement: MatchMenuPlacement) => ReactNode;
   undoUi: UndoUi;
-  /** The Undo menu is not offered right now (see HudUndoPass). */
   undoHidden: boolean;
   hotseatPass: { otherSeat: Seat; onPass: () => void } | undefined;
   tabMute: TabMute;
@@ -173,10 +164,6 @@ export type BoardHudProps = {
   onLeave: () => void;
 };
 
-/**
- * The match HUD in its three forms (they differ in wording where the phone bar is tight): the computer's top
- * bar, the phone bar, and the action row that replaces the top bar on a bigger playing area.
- */
 export function BoardHud(p: BoardHudProps) {
   const {
     variant,
@@ -231,7 +218,6 @@ export function BoardHud(p: BoardHudProps) {
   );
 
   if (variant === "column") {
-    /** The no-top-bar action row: same buttons as the phone bar, a fixed height so nothing moves when one comes or goes. */
     return (
       <div className="col-actions">
         {logPoseButton}

@@ -1,9 +1,3 @@
-/**
- * "Review game" on the match-over card (#965): once the saved match says its replay is ready, the card offers a
- * button that opens /replay/:matchId in the same tab. Opened straight from the card, a replay the server is still
- * saving (409) is retried behind a "Saving the game…" board instead of showing "Still being played".
- * Driven by `/demo?over` (its saved match has a replay); the FastAPI backend is faked in the browser.
- */
 import { readFileSync } from "node:fs";
 import { test, expect, signInAs, FAKE_API } from "./fixtures";
 import type { Page } from "@playwright/test";
@@ -11,7 +5,6 @@ import type { Page } from "@playwright/test";
 const GAME = JSON.parse(readFileSync(new URL("./data/replay-purple-red.json", import.meta.url), "utf8")) as Record<string, unknown>;
 const SHOTS = process.env.REVIEW_SHOTS_DIR;
 
-/** Answers the demo match's replay: 409 ("still saving") until `release()`, then the recording. */
 async function fakeReplay(page: Page, saving: boolean): Promise<{ release: () => void }> {
   let busy = saving;
   await page.route(`${FAKE_API}/duel/matches/me/**/replay`, (route) =>

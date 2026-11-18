@@ -4,10 +4,6 @@ import { mintOwnerToken } from "../../net/api";
 import { fetchActiveMatches, pickOtherDeviceMatch, type ActiveMatch } from "../../net/activeMatches";
 import { loadMatchResume } from "../../net/matchResume";
 
-/**
- * A live match this account holds a seat in that this tab does not already resume (#451). Looked up once sign-in
- * has settled and again whenever the tab is shown, so a match started on a phone appears when you come back.
- */
 export function useOtherDeviceMatch(opts: {
   authChecked: boolean;
   matchOwner: "session" | "dev" | undefined;
@@ -17,7 +13,6 @@ export function useOtherDeviceMatch(opts: {
   const { authChecked, matchOwner, devUserKey, serverUrl } = opts;
   const [otherDevice, setOtherDevice] = useState<ActiveMatch | null>(null);
   const enabled = authChecked && Boolean(matchOwner);
-  // Bumped when the owner changes or the lobby unmounts, so a lookup still in flight drops its answer.
   const generation = useRef(0);
 
   useEffect(() => {

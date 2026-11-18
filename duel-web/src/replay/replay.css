@@ -1,4 +1,3 @@
-/* —— Replay viewer —— */
 .replay-controls {
   box-sizing: border-box;
   display: flex;
@@ -138,7 +137,6 @@
   cursor: pointer;
 }
 
-/* Short labels for the narrowest rail (a landscape phone); the full ones are the buttons' names. */
 .replay-seg-short {
   display: none;
 }
@@ -152,7 +150,6 @@
   color: var(--chrome-bright, inherit);
 }
 
-/* Your own line (#966): the variation bar takes the mode toggle's row, at the same height. */
 .replay-line {
   box-sizing: border-box;
   display: flex;
@@ -160,7 +157,6 @@
   align-items: center;
   gap: 0.3rem;
   min-width: 0;
-  /* The mode toggle's height (its buttons plus its own border), so swapping them moves nothing. */
   min-height: calc(2.75rem + 2px);
   padding: 0 0.3rem 0 0.55rem;
   border: 1px solid var(--chrome);
@@ -215,14 +211,12 @@
   box-shadow: var(--focus);
 }
 
-/* On a phone the bar sits where the action bar does. */
 .intent-bar.replay-bar {
   padding: 0;
   background: none;
   border: 0;
 }
 
-/* Desktop: the controls float over the right rail's free space, like the primary action dock. */
 .replay-dock {
   position: fixed;
   right: 0.75rem;
@@ -232,7 +226,6 @@
   min-width: 16.5rem;
 }
 
-/* One slim line at the top of the controls: older rules, or where the recording stops. It never covers the board. */
 .replay-note {
   box-sizing: border-box;
   margin: 0;
@@ -282,12 +275,10 @@
   color: var(--chrome);
 }
 
-/* The result pill sits above the controls at the bottom of the rail. */
 .replay-root .match-result-pill.match-result-pill-rail {
   bottom: calc(0.75rem + 16.5rem);
 }
 
-/* A hand card the viewer may not see: a card back in the same tile box, so a hidden hand lays out like a shown one. */
 .card-tile.card-tile-hidden {
   cursor: default;
 }
@@ -304,7 +295,6 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
-/* —— Phones and tablets: transport, scrubber and mode toggle, with the rest behind More —— */
 .replay-compact {
   gap: 0.3rem;
   padding: 0.4rem 0.5rem;
@@ -327,7 +317,6 @@
   width: 2.75rem;
 }
 
-/* The More sheet floats over the board (a fixed overlay, so opening it moves nothing). */
 .replay-more-backdrop {
   position: fixed;
   inset: 0;
@@ -359,7 +348,6 @@
   border-radius: var(--radius-10);
 }
 
-/* Landscape phones: the rail is short, so every row shrinks a little. */
 @media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
   (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
   (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
@@ -380,7 +368,6 @@
     max-width: 2.5rem;
   }
 
-  /* Both mode labels fit their equal-width halves without clipping: the short ones here. */
   .replay-compact .replay-seg-btn {
     padding: 0 0.15rem;
     font-size: 0.74rem;
@@ -420,7 +407,6 @@
     line-height: 1.1;
   }
 
-  /* No room for the words on the narrowest rail: the highlighted bar and "T3 · 1 move" say it (the full text is its title). */
   .replay-compact .replay-line-text strong {
     display: none;
   }
@@ -430,17 +416,14 @@
     top: 0.5rem;
   }
 
-  /* The turn is in the scrubber's readout, which gives the near hand its room back. */
   .replay-root .arena-rail .turn-panel {
     display: none;
   }
 }
 
-/* —— Game review (#967): grades, win chance, scrubber ticks and the summary —— */
 .replay-root,
 .replay-review-pop,
 .replay-review-sheet {
-  /* Dark: bright discs with a dark or white mark. Light: deeper discs so a yellow disc and yellow text still read on a pale panel. */
   --rv-c-best: #81b64c;
   --rv-c-great: #4aa3c8;
   --rv-c-excellent: #9bc44a;
@@ -534,7 +517,6 @@
   position: relative;
 }
 
-/* The strip: every row is always there (reserved), so a new grade or the results arriving move nothing. */
 .replay-review {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -595,7 +577,6 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  /* Two lines are reserved (#986): the grade and the played move wrap instead of being cut off, and nothing below moves. */
   height: 2.4rem;
   min-width: 0;
 }
@@ -671,7 +652,6 @@
   height: 1.9rem;
 }
 
-/* Scrubber ticks: your moves above the track, the other player's below it, so who made them reads without colour. */
 .replay-range-wrap {
   position: relative;
   display: flex;
@@ -706,7 +686,6 @@
 .rv-tick-mistake { background: var(--rv-c-mistake); }
 .rv-tick-blunder { background: var(--rv-c-blunder); }
 
-/* Turn list marks. */
 .rv-turn-option {
   display: inline-flex;
   align-items: center;
@@ -721,7 +700,6 @@
 .rv-turn-good { color: var(--rv-up); }
 .rv-turn-bad { color: var(--rv-c-mistake); }
 
-/* Desktop: the pick row holds Turn, Speed and Review, so the two selects say it in their button text. */
 .replay-field-label-hidden {
   position: absolute;
   width: 1px;
@@ -744,8 +722,6 @@
   background: color-mix(in srgb, var(--arena-panel) 55%, var(--chrome) 45%);
 }
 
-/* The summary on desktop (#986): a floating panel. It starts over the rail above the controls, is dragged by its header and
-   resized from its edges, and is fixed, so opening, moving or resizing it never moves the controls. */
 .replay-review-pop {
   position: fixed;
   z-index: var(--z-review-pop);
@@ -810,7 +786,6 @@
   box-shadow: var(--focus);
 }
 
-/* Resize handles on the four edges and corners: a thin hit strip that sits on the border. */
 .rv-resize {
   position: absolute;
   z-index: var(--z-raise-3);
@@ -856,7 +831,6 @@
 .rv-resize-top-right { top: -6px; right: -6px; cursor: nesw-resize; }
 .rv-resize-bottom-left { bottom: -6px; left: -6px; cursor: nesw-resize; }
 
-/* The move on screen, in full (the sheet on phones, where the strip keeps to two lines). */
 .rv-now {
   display: flex;
   flex-direction: column;
@@ -1066,7 +1040,6 @@
   align-items: baseline;
 }
 
-/* Wraps, so a long move and its best alternative are read whole (#986). */
 .rv-moment-sub {
   overflow-wrap: anywhere;
   color: var(--muted);
@@ -1083,7 +1056,6 @@
   text-align: center;
 }
 
-/* Desktop: the controls give back a little height so the review strip fits beside the End turn button. */
 .replay-dock .replay-controls:not(.replay-compact) {
   gap: 0.3rem;
 }
@@ -1126,8 +1098,6 @@
   border-radius: var(--radius-10);
 }
 
-/* Phones (portrait): one line, the grade with Show best beside it. The win-chance bar is a thin line along the strip's
-   foot and the best move's name is in the button's tooltip and the Review sheet, so the board keeps its height. */
 .replay-compact .replay-review {
   position: relative;
   grid-template-areas: "move btn";
@@ -1161,7 +1131,6 @@
   height: 2.75rem;
 }
 
-/* Phones keep the strip a fixed two lines; a longer move ends in an ellipsis here and is whole in the Review sheet (#986). */
 .replay-compact .rv-text {
   display: -webkit-box;
   overflow: hidden;
@@ -1188,7 +1157,6 @@
 @media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
   (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
   (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {
-  /* One compact row: the grade and Show best. The win chance, the best move and the summary are behind Review. */
   .replay-compact .replay-review {
     grid-template-areas: "move btn";
     row-gap: 0;
@@ -1216,7 +1184,6 @@
     font-size: 0.7rem;
   }
 
-  /* The grade is its badge here (named for screen readers, and the text is behind Review); the toggle keeps its room. */
   .replay-compact .rv-text {
     display: none;
   }

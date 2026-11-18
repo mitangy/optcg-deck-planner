@@ -1,4 +1,3 @@
-"""Friends tournaments: bracket maths, standings, room claims and result ingest (#997)."""
 
 from __future__ import annotations
 
@@ -71,7 +70,6 @@ def _create(c, uid, **over):
 
 
 def _setup(c, S, n, prefix="p", **over):
-    """A started tournament with n players (users p0 organizes). Returns (code, ids, tournament json)."""
     ids = [_user(S, f"{prefix}{i}") for i in range(n)]
     r = _create(c, ids[0], **over)
     assert r.status_code == 201, r.text
@@ -111,7 +109,6 @@ def _ingest(c, match_id, seat0, seat1, winner_seat):
 
 
 def _open_room(c, code, m, room_id=None):
-    """Player a claims the match, then reports the room they opened."""
     a = m["a"]["user_id"]
     room_id = room_id or f"room-{m['id']}"
     assert _as(c, a).post(f"/tournaments/{code}/matches/{m['id']}/play", json={}).json()["action"] == "host"
@@ -121,13 +118,10 @@ def _open_room(c, code, m, room_id=None):
 
 
 def _play_out(c, code, m, winner_side):
-    """Play a match through the room and ingest its result; winner_side 0 = player a."""
     room = _open_room(c, code, m)
     _ingest(c, room, m["a"]["user_id"], m["b"]["user_id"], winner_side)
     return m["a"]["user_id"] if winner_side == 0 else m["b"]["user_id"]
 
-
-# --- pure logic ---------------------------------------------------------------
 
 
 def test_bracket_order_pairs_top_seeds_with_the_bottom_ones_997():
@@ -156,7 +150,6 @@ def _m(a, b, winner):
 
 
 def test_standings_break_a_tie_on_wins_by_head_to_head_997():
-    # 1 beats everyone; 2, 3 and 4 each win once and beat each other in a cycle, so they stay level.
     matches = [_m(1, 2, 1), _m(1, 3, 1), _m(1, 4, 1), _m(2, 3, 3), _m(2, 4, 2), _m(3, 4, 4)]
     rows = logic.standings([1, 2, 3, 4], matches)
     by = {r.user_id: r for r in rows}
@@ -164,7 +157,6 @@ def test_standings_break_a_tie_on_wins_by_head_to_head_997():
     assert [by[2].wins, by[3].wins, by[4].wins] == [1, 1, 1]
     assert {by[2].rank, by[3].rank, by[4].rank} == {2}
     matches = [_m(1, 2, 1), _m(1, 3, 3), _m(2, 3, 3), _m(1, 4, 1), _m(2, 4, 2), _m(3, 4, 4)]
-    # wins: 1:2, 2:1, 3:2, 4:1. 1 and 3 tie on 2; 3 beat 1 -> 3 first. 2 and 4 tie on 1; 2 beat 4 -> 2 first.
     rows = logic.standings([1, 2, 3, 4], matches)
     assert [(r.user_id, r.rank) for r in rows] == [(3, 1), (1, 2), (2, 3), (4, 4)]
 
@@ -186,8 +178,6 @@ def test_standings_order_players_by_wins_then_seed_997():
     assert [(r.user_id, r.wins, r.losses, r.rank) for r in rows] == [(6, 2, 0, 1), (7, 1, 1, 2), (5, 0, 2, 3)]
     assert logic.round_robin_winner(rows) == 6
 
-
-# --- create / join / invite / start ------------------------------------------
 
 
 def test_create_validates_size_per_format_and_names_997(client):
@@ -220,7 +210,6 @@ def test_an_organizer_can_have_five_active_tournaments_at_most_997(client):
         assert _create(c, me).status_code == 201
     r = _create(c, me)
     assert r.status_code == 400
-    # Cancelling one frees a slot.
     code = _as(c, me).get("/tournaments").json()["tournaments"][0]["code"]
     assert c.post(f"/tournaments/{code}/cancel").status_code == 200
     assert _create(c, me).status_code == 201
@@ -258,7 +247,6 @@ def test_you_can_only_invite_friends_and_only_the_organizer_invites_997(client):
     r = _as(c, org).post(f"/tournaments/{code}/invite", json={"user_id": friend})
     assert r.status_code == 200
     assert [(p["user_id"], p["status"]) for p in r.json()["players"] if p["user_id"] == friend] == [(friend, "invited")]
-    # The invite shows up in the friend's list and joining turns it into a seat.
     mine = _as(c, friend).get("/tournaments").json()["tournaments"]
     assert [(t["code"], t["my_role"], t["players_joined"]) for t in mine] == [(code, "invited", 2)]
     joined = _as(c, friend).post(f"/tournaments/{code}/join").json()
@@ -290,7 +278,7 @@ def test_the_organizer_removes_players_while_open_997(client):
 def test_start_needs_enough_players_and_the_organizer_997(client):
     c, S = client
     ids = [_user(S, f"p{i}") for i in range(4)]
-    code = _create(c, ids[0], size=8).json()["code"]  # an 8 bracket needs 5
+    code = _create(c, ids[0], size=8).json()["code"]
     for uid in ids[1:]:
         _as(c, uid).post(f"/tournaments/{code}/join")
     assert _as(c, ids[1]).post(f"/tournaments/{code}/start").status_code == 403
@@ -301,7 +289,6 @@ def test_start_needs_enough_players_and_the_organizer_997(client):
     _as(c, extra).post(f"/tournaments/{code}/join")
     assert _get(c, ids[0], code)["me"]["can_start"] is True
     assert _as(c, ids[0]).post(f"/tournaments/{code}/start").status_code == 200
-    # Once running, nobody joins or starts again.
     late = _user(S, "late")
     assert _as(c, late).post(f"/tournaments/{code}/join").status_code == 400
     assert _as(c, ids[0]).post(f"/tournaments/{code}/start").status_code == 400
@@ -341,8 +328,6 @@ def test_unknown_code_is_404_and_get_hides_rooms_997(client):
     assert _get(c, ids[0], code)["matches"][m["id"] - 1]["room_open"] is True
 
 
-# --- bracket flow ---------------------------------------------------------------
-
 
 def test_six_players_in_an_eight_bracket_give_the_top_two_seeds_byes_997(client):
     c, S = client
@@ -355,7 +340,6 @@ def test_six_players_in_an_eight_bracket_give_the_top_two_seeds_byes_997(client)
     assert sorted(seed[m["winner_id"]] for m in byes) == [1, 2]
     assert all(m["status"] == "done" for m in byes)
     assert len([m for m in r1 if m["status"] == "ready"]) == 2
-    # Seed 1 sits in slot 0 -> semifinal slot 0, seat a; seed 2 in slot 2 -> semifinal slot 1, seat a.
     r2 = {m["slot"]: m for m in t["matches"] if m["round"] == 2}
     assert seed[r2[0]["a"]["user_id"]] == 1 and r2[0]["b"] is None and r2[0]["status"] == "waiting"
     assert seed[r2[1]["a"]["user_id"]] == 2 and r2[1]["b"] is None and r2[1]["status"] == "waiting"
@@ -367,7 +351,7 @@ def test_a_result_for_the_matchs_room_advances_the_bracket_to_a_champion_997(cli
     code, ids, t = _setup(c, S, 4)
     first = _ready(t)
     assert len(first) == 2
-    winners = [_play_out(c, code, m, 0) for m in first]  # only seed 1 has no bye here: 4 players, no byes
+    winners = [_play_out(c, code, m, 0) for m in first]
     t = _get(c, ids[0], code)
     final = [m for m in t["matches"] if m["round"] == 2][0]
     assert final["status"] == "ready"
@@ -379,7 +363,6 @@ def test_a_result_for_the_matchs_room_advances_the_bracket_to_a_champion_997(cli
     t = _get(c, ids[0], code)
     assert t["status"] == "finished" and t["winner"]["user_id"] == champion
     assert t["finished_at"] is not None
-    # A finished tournament stays in the list for the players.
     assert [x["status"] for x in _as(c, ids[1]).get("/tournaments").json()["tournaments"]] == ["finished"]
 
 
@@ -400,10 +383,8 @@ def test_a_result_from_other_players_or_a_rematch_id_is_ignored_997(client):
     a, b = m["a"]["user_id"], m["b"]["user_id"]
     outsider = next(i for i in ids if i not in (a, b))
     room = _open_room(c, code, m)
-    # Same room id but a different pair of players.
     _ingest(c, room, a, outsider, 0)
     assert _get(c, ids[0], code)["matches"][m["id"] - 1]["status"] == "ready"
-    # A rematch in the same room is not the tournament game.
     _ingest(c, f"{room}-r1", a, b, 0)
     assert _get(c, ids[0], code)["matches"][m["id"] - 1]["status"] == "ready"
 
@@ -485,7 +466,7 @@ def test_round_robin_with_a_shared_first_place_finishes_without_a_winner_997(cli
     c, S = client
     code, ids, t = _setup(c, S, 3, format="round_robin", size=3)
     ms = {frozenset((m["a"]["user_id"], m["b"]["user_id"])): m for m in t["matches"]}
-    x, y, z = ids  # x beats y, y beats z, z beats x
+    x, y, z = ids
     for (w, l) in ((x, y), (y, z), (z, x)):
         m = ms[frozenset((w, l))]
         out = _as(c, ids[0]).post(f"/tournaments/{code}/matches/{m['id']}/award", json={"winner_id": w}).json()
@@ -505,7 +486,6 @@ def test_the_list_flags_a_ready_match_and_orders_running_before_open_997(client)
         (code, "running", "organizer"),
         (open_code, "open", "organizer"),
     ]
-    # Once their match is over they stop being flagged.
     m = next(m for m in _ready(t) if ids[1] in (m["a"]["user_id"], m["b"]["user_id"]))
     _as(c, ids[0]).post(f"/tournaments/{code}/matches/{m['id']}/award", json={"winner_id": ids[1]})
     mine = _as(c, ids[1]).get("/tournaments").json()["tournaments"]
@@ -529,8 +509,6 @@ def test_old_finished_tournaments_drop_off_the_list_997(client):
     assert _as(c, ids[0]).get("/tournaments").json()["tournaments"] == []
 
 
-# --- play: who opens the room ---------------------------------------------------
-
 
 def _play(c, code, m, uid, **body):
     return _as(c, uid).post(f"/tournaments/{code}/matches/{m['id']}/play", json=body)
@@ -543,7 +521,6 @@ def test_the_first_player_to_play_hosts_and_the_other_waits_for_the_room_997(cli
     a, b = m["a"]["user_id"], m["b"]["user_id"]
     assert _play(c, code, m, a).json() == {"action": "host", "room_id": None, "server_url": None}
     assert _play(c, code, m, b).json()["action"] == "wait"
-    # The host asking again keeps hosting rather than waiting on themselves.
     assert _play(c, code, m, a).json()["action"] == "host"
 
 
@@ -557,7 +534,6 @@ def test_once_the_room_is_reported_the_other_player_joins_it_997(client):
     assert r.json()["action"] == "hosted"
     joined = _play(c, code, m, b).json()
     assert joined["action"] == "join" and joined["room_id"] == "room-xyz"
-    # A server address this API never handed out is dropped.
     assert joined["server_url"] is None
     # The host asking again opens a fresh room instead of joining their own.
     assert _play(c, code, m, a).json()["action"] == "host"
@@ -591,7 +567,6 @@ def test_an_expired_host_lock_lets_the_other_player_take_over_997(client):
     _play(c, code, m, a)
     _age(S, m["id"], host_claimed_at=60)
     assert _play(c, code, m, b).json()["action"] == "host"
-    # And the old host now waits on the new one.
     assert _play(c, code, m, a).json()["action"] == "wait"
 
 
@@ -604,7 +579,6 @@ def test_a_stale_room_with_no_host_in_it_is_replaced_997(client):
     _play(c, code, m, a, room_id="dead-room")
     _age(S, m["id"], room_set_at=120, host_claimed_at=120)
     assert _play(c, code, m, b).json()["action"] == "host"
-    # The dead room is gone: the first player now waits on the new host.
     assert _play(c, code, m, a).json()["action"] == "wait"
 
 
@@ -632,7 +606,6 @@ def test_an_old_room_stays_joinable_while_its_host_is_seated_in_it_997(client):
     r = _play(c, code, m, b).json()
     assert (r["action"], r["room_id"]) == ("join", "live-room")
     assert r["server_url"] == "https://gs.example"
-    # Once that room has finished it no longer counts.
     with S() as db:
         db.get(DuelPresence, (a, "live-room")).phase = "finished"
         db.commit()
@@ -662,7 +635,6 @@ def test_a_host_tapping_play_again_mid_game_goes_back_to_their_live_room_and_the
         db.commit()
     again = _play(c, code, m, a).json()
     assert (again["action"], again["room_id"]) == ("join", "live-room")
-    # The opponent is not told to wait for a new room either.
     assert _play(c, code, m, b).json()["action"] == "join"
     _ingest(c, "live-room", a, b, 1)
     ready = {x["id"]: x for x in _get(c, a, code)["matches"]}[m["id"]]

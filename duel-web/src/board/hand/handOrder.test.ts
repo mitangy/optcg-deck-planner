@@ -10,7 +10,6 @@ const card = (cx: number, cy: number, w = 60, h = 84): SlotRect => ({
 
 describe("hand reorder", () => {
   it("keeps a dragged order across hand updates, drops cards that left and adds new cards at the end (#294)", () => {
-    // Saved: c, a, b. Then b is played and d, e are drawn.
     expect(reconcileHandOrder(["c", "a", "b"], ["a", "c", "d", "e"])).toEqual(["c", "a", "d", "e"]);
   });
 
@@ -20,7 +19,6 @@ describe("hand reorder", () => {
   });
 
   it("finds the drop slot in a fanned hand from the pointer's x, though the arc moves card heights (#294)", () => {
-    // Fan arc: the middle cards sit higher than the outer ones.
     const fan = [card(100, 120), card(150, 108), card(200, 104), card(250, 108), card(300, 120)];
     expect(handDropSlot(fan, 225, 160)).toBe(3);
     expect(handDropSlot(fan, 80, 80)).toBe(0);
@@ -29,13 +27,10 @@ describe("hand reorder", () => {
 
   it("finds the drop slot in a wrapping grid hand by row, then x (#294)", () => {
     const grid = [card(50, 50), card(150, 50), card(250, 50), card(50, 150), card(150, 150)];
-    // Second row, between its two cards: after the whole first row and one card.
     expect(handDropSlot(grid, 100, 150)).toBe(4);
-    // First row, between its first two cards.
     expect(handDropSlot(grid, 100, 40)).toBe(1);
   });
 
-  /** Drop slots a drag reports as the pointer passes over these measured slots (null = off the hand). */
   const walk = (measured: (number | null)[], oneWayOut: boolean) => {
     let left = false;
     return measured.map((m) => {
@@ -46,7 +41,6 @@ describe("hand reorder", () => {
   };
 
   it("a card dragged out of a floating fan and back over it is not reordered, so the board under the fan takes it (#294)", () => {
-    // In the fan (slot 1), out over the board, then back over the fan (slot 2).
     expect(walk([1, 1, null, 2, 2], true)).toEqual([1, 1, null, null, null]);
   });
 

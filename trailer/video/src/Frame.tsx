@@ -5,7 +5,6 @@ export const BAR_H = 36;
 
 const Dot: React.FC<{c: string}> = ({c}) => <div style={{width: 11, height: 11, borderRadius: '50%', background: c, opacity: 0.85}} />;
 
-/** Rounded, softly shadowed browser window. Children fill the (w x h) content area. */
 export const BrowserFrame: React.FC<{w: number; h: number; url?: string; children: React.ReactNode}> = ({w, h, url = 'optcgduel.app', children}) => (
   <div
     style={{
@@ -36,7 +35,6 @@ export const BrowserFrame: React.FC<{w: number; h: number; url?: string; childre
   </div>
 );
 
-/** Phone bezel, content is (w x h). */
 export const PhoneFrame: React.FC<{w: number; h: number; island?: number; children: React.ReactNode}> = ({w, h, island = 1, children}) => (
   <div
     style={{

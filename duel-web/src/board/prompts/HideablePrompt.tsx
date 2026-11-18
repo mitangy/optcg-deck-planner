@@ -11,20 +11,10 @@ import { PopupSizeButtons } from "../preview/PopupSizeButtons";
 import { DESKTOP_BOARD_QUERY, useMediaQuery } from "../layout/useMediaQuery";
 import "./float.css";
 
-/** The card an effect comes from, for prompt headers and the "Back to …" pill. */
 export function promptSourceName(choice: PendingChoiceView): string {
   return choice.cardDefId && choice.cardDefId !== "HIDDEN" ? lookupCard(choice.cardDefId).name : "Effect";
 }
 
-/**
- * Wraps a choice pop-up so its Hide button can tuck it away: the pop-up stays
- * mounted (picks so far are kept) and one pill brings it back. `dodge` (wide
- * boards, mid-battle) keeps the pop-up off the card being attacked. The
- * header drags the pop-up anywhere on screen (see usePromptDrag). On the
- * desktop board (`dockable`) it can also dock into a side column (the
- * `promptDock` setting, #449) without leaving this spot in the React tree, so
- * the picks made so far survive; docked, it no longer dodges a battle.
- */
 export function HideablePrompt({
   name,
   hidden,
@@ -37,7 +27,6 @@ export function HideablePrompt({
   hidden: boolean;
   onShow: () => void;
   dodge?: { defenderId: string; attackerId: string } | null;
-  /** The board has side columns to dock into (wide desktop, not a landscape phone). */
   dockable?: boolean;
   children: ReactNode;
 }) {
@@ -59,12 +48,6 @@ export function HideablePrompt({
   );
 }
 
-/**
- * The pill that brings a hidden prompt back. On desktop it sits in the top
- * bar's empty middle (clear of the status chips and buttons) rather than on
- * the opponent's DON!! row, or straddling the bar's lower edge when the chips
- * leave no gap; phones keep it floating under the bar.
- */
 export function BackPill({ label, onShow }: { label: string; onShow: () => void }) {
   const desktop = useMediaQuery(DESKTOP_BOARD_QUERY);
   const layerRef = useRef<HTMLDivElement>(null);
@@ -93,8 +76,6 @@ export function BackPill({ label, onShow }: { label: string; onShow: () => void 
         pill.offsetWidth,
         (lr.left + lr.right) / 2,
       );
-      // No room beside the chips: straddle the bar's lower edge instead, above
-      // the opponent's DON!! row (the mat's top margin is empty).
       const next =
         left == null
           ? { left: (lr.left + lr.right - pill.offsetWidth) / 2 - lr.left, top: br.bottom - 12 - lr.top }
@@ -132,7 +113,6 @@ export function BackPill({ label, onShow }: { label: string; onShow: () => void 
   );
 }
 
-/** Dock-left / dock-right buttons (desktop): the pressed one undocks. */
 function PromptDockButtons() {
   const dock = usePromptDockControls();
   if (!dock?.dockable) return null;
@@ -159,7 +139,6 @@ function PromptDockButtons() {
   );
 }
 
-/** Small "Hide" button for a pop-up's top-right corner, with the dock buttons beside it. */
 export function PromptHideButton({ onHide }: { onHide?: () => void }) {
   if (!onHide) return null;
   return (

@@ -41,7 +41,6 @@ function Rows({ manual }: { manual?: boolean }) {
   );
 }
 
-/** Selection kept in the caller's state, the way the Lobby and Log Pose rows use it. */
 function Controlled() {
   const [index, setIndex] = useState(1);
   return (

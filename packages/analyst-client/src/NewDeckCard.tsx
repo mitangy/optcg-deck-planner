@@ -6,19 +6,13 @@ const MAX_PROBLEMS = 3;
 
 type Opened = "auto" | "button" | "refused" | "failed" | null;
 
-/**
- * What Log Pose's `propose_new_deck` shows under an answer (#726): the new deck, and a button that opens the app's create-deck page with
- * its name and list filled in. A live draft opens that page once by itself; a draft reloaded with the thread never does.
- */
 export function NewDeckCard({
   draft,
   live = false,
   onOpened,
 }: {
   draft: NewDeckDraft;
-  /** The draft arrived in this session's answer, not from a saved thread. */
   live?: boolean;
-  /** The create page opened (by itself or from the button): the panel can get out of the way (phones). */
   onOpened?: () => void;
 }) {
   const hooks = useContext(SourceHooksContext);

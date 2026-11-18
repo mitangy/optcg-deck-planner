@@ -1,12 +1,3 @@
-/**
- * Build-time pre-render entry (#914). tools/seo/prerender-plugin.mjs bundles this for Node after
- * `vite build`, calls `prerender()` and writes what it returns into `dist/`.
- *
- * Every page here is a public route. Pages that are safe to render on a server (the how-to-play page,
- * the legal pages, What's new, the leader pages) render with their real component; the lobby and the
- * leaderboard get a short static copy (./shells). The client replaces all of it with `createRoot`,
- * so a page that renders differently on the client costs nothing but a repaint.
- */
 import type { ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { Link, Route, Routes, StaticRouter } from "react-router-dom";
@@ -38,11 +29,9 @@ type PageSpec = {
   path: string;
   element: ReactNode;
   head: PrerenderHead;
-  /** Leader whose sample lists the page needs embedded; null embeds the leaders only; undefined embeds nothing. */
   embed?: string | null;
 };
 
-/** `/` → `index.html`, `/decks/meta` → `decks/meta/index.html`. */
 export function fileForPath(path: string): string {
   const clean = path.replace(/^\/+|\/+$/g, "");
   return clean ? `${clean}/index.html` : "index.html";
@@ -85,7 +74,6 @@ function pagesFor(snapshot: MetaSnapshot): PageSpec[] {
   return pages;
 }
 
-/** The element the app shows for a route, in the same frame as the app's: router, then page, then the footer. */
 function render(page: PageSpec, snapshot: MetaSnapshot): string {
   return renderToString(
     <SnapshotContext.Provider value={snapshotFor(snapshot, page.embed ?? null)}>
@@ -97,10 +85,6 @@ function render(page: PageSpec, snapshot: MetaSnapshot): string {
   );
 }
 
-/**
- * All pre-rendered files for a build: one HTML page per public route, the meta snapshot and the sitemap.
- * `snapshot` is for tests; a build leaves it out and gets the live snapshot, or the committed one when the API is down.
- */
 export async function prerender(opts: { template: string; snapshot?: MetaSnapshot; log?: (msg: string) => void }): Promise<PrerenderedFile[]> {
   const log = opts.log ?? ((m: string) => console.log(`[duel-prerender] ${m}`));
   const snapshot = opts.snapshot ?? (await loadBuildSnapshot({ api: (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env.META_API_URL, log })).snapshot;
@@ -113,7 +97,6 @@ export async function prerender(opts: { template: string; snapshot?: MetaSnapsho
   }
   files.push({ file: "meta-snapshot.json", content: `${JSON.stringify(snapshot)}\n` });
 
-  // public/sitemap.xml keeps the pages that are not generated (event rules); the generated ones are added to it.
   const known = [...staticSitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1].slice(SITE_ORIGIN.length) || "/");
   files.push({ file: "sitemap.xml", content: sitemapXml(SITE_ORIGIN, [...known, ...sitemapPaths(), ...snapshotPaths(snapshot)]) });
   return files;

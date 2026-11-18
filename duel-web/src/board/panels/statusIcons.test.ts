@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { placeTip, splitStatuses, statusGlyph, statusTone, statusTooltip } from "./statusIcons";
 
-// Labels exactly as the rules engine emits them (packages/rules/src/engine/views.ts cardView).
 const ENGINE_LABELS = [
   "Effects negated",
   "Cannot attack",

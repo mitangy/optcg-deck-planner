@@ -1,8 +1,3 @@
-"""Who is calling the analyst endpoints: personal connector tokens and short-lived in-app chat tokens.
-
-Lived in routers/analyst.py; the chat, bot and sim-game routers depend on it too, so it sits here
-and no router imports another (refactor D-02).
-"""
 
 from __future__ import annotations
 
@@ -35,7 +30,6 @@ def _chat_sig(settings: Settings, uid: int, exp: int) -> str:
 
 
 def mint_chat_token(settings: Settings, user: User, now: int) -> tuple[str, int]:
-    """A short-lived token the browser hands the analyst's /chat; signed with the service secret."""
     exp = now + CHAT_TOKEN_SECONDS
     return f"chat.{user.id}.{exp}.{_chat_sig(settings, user.id, exp)}", exp
 
@@ -60,7 +54,6 @@ def analyst_user(
     settings: Annotated[Settings, Depends(get_settings)],
     x_analyst_token: Annotated[str | None, Header()] = None,
 ) -> User:
-    """The player whose personal connector token (or in-app chat token) is in X-Analyst-Token."""
     if not x_analyst_token:
         raise HTTPException(status_code=401, detail="Missing analyst token")
     if x_analyst_token.startswith("chat."):

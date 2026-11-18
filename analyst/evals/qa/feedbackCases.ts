@@ -1,6 +1,3 @@
-/** Draft eval case stubs from players' "This is wrong" ratings (#679). A human finishes each one; nothing here is a case yet. */
-
-/** One rating as GET /admin/feedback/export returns it. */
 export type FeedbackItem = {
   id: number;
   updated_at: string | null;
@@ -18,16 +15,12 @@ export type CaseStub = {
   id: string;
   source: "player-feedback";
   kind: "chat" | "review";
-  /** What the player asked (chat). A review has no question: replay the game below. */
   question: string;
-  /** For a review: the game it is about. Replay it with the bot corpus or the recorded replay. */
   match_id: string | null;
-  /** What Log Pose said, as far as stored, and what the player said was wrong with it. */
   bad_answer: string;
   player_note: string;
   model: string;
   rated_at: string | null;
-  /** For the human to fill in. */
   todo: string;
 };
 
@@ -49,7 +42,6 @@ export function caseStub(item: FeedbackItem): CaseStub {
   };
 }
 
-/** The stubs as JSON lines, oldest rating first, skipping any whose answer was not stored. */
 export function stubsJsonl(items: readonly FeedbackItem[]): string {
   const stubs = items
     .filter((i) => i.rating === "wrong" && i.answer_excerpt.trim())

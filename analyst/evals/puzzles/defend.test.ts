@@ -5,11 +5,10 @@ import { blockStepOf, defendPuzzle, fewestCards, MAX_COUNTER_CARDS } from "./def
 import { BIG, board, KAROO, rng, VIVI } from "./testkit";
 
 const catalog = loadCatalog();
-const SMALL_BLOCKER = "ST01-006"; // [Blocker], 1000 power
-const BIG_BLOCKER = "OP06-043"; // [Blocker], 8000 power
-const COUNTER_EVENT_WITH_TARGET = "ST01-014"; // [Counter] +3000 to one Leader or Character: asks which
+const SMALL_BLOCKER = "ST01-006";
+const BIG_BLOCKER = "OP06-043";
+const COUNTER_EVENT_WITH_TARGET = "ST01-014";
 
-/** Big Karoo (7000) attacks the Leader of Newgate (6000, 3 Life); the defender's hand and field are what the test sets. */
 function leaderAttack(hand: string[], field: string[] = []) {
   const h = board();
   h.field(0, BIG);
@@ -24,17 +23,14 @@ function leaderAttack(hand: string[], field: string[] = []) {
 
 describe("defend gold comes from every block and every set of Counter cards", () => {
   it("counts a block that saves the Life only when the blocker survives (#685)", () => {
-    // 7000 against a 1000 Blocker: the blocker is K.O.'d, so only two 1000 Counters on the Leader (6000 + 2000) save everything.
     const small = leaderAttack([KAROO, KAROO], [SMALL_BLOCKER]);
     expect(small.blockStep).not.toBeNull();
     expect(fewestCards(small.blockStep, 1)).toBe(2);
-    // An 8000 Blocker survives 7000: block and use nothing.
     const big = leaderAttack([KAROO, KAROO], [BIG_BLOCKER]);
     expect(fewestCards(big.blockStep, 1)).toBe(0);
   });
 
   it("is -1 when no block and no Counter cards keep the Life (#685)", () => {
-    // One 1000 Counter makes 7000 against 7000, and the attacker wins ties.
     expect(fewestCards(leaderAttack([KAROO]).blockStep, 1)).toBe(-1);
     expect(fewestCards(leaderAttack([]).blockStep, 1)).toBe(-1);
   });
@@ -55,11 +51,10 @@ describe("defend gold comes from every block and every set of Counter cards", ()
 
   it("counts a Banish hit, which takes the Life with no check to answer (#685)", () => {
     const h = board();
-    h.field(0, "OP04-014"); // [Banish], 9000
+    h.field(0, "OP04-014");
     h.life(1, KAROO, KAROO, KAROO);
     h.hand(1, KAROO, KAROO, KAROO, KAROO);
     const index = listLegalIntents(h.state, 0).filter((i) => i.type === "declare_attack").findIndex((i) => i.type === "declare_attack" && i.attackerId === h.state.players[0].characters[0]!.id && i.target.kind === "leader");
-    // 9000 against 6000: 3000 ties, so four 1000 Counters.
     expect(fewestCards(blockStepOf(h.state, index)!, 1)).toBe(4);
   });
 
@@ -91,12 +86,10 @@ describe("the defend puzzle", () => {
     expect(needs.message).toContain("it is your block step");
     expect(needs.message).toContain("Your hand (2): Karoo (ST01-003); Karoo (ST01-003)");
     expect(needs.message).toContain("Answer -1 if it cannot be done.");
-    // Luffy's own 5000 attack on a 6000 Leader fails without any card.
     const none = defendPuzzle(h.state, catalog, rng(1), "no-cards-needed")!;
     expect(none.gold).toEqual({ key: "cards", mode: "number", value: 0 });
     expect(none.tags).toContain("no-cards-needed");
     expect(none.message).toContain("Their Monkey.D.Luffy (ST01-001) is attacking your Leader");
-    // No attack in the position can be made to fail for good: the hand is too small for the big one.
     h.state.players[1].hand.pop();
     const impossible = defendPuzzle(h.state, catalog, rng(1), "impossible")!;
     expect(impossible.gold).toEqual({ key: "cards", mode: "number", value: -1 });

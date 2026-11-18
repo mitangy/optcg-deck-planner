@@ -16,7 +16,6 @@ beforeAll(() => {
     unobserve() {}
     disconnect() {}
   };
-  // Type-ahead reads each option's text with innerText, which jsdom lacks.
   Object.defineProperty(HTMLElement.prototype, "innerText", {
     configurable: true,
     get() {
@@ -96,7 +95,6 @@ describe("lobby deck switcher on the shared Listbox (#718)", () => {
     await mountOpen();
     expect(list()).not.toBeNull();
     expect(host!.contains(list())).toBe(false);
-    // Headless UI names the list by the trigger that opened it.
     expect(list()!.getAttribute("aria-labelledby")).toBe(trigger().id);
     expect(activeName()).toBe("Alpha");
     expect(trigger().classList.contains("open")).toBe(true);

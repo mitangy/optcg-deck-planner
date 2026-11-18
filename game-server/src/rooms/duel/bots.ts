@@ -15,23 +15,11 @@ import type { BotRoomOptions } from "../../protocol.js";
 import type { DuelCore } from "./context.js";
 import type { TimerHandle } from "./time.js";
 
-/** The seat a "Play vs Bot" room gives the server-side player (#631). */
 export const BOT_SEAT: Seat = 1;
 /** Account id of the bot seat: never positive, so a bot game is never written to match history. */
 export const BOT_USER_ID = 0;
-/**
- * How long the bot waits before each move so the human can follow it. Mutable so tests can shorten it:
- * `mainMs` for main-phase actions, `choiceMs` for choices, blocks, counters and mulligans.
- */
 export const botPacing = { mainMs: 700, choiceMs: 400 };
-/**
- * Hard bot: how a decision's lookahead is run (#631, #635).
- *  - `useWorker`: the search runs in a worker thread (botPool.ts), so a long lookahead never blocks the room's event loop.
- *    When the worker fails or times out, the bot plays a Normal move in the room's thread. With `false`, or when the pool
- *    is switched off (BOT_WORKERS=0), the search runs in the room's thread under `inThreadBudgetMs` (the pre-#635 behavior).
- *  - `budgetMs`, `samples`: wall-clock budget and determinized copies of one decision in the worker (the search is cheaper than the budget on most decisions). The search is anytime, so a smaller budget only makes the bot play more like Normal.
- *  - `timeoutMs`: how long a room waits for the worker (queue time included) before it plays Normal instead.
- */
+// The Hard bot's search runs in a worker so a long lookahead never blocks the room's event loop; a failed or late worker falls back to a Normal move.
 export const botSearch = { useWorker: true, budgetMs: 1500, samples: 6, timeoutMs: 4000, inThreadBudgetMs: 200 };
 /** Safety net: after this many bot intents in one turn the bot only ends the turn / passes. */
 export const BOT_MAX_INTENTS_PER_TURN = 150;
@@ -40,12 +28,9 @@ export function botDisplayName(level: BotLevel): string {
   return `Bot (${level === "easy" ? "Easy" : level === "hard" ? "Hard" : "Normal"})`;
 }
 
-/** Plays seat 1 of a "Play vs Bot" room: paces its moves, searches (Hard, in a worker), and falls back when stuck. */
 export class BotDriver {
   private botTimer: TimerHandle | null = null;
-  /** Hard bot (#635): a search is running in the worker pool; the next bot step waits for it. */
   private botJob: { id: number; match: MatchState } | null = null;
-  /** Hard bot only: decisions taken, how many were searched, and the time they took (logged when the game ends). */
   stats = { decisions: 0, searches: 0, ms: 0 };
   private botTurn = -1;
   private botIntentsThisTurn = 0;
@@ -54,12 +39,11 @@ export class BotDriver {
     private readonly core: Pick<DuelCore, "game" | "io" | "time" | "undo" | "seats" | "applySeatIntent" | "concedeSeat">,
   ) {}
 
-  /** The bot's seat, or null in a room without one. */
   seat(): Seat | null {
     return this.core.game.bot ? BOT_SEAT : null;
   }
 
-  /** Seat the server-side player: it fills seat 1, so the match starts as soon as the human sits down. */
+  /** Fills seat 1, so the match starts as soon as the human sits down. */
   seatBot(opts: BotRoomOptions) {
     const { game } = this.core;
     assertKnownDeck(opts.deck);
@@ -74,7 +58,6 @@ export class BotDriver {
     });
   }
 
-  /** Clear everything tied to one game so a rematch starts clean. */
   resetPerGameState() {
     this.clearTimer();
     this.botTurn = -1;
@@ -90,10 +73,7 @@ export class BotDriver {
     if (job) sharedBotPool().cancel(job.id);
   }
 
-  /**
-   * After a state change: if the bot can act, queue one move after a pacing delay. At most one
-   * move is ever queued; the move itself re-reads the state, so a stale queue is harmless.
-   */
+  // At most one move is queued; the move re-reads the state, so a stale queue is harmless.
   scheduleStep() {
     const { game } = this.core;
     if (!game.bot || this.botTimer || this.botJob || game.disposed) return;
@@ -146,11 +126,7 @@ export class BotDriver {
     this.playIntent(m, legal, intent);
   }
 
-  /**
-   * Hard bot (#635): search `m` in the worker pool and play the answer. The answer is dropped when the room moved on in the
-   * meantime (a move, undo, rematch, concede or dispose replaces `game.match`), and a failed or late worker falls back to
-   * a Normal move computed here, so the human never waits on a stuck bot.
-   */
+  // The answer is dropped when the room moved on meanwhile; a failed or late worker falls back to a Normal move so the human never waits on a stuck bot.
   private runHardInWorker(m: MatchState, legal: Intent[]) {
     const { game, io } = this.core;
     const bot = game.bot!;
@@ -189,7 +165,6 @@ export class BotDriver {
     });
   }
 
-  /** Play the bot's intent; if the room rejects it, pass, else any listed legal move, else give the game up. */
   private playIntent(m: MatchState, legal: Intent[], intent: Intent | null) {
     const { game, io } = this.core;
     if (intent) {
@@ -207,7 +182,6 @@ export class BotDriver {
     this.core.concedeSeat(BOT_SEAT);
   }
 
-  /** The bot always accepts the human's undo request, after a short pause. */
   answerUndo() {
     const { game, io, undo } = this.core;
     const req = undo.request;

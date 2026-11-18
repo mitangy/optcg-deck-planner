@@ -11,23 +11,18 @@ import {
 import { useSavedDecksVersion } from "../../decks/useSavedDecksVersion";
 import { BOT_DECK_RANDOM_META, isBotMetaValue } from "../../home/botGame";
 
-/** The saved decks, the one chosen to sail with, and the opponent / bot deck choices that depend on them. */
 export function useLobbyDecks() {
   const [decks, setDecks] = useState<SavedDeck[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [opponentDeckId, setOpponentDeckId] = useState("");
-  /** Play vs Bot: the deck it plays (a meta deck, a random one, or a saved deck id). */
   const [botDeckId, setBotDeckId] = useState(BOT_DECK_RANDOM_META);
 
   function refreshDecks() {
-    // Seeding the starter decks reads the card data, which is its own chunk. A returning player's decks are
-    // already saved, so they show at once (the leader name fills in later); a first visit waits for the data.
     if (!cardDataReady() && listSavedDecks().length === 0) return;
     const seeded = cardDataReady() ? ensureDefaultDeck() : undefined;
     if (cardDataReady()) ensureTestDecks();
     const all = listSavedDecks();
     setDecks(all);
-    // Prefer the persisted lobby choice — otherwise mount always falls back to ST01 Luffy.
     const prefer = selectedId || getSelectedDeckId() || undefined;
     const sel = (prefer && all.find((d) => d.id === prefer)) || seeded || all[0];
     setSelectedId(sel.id);
@@ -35,7 +30,6 @@ export function useLobbyDecks() {
     setBotDeckId((prev) => (!isBotMetaValue(prev) && !all.some((d) => d.id === prev) ? BOT_DECK_RANDOM_META : prev));
     setOpponentDeckId((prev) => {
       if (prev && all.some((d) => d.id === prev)) return prev;
-      // Prefer a different constructed deck for the enemy when available.
       const other = all.find((d) => d.id !== sel.id) ?? sel;
       return other.id;
     });

@@ -1,4 +1,3 @@
-/** The One Piece Berry sign: a B struck by two vertical bars, drawn in currentColor. */
 export function BerryIcon({ className }: { className?: string }) {
   return (
     <svg
@@ -17,7 +16,6 @@ export function BerryIcon({ className }: { className?: string }) {
   );
 }
 
-/** A ranked rating shown as a Bounty: Berry sign then the amount. */
 export function BountyAmount({ amount }: { amount: number }) {
   return (
     <span className="bounty-amount" aria-label={`Bounty ${amount.toLocaleString("en-US")} berries`}>

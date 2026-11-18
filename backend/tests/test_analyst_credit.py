@@ -1,4 +1,3 @@
-"""Log Pose's monthly credit, free spots, top-ups, usage analytics and thread deletion (#446)."""
 
 from __future__ import annotations
 
@@ -18,7 +17,6 @@ TOKEN = "X-Analyst-Token"
 
 
 def _approved(c, SessionLocal, name: str) -> tuple[int, str]:
-    """A player an owner approved by hand, with their chat token."""
     uid = _player(SessionLocal, name)
     _as(c, uid)
     c.post("/analyst/access/request", json={})
@@ -91,9 +89,9 @@ def test_monthly_beats_credit_beats_daily_446(chat, monkeypatch):
     _spend(SessionLocal, uid, 1.5)
     assert _budget(c, token)["refusal"] == "daily"
     _spend(SessionLocal, uid, 3.5)
-    assert _budget(c, token)["refusal"] == "credit"  # daily is also over; credit wins
+    assert _budget(c, token)["refusal"] == "credit"
     _caps(monkeypatch, daily="1", monthly="5")
-    assert _budget(c, token)["refusal"] == "monthly"  # all three are over; monthly wins
+    assert _budget(c, token)["refusal"] == "monthly"
 
 
 def test_owners_have_no_credit_to_run_out_of_446(chat, monkeypatch):
@@ -118,12 +116,12 @@ def test_free_spots_approve_the_first_players_then_waitlist_and_a_revoked_player
         results[n] = r.json()["access"]
     assert results == {"a1": "approved", "b2": "approved", "c3": "pending"}
     _as(c, ids["a1"])
-    assert _session(c)["enabled"] is True  # no owner touched it
+    assert _session(c)["enabled"] is True
 
     _owner(c)
-    assert _decide(c, ids["a1"], "denied").json()["status"] == "denied"  # revoked
+    assert _decide(c, ids["a1"], "denied").json()["status"] == "denied"
     _as(c, ids["d4"])
-    assert c.post("/analyst/access/request", json={}).json()["access"] == "pending"  # a1's spot is still used
+    assert c.post("/analyst/access/request", json={}).json()["access"] == "pending"
 
     _owner(c)
     body = c.get("/analyst/access/requests").json()
@@ -148,10 +146,10 @@ def test_a_player_out_of_credit_can_ask_for_a_top_up_and_an_owner_adds_5_for_thi
     c, SessionLocal = chat
     _caps(monkeypatch)
     uid, token = _approved(c, SessionLocal, "nami")
-    assert c.post("/analyst/access/topup").status_code == 409  # still has credit
+    assert c.post("/analyst/access/topup").status_code == 409
     _spend(SessionLocal, uid, 5.0)
     assert c.post("/analyst/access/topup").status_code == 204
-    assert c.post("/analyst/access/topup").status_code == 204  # asking twice is one request
+    assert c.post("/analyst/access/topup").status_code == 204
     assert _budget(c, token)["topup_requested"] is True
 
     _owner(c)
@@ -160,13 +158,12 @@ def test_a_player_out_of_credit_can_ask_for_a_top_up_and_an_owner_adds_5_for_thi
     assert row["topup_requested_at"] and row["credit_usd"] == 5.0 and row["credit_spent_usd"] == pytest.approx(5.0)
     granted = c.post(f"/analyst/access/requests/{uid}/topup", json={"action": "add"}).json()
     assert granted["credit_usd"] == 10.0 and granted["topup_requested_at"] is None
-    assert c.post(f"/analyst/access/requests/{uid}/topup", json={"action": "add"}).status_code == 404  # nothing waiting
+    assert c.post(f"/analyst/access/requests/{uid}/topup", json={"action": "add"}).status_code == 404
 
     _as(c, uid)
     b = _budget(c, token)
     assert (b["credit_usd"], b["refusal"], b["topup_requested"]) == (10.0, None, False)
 
-    # A top-up lasts the month it was granted in.
     db = SessionLocal()
     try:
         row = db.query(AnalystAccess).filter_by(user_id=uid).one()
@@ -225,7 +222,7 @@ def test_usage_summary_is_for_owners_and_counts_what_players_cost_446(chat, monk
     _spend(SessionLocal, uid, 0.5, model="claude-sonnet-5-5")
     _spend(SessionLocal, uid, 0.25, datetime.now(timezone.utc) - timedelta(days=90), model="claude-opus-5-5")
     _spend(SessionLocal, uid, 0.0, outcome="refused", refusal="daily")
-    assert c.get("/analyst/usage/summary").status_code == 403  # nami is not an owner
+    assert c.get("/analyst/usage/summary").status_code == 403
     _owner(c)
     body = c.get("/analyst/usage/summary").json()
     assert body["total_usd"] == pytest.approx(0.75) and body["month_usd"] == pytest.approx(0.5) and body["today_usd"] == pytest.approx(0.5)

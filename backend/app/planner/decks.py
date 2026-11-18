@@ -1,4 +1,3 @@
-"""Deck CRUD, detail views and per-deck card edits."""
 
 from __future__ import annotations
 
@@ -45,8 +44,6 @@ from app.planner.printings import (
 
 
 class DeckOversizeError(Conflict):
-    """Raised when adding would push the main deck past MAIN_DECK_LIMIT without confirm."""
-
     def __init__(self, *, current: int, projected: int, limit: int = MAIN_DECK_LIMIT):
         self.current = current
         self.projected = projected
@@ -79,7 +76,6 @@ def _card_view(
     collector_want: int = 0,
 ) -> CardView:
     cost = parse_cost(cat.cost) if cat else None
-    # Alt copies count as owned for what is still needed.
     available = max(0, owned + alts_owned - earlier_leaders_need)
     return CardView(
         card_id=card_id,
@@ -113,13 +109,11 @@ def _same_leader_decks(decks: list[Deck], leader_card_id: str | None) -> list[De
 
 
 def _resolve_main_deck(decks: list[Deck], leader_card_id: str | None) -> Deck | None:
-    """Pick the Main deck for a leader: explicit is_main, else earliest sort_order."""
     group = _same_leader_decks(decks, leader_card_id)
     if not group:
         return None
     marked = [d for d in group if d.is_main]
     if marked:
-        # Prefer earliest marked if data ever has more than one.
         return min(marked, key=lambda d: (d.sort_order, d.id))
     return min(group, key=lambda d: (d.sort_order, d.id))
 
@@ -147,7 +141,6 @@ def list_decks(db: Session, user: User) -> list[DeckSummary]:
 
 
 def deck_summary(db: Session, user: User, deck: Deck) -> DeckSummary:
-    """The list entry for one deck, without building every other deck's summary."""
     if deck.leader_card_id:
         rivals = db.scalars(
             select(Deck).where(Deck.user_id == user.id, Deck.leader_card_id == deck.leader_card_id)
@@ -158,7 +151,6 @@ def deck_summary(db: Session, user: User, deck: Deck) -> DeckSummary:
 
 
 def _summaries(db: Session, user: User, decks: list[Deck], main_pool: list[Deck]) -> list[DeckSummary]:
-    """Summaries for ``decks``; ``main_pool`` holds the decks that compete for each leader's Main flag."""
     all_ids = {c.card_id for d in decks for c in d.cards}
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
     catalog = catalog_map(db, all_ids | leader_ids)
@@ -207,20 +199,17 @@ def _summaries(db: Session, user: User, decks: list[Deck], main_pool: list[Deck]
                 ],
             )
         )
-    # Group by leader (no-leader last). Within a group: Main first, then sort_order.
     leader_group_key: dict[str | None, tuple] = {}
     for summary in out:
         key = summary.leader_card_id
         if key in leader_group_key:
             continue
         name = (summary.leader_name or "").casefold()
-        # Earliest sort_order among decks in this group anchors group order.
         earliest = min(
             (s.sort_order, s.id)
             for s in out
             if s.leader_card_id == key
         )
-        # No-leader decks sort after all leader groups.
         leader_group_key[key] = (key is None, name, earliest[0], earliest[1], key or "")
     out.sort(
         key=lambda s: (
@@ -233,8 +222,6 @@ def _summaries(db: Session, user: User, decks: list[Deck], main_pool: list[Deck]
     return out
 
 
-# A legal deck has at most 51 distinct cards; these leave room for want-lists
-# while stopping one account from writing unbounded rows.
 MAX_DECK_DISTINCT_CARDS = 250
 
 
@@ -259,7 +246,6 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     max_order = db.scalar(
         select(Deck.sort_order).where(Deck.user_id == user.id).order_by(Deck.sort_order.desc())
     )
-    # First deck for this leader becomes Main so Additional Cards works immediately.
     is_main = False
     if leader_id:
         existing_same = db.scalar(
@@ -285,8 +271,6 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
     deck_link.mirror_planner_deck(db, user.id, deck)
     db.commit()
     db.refresh(deck)
-    # Open group buys with an explicit deck filter should pick up new imports.
-    # (Null contribution already means "all decks".)
     from app.group_buy import service as group_buy
 
     group_buy.include_deck_in_open_group_buys(db, user, deck.id)
@@ -294,7 +278,6 @@ def create_deck(db: Session, user: User, name: str, decklist: str) -> Deck:
 
 
 def clone_deck(db: Session, user: User, source: Deck, name: str) -> Deck:
-    """Copy another deck's list (card rows only, not printings) into ``user``'s decks (#703)."""
     deck_count = db.scalar(select(func.count(Deck.id)).where(Deck.user_id == user.id)) or 0
     if deck_count + 1 > MAX_DECKS_PER_USER:
         raise Invalid(f"You can keep at most {MAX_DECKS_PER_USER} decks; delete one first")
@@ -334,7 +317,6 @@ def clone_deck(db: Session, user: User, source: Deck, name: str) -> Deck:
 
 
 def delete_deck(db: Session, user: User, deck_id: int, *, mirror: bool = True) -> None:
-    """Delete a deck. ``mirror=False`` is for the duel side deleting its own linked deck (#1017)."""
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:
         raise NotFound("Deck not found")
@@ -358,7 +340,6 @@ def delete_deck(db: Session, user: User, deck_id: int, *, mirror: bool = True) -
 
 
 def rename_deck(db: Session, user: User, deck_id: int, name: str) -> DeckDetail:
-    """Rename one of the user's decks (#526). Raises LookupError for a deck that is not theirs."""
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:
         raise NotFound("Deck not found")
@@ -380,7 +361,6 @@ def update_deck(
     name: str | None,
     hidden_from_friends: bool | None = None,
 ) -> DeckDetail:
-    """PATCH /decks/{id}: rename and/or hide the deck from friends (#703)."""
     if name is None and hidden_from_friends is None:
         raise Invalid("Nothing to update")
     detail: DeckDetail | None = None
@@ -398,7 +378,6 @@ def update_deck(
 
 
 def set_deck_as_main(db: Session, user: User, deck_id: int) -> DeckDetail:
-    """Mark this deck as Main for its leader; other same-leader decks compare against it."""
     deck = db.scalar(select(Deck).where(Deck.id == deck_id, Deck.user_id == user.id))
     if deck is None:
         raise NotFound("Deck not found")
@@ -443,14 +422,10 @@ def get_deck_detail(
         prior_names = [baseline.name]
         prior_ids = {c.card_id for c in baseline.cards}
 
-    # "Separate per leader": owned copies go to leaders in deck order, so this
-    # deck only gets what earlier leaders leave over (matches Master Shopping).
     earlier_need: dict[str, int] = defaultdict(int)
     earlier_labels: dict[str, list[str]] = defaultdict(list)
     if getattr(user, "sum_across_leaders", False):
-        # Only decks ticked under Include decks claim copies first (this deck always counts).
         counted = decks if deck_ids is None else [d for d in decks if d.id in deck_ids or d.id == target.id]
-        # Leader groups are ordered by their first deck (same as Master Shopping).
         group_order: dict[str, int] = {}
         for idx, deck in enumerate(counted):
             group_order.setdefault(_leader_group_id(deck), idx)
@@ -521,7 +496,6 @@ def get_deck_detail(
 
 
 def set_deck_leader(db: Session, user_id: int, deck: Deck, new_leader: str | None) -> None:
-    """Point ``deck`` at a leader and keep each leader's Main deck consistent."""
     prev_leader = deck.leader_card_id
     was_main = bool(deck.is_main)
     deck.leader_card_id = new_leader
@@ -563,7 +537,6 @@ def upsert_deck_card(
     *,
     confirm_oversize: bool = False,
 ) -> DeckDetail:
-    """Set absolute needed count for a card in a deck (0 removes)."""
     card_id = card_id.strip().upper()
     if not card_id:
         raise Invalid("card_id is required")
@@ -597,9 +570,6 @@ def upsert_deck_card(
             f"DON!! deck would have {don_projected} cards (maximum {DON_DECK_LIMIT})"
         )
 
-    # Only prompt when crossing the 51-card limit. Once the deck is already over
-    # size (user confirmed), further adds do not re-prompt until it drops to 51
-    # or below again.
     if (
         main_projected > MAIN_DECK_LIMIT
         and main_now <= MAIN_DECK_LIMIT
@@ -615,7 +585,6 @@ def upsert_deck_card(
         db.add(DeckCard(deck_id=deck.id, card_id=card_id, needed=needed))
     else:
         existing.needed = needed
-        # Auto-clamp alt wants when Need drops below their sum.
         printing_rows = db.scalars(
             select(DeckCardPrinting).where(
                 DeckCardPrinting.deck_id == deck.id,
@@ -636,10 +605,6 @@ def upsert_deck_card(
 
 
 def replace_deck_list(db: Session, user: User, deck_id: int, decklist: str) -> DeckDetail:
-    """Overwrite a deck's leader and cards with a pasted deck code (#1016).
-
-    Keeps the deck's id, name, order and visibility.
-    """
     deck = db.scalar(
         select(Deck)
         .where(Deck.id == deck_id, Deck.user_id == user.id)
@@ -647,7 +612,7 @@ def replace_deck_list(db: Session, user: User, deck_id: int, decklist: str) -> D
     )
     if deck is None:
         raise NotFound("Deck not found")
-    parsed = parse_decklist(decklist)  # ValueError("No cards found...") when empty
+    parsed = parse_decklist(decklist)
     _check_distinct_card_cap(parsed)
     catalog = catalog_map(db, {c.card_id for c in parsed})
     _main, don_count = deck_size_counts(parsed, catalog)

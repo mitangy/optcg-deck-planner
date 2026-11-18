@@ -33,10 +33,8 @@ engine = create_engine(
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
-# pg_advisory_xact_lock key for startup work (schema creation, migrations, backfills).
-# "optcg_s2": the key changed after #733, when a session-level lock on the old key
-# ("optcg_st" = 0x6F707463675F7374) was stranded on a pooled Neon backend.
-STARTUP_LOCK_KEY = 0x6F707463675F7332  # "optcg_s2"
+# "optcg_s2": the old key's session lock got stranded on a pooled Neon backend.
+STARTUP_LOCK_KEY = 0x6F707463675F7332
 
 
 @contextmanager
@@ -63,16 +61,13 @@ def startup_lock(bind: Engine | None = None) -> Iterator[None]:
             yield
 
 
-# Background jobs that must run in one API worker at a time (try_advisory_lock).
-CATALOG_SYNC_LOCK_KEY = 0x6F707463675F6373  # "optcg_cs"
-TOURNAMENT_SYNC_LOCK_KEY = 0x6F707463675F7473  # "optcg_ts"
-PROGRESS_SWEEP_LOCK_KEY = 0x6F707463675F7073  # "optcg_ps"
-DISCORD_FEEDBACK_LOCK_KEY = 0x6F707463675F6466  # "optcg_df"
+CATALOG_SYNC_LOCK_KEY = 0x6F707463675F6373
+TOURNAMENT_SYNC_LOCK_KEY = 0x6F707463675F7473
+PROGRESS_SWEEP_LOCK_KEY = 0x6F707463675F7073
+DISCORD_FEEDBACK_LOCK_KEY = 0x6F707463675F6466
 
 
 class AdvisoryLock:
-    """A held Postgres transaction-level advisory lock; release() is safe from any thread."""
-
     def __init__(self, conn, key: int) -> None:
         self._conn = conn
         self._key = key
@@ -82,7 +77,6 @@ class AdvisoryLock:
         if conn is None:
             return
         try:
-            # Ending the transaction drops the lock; there is no separate unlock.
             conn.rollback()
         finally:
             conn.close()
@@ -115,29 +109,19 @@ def try_advisory_lock(key: int, bind: Engine | None = None) -> AdvisoryLock | No
 
 
 def init_db(bind: Engine | None = None) -> None:
-    """Bring the database to the current schema and seed its reference data.
-
-    Called once per worker from the lifespan, inside ``startup_lock``. The
-    schema is owned by Alembic (backend/migrations): ``upgrade head`` is a no-op
-    on an up-to-date database. Data that is not schema (the admin role, the
-    historic eval runs, the default event) lives in ``app.core.seed``.
-    """
     from app.core.migrate import upgrade_to_head
     from app.core.seed import seed_reference_data
 
     bind = bind or engine
     was_empty = upgrade_to_head(bind)
-    # The default event is seeded only on a brand-new database, so deleting every event stays deleted.
     seed_reference_data(bind, new_database=was_empty)
 
 
-# Connections kept free for background jobs (advisory locks pin one for a whole run).
 _POOL_HEADROOM = 3
 _request_slots: "weakref.WeakKeyDictionary[asyncio.AbstractEventLoop, asyncio.Semaphore]" = weakref.WeakKeyDictionary()
 
 
 def _request_slot_count() -> int:
-    """How many requests may hold a Session at once: the pool's capacity minus headroom."""
     pool = engine.pool
     size = getattr(pool, "size", None)
     if not callable(size):  # SQLite in memory / NullPool: no queue to protect
@@ -146,16 +130,6 @@ def _request_slot_count() -> int:
 
 
 async def get_db() -> AsyncGenerator[Session, None]:
-    """One Session per request, admitted only while a pool connection is certain to be free (#802).
-
-    A request holds its connection from the first query (auth) to the end, but needs
-    a fresh worker thread for each sync dependency and for the route itself. With
-    more requests than pool connections, the extra requests sat in worker threads
-    waiting for a connection while the requests holding every connection waited
-    for a thread: nothing could finish, the pool never refilled, and the whole API
-    froze. Waiting here, on the event loop, costs no thread, so a request that holds
-    a connection can always get one.
-    """
     loop = asyncio.get_running_loop()
     slots = _request_slots.get(loop)
     if slots is None:
@@ -165,10 +139,5 @@ async def get_db() -> AsyncGenerator[Session, None]:
         try:
             yield db
         finally:
-            # close() rolls back over the network, so it runs off the event loop (on
-            # the loop it stalled every request, one round trip each). Shielded so a
-            # client that disconnects mid-request still returns its connection, and
-            # on its own limiter (as FastAPI's own teardown) so it never queues
-            # behind busy routes.
             with anyio.CancelScope(shield=True):
                 await anyio.to_thread.run_sync(db.close, limiter=anyio.CapacityLimiter(1))

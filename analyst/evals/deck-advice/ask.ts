@@ -1,8 +1,3 @@
-/**
- * Asks Log Pose about one deck the way a player does (#678): the production chat loop (`runChat`: same system
- * prompt, same tools, including propose_deck_edit), with the deck open in the app's context and pasted under the
- * question. Nothing outside the model is real: the planner API is the eval's in-memory one.
- */
 import type { Catalog } from "../../src/catalog";
 import { costUsd, runChat, MAX_TOOL_ROUNDS, type CallModel, type Usage } from "../../src/chat";
 import type { OfficialLibrary } from "../../src/official/library";
@@ -34,7 +29,6 @@ export type Asked = {
   usage: Usage;
   costUsd: number;
   model: string | undefined;
-  /** The chat ran out of tool rounds before answering; the answer is whatever text came first. */
   outOfRounds: boolean;
 };
 
@@ -46,7 +40,6 @@ const add = (a: Usage, b: Usage): Usage => ({
   cache_creation_input_tokens: (a.cache_creation_input_tokens ?? 0) + (b.cache_creation_input_tokens ?? 0),
 });
 
-/** The chat request body for a case: the deck is open in the planner and also pasted under the question. */
 export function chatBodyFor(c: AdviceCase) {
   return {
     message: c.message,

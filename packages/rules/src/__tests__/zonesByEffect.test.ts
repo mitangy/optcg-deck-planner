@@ -2,10 +2,8 @@ import { describe, expect, it } from "vitest";
 import { Harness } from "../testing/harness.js";
 import type { GameEvent, Seat } from "../types.js";
 
-// Moving cards between zones by effects: Stage replacement and putting Characters or cards into Life.
-
-const KAROO = "ST01-003"; // vanilla 1-cost {Animal}/{Alabasta}
-const ALVIDA = "OP03-023"; // vanilla 1-cost {East Blue}
+const KAROO = "ST01-003";
+const ALVIDA = "OP03-023";
 
 function ids(h: Harness, seat: Seat): string[] {
   return h.state.players[seat].characters.map((c) => c.defId);
@@ -29,8 +27,8 @@ function resolveWithEvents(h: Harness, ...keys: string[]): GameEvent[] {
 }
 
 describe("a Stage played over another Stage", () => {
-  const MINI_MERRY = "EB01-011"; // Stage, 1 cost
-  const LAND_OF_WANO = "OP02-048"; // Stage, 1 cost
+  const MINI_MERRY = "EB01-011";
+  const LAND_OF_WANO = "OP02-048";
 
   it("trashes the Stage already on the field (#753)", () => {
     const h = new Harness();
@@ -44,14 +42,14 @@ describe("a Stage played over another Stage", () => {
 });
 
 describe("putting a Character into Life by an effect", () => {
-  const GASTINO = "EB01-053"; // [On Play] Place up to 1 of your opponent's Characters with a cost of 3 or less at the top or bottom of your opponent's Life cards face-up.
-  const SHIRYU = "OP16-108"; // [On Play] You may trash 1 card from your hand: Add up to 1 {Blackbeard Pirates} type card with a cost of 6 or less from your trash to the top of your Life cards face-up.
-  const PIZARRO = "OP09-082"; // vanilla 4-cost {Blackbeard Pirates}
-  const LUFFY_LEADER = "ST13-003"; // [DON!! x2] [Activate: Main] [Once Per Turn] You may trash 1 card from your hand: If you have 0 Life cards, add up to 2 Character cards with a cost of 5 from your hand or trash to the top of your Life cards face-up.
-  const MOUNTAIN_GOD = "EB01-018"; // vanilla 5-cost
-  const BUGGY = "OP16-041"; // Leader. [DON!! x1] [Once Per Turn] This effect can be activated when your {Impel Down} type Character card is removed from the field. Play up to 1 [Prisoner of Impel Down] card from your hand.
-  const PRISONER = "OP16-042"; // 6-cost
-  const BLUGORI = "OP02-084"; // vanilla 1-cost {Impel Down}
+  const GASTINO = "EB01-053";
+  const SHIRYU = "OP16-108";
+  const PIZARRO = "OP09-082";
+  const LUFFY_LEADER = "ST13-003";
+  const MOUNTAIN_GOD = "EB01-018";
+  const BUGGY = "OP16-041";
+  const PRISONER = "OP16-042";
+  const BLUGORI = "OP02-084";
 
   function gastinoOn(target: string, end: "Top" | "Bottom") {
     const h = new Harness();

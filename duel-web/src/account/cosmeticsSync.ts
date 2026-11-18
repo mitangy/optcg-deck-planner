@@ -1,11 +1,3 @@
-/**
- * Playmat / card back uploads saved to a signed-in player's account.
- *
- * The browser keeps a local copy of the image in use (IndexedDB, see
- * cosmetics/browser.ts) so the board never waits on the network; the account
- * holds every upload and which one is chosen, so another device (or this one,
- * after storage is cleared) picks the same art up on the next sync.
- */
 import { createStore } from "../lib/createStore";
 import { cardBackSlot } from "../cardBack";
 import type { ImageSlot } from "../cosmetics/imageSlot";
@@ -47,7 +39,6 @@ function adopt(res: AccountCosmetics) {
   setState({ items: res.items, active: res.active });
 }
 
-/** Which account upload the local copy is (null = uploaded here while signed out). */
 function accountIdKey(kind: CosmeticKind) {
   return `optcg-duel:${kind}:account-id`;
 }
@@ -58,7 +49,6 @@ function localAccountId(kind: CosmeticKind): number | null {
 }
 
 function setLocalAccountId(kind: CosmeticKind, id: number | null) {
-  // Storage disabled: the next sync just downloads again.
   if (id === null) removeStored(accountIdKey(kind));
   else writeStored(accountIdKey(kind), String(id));
 }
@@ -72,10 +62,6 @@ async function applyChoice(kind: CosmeticKind, id: number | null) {
   setLocalAccountId(kind, id);
 }
 
-/**
- * Public path of the image this browser shows for `kind`, when it is an account
- * upload the API can serve to the opponent (null: share it as a data URL).
- */
 export function activePublicPath(kind: CosmeticKind): string | null {
   if (!store.get().signedIn) return null;
   const id = localAccountId(kind);
@@ -84,7 +70,6 @@ export function activePublicPath(kind: CosmeticKind): string | null {
   return typeof path === "string" && SKIN_PUBLIC_PATH.test(path) ? path : null;
 }
 
-/** Bring this browser and the account in line (on sign-in and app start). */
 export async function syncCosmetics(): Promise<void> {
   const res = await fetchAccountCosmetics();
   setState({ signedIn: true });
@@ -114,7 +99,6 @@ export function stopCosmeticsSync(): void {
   setState({ signedIn: false, items: [], active: { playmat: null, cardBack: null } });
 }
 
-/** Save a new upload here and, when signed in, to the account as the active image. */
 export async function saveCosmetic(kind: CosmeticKind, file: Blob): Promise<void> {
   const blob = await SLOTS[kind].save(file);
   setLocalAccountId(kind, null);
@@ -129,13 +113,11 @@ export async function saveCosmetic(kind: CosmeticKind, file: Blob): Promise<void
   }
 }
 
-/** Switch to an earlier upload, or back to the default (null). */
 export async function chooseCosmetic(kind: CosmeticKind, id: number | null): Promise<void> {
   if (store.get().signedIn) adopt(await selectAccountCosmetic(kind, id));
   await applyChoice(kind, id);
 }
 
-/** Remove an upload from the account (falls back to the default if it was in use). */
 export async function deleteCosmetic(kind: CosmeticKind, id: number): Promise<void> {
   adopt(await deleteAccountCosmetic(id));
   if (localAccountId(kind) === id) await applyChoice(kind, null);

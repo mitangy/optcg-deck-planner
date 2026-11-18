@@ -1,8 +1,3 @@
-/**
- * Ground truth for the review-facts eval (#675): what really happened in a game, read from the engine replay.
- * Turn numbers are counted exactly as narrate() in src/matches.ts counts them, so they match the
- * "--- Turn N" headers the review model reads. Events are the raw ones (not the seat-projected ones).
- */
 import { getCardDef, replayMatch, type GameEvent, type MatchReplay, type MatchState, type Seat } from "@optcg/rules";
 
 export type Play = { seat: Seat; card: string; name: string };
@@ -10,7 +5,6 @@ export type Attack = {
   seat: Seat;
   attacker: string;
   attackerName: string;
-  /** "leader" or the defId of the Character attacked (as declared; a block does not change it). */
   target: string;
   targetName: string;
   attackerPower: number;
@@ -23,9 +17,7 @@ export type Ko = { seat: Seat; card: string; name: string };
 export type LifeTaken = { seat: Seat; card: string; name: string };
 export type TriggerAccepted = { seat: Seat; card?: string; name?: string };
 
-/** Lowest and highest value seen. */
 export type Range = [number, number];
-/** DON!! counts of one seat. active/rested are the cost area (as the review's board line counts them), attached are DON!! given to cards. */
 export type DonRanges = { active: Range; rested: Range; attached: Range; area: Range; field: Range };
 
 export type TurnFacts = {
@@ -38,30 +30,21 @@ export type TurnFacts = {
   triggersAccepted: TriggerAccepted[];
   lifeAtStart: [number, number];
   lifeAtEnd: [number, number];
-  /** Lowest and highest Life each seat had at any point of the turn. */
   lifeRange: [[number, number], [number, number]];
-  /** Total Life each seat lost during the turn: every step-to-step decrease, from battles and from effects (#687). */
   lifeLost: [number, number];
-  /** DON!! each seat had at any point of the turn (#687). */
   don: [DonRanges, DonRanges];
-  /** Cards in each seat's hand: lowest and highest at any point of the turn (#687). */
   handRange: [Range, Range];
-  /** defIds of the Characters and Stage each seat had on the field at any point of the turn (#687). */
   onBoard: [string[], string[]];
-  /** defIds that went into each seat's trash during the turn (#687). */
   trashed: [string[], string[]];
 };
 
 export type GameFacts = {
   firstSeat: Seat;
-  /** Whether each seat took a mulligan; null when mulligans were skipped. */
   mulligans: [boolean | null, boolean | null];
   turns: TurnFacts[];
   result: { winner: Seat | null; reason: string | null; finalTurn: number };
   leaders: [string, string];
-  /** Every card id in either deck or leader slot: the cards that could have been in the game. */
   universe: string[];
-  /** Every Life total each seat had at any point. */
   lifeSeen: [number[], number[]];
   finalLife: [number, number];
   divergedAt?: string;
@@ -126,7 +109,6 @@ export function gameFacts(replay: MatchReplay): GameFacts {
     widen(t, state);
     return t;
   };
-  /** Folds one state into the turn: Life range and loss, DON!! and hand ranges, what stood on the field. */
   const widen = (t: TurnFacts, state: MatchState) => {
     const life = lifeOf(state);
     for (const s of [0, 1] as const) {
@@ -140,7 +122,6 @@ export function gameFacts(replay: MatchReplay): GameFacts {
     }
     t.lifeAtEnd = life;
   };
-  /** Cards that entered a seat's trash between two states. */
   const noteTrash = (t: TurnFacts, from: MatchState, to: MatchState) => {
     for (const s of [0, 1] as const) {
       const left = [...from.players[s].trash];
@@ -170,7 +151,6 @@ export function gameFacts(replay: MatchReplay): GameFacts {
         mulligans[e.seat] = e.didMulligan;
         return;
       case "phase_changed":
-        // The engine starts every turn (extra turns included) with a refresh phase and counts it.
         if (e.phase === "refresh") {
           if (current) widen(current, before);
           turn += 1;
@@ -220,7 +200,6 @@ export function gameFacts(replay: MatchReplay): GameFacts {
         return;
       case "life_taken":
         current.lifeTaken.push({ seat: e.seat, card: e.defId, name: nameOfCard(e.defId) });
-        // An accepted Trigger that was not announced is the Life card just taken.
         pendingTrigger[e.seat] = e.defId;
         return;
       case "trigger_available":
@@ -268,6 +247,5 @@ export function gameFacts(replay: MatchReplay): GameFacts {
   };
 }
 
-/** Seat-relative view: the review's seat is "you". */
 export const seatOf = (actor: "you" | "opponent", seat: Seat): Seat => (actor === "you" ? seat : ((1 - seat) as Seat));
 export const actorOf = (s: Seat, seat: Seat): "you" | "opponent" => (s === seat ? "you" : "opponent");

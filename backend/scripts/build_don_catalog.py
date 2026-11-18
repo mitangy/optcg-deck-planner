@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""Pull every DON!! card printing from TCGCSV and emit a catalog for duel-web.
-
-The Settings page lets a player pick which DON!! art their DON!! use (#440).
-Each entry is a TCGPlayer product; its image is
-https://tcgplayer-cdn.tcgplayer.com/product/<productId>_400w.jpg.
-
-Usage: python3 backend/scripts/build_don_catalog.py
-"""
 
 from __future__ import annotations
 
@@ -47,7 +39,6 @@ def is_don(product: dict) -> bool:
 
 
 def label(name: str) -> str:
-    """'DON!! Card (Alternate Art) (Luffy and Loki) (Gold)' -> 'Alternate Art · Luffy and Loki · Gold'."""
     rest = name.strip()
     if rest.startswith(DON):
         rest = rest[len(DON):].strip()
@@ -67,7 +58,6 @@ def main() -> None:
 
     groups = get_json(f"{BASE}/groups")["results"]
     print(f"groups={len(groups)}")
-    # Newest set first (publishedOn desc), then productId.
     groups.sort(key=lambda g: g.get("publishedOn") or "", reverse=True)
 
     seen: set[int] = set()
@@ -78,7 +68,7 @@ def main() -> None:
         time.sleep(PAUSE_S)
         try:
             products = get_json(f"{BASE}/{gid}/products")["results"]
-        except Exception as e:  # keep going: one flaky group must not drop the rest
+        except Exception as e:
             print(f"skip group {gid} {gname}: {e}")
             continue
         batch = []

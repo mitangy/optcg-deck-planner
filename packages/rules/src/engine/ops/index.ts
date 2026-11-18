@@ -1,7 +1,3 @@
-/**
- * The op handler table. Adding a variant to `Effect["do"]` without a handler in one of the
- * groups below fails `tsc` here (see docs/duel-client/EFFECTS.md, "Adding a new effect op").
- */
 import type { Effect } from "../../effects/types.js";
 import { donOps } from "./don.js";
 import { flowOps } from "./flow.js";

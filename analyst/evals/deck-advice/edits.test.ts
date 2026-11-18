@@ -64,7 +64,6 @@ describe("sabotage recall and precision", () => {
   const before = [{ id: "P1", copies: 2 }, { id: "P2", copies: 2 }, { id: "C1", copies: 4 }, { id: "C2", copies: 4 }];
 
   it("counts the planted copies the edits remove over the planted copies, and over all copies removed (#678)", () => {
-    // Takes out both P1, one P2 and three C1: 3 of the 4 planted copies, and 3 of the 6 copies it removed were planted.
     const after = [{ id: "P2", copies: 1 }, { id: "C1", copies: 1 }, { id: "C2", copies: 4 }, { id: "N1", copies: 3 }];
     expect(scoreRemoval(planted, before, after)).toEqual({ recall: 0.75, precision: 0.5, plantedRemoved: 3, planted: 4, removed: 6 });
   });

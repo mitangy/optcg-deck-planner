@@ -16,33 +16,22 @@ export type SavedDeck = {
   id: string;
   name: string;
   leaderId: string;
-  /** Main deck card ids (no leader); constructed lists are 50 cards. */
   cards: string[];
-  /** Preferred alt art id per card def (`p1`, `p2`, …). */
   artPrefs?: Record<string, string>;
-  /**
-   * Alt arts the planner had picked at the last pull (card def → alt id; absent = base). An `artPrefs`
-   * entry that differs from this is a pick made here, and a later pull keeps it (#1003).
-   */
   plannerArt?: Record<string, string>;
-  /** Deck planner deck this copy is linked to (see `decks/planner.ts`). */
   plannerDeckId?: number;
-  /** Saved edits on a planner-linked deck: games keep this version instead of re-importing the planner's (#481). */
   editedLocally?: boolean;
   updatedAt: number;
 };
 
-/** What a local edit did, for account sync (see `account/deckSync.ts`). */
 export type LocalDeckChange =
   | { kind: "upsert"; deck: SavedDeck }
   | { kind: "delete"; id: string; at: number };
 
-/** Fired on `window` when decks changed from outside the page that is showing them (account sync). */
 export const SAVED_DECKS_CHANGED_EVENT = "optcg:saved-decks-changed";
 
 const changeListeners = new Set<(change: LocalDeckChange) => void>();
 
-/** Subscribe to local deck saves and deletes. Remote applies do not fire it. */
 export function onLocalDecksChange(cb: (change: LocalDeckChange) => void): () => void {
   changeListeners.add(cb);
   return () => void changeListeners.delete(cb);
@@ -105,7 +94,6 @@ export function validateImportedList(text: string): DeckValidation {
       if (line.count > 4) {
         errors.push(`${line.cardId} has ${line.count} copies (max 4)`);
       }
-      // Defer type: curated leaders win; otherwise a single 1x unknown may be the leader.
       if (line.count === 1) unknownSingletons.push(line.cardId);
       else {
         registerAtlasStub(line.cardId, "character");
@@ -127,7 +115,6 @@ export function validateImportedList(text: string): DeckValidation {
   }
 
   if (leaders.length === 0 && unknownSingletons.length === 1) {
-    // e.g. `1xOP16-080` before the atlas caught up — treat as leader stub.
     leaders.push(unknownSingletons[0]);
     registerAtlasStub(unknownSingletons[0], "leader");
     warnings.push(
@@ -138,7 +125,6 @@ export function validateImportedList(text: string): DeckValidation {
       `Multiple possible leaders among uncurated 1x cards: ${unknownSingletons.join(", ")}. Include a curated Leader or only one 1x line.`,
     );
   } else {
-    // Curated leader present — remaining unknown singletons are main-deck stubs.
     for (const id of unknownSingletons) {
       if (!leaders.includes(id)) {
         registerAtlasStub(id, "character");
@@ -167,7 +153,6 @@ export function validateImportedList(text: string): DeckValidation {
   };
 }
 
-/** Leader "Under the rules of this game, you cannot include …" rules (mirrors `deckConstructionErrors`). */
 export function leaderDeckRuleErrors(leaderId: string, cards: readonly string[]): string[] {
   const leader = lookupCard(leaderId);
   const errors: string[] = [];
@@ -221,13 +206,9 @@ type SaveDeckInput = {
   name: string;
   leaderId: string;
   cards: string[];
-  /** Omit to keep existing prefs; pass `{}` / object to replace. */
   artPrefs?: Record<string, string>;
-  /** Omit to keep the existing planner art map; pass `{}` to clear. */
   plannerArt?: Record<string, string>;
-  /** Omit to keep the existing planner link. */
   plannerDeckId?: number;
-  /** Omit to keep the existing value. */
   editedLocally?: boolean;
 };
 
@@ -268,7 +249,6 @@ export function saveDeckResult(input: SaveDeckInput): { deck: SavedDeck; persist
   return { deck: next, persisted };
 }
 
-/** Persist preferred alt art for one card on a saved deck (`null` = standard). */
 export function setDeckArtPref(
   deckId: string,
   defId: string,
@@ -295,7 +275,6 @@ export function deleteDeck(id: string) {
   if (decks.some((d) => d.id === id)) emit({ kind: "delete", id, at: Date.now() });
 }
 
-/** Write decks that came from the account. Does not fire local-change listeners; pages re-read on the event. */
 export function applyRemoteDecks(change: { upsert: SavedDeck[]; remove: string[] }) {
   if (change.upsert.length === 0 && change.remove.length === 0) return;
   const gone = new Set(change.remove);
@@ -311,21 +290,18 @@ export function applyRemoteDecks(change: { upsert: SavedDeck[]; remove: string[]
   announceChanged();
 }
 
-/** Forget every deck in this browser (sign-out: they belonged to the account). */
 export function clearLocalDecks() {
   removeStored(STORAGE_KEY);
   setSelectedDeckId(null);
   announceChanged();
 }
 
-/** Default leader placeholder for a blank deck (replace via import or manual edits). */
 export const BLANK_DECK_LEADER_ID = "ST01-001";
 
 export type ImportIntoDeckResult =
   | { ok: true; deck: SavedDeck; warnings: string[] }
   | { ok: false; errors: string[]; warnings: string[] };
 
-/** Create an empty main deck with a placeholder leader. */
 export function createBlankDeck(name: string): SavedDeck {
   return saveDeck({
     name: name.trim() || "Untitled deck",
@@ -334,7 +310,6 @@ export function createBlankDeck(name: string): SavedDeck {
   });
 }
 
-/** Replace leader + main deck from an OPTCGSim / planner paste. */
 export function importIntoSavedDeck(deckId: string, text: string): ImportIntoDeckResult {
   const v = validateImportedList(text);
   if (!v.ok || !v.leaderId) {
@@ -360,7 +335,6 @@ export function importIntoSavedDeck(deckId: string, text: string): ImportIntoDec
   return { ok: true, deck, warnings: v.warnings };
 }
 
-/** Create a deck from import text, or blank when text is empty. */
 export function createDeckFromInput(name: string, text: string): ImportIntoDeckResult {
   const trimmed = text.trim();
   if (!trimmed) {
@@ -378,15 +352,10 @@ export function createDeckFromInput(name: string, text: string): ImportIntoDeckR
   return { ok: true, deck, warnings: v.warnings };
 }
 
-/** Local id of the copy linked to a planner deck. */
 export function plannerLocalId(plannerId: number): string {
   return `planner-${plannerId}`;
 }
 
-/**
- * Art after taking on the planner's shown art: a card whose art here still equals what the last pull set
- * takes the planner's art now; one the player changed here (even back to base) keeps their pick (#1003).
- */
 function followPlannerArt(
   existing: SavedDeck | undefined,
   inDeckIds: ReadonlySet<string>,
@@ -403,7 +372,6 @@ function followPlannerArt(
   return { artPrefs, plannerArt };
 }
 
-/** Take on the art the planner shows for a deck's cards, leaving its name and cards alone. Unchanged art writes nothing. */
 export function applyPlannerArt(deckId: string, incoming: Record<string, string>): SavedDeck | undefined {
   const deck = getSavedDeck(deckId);
   if (!deck) return undefined;
@@ -416,7 +384,6 @@ export function applyPlannerArt(deckId: string, incoming: Record<string, string>
   return saveDeck({ id: deck.id, name: deck.name, leaderId: deck.leaderId, cards: deck.cards, ...next });
 }
 
-/** Note the alt arts just sent to the planner, so they are not sent again. */
 export function recordPlannerArt(deckId: string, sent: Record<string, string>): SavedDeck | undefined {
   const deck = getSavedDeck(deckId);
   if (!deck) return undefined;
@@ -429,16 +396,10 @@ export function recordPlannerArt(deckId: string, sent: Record<string, string>): 
   });
 }
 
-/**
- * Create or replace the local copy linked to a planner deck (keeps art prefs for cards still in the deck).
- * A deck already linked to this planner id is updated in place under its own id; only an unlinked
- * planner deck gets the `planner-<id>` local id (the id the account sync gives its copy too).
- */
 export function upsertPlannerDeck(input: {
   plannerId: number;
   name: string;
   text: string;
-  /** Alt arts picked in the planner (card def → alt id); absent = base art (#1003). */
   plannerArt?: Record<string, string>;
 }): ImportIntoDeckResult {
   const v = validateImportedList(input.text);
@@ -476,7 +437,6 @@ export function getSelectedDeck(): SavedDeck | null {
   return getSavedDeck(id) ?? null;
 }
 
-/** Global art prefs (cardId → alt id). Merged with per-deck prefs at resolve time. */
 export function getArtPrefs(): Record<string, string> {
   try {
     const raw = readStored(ART_PREFS_KEY);
@@ -495,10 +455,6 @@ export function setArtPref(cardId: string, altId: string | null) {
   writeStored(ART_PREFS_KEY, JSON.stringify(prefs));
 }
 
-/**
- * Ensure constructed test decks exist and drop the legacy 20-card ST01 seed.
- * Returns the currently selected deck (or the first test deck).
- */
 export function ensureDefaultDeck(): SavedDeck {
   const kept = listSavedDecks().filter((d) => d.id !== "default-st01");
   if (kept.length !== listSavedDecks().length) {
@@ -554,16 +510,10 @@ const TEST_OP16_LIST = `1xOP16-080
 2xOP16-116
 4xOP16-119`;
 
-/** The seed decks were first called "Test …"; a copy still under the old name takes the new one. */
 export function seedDeckName(current: string, legacy: string, next: string): string {
   return current === legacy ? next : current;
 }
 
-/**
- * Insert a seed deck only if missing — never clobber Configure edits. A copy
- * still under its old name is renamed in place (same id, so saved selections
- * keep pointing at it); a name the player chose is left alone.
- */
 function ensureSeedDeck(id: string, name: string, list: string, legacyName: string): SavedDeck {
   const all = readAll();
   const existing = all.find((d) => d.id === id);
@@ -579,14 +529,12 @@ function ensureSeedDeck(id: string, name: string, list: string, legacyName: stri
   if (!v.ok || !v.leaderId) {
     throw new Error(`Seed deck ${id} invalid: ${v.errors.join("; ")}`);
   }
-  // updatedAt 0: a seed made on a fresh device never beats the account's copy of it.
   const seed: SavedDeck = { id, name, leaderId: v.leaderId, cards: v.cards, updatedAt: 0 };
   writeAll([...all, seed]);
   emit({ kind: "upsert", deck: seed });
   return seed;
 }
 
-/** Seed the two constructed test decks once (insert-if-absent). */
 export function ensureTestDecks(): SavedDeck[] {
   const a = ensureSeedDeck("test-op17-red", "Starter: OP17 Red", TEST_OP17_LIST, "Test OP17 red");
   const b = ensureSeedDeck(

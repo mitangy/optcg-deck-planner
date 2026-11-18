@@ -1,7 +1,3 @@
-/**
- * Groups items by leader (#1294). Groups come in the order of their first item and items keep their input
- * order inside a group, so a later deck of an earlier leader joins that leader's group.
- */
 export function groupByLeader<T>(
   items: readonly T[],
   leaderOf: (item: T) => string,

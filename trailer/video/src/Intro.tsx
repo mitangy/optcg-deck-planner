@@ -3,7 +3,6 @@ import {Easing, interpolate, spring, useCurrentFrame, useVideoConfig} from 'remo
 import {Logo} from './Logo';
 import {COLORS, FONT_DISPLAY, FONT_SANS} from './theme';
 
-/** Logo reveal over the bare gradient. Local frame 0 = trailer start. ~1.5s. */
 export const Intro: React.FC<{cx: number; cy: number}> = ({cx, cy}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();

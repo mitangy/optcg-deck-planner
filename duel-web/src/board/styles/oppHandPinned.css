@@ -1,4 +1,3 @@
-/* —— Opponent hand pinned to a spot (setting oppHandSpot; phones: "Opponent hand, top right") —— */
 .opp-hand-corner {
   --corner-w: calc(var(--dock-cw, 4.6rem) * 0.62);
   display: flex;
@@ -18,8 +17,7 @@
   transform: rotate(var(--rot, 0deg));
   transform-origin: 50% 0;
 }
-/* Phones: a right-aligned overlapping strip in the opponent half's hint row,
-   which is reserved already, so nothing moves. */
+/* That row is reserved already, so nothing moves. */
 .opp-hand-corner-row {
   align-items: center;
   gap: 0.4rem;
@@ -42,8 +40,6 @@
   align-self: flex-end;
   padding-right: 8px;
 }
-/* Portrait phones keep the Battle log pill in the very corner; the strip sits
-   just left of it. */
 @media (max-width: 640px) and (orientation: portrait) {
   .arena .opp-hand-hint.opp-hand-hint-right {
     margin-right: 7.2rem;
@@ -58,16 +54,7 @@
   order: 2;
 }
 
-/* —— Opponent hand pinned to the playmat (desktop, oppHandSpot) ——
-   Top centre: the mats give up a strip at the top for it, like the phone hint
-   row, so it never covers the opponent's cards. Left / right: the hand fills
-   the open space beside the opponent's mat (see .opp-hand-mat-side below);
-   only when the window is too narrow to leave that space (and while the board
-   is tilted) does it fall back to the same top strip. Bigger playing area's
-   two-row mats fill the width, so there the mats shrink by a gutter for the
-   hand instead (--hand-gutter, #529). The reservation sits on
-   .playmat-inner for those, because a container query cannot style its own
-   container. */
+/* A container query cannot style its own container, so the reservation sits on .playmat-inner for the two-row mats. */
 .arena.arena-wide .playmat:has(> .playmat-inner > .opp-hand-mat-centre),
 .arena.arena-wide.arena-tilt .playmat-inner:has(> .opp-hand-mat-side) {
   --hint-h: calc(var(--dock-cw, 4.6rem) * 0.62 * 1.05);
@@ -82,8 +69,6 @@
 .opp-hand-mat {
   flex: 0 0 auto;
   display: flex;
-  /* As wide as the mats (see .side-field), so left / right line up with
-     the mat's corners. */
   width: calc(
     min(
         calc((100cqh - var(--hint-h) - var(--midline-h) - 3 * var(--mat-gap)) / 2),
@@ -111,7 +96,6 @@
   max-width: 100%;
 }
 
-/* Cards hang from the top edge with the count beside them. */
 .opp-hand-corner-mat {
   align-items: flex-start;
   gap: 0.45rem;
@@ -139,18 +123,13 @@
   order: -1;
 }
 
-/* Left / right with room: the hand is a small horizontal fan in the gutter beside the
-   opponent's mat, top-aligned with the mat and hugging the mat's side (the wrapper spans
-   the whole gutter, the fan sits against the mat; #775). The mat math below mirrors
-   .side-field (--hint-h is 0 here, nothing is reserved at the top). The
-   tilted board keeps the strip. */
+/* The mat math below mirrors .side-field (--hint-h is 0 here, nothing is reserved at the top). */
 @container playmat (aspect-ratio >= 1.02) {
   .arena.arena-wide:not(.arena-tilt):not(.arena-big) .opp-hand-mat-side {
     --m-h: calc((100cqh - var(--midline-h) - 3 * var(--mat-gap)) / 2);
     --m-w: min(100cqw, calc(var(--m-h) * 1.95));
     position: absolute;
-    /* The mats and the strip share the space left over by 3 gaps, so the opponent
-       mat starts half a gap down. */
+    /* The mats and the strip share the space left over by 3 gaps, so the opponent mat starts half a gap down. */
     top: calc(var(--mat-gap) / 2);
     width: calc((100cqw - var(--m-w)) / 2 - 0.6rem);
     max-width: none;
@@ -167,10 +146,6 @@
     right: 0;
   }
 
-  /* Buttons beside the board: the mats and the dock hug the left of the play area and the leftover
-     width ends up right of the dock. The hand gets a gutter of its own (like Bigger playing area):
-     on the left the mats start right after it; on the right the play area ends where the gutter
-     does, so the dock sits right of the hand and the mats are not pushed around. */
   .arena.arena-wide.arena-side-actions:not(.arena-tilt):not(.arena-big):not(.arena-lp) .playmat-inner:has(> .opp-hand-mat-side) {
     --hand-gutter: calc(var(--dock-cw, 4.6rem) * 1.9);
   }
@@ -204,9 +179,6 @@
     width: calc(var(--hand-gutter) - 0.6rem);
   }
 
-  /* Bigger playing area: the mats fill the width, so they give up a gutter on the hand's side
-     (padding here, and --hand-gutter taken off the width the mat is sized from) and the hand
-     sits in it at the opponent mat's height. */
   .arena.arena-wide.arena-big:not(.arena-lp):not(.arena-tilt) .playmat-inner:has(> .opp-hand-mat-side) {
     --hand-gutter: calc(var(--dock-cw, 4.6rem) * 1.9);
   }
@@ -224,8 +196,7 @@
       calc((100cqh - var(--midline-h) - 3 * var(--mat-gap)) / 2),
       calc((100cqw - var(--hand-gutter)) / 2.9)
     );
-    /* The mat (2.9 x its height) is centred between the padding, so on a very wide window
-       the wrapper reaches from the mat's edge out to the window's edge, not just the gutter. */
+    /* The mat is centred between the padding, so on a very wide window the wrapper reaches from the mat's edge out to the window's edge, not just the gutter. */
     --m-w: calc(var(--m-h) * 2.9);
     /* The mats are centred, so the opponent's starts after the space left over above them. */
     top: max(calc(var(--mat-gap) / 2), calc((100cqh - 2 * var(--m-h) - var(--midline-h) - 2 * var(--mat-gap)) / 2));
@@ -266,19 +237,15 @@
     padding: 0.3rem 0;
   }
 
-  /* Right of the mat: against its right edge (the gutter's left). Left of the mat: against
-     its left edge (the gutter's right). */
   .arena.arena-wide .opp-hand-mat-left .opp-hand-corner-mat {
     align-items: flex-end;
   }
 
-  /* The count sits under the fan, on the same side. */
   .arena.arena-wide .opp-hand-mat-side .opp-hand-corner.opp-hand-corner-mat > .opp-hand-count {
     order: 2;
     align-self: auto;
   }
 
-  /* A small horizontal fan, like a regular hand, top-aligned with the mat and hugging its side. */
   .arena.arena-wide .opp-hand-mat-side .opp-corner-cards {
     flex-direction: row;
     justify-content: flex-start;
@@ -304,7 +271,6 @@
   }
 }
 
-/* Drop target while dragging the opponent hand over the top of the mat. */
 .panel-drop-spot {
   position: fixed;
   z-index: var(--z-drawer);
@@ -315,8 +281,6 @@
   pointer-events: none;
 }
 
-/* Where a dragged spectator hand docks: a strip along the bottom of the window
-   (near) or the top of the board (far), lit when letting go would redock it. */
 .spec-dock-target {
   position: fixed;
   z-index: var(--z-drawer);
@@ -332,8 +296,7 @@
   background: rgb(var(--chrome-bright-rgb) / 0.2);
 }
 
-/* A hand card that costs more than your active DON!!, or that an effect stops you playing.
-   The gray sits on everything but the caption, so "Can't play" stays red (#673). */
+/* The gray sits on everything but the caption, so "Can't play" stays red. */
 .arena .card-tile.hand-unaffordable:not(.selected, .card-lifted) {
   opacity: 1;
 }
@@ -342,8 +305,6 @@
   filter: grayscale(1);
 }
 
-/* Phone boards: names and power at 10px or more (they were 7 to 8px), and the printed
-   cost line goes (the art shows it) unless an effect changed it. */
 @media (pointer: coarse) and (max-width: 599px),
   (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
   (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
@@ -362,7 +323,6 @@
   }
 }
 
-/* Landscape phones: the rail is narrow, so the pill's subtext wraps instead of being cut. */
 @media (orientation: landscape) and (min-width: 480px) and (max-height: 499px),
   (orientation: landscape) and (min-width: 480px) and (max-width: 899px),
   (orientation: landscape) and (pointer: coarse) and (min-width: 900px) and (max-width: 1099px) {

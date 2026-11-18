@@ -1,7 +1,3 @@
-/**
- * "Place up to 1 X and up to 1 Y at the bottom of the owner's deck in any order of their choosing" (OP18-051) goes
- * through the verb-distribution rule and then the single-target place rule; both must accept the full tail (#759).
- */
 import { describe, expect, it } from "vitest";
 import { cardDataFor } from "../../cards/cardData.js";
 import { compileCardText } from "../../tools/cardText/compileCard.js";

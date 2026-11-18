@@ -51,7 +51,6 @@ const ICONS = {
   ),
 };
 
-/** Keys that drive the replay: Space plays or pauses, ← / → step, Shift+← / → change turn. */
 export function replayKeyAction(e: Pick<KeyboardEvent, "key" | "code" | "shiftKey" | "ctrlKey" | "metaKey" | "altKey">):
   | "toggle"
   | "back"
@@ -66,7 +65,6 @@ export function replayKeyAction(e: Pick<KeyboardEvent, "key" | "code" | "shiftKe
   return null;
 }
 
-/** Controls whose own keys (or Space) must win over the replay's. */
 const OWN_KEYS = "input, select, textarea, [contenteditable=true], [role=dialog], [aria-modal=true]";
 
 export function ReplayControls({
@@ -82,11 +80,9 @@ export function ReplayControls({
   note?: ReactNode;
   resultSlot?: ReactNode;
   reserveRow?: boolean;
-  /** The game review (#967), for a finished game; null for one that never ended. */
   review?: ReviewState | null;
 }) {
   const { step, total, turn, turns, playing, speed, revealAll, yourSeat, playerNames, branch } = state;
-  // Desktop has room for every control; phones keep the transport, scrubber and mode toggle, and tuck the rest behind More.
   const compact = !useMediaQuery(DESKTOP_BOARD_QUERY);
   const [moreOpen, setMoreOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
@@ -116,7 +112,6 @@ export function ReplayControls({
       const active = document.activeElement;
       if (isTyping(active) || active?.closest(OWN_KEYS)) return;
       if (document.querySelector('[aria-modal="true"]')) return;
-      // A focused button or link takes Space itself.
       if (action === "toggle" && active?.matches("button, a")) return;
       e.preventDefault();
       if (action === "toggle") actions.togglePlay();
@@ -185,7 +180,6 @@ export function ReplayControls({
       <span className="replay-review-btn-text">Review</span>
     </button>
   ) : null;
-  // Phones' strip keeps to two lines, so the sheet spells out the move on screen in full.
   const now = compact && showReview ? moveStatus(review.review, { done: review.status === "done", progress: review.progress }, step, branch != null, total) : null;
   const summary = (grip?: ReactNode) =>
     showReview ? (
@@ -201,7 +195,6 @@ export function ReplayControls({
       }}
       onGo={(target) => {
         actions.goTo(target);
-        // A sheet covers the board: leave it so the moment can be seen.
         if (compact) setReviewOpen(false);
       }}
     />
@@ -275,7 +268,6 @@ export function ReplayControls({
 
       <div className="replay-row">
         {branch ? (
-          // Your own line: the bar takes the mode toggle's row, so nothing moves when it opens.
           <div className="replay-line" role="group" aria-label="Your line">
             <span className="replay-line-text" title={`Your line from turn ${branch.turn} · ${branch.moves} ${branch.moves === 1 ? "move" : "moves"}`}>
               <strong>Your line</strong>
@@ -351,7 +343,6 @@ export function ReplayControls({
           {turnSelect}
           {speedSelect}
           {showReview ? (
-            // Short landscape has no room beside the mode toggle, so Review lives here (hidden by CSS elsewhere).
             <button
               type="button"
               className="replay-seg-btn replay-more-review"

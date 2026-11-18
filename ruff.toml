@@ -1,14 +1,8 @@
-# Ruff lint for the FastAPI backend and the Python scripts (refactor 1.3).
-# Run from the repo root: `ruff check backend` (CI: backend job).
-# Lint only; there is no formatter pass, so no source file is reformatted.
 target-version = "py312"
 line-length = 120
 extend-exclude = [".venv"]
 
 [lint]
-# pyflakes (unused imports and variables, undefined names) plus the pycodestyle
-# checks that catch real bugs (E4 imports, E7 statements, E9 syntax errors).
-# Widen this list as the code is cleaned up; do not narrow it.
 select = ["E4", "E7", "E9", "F"]
 # Single-letter l/O/I names and lambda assignments are style, and appear in
 # existing code and test helpers.

@@ -1,15 +1,8 @@
-/** What Log Pose is told when the player has a live game attached (the copilot), as a second system block after the chat prompt. */
-
-/**
- * Added after COPILOT_INSTRUCTIONS when the app is playing the turn for the player (context.game.autopilot): the
- * app runs your plans and asks you for each choice and for what comes next, so answer, don't discuss.
- */
 export const AUTOPILOT_INSTRUCTIONS = `
 The app is playing this turn for the player right now: they asked you to. Don't coach and don't ask them anything.
 If the <game> block has a pending choice, answer it with answer_choice (its Choice id, then accept, and the option ids it lists) and nothing else. Otherwise plan the rest of the turn with propose_turn_plan and play_now true, ending with end_turn when nothing useful is left. If a tool refuses, fix the call and try again.
 Say at most one short line.`;
 
-/** Added after COPILOT_INSTRUCTIONS when the copilot setting is off: the game is attached but plans are not. */
 export const NO_PLANS_INSTRUCTIONS = `
 Turn play-out is off for this game, so propose_turn_plan is refused: give the line in words. If they want turns played out, they can turn on the Log Pose copilot setting in duel settings.`;
 

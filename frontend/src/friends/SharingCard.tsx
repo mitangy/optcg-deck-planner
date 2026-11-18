@@ -2,13 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { friendsApi, type Sharing, type SharingUpdate } from "./friendsApi";
 import { qk } from "../cache/queryKeys";
 
-/** First visit: a clear ask. After that: the four switches, always visible so nothing expands. */
 export function SharingCard() {
   const qc = useQueryClient();
   const { data, error } = useQuery({ queryKey: qk.sharing(), queryFn: friendsApi.sharing });
   const save = useMutation({
     mutationFn: (body: SharingUpdate) => friendsApi.setSharing(body),
-    // Switches flip right away and snap back if the save fails.
     onMutate: async (body) => {
       await qc.cancelQueries({ queryKey: qk.sharing() });
       const before = qc.getQueryData<Sharing>(qk.sharing());

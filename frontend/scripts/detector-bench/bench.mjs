@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-/** Time the detector in headless Chromium: starts Vite, opens the bench page (dev tool, #701).
- *
- *   cd frontend
- *   PHOTOS=.scan-build/real-photos MODEL=public/scan-data/card-detector.onnx node scripts/detector-bench/bench.mjs
- *
- * Photos are copied into public/dev-fixtures/ (gitignored) so Vite can serve them.
- */
 import { copyFileSync, mkdirSync, readdirSync } from "node:fs";
 import { build, createServer, preview } from "vite";
 import { chromium } from "@playwright/test";
@@ -17,8 +10,6 @@ const photos = readdirSync(dir).filter((f) => f.endsWith(".jpg"));
 for (const f of photos) copyFileSync(`${dir}/${f}`, `public/dev-fixtures/bench/${f}`);
 copyFileSync(model, "public/dev-fixtures/bench/model.onnx");
 
-// PROD=1 benchmarks the production bundle (built with this page as a second entry)
-// instead of the dev server, to prove the WASM asset resolves from hashed output.
 let server;
 if (process.env.PROD) {
   const outDir = "/tmp/detector-bench-dist";

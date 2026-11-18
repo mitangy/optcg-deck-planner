@@ -9,10 +9,6 @@ export function userLabel(u: Pick<AdminUser, "username" | "name" | "email">): st
   return u.username || u.name || u.email;
 }
 
-/**
- * Role / ban / delete calls shared by the Users list and the user page. `onChange` gets the updated row, or null once
- * the account is deleted. Prompts and error notices live here so both screens behave the same.
- */
 export function useUserActions(onChange: (user: AdminUser, next: AdminUser | null) => void) {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [notice, setNotice] = useState<string | null>(null);

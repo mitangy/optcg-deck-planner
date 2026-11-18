@@ -78,7 +78,6 @@ describe("applying a Log Pose edit to a planner deck (#400)", () => {
     { id: "OP05-102", before: 4, after: 3 },
   ];
 
-  /** A save that records its calls and fails for one (card, count). */
   function saver(failOn?: { id: string; needed: number }) {
     const calls: [string, number][] = [];
     const save = async (id: string, needed: number) => {
@@ -103,7 +102,6 @@ describe("applying a Log Pose edit to a planner deck (#400)", () => {
   it("puts saved lines back when a later save fails (#400)", async () => {
     const { calls, save } = saver({ id: "OP05-101", needed: 3 });
     await expect(applyPlannerEdit(save, ops)).rejects.toThrow("Couldn't save OP05-101: Network down. Nothing was changed.");
-    // The two lines that went through are set back to their before counts.
     expect(calls.slice(3)).toEqual([
       ["OP05-102", 4],
       ["OP05-100", 2],

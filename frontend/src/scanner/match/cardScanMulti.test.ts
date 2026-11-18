@@ -5,7 +5,6 @@ import type { ScanMatch } from "./cardScanMatch";
 
 const state = vi.hoisted(() => ({
   cards: [] as DetectedCard[],
-  /** What `matchRectified` returns, in call order. */
   results: [] as ({ cardId: string; inliers: number; runnerUp: number } | null)[],
 }));
 
@@ -86,7 +85,6 @@ describe("matchAllCardsWith touching blocks", () => {
 
   it("keeps the cells when they identify (#701)", async () => {
     state.cards = cells();
-    // The third result is what the whole block would read as; it must go unused.
     order([
       { cardId: "OP01-001", inliers: 30, runnerUp: 0 },
       { cardId: "OP01-002", inliers: 30, runnerUp: 0 },
@@ -117,7 +115,6 @@ describe("overlapped detections (#769)", () => {
   const item = (quad: Quad, inliers: number, confidence: "sure" | "check" | "none" = "sure") => ({ quad, inliers, confidence });
 
   it("keeps sure only for the best read among overlapping cards (#769)", () => {
-    // Two cards of a fan: the rear one is half hidden behind the front one.
     const rear = item(box(0, 0, 100, 140), 30);
     const front = item(box(55, 0, 100, 140), 60);
     expect(capOverlappedConfidence([rear, front]).map((i) => i.confidence)).toEqual(["check", "sure"]);

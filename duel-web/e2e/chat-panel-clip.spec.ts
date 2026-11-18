@@ -1,10 +1,3 @@
-/**
- * The chat panel's input row is never cut off (#529): dragging the divider above
- * it as far as it goes, or a short window with every panel in one column, makes
- * the message list shrink and scroll, not the Send row disappear.
- *
- * SHOTS=1 saves screenshots to /mnt/project-files/card-preview-popup/.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -18,7 +11,6 @@ async function openDemo(page: Page, settings: Record<string, unknown>, size: { w
   await page.waitForTimeout(400);
 }
 
-/** Send row and message list sit inside the chat panel and the window. */
 async function expectInputVisible(page: Page) {
   const panel = (await page.locator('[data-panel="chat"]').boundingBox())!;
   const form = (await page.locator('[data-panel="chat"] .chat-form').boundingBox())!;
@@ -30,7 +22,6 @@ async function expectInputVisible(page: Page) {
   expect(send.y, "Send below the panel top").toBeGreaterThanOrEqual(panel.y);
 }
 
-// The chat has to fit in today's defaults (Bigger playing area, buttons beside the board), not the old layout.
 test.use({ legacyLayout: false });
 
 test.beforeEach(({}, info) => {

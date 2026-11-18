@@ -2,7 +2,6 @@ import { useEffect } from "react";
 import { prefersReducedMotion } from "../motion/BoardMotion";
 import { liftScale, liftTilt } from "./handLift";
 
-/** Last pointer position, so a lift that starts mid-gesture knows where the finger is. */
 const lastPointer = { x: 0, y: 0, t: 0 };
 if (typeof window !== "undefined") {
   window.addEventListener(
@@ -29,7 +28,6 @@ function handEl(id: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(`[data-motion-id="${CSS.escape(id)}"]`);
 }
 
-/** The hand's visible area: the card row, clipped to its panel (as the drop slot measures it). */
 function handArea(card: HTMLElement): DOMRect | null {
   const row = card.parentElement;
   if (!row) return null;
@@ -43,13 +41,6 @@ function handArea(card: HTMLElement): DOMRect | null {
   return new DOMRect(left, top, right - left, bottom - top);
 }
 
-/**
- * While `cardId` (a hand card) is dragged, a copy of it lifts out of the hand
- * and follows the pointer; DuelBoard empties the card's own slot (`card-lifted`) (#357). The copy is
- * the card as drawn, so the art, cost and Counter badges come with it. Over
- * the hand it is held a little bigger; elsewhere it shrinks to a carried
- * thumbnail so the board stays visible. Reduced motion keeps it upright.
- */
 export function useHandLift(cardId: string | null) {
   useEffect(() => {
     if (!cardId || typeof document === "undefined") return;
@@ -97,7 +88,6 @@ export function useHandLift(cardId: string | null) {
       ghost.style.scale = scale.toFixed(3);
       ghost.style.rotate = `${tilt.toFixed(2)}deg`;
       ghost.classList.toggle("is-carried", !over);
-      // Let a lean settle back upright once the pointer stops.
       if (Math.abs(tilt) > 0.2) {
         vx *= 0.5;
         frame = requestAnimationFrame(place);

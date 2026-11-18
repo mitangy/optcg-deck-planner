@@ -1,8 +1,3 @@
-"""Daily market-price history per TCGPlayer product (#946).
-
-Stored one row per product and month, with the days as a 31-entry JSON array,
-so ~7.4k products over ~33 months stay a few hundred thousand small rows.
-"""
 
 from __future__ import annotations
 
@@ -40,11 +35,6 @@ def _load(raw: str) -> list[float | None]:
 
 
 def record_prices(db: Session, day: date, prices: dict[int, float | None]) -> int:
-    """Store each product's market price for `day`; the same day is overwritten.
-
-    Products with no price (None) are skipped. Returns how many were stored.
-    The caller commits.
-    """
     wanted = {int(pid): float(v) for pid, v in prices.items() if v is not None}
     if not wanted:
         return 0
@@ -83,7 +73,6 @@ def record_prices_safely(db: Session, day: date, prices: dict[int, float | None]
 
 
 def history_points(db: Session, product_id: int) -> list[tuple[str, float]]:
-    """(YYYY-MM-DD, price) for every recorded day, oldest first."""
     rows = db.scalars(
         select(PriceHistoryMonth)
         .where(PriceHistoryMonth.product_id == product_id)
@@ -96,14 +85,13 @@ def history_points(db: Session, product_id: int) -> list[tuple[str, float]]:
                 continue
             try:
                 day = row.month.replace(day=index + 1)
-            except ValueError:  # day 31 of a 30-day month
+            except ValueError:
                 continue
             points.append((day.isoformat(), float(value)))
     return points
 
 
 def resolve_printing(db: Session, card_id: str, product_id: int) -> CatalogPrinting | None:
-    """The printing to chart: `product_id`, or (0) the card's base art, the one the catalog shows."""
     rows = list(db.scalars(select(CatalogPrinting).where(CatalogPrinting.card_id == card_id)).all())
     if not rows:
         return None
@@ -113,7 +101,6 @@ def resolve_printing(db: Session, card_id: str, product_id: int) -> CatalogPrint
 
 
 def release_date(db: Session, group_name: str) -> date | None:
-    """When the set named `group_name` was published (printings only carry the name)."""
     return db.scalar(
         select(CatalogGroup.published_on)
         .where(CatalogGroup.name == group_name, CatalogGroup.published_on.is_not(None))
@@ -126,12 +113,6 @@ _ART_MARK = re.compile(r"\([^)]*\)")
 
 
 def later_reprints(db: Session, printing: CatalogPrinting, released: date | None) -> list[str]:
-    """Sorted distinct release dates of later plain reprints of this printing's card (#1311).
-
-    A reprint is another printing of the same card number with no "(...)" art mark in its
-    name, in a set that released after `released` (so never the printing's own set). Older printings have
-    usually dropped about 10% in the two months after one.
-    """
     if released is None:
         return []
     others = db.scalars(
@@ -149,7 +130,6 @@ def later_reprints(db: Session, printing: CatalogPrinting, released: date | None
 
 
 def known_product_ids(db: Session, product_ids: list[int]) -> set[int]:
-    """The ids among `product_ids` that are catalog printings (sealed product is not)."""
     found: set[int] = set()
     for i in range(0, len(product_ids), _CHUNK):
         chunk = product_ids[i : i + _CHUNK]

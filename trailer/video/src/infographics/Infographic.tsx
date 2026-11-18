@@ -8,12 +8,10 @@ type Orientation = 'portrait' | 'landscape' | 'story';
 
 export const SIZES = {portrait: {w: 1080, h: 1350}, landscape: {w: 1920, h: 1080}, story: {w: 1080, h: 1920}} as const;
 
-/** Instagram Stories / Reels cover the top 220px and bottom 340px of a 1080x1920 canvas with their own UI. */
 export const STORY_SAFE = {top: 220, bottom: 340};
 
 const plain = (t: string) => t.replace(/\*\*/g, '');
 
-/** Rough height of the step sentence at font size fs in a box of width w (Sora is about 0.56em per glyph). */
 const textHeight = (t: string, w: number, fs: number, keys: boolean) => {
   const perLine = Math.max(8, Math.floor(w / (fs * 0.56)));
   const lines = Math.ceil((plain(t).length * 1.07) / perLine);
@@ -21,20 +19,16 @@ const textHeight = (t: string, w: number, fs: number, keys: boolean) => {
 };
 
 const Picture: React.FC<{step: Step; w: number; h: number; portrait: boolean; wide?: boolean; first?: boolean}> = ({step, w, h, portrait, wide, first}) => {
-  // Wide, short picture areas (portrait cards with the text on the left) get wider crops.
-  // Story: one big picture per step (the desktop one) instead of two small ones; before/after pairs stay together.
   const keepAll = !first || step.shots?.[0]?.tag === 'Before';
   const single = keepAll ? (step.shots?.length ?? 0) === 1 : true;
   const shots = (keepAll ? step.shots ?? [] : (step.shots ?? []).slice(0, 1)).map((s) => {
     if (wide && single && s.ar) return {...s, ar: Math.min(2.6, s.ar * 1.4)};
-    // Landscape columns are tall: board crops grow taller (more board around the control) instead of floating in space.
     if (!portrait && s.ar && !s.inside) return {...s, ar: Math.min(s.ar, 1.2)};
     return s;
   });
   if (shots.length) {
     const gap = 34;
     const aspects = shots.map(aspectOf);
-    // Landscape columns are tall and narrow: stack. Portrait picks whichever layout gives the pictures more room.
     const {dir, sizes} = !portrait && shots.length > 1 ? {dir: 'col' as const, sizes: fitCol(aspects, w, h - 10, gap)} : fitBest(aspects, w, h - 10, gap);
     return (
       <div style={{width: w, height: h, display: 'flex', flexDirection: dir === 'row' ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap}}>
@@ -66,7 +60,6 @@ const Picture: React.FC<{step: Step; w: number; h: number; portrait: boolean; wi
   );
 };
 
-/** Portrait, up to three steps: the sentence on the left, the pictures on the right. */
 const RowCard: React.FC<{step: Step; n: number; w: number; h: number; fs: number; textW?: number; badgeK?: number}> = ({step, n, w, h, fs, textW: tw, badgeK = 1.6}) => {
   const pad = 20;
   const badge = Math.round(fs * badgeK);
@@ -105,7 +98,6 @@ const KeyRow: React.FC<{keys?: string[]; fs: number}> = ({keys, fs}) =>
     </div>
   ) : null;
 
-/** Text on top, pictures below: the 2x2 portrait grid and every landscape column. */
 const StackCard: React.FC<{step: Step; n: number; w: number; h: number; fs: number; portrait: boolean}> = ({step, n, w, h, fs, portrait}) => {
   const pad = 22;
   const badge = Math.round(fs * 1.6);

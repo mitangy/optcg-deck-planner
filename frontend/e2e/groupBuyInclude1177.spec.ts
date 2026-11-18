@@ -1,7 +1,3 @@
-/**
- * Group buy Filters > Include: "Cards not in a deck" and "Extra copies" change your contribution,
- * and ticking them leaves the Filters panel where it was (#1177).
- */
 import { expect, test } from "./fixtures";
 const GB = 77;
 const SHOTS = process.env.PR_SHOTS_DIR;

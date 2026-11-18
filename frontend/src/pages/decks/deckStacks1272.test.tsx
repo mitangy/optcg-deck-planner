@@ -81,7 +81,6 @@ describe("deck page card stacks (#1272)", () => {
         expect(layersByCard(".desktop-table", "tr[data-card-id]")).toEqual(expected);
         expect(layersByCard(".mobile-card-list", ".mobile-card")).toEqual(expected);
       }
-      // Only the front card opens the lightbox: the layers hold no buttons.
       expect(host.querySelectorAll(".card-stack-copy button")).toHaveLength(0);
       act(() => root!.unmount());
       host.remove();

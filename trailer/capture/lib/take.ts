@@ -1,7 +1,3 @@
-/**
- * One take = browser window(s) on the Xvfb screen, a fake backend, a recorder. A clip script prepares the page
- * until it is on a clean first frame, then `rec.start()`s, performs, and `finish()`es.
- */
 import { openWindow, type Win, type WindowSpec } from "./browser";
 import { installCursor, Pointer, type CursorStyle } from "./cursor";
 import { installFakeApi, type FakeOptions, World } from "./fakeApi";
@@ -16,7 +12,6 @@ export type TakeOpts = {
   cursor?: CursorStyle;
   fake: FakeOptions;
   seed?: Seed;
-  /** Shuffle seed added to every room the browser creates, so the game repeats take after take. */
   gameSeed?: number;
   area?: RecordArea;
 };
@@ -43,7 +38,6 @@ export async function checkStack(): Promise<void> {
   }
 }
 
-/** Page-side CSS that only hides dev-build furniture (the version line); nothing about the product itself. */
 const CAPTURE_CSS = `
   .home-version, .version-status { display: none !important; }
 `;
@@ -94,7 +88,6 @@ export async function startTake(opts: TakeOpts): Promise<Take> {
   };
 }
 
-/** Stop recording, close the browser, encode, grab the still. */
 export async function finishTake(t: Take, extra: Win[] = [], stillAt?: number): Promise<{ path: string; seconds: number }> {
   t.rec.markOut();
   await t.rec.stop();
@@ -106,5 +99,4 @@ export async function finishTake(t: Take, extra: Win[] = [], stillAt?: number): 
   return out;
 }
 
-/** Settle: let animations that start on load finish before the first recorded frame. */
 export const settle = (ms = 1200) => sleep(ms);

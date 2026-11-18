@@ -15,7 +15,6 @@ function sumAltOwned(alts: { owned?: number }[]): number {
   return alts.reduce((n, a) => n + (a.owned ?? 0), 0);
 }
 
-/** Alt copies count as owned: still_need = Need − base owned − alt owned (− earlier leaders' claim). */
 export function stillNeedFor(need: number, owned: number, altsOwned: number, earlierLeadersNeed = 0): number {
   return Math.max(0, need - Math.max(0, owned + altsOwned - earlierLeadersNeed));
 }
@@ -37,7 +36,6 @@ export function applyAltOwnedOptimistic(
       let patched = item;
       if (item.card_id.toUpperCase() === id) {
         const alt_arts = patchAlts(item.alt_arts);
-        // alts_owned is what counts for decks: owned alt copies minus the collector-reserved ones (#1031).
         const alts_owned = deckAltsOwned(sumAltOwned(alt_arts), alt_arts);
         const still_need = stillNeedFor(item.need, item.owned, alts_owned);
         patched = {
@@ -82,10 +80,6 @@ export function applyAltOwnedOptimistic(
   });
 }
 
-/**
- * Buy mode (#906): sets how many still-needed copies of one alt art to buy in the
- * cached shopping list and deck, and reprices the card with the pick.
- */
 export function applyAltBuyOptimistic(
   qc: ReturnType<typeof useQueryClient>,
   cardId: string,
@@ -129,12 +123,10 @@ export function applyAltBuyOptimistic(
   );
 }
 
-/** A cached list fetched with Extra copies off (#1184): it must never gain Extra copy lines. */
 export function isCollectorHiddenList(key: readonly unknown[]): boolean {
   return Array.isArray(key[1]) && key[3] === false;
 }
 
-/** Sets one collector want in the cached shopping lists, deck pages and Collection (#1031, #1035). */
 export function applyCollectorOptimistic(
   qc: ReturnType<typeof useQueryClient>,
   cardId: string,
@@ -213,7 +205,6 @@ export function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, card
       ...old,
       cards: old.cards.map((card) => {
         if (card.card_id.toUpperCase() !== id) return card;
-        // Earlier leaders take their copies first in "Separate per leader" mode.
         return {
           ...card,
           owned: qty,
@@ -224,7 +215,6 @@ export function applyOwnedOptimistic(qc: ReturnType<typeof useQueryClient>, card
   });
 }
 
-/** Sets a card's direct target in the cached shopping list: need = max(deck need, target). */
 export function applyWantOptimistic(qc: ReturnType<typeof useQueryClient>, cardId: string, extraQty: number) {
   const id = cardId.toUpperCase();
   qc.setQueriesData<ShoppingResponse>({ queryKey: qk.shopping.all() }, (old) => {

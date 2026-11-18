@@ -1,12 +1,5 @@
 name: Bot lessons
 
-# Weekly: compares each leader's bot-game line stats (the nightly Hard vs Hard corpus, see bot-selfplay.yml) with the same
-# lines in real archive games, and saves the lines both agree on as draft lessons (#915). The site owner approves them in
-# the duel app (Settings, Log Pose); an approved one reaches every player's Log Pose with the sim stats. A lesson the
-# planner already has, in any status, is skipped, so reruns add nothing.
-#
-# Needs ANALYST_API_URL (the backend's base URL, a repository variable or a secret) and a secret ANALYST_SERVICE_SECRET
-# (the same value as the backend's ANALYST_SERVICE_SECRET). Without both it does nothing.
 on:
   schedule:
     - cron: "0 11 * * 1"

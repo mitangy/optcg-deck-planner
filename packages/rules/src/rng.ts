@@ -1,9 +1,5 @@
-/** Seeded RNG — no Math.random in the rules engine. */
-
 export interface Rng {
-  /** Float in [0, 1). */
   next(): number;
-  /** Integer in [0, maxExclusive). */
   nextInt(maxExclusive: number): number;
   shuffle<T>(items: T[]): T[];
   snapshot(): RngState;
@@ -17,7 +13,6 @@ export function isValidRngState(value: unknown): value is RngState {
   return Number.isInteger(seed) && seed >= 0 && seed <= 0xffffffff && Number.isSafeInteger(cursor) && cursor >= 0;
 }
 
-/** Mulberry32 PRNG. */
 export function createSeededRng(seedOrState: number | RngState): Rng {
   if (typeof seedOrState !== "number" && !isValidRngState(seedOrState)) throw new Error("Invalid RNG snapshot");
   if (typeof seedOrState === "number" && !Number.isSafeInteger(seedOrState)) throw new Error("RNG seed must be a safe integer");

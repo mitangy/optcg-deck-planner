@@ -1,14 +1,13 @@
 /**
- * Compile DSL effect trees into flat instruction lists. A resolution frame
- * stores only an instruction index and JSON bindings, so any paused program can
- * be serialized and resumed exactly.
+ * A resolution frame stores only an instruction index and JSON bindings, so any paused program can be serialized and
+ * resumed exactly.
  */
 import { assertNever } from "../assertNever.js";
 import type { Ability, Cond, Cost, Effect, LookPick, Placement, Rel, Selector, Target, Value } from "./types.js";
 import { V, modeVar } from "./bindings.js";
 
 export type Instr =
-  | { op: "select"; bind: string; selector: Selector; min: number; max: number; chooser: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean; purpose: string; random?: boolean; countValue?: Value; /** The pick is played by the next step: cards that cannot be played right now are not offered (#656). */ forPlay?: boolean }
+  | { op: "select"; bind: string; selector: Selector; min: number; max: number; chooser: Rel; totalCostAtMost?: Value; totalPowerAtMost?: Value; distinctNames?: boolean; purpose: string; random?: boolean; countValue?: Value; forPlay?: boolean }
   /** Schedule the ability's `index`-th delayed effect for the end of this turn. */
   | { op: "delay"; index: number; when: "end_of_turn" | "end_of_battle" | "opponent_main" }
   /** Yes/no. When `costs` is set the prompt is skipped (as "no") unless they are payable. */
@@ -79,14 +78,12 @@ export function compileAbilityProgram(ability: Ability, opts: { optionalCosts: b
   return { abilityId: ability.id, instrs };
 }
 
-/** Compile a standalone effect (replacement "instead" bodies). */
 export function compileStandalone(abilityId: string, effect: Effect): Program {
   const instrs: Instr[] = [];
   compileEffect(effect, instrs, { modes: 0, delays: 0 });
   return { abilityId, instrs };
 }
 
-/** Delayed effect bodies in the same pre-order used to number `delay` instructions. */
 export function delayedEffects(ability: Ability): Effect[] {
   const out: Effect[] = [];
   const walk = (e: Effect | undefined): void => {
@@ -147,13 +144,8 @@ function withRested(selector: Selector, rested: boolean): Selector {
   return { ...selector, filter: { ...(selector.filter ?? {}), rested }, ...(selector.also ? { also: selector.also.map((s) => withRested(s, rested)) } : {}) };
 }
 
-/** Costs an opponent can be asked to pay ("Your opponent may trash 3 cards from their hand. If they do not, ..."). */
 const OPPONENT_PAYABLE: ReadonlySet<Cost["k"]> = new Set(["trash_hand", "trash_life", "return_active_don"]);
 
-/**
- * Expand one cost into selection + action instructions. Costs are exact (min = max).
- * `who` is the payer, relative to the ability's controller: "opponent" for a `may` the opponent decides (#515).
- */
 export function compileCost(cost: Cost, out: Instr[], who: Rel = "you"): void {
   if (who !== "you" && !OPPONENT_PAYABLE.has(cost.k)) throw new Error(`Cost ${cost.k} cannot be paid by the opponent`);
   const select = (selector: Selector, count: number, purpose: string, bind: string = V.cost) => {
@@ -163,7 +155,6 @@ export function compileCost(cost: Cost, out: Instr[], who: Rel = "you"): void {
   const costVar: Target = { ref: "var", name: V.cost };
   switch (cost.k) {
     case "rest_don": out.push({ op: "act", effect: { do: "rest_don", player: "you", count: cost.count } }); return;
-    // "DON!! −N": the player picks which N DON!! to return — active, rested, or attached.
     case "return_don": select({ player: "you", zone: "don_field" }, cost.count, "return to your DON!! deck (cost)"); out.push({ op: "act", effect: { do: "return_don", player: "you", target: costVar } }); return;
     case "trash_hand": select({ player: who, zone: "hand", filter: { ...(cost.filter ?? {}), excludeSelf: true } }, cost.count, "trash (cost)"); out.push({ op: "act", effect: { do: "to_trash", target: costVar } }); return;
     // Bound as `_last` so "the revealed card" in the effect finds it, as after a revealed top card (#515).
@@ -196,7 +187,6 @@ export function compileCost(cost: Cost, out: Instr[], who: Rel = "you"): void {
     case "place_self_in_life": out.push({ op: "act", effect: { do: "to_life", target: self, position: "top", faceUp: cost.faceUp } }); return;
     case "return_don_any": out.push({ op: "select", bind: V.cost, selector: { player: "you", zone: "don" }, min: 1, max: 99, chooser: "you", purpose: "return to your DON!! deck (cost)" }); out.push({ op: "act", effect: { do: "return_don", player: "you", target: costVar } }); return;
     case "either": {
-      // Choose a payable option, then pay it.
       const bind = V.either;
       out.push({ op: "mode", bind, labels: cost.labels, chooser: "you", prompt: "choose which cost to pay", costOptions: cost.options });
       const ends: number[] = [];

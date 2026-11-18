@@ -1,4 +1,3 @@
-/** 01-landing (5s): the lobby with the deck hero and live side cards, the cursor drifting slowly to Play. */
 import { sleep } from "../lib/util";
 import { finishTake, settle, startTake, type Take } from "../lib/take";
 import { MIKO } from "../lib/data";
@@ -35,7 +34,6 @@ export async function run(): Promise<void> {
   }
 }
 
-/** Everything the first frame needs: art, friends, voyage and bounties are in, nothing is loading. */
 export async function ready(t: Take): Promise<void> {
   const page = t.page;
   await page.locator(".friend-row").first().waitFor({ timeout: 15_000 });

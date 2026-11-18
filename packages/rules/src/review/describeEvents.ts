@@ -1,12 +1,10 @@
 import { getCardDef } from "../cards/definitions.js";
 import type { GameEvent } from "../types.js";
 
-/** Card name, or "a hidden card" for ids a seat's projected events hide (see projectGameEvents). */
 function nameOf(id: string): string {
   return id === "HIDDEN" ? "a hidden card" : getCardDef(id).name;
 }
 
-/** Human-readable lines for a batch of engine events (battle log / sim). */
 export function describeEvents(events: readonly GameEvent[]): string[] {
   const lines: string[] = [];
   for (const e of events) {
@@ -110,7 +108,7 @@ export function describeEvents(events: readonly GameEvent[]): string[] {
         );
         break;
       case "pending_choice_resolved":
-        if (e.kind === "life_trigger") break; // narrated by trigger_resolved
+        if (e.kind === "life_trigger") break;
         lines.push(
           `Seat ${e.seat} ${e.accepted ? "accepts" : "declines"} ${nameOf(e.cardDefId)}'s ${e.kind.replace(/_/g, " ")}`,
         );

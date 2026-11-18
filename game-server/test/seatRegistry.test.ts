@@ -12,7 +12,6 @@ describe("SeatRegistry", () => {
   it("seats a player on the preferred seat when it is free, else on the first free one (refactor 3.5b)", () => {
     const seats = new SeatRegistry();
     assert.equal(seats.assign(claim("a", 1), 1), 1);
-    // Seat 1 is taken: a second player asking for it gets the other seat.
     assert.equal(seats.assign(claim("b", 2), 1), 0);
     assert.equal(seats.seatForSession("a"), 1);
     assert.equal(seats.seatForSession("b"), 0);
@@ -46,7 +45,7 @@ describe("SeatRegistry", () => {
     const seats = new SeatRegistry();
     seats.assign(claim("a", 111), 0);
     seats.assign(claim("b", 222), 1);
-    seats.setOwner(0, 5); // a practice seat: the guest id 111 is owned by account 5
+    seats.setOwner(0, 5);
     assert.equal(seats.controllerOf(0), 5);
     assert.equal(seats.controllerOf(1), 222, "no owner recorded: the seat's own account");
     seats.release("b");

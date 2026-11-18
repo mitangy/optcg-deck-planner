@@ -10,7 +10,6 @@ export function formatCountdown(endsAt: number | null | undefined, now: number):
   return m > 0 ? `${m}:${String(s).padStart(2, "0")}` : `${s}s`;
 }
 
-/** Chess-clock readouts for both seats, or null when that mode is off. */
 export function seatClockLabels(
   timer: TimerMessage | null,
   now: number,
@@ -37,7 +36,6 @@ export function seatClockLabels(
   };
 }
 
-/** The current time, ticking every 250 ms only while a turn / match / seat clock or the reconnect window is running. */
 export function useClockNow(timer: TimerMessage | null, opponentAwayUntil: number | null): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {

@@ -1,18 +1,3 @@
-/** Offline store for the card-art embedder and its precomputed embeddings (#701).
- *
- * Same shape as `cardDetectorCache.ts`: build artifacts served from the
- * `scan-data/` store next to the descriptors, kept in IndexedDB so scanning
- * stays offline after one download, in their own tiny database so they cannot
- * disturb the descriptor cache's versioning.
- *
- * `card-embedder.json` points at two content-addressed files: the ONNX model
- * (`card-embedder-<hash>.onnx`, ~6 MB) and the int8 embeddings of every
- * printing (`embeddings-<hash>.bin`, ~1 MB). Retraining or regenerating
- * replaces the pointer only.
- *
- * Every function resolves rather than throws: the embedder only speeds up the
- * search, and the order hash covers its absence.
- */
 import { createEmbedder, decodeEmbeddings, getScanEmbedder, setScanEmbedder } from "./cardEmbed";
 import type { ScanCandidate } from "./cardScanMatch";
 
@@ -63,7 +48,6 @@ async function writeStored(value: Stored): Promise<void> {
   db.close();
 }
 
-/** Does the stored bundle already hold exactly what the pointer names? */
 export function isCurrent(stored: Stored | null, pointer: EmbedderPointer): boolean {
   return (
     !!stored &&
@@ -74,11 +58,6 @@ export function isCurrent(stored: Stored | null, pointer: EmbedderPointer): bool
   );
 }
 
-/**
- * Make sure the bundle the server points at is stored, downloading it if not.
- * Offline or unpublished: keeps whatever is already stored. True when a usable
- * bundle is stored afterwards.
- */
 export async function ensureCardEmbedder(baseUrl: string): Promise<boolean> {
   const stored = await readStored();
   try {
@@ -102,7 +81,6 @@ export async function ensureCardEmbedder(baseUrl: string): Promise<boolean> {
   }
 }
 
-/** Give each candidate its embedding, joined by descriptor label. Returns how many matched. */
 export function attachEmbeddings(candidates: ScanCandidate[], embeddings: ArrayBuffer): number {
   const { byLabel } = decodeEmbeddings(embeddings);
   let n = 0;
@@ -116,10 +94,6 @@ export function attachEmbeddings(candidates: ScanCandidate[], embeddings: ArrayB
   return n;
 }
 
-/**
- * Load the stored bundle: register the embedder and attach the embeddings to
- * `candidates`. False when there is none or it cannot run.
- */
 export async function activateCardEmbedder(candidates: ScanCandidate[]): Promise<boolean> {
   const stored = await readStored();
   if (!stored) return false;
@@ -133,7 +107,6 @@ export async function activateCardEmbedder(candidates: ScanCandidate[]): Promise
   }
 }
 
-/** Unregister and free the embedder (the WASM session is not garbage collected). */
 export async function releaseCardEmbedder(): Promise<void> {
   const e = getScanEmbedder();
   setScanEmbedder(null);

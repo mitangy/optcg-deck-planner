@@ -1,14 +1,12 @@
 import { DECK_NAME_MAX, META_DEFAULT_DAYS, formatDeckRow, formatMetaDate, formatPercent, metaDeckName, ordinal } from "@optcg/deck-analytics/metaFormat";
 import type { MetaDeck, MetaDeckCard } from "../api";
 
-// One copy of the meta-deck text rules for both apps.
 export { DECK_NAME_MAX, META_DEFAULT_DAYS, formatDeckRow, formatMetaDate, formatPercent, metaDeckName, ordinal };
 
 export const META_DAY_OPTIONS = [7, 14, 30] as const;
 
 export type CostGroup = { label: string; cards: MetaDeckCard[] };
 
-/** Group a decklist by cost (cheapest first). Cards without a numeric cost land last under "Other". */
 export function groupCardsByCost(cards: MetaDeckCard[]): CostGroup[] {
   const byCost = new Map<number, MetaDeckCard[]>();
   const other: MetaDeckCard[] = [];
@@ -35,7 +33,6 @@ export type CreateMetaDeckDeps = {
   navigate: (path: string) => void;
 };
 
-/** Create a planner deck from a tournament list, then open it. Posts the deck's `text` untouched. */
 export async function createMetaDeck(
   leader: { id: string; name: string },
   deck: Pick<MetaDeck, "placing" | "event" | "text">,

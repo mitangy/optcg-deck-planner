@@ -8,7 +8,6 @@ function stubSort(value: string | null) {
   vi.stubGlobal("localStorage", { getItem: () => value, setItem: () => {}, removeItem: () => {} });
 }
 
-// newest-first: three ST01-003, one ST01-014, one ST01-009
 const cards = ["ST01-003", "ST01-014", "ST01-003", "ST01-009", "ST01-003"];
 
 function render(sortable: boolean) {

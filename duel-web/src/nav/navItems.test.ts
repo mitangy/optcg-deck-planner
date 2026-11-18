@@ -19,7 +19,6 @@ describe("menu: which item is the current page (#460)", () => {
     expect(activeNavHref("/decks")).toBe("/decks");
     expect(activeNavHref("/decks/new")).toBe("/decks");
     expect(activeNavHref("/decks/abc-123/configure")).toBe("/decks");
-    // A deck whose id is "meta" is still a deck page, not the meta browser.
     expect(activeNavHref("/decks/meta/configure")).toBe("/decks");
   });
 

@@ -42,7 +42,6 @@ export async function getCv(): Promise<Cv> {
       });
       return mod;
     })().catch((err) => {
-      // Let a later attempt retry rather than caching the failure forever.
       cvPromise = null;
       throw err;
     });
@@ -50,26 +49,14 @@ export async function getCv(): Promise<Cv> {
   return cvPromise;
 }
 
-/**
- * Features per card. Measured knee: 250 keeps every test photo correct at
- * ~1.2 ms per candidate, while 150 drops to 3/6 — and it fails by rejecting
- * everything rather than by mis-ranking, so there is no graceful degradation
- * below this. 500 is no more accurate and 3.5x slower.
- */
 export const ORB_FEATURES = 250;
 
-/** Query-side budget (see `extractQueryFeatures`). Reference descriptors stay at `ORB_FEATURES`. */
 export const QUERY_ORB_FEATURES = 500;
-/** Experiment knobs for the lab scripts; production uses the defaults. */
 export const queryTuning = { claheClip: 3, features: QUERY_ORB_FEATURES };
 
-/** Lowe's ratio: keep a match only if it clearly beats the runner-up. */
 const LOWE_RATIO = 0.8;
-/** Reprojection tolerance in pixels for homography inliers. */
 const RANSAC_REPROJ_PX = 5.0;
-/** Too few ratio-test survivors to bother fitting a transform. */
 const MIN_GOOD_FOR_HOMOGRAPHY = 10;
-/** Fewer inliers than this is noise, not a consensus. */
 const MIN_INLIERS = 8;
 
 export type Extracted = { gray: Cv; kp: Cv; desc: Cv };
@@ -106,16 +93,6 @@ export async function extractQueryFeatures(
   return extract(cv, image, nFeatures, queryTuning.claheClip);
 }
 
-/**
- * Resample a rectified card to a given height (width follows the card aspect
- * of the input), area-averaged when shrinking.
- *
- * ORB is scale-sensitive in practice: the references are ~560 px tall, and a
- * 300 px phone crop blown up to 1120 px has the same information spread over
- * 4x the pixels, so its keypoints sit at the wrong scale and a 31 px patch
- * sees mush. Matching at the references' scale nearly doubled inliers on
- * every real photo.
- */
 export async function resizeToHeight(image: ImageData, height: number): Promise<ImageData> {
   if (image.height === height) return image;
   const cv = await getCv();
@@ -163,11 +140,8 @@ function release(cv: Cv, e: Extracted): void {
 }
 
 export type OrbVerifyResult = {
-  /** Matches surviving Lowe's ratio test. */
   good: number;
-  /** Matches explained by one homography — the score that decides a match. */
   inliers: number;
-  /** Why it bailed out early, for diagnostics. */
   rejected:
     | "none"
     | "no-descriptors"
@@ -176,32 +150,19 @@ export type OrbVerifyResult = {
     | "too-few-inliers"
     | "insane-homography"
     | "insane-quad";
-  /** Which specific sub-check fired, when one did. */
   detail?: string;
 };
 
-/**
- * Reject flips, slivers and impossible warps — a real card cannot project
- * like that. Returns the failing check's name, or null when the matrix is
- * plausible, so the harness can say *why* a match was thrown out instead of
- * leaving a threshold to be guessed at.
- */
 export function saneHomographyReason(h: number[]): string | null {
-  // Determinant of the 2x2 linear part: negative means a mirror flip, and a
-  // near-zero magnitude means the card collapsed to a sliver.
   const det = h[0] * h[4] - h[1] * h[3];
   if (!Number.isFinite(det)) return "det-not-finite";
   if (det <= 1e-6) return `det-nonpositive(${det.toExponential(2)})`;
-  // Extreme anisotropic scaling is not a card viewed at an angle.
   const sx = Math.hypot(h[0], h[3]);
   const sy = Math.hypot(h[1], h[4]);
   if (!Number.isFinite(sx) || !Number.isFinite(sy)) return "scale-not-finite";
   if (sx < 1e-3 || sy < 1e-3) return `scale-collapsed(${sx.toExponential(2)},${sy.toExponential(2)})`;
   const ratio = sx / sy;
   if (ratio < 0.2 || ratio > 5) return `aspect(${ratio.toFixed(3)})`;
-  // A strong projective component means the plane is folding away implausibly.
-  // Note these terms scale as 1/pixels, so the bound depends on image size —
-  // measured rather than assumed, see the harness diagnostics.
   if (Math.abs(h[6]) > 0.01 || Math.abs(h[7]) > 0.01) {
     return `projective(${h[6].toExponential(2)},${h[7].toExponential(2)})`;
   }
@@ -250,15 +211,12 @@ function saneQuad(h: number[], candW: number, candH: number, queryW: number, que
     else if (s !== sign) return false;
   }
 
-  // Area within a sane band of the query's own area (shoelace, reused from
-  // cardRectify so there is one implementation of this).
   const area = quadArea(quad);
   const queryArea = queryW * queryH;
   if (!queryArea) return false;
   const areaRatio = area / queryArea;
   if (areaRatio < 0.15 || areaRatio > 6) return false;
 
-  // No sliver: the shortest edge cannot be a tiny fraction of the longest.
   const sides = [0, 1, 2, 3].map((i) => {
     const a = quad[i];
     const b = quad[(i + 1) % 4];
@@ -268,8 +226,6 @@ function saneQuad(h: number[], candW: number, candH: number, queryW: number, que
   const maxSide = Math.max(...sides);
   if (maxSide <= 0 || minSide / maxSide < 0.15) return false;
 
-  // Corners may spill outside the frame (a card can be partly cropped), but
-  // not by multiples of the frame.
   const margin = Math.max(queryW, queryH);
   if (quad.some((p) => p.x < -margin || p.x > queryW + margin || p.y < -margin || p.y > queryH + margin)) {
     return false;
@@ -278,14 +234,6 @@ function saneQuad(h: number[], candW: number, candH: number, queryW: number, que
   return true;
 }
 
-/**
- * Score a pair the way mDex/FORB does: ratio test, one-homography
- * consensus, sanity checks, and the inlier count as the score.
- *
- * Extracts both sides, so it costs far more than a real query would — use
- * `verifyFeatures` with pre-extracted descriptors to measure or implement
- * the per-candidate cost.
- */
 export async function orbVerifyScore(query: ImageData, candidate: ImageData): Promise<OrbVerifyResult> {
   const cv = await getCv();
   const Q = extract(cv, query);
@@ -306,7 +254,6 @@ export async function orbVerifyScore(query: ImageData, candidate: ImageData): Pr
  */
 export type Features = { desc: Cv; pts: ArrayLike<number>; width: number; height: number };
 
-/** View an extracted result as `Features`. Borrows `desc`; do not delete it twice. */
 export function toFeatures(e: Extracted, width: number, height: number): Features {
   const n = e.kp.size();
   const pts = new Float32Array(n * 2);
@@ -318,7 +265,6 @@ export function toFeatures(e: Extracted, width: number, height: number): Feature
   return { desc: e.desc, pts, width, height };
 }
 
-/** Build `Features` from stored bytes — the shape a descriptor bundle yields. */
 export async function featuresFromBytes(
   descBytes: Uint8Array,
   pts: ArrayLike<number>,
@@ -331,17 +277,11 @@ export async function featuresFromBytes(
   return { desc, pts, width, height };
 }
 
-/** Same verification as `verifyFeatures`, over the storable `Features` shape. */
 export async function verifyPair(q: Features, c: Features, reprojPx = RANSAC_REPROJ_PX): Promise<OrbVerifyResult> {
   const cv = await getCv();
   return verifyCore(cv, q.desc, q.pts, c.desc, c.pts, q.width, q.height, c.width, c.height, reprojPx);
 }
 
-/**
- * The matching half only: ratio test, homography, sanity checks. This is the
- * work a real scan pays per shortlist candidate, given precomputed
- * descriptors on both sides.
- */
 export async function verifyFeatures(
   Q: Extracted,
   C: Extracted,
@@ -384,8 +324,6 @@ async function verifyCore(
 
   if (qDesc.rows === 0 || cDesc.rows === 0) return fail("no-descriptors");
 
-  // knnMatch with k=2 so each candidate keypoint has a runner-up to compare
-  // against — that comparison *is* the ratio test.
   const bf = new cv.BFMatcher(cv.NORM_HAMMING, false);
   const knn = new cv.DMatchVectorVector();
   bf.knnMatch(cDesc, qDesc, knn, 2);

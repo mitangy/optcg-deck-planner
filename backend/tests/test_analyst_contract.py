@@ -16,7 +16,6 @@ CONTRACT = json.loads(FIXTURE.read_text("utf-8"))
 
 
 def _literals(model, field):
-    """The string literals a model field allows (its annotation minus None)."""
     return [v for arg in get_args(model.model_fields[field].annotation) for v in get_args(arg)]
 
 

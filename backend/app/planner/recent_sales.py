@@ -1,4 +1,3 @@
-"""Fetch recent TCGPlayer sold prices for a product."""
 
 from __future__ import annotations
 
@@ -13,8 +12,6 @@ from app.planner.schemas import RecentSale
 
 TCGPLAYER_SALES_URL = "https://mpapi.tcgplayer.com/v2/product/{product_id}/latestsales"
 CACHE_TTL_S = 30 * 60
-# product_id -> (limit the upstream call asked for, sales). A later request for more rows
-# than were fetched is a miss; one for fewer is sliced from the entry.
 _CACHE: TTLCache[int, tuple[int, list[RecentSale]]] = TTLCache(maxsize=2048, ttl=CACHE_TTL_S)
 _CACHE_LOCK = threading.Lock()
 
@@ -55,7 +52,6 @@ def _parse_sale(row: dict[str, Any]) -> RecentSale | None:
 
 
 def is_cached(product_id: int, limit: int = 1) -> bool:
-    """True when a live cache entry already covers `limit` sales for the product."""
     limit = max(1, min(limit, 10))
     with _CACHE_LOCK:
         cached = _CACHE.get(product_id)
@@ -63,7 +59,6 @@ def is_cached(product_id: int, limit: int = 1) -> bool:
 
 
 def fetch_recent_sales(product_id: int, limit: int = 3) -> list[RecentSale]:
-    """Return up to `limit` most recent marketplace sales for a TCGPlayer product."""
     if product_id <= 0:
         raise Invalid("Invalid product id")
     limit = max(1, min(limit, 10))

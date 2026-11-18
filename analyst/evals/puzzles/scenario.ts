@@ -1,7 +1,3 @@
-/**
- * Scenario puzzles (#677): a setup and a few steps from an engine scenario row, described in words, and one question about the
- * result. The gold is what the row states the engine does; scenarioRows.test.ts runs every row through the engine.
- */
 import { Harness } from "@optcg/rules/src/testing/harness";
 import type { CardScenario, FieldCard, SeatExpect, SeatSetup, Step, Where } from "@optcg/rules/src/testing/scenario";
 import type { Seat } from "@optcg/rules";
@@ -15,7 +11,6 @@ const CARD_NUMBER = /^(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})$/;
 const who = (seat: Seat) => (seat === 0 ? "you" : "your opponent");
 const whose = (seat: Seat) => (seat === 0 ? "your" : "your opponent's");
 
-/** Rows the generator can turn into a question: every step happens, and no prompt is left waiting at the end. */
 export function usableRow(row: CardScenario): boolean {
   if ((row.steps ?? []).some((s) => "rejects" in s && s.rejects)) return false;
   const pending = row.expect.pending;
@@ -24,7 +19,6 @@ export function usableRow(row: CardScenario): boolean {
 
 type Ask = { seat: Seat; key: string; gold: Exclude<Gold, { mode: "all" }>; question: (catalog: Catalog) => string; schema: string };
 
-/** The questions a row can answer: one per statement it makes about hand, field, trash, Life, active DON!! and power. */
 export function asksOf(row: CardScenario): Ask[] {
   const out: Ask[] = [];
   for (const seat of [0, 1] as Seat[]) {
@@ -132,7 +126,6 @@ function stepLines(row: CardScenario, catalog: Catalog): { lines: string[]; ids:
   return { lines: lines.map((l, i) => `${i + 1}. ${l}`), ids };
 }
 
-/** One puzzle per question a usable row can answer, ids "scenario-<n>-<key>". */
 export function scenarioPuzzles(catalog: Catalog): Puzzle[] {
   const out: Puzzle[] = [];
   SCENARIO_ROWS.forEach(({ source, row }, n) => {
@@ -151,12 +144,10 @@ export function scenarioPuzzles(catalog: Catalog): Puzzle[] {
   return out;
 }
 
-/** The JSON field of one ask in a chain: "my_hand", "opp_trash", "my_power_<card number>". */
 export const chainKey = (ask: Pick<Ask, "seat" | "key">): string => `${ask.seat === 0 ? "my" : "opp"}_${ask.key.replace(":", "_")}`;
 
 const schemaOf = (gold: Gold): string => (gold.mode === "number" ? "<number>" : '["<card number>", ...]');
 
-/** "After these steps, which cards ..." as a list item: the shared lead-in goes once above the list. */
 const itemOf = (question: string): string => {
   const body = question.replace(/^After these steps, /, "");
   return body.charAt(0).toUpperCase() + body.slice(1);

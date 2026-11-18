@@ -11,7 +11,6 @@ import {MOTION_9x16, MOTION_16x9} from './motion/layout';
 import {MotionPiece} from './motion/MotionPiece';
 import {MOTION_TOTAL} from './motion/timing';
 
-// Cuts should land on the 120 BPM grid (0.5s) so a licensed 120 BPM track lines up.
 for (const s of [...SCENES, ...AD15.scenes, ...AD30.scenes]) {
   for (const [k, v] of [['start', s.start], ['dur', s.dur]] as const) {
     if (Math.abs((v * FPS) / BEAT - Math.round((v * FPS) / BEAT)) > 1e-6) console.warn(`[trailer] scene ${s.id}.${k}=${v}s is off the 0.5s beat grid`);

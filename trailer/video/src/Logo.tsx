@@ -1,9 +1,7 @@
 import React from 'react';
 import {COLORS} from './theme';
 
-/** App mark (duel-web/public/favicon.svg) without the rounded-square backing, so it floats on the gradient. */
 export const Logo: React.FC<{size: number; draw?: number; id?: string}> = ({size, draw = 1, id = 'logo'}) => {
-  // draw: 0..1 progress of the card outline stroke; the hat fills in with the last 40%.
   const perimeter = 2 * (36 + 54);
   const hatOpacity = Math.max(0, Math.min(1, (draw - 0.55) / 0.45));
   return (

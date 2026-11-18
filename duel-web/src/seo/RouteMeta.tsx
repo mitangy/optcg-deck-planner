@@ -2,14 +2,6 @@ import { useLocation } from "react-router-dom";
 import { usePageMeta } from "@optcg/ui/seo";
 import { routeMetaFor, SITE_ORIGIN } from "./routeMetaTable";
 
-/**
- * Keeps the tab title, description, canonical link and robots tag in step with the
- * route. Place it once inside the Router.
- *
- * It only runs when the path changes, never on later renders, so the "Your move"
- * mark the turn alert puts in front of the title while a match tab is hidden
- * (board/audio/turnAlert.ts) is not overwritten.
- */
 export function RouteMeta() {
   const { pathname } = useLocation();
   const meta = routeMetaFor(pathname);

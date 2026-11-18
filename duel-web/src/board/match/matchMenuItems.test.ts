@@ -9,7 +9,6 @@ describe("match menu items", () => {
     for (const id of ["copy-room", "copy-spectate", "concede"] as const) expect(items).not.toContain(id);
     expect(items).toContain("settings");
     expect(items).toContain("leave");
-    // Live play keeps them.
     expect(matchMenuItems(live)).toContain("copy-room");
   });
 
@@ -18,7 +17,6 @@ describe("match menu items", () => {
     expect(matchMenuItems(fs)).toContain("fullscreen");
     expect(matchMenuItems({ ...fs, fullscreenInBar: false })).toContain("fullscreen");
     expect(matchMenuItems({ ...fs, fullscreenInBar: true })).not.toContain("fullscreen");
-    // Never listed when the page cannot go full screen.
     expect(matchMenuItems({ ...live, fullscreenInBar: false })).not.toContain("fullscreen");
   });
 
@@ -86,7 +84,6 @@ describe("match menu items", () => {
   it("offers Report player only when the other seat is a person and the match is live (#810)", () => {
     expect(matchMenuItems({ ...live, canReportPlayer: true })).toContain("report-player");
     expect(matchMenuItems(live)).not.toContain("report-player");
-    // A recording has nobody to report.
     expect(matchMenuItems({ ...live, spectating: true, replay: true, canReportPlayer: true })).not.toContain("report-player");
   });
 

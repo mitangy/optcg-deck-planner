@@ -51,9 +51,7 @@ function StackCard({
   editable: boolean;
   selected: boolean;
   onSelect: () => void;
-  /** Edit the unsaved draft's card list; resolves to the edit's error, if any. */
   onEdit: (edit: (cards: readonly string[]) => CardsEditResult) => string | null;
-  /** An art pref changed (those save straight away). */
   onChanged: () => void;
 }) {
   const entry = lookupCard(defId);
@@ -61,7 +59,6 @@ function StackCard({
   const alts = entry.altArts ?? [];
   const selectedAlt = resolveDeckArtChoice(defId, deck);
   const eachArt = selectedAlt === EACH_ART_ID;
-  /** "One of each art": the front copy shows art 1, each copy stacked behind it the next (#1292). */
   const copyUrl = (copy: number) =>
     (eachArt ? resolveCardImageUrl(defId, { deck, artCopy: copy }) : undefined) ?? imageUrl;
   const [editError, setEditError] = useState<string | null>(null);
@@ -196,15 +193,9 @@ function toggleInList(list: string[], value: string): string[] {
 }
 
 type Props = {
-  /**
-   * The deck as the editor shows it: the unsaved draft's leader and cards on top of the saved deck's name and art
-   * prefs. Card edits go to `onChange` and are not saved until the page's Save (#481).
-   */
   deck: SavedDeck;
   onChange: (next: DeckDraft) => void;
-  /** An art pref was saved (those apply straight away); the page re-reads the saved deck. */
   onArtChanged?: () => void;
-  /** Rendered above Add cards (the import panel); on desktop both sit in the side column. */
   sideTop?: ReactNode;
 };
 
@@ -223,8 +214,6 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [inspectDefId, setInspectDefId] = useState<string | null>(null);
   const { deckStats } = useDuelSettings();
-  // Desktop opens the search beside the deck; phones keep it folded. Only the
-  // first render decides, so resizing never snaps it open or shut.
   const [addOpen, setAddOpen] = useState(
     () => typeof window !== "undefined" && window.matchMedia?.(DESKTOP_DECKS_QUERY).matches === true,
   );
@@ -274,8 +263,6 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
     rush,
   ]);
 
-  // Filtering and rendering the matches is the slow part; the deferred copy lets the input and
-  // filter controls update first and the list catch up without blocking typing (#1227).
   const deferredFilters = useDeferredValue(searchFilters);
   const browsing = hasActiveCardSearch(deferredFilters);
   const results = useMemo(
@@ -285,7 +272,6 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
 
   const currentDeck = deck;
 
-  /** Apply a card-list edit to the draft; returns the edit's error instead of changing anything. */
   function edit(change: (cards: readonly string[]) => CardsEditResult): string | null {
     const result = change(currentDeck.cards);
     if (!result.ok) return result.error;
@@ -534,7 +520,6 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
       </aside>
 
       <div className="deck-editor-main">
-        {/* Phones: the count and Add cards stay in reach while the list scrolls. */}
         <div className="deck-count-bar">
           <span>
             <strong>{currentDeck.cards.length}</strong>/{MAX_MAIN_DECK_SIZE} cards

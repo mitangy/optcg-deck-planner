@@ -1,4 +1,3 @@
-"""Log Pose matchup briefs: the game-server ticket, the shared cache and the spend cap (#401)."""
 
 from __future__ import annotations
 
@@ -30,7 +29,6 @@ def _b64(data: bytes) -> str:
 
 
 def _ticket(*, deck=None, ranked=False, purpose="match_brief", exp=None, salted=True, leader=LEADER, opponent=OPPONENT) -> str:
-    """What the game server's mintBriefTicket signs, built independently here."""
     payload = {
         "p": purpose,
         "mid": "room-1",
@@ -62,7 +60,6 @@ def _put(c, token: str, ticket: str, text: str = "Plan.", variant: str = "v1:OP1
 
 
 def test_a_ranked_ticket_gets_no_brief(chat):
-    """A ticket that says ranked is refused by both routes, even when it is correctly signed (#401)."""
     c, _ = chat
     _, body = _session(c)
     ranked = _ticket(ranked=True)
@@ -72,19 +69,15 @@ def test_a_ranked_ticket_gets_no_brief(chat):
 
 
 def test_a_game_token_is_not_a_brief_ticket(chat):
-    """A game token, a ticket signed with the bare secret and a ticket for another purpose are all refused (#401)."""
     c, _ = chat
     me, body = _session(c)
     game = mint_game_token(user_id=me["id"], email="dev@localhost")["token"]
     assert _lookup(c, body["token"], "mb1." + game).status_code == 403
-    # Ticket-shaped, but signed with the game-token secret itself.
     assert _lookup(c, body["token"], _ticket(salted=False)).status_code == 403
-    # Signed with the brief key, but not a brief.
     assert _lookup(c, body["token"], _ticket(purpose="game")).status_code == 403
 
 
 def test_the_backend_accepts_the_shared_ticket_vector(monkeypatch):
-    """The ticket the game server signs for the fixed vector verifies here, and nothing else does (#401)."""
     monkeypatch.setenv("GAME_TOKEN_SECRET", VECTOR["secret"])
     get_settings.cache_clear()
     try:
@@ -100,7 +93,6 @@ def test_the_backend_accepts_the_shared_ticket_vector(monkeypatch):
 
 
 def test_a_tampered_or_expired_ticket_is_refused(chat):
-    """Changing the signed body, the signature, or the time all end in 403 (#401)."""
     c, _ = chat
     _, body = _session(c)
     good = _ticket()
@@ -108,14 +100,12 @@ def test_a_tampered_or_expired_ticket_is_refused(chat):
     prefix, payload, sig = good.split(".")
     other = _ticket(leader="ST01-001").split(".")[1]
     assert _lookup(c, body["token"], f"{prefix}.{other}.{sig}").status_code == 403
-    # Change the first character: the last one carries padding bits, and a random signature can already end in the replacement.
     bad = ("B" if sig[0] != "B" else "C") + sig[1:]
     assert _lookup(c, body["token"], f"{prefix}.{payload}.{bad}").status_code == 403
     assert _lookup(c, body["token"], _ticket(exp=int(time.time()) - 5)).status_code == 403
 
 
 def test_briefs_are_cached_per_leader_pair_deck_and_variant(chat):
-    """The same deck in another order shares a brief; one card changed or another variant does not (#401)."""
     c, _ = chat
     _, body = _session(c)
     t = body["token"]
@@ -142,7 +132,6 @@ def test_briefs_are_cached_per_leader_pair_deck_and_variant(chat):
 
 
 def test_a_brief_older_than_a_week_is_not_served(chat):
-    """A brief past its seven days is written again rather than served (#401)."""
     c, SessionLocal = chat
     _, body = _session(c)
     t = body["token"]
@@ -172,7 +161,6 @@ def test_brief_routes_need_the_service_secret(chat):
 
 
 def test_brief_spend_counts_toward_the_daily_cap(chat):
-    """A brief's cost is recorded as usage and uses up the same daily cap as chat (#401)."""
     c, _ = chat
     _, body = _session(c)
     h = _as(body["token"])
@@ -183,7 +171,6 @@ def test_brief_spend_counts_toward_the_daily_cap(chat):
 
 
 def test_a_brief_lookup_names_the_game_its_ticket_is_for_970(chat):
-    """The lookup returns the ticket's match id, which the analyst scopes the game's chat thread to (#970)."""
     c, _ = chat
     _, body = _session(c)
     assert _lookup(c, body["token"], _ticket()).json()["match_id"] == "room-1"

@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { FAN_DISCLAIMER } from "@optcg/site-legal";
 import "./playOnline.css";
 
-/** Plain-language answers, also published as FAQPage structured data so they can show in search results. */
 export const PLAY_ONLINE_FAQ: readonly { q: string; a: string }[] = [
   {
     q: "Is OPTCG Duel free?",
@@ -59,7 +58,6 @@ const FEATURES: readonly { title: string; body: string }[] = [
   { title: "Phone layout", body: "A board built for small screens, not a shrunken desktop page." },
 ];
 
-/** Public landing page for people searching how to play OPTCG online. */
 export function PlayOnlinePage() {
   useFaqJsonLd();
   return (
@@ -142,7 +140,6 @@ export function PlayOnlinePage() {
   );
 }
 
-/** Adds FAQPage JSON-LD to the head while the page is open. */
 function useFaqJsonLd() {
   useEffect(() => {
     const el = document.createElement("script");

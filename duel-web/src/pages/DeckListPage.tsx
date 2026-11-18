@@ -69,7 +69,6 @@ function ChevronIcon() {
   );
 }
 
-/** One saved deck: leader art with its colours, name, leader, main-deck count and a "…" menu of what you can do with it. */
 function DeckCard({
   deck,
   onOpen,
@@ -184,7 +183,6 @@ function DeckCard({
   );
 }
 
-/** Search box and sort menu above the deck cards. */
 function DeckToolbar({
   query,
   onQuery,
@@ -236,7 +234,6 @@ export function DeckListPage() {
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
   const syncedDecks = useSavedDecksVersion();
-  /** `null` until /auth/me answers; the status line below the header holds its space meanwhile. */
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const deepLinkHandled = useRef(false);
@@ -343,7 +340,6 @@ export function DeckListPage() {
           </div>
         </DeckConfigHeader>
 
-        {/* One line whatever the sign-in state, so the decks below never move when it loads. */}
         <p className={`${linkErr ? "error-text" : "meta"} deck-sync-note`} role={linkErr ? "alert" : undefined}>
           {linkErr ??
             (signedIn === null ? null : signedIn ? (

@@ -6,7 +6,6 @@ export type CardAltArt = {
   id: string;
   label: string;
   imageUrl: string;
-  /** TCGPlayer product id when known (aligns with planner printings). */
   productId?: number;
 };
 
@@ -19,23 +18,16 @@ export type CardAtlasEntry = {
   power?: number;
   life?: number;
   counter?: number;
-  /** Combat attribute: Strike, Slash, Ranged, Special, Wisdom. */
   attribute?: string;
   blocker?: boolean;
   rush?: boolean;
   imageUrl?: string;
-  /** TCGPlayer product id for the preferred face when known. */
   productId?: number;
   effectText?: string;
   altArts?: CardAltArt[];
   traits?: string[];
   hasTrigger?: boolean;
-  /**
-   * From curated atlas export (EFFECT_CATALOG aggregate). Cosmetics-only
-   * entries omit this; CardInspect falls back to abilitySupport heuristics.
-   */
   abilitySupport?: "none" | "keywords" | "ok" | "partial" | "unverified" | "unsupported";
-  /** Leader deck-construction rules, e.g. `max_cost:4`, `only_trait:East Blue`. */
   deckRules?: string[];
 };
 
@@ -49,19 +41,12 @@ type CosmeticsCatalogRow = Omit<Partial<CardAtlasEntry>, "altArts" | "abilitySup
   abilitySupport?: CardAtlasEntry["abilitySupport"];
 };
 
-/** Curated playable prints (rules package export). Empty until `loadCardData()` resolves (cardData.ts). */
 const curatedRows = () => getCardData().curated as Record<string, CardAtlasEntry>;
 
-/**
- * Cosmetics catalog for every English OPTCG number we know about (TCGCSV).
- * Used for Deck Configure search / art; gameplay still auto-stubs missing defs.
- */
 const catalogRows = () => getCardData().catalog as Record<string, CosmeticsCatalogRow>;
 
-/** Session stubs for OPTCG ids imported beyond curated + catalog. */
 const runtimeStubs = new Map<string, CardAtlasEntry>();
 
-/** Local `/cards/...` mirrors are often missing in deploy; prefer CDN. */
 function isLocalCardsUrl(url: string | undefined): boolean {
   return !!url && (url.startsWith("/cards/") || url.startsWith("cards/"));
 }
@@ -75,7 +60,6 @@ function mergeAltArts(
     for (const alt of list) {
       if (!alt?.id || !alt.imageUrl) continue;
       const prev = byId.get(alt.id);
-      // Prefer CDN over missing local mirrors when the same alt id collides.
       if (prev && isLocalCardsUrl(alt.imageUrl) && !isLocalCardsUrl(prev.imageUrl)) {
         continue;
       }
@@ -122,15 +106,10 @@ function fromCatalog(defId: string): CardAtlasEntry | undefined {
           return alt;
         })
       : undefined,
-    // Cosmetics text and keyword scans are not executable rules evidence.
     abilitySupport: hit.abilitySupport ?? "unverified",
   };
 }
 
-/**
- * Resolve curated + catalog + TCG product map into a single display entry.
- * Curated wins for gameplay identity; CDN catalog / tcgProducts fill missing art.
- */
 function resolveAtlasEntry(defId: string): CardAtlasEntry | undefined {
   const curatedHit = curatedRows()[defId];
   const catalogHit = fromCatalog(defId);
@@ -169,7 +148,6 @@ export function hasAtlasEntry(defId: string): boolean {
   );
 }
 
-/** Vanilla stub used when a decklist references an id outside curated + catalog. */
 export function stubAtlasEntry(
   defId: string,
   type: "leader" | "character" = "character",
@@ -206,7 +184,6 @@ export function stubAtlasEntry(
   };
 }
 
-/** Remember a stub so later `lookupCard` calls keep leader vs character typing. */
 export function registerAtlasStub(
   defId: string,
   type: "leader" | "character" = "character",
@@ -216,10 +193,8 @@ export function registerAtlasStub(
   return entry;
 }
 
-/** Default per-card-number deck limit. */
 export const MAX_COPIES_PER_CARD = 4;
 
-/** Copies of `defId` a deck may hold: unlimited for "you may have any number of this card" cards. */
 export function maxCopiesFor(defId: string): number {
   return lookupCard(defId).deckRules?.includes("any_number") ? Infinity : MAX_COPIES_PER_CARD;
 }
@@ -245,7 +220,6 @@ export function lookupCard(defId: string): CardAtlasEntry {
   };
 }
 
-/** All searchable ids: curated ∪ cosmetics catalog (curated wins on overlap). */
 export function listAtlasIds(): string[] {
   return [...new Set([...Object.keys(curatedRows()), ...Object.keys(catalogRows())])].sort();
 }

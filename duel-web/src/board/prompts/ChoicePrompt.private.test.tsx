@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { PendingChoiceView } from "../../net/protocol";
 import { ChoicePrompt, confirmIntent } from "./ChoicePrompt";
 
-// Card art reads saved art prefs; server rendering has no storage.
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 
 const costConfirm = (unpayable: boolean): PendingChoiceView => ({

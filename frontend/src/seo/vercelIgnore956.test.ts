@@ -27,7 +27,6 @@ describe("vercel ignoreCommand (#956)", () => {
 describe("tools/vercel-ignore-build.sh watches packages/card-core for every app (#956)", () => {
   const script = join(dirname(fileURLToPath(import.meta.url)), "../../../tools/vercel-ignore-build.sh");
 
-  /** Commits `file` twice in a scratch repo and returns the script's exit code for `frontend` (1 = build, 0 = skip). */
   function exitCodeAfterChange(file: string): number {
     const dir = mkdtempSync(join(tmpdir(), "vercel-ignore-"));
     try {
@@ -77,7 +76,6 @@ describe("every workspace package an app bundles triggers its build (#1101)", ()
   }
   for (const appDir of ["game-server", "analyst"]) dirByName.set(manifest(appDir).name as string, appDir);
 
-  /** The directories of the @optcg/* packages `appDir` depends on, directly or transitively. */
   function workspaceDeps(appDir: string): string[] {
     const seen = new Set<string>();
     const visit = (dir: string) => {
@@ -95,7 +93,6 @@ describe("every workspace package an app bundles triggers its build (#1101)", ()
     return [...seen].sort();
   }
 
-  /** Commits `file` twice in a scratch repo and returns the script's exit code when run with the given args. */
   function exitCode(args: string[], file: string): number {
     const dir = mkdtempSync(join(tmpdir(), "vercel-ignore-"));
     try {
@@ -121,7 +118,6 @@ describe("every workspace package an app bundles triggers its build (#1101)", ()
     ["duel-web", "duel-web", "duel-web/vercel.json"],
   ])("a change in any package the %s bundles makes its ignoreCommand build (#1101)", (_app, appDir, vercelJson) => {
     const { ignoreCommand } = JSON.parse(readFileSync(join(repoRoot, vercelJson), "utf8")) as { ignoreCommand: string };
-    // "bash [../]tools/vercel-ignore-build.sh <app> <paths...>": the script gets everything after its own name.
     const args = ignoreCommand.split(/\s+/).slice(2);
     const deps = workspaceDeps(appDir);
     expect(deps).toContain("packages/analyst-contract"); // guards against the walk silently finding nothing

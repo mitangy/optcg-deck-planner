@@ -1,8 +1,3 @@
-/**
- * The effect-order pop-up is a free-standing pop-up (#449): it does not gray out the board
- * (the attack stays visible), and its header drags it like every other prompt, the spot
- * shared through the `promptPos` setting.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -12,7 +7,6 @@ const touch = () => test.info().project.name === "phone-375";
 async function open(page: Page) {
   await page.goto("/demo?prompt=effects&attacked");
   await expect(page.locator(`${STAGE} .float-card`).first()).toBeVisible();
-  // Let the cards' entrance animation finish.
   await page.waitForTimeout(500);
 }
 
@@ -37,8 +31,6 @@ async function dragHead(page: Page, dx: number, dy: number) {
 test("ordering simultaneous effects leaves the board undimmed and clickable behind it (#449)", async ({ page }) => {
   await open(page);
   await expect(page.locator(".float-scrim")).toHaveCount(0);
-  // The pop-up's layer spans the board column, but only its header, cards and buttons catch the
-  // pointer: its empty margins hit the board behind.
   const hits = await page.evaluate(() => {
     const layer = document.querySelector(".float-layer")!.getBoundingClientRect();
     const inset = 4;
@@ -50,7 +42,6 @@ test("ordering simultaneous effects leaves the board undimmed and clickable behi
     ].map(([x, y]) => !!document.elementFromPoint(x!, y!)?.closest(".float-layer"));
   });
   expect(hits).toEqual([false, false, false, false]);
-  // The attacking card behind the pop-up is not dimmed.
   const opacity = await page.evaluate(() => {
     let o = 1;
     for (let n: HTMLElement | null = document.querySelector<HTMLElement>('[data-instance-id="o-c1"]'); n; n = n.parentElement) o *= Number(getComputedStyle(n).opacity);
@@ -65,7 +56,6 @@ test("the effect-order pop-up drags by its header and the next one opens there (
   await dragHead(page, -30, -60);
   const after = (await page.locator(`${STAGE} > .float-head`).boundingBox())!;
   expect(after.y).toBeCloseTo(before.y - 60, 0);
-  // A reload (a fresh prompt, settings kept) stands in for the next pop-up.
   await page.reload();
   await expect(page.locator(`${STAGE} .float-card`).first()).toBeVisible();
   await expect.poll(async () => (await page.locator(`${STAGE} > .float-head`).boundingBox())!.y).toBeCloseTo(before.y - 60, 0);

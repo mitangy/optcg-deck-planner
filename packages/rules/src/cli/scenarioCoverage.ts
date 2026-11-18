@@ -1,13 +1,3 @@
-/**
- * To-do list of supported cards that no test mentions, grouped by set.
- * "Supported" means a card with executable effects (support "ok"); vanilla and
- * keyword-only cards need no scenario. A card counts as covered once its id
- * appears in a scenario file (src/__tests__/scenarios) or any other test.
- *
- *   npm run scenario-coverage              # every uncovered card
- *   npm run scenario-coverage -- --summary # per-set totals only
- *   npm run scenario-coverage -- OP01 EB01 # only these sets
- */
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

@@ -1,10 +1,3 @@
-/**
- * `/demo?motion` script: a sequence of board states that walks through every
- * card animation (shuffle and deal, mulligan, draw, play, DON!!, power, counter,
- * KO, life) one click at a time, for layout QA and preview links. A step's
- * `events` are the game events the server would send with it (narrated into
- * the battle log, which drives the card spotlight).
- */
 import type { PlayerView } from "../net/protocol";
 import { stubCard } from "../board/fixtures/stubCard";
 
@@ -52,7 +45,6 @@ export function motionDemoSteps(base: PlayerView): MotionDemoStep[] {
       hand: [...y.hand, { id: "demo-draw", defId: "ST01-004" }],
     }),
     (o) => o,
-    // The Draw Phase draw: the server names the card to the drawer only.
     [{ type: "drew", seat: 0, count: 1, defIds: ["ST01-004"], turnDraw: true }],
   );
   push("DON!!", (y) => ({

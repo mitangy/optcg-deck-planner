@@ -1,6 +1,5 @@
 import { ApiError } from "../net/api";
 
-/** Thrown when the OAuth return URL has no one-time ticket. */
 export class MissingTicketError extends Error {
   constructor() {
     super("Missing login ticket");
@@ -8,7 +7,6 @@ export class MissingTicketError extends Error {
   }
 }
 
-/** The OAuth return carried `#error=banned`: the account may not sign in. */
 export class BannedError extends Error {
   constructor() {
     super("Account banned");
@@ -18,10 +16,6 @@ export class BannedError extends Error {
 
 export const BANNED_MESSAGE = "This account has been banned.";
 
-/**
- * What the sign-in landing page says when signing in fails: a plain sentence
- * for players, never the raw API text.
- */
 export function signInErrorMessage(e: unknown): string {
   if (e instanceof BannedError || (e instanceof ApiError && e.status === 403)) return BANNED_MESSAGE;
   if (e instanceof MissingTicketError) {

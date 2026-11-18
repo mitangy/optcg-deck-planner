@@ -14,7 +14,7 @@ import type { MatchState, Seat } from "../types.js";
 import metaDecks from "./fixtures/meta-decks.json";
 
 const META = metaDecks as { name: string; leaderId: string; deck: string[] }[];
-const COUNTER = "OP01-006"; // a Character with a 2000 Counter
+const COUNTER = "OP01-006";
 const FILLER_CARD = "ST01-003";
 const RED = "OP01-001";
 const RED_GREEN = "ST30-001";
@@ -28,7 +28,6 @@ const tiny = (): MlpModel => ({
   vocab: ["X"],
   mean: [1, 0],
   std: [2, 1],
-  // columns: a, b, X field_diff, X hand
   hidden: { W1: [[1, 2, 3, 4], [-1, 1, 0, -2]], b1: [0.5, 0.25], w2: [2, 3], b2: -1 },
 });
 
@@ -68,7 +67,6 @@ describe("feature set v2", () => {
     const vocab = [COUNTER, FILLER_CARD];
     const f = extractFeaturesV2(h.state, 0, vocab);
     const bag = Object.fromEntries(f.idx.map((k, i) => [k, f.val[i]]));
-    // slot = 2 * card + (0: my field - their field, 1: my hand)
     expect(bag).toEqual({ 0: 1, 2: -1, 1: 2, 3: 1 });
 
     const other = structuredClone(h.state);
@@ -93,7 +91,6 @@ describe("feature set v2", () => {
     expect(at(x, "leader_me_red_x_life_diff")).toBe(lifeDiff);
     expect(at(x, "leader_me_green_x_life_diff")).toBe(lifeDiff);
     expect(at(x, "leader_me_blue_x_life_diff")).toBe(0);
-    // The other seat's view swaps the sides.
     const y = denseFeaturesV2(h.state, 1);
     expect([at(y, "leader_me_blue"), at(y, "leader_me_red"), at(y, "leader_opp_red"), at(y, "leader_opp_green")]).toEqual([1, 0, 1, 1]);
     expect(at(y, "leader_me_blue_x_life_diff")).toBe(at(y, "life_diff"));
@@ -112,21 +109,19 @@ describe("feature set v2", () => {
     const weights = new Array<number>(FEATURE_NAMES_V2.length).fill(0);
     weights[FEATURE_NAMES_V2.indexOf("leader_me_red")] = 2;
     const model: ValueWeights = { featureSet: "v2", names: [...FEATURE_NAMES_V2], weights, bias: 0.5, vocab: [FILLER_CARD, COUNTER], bagWeights: [0, 0, 0, 3] };
-    // bias + red leader + 3 per COUNTER copy in hand
     expect(learnedLogit(h.state, 0, model)).toBeCloseTo(0.5 + 2 + 3 * 2, 10);
   });
 });
 
 describe("fitting the card bag", () => {
-  /** Positions whose label is "card A is in my hand"; everything else is noise. */
   function bagCorpus(): { samples: Sample[]; table: CardTable } {
     const r = createSeededRng(9);
     const table = CardTable.from(["A", "B"]);
     const samples: Sample[] = Array.from({ length: 500 }, (_, i) => {
       const hasA = r.nextInt(2) === 1;
       const sp: number[] = [];
-      if (hasA) sp.push(1, 1); // card 0, hand slot
-      if (r.nextInt(2) === 1) sp.push(2, 1); // card 1, field slot: noise
+      if (hasA) sp.push(1, 1);
+      if (r.nextInt(2) === 1) sp.push(2, 1);
       return { x: FEATURE_NAMES_V2.map(() => (r.nextInt(2000) - 1000) / 1000), y: hasA ? 1 : 0, hand: 0, turn: 1, game: i, sp };
     });
     return { samples, table };
@@ -189,14 +184,12 @@ describe("fitValue command line", () => {
     const like = fitFlags(["--like-compare"], VALUE_WEIGHTS);
     expect(like).toMatchObject({ featureSet: "v2", kind: "mlp", noBag: true, hidden: 32, epochs: 20, batch: 512, l2: 0.003, seed: 1 });
     expect(fitFlags(["--like-compare", "--l2", "0.1", "--hidden", "8"], VALUE_WEIGHTS)).toMatchObject({ l2: 0.1, hidden: 8, kind: "mlp" });
-    // Without a fit record a model is the plain linear v1 fit.
     const old: ValueWeights = { names: [...FEATURE_NAMES], weights: FEATURE_NAMES.map(() => 0), bias: 0 };
     expect(fitFlags([], old)).toMatchObject({ featureSet: "v1", kind: "linear", noBag: false, l2: 0.01 });
   });
 });
 
 describe("BotOptions.valueWeights", () => {
-  /** The same positions the other value-model tests use: a normal-vs-normal game on two meta decks. */
   function positions(seed: number, every: number): { state: MatchState; seat: Seat }[] {
     const game = playBotGame({ seed, players: [META[seed % META.length]!, META[(seed * 5 + 3) % META.length]!], levels: ["normal", "normal"] });
     const out: { state: MatchState; seat: Seat }[] = [];

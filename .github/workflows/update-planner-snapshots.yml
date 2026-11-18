@@ -1,8 +1,5 @@
 name: Update planner snapshots
 
-# Re-blesses the planner's pixel baselines (frontend/e2e/visual.spec.ts) on the
-# same runner image CI compares them on. Nothing is committed: download the
-# artifact and copy the PNGs into frontend/e2e/visual.spec.ts-snapshots/.
 on:
   workflow_dispatch:
 

@@ -1,14 +1,11 @@
-/** Pure trade helpers: the tray (what you are about to offer), caps against spares, and which side is "mine" (#703). */
 import type { Trade, TradeLine, TradeLineIn, TradeSide, TradesSummary } from "./friendsApi";
 
-/** The API takes 1..20 copies per line and 1..40 lines per offer. */
 export const MAX_LINE_QTY = 20;
 export const MAX_LINES = 40;
 
 export type TrayLine = {
   side: TradeSide;
   cardId: string;
-  /** null = standard printing. */
   productId: number | null;
   qty: number;
   name: string;
@@ -18,12 +15,10 @@ export type TrayLine = {
 };
 export type TrayCard = Omit<TrayLine, "qty">;
 
-/** What one party can put on the table for a card: spare copies in total, copies of the standard printing, and copies of each owned alt printing. */
 export type CardCap = { spare: number; base: number; printings: Record<number, number> };
 
 export const lineKey = (l: { side: TradeSide; cardId: string; productId: number | null }) => `${l.side}:${l.cardId}:${l.productId ?? "base"}`;
 
-/** Most copies this line can hold: spare is shared by every printing of the card; each printing is limited by the copies owned of it (base copies for the standard printing, #705). */
 export function lineCap(lines: TrayLine[], card: TrayCard, cap: CardCap): number {
   const key = lineKey(card);
   const others = lines.filter((l) => l.side === card.side && l.cardId === card.cardId && lineKey(l) !== key).reduce((n, l) => n + l.qty, 0);
@@ -32,7 +27,6 @@ export function lineCap(lines: TrayLine[], card: TrayCard, cap: CardCap): number
   return Math.max(0, Math.min(MAX_LINE_QTY, byCard, byPrinting));
 }
 
-/** Sets a line's copies (clamped to its cap); 0 removes it. Adding the same card + printing again merges into the one line. */
 export function setLineQty(lines: TrayLine[], card: TrayCard, qty: number, cap: CardCap): TrayLine[] {
   const key = lineKey(card);
   const next = Math.min(Math.max(0, Math.floor(qty)), lineCap(lines, card, cap));
@@ -56,7 +50,6 @@ const sumValue = (lines: { qty: number; marketPrice: number | null }[]): number 
   return Math.round(total * 100) / 100;
 };
 
-/** Copies and market value per side; a value is null when any line on that side has no price. */
 export function trayTotals(lines: TrayLine[]) {
   const give = lines.filter((l) => l.side === "give");
   const get = lines.filter((l) => l.side === "get");
@@ -83,12 +76,10 @@ const fromLine = (l: TradeLine, side: TradeSide): TrayLine => ({
   printingLabel: l.printing_label,
 });
 
-/** A counter starts from the offer turned around: what they asked of me is what I give. */
 export function counterPrefill(trade: Trade): TrayLine[] {
   return trade.lines.map((l) => fromLine(l, l.side === "give" ? "get" : "give"));
 }
 
-/** An offer from my side of the table: the lines I hand over, the lines I receive, and their values. */
 export function tradeSides(trade: Trade) {
   const mine = (side: TradeSide) => trade.lines.filter((l) => l.side === (trade.i_am_sender ? side : side === "give" ? "get" : "give"));
   return {
@@ -103,7 +94,6 @@ export function otherUsername(trade: Trade): string {
   return trade.i_am_sender ? trade.to_username : trade.from_username;
 }
 
-/** Number on the Friends nav link: offers waiting for me plus trades in progress. */
 export function navBadgeCount(summary: TradesSummary | undefined): number {
   if (!summary) return 0;
   return Math.max(0, summary.incoming_pending) + Math.max(0, summary.active);

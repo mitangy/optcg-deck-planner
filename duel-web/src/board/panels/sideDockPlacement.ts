@@ -1,12 +1,6 @@
 import { useLayoutEffect, type RefObject } from "react";
 
-/**
- * Where the dock beside the board goes (#564): its left edge sits at the right edge of the mats (or of the
- * opponent's hand when that is pinned to the right of them), and its anchor line is where the two mats meet.
- * Both are read from layout offsets (they ignore transforms), so every mat sizing rule in the stylesheet
- * (normal, Bigger playing area, hand spots, short windows) is followed without repeating its math. Written
- * as CSS variables on the playmat, so the dock moves without a React render.
- */
+// Read from layout offsets (they ignore transforms), so every mat sizing rule in the stylesheet is followed without repeating its math. Written as CSS variables so the dock moves without a React render.
 export function measureSideDock(
   mat: HTMLElement,
 ): { left: number; seam: number } | null {

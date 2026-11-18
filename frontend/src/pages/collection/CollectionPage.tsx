@@ -73,7 +73,6 @@ export function CollectionPage() {
   const [scanOpen, setScanOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<Blob | null>(null);
   const [pageDragging, setPageDragging] = useState(false);
-  // Same as Shopping: drop a card image anywhere on the page to scan it.
   useImageDrop({
     enabled: !scanOpen,
     onImage: (blob) => {
@@ -85,7 +84,6 @@ export function CollectionPage() {
 
   const allItems = data?.items ?? [];
   const ownedById = useMemo(() => new Map(allItems.map((i) => [i.card_id, i.owned])), [allItems]);
-  // Type chips only list types the collection has; a remembered type that is gone counts as All.
   const types = useMemo(() => typesPresent(allItems.filter((i) => showDons || !isDonCard(i))), [allItems, showDons]);
   const type = types.includes(typeChoice) ? typeChoice : "";
   const items = useMemo(() => {
@@ -101,7 +99,6 @@ export function CollectionPage() {
   const shown = useMemo(() => collectionTotals(items.filter(holdsCopies)), [items]);
   const narrowed = items.length !== allItems.length;
 
-  // Filters that differ from their defaults (Show DON!! and Show alt arts start on).
   const activeFilters = (sparesOnly ? 1 : 0) + (showDons ? 0 : 1) + (showAltArts ? 0 : 1);
 
   function toggleColor(color: string) {

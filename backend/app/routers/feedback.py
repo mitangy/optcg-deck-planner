@@ -1,4 +1,3 @@
-"""Player feedback: "Report a problem" (duel-web) and "Send feedback" (planner)."""
 
 from __future__ import annotations
 
@@ -22,15 +21,12 @@ from app.usernames import duel_display_name
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 _feedback_rate = RateLimiter(max_calls=10, period_s=600, name="feedback_feedback_rate")
-# Feedback is stored forever and the per-IP key can be spoofed (X-Forwarded-For),
-# so cap the total too.
 _feedback_global_rate = RateLimiter(max_calls=60, period_s=3600, name="feedback_feedback_global_rate")
 
 
 def _reporter(row: Feedback, user: User | None) -> str:
     if user is not None:
         return duel_display_name(user)
-    # Filed by the Discord bot: no account, but the post has an author (#979).
     return f"Discord · {row.discord_author}" if row.discord_author else "anonymous"
 
 

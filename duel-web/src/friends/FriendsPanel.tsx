@@ -19,10 +19,6 @@ import "./friends.css";
 
 const POLL_MS = 10_000;
 
-/**
- * Friends list + incoming invites for a signed-in player. Polls while the tab is
- * visible; each poll also marks this player "online" for their friends.
- */
 export function useFriends(enabled: boolean) {
   const [state, setState] = useState<FriendsState | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -62,7 +58,6 @@ export function FriendInvites({
   busy: boolean;
   onJoin: (invite: FriendInvite) => void;
   onDismissed: () => void;
-  /** Second line under "<name> invited you". */
   hint?: string;
 }) {
   if (invites.length === 0) return null;
@@ -102,7 +97,6 @@ function FriendRow({
   onRemove,
 }: {
   friend: Friend;
-  /** They already invited you: the button takes that seat instead of opening a room. */
   invitedYou: boolean;
   busy: boolean;
   onInvite: (f: Friend) => void;

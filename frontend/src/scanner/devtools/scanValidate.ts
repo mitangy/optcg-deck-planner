@@ -1,10 +1,3 @@
-/** Run the production scan pipeline over fixture photos and report per-case
- * results, so a change to matching can be judged against real photos rather
- * than assumed.
- *
- * Uses the same modules the app uses — no parallel implementation — so a
- * regression here is a regression in the shipped path.
- */
 
 import { loadCandidates, matchCard, releaseCandidates, type ScanCandidate } from "../match/cardScanMatch";
 import { ensureDescriptors, type DescriptorManifest } from "../match/descriptorCache";
@@ -12,7 +5,6 @@ import { ensureDescriptors, type DescriptorManifest } from "../match/descriptorC
 export type ScanCase = {
   label: string;
   photoUrl: string;
-  /** Card number the photo actually shows. */
   expect: string;
 };
 

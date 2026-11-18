@@ -20,7 +20,6 @@ let root: Root | null = null;
 let host: HTMLElement | null = null;
 
 beforeAll(() => {
-  // jsdom has no object URLs.
   URL.revokeObjectURL = () => undefined;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 });
@@ -94,7 +93,6 @@ describe("admin Reports tab (#810)", () => {
     const cards = Array.from(document.querySelectorAll<HTMLElement>(".rpt-card"));
     expect(cards.map((c) => c.dataset.status)).toEqual(["actioned", "open"]);
     expect(cards[0]!.querySelector(".rpt-handled")!.textContent).toContain("Warned by Zed");
-    // A handled report has no action buttons left.
     expect(Array.from(cards[0]!.querySelectorAll("button")).some((b) => b.textContent === "Dismiss")).toBe(false);
   });
 });

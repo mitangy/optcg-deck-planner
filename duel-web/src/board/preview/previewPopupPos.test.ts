@@ -49,7 +49,6 @@ describe("card preview pop-up steps off the hovered card (#583)", () => {
 
   it("with no room either side it takes the roomier side, kept on screen (#583)", () => {
     const wide = { left: 100, top: 200, right: 850, bottom: 340 };
-    // 92px free on the left, 142px on the right: the right side, clamped to the window.
     expect(dodgePreviewPopup({ x: 400, y: 72 }, popup, wide, view)).toEqual({ x: 1000 - 8 - 300, y: 72 });
   });
 });

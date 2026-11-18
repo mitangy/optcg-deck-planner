@@ -43,7 +43,6 @@ describe("resolveCardImageUrl seat scoping", () => {
     );
     expect(b).toBe(a);
 
-    // Opponent seat unchanged (standard art).
     const opp = resolveCardImageUrl("ST01-006", { ownerSeat: 1 });
     expect(opp).toBe(STANDARD_ST01_006);
   });
@@ -109,8 +108,8 @@ describe("deck editor art follows the global pref (#1002)", () => {
 });
 
 describe("One of each art (#1292)", () => {
-  const SLEEPTIDS = "OP18-093"; // any number of copies; standard art plus two alternates
-  const LOKI = "OP17-119"; // 4-copy card that also has alternate arts
+  const SLEEPTIDS = "OP18-093";
+  const LOKI = "OP17-119";
 
   afterEach(() => {
     _resetSeatArtPrefsForTests();
@@ -125,7 +124,6 @@ describe("One of each art (#1292)", () => {
     expect(urls[0]).not.toBe(urls[1]);
     expect(urls[1]).not.toBe(urls[2]);
     expect(urls[3]).toBe(urls[0]);
-    // The standard art is the one with the three copies that lead.
     expect(urls[0]).toBe(resolveCardImageUrl(SLEEPTIDS, { ownerSeat: 1 }));
   });
 

@@ -1,4 +1,3 @@
-"""Friend-to-friend trade offers: validation, state changes, and applying one to a collection (#703)."""
 
 from __future__ import annotations
 
@@ -22,11 +21,10 @@ from app.roles import is_banned
 OFFER_TTL = timedelta(days=14)
 MAX_OPEN_OFFERS_PER_PAIR = 5
 
-Key = tuple[str, str, int | None]  # (side, card_id, product_id)
+Key = tuple[str, str, int | None]
 
 
 def merge_lines(lines: list[TradeLineIn]) -> dict[Key, int]:
-    """Duplicate (side, card, printing) lines add up to one."""
     merged: dict[Key, int] = defaultdict(int)
     for line in lines:
         merged[(line.side, line.card_id, line.product_id)] += line.qty
@@ -34,7 +32,6 @@ def merge_lines(lines: list[TradeLineIn]) -> dict[Key, int]:
 
 
 def load_recipient(db: Session, sender: User, recipient_id: int) -> User:
-    """The friend to trade with, or 404 for anyone else."""
     other = db.get(User, recipient_id)
     if (
         other is None
@@ -66,7 +63,6 @@ def validate_offer(
 
     held_sender, cat_sender = fv.holdings(db, sender)
     held_recipient, cat_recipient = fv.holdings(db, recipient)
-    # give = sender's cards, get = recipient's cards.
     parties = {
         "give": (sender, held_sender, cat_sender),
         "get": (recipient, held_recipient, cat_recipient),
@@ -96,7 +92,6 @@ def validate_offer(
     }
     for (side, card_id, pid), qty in sorted(merged.items(), key=lambda kv: (kv[0][0], kv[0][1], kv[0][2] or 0)):
         if pid is None:
-            # The standard printing is limited by base copies, not by the card's total spare (#705).
             h = parties[side][1].get(card_id)
             have = h.base_owned if h else 0
         else:
@@ -174,7 +169,6 @@ def create_offer(
 
 
 def expire_stale(db: Session, user_id: int) -> None:
-    """Pending offers past their deadline become expired."""
     db.execute(
         update(TradeOffer)
         .where(
@@ -188,7 +182,6 @@ def expire_stale(db: Session, user_id: int) -> None:
 
 
 def cancel_between(db: Session, a: int, b: int) -> None:
-    """Unfriending ends every open or accepted offer between the pair (caller commits)."""
     db.execute(
         update(TradeOffer)
         .where(
@@ -203,7 +196,6 @@ def cancel_between(db: Session, a: int, b: int) -> None:
 
 
 def active_applies(db: Session, user_id: int, offer_ids: list[int]) -> set[int]:
-    """Offers (of ``offer_ids``) whose collection update this user has applied and not undone."""
     if not offer_ids:
         return set()
     return set(
@@ -300,8 +292,6 @@ def load_offer(db: Session, user: User, offer_id: int) -> TradeOffer:
     return offer
 
 
-# --- applying a finished trade to the caller's own collection -----------------
-
 
 def _row(db: Session, cache: dict, user_id: int, card_id: str, pid: int | None):
     key = (card_id, pid)
@@ -346,7 +336,6 @@ def _qty(db: Session, cache: dict, user_id: int, card_id: str, pid: int | None) 
 
 
 def apply_trade(db: Session, offer: TradeOffer, user: User) -> None:
-    """Fold the user's half of a completed trade into the user's own collection."""
     record = db.scalar(
         select(TradeApply).where(TradeApply.offer_id == offer.id, TradeApply.user_id == user.id)
     )

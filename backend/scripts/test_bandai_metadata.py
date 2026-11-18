@@ -1,4 +1,3 @@
-"""Offline contract tests for candidate ingestion and failed refresh recovery."""
 import json
 from pathlib import Path
 import tempfile

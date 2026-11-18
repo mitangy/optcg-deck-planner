@@ -15,8 +15,6 @@ import {
 import { CardArtImg, CardThumb } from "../ui/CardThumb";
 import { qk } from "../cache/queryKeys";
 
-// ---------------------------------------------------------------- helpers
-
 const DIRECTION_OPTIONS = [
   { value: "below" as AlertDirection, label: "At or below" },
   { value: "above" as AlertDirection, label: "At or above" },
@@ -26,7 +24,6 @@ const dayFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric"
 
 export type AlertStatus = { label: string; tone: "watching" | "hit" | "met" | "paused" };
 
-/** The chip on an alert row: what is it doing right now. */
 export function alertStatus(a: Pick<PriceAlert, "paused" | "armed" | "triggered_at" | "triggered_price" | "met_now" | "direction" | "current_price">): AlertStatus {
   if (a.paused) return { label: "Paused", tone: "paused" };
   if (!a.armed && a.triggered_at) {
@@ -43,21 +40,18 @@ export function alertStatus(a: Pick<PriceAlert, "paused" | "armed" | "triggered_
   return { label: "Watching", tone: "watching" };
 }
 
-/** A starting target about 10% away from the current price, in the direction being watched. */
 export function defaultTargetPrice(price: number | null | undefined, direction: AlertDirection): string {
   if (price == null || !(price > 0)) return "";
   const t = direction === "below" ? price * 0.9 : price * 1.1;
   return (Math.round(t * 100) / 100).toFixed(2);
 }
 
-/** Price of one art: product 0 is the base (cheapest plain printing), otherwise that printing. */
 export function artPrice(printings: readonly PrintingView[] | undefined, productId: number): number | null {
   if (!printings) return null;
   if (productId > 0) return printings.find((p) => p.product_id === productId)?.market_price ?? null;
   return printings.find((p) => !p.is_special)?.market_price ?? null;
 }
 
-/** Parses a typed target; null when it is not a usable price. */
 export function parseTarget(raw: string): number | null {
   const n = Number(raw.replace(/^\$/, "").trim());
   if (!raw.trim() || !Number.isFinite(n) || n <= 0 || n > 100000) return null;
@@ -74,8 +68,6 @@ export function timeAgo(iso: string, now = Date.now()): string {
   const d = Math.floor(h / 24);
   return d < 30 ? `${d}d ago` : dayFmt.format(new Date(iso));
 }
-
-// ---------------------------------------------------------------- data hooks
 
 export function usePriceAlerts() {
   return useQuery({ queryKey: qk.priceAlerts(), queryFn: api.priceAlerts });
@@ -94,9 +86,6 @@ function useAlertActions() {
   return { save, patch, remove };
 }
 
-// ---------------------------------------------------------------- editor form
-
-/** Target + direction (+ delivery toggles) form shared by the Watch dialog and the lightbox. */
 function AlertForm({
   cardId,
   productId,
@@ -202,9 +191,6 @@ function AlertForm({
   );
 }
 
-// ---------------------------------------------------------------- alert pill
-
-/** A set alert as a chip (#1028): bell, "Below $15.00", what it is doing now, and Edit / Remove. */
 function AlertPill({
   alert,
   editing,
@@ -248,9 +234,6 @@ function AlertPill({
   );
 }
 
-// ---------------------------------------------------------------- lightbox control
-
-/** Under an enlarged card art: set, edit or remove the price alert for that exact art. */
 export function LightboxPriceAlertControl({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
   const alertsQ = usePriceAlerts();
   const existing = alertsQ.data?.alerts.find((a) => a.card_id === cardId && a.product_id === productId);
@@ -304,12 +287,9 @@ export function LightboxPriceAlertControl({ cardId, productId = 0 }: { cardId: s
   );
 }
 
-// ---------------------------------------------------------------- watch dialog (page)
-
 export function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClose: () => void }) {
   const alertsQ = usePriceAlerts();
   const printingsQ = useQuery({ queryKey: qk.cardPrintings(card.card_id), queryFn: () => api.cardPrintings(card.card_id) });
-  // Search can list an alt art as its own row; its price and image are then the alt's, not the base's.
   const rowAlt = card.alt_product_id ?? 0;
   const [productId, setProductId] = useState(rowAlt);
   const [saved, setSaved] = useState<PriceAlert | null>(null);
@@ -387,8 +367,6 @@ export function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClos
     </Dialog>
   );
 }
-
-// ---------------------------------------------------------------- alert rows
 
 function AlertRow({ alert, emailEnabled }: { alert: PriceAlert; emailEnabled: boolean }) {
   const { patch, remove } = useAlertActions();
@@ -499,12 +477,9 @@ function AlertRow({ alert, emailEnabled }: { alert: PriceAlert; emailEnabled: bo
   );
 }
 
-// ---------------------------------------------------------------- page
-
 export function PriceAlertsPage({
   renderSearch,
 }: {
-  /** Catalog search drawer (lives in App.tsx); `renderAction` supplies the per-result button. */
   renderSearch: (renderAction: (card: CatalogCardResult) => ReactNode) => ReactNode;
 }) {
   const alertsQ = usePriceAlerts();
@@ -562,9 +537,6 @@ export function PriceAlertsPage({
   );
 }
 
-// ---------------------------------------------------------------- bell
-
-/** Unread count as shown on the bell; nothing at 0. */
 export function BellBadge({ unread }: { unread: number }) {
   if (unread <= 0) return null;
   return (
@@ -589,7 +561,6 @@ function BellPanel({ items, close }: { items: AppNotification[]; close: () => vo
     mutationFn: (ids?: number[]) => api.markNotificationsRead(ids),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.notifications() }),
   });
-  // Dots reflect what was unread when the panel opened; opening is what marks them read.
   const unreadAtOpen = useRef(new Set(items.filter((n) => !n.read_at).map((n) => n.id)));
   const markedRef = useRef(false);
   useEffect(() => {
@@ -664,7 +635,7 @@ export function NotificationsBell() {
         role="dialog"
         aria-label="Notifications"
         className="head-popover-panel bell-panel"
-        style={{ width: "min(360px, calc(100vw - 16px))" }}
+        style={{ width: "min(22.5rem, calc(100vw - 16px))" }}
       >
         {({ close }: { close: () => void }) => <BellPanel items={q.data?.items ?? []} close={close} />}
       </PopoverPanel>

@@ -21,7 +21,6 @@ type Props = {
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
   spectator?: boolean;
-  /** Searches and effect ordering float their cards over the board instead of the inline prompt. */
   floatingPrompts?: boolean;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
@@ -119,7 +118,6 @@ export function DuelBoard({
 
         {(() => {
           const front = view.pendingChoices?.[0];
-          // The floating overlay (below the scroll view) owns this choice.
           if (floating) return null;
           const orderingEffects =
             !spectating && front?.kind === "order_effects" && front.seat === mySeat;
@@ -129,7 +127,6 @@ export function DuelBoard({
             front != null &&
             front.kind !== "order_effects" &&
             front.seat === mySeat;
-          // Skip the generic pending banner while a structured prompt owns the UI.
           const showStatusBanner = Boolean(
             view.battle ||
               view.pendingTrigger ||

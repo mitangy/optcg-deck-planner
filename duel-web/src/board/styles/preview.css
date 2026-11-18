@@ -1,5 +1,3 @@
-/* —— Left column: hovered card, then the battle log (always open) —— */
-
 .arena-left {
   display: flex;
   flex-direction: column;
@@ -8,13 +6,10 @@
   overflow: hidden;
   border-right: 1px solid var(--line);
   background: rgb(var(--deep-rgb) / 0.55);
-  /* Landscape notch: column keeps its width, content clears the inset. */
   padding-left: var(--safe-l);
 }
 
-/* The preview is a fixed-size block (a share of the column), so a card with a
-   long ability never moves the battle log under it: the art
-   keeps its size and the text scrolls inside the block. */
+/* The preview is a fixed-size block, so a card with a long ability never moves the battle log under it: the art keeps its size and the text scrolls inside. */
 .arena.arena-wide .board-col .card-preview {
   display: flex;
   flex-direction: column;
@@ -35,8 +30,7 @@
   padding-right: 0.15rem;
 }
 
-/* Text below the fold: a fade with a "More" hint pinned to the bottom of the
-   scroll box (useMoreBelow). It overlaps the last line instead of taking space. */
+/* It overlaps the last line instead of taking space. */
 .board-col .card-preview-meta.has-more::after {
   content: "More \25BE";
   display: block;
@@ -56,8 +50,6 @@
   pointer-events: none;
 }
 
-/* Small card + text (#348): a small card beside the name and stat badges, the
-   ability text below. The art is height-capped so the text keeps real space. */
 .board-col .card-preview-compact .card-preview-img,
 .board-col .card-preview-compact .card-preview-placeholder {
   width: auto;
@@ -96,8 +88,7 @@
   gap: 0.3rem;
 }
 
-/* Big card (#348): only the art, as large as the block allows. The stage is the
-   flex share the text block had, so the panels below never move. */
+/* The stage is the flex share the text block had, so the panels below never move. */
 .board-col .card-preview-stage {
   position: relative;
   flex: 1 1 0;
@@ -134,32 +125,23 @@
   pointer-events: none;
 }
 
-/* Fit, never crop: the "Image Coming Soon" placeholder is not card-shaped. */
+/* The "Image Coming Soon" placeholder is not card-shaped, so fit, never crop. */
 .board-col .card-preview-img {
   object-fit: contain;
 }
 
-/* —— Card preview pop-up (#529) ——
-   The preview as a large floating box (CardPreviewPopup), fixed so it never shifts
-   the board: above every play-area layer (prompts 45/46, field bar 45, undo request 50, attack aim 55, copilot
-   pill 56), below what the pointer carries (hand lift / drag ghost 60, moving hand fan 92, panel drag 90/91), menus
-   (match / undo menu 60/61) and dialogs (#583). CardPreviewPopup steps it off the hovered card. The default spot is the
-   top right of the board, left of the right column; a dragged spot is inline left/top. */
+/* Fixed so it never shifts the board. Layering: above every play-area layer (prompts 45/46, field bar 45, undo request 50, attack aim 55, copilot pill 56), below what the pointer carries (hand lift / drag ghost 60, moving hand fan 92, panel drag 90/91) and menus (60/61). */
 .arena .card-preview-popup {
   position: fixed;
   z-index: var(--z-preview);
   top: 72px;
   right: calc(var(--rail-w, 0px) + 16px);
-  /* Room the art can take (#572): the window minus what the pop-up cannot use (its top offset and bottom gap; 16px once
-     it has been dragged), the header, the padding and border, and for the small card + text view a share for the text.
-     The card is 5:7, so the box is never wider than that room allows; past it the pop-up stops growing instead of
-     the card stopping inside a bigger and bigger empty box. */
+  /* The card is 5:7, so the box is never wider than the available room allows; past it the pop-up stops growing instead of the card stopping inside a bigger and bigger empty box. */
   --pp-room: 80px;
   --pp-head: 2.9rem;
   --pp-pad: 0.6rem;
   --pp-text: 7rem;
   --pp-art-h: calc(100dvh - var(--pp-room) - var(--pp-head) - 2 * var(--pp-pad) - 2px - var(--pp-text));
-  /* --preview-popup-scale is the Card pop-up size setting (1 = 100%); never wider than the window. */
   width: min(
     calc(clamp(280px, 22vw, 420px) * var(--preview-popup-scale, 1)),
     calc(100vw - 16px),
@@ -176,12 +158,10 @@
   overflow: hidden;
 }
 
-/* The big card has no text under it. */
 .arena .card-preview-popup.card-preview-popup-big {
   --pp-text: 0px;
 }
 
-/* A dragged pop-up may use the whole window height. */
 .arena .card-preview-popup.card-preview-popup-placed {
   --pp-room: 16px;
 }
@@ -291,7 +271,6 @@
   color: var(--chrome-bright);
 }
 
-/* The art stacks above the text and is as large as the box allows. */
 .arena .card-preview-popup .card-preview {
   display: flex;
   flex-direction: column;
@@ -302,7 +281,7 @@
   box-sizing: border-box;
 }
 
-/* No height cap here: the pop-up's width is capped instead (.card-preview-popup), so the art box stays 5:7 and fills it. */
+/* No height cap here: the pop-up's width is capped instead, so the art box stays 5:7 and fills it. */
 .card-preview-in-popup .card-preview-img,
 .card-preview-in-popup .card-preview-placeholder {
   object-fit: contain;
@@ -322,9 +301,7 @@
   scrollbar-width: thin;
 }
 
-/* Short windows (a 720 px laptop, or 150 % zoom): the card preview comes first.
-   The art gets smaller and the preview takes a bigger share than the log, so the
-   effect text reads instead of showing a line or two. */
+/* Short windows (a 720 px laptop, or 150 % zoom): the preview takes a bigger share than the log, so the effect text reads instead of showing a line or two. */
 @media (max-height: 760px) {
   .arena.arena-wide .board-col .card-preview {
     flex-grow: 2;
@@ -340,8 +317,6 @@
   }
 }
 
-/* 150 % zoom on a laptop (about 960x600): smaller preview type, so a card's
-   effect shows beside its name instead of scrolling out of sight. */
 @media (max-height: 640px) {
   .arena.arena-wide .board-col .card-preview {
     flex-grow: 3;

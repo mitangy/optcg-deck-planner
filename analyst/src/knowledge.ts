@@ -48,15 +48,12 @@ export async function rulesLookup(lib: OfficialLibrary, q: { section?: string; q
     sections = found.map((s) => ({ id: s.id, path: sectionPath(doc, s.id), text: s.text }));
   } else if (doc && q.query) {
     sections = searchRules(doc, q.query, limit).map((s) => {
-      // A short hit is usually a heading ("[Blocker]"); its sub-rules carry the meaning.
       const children = s.text.length < 40 ? sectionWithChildren(doc, s.id, 8).slice(1).map((c) => ({ id: c.id, text: c.text })) : undefined;
       return { id: s.id, path: sectionPath(doc, s.id), text: s.text, children };
     });
   }
   const qa = q.query && faq ? searchQa(faq.general, q.query, Math.max(limit, 6)).map((e) => ({ category: e.label, question: e.question, answer: e.answer })) : [];
-  // Card-specific Q&A found by topic, for questions that don't name a card number.
   const cardRulings = q.query && faq && !looksLikeTournamentQuestion(q.query) ? relevantCardRulings(faq.entries, q.query, Math.min(4, limit), catalog) : [];
-  // Event rules only for questions about running or playing in an event; they are not game rules.
   let tournamentRules: { id: string; title: string; text: string }[] = [];
   let tournamentUpdated: string | null = null;
   if (q.query && looksLikeTournamentQuestion(q.query)) {
@@ -143,7 +140,6 @@ export async function banListView(lib: OfficialLibrary, catalog: Catalog) {
   };
 }
 
-/** Ban list problems for a deck now, and any that announced changes will add. */
 export async function deckBanCheck(lib: OfficialLibrary, deck: Deck) {
   const list = await within(lib.banList(), 15_000).catch(() => undefined);
   if (!list) return { checked: false, problems: [], upcoming: [], note: unavailable("ban list", lib) };

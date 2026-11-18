@@ -1,8 +1,4 @@
-/**
- * Compact per-card stats for the deck planner SPA (`packages/deck-analytics/deckStats.json`).
- * The planner cannot import @optcg/rules, so everything it needs is derived here
- * from the printed card data plus the compiled ability DSL.
- */
+/** The planner cannot import @optcg/rules, so everything it needs is derived here. */
 import { cardAbilities } from "../cards/abilities.js";
 import { cardDataFor, listCardDataIds, type CardDataRow } from "../cards/cardData.js";
 import type { Ability, Filter } from "../effects/types.js";
@@ -15,9 +11,7 @@ export interface PlannerSearch {
 }
 
 export interface PlannerCard {
-  /** Printed name. */
   n: string;
-  /** Extra names from name_alias statics (searcher filters match these too). */
   al?: string[];
   t: "character" | "event" | "stage" | "leader";
   col: string[];
@@ -27,29 +21,18 @@ export interface PlannerCard {
   life?: number;
   tr?: string[];
   at?: string[];
-  /** Printed [Trigger]. */
   trg?: 1;
   kw?: string[];
   tm?: string[];
   rl?: PlannerRole[];
-  /** Leaders only: deck_rule statics, e.g. "max_cost:5". */
   rules?: string[];
-  /** Leaders only: traits named as {Trait} in the printed text (deck hints). */
   lt?: string[];
-  /** Look-at-top-N-and-add-to-hand effects. */
   srch?: PlannerSearch[];
-  /** Events: base +power their [Counter] gives one of your cards (conditional extras not counted). */
   ec?: number;
-  /** Counter this card prints for itself while in hand (e.g. Rocks.D.Xebec OP17-118: +2000). */
   hc?: number;
-  /** Leaders only: counters the Leader grants to cards in hand. */
   gc?: PlannerCounterGrant[];
 }
 
-/**
- * A Leader's "cards in your hand have a +N Counter": the counter becomes `v`, or printed + `v` with `add`.
- * `tr` matches any listed trait; `nc` only cards without a printed counter.
- */
 export interface PlannerCounterGrant {
   v: number;
   add?: 1;
@@ -133,7 +116,6 @@ function walkEffect(node: unknown, out: Found): void {
   for (const v of Object.values(e)) walkEffect(v, out);
 }
 
-/** Text fallback, applied only to clauses the ability DSL could not compile. */
 function roleFromText(clause: string, roles: Set<PlannerRole>): void {
   if (/\bdraw (?:up to )?\d+ cards?/i.test(clause) && !/opponent draws?/i.test(clause)) roles.add("draw");
   if (/look at \d+ cards? from the top of your deck/i.test(clause)) roles.add("search");
@@ -142,7 +124,6 @@ function roleFromText(clause: string, roles: Set<PlannerRole>): void {
   if (/add up to \d+ cards? from (?:the top of )?your (?:deck|hand) to the top of your Life/i.test(clause)) roles.add("lifeGain");
 }
 
-/** First "+N power" one of your own cards gains in the printed [Counter] clause. */
 export function eventCounterPower(text: string): number | undefined {
   const clause = /\[Counter\](.*)$/s.exec(text)?.[1];
   const m = clause ? /\byour\b[^.]*?\bgains? \+(\d+) power/i.exec(clause) : null;

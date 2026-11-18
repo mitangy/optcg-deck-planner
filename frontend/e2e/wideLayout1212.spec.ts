@@ -1,8 +1,3 @@
-/**
- * Wide monitors (#1212): from 1600px the search/Scan/List-Grid/Filters toolbar
- * moves into a left sidebar and the cards fill the right; below that the
- * toolbar stays above the list and the page keeps its 1200px cap.
- */
 import { expect, test } from "./fixtures";
 
 test.afterEach(({ planner }) => {

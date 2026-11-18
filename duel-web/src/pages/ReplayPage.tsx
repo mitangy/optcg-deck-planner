@@ -17,7 +17,6 @@ type Load =
   | { status: "failed"; reason: ReplayLoadFailure; message: string }
   | { status: "ready"; payload: ReplayPayload };
 
-/** A full-page message in place of the board, with a way to the written log. */
 function ReplayNotice({ title, children, matchId, signIn = false }: { title: string; children: string; matchId: string; signIn?: boolean }) {
   return (
     <div className="app-shell">
@@ -56,10 +55,6 @@ const FAILURE_COPY: Record<ReplayLoadFailure, { title: string; text: string }> =
   error: { title: "Replay unavailable", text: "Could not load this replay. Try again in a moment." },
 };
 
-/**
- * One slim line inside the controls (never over the board). It exists for the whole viewing when the
- * recording drifted or stops early, so the controls keep their size when its words change.
- */
 function replayNote(status: { kind: string } | undefined, atEnd: boolean, matchId: string): ReactNode {
   if (status?.kind === "drift") return <span title="Recorded on an older rules version; some moments may play differently.">Older rules: some moments may differ</span>;
   if (status?.kind === "partial") {
@@ -74,13 +69,11 @@ function replayNote(status: { kind: string } | undefined, atEnd: boolean, matchI
   return null;
 }
 
-/** The recording on the board once it is loaded; the engine work happens in `useReplay`. */
 function ReplayBoard({ payload }: { payload: ReplayPayload }) {
   const navigate = useNavigate();
   const replay: Replay = useReplay(payload);
   const players = useMemo<SeatPlayers>(() => [{ name: payload.players[0] }, { name: payload.players[1] }], [payload.players]);
   const matchId = payload.match_id;
-  // Grades are for a finished game, and start once the timeline is built (the worker does the work).
   const review = useGameReview(matchId, payload.replay, replay.phase === "ready" && payload.replay.end != null);
   if (replay.phase === "unavailable") {
     const text =
@@ -96,7 +89,6 @@ function ReplayBoard({ payload }: { payload: ReplayPayload }) {
 
   const ready = replay.phase === "ready" ? replay : null;
   const { status } = ready ?? {};
-  // The result belongs to the real end of the game, not to wherever the engine stopped.
   const result = ready && ready.atEnd && !ready.timeline.diverged ? (payload.replay.end ?? null) : null;
 
   return (
@@ -128,7 +120,6 @@ export default function ReplayPage() {
   useEffect(() => {
     let live = true;
     setLoad({ status: "loading" });
-    // Opened from the match-over card, the server may not be done closing the game: wait for it rather than say "still being played".
     const fetched = fromMatchOver
       ? loadWhileSaving(() => fetchMatchReplay(matchId), {
           onWait: () => live && setLoad({ status: "loading", saving: true }),

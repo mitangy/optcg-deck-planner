@@ -40,14 +40,12 @@ export function GroupBuyDetailPage() {
   const [layout, setLayout] = useCardLayout();
   const [showExcluded, setShowExcluded] = useState(false);
   const unavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
-  // Always show still-needed cards; keep still_need sort disabled like shopping's "Still need only".
   const { sorts, setSorts, effectiveSorts } = useCardSorts(true, unavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [search, setSearch] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [inviteMsg, setInviteMsg] = useState<string | null>(null);
   const [altWantBusyKey, setAltWantBusyKey] = useState<string | null>(null);
-  // Cards edited on this page stay listed even at 0, so you can still pick an alt (#868).
   const [keepVisible, setKeepVisible] = useState<ReadonlySet<string>>(() => new Set());
   const keepCardVisible = (cardId: string) =>
     setKeepVisible((prev) => (prev.has(cardId) ? prev : new Set(prev).add(cardId)));
@@ -207,7 +205,6 @@ export function GroupBuyDetailPage() {
     onSuccess: async (d, draft) => {
       qc.setQueryData(qk.groupBuy.detail(groupId), d);
       await qc.invalidateQueries({ queryKey: qk.groupBuys() });
-      // Mark purchased / Undo change Owned on the server.
       invalidateOwnedViews(qc);
       setReceiptDraft(null);
       setReceiptResetKey((k) => k + 1);
@@ -225,7 +222,6 @@ export function GroupBuyDetailPage() {
     onSuccess: async (d) => {
       qc.setQueryData(qk.groupBuy.detail(groupId), d);
       await qc.invalidateQueries({ queryKey: qk.groupBuys() });
-      // Mark purchased / Undo change Owned on the server.
       invalidateOwnedViews(qc);
       setReceiptDraft(null);
       setReceiptResetKey((k) => k + 1);
@@ -358,7 +354,6 @@ export function GroupBuyDetailPage() {
     onSettled: () => setAltWantBusyKey(null),
   });
 
-  /** Which art each card displays is your own view choice: saved like Master Shopping (#874). */
   const setDisplayArt = useMutation({
     mutationFn: ({ cardId, productId }: { cardId: string; productId: number }) =>
       api.setDisplayArt(cardId, productId),
@@ -463,9 +458,6 @@ export function GroupBuyDetailPage() {
 
   async function exportMassEntry(d: GroupBuyDetail) {
     try {
-      // Backend is source of truth (per-member AA allocation). Never open a
-      // client-built deep link alongside backend paste — local export omits
-      // alt wants, and pasting into a pre-filled Mass Entry doubles qty.
       const exported = await api.exportGroupBuyTcgplayer(d.id);
       const paste = exported.paste_text.trim();
       if (!paste) {

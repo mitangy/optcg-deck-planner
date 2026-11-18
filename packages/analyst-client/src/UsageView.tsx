@@ -8,7 +8,6 @@ function dayText(iso: string | null): string {
   return Number.isFinite(t) ? new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "never";
 }
 
-/** Owners: what Log Pose has cost, in total and per player, kind and model. */
 export function UsageView({ apiBase }: { apiBase: string }) {
   const [usage, setUsage] = useState<UsageSummary | null>(null);
   const [error, setError] = useState<string | null>(null);

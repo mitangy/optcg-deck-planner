@@ -42,7 +42,6 @@ describe("practice auto-pass", () => {
   it("moves the device to the seat that must act as its view lands, before the page renders it (#725)", () => {
     const { session, seats } = practice();
     expect(session.activeSeat).toBe(0);
-    // The copilot must never be shown seat 0's view of a choice that belongs to seat 1.
     seats[1]!.store.dispatch({ type: "view", view: choiceForSeat1(1) });
     expect(session.activeSeat).toBe(1);
   });

@@ -6,16 +6,13 @@ import { buildTestDeck, DEFAULT_LEADER_ID } from "../cards/definitions.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { GameEvent, Intent, Seat } from "../types.js";
 
-// What the opponent of the choosing seat is shown must not depend on the hidden cards (#369).
-
 const TRIGGER_CARD = "ST01-014";
-const KAROO = "ST01-003"; // red, 1 cost
-const VIVI = "ST01-009"; // red, 2 cost
-const MOHJI = "OP02-060"; // blue, 1 cost
+const KAROO = "ST01-003";
+const VIVI = "ST01-009";
+const MOHJI = "OP02-060";
 const ACCEPT: Intent = { type: "resolve_pending_choice", accept: true };
 const DECLINE: Intent = { type: "resolve_pending_choice", accept: false };
 
-/** Everything seat `viewer` can see of the match right now. */
 function seen(h: Harness, viewer: Seat) {
   return { player: getPlayerView(h.state, viewer), spectator: getSpectatorView(h.state, viewer), legal: listLegalIntents(h.state, viewer) };
 }
@@ -27,7 +24,6 @@ function step(h: Harness, seat: Seat, intent: Intent): GameEvent[] {
   return r.events;
 }
 
-/** OP16-080 Teach: "You may trash 1 card with a [Trigger] from your hand" when attacked. Seat 1 owns it. */
 function teachAttacked(hand: string[], opts: { legacy?: boolean } = {}) {
   const h = new Harness({ leaders: ["ST01-001", "OP16-080"] });
   if (opts.legacy) delete h.state.privateChoicesV2;
@@ -45,7 +41,6 @@ describe("optional costs that depend on hidden cards are always asked (#369)", (
     expect(projectGameEvents(cannot.events, 0)).toEqual(projectGameEvents(can.events, 0));
     expect(seen(cannot.h, 0)).toEqual(seen(can.h, 0));
     expect(getPlayerView(cannot.h.state, 0).pendingChoices[0]).not.toHaveProperty("unpayable");
-    // Declining looks the same too.
     const declineCan = step(can.h, 1, DECLINE);
     const declineCannot = step(cannot.h, 1, DECLINE);
     expect(projectGameEvents(declineCannot, 0)).toEqual(projectGameEvents(declineCan, 0));
@@ -73,7 +68,7 @@ describe("optional costs that depend on hidden cards are always asked (#369)", (
   });
 
   it("a cost that depends only on public information keeps the silent decline (#369)", () => {
-    // OP01-011 Gordon: "place 1 card from your hand at the bottom of your deck". Hand size is public.
+    // Hand size is public.
     const h = new Harness();
     h.hand(0, "OP01-011");
     h.don(0, 2);
@@ -83,7 +78,6 @@ describe("optional costs that depend on hidden cards are always asked (#369)", (
 });
 
 describe("selects from a hidden zone are always asked (#369)", () => {
-  /** After accepting Teach's cost, seat 1 picks a [Trigger] card to trash from a hand of two cards. */
   function afterAccept(hand: string[], opts: { legacy?: boolean } = {}) {
     const { h } = teachAttacked(hand, opts);
     const events = step(h, 1, ACCEPT);
@@ -99,10 +93,8 @@ describe("selects from a hidden zone are always asked (#369)", () => {
     expect(projectGameEvents(forced.events, 0)).toEqual(projectGameEvents(real.events, 0));
     expect(seen(forced.h, 0)).toEqual(seen(real.h, 0));
     expect(getPlayerView(forced.h.state, 0).pendingChoices[0]!.request).toEqual({ type: "select", min: 0, max: 0, options: [] });
-    // The owner sees the real options: one candidate against two.
     expect((getPlayerView(forced.h.state, 1).pendingChoices[0]!.request as { options: unknown[] }).options).toHaveLength(1);
     expect((getPlayerView(real.h.state, 1).pendingChoices[0]!.request as { options: unknown[] }).options).toHaveLength(2);
-    // Answering the forced one trashes the only candidate.
     forced.h.forced();
     expect(forced.h.state.players[1].trash).toEqual([TRIGGER_CARD]);
     expect(forced.h.state.players[1].hand.map((c) => c.defId)).toEqual([FILLER]);
@@ -114,7 +106,6 @@ describe("selects from a hidden zone are always asked (#369)", () => {
     expect(h.choice?.request?.type).not.toBe("select");
   });
 
-  // EB01-020 Chambres: return 1 of your Characters, then play up to 1 Character from hand of a different color.
   function chambres(otherHandCard: string, opts: { legacy?: boolean } = {}) {
     const h = new Harness();
     if (opts.legacy) delete h.state.privateChoicesV2;
@@ -126,8 +117,8 @@ describe("selects from a hidden zone are always asked (#369)", () => {
   }
 
   it("a pick with no candidates in hand is asked, and looks the same to the opponent as one with a candidate (#369)", () => {
-    const none = chambres(VIVI); // red like the returned Karoo: nothing to play
-    const some = chambres(MOHJI); // blue: one candidate
+    const none = chambres(VIVI);
+    const some = chambres(MOHJI);
     const choice = none.h.choice!;
     expect(choice).toMatchObject({ seat: 0, privateToSeat: 0 });
     expect(choice.request).toMatchObject({ type: "select", min: 0, max: 0, options: [] });
@@ -135,7 +126,6 @@ describe("selects from a hidden zone are always asked (#369)", () => {
     expect((some.h.choice!.request as { options: unknown[] }).options).toHaveLength(1);
     expect(projectGameEvents(none.events, 1)).toEqual(projectGameEvents(some.events, 1));
     expect(seen(none.h, 1)).toEqual(seen(some.h, 1));
-    // Confirming "none" plays nothing and ends the effect.
     none.h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [] });
     expect(none.h.choice).toBeUndefined();
     expect(none.h.state.players[0].characters).toEqual([]);
@@ -149,7 +139,6 @@ describe("selects from a hidden zone are always asked (#369)", () => {
 });
 
 describe("deck instance ids carry no information (#369)", () => {
-  // Grouped like the client's decklist: four copies of each card in a row.
   const grouped = Array.from({ length: 10 }, (_, i) => `ST01-0${String(3 + i).padStart(2, "0")}`).flatMap((id) => [id, id, id, id]);
   const players = (): [{ leaderId: string; deck: string[] }, { leaderId: string; deck: string[] }] => [
     { leaderId: DEFAULT_LEADER_ID, deck: [...grouped] },
@@ -182,7 +171,6 @@ describe("deck instance ids carry no information (#369)", () => {
     expect(a.players[0].hand.map((c) => c.id)).toEqual(b.players[0].hand.map((c) => c.id));
     const idSet = (s: typeof a) => [...s.players[1].zoneInstanceIds.deck, ...s.players[1].hand.map((c) => c.id), ...s.players[1].zoneInstanceIds.life].sort();
     expect(idSet(a)).toEqual(idSet(legacy));
-    // Same cards in the same places: only the ids moved.
     expect(a.players[0].hand.map((c) => c.defId)).toEqual(legacy.players[0].hand.map((c) => c.defId));
     expect(a.rng).toEqual(legacy.rng);
   });

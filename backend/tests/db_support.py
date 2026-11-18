@@ -29,8 +29,6 @@ def using_postgres() -> bool:
     return test_database_url() is not None
 
 
-# Environment selection, not a hidden failure: Postgres-only cases run when CI
-# (or a local cluster) provides TEST_DATABASE_URL.
 requires_postgres = pytest.mark.skipif(
     not using_postgres(), reason="needs TEST_DATABASE_URL pointing at a local Postgres"
 )
@@ -39,7 +37,6 @@ requires_postgres = pytest.mark.skipif(
 def _postgres_engine() -> Engine:
     url = make_url(test_database_url())
     host = url.host
-    # No host or a socket directory means a local unix socket.
     if host and not host.startswith("/") and host not in _LOCAL_HOSTS:
         raise RuntimeError(f"TEST_DATABASE_URL host {host!r} is not local; refusing to wipe it")
     if url.drivername in ("postgres", "postgresql"):
@@ -48,9 +45,7 @@ def _postgres_engine() -> Engine:
 
 
 def reset_postgres_schema(engine: Engine) -> None:
-    """Wipe the database: drop every table (including migration-test leftovers)."""
     with engine.connect() as conn:
-        # A previous test's engine may still hold an open transaction.
         conn.execute(
             text(
                 "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
@@ -63,7 +58,6 @@ def reset_postgres_schema(engine: Engine) -> None:
 
 
 def make_bare_engine() -> Engine:
-    """An engine on an empty database (no tables): for building legacy schemas."""
     if using_postgres():
         engine = _postgres_engine()
         reset_postgres_schema(engine)
@@ -74,7 +68,6 @@ def make_bare_engine() -> Engine:
 
 
 def make_test_engine() -> Engine:
-    """An engine on a fresh database with the current ORM schema created."""
     engine = make_bare_engine()
     Base.metadata.create_all(bind=engine)
     return engine

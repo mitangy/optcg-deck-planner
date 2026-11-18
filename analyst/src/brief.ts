@@ -17,7 +17,6 @@ export const BRIEF_TOOLS: ToolName[] = ["playbook", "matchup_stats", "tournament
 const BRIEF_MAX_ROUNDS = 5;
 const BRIEF_MAX_TOKENS = 1500;
 
-/** The cache variant: a new set (or a prompt change, by bumping v1) writes briefs again. */
 export function briefVariant(catalog: Catalog): string {
   return `v3:${newestFormat(catalog.cards.keys())}`;
 }
@@ -32,11 +31,6 @@ type BriefLookup = {
 
 const nameOf = (catalog: Catalog, id: string) => catalog.cards.get(id)?.name ?? "unknown card";
 
-/**
- * The matchup brief for a casual or practice game. The planner checks the game server's ticket (a ranked or
- * forged one is refused before any model call) and holds the saved brief; a saved one is replayed for free,
- * and a new one is written only when the player asked for it and has budget left.
- */
 export async function runBrief(deps: ChatDeps, token: string, body: z.infer<typeof briefBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
   const { api } = deps;
   const variant = briefVariant(deps.catalog);
@@ -65,7 +59,6 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
     try {
       model = await checkBudget(api, token, "brief");
     } catch (err) {
-      // Out of credit: the board just shows no brief, and no error.
       if (err instanceof ChatHttpError && err.code === "credit") {
         emit({ event: "done", data: { cached: false, refused: "credit" } });
         return;
@@ -100,13 +93,11 @@ export async function runBrief(deps: ChatDeps, token: string, body: z.infer<type
       }
     }
     if (state.refusal) {
-      // The credit ran out while writing: nothing is saved or shown, and no error.
       await recordRefusal(api, token, "brief", state.refusal);
       emit({ event: "done", data: { cached: false, refused: state.refusal } });
       return;
     }
     if (!state.finished) throw new UserFacingError("Log Pose used too many lookups on that one. Try again.");
-    // The saved text is what was streamed: the rounds' text blocks, kept apart by a blank line.
     const blocks: Block[] = [];
     for (const m of state.turn) {
       if (m.role !== "assistant" || !Array.isArray(m.content)) continue;

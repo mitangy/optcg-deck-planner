@@ -2,12 +2,10 @@ import { useEffect } from "react";
 import type { CollectorLine } from "../../api";
 import { COLLECTOR_MAX } from "./collectorLines";
 
-/** "★ Extra copy": the star never stands alone, so the words always come with it (#1031, renamed #1165). */
 export function CollectorChip({ className = "" }: { className?: string }) {
   return <span className={`collector-chip${className ? ` ${className}` : ""}`}>★ Extra copy</span>;
 }
 
-/** The deck page's small "★ +1 extra" chip on a card's line. */
 export function CollectorDeckChip({ count }: { count?: number }) {
   if (!count || count <= 0) return null;
   return (
@@ -84,7 +82,6 @@ export function CollectorRemove({
   );
 }
 
-/** Fixed bottom toast with one action (Undo). It overlays the page, so it never shifts layout, and hides itself. */
 export function UndoToast({
   message,
   actionLabel = "Undo",

@@ -1,5 +1,3 @@
-/* Keep the <td> as a real table-cell so row borders stay continuous.
-   Flex the inner wrapper instead — display:flex on td breaks border-collapse. */
 .card-cell {
   min-width: 14rem;
   vertical-align: middle;
@@ -12,16 +10,11 @@
   min-width: 0;
 }
 
-/* Deck table: let the text block shrink so long dotted names wrap at the dots
-   (see nameWithBreaks); dotless words may break anywhere as a last resort. */
 .deck-main .card-cell-inner > div:not(.thumb) {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-/* Desktop list tables (#961): the art fills the Card column and the text sits under it, centred.
-   The column keeps a definite width (about its old min-width) so it never grows the table sideways;
-   art is capped so a wide table does not stretch it. Grid cards, the phone list and alt tiles are untouched. */
 .data-table .card-cell {
   width: 14rem;
 }
@@ -36,7 +29,7 @@
 .data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
   display: block;
   width: 100%;
-  max-width: 220px;
+  max-width: 13.75rem;
   height: auto;
   aspect-ratio: 63 / 88;
 }
@@ -55,8 +48,6 @@
 
 .data-table {
   min-width: 720px;
-  /* separate + 0 spacing draws each cell's border-bottom in full so lines
-     don't fragment around flex cells, sticky headers, or tinted rows. */
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -65,7 +56,6 @@
   display: none;
 }
 
-/* When JS only mounts the mobile list (group buy), keep it in flow. */
 .mobile-card-list.mobile-card-list-mounted {
   display: grid;
   gap: var(--space-3);
@@ -128,8 +118,6 @@
   background: var(--bg-deep);
 }
 
-/* Want stepper: Owned-stepper look with a read-only count and a one-line note
-   that always reserves its height, so state changes never shift the row. */
 .want-cell {
   display: inline-flex;
   flex-direction: column;
@@ -301,7 +289,6 @@
   max-width: 100%;
 }
 
-/* Sign-in: a parchment notice pinned over the night sea. */
 .login {
   min-height: 100%;
   min-height: 100svh;
@@ -502,7 +489,6 @@ button.ghost.danger:not(:disabled):hover {
   margin: 0.35rem 0 0;
 }
 
-/* Headline numbers under a page title (Shopping). */
 .stat-strip {
   display: flex;
   flex-wrap: wrap;
@@ -545,7 +531,6 @@ button.ghost.danger:not(:disabled):hover {
   color: var(--gold-ink);
 }
 
-/* Est. cost split (#1182): wraps between parts, never inside one, and stays narrow on phones. */
 .stat-note.stat-split {
   max-width: 13rem;
   font-weight: 500;
@@ -571,7 +556,6 @@ button.ghost.danger:not(:disabled):hover {
   min-width: 0;
 }
 
-/* Shared deck head: the title block takes the free width and wraps, so the button keeps its spot in both states. */
 .share-head {
   flex-wrap: nowrap;
 }
@@ -585,7 +569,6 @@ button.ghost.danger:not(:disabled):hover {
   flex: 0 0 auto;
 }
 
-/* Same width for "Add to my decks" / "Adding…" / "Sign in to add" so the button never resizes. */
 .page-head-actions .share-copy-btn {
   min-width: 11rem;
   white-space: nowrap;
@@ -904,8 +887,7 @@ tr.selected-row td,
 
 .card-grid {
   display: grid;
-  /* Extra width for the external select column beside each card (matches list). */
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(12.25rem, 1fr));
   gap: 0.85rem;
 }
 
@@ -913,12 +895,10 @@ tr.selected-row td,
   display: grid;
   grid-template-columns: 2.25rem minmax(0, 1fr);
   column-gap: 0.15rem;
-  /* Stretch so every card in a grid row is as tall as the tallest (#877); the select stays on top. */
   align-items: stretch;
   min-width: 0;
 }
 
-/* Narrow (tap-to-select) grid: no checkbox column. */
 .grid-card-wrap.selectable {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -952,15 +932,14 @@ tr.selected-row td,
 
 .grid-card-media .thumb,
 .grid-card-media .thumb-btn .thumb {
-  width: 156px;
-  height: 218px;
+  width: 9.75rem;
+  height: 13.625rem;
 }
 
 .grid-card-media .thumb-btn {
   display: block;
 }
 
-/* Outside the card, same width/alignment as the list view select column. */
 .grid-card-select {
   align-self: start;
   display: flex;
@@ -1012,8 +991,6 @@ tr.selected-row td,
   font-size: 0.9rem;
 }
 
-/* Compact stepper so the +/− controls fit inside the narrow grid card
-   (a full-size stepper is wider than the card and overflows the container). */
 .grid-card-owned .owned-wrap {
   gap: var(--space-1);
 }
@@ -1071,7 +1048,6 @@ tr.selected-row td,
   border: 1px solid var(--line);
   border-radius: var(--radius-14);
   background: var(--card);
-  /* visible so the Sort menu panel is not clipped */
   overflow: visible;
 }
 
@@ -1216,7 +1192,6 @@ tr.selected-row td,
 
 .sort-menu-panel {
   z-index: var(--z-menu);
-  /* It used to inherit this from the .filters row it sat in; the panel now floats in a portal. */
   color: var(--muted);
   width: min(20rem, calc(100vw - 2rem));
   max-height: min(24rem, calc(100dvh - 6rem));
@@ -1324,7 +1299,6 @@ td {
   vertical-align: middle;
 }
 
-/* Include decks grouped by leader (#1184): groups wrap side by side, chips wrap inside each. */
 .deck-filter-groups {
   display: flex;
   flex-wrap: wrap;
@@ -1359,8 +1333,6 @@ span.deck-filter-group-head {
   overflow-wrap: anywhere;
 }
 
-/* Desktop grid (#1212): the select checkbox is an overlay in the tile's corner, not its own column,
-   and Owned + Want / In deck sit side by side. Phones (tap-to-select, <=800px) keep the stacked layout. */
 @media (min-width: 801px) {
   .grid-card-wrap {
     position: relative;
@@ -1393,7 +1365,6 @@ span.deck-filter-group-head {
     grid-column: 1 / -1;
   }
 
-  /* Two steppers fit one tile: slightly smaller buttons, and a column wide enough for both. */
   .grid-card-steppers .owned-btn {
     width: 1.7rem;
     height: 1.7rem;
@@ -1410,6 +1381,6 @@ span.deck-filter-group-head {
   }
 
   .card-grid:has(.grid-card-steppers) {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(13.75rem, 1fr));
   }
 }

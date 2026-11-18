@@ -1,22 +1,13 @@
-/**
- * "Bigger playing area" (#449): with the switch on, the two playmats and the
- * cards on them take as much of the window as they can, on a desktop window,
- * a portrait phone and a landscape phone, without clipping anything or
- * scrolling sideways. The viewports are set here, so the spec runs once (in
- * the desktop project).
- */
 import { test, expect, formatIssues, preferFan } from "./fixtures";
 import { isKnown } from "./known-issues";
 import type { Page } from "@playwright/test";
 
-/** `twoRow`: the mats fold the DON!! cost area into the Leader row (#468), which is what makes the cards much bigger. */
 const VIEWPORTS = [
   { name: "desktop 1280x720", width: 1280, height: 720, twoRow: true },
   { name: "phone portrait 375x812", width: 375, height: 812, twoRow: false },
   { name: "phone landscape 812x375", width: 812, height: 375, twoRow: true },
 ];
 
-/** The normal-size layout, switched off by hand (it is on by default since #556). */
 const OFF = { bigBoard: false, bigBoardChosen: true };
 
 test.beforeEach(({}, info) => {
@@ -32,7 +23,6 @@ async function openDemo(page: Page, vp: { width: number; height: number }, query
   await page.waitForTimeout(400);
 }
 
-/** Your mat and the first card on it, in px. */
 async function mine(page: Page) {
   return page.evaluate(() => {
     const mat = document.querySelector(".side-you")!.getBoundingClientRect();
@@ -45,7 +35,6 @@ test.describe("defaults", () => {
   test.use({ legacyLayout: false });
   test("Bigger playing area is on by default, also for a stored false nobody chose, and stays off once chosen (#556)", async ({ page }) => {
     const vp = VIEWPORTS[0]!;
-    // Nothing stored; and an older build's stored false that was never a choice.
     for (const stored of [{}, { bigBoard: false }]) {
       await openDemo(page, vp, "", stored);
       await expect(page.locator(".board-root"), JSON.stringify(stored)).toHaveClass(/arena-big/);
@@ -65,9 +54,7 @@ for (const vp of VIEWPORTS) {
     await expect(page.locator(".board-root")).toHaveClass(/arena-big/);
     const on = await mine(page);
 
-    // A phone mat is already as wide as the screen, so it grows in height.
     expect(on.mat * on.matH, "mat area").toBeGreaterThan(off.mat * off.matH * 1.03);
-    // Two-row mats (#468) grow the cards by a quarter or more; a portrait phone is width-bound and gains a little.
     expect(on.card, "card width").toBeGreaterThan(off.card * (vp.twoRow ? 1.25 : 1.05));
   });
 
@@ -92,10 +79,6 @@ for (const vp of VIEWPORTS) {
   });
 }
 
-/**
- * Vertical centres of your cost area and DON!! deck against your Leader's top and bottom: they sit in the Leader's
- * row when both centres fall within it.
- */
 async function leaderRow(page: Page) {
   return page.evaluate(() => {
     const box = (sel: string) => {
@@ -110,7 +93,6 @@ for (const vp of VIEWPORTS.filter((v) => v.twoRow)) {
   test(`Bigger playing area folds your DON!! cost area and DON!! deck into the Leader's row at ${vp.name} (#468)`, async ({ page }) => {
     await openDemo(page, vp, "", OFF);
     const off = await leaderRow(page);
-    // Off, they have a row of their own under the Leader.
     expect(off.cost.mid, "cost area below the Leader").toBeGreaterThan(off.leader.bottom);
     expect(off.donDeck.mid, "DON!! deck below the Leader").toBeGreaterThan(off.leader.bottom);
 
@@ -139,12 +121,9 @@ test("a column width dragged out in the normal layout does not carry into Bigger
   const on = await colWidths();
   expect(on.left).toBeLessThan(260);
   expect(on.right).toBeLessThan(340);
-  // The handles are there: a width dragged in this mode is saved apart (panelSizesBig).
   await expect(page.locator(".col-resize")).toHaveCount(2);
 });
 
-// A left / right opponent hand sits in a gutter beside the opponent's mat, and the
-// mats shrink to leave it room (#529; it used to fall back to the top strip, #468).
 for (const vp of [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
@@ -160,12 +139,10 @@ for (const vp of [
       if (process.env.SHOTS) {
         await page.screenshot({ path: `/mnt/project-files/card-preview-popup/opp-hand-big-${spot}-${vp.width}x${vp.height}-${process.env.OPP_SHOT ?? "after"}.png` });
       }
-      // Beside, not above: it shares the mat's rows and sits wholly to one side of it.
       expect(hand.y, "hand starts within the opponent mat's rows").toBeGreaterThanOrEqual(mat.y - 1);
       expect(hand.y + hand.height, "hand ends within the opponent mat's rows").toBeLessThanOrEqual(mat.y + mat.height + 1);
       if (spot === "left") expect(hand.x + hand.width, "hand left of the mat").toBeLessThanOrEqual(mat.x + 1);
       else expect(hand.x, "hand right of the mat").toBeGreaterThanOrEqual(mat.x + mat.width - 1);
-      // The mats shrank to make room instead of sliding under the hand: both stay clear of it.
       if (spot === "left") expect(own.x).toBeGreaterThanOrEqual(hand.x + hand.width - 1);
       else expect(own.x + own.width).toBeLessThanOrEqual(hand.x + 1);
       const vw = await page.evaluate(() => ({ s: document.documentElement.scrollWidth, w: window.innerWidth }));
@@ -177,8 +154,6 @@ for (const vp of [
   }
 }
 
-// Ten DON!! in the cost area stand in one horizontal line: the cost area takes three columns of the
-// mat, not two (#529).
 for (const vp of [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
@@ -198,7 +173,6 @@ for (const vp of [
     const strip = (await page.locator(".side-you .don-strip").boundingBox())!;
     const last = (await chips.last().boundingBox())!;
     expect(last.x + last.width, "last chip inside the strip").toBeLessThanOrEqual(strip.x + strip.width + 1);
-    // Face-up Life is still on the mat to hover.
     await expect(page.locator(".side-you .zone-pile-life .zone-pile-face.is-face-up").first()).toBeVisible();
   });
 }

@@ -19,18 +19,12 @@ import {
 import { DuelRoom, hashToNegativeId } from "./rooms/DuelRoom.js";
 import { MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
 
-/**
- * Largest websocket frame a client may send. Colyseus' default is 4 KB, which
- * closes the socket (1009) on any real "skin" message: one message carries a
- * playmat and a card back of up to SKIN_MAX_PLAYMAT_CHARS +
- * SKIN_MAX_CARD_BACK_CHARS, plus JSON/msgpack overhead. 1 MB leaves headroom.
- */
+// Colyseus' default 4 KB closes the socket (1009) on a real skin message (playmat + card back).
 export const WS_MAX_PAYLOAD_BYTES = 1024 * 1024;
 if (WS_MAX_PAYLOAD_BYTES < SKIN_MAX_PLAYMAT_CHARS + SKIN_MAX_CARD_BACK_CHARS + 4096) {
   throw new Error("WS_MAX_PAYLOAD_BYTES must fit the largest skin message");
 }
 
-/** Account uid for GET /active-matches: a game token, or ?devUserId= when tokens aren't required. */
 function activeMatchesCaller(authorization: string | undefined, devUserId: unknown): number | null {
   const bearer = /^Bearer\s+(.+)$/i.exec(authorization ?? "")?.[1]?.trim();
   if (bearer) return verifyGameToken(bearer)?.uid ?? null;
@@ -75,10 +69,7 @@ const server = defineServer({
       });
     });
 
-    // CORS (incl. the Authorization preflight) comes from Colyseus' request listener
-    // and the allowlist installed by installCorsAllowlist, same as matchmake.
-    // Live matches a signed-in account holds a seat in, so it can resume one on
-    // another device (#451). Owners come from room metadata, not room state.
+    // CORS (incl. the Authorization preflight) comes from Colyseus' request listener and the installCorsAllowlist allowlist.
     app.get("/active-matches", async (req, res) => {
       const uid = activeMatchesCaller(req.get("authorization"), req.query.devUserId);
       if (uid === null) {

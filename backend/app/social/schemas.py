@@ -1,4 +1,3 @@
-"""Request/response models for friend views, spares and trades (#703)."""
 
 from __future__ import annotations
 
@@ -115,7 +114,6 @@ class SpareItem(BaseModel):
     image_url: str = ""
     market_price: float | None = None
     spare: int
-    # Copies of the standard printing; a standard trade line is capped here, not at spare (#705).
     base_owned: int = 0
     want: int = 0
     printings: list[SparePrinting] = []
@@ -218,7 +216,6 @@ class DuelPresenceEntry(BaseModel):
     role: str = Field(default="player", pattern="^(player|spectator)$")
     phase: str = Field(default="playing", pattern="^(waiting|playing|finished)$")
     ranked: bool = False
-    # Where clients reach this room's pool. An unusable value is dropped, not an error: the rest of the snapshot still counts.
     server_url: str | None = Field(default=None, max_length=200)
 
     @field_validator("server_url", mode="before")
@@ -240,18 +237,15 @@ class FriendRequestIn(BaseModel):
 
 class FriendInviteIn(BaseModel):
     room_id: str = Field(min_length=1, max_length=64)
-    # Pool the inviter's room is on; the API keeps it only if it is one it has handed out.
     server_url: str | None = Field(default=None, max_length=200)
 
 
 class FriendOut(BaseModel):
     user_id: int
     username: str
-    # offline | online | waiting | in_game | spectating
     status: str
     # Room a friend is playing or watching (spectatable); None otherwise.
     room_id: str | None = None
-    # Pool that room is on, when the game server reported it.
     server_url: str | None = None
     ranked: bool = False
 
@@ -278,5 +272,4 @@ class FriendsOut(BaseModel):
 
 
 class FriendRequestResult(BaseModel):
-    # pending: request sent; accepted: they had already asked you, so you're friends now.
     status: str

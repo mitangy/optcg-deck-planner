@@ -1,4 +1,3 @@
-/* —— Mulligan —— */
 /* Overlays the top of the playmat instead of sitting in flow above it, so the
    board does not jump down at the start of a game and back up after Keep. */
 .mulligan-banner {
@@ -8,7 +7,6 @@
   transform: translateX(-50%);
   width: min(calc(100% - 1.5rem), 46rem);
   box-sizing: border-box;
-  /* Above the board's own controls (Battle log toggle), under the hand and dock. */
   z-index: calc(var(--z-log) + 1);
   pointer-events: none;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
@@ -21,7 +19,6 @@
   line-height: 1.35;
 }
 
-/* Phone portrait: start under the opponent hand / Battle log row so neither is covered. */
 .arena:not(.arena-wide):not(.arena-lp) .mulligan-banner {
   top: calc(var(--hint-h, 1.35rem) + 0.85rem);
 }
@@ -30,9 +27,6 @@
   color: var(--chrome-bright);
 }
 
-/* Small phones: the explainer would cover most of the board. The
-   turn-order splash, the "Going 1st" badge and the Mulligan / Keep buttons
-   already say it, so it is left out there. */
 @media (max-width: 359px) {
   .mulligan-banner-explainer {
     display: none;
@@ -43,23 +37,16 @@
   color: var(--chrome-bright);
 }
 
-/* Keep is the main choice (theme button); Mulligan is the quieter outline
-   button on a solid fill so the board never shows through it in the dock (#461). */
 .intent-btn-mulligan {
   background: var(--arena-raised) !important;
   color: var(--chrome-bright) !important;
   border-color: var(--chrome) !important;
 }
 
-/* Discoverability: board cards with contextual actions available */
 .card-tile.has-actions {
   box-shadow: 0 0 0 2px rgb(var(--chrome-rgb) / 0.55);
 }
 
-/* Attack-ready glow (#412): your Leader / Characters that can attack now.
-   A thin, still ring (box-shadow only, so nothing moves) on a dark edge that
-   separates it from the art; later than .has-actions so it wins. Green by
-   default, light gold on Green cards where green would vanish (#449). */
 .card-tile.attack-ready {
   --attack-ring: 74 222 128;
   border-color: rgba(6, 10, 16, 0.92);
@@ -72,7 +59,6 @@
 }
 
 
-/* —— Hand collapse —— */
 .hand-rail-head {
   display: flex;
   align-items: center;
@@ -110,7 +96,6 @@
   border-color: var(--gold);
   background: rgb(var(--chrome-rgb) / 0.12);
 }
-/* Hide / Show are the same width, so the Sort button beside them doesn't slide. */
 .hand-collapse-btn {
   min-width: 4rem;
   text-align: center;

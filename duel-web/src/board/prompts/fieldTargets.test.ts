@@ -171,7 +171,6 @@ describe("hand choices", () => {
 });
 
 describe("different card names picks", () => {
-  // OP13-082 Five Elders: two St. Jaygarcia Saturn and a St. Topman Warcury in the trash.
   const names: Record<string, string> = { "OP13-083": "St. Jaygarcia Saturn", "OP13-089": "St. Topman Warcury" };
   const trash = [opt("o0", { defId: "OP13-083", zone: "trash" }), opt("o1", { defId: "OP13-083", zone: "trash" }), opt("o2", { defId: "OP13-089", zone: "trash" })];
   const nameOf = (o: ChoiceOptionView) => names[o.defId!] ?? null;

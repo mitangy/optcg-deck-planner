@@ -60,7 +60,6 @@ describe("scan review tray rows (#701)", () => {
     expect(trayReadyCount(rows)).toBe(3);
     rows = setRowQty(rows, "OP01-001", 0);
     expect(trayAddPayload(rows)).toEqual([{ card_id: "OP01-120", add: 2 }]);
-    // An unmatched row has no card to add, whatever its stepper says.
     rows = setRowQty(rows, "none-3", 5);
     expect(rows.find((r) => r.key === "none-3")?.qty).toBe(0);
     expect(trayAddPayload(rows)).toEqual([{ card_id: "OP01-120", add: 2 }]);

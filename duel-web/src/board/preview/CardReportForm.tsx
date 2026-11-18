@@ -7,7 +7,6 @@ import {
 
 type Phase = "closed" | "editing" | "sending" | "sent";
 
-/** "Report a problem" affordance inside card inspect. */
 export function CardReportForm({ cardId }: { cardId: string }) {
   const [phase, setPhase] = useState<Phase>("closed");
   const [description, setDescription] = useState("");

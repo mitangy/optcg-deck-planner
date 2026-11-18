@@ -24,20 +24,16 @@ describe("matchup brief on the board", () => {
     expect(briefStart({ cached: false, auto: false, requested: false })).toBe("offer");
     expect(briefStart({ cached: false, auto: true, requested: false })).toBe("generate");
     expect(briefStart({ cached: false, auto: false, requested: true })).toBe("generate");
-    // A saved brief just shows, whatever the setting.
     expect(briefStart({ cached: true, auto: true, requested: false })).toBe("show");
     expect(briefStart({ cached: true, auto: false, requested: false })).toBe("show");
   });
 
   it("the panel folds away when the first turn starts, only if it opened by itself and was left alone (#401, #423)", () => {
     const fresh = { auto: true, touched: false };
-    // During the mulligan (or before the phase is known) it stays up.
     expect(briefFoldsAway(fresh, "mulligan")).toBe(false);
     expect(briefFoldsAway(fresh, undefined)).toBe(false);
-    // The first turn folds it away.
     expect(briefFoldsAway(fresh, "refresh")).toBe(true);
     expect(briefFoldsAway(fresh, "main")).toBe(true);
-    // One the player opened, or started using, stays.
     expect(briefFoldsAway({ auto: false, touched: false }, "main")).toBe(false);
     expect(briefFoldsAway({ auto: true, touched: true }, "main")).toBe(false);
   });

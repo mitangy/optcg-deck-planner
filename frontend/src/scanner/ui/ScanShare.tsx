@@ -1,4 +1,3 @@
-/** Tray footer note: the switch for sharing card crops, and deleting what was shared (#852). */
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -38,7 +37,6 @@ export function ScanShare() {
     onError: () => setConfirming(false),
   });
 
-  // Signed-out or still loading: no switch to offer, and nothing is uploaded either.
   if (!me.data) return null;
   const count = shared.data?.count ?? 0;
 

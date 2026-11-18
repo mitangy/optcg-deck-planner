@@ -4,13 +4,6 @@ import { BackLink } from "./BackLink";
 
 export type PageBack = { to: string; label: string; ariaLabel?: string; variant?: "ghost" };
 
-/**
- * The page chrome the menu pages share: `.app-shell` > `.page` > a `.page-header` that starts with the menu,
- * then a back link, the `<h1>` and anything extra (a role chip). `pageClass` is everything after `page` on the
- * inner div, `shellClass` anything after `app-shell`. Leave `title` out when the page's own `<h1>` sits in its
- * hero, and `back` out on a page with nowhere to go back to. Prerendered pages use it too, so it stays free of
- * anything that needs a browser.
- */
 export function PageShell({
   pageClass,
   shellClass,
@@ -25,7 +18,6 @@ export function PageShell({
   back?: PageBack;
   title?: ReactNode;
   headerExtra?: ReactNode;
-  /** Dialogs and other siblings of `.page`, inside `.app-shell`. */
   outside?: ReactNode;
   children: ReactNode;
 }) {

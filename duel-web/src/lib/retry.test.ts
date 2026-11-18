@@ -5,7 +5,6 @@ beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
 
 const always = () => true;
-/** A function that fails its first `n` calls, then answers "ok". */
 function failing(n: number) {
   let calls = 0;
   return vi.fn(async () => {

@@ -1,8 +1,3 @@
-/**
- * Game-over reveal (#482): once the match is over, the opponent's hand and both
- * players' Life cards show face up. Driven by `/demo?over`, whose view carries the
- * `revealedHands` / `revealedLife` the game server adds after the game ends.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -19,7 +14,6 @@ async function openOverBoard(page: Page) {
   await page.getByRole("button", { name: "View board" }).click();
 }
 
-// Some layouts keep a second (CSS-hidden) copy of the opponent hand mounted: count what shows.
 const oppFaces = (page: Page) =>
   page.locator(".opp-hand-face, .opp-fan-face, .opp-corner-face, .opp-compact-face").filter({ visible: true });
 
@@ -27,7 +21,6 @@ test("after the match the opponent's hand and every Life card show face up (#482
   await openOverBoard(page);
   await expect(oppFaces(page)).toHaveCount(6);
   await expect(oppFaces(page).first()).toBeVisible();
-  // Desktop shows Life piles with face-up cards; phones show a count chip with "N↑".
   if (test.info().project.name.startsWith("desktop")) {
     await expect(page.locator(".side-opp .zone-pile-life .is-face-up").first()).toBeVisible();
     await expect(page.locator(".side-you .zone-pile-life .is-face-up").first()).toBeVisible();
@@ -53,7 +46,6 @@ test("on a landscape phone the match-over card fits the screen and scrolls insid
   const box = (await card.boundingBox())!;
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
-  // Whatever does not fit is reached by scrolling the card, and the way out is in it.
   await card.getByRole("button", { name: "Return home" }).scrollIntoViewIfNeeded();
   await expect(card.getByRole("button", { name: "Return home" })).toBeInViewport();
 });

@@ -143,7 +143,6 @@ function useEventCounters(): [boolean, (on: boolean) => void] {
   ];
 }
 
-/** Where counters printed outside the counter box came from (Rocks.D.Xebec in hand, Leader grants). */
 function grantedNote(c: DeckStats["counter"]): string | null {
   const self = c.granted.filter((g) => g.source === "self");
   const fromLeader = c.granted.filter((g) => g.source === "leader");
@@ -265,7 +264,6 @@ function StatsLoader({ cards, leaderId }: { cards: DeckStatsCard[]; leaderId: st
   );
 }
 
-/** Build hints (when given) plus every stats block. The host app decides where the panel sits. */
 export function DeckStatsPanel({ cards, leaderId, hints }: { cards: DeckStatsCard[]; leaderId: string | null; hints?: HintsState }) {
   return (
     <>

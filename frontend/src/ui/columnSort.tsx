@@ -5,17 +5,12 @@ export type SortDir = "asc" | "desc";
 export type ColumnSort = { key: string; dir: SortDir } | null;
 export type ColumnValue = number | string | null | undefined;
 
-/** A card's play cost can be a number or text ("-"); numbers sort first, text after. */
 export function costSortValue(cost: number | string | null | undefined): ColumnValue {
   if (cost === null || cost === undefined || cost === "") return null;
   const n = Number(cost);
   return Number.isFinite(n) ? n : String(cost);
 }
 
-/**
- * Header-click cycle: a new column starts in `firstDir`, a second click on it
- * reverses, a third clears the column sort (back to the page's Sort-menu order).
- */
 export function nextColumnSort(current: ColumnSort, key: string, firstDir: SortDir): ColumnSort {
   if (!current || current.key !== key) return { key, dir: firstDir };
   if (current.dir === firstDir) return { key, dir: firstDir === "asc" ? "desc" : "asc" };
@@ -30,11 +25,6 @@ function compareValues(a: number | string, b: number | string): number {
   return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
 }
 
-/**
- * Sorts a copy of `rows` by one column. Stable: ties keep the incoming order
- * (the Sort-menu order the page already applied). Empty values always go last,
- * whichever direction is active.
- */
 export function sortByColumn<T>(rows: T[], sort: ColumnSort, getValue: (row: T, key: string) => ColumnValue): T[] {
   if (!sort) return rows;
   const sign = sort.dir === "asc" ? 1 : -1;
@@ -59,13 +49,11 @@ function loadColumnSort(storageKey: string): ColumnSort {
       return { key: parsed.key, dir: parsed.dir };
     }
   } catch {
-    /* ignore */
+    /* storage blocked */
   }
   return null;
 }
 
-// One value per storage key, shared by every table using it (the deck page and
-// Master Shopping render several tables that should follow the same header sort).
 const stores = new Map<string, ColumnSort>();
 const listeners = new Set<() => void>();
 
@@ -88,12 +76,10 @@ function writeColumnSort(storageKey: string, next: ColumnSort) {
   listeners.forEach((l) => l());
 }
 
-/** Drops the header-click sort for `storageKey`, so the page's Sort menu order shows again. */
 export function clearColumnSort(storageKey: string) {
   writeColumnSort(storageKey, null);
 }
 
-/** Column sort for a table, remembered per browser under `storageKey`. */
 export function useColumnSort(storageKey: string) {
   const sort = useSyncExternalStore(subscribe, () => readStore(storageKey));
   const onSort = useCallback(

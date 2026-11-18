@@ -7,8 +7,6 @@ import { deriveDefend } from "./defendModel";
 import { responseStopPass } from "../settings/gameplayPrefs";
 import { stubBattle, stubCard } from "../fixtures/stubCard";
 
-// OP16-118 Portgas.D.Ace on your field sets the Counter of 8000-power
-// Characters in your hand to +2000; OP16-005 Thatch prints +1000.
 function aceCounterStep(): { view: PlayerView; intents: Intent[] } {
   const view: PlayerView = {
     ...DEMO_VIEW,

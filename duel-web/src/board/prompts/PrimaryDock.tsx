@@ -21,16 +21,12 @@ type ButtonProps = {
   primary: Intent;
   view?: PlayerView;
   disabled?: boolean;
-  /** End turn needs a second tap (gameplay setting); `reason` fills the armed label. */
   confirmEndTurn?: { reason: string | null } | null;
-  /** The defend tray relabels the primary and may replace sending it. */
   defend?: { label: string; onPress?: () => void; warn?: boolean };
-  /** Relabels a Pass counter primary ("Resolve" once the defender is safe). */
   counterLabel?: string;
   onSend: (intent: Intent) => void;
 };
 
-/** The one "advance the game" button, shared by the rail bar and the board dock. */
 export function PrimaryActionButton({
   primary,
   view,
@@ -83,10 +79,6 @@ export function PrimaryActionButton({
   );
 }
 
-/**
- * "Waiting for opponent": the same slot and size as the primary button, so the
- * eye is already there. Pulses while a real answer is awaited.
- */
 export function WaitingIndicator({ waiting }: { waiting: WaitingOnOpponent }) {
   return (
     <div
@@ -103,11 +95,7 @@ export function WaitingIndicator({ waiting }: { waiting: WaitingOnOpponent }) {
   );
 }
 
-/**
- * Tracks the board's midline strip (rAF, state only on change): follows resizes, zoom and tilt.
- * Also tells the strip how much of its right side the dock covers (`--dock-reserve`
- * on `.midline`), so the battle text ends before the button instead of under it.
- */
+// Also tells the strip how much of its right side the dock covers, so the battle text ends before the button instead of under it.
 function useDockAnchor(enabled: boolean): DockAnchor | null {
   const [anchor, setAnchor] = useState<DockAnchor | null>(null);
   useEffect(() => {
@@ -151,22 +139,13 @@ function useDockAnchor(enabled: boolean): DockAnchor | null {
 
 type DockProps = Omit<ButtonProps, "primary"> & {
   primary: Intent | null;
-  /** Other phase-wide actions (Mulligan, Resolve trigger), beside the primary. */
   extras?: Intent[];
-  /** Hotkey numbers of the extras start here (the selected card's own actions come first). */
   keyOffset?: number;
   waiting: WaitingOnOpponent | null;
-  /** In the side column's slot (#556): in flow, always rendered, the same height whatever it holds. */
   inline?: boolean;
 };
 
-/**
- * Desktop: the primary action (or the wait for the opponent) floats at the
- * right end of the board's midline instead of sitting in the side rail, with
- * any other phase-wide action (the mulligan's redraw, a trigger to resolve)
- * on its left so the primary never moves. Fixed position, so showing, hiding
- * or relabelling it never moves anything on the board.
- */
+// Other phase-wide actions sit on its left so the primary never moves.
 export function PrimaryDock({ primary, extras = [], keyOffset = 0, waiting, inline = false, ...button }: DockProps) {
   const show = primary != null || extras.length > 0 || waiting != null;
   const anchor = useDockAnchor(show && !inline);

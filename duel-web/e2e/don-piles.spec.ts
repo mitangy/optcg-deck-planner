@@ -1,8 +1,3 @@
-/**
- * Separate DON!! piles (#381): right-clicking a chip in your own cost area
- * offsets it into its own pile, and ten rested DON!! split over piles still fit
- * the rail (they used to spill into the trash pile when the overlap was off).
- */
 import { test, expect } from "./fixtures";
 import type { Locator, Page } from "@playwright/test";
 
@@ -43,7 +38,6 @@ test("right-clicking a DON!! offsets it into a second pile that stays inside the
   expect(a.count).toBe(10);
   expect(a.right).toBeLessThanOrEqual(a.railRight + 1);
 
-  // Another chip into pile 2 makes a third pile; the row still ends at the rail edge.
   await moveChip(page, 0);
   await moveChip(page, 0);
   const piles = await page.locator(".side-you .don-pile").count();
@@ -51,7 +45,6 @@ test("right-clicking a DON!! offsets it into a second pile that stays inside the
   const b = await railFits(rail);
   expect(b.right).toBeLessThanOrEqual(b.railRight + 1);
 
-  // The opponent's DON!! never form piles.
   await expect(page.locator(".side-opp .don-pile")).toHaveCount(0);
 });
 
@@ -80,7 +73,6 @@ test("holding a DON!! with a finger moves it to another pile and ignores the rel
   await expect(page.locator(".side-you .don-pile")).toHaveCount(2);
   await fire("pointerup");
   await expect(page.locator(".side-you .don-pile")).toHaveCount(2);
-  // Released early, a touch does nothing.
   const quick = page.locator(".side-you .don-pile").nth(0).locator(".don-chip-btn").first();
   await quick.evaluate((el) => {
     const init = { bubbles: true, pointerId: 8, pointerType: "touch", button: 0 };

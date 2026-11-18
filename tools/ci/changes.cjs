@@ -1,18 +1,8 @@
 #!/usr/bin/env node
 /**
- * Which CI jobs a pull request needs, from the paths it changes.
- *
- *   git diff --no-renames --name-only <base> HEAD | node tools/ci/changes.cjs
- *
- * Prints `<flag>=true|false` lines (the `$GITHUB_OUTPUT` format) for: rules,
- * duel_web, duel_e2e, frontend, backend, mobile. Pushes to main skip this and
- * run every job.
- *
- * Be conservative: a path no rule below names turns every flag on, so a missed
- * dependency costs CI minutes, never a broken merge. A rule may only turn flags
- * off for a path after checking that no test, build or script in the other
- * jobs reads it. Cross-directory dependencies behind the table (checked with
- * grep, #739):
+ * A path no rule below names turns every flag on, so a missed dependency costs CI minutes, never a broken merge.
+ * A rule may only turn flags off for a path after checking that no test, build or script in the other jobs reads it.
+ * Cross-directory dependencies behind the table:
  *   - packages/*: duel-web and frontend are npm workspaces that depend on
  *     `@optcg/*` (resolved through node_modules links to packages/*\/src);
  *     game-server and analyst depend on @optcg/rules; every package's tests
@@ -47,24 +37,17 @@
 
 const FLAGS = ["rules", "duel_web", "duel_e2e", "frontend", "backend", "mobile"];
 
-/** Ordered: the first matching rule wins. `flags: []` means no job needs to run. */
 const RULES = [
   { test: (p) => p === ".github/workflows/ci.yml", flags: FLAGS },
-  // The composite actions (setup-node-deps, pr-base) and .nvmrc are used by every JS job's setup.
   { test: (p) => p === ".nvmrc" || p.startsWith(".github/actions/"), flags: FLAGS },
   { test: (p) => p === "package.json" || p === "package-lock.json", flags: FLAGS },
-  // Root lint and compiler config: every TypeScript job reads them (eslint.config.js drives the
-  // lint job, tsconfig.base.json / tsconfig.web.json are extended by every app and package).
   { test: (p) => p === "eslint.config.js" || p === "tsconfig.base.json" || p === "tsconfig.web.json", flags: FLAGS },
-  // ruff.toml is read only by `ruff check backend`, a step of the backend job.
   { test: (p) => p === "ruff.toml", flags: ["backend"] },
   // Editor settings: no test, build or script reads them.
   { test: (p) => p === ".editorconfig", flags: [] },
-  // App manifests are part of the root workspace lock: every JS job's `npm ci` reads them.
   { test: (p) => p === "frontend/package.json" || p === "duel-web/package.json", flags: ["rules", "duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("tools/ci/"), flags: FLAGS },
   { test: (p) => p.startsWith("docs/"), flags: [] },
-  // Only files directly in the repo root: README.md, CLAUDE.md, AGENTS.md.
   { test: (p) => /^[^/]+\.md$/.test(p), flags: [] },
   // Screenshots for PR descriptions and agent tooling; no code reads them.
   { test: (p) => p.startsWith("artifacts/") || p.startsWith(".claude/"), flags: [] },
@@ -75,7 +58,6 @@ const RULES = [
   { test: (p) => p.startsWith("packages/rules/protocol-fixtures/"), flags: ["rules", "duel_web", "duel_e2e", "frontend", "mobile"] },
   { test: (p) => p.startsWith("packages/card-core/fixtures/"), flags: ["rules", "duel_web", "duel_e2e", "frontend", "backend"] },
   { test: (p) => p.startsWith("packages/analyst-contract/fixtures/"), flags: ["rules", "duel_web", "duel_e2e", "frontend", "backend"] },
-  // The API types generated from the backend schema: the backend job regenerates them and fails on a difference.
   { test: (p) => p.startsWith("packages/api-client/src/generated/"), flags: ["rules", "duel_web", "duel_e2e", "frontend", "backend"] },
   { test: (p) => p.startsWith("packages/"), flags: ["rules", "duel_web", "duel_e2e", "frontend"] },
   { test: (p) => p.startsWith("game-server/"), flags: ["rules", "duel_e2e"] },

@@ -8,7 +8,6 @@ import { CardRow, Empty, LoadError } from "./ui";
 import { useFriend } from "./useFriend";
 import { qk } from "../cache/queryKeys";
 
-/** Order: leader first, then by cost, then name. */
 function deckOrder(a: FriendDeckCard, b: FriendDeckCard): number {
   const leader = (c: FriendDeckCard) => (c.card_type.toLowerCase() === "leader" ? 0 : 1);
   const cost = (c: FriendDeckCard) => (c.cost == null || c.cost === "" ? 99 : Number(c.cost));

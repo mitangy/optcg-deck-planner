@@ -13,7 +13,7 @@ export const HAND_SHUFFLE_MS = {
 } as const;
 
 const EASE_OUT = "cubic-bezier(0.25, 0.7, 0.35, 1)";
-/** Overshoots a touch, so the dropped card settles into its slot. */
+// Overshoots a touch, so the dropped card settles into its slot.
 const EASE_SETTLE = "cubic-bezier(0.3, 1.35, 0.5, 1)";
 
 type Pending = {
@@ -44,14 +44,6 @@ function canAnimate(): boolean {
   );
 }
 
-/**
- * Animates your hand when you rearrange it. Call `capture` right before the
- * state change that reorders the hand (it measures where every card is);
- * `idsRef` holds the hand's display order as of the latest render. The
- * next commit draws each card from there to its new spot. Off with "Card
- * animations: Off"; reduced motion only fades the dropped card in; Sounds
- * adds a soft tap on a drop and a riffle on Sort.
- */
 export function useHandShuffle(idsRef: RefObject<readonly string[]>, opts: { sound: boolean }) {
   const pending = useRef<Pending | null>(null);
   const soundRef = useRef(opts.sound);
@@ -69,7 +61,6 @@ export function useHandShuffle(idsRef: RefObject<readonly string[]>, opts: { sou
     running.current.clear();
   }, []);
 
-  // A new press measures the hand (drop slots, drags), so nothing may still be in flight.
   useEffect(() => {
     window.addEventListener("pointerdown", finishAll, true);
     return () => {
@@ -92,7 +83,6 @@ export function useHandShuffle(idsRef: RefObject<readonly string[]>, opts: { sou
     [finishAll],
   );
 
-  // Every commit: runs once the reorder captured above is on screen.
   useLayoutEffect(() => {
     const p = pending.current;
     if (!p) return;

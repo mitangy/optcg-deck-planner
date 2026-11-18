@@ -1,32 +1,25 @@
-/**
- * 44 more OP18 cards added from the official English card pages (#1274). The rows cover the cards whose text needed
- * new grammar or engine support, plus the replacement / counting effects whose scope is easy to get wrong. Each row has a
- * case where the behaviour must not apply, so loosening it fails on its own scenario.
- */
 import { describe, expect, it } from "vitest";
 import { Harness } from "../../testing/harness.js";
 import { runScenarios, mine, theirs, type CardScenario } from "../../testing/scenario.js";
 
-const KAROO = "ST01-003"; // 1-cost 3000 vanilla {Animal}{Alabasta}
-const ROBIN = "ST01-008"; // 3-cost 5000 {Straw Hat Crew}
-const VIVI = "ST01-009"; // 2-cost 4000
-const KOMACHIYO = "OP01-010"; // 1-cost 3000 vanilla
-const LUFFY_LEADER = "ST01-001"; // 5000 power
-const TEACH_LEADER = "OP09-081"; // [Activate: Main] You may trash 1 card from your hand: ...
-const SUGAR_LEADER = "OP10-003"; // {Donquixote Pirates}
-const SPANDAM_LEADER = "OP18-079"; // {CP9}
-const GECKO_MORIA = "OP01-068"; // 4-cost 5000 [Gecko Moria]
-const JAMBE = "OP02-046"; // [Main] K.O. up to 1 of your opponent's rested Characters with a cost of 4 or less.
-const TEACH_CHARACTER = "OP09-092"; // [Activate: Main] You may rest this Character: ... draw 2 cards and trash 1 card from your hand.
-const HANGER = "OP04-050"; // [Activate: Main] You may trash 1 card from your hand and rest this Character: Draw 1 card.
-const BELLAMY = "OP05-035"; // 3-cost 5000 {Donquixote Pirates}
-const BIG_VANILLA = "OP18-062"; // 8-cost 10000 vanilla
-const IRON_BODY = "OP07-095"; // {CP9} Event, [Trigger] Up to 1 of your Leader or Character cards gains +1000 power during this turn.
-const PAPER_ART = "OP13-115"; // {CP0} Event, [Trigger] Draw 1 card.
+const KAROO = "ST01-003";
+const ROBIN = "ST01-008";
+const VIVI = "ST01-009";
+const KOMACHIYO = "OP01-010";
+const LUFFY_LEADER = "ST01-001";
+const TEACH_LEADER = "OP09-081";
+const SUGAR_LEADER = "OP10-003";
+const SPANDAM_LEADER = "OP18-079";
+const GECKO_MORIA = "OP01-068";
+const JAMBE = "OP02-046";
+const TEACH_CHARACTER = "OP09-092";
+const HANGER = "OP04-050";
+const BELLAMY = "OP05-035";
+const BIG_VANILLA = "OP18-062";
+const IRON_BODY = "OP07-095";
+const PAPER_ART = "OP13-115";
 
 const rows: CardScenario[] = [
-  // OP18-080 Van Augur: [Your Turn] [Once Per Turn] When a card is trashed from your hand by your [Marshall.D.Teach] Leader's
-  // effect, if you have no other [Van Augur], draw 1 card.
   {
     card: "OP18-080", name: "draws 1 when your [Marshall.D.Teach] Leader's effect trashes a card from your hand (#1274)",
     leaders: { me: TEACH_LEADER },
@@ -49,7 +42,6 @@ const rows: CardScenario[] = [
     expect: { me: { hand: [ROBIN], trash: [VIVI] } },
   },
 
-  // OP18-081 Oars: If you have a [Gecko Moria] Character, this Character gains [Double Attack] and [Blocker].
   {
     card: "OP18-081", name: "gains [Double Attack] and [Blocker] while you have a [Gecko Moria] Character (#1274)",
     me: { field: ["OP18-081", GECKO_MORIA] },
@@ -62,7 +54,6 @@ const rows: CardScenario[] = [
     expect: { me: { keywords: { "OP18-081": [] } } },
   },
 
-  // OP18-087 Stansen: This Character gains +12 cost. If you only have Characters with a cost of 12 or more, this Character gains +2000 power.
   {
     card: "OP18-087", name: "gains +2000 power while every Character you have costs 12 or more, its own +12 included (#1274)",
     me: { field: ["OP18-087", "OP18-087"] },
@@ -75,7 +66,6 @@ const rows: CardScenario[] = [
     expect: { me: { power: { "OP18-087": 4000 } } },
   },
 
-  // OP18-071 Trebol: [Opponent's Turn] If your Leader is {Sugar}, this Characters gains [Blocker] and +2000 power.
   {
     card: "OP18-071", name: "is an 8000 power [Blocker] on your opponent's turn with a Sugar Leader (#1274)",
     leaders: { me: SUGAR_LEADER },
@@ -97,8 +87,6 @@ const rows: CardScenario[] = [
     me: { field: ["OP18-071"] },
     expect: { me: { power: { "OP18-071": 6000 }, keywords: { "OP18-071": [] } } },
   },
-  // OP18-071 Trebol: [Once Per Turn] If your {Donquixote Pirates} type Character would be removed from the field by your
-  // opponent's effect, you may DON!! -1 instead.
   {
     card: "OP18-071", name: "returns a DON!! instead of letting the opponent's effect K.O. your {Donquixote Pirates} Character (#1274)",
     me: { field: ["OP18-071", { card: BELLAMY, rested: true }], don: { active: 2 } },
@@ -121,7 +109,6 @@ const rows: CardScenario[] = [
     expect: { me: { field: ["OP18-071"], trash: [KAROO], don: { active: 2 } }, pending: "none" },
   },
 
-  // OP18-068 Senor Pink: [Once Per Turn] If this Character would be K.O.'d, you may DON!! -1 instead.
   {
     card: "OP18-068", name: "returns a DON!! instead of being K.O.'d in battle (#1274)",
     me: { field: [{ card: "OP18-068", rested: true }], don: { active: 2 } },
@@ -144,8 +131,6 @@ const rows: CardScenario[] = [
     expect: { me: { field: [], trash: ["OP18-068"] }, pending: "none" },
   },
 
-  // OP18-026 Sanji: If your {Straw Hat Crew} type Character would be removed from the field by your opponent's effect,
-  // you may trash this Character instead.
   {
     card: "OP18-026", name: "is trashed instead of your {Straw Hat Crew} Character being K.O.'d by the opponent's effect (#1274)",
     me: { field: ["OP18-026", { card: ROBIN, rested: true }] },
@@ -174,7 +159,6 @@ const rows: CardScenario[] = [
     steps: [{ endTurn: true }, { attack: theirs("OP02-007"), at: mine(ROBIN) }, { passBattle: true }],
     expect: { me: { field: ["OP18-026"], trash: [ROBIN] }, pending: "none" },
   },
-  // OP18-045 Mr.Prince: Also treat this card's name as [Sanji]. This Character gains +1000 power for every 5 Events in your trash.
   {
     card: "OP18-045", name: "gains +1000 power for every full 5 Events in your trash (#1274)",
     me: { field: ["OP18-045"], trash: [IRON_BODY, IRON_BODY, IRON_BODY, IRON_BODY, IRON_BODY, IRON_BODY, IRON_BODY, KAROO] },
@@ -192,9 +176,6 @@ const rows: CardScenario[] = [
     expect: { me: { field: ["ST26-001", KAROO], hand: ["OP18-045"] } },
   },
 
-  // OP18-082 Catarina Devon: [When Attacking] This Character's base power becomes the same as your opponent's Leader's
-  // power during this turn. [On K.O.] You may trash 1 card from your hand: If your Leader has the {Blackbeard Pirates} type,
-  // play this Character card from your trash rested.
   {
     card: "OP18-082", name: "takes your opponent's Leader's power as its base power when attacking (#1274)",
     me: { field: ["OP18-082"] },
@@ -232,8 +213,6 @@ const rows: CardScenario[] = [
     expect: { me: { field: [], hand: [VIVI], trash: ["OP18-082"] } },
   },
 
-  // OP18-097 Abyss Pentagram: If your Leader has the {Celestial Dragons} type, the cost of playing {Holy Knights of God} or
-  // {Five Elders} type Character cards with a cost of 2 or more from your hand will be reduced by 1.
   {
     card: "OP18-097", name: "makes a 4-cost {Five Elders} Character cost 3 with a {Celestial Dragons} Leader (#1274)",
     leaders: { me: "OP18-060" },
@@ -254,9 +233,6 @@ const rows: CardScenario[] = [
     steps: [{ play: ROBIN, rejects: true }],
     expect: { me: { field: [], hand: [ROBIN] } },
   },
-  // OP18-099 Kaku: [On Play] Add up to 1 card with a type including "CP" from your hand to the top or bottom of your Life
-  // cards face-up. [Trigger] If your Leader's type includes "CP", draw 1 card and place up to 1 Character with a cost of 8
-  // or less at the bottom of the owner's deck.
   {
     card: "OP18-099", name: "adds a {CP} card from your hand to the top of your Life face-up (#1274)",
     me: { hand: ["OP18-099", IRON_BODY, VIVI], don: { active: 7 }, life: [KAROO, KAROO] },
@@ -291,8 +267,6 @@ const rows: CardScenario[] = [
     expect: { me: { hand: [], trash: ["OP18-099"] }, opp: { field: [BIG_VANILLA, VIVI] }, pending: "none" },
   },
 
-  // OP18-105 Spandam: [Trigger] If your Leader's type includes "CP", reveal up to 1 card with a type including "CP" other than
-  // [Spandam] from your hand. Activate the [Trigger] effect of the revealed card.
   {
     card: "OP18-105", name: "[Trigger] activates the [Trigger] of the {CP} card you reveal from your hand (#1274)",
     leaders: { me: SPANDAM_LEADER },
@@ -317,8 +291,6 @@ const rows: CardScenario[] = [
     expect: { me: { hand: [PAPER_ART], trash: ["OP18-105"] }, pending: "none" },
   },
 
-  // OP18-109 Fukurou: [Trigger] If your Leader's type includes "CP", K.O. or rest up to 1 of your opponent's Characters with a
-  // cost of 6 or less.
   {
     card: "OP18-109", name: "[Trigger] K.O.s the chosen Character when you pick K.O. (#1274)",
     leaders: { me: SPANDAM_LEADER },
@@ -343,7 +315,6 @@ const rows: CardScenario[] = [
     expect: { opp: { field: [BIG_VANILLA, ROBIN], trash: [] }, pending: "none" },
   },
 
-  // OP18-074 Can You Please Sail on the Ship I Made?!: [Trigger] DON!! -1: Add up to 2 Stage cards from your trash to your hand.
   {
     card: "OP18-074", name: "[Trigger] returns a DON!! to add up to 2 Stage cards from your trash to your hand (#1274)",
     me: { life: ["OP18-074"], trash: ["EB01-011", "OP18-097", "OP18-078", KAROO], don: { active: 2 } },
@@ -358,7 +329,6 @@ const rows: CardScenario[] = [
     steps: [{ endTurn: true }, { attack: theirs(BIG_VANILLA), at: "leader" }, { passBattle: true }, { accept: true }],
     expect: { me: { hand: [], trash: ["OP18-074", "EB01-011"] } },
   },
-  // OP18-005 Kung Fu Jugon: [Your Turn] This Character gains +1000 power for every [Kung Fu Jugon].
   {
     card: "OP18-005", name: "gains +1000 power for every [Kung Fu Jugon] on your turn (#1274)",
     me: { field: ["OP18-005", "OP18-005", "OP18-005"] },
@@ -375,7 +345,6 @@ const rows: CardScenario[] = [
 runScenarios("OP18 cards added from English pages (#1274)", rows);
 
 describe("OP18-114 Wanze", () => {
-  // [On Play] Look at all of your Life cards and place them back in your Life area in any order.
   it("puts your Life cards back in the order you choose (#1274)", () => {
     const h = new Harness({ leaders: [LUFFY_LEADER, LUFFY_LEADER] });
     h.hand(0, "OP18-114");

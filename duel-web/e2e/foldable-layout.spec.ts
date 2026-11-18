@@ -1,10 +1,3 @@
-/**
- * Unfolded foldables and small touch tablets held sideways (#770): a landscape window 480-899px wide and 500px or
- * more tall, or a touch tablet 900-1099px wide, gets the side-rail layout (`arena-lp`) with real card sizes
- * instead of the stacked layout with tiny cards or the desktop side columns that shrink the mats. A mouse-driven
- * window of the same size stays the desktop layout. The viewports are set here, so the spec runs once (in the
- * desktop project).
- */
 import { test, expect } from "./fixtures";
 import type { Browser } from "@playwright/test";
 

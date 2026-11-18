@@ -52,7 +52,6 @@ export function MatchLogPage() {
 
   const detail = state.status === "ready" ? state.detail : null;
 
-  // A link from a Log Pose source (/history/<id>#turn-3) lands on that turn once the log has loaded.
   useEffect(() => {
     if (!detail || !/^#turn-\d+$/.test(window.location.hash)) return;
     document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: "start" });
@@ -63,7 +62,6 @@ export function MatchLogPage() {
   const intro = turns.find((t) => t.turn === 0);
   const playTurns = turns.filter((t) => t.turn > 0);
   const log = detail?.log ?? null;
-  // Chips scroll in place and keep the hash in sync (so the URL can be shared) without a navigation.
   const jumpTo = (e: MouseEvent<HTMLAnchorElement>, turn: number) => {
     e.preventDefault();
     document.getElementById(`turn-${turn}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -83,7 +81,6 @@ export function MatchLogPage() {
       <span key={i}>{seg.text}</span>
     );
 
-  // One button per distinct card, with a ×N badge for extra copies.
   const handCards = (ids: string[], ownerSeat: 0 | 1 | undefined) =>
     groupHand(ids).map(({ defId, count }) => (
       <span key={defId} className="log-card-group">

@@ -5,7 +5,6 @@ import { assemble, countedList, describeSeat, fullySupported } from "./describe"
 import { MESSAGE_LIMIT } from "./types";
 
 const catalog = loadCatalog();
-/** A catalog with `n` cards whose rules text is 390 characters long (the reference line itself cuts at 400). */
 const wordy = (n: number) => {
   const cards = new Map(catalog.cards);
   const ids = Array.from({ length: n }, (_, i) => `ZZ01-${String(i + 1).padStart(3, "0")}`);

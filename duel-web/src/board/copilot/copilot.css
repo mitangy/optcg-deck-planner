@@ -1,11 +1,6 @@
-/* Log Pose copilot on the board (casual and practice games). The pill is fixed over the board under the top bar,
-   never in its flow, so a plan starting, stepping or stopping moves nothing. Layer: above the board and its prompts
-   (45-50) and the matchup brief (55), below the match menu (60) and the Log Pose panel (90). */
+/* Fixed over the board, never in its flow, so a plan starting or stepping moves nothing. Layer: above prompts (45-50) and the matchup brief (55), below the match menu (60) and the Log Pose panel (90). */
 
-/* "Log Pose" in the top bar sizes to its label like Brief (same padding). Busy (a plan running) is the dot. */
-
-/* The phone bar is crowded: with Brief and Log Pose both there, their icon boxes take the bar's own 40px size (the
-   menu and the pass button already do) and the buttons sit a little closer, so the turn chip is never cut off. */
+/* The phone bar is crowded: with Brief and Log Pose both there, their icon boxes take the bar's own 40px size so the turn chip is never cut off. */
 .arena .hud-compact .hud-actions:has(.hud-copilot-btn) {
   gap: 0.2rem;
 }
@@ -39,8 +34,7 @@
   white-space: nowrap;
 }
 
-/* The pill floats over the opponent's top row for a few seconds: only Stop takes taps, so a count chip or a DON!!
-   under the text stays reachable. */
+/* Only Stop takes taps, so a count chip or a DON!! under the text stays reachable. */
 .copilot-pill {
   pointer-events: none;
 }
@@ -105,7 +99,7 @@
   }
 }
 
-/* A landscape phone's Log Pose drawer floats over the right 420px of the board: the pill centres on what is left of the rail and the drawer, so it isn't cut off under either (#725). */
+/* The drawer floats over the right 420px of the board: the pill centres on what is left of the rail and the drawer so it isn't cut off under either. */
 @media (min-width: 640px) and (max-height: 520px) {
   html:has(.lp-panel:not([data-closing], [data-sized], [data-dock])) .copilot-pill {
     left: calc(52px + (100vw - 52px - min(420px, 100vw)) / 2);
@@ -123,7 +117,6 @@
   animation: none;
 }
 
-/* The Turn plan card, under Log Pose's answer in the panel. */
 .copilot-plan {
   margin: 10px 0 0;
   padding: 10px 12px;
@@ -190,7 +183,7 @@
   font-weight: 600;
 }
 
-/* Always one line tall at least, so a state change (waiting, your call, blocked) never resizes the card's buttons. */
+/* At least one line tall, so a state change never resizes the card's buttons. */
 .copilot-plan-status {
   margin: 8px 0 0;
   min-height: 1.4em;

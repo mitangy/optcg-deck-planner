@@ -1,7 +1,3 @@
-/**
- * Group buy detail (/group-buys/:id): the host can rename the group buy; other
- * members never see the Rename button (#879).
- */
 import { expect, test } from "./fixtures";
 
 const GB = 9;

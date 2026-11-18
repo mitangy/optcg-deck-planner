@@ -1,4 +1,3 @@
-"""Tests for backend/scripts/backfill_price_history.py (#950)."""
 
 import io
 import unittest

@@ -1,11 +1,9 @@
-/** Which play mode the user is configuring inside the Play sheet. */
 export type PlayMode = "hotseat" | "bot" | "create" | "join" | "queue" | "spectate";
 
 export const MODE_CARDS: Array<{
   mode: PlayMode;
   title: string;
   blurb: string;
-  /** Under the title on the home tiles. */
   short: string;
   glyph: string;
 }> = [
@@ -46,7 +44,6 @@ export const MODE_CARDS: Array<{
   },
 ];
 
-/** The sheet's heading and its confirm button for each mode. Create and Join share the "Private room" sheet. */
 export const MODE_COPY: Record<PlayMode, { title: string; confirm: string }> = {
   hotseat: { title: "Practice", confirm: "Start practice" },
   bot: { title: "Play vs Bot", confirm: "Start game" },
@@ -56,7 +53,6 @@ export const MODE_COPY: Record<PlayMode, { title: string; confirm: string }> = {
   spectate: { title: "Spectate", confirm: "Watch" },
 };
 
-/** The sheet heading; "Play" while it is still at the mode chooser. */
 export function modeTitle(mode: PlayMode | null): string {
   return mode ? MODE_COPY[mode].title : "Play";
 }

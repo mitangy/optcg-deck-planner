@@ -18,7 +18,6 @@ afterEach(() => {
   document.body.innerHTML = "";
 });
 
-/** Mounts a component that holds the hook and exposes its current value and setter. */
 function mountHook<T>(key: string | undefined, def: T, codec: PersistedCodec<T>) {
   const out = {} as { value: T; set: (v: T) => void };
   function Probe() {

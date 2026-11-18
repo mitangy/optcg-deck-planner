@@ -23,7 +23,6 @@ TICKET_PREFIX = "mb1"
 TICKET_PURPOSE = "match_brief"
 KEY_SALT = "match-brief:"
 MAX_DECK_CARDS = 60
-# Mirrors schemas.CARD_ID_PATTERN (kept here so this module has no dependency on the API schemas).
 _CARD_ID = re.compile(r"^(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})$")
 
 
@@ -55,7 +54,6 @@ def _card_id(value: object) -> str | None:
 
 
 def verify_brief_ticket(ticket: str, settings: Settings, now: int) -> BriefClaims | None:
-    """The ticket's claims, or None unless it is a genuine, unexpired ticket for an unranked game."""
     parts = ticket.split(".") if isinstance(ticket, str) else []
     if len(parts) != 3 or parts[0] != TICKET_PREFIX:
         return None
@@ -98,7 +96,6 @@ def verify_brief_ticket(ticket: str, settings: Settings, now: int) -> BriefClaim
 
 
 def brief_key(claims: BriefClaims, variant: str) -> str:
-    """The cache key: one brief per (variant, leader, opponent, deck), however the deck is ordered."""
     counts = Counter(claims.deck)
     deck = ",".join(f"{card}:{n}" for card, n in sorted(counts.items()))
     return hashlib.sha256(f"{variant}|{claims.leader}|{claims.opponent}|{deck}".encode("utf-8")).hexdigest()

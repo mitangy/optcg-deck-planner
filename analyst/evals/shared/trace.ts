@@ -1,4 +1,3 @@
-/** Reads the turn runChat saved (the eval planner captures it): the answer, its citations, the tool calls and what the tools returned. */
 import { flattenCited, type Message, type PlacedCitation } from "../../src/chat";
 
 type Block = Record<string, unknown> & { type: string };
@@ -7,15 +6,12 @@ export type TurnSummary = {
   answer: string;
   citations: PlacedCitation[];
   toolCalls: { name: string; input: unknown }[];
-  /** Every tool result as plain text (titles and facts), the corpus the answer's numbers are checked against. */
   toolText: string;
-  /** The player's message, including any context block. */
   userText: string;
 };
 
 const blocksOf = (m: Message): Block[] => (typeof m.content === "string" ? [{ type: "text", text: m.content }] : m.content);
 
-/** A tool result block's content as text. */
 export function resultText(block: Block): string {
   const c = block.content;
   if (typeof c === "string") return c;

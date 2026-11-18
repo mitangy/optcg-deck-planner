@@ -1,15 +1,18 @@
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, Fragment, useMemo } from "react";
 import { money, OwnedCard } from "../../api";
 import { type CardLayout } from "../../ui/CardLayout";
 import { CardColorChips } from "../../ui/CollectionToolbar";
 import { CardThumb, MobileCardMedia } from "../../ui/CardThumb";
 import { mainImageUrl, shownProductId } from "../../cards/altArt";
 import { MarketPrice } from "../../cards/MarketPrice";
+import { AltStripRow, AltTrayContext, CardBodies, useWideListRows, wideGridAlts } from "../../cards/AltTray";
 import { OwnedCell, ownedCellIsTotal } from "./OwnedCells";
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { usedInSortValue } from "../shopping/ShoppingItemsView";
 import { OwnedInput } from "../OwnedInputs";
 import { COLSORT_COLLECTION_KEY } from "../../storage/keys";
+
+const STRIP_COLS = 5;
 
 function collectionColumnValue(item: OwnedCard, key: string) {
   switch (key) {
@@ -45,9 +48,10 @@ export function CollectionItemsView({
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_COLLECTION_KEY);
   const tableItems = useMemo(() => sortByColumn(items, sort, collectionColumnValue), [items, sort]);
+  const wide = useWideListRows();
+  const altCol = showAltArts && !wide;
   if (items.length === 0) return null;
   const hasAltRow = (item: OwnedCard) => showAltArts && (item.alt_arts?.length ?? 0) > 0;
-  // Collection alt tiles are always editable, so they own the per-art counts (base under the Base tile).
   const ownedCell = (item: OwnedCard) => (
     <OwnedCell
       isTotal={ownedCellIsTotal(showAltArts, item.alt_arts?.length ?? 0, true)}
@@ -66,9 +70,11 @@ export function CollectionItemsView({
       <div className="card-grid collection-grid">
         {items.map((item) => {
           const copies = item.owned + (item.alts_owned ?? 0);
+          const wideAlts = wideGridAlts(wide, item.alt_arts?.length ?? 0, showAltArts);
+          const altsBox = hasAltRow(item) ? <div className="grid-card-alts">{altRow(item)}</div> : null;
           return (
             <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
-              <div className="grid-card collection-grid-card">
+              <div className={`grid-card collection-grid-card${wideAlts.className}`}>
                 <div className="collection-tile-art">
                   <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
                   <span className="copies-badge" role="img" aria-label={`${copies} owned`} title={`${copies} owned`}>
@@ -97,8 +103,9 @@ export function CollectionItemsView({
                       TCGPlayer
                     </a>
                   )}
-                  {hasAltRow(item) && <div className="grid-card-alts">{altRow(item)}</div>}
+                  {wideAlts.wide ? null : altsBox}
                 </div>
+                {wideAlts.wide ? <AltTrayContext.Provider value={true}>{altsBox}</AltTrayContext.Provider> : null}
               </div>
             </article>
           );
@@ -119,13 +126,15 @@ export function CollectionItemsView({
               <SortableTh label="Value" colKey="value" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
               <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
-              {showAltArts ? <th>Alt arts</th> : null}
+              {altCol ? <th>Alt arts</th> : null}
             </tr>
           </thead>
-          <tbody>
-            {tableItems.map((item) => (
-              <tr key={item.card_id} data-card-id={item.card_id}>
-                <td className="card-cell">
+          <CardBodies wide={wide}>
+            {tableItems.map((item) => {
+              const stripped = wide && hasAltRow(item);
+              const rows = [
+              <tr key="main" data-card-id={item.card_id} className={wide ? `alt-main-row${stripped ? " has-strip" : ""}` : undefined}>
+                <td className="card-cell" rowSpan={stripped ? 2 : undefined}>
                   <div className="card-cell-inner">
                     <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
                     <div>
@@ -147,10 +156,19 @@ export function CollectionItemsView({
                 <td className="collection-value">{money(item.value)}</td>
                 <td>{item.cost ?? "—"}</td>
                 <td className={`used-in${item.used_in.length ? "" : " muted"}`}>{usedIn(item)}</td>
-                {showAltArts ? <td className="alt-arts-cell">{altRow(item)}</td> : null}
-              </tr>
-            ))}
-          </tbody>
+                {altCol ? <td className="alt-arts-cell">{altRow(item)}</td> : null}
+              </tr>,
+              ];
+              if (stripped) rows.push(<AltStripRow key="strip" colSpan={STRIP_COLS}>{altRow(item)}</AltStripRow>);
+              return wide ? (
+                <tbody key={item.card_id} className="card-rows">
+                  {rows}
+                </tbody>
+              ) : (
+                <Fragment key={item.card_id}>{rows[0]}</Fragment>
+              );
+            })}
+          </CardBodies>
         </table>
       </div>
 

@@ -1,13 +1,6 @@
 "use strict";
-// Posts new player-facing patch notes to Discord through a webhook (#974).
-//
-//   node tools/ci/discord-patch-notes.cjs --before <sha> --after <sha> [--dry-run]
-//   node tools/ci/discord-patch-notes.cjs --latest <N> [--dry-run]     (newest N from the working tree)
-//
-// The webhook URL comes from DISCORD_WEBHOOK_URL and is never printed. A "new" note is one
-// whose key (noteKey) is not in the notes.ts at the --before commit, so editing the text of
-// an existing note does not repost it. Notes are posted oldest first: notes.ts lists the
-// newest first, so the newest ends up at the bottom of the channel, where people read.
+// A "new" note is one whose key (noteKey) is not in the notes.ts at the --before commit, so editing the text of an existing note does not repost it.
+// Notes are posted oldest first so the newest ends up at the bottom of the channel, where people read.
 const { execFileSync } = require("node:child_process");
 const fs = require("node:fs");
 const os = require("node:os");
@@ -31,13 +24,11 @@ function noteKey(n) {
   return `${n.date}|${n.app}|${n.pr ?? ""}|${n.title}`;
 }
 
-/** Notes in `after` that `before` does not have, oldest first (the file lists newest first). */
 function newNotes(before, after) {
   const seen = new Set(before.map(noteKey));
   return after.filter((n) => !seen.has(noteKey(n))).reverse();
 }
 
-/** Cut to `max` UTF-16 units with an ellipsis, never splitting a surrogate pair. */
 function truncate(s, max) {
   if (s.length <= max) return s;
   let out = s.slice(0, max - 1);
@@ -59,7 +50,6 @@ function toEmbed(n) {
 
 const embedChars = (e) => e.title.length + e.description.length + e.footer.text.length;
 
-/** Webhook JSON bodies, at most 10 embeds and 6000 embed characters each, in the order given. */
 function buildMessages(notes) {
   const bodies = [];
   let embeds = [];
@@ -81,11 +71,7 @@ function buildMessages(notes) {
   return bodies;
 }
 
-/**
- * Which notes a push to main should post. `loadBefore()` returns the notes at the before
- * commit, or null when that commit or file is not in history. A zero or unknown before
- * posts nothing: the whole backlog must never land in the channel.
- */
+// A zero or unknown before posts nothing: the whole backlog must never land in the channel.
 function notesForPush(beforeSha, afterNotes, loadBefore) {
   if (!beforeSha || ZERO_SHA.test(beforeSha)) return { notes: [], reason: "no previous commit (new branch or first push); posting nothing" };
   const before = loadBefore();
@@ -93,7 +79,6 @@ function notesForPush(beforeSha, afterNotes, loadBefore) {
   return { notes: newNotes(before, afterNotes), reason: "" };
 }
 
-/** Parse a notes.ts source. Node 22 strips types natively; otherwise evaluate the array literal. */
 async function parseNotesSource(source, dir) {
   const file = path.join(dir, "notes.ts");
   fs.writeFileSync(file, source);

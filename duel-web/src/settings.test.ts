@@ -113,7 +113,6 @@ describe("response stops migration", () => {
     phone(true);
     stubStored({});
     expect(loadSettings().responseStops).toBe("auto");
-    // A stored choice still wins over the device default.
     stubStored({ responseStops: "always" });
     expect(loadSettings().responseStops).toBe("always");
     phone(false);
@@ -187,7 +186,6 @@ describe("hand layout", () => {
     expect(loadSettings()).toMatchObject({ handLayout: "fan", handFanPos: "" });
     stubStored({ handLayout: "fanRight" });
     expect(loadSettings()).toMatchObject({ handLayout: "fan", handFanPos: "0.88,1" });
-    // A spot saved since then wins over the old right fan.
     stubStored({ handLayout: "fanRight", handFanPos: "0.2,0.5" });
     expect(loadSettings().handFanPos).toBe("0.2,0.5");
   });
@@ -202,7 +200,6 @@ describe("hand layout", () => {
   it("turns the old Opponent hand, top right switch into the hand pinned top right (#297)", () => {
     stubStored({ oppHandTopRight: true });
     expect(loadSettings().oppHandSpot).toBe("right");
-    // A spot picked since wins, and off keeps the side panel.
     stubStored({ oppHandTopRight: true, oppHandSpot: "left" });
     expect(loadSettings().oppHandSpot).toBe("left");
     stubStored({ oppHandTopRight: false });
@@ -304,7 +301,6 @@ describe("account settings", () => {
       handLayout: "fan",
       handFanPos: "",
     });
-    // A spot the account saved since then still wins.
     expect(
       mergeRemoteSettings(loadSettings(), { handLayout: "fanRight", handFanPos: "0.4,1" }).handFanPos,
     ).toBe("0.4,1");
@@ -372,7 +368,6 @@ describe("Bigger playing area is on unless chosen off (#556)", () => {
     expect(loadSettings().bigBoard).toBe(true);
     stubStored({ bigBoard: false, bigBoardChosen: true });
     expect(loadSettings().bigBoard).toBe(false);
-    // The same holds for the copy kept on the account.
     stubStored({});
     expect(mergeRemoteSettings(loadSettings(), { bigBoard: false }).bigBoard).toBe(true);
     expect(mergeRemoteSettings(loadSettings(), { bigBoard: false, bigBoardChosen: true }).bigBoard).toBe(false);

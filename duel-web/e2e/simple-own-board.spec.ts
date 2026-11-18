@@ -1,8 +1,3 @@
-/**
- * "Simple board on phones" (#445): on a portrait phone your own mat is
- * drawn the way the opponent's is (a count row instead of the four piles, the
- * same bigger cards). Off by default, and never on a desktop window.
- */
 import type { Page } from "@playwright/test";
 import { test, expect, formatIssues } from "./fixtures";
 import { isKnown } from "./known-issues";
@@ -26,7 +21,6 @@ test("with Simple board on, your mat gets the opponent's count row and card size
   await expect(page.locator(".side-you .zone-trash")).toHaveCount(0);
   expect(await leaderWidth(page, "you")).toBeCloseTo(await leaderWidth(page, "opp"), 0);
 
-  // The Trash count still opens the trash, like the pile did.
   await page.locator(".side-you .count-chip-trash").click();
   await expect(page.getByRole("dialog", { name: "Your trash" })).toBeVisible();
 });

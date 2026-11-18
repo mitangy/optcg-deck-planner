@@ -4,12 +4,10 @@ import {FocusClip} from './FocusClip';
 import {COLORS} from './theme';
 import type {SceneDef} from './types';
 
-/** Length of the transition into a scene, in frames: one full beat (0.5s), so cuts read as smooth crossfades, not jumps. */
 export const OVERLAP = 15;
 
 const SLANT = 14; // percent of width the wipe edge leans over the full height
 
-/** One scene's footage plus its transition-in. Rendered inside a <Sequence> that starts on the beat. */
 export const SceneLayer: React.FC<{scene: SceneDef; W: number; H: number}> = ({scene, W, H}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();

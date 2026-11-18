@@ -6,10 +6,8 @@ import { lineCap, lineQty, setLineQty, type TrayCard, type TrayLine } from "./tr
 import { CardRow, Empty, LoadError, QtyStepper } from "./ui";
 import { useFriendSpares } from "./useFriendSpares";
 
-/** The "Standard" printing's option value (no TCGplayer product id is 0). */
 const STANDARD_PRINTING = 0;
 
-/** Three lists to build an offer from: what they have that you need, their other spares, and what you have that they need. */
 export function FriendSpares({
   friendId,
   username,
@@ -22,7 +20,6 @@ export function FriendSpares({
   onLines: (next: TrayLine[]) => void;
 }) {
   const { data, isLoading, error, refetch, capOf } = useFriendSpares(friendId);
-  // Chosen printing per row ("get:EB01-001" -> product id); missing = standard printing.
   const [printing, setPrinting] = useState<Record<string, number | null>>({});
 
   if (isLoading) return <p className="muted">Loading…</p>;
@@ -36,7 +33,6 @@ export function FriendSpares({
 
   const renderRow = (item: SpareItem, side: TradeSide) => {
     const rowKey = `${side}:${item.card_id}`;
-    // Default to Standard only when they own base copies; otherwise the first alt they own (#705).
     const productId = rowKey in printing ? printing[rowKey] : item.base_owned > 0 ? null : (item.printings[0]?.product_id ?? null);
     const chosen = item.printings.find((p) => p.product_id === productId);
     const card: TrayCard = {

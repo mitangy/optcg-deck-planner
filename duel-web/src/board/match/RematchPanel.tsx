@@ -5,13 +5,8 @@ import type { RematchDeckOption } from "../../decks/rematchDecks";
 import type { PlayerDeckWire, RematchAction, RematchState, Seat, SeatPlayers } from "../../net/protocol";
 import { seatLabel, seatName } from "./playerNames";
 
-/** Deck to send per seat with a rematch request; undefined keeps that seat's current deck. */
 export type RematchDecks = [PlayerDeckWire | undefined, PlayerDeckWire | undefined];
 
-/**
- * Turn each seat's picked deck id ("" keeps the deck) into the wire decks to
- * send with a rematch request, or undefined when every seat keeps its deck.
- */
 export function decksFromPicks(options: readonly RematchDeckOption[], picks: readonly [string, string]): RematchDecks | undefined {
   const wire = (id: string) => (id ? options.find((o) => o.id === id)?.wire : undefined);
   const decks: RematchDecks = [wire(picks[0]), wire(picks[1])];
@@ -19,14 +14,9 @@ export function decksFromPicks(options: readonly RematchDeckOption[], picks: rea
 }
 
 const KEEP_DECK = "Keep same deck";
-/** Value prefix of the non-selectable Leader header rows (#1294). */
 const LEADER_GROUP = "__leader__:";
 
-/**
- * "Deck for the rematch" picker on the shared Select. A native select draws its open list with the browser's
- * own colours (light gray with near-invisible text on Windows Chrome), so the list is ours: themed, opaque,
- * and floating in a portal under the button so opening it never moves the panel (#772).
- */
+// A native select draws its open list in browser colours (near-invisible text on Windows Chrome), so the list is ours, floating in a portal so opening it never moves the panel.
 function DeckSelect({
   options,
   value,
@@ -63,18 +53,11 @@ type Props = {
   state: RematchState | null;
   mySeat: Seat;
   players: SeatPlayers | null;
-  /** Practice: both seats are this player (agree from both; name seats). */
   autoAccept?: boolean;
-  /** Saved decks to switch to before asking for / accepting (omit to hide the picker). */
   deckOptions?: readonly RematchDeckOption[];
-  /** `decks` (by seat) accompanies "request" when a different deck was picked. */
   onAction: (action: RematchAction, decks?: RematchDecks) => void;
 };
 
-/**
- * Match-over rematch vote: both players agree, then the loser picks whether
- * to go first or second and a fresh game starts in the same room.
- */
 export function RematchPanel({ state, mySeat, players, autoAccept = false, deckOptions, onAction }: Props) {
   const [picks, setPicks] = useState<[string, string]>(["", ""]);
   if (!state) return null;

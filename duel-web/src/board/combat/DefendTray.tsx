@@ -21,7 +21,6 @@ function Thumb({ defId, artCopy, ownerSeat }: { defId: string; artCopy?: number;
           src={src}
           alt=""
           draggable={false}
-          // Same fallback as CardTile: CDN art first, then the preview / local mirror.
           onError={() => (!local && (isTcgplayerCdnUrl(primary) || isLocalCardsUrl(primary)) ? setLocal(true) : setFailed(true))}
           onLoad={(e) => {
             if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) {
@@ -37,14 +36,12 @@ function Thumb({ defId, artCopy, ownerSeat }: { defId: string; artCopy?: number;
   );
 }
 
-/** Drag a Counter chip onto the defending card: plays it at once. */
 export type CounterDragHandlers = {
   onStart: (cardId: string) => void;
   onEnd: (cardId: string, clientX: number, clientY: number) => void;
   onCancel: () => void;
 };
 
-/** A counter chip that is also a drag source (tap still stages / plays). */
 function CounterChipButton({
   cardId,
   className,
@@ -91,28 +88,17 @@ function power(n: number | null): string {
 
 type Props = {
   model: DefendModel;
-  /** `rail`: desktop right column, chips wrap so every value shows (no sideways scroll). */
   layout?: "tray" | "rail";
   ownerSeat: Seat;
-  /** Remaining response clock, 0-1, or null when the room has none. */
   clock: number | null;
   onToggleBlocker: (id: string) => void;
   onToggleCounter: (id: string) => void;
   onCounterEvent: (index: number) => void;
-  /** Block step: tap a Counter chip to skip the block and counter with it. */
   onSkipBlockCounter?: (id: string) => void;
-  /** Drag-to-counter from the chips (counter step, and block step to skip the block). */
   counterDrag?: CounterDragHandlers;
-  /** Phones only: the hand is hidden while the tray is up, so show its size (#660). */
   handCount?: number;
 };
 
-/**
- * Answering an attack in one place: the battle and what it takes to survive,
- * then the Blockers (block step) or Counter cards (counter step) as big
- * tappable chips. Staging is local; the primary button in the intent bar
- * sends it. Fixed height in portrait, so staging never moves the board.
- */
 export function DefendTray({
   model,
   layout = "tray",

@@ -1,4 +1,3 @@
-"""Duel tournaments among friends: single elimination or round robin, every match one game."""
 
 from __future__ import annotations
 
@@ -29,9 +28,7 @@ router = APIRouter(prefix="/tournaments", tags=["tournaments"])
 
 MAX_ORGANIZED = 5
 FINISHED_VISIBLE = timedelta(days=14)
-# A room the host just reported counts as open this long even before presence shows it.
 ROOM_FRESH = timedelta(seconds=30)
-# While one player is opening the room the other waits this long before taking over.
 HOST_LOCK = timedelta(seconds=45)
 
 _create_rate = RateLimiter(max_calls=10, period_s=60, name="tournament_create_rate")
@@ -514,10 +511,6 @@ def play(
         return PlayOut(action="hosted")
 
     presence = live_presence(db, [m.host_id] if m.host_id else [], now)
-    # The host asking again while their own game is still running (they dropped and came back
-    # via the tournament page) goes back to that room. Resetting it would orphan the result,
-    # which is ingested under the old room id (#1006). Only a seated, playing host counts here:
-    # a room reported moments ago with nobody in it is still replaced.
     host_playing = (
         m.host_id == user.id
         and _room_live(m, presence, now)

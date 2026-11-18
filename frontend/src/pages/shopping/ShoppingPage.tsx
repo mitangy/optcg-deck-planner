@@ -94,20 +94,16 @@ export function ShoppingPage() {
   );
 
   const [includeExtras, setIncludeExtras] = usePersistedOpen(SHOPPING_EXTRAS_KEY, true);
-  // Extra copies (#1184): off hides their lines and cost but keeps owned alt copies held back.
   const [includeCollector, setIncludeCollector] = usePersistedOpen(SHOPPING_COLLECTOR_KEY, true);
   const { data, isLoading, error } = useQuery({
     queryKey: qk.shopping.list(shoppingKey, includeExtras, includeCollector),
     queryFn: () =>
-      // [] asks for no decks at all (#1208), only added cards and Extra copies.
       api.shopping(shoppingKey, {
         extras: includeExtras,
         collector: includeCollector,
       }),
-    // Runs with zero decks too: cards added directly make a list on their own.
     enabled: filterReady,
   });
-  // Unfiltered list: tells whether any card was added directly even while hidden by the filter.
   const fullShoppingById = useFullShoppingById();
   const hasExtras = useMemo(
     () => [...fullShoppingById.values()].some((i) => (i.extra_qty ?? 0) > 0),
@@ -155,8 +151,6 @@ export function ShoppingPage() {
   const [scanOpen, setScanOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<Blob | null>(null);
   const [pageDragging, setPageDragging] = useState(false);
-  // Dropping a card image anywhere on this page opens the scanner, so the
-  // dialog does not have to be open first for drag-and-drop to work.
   useImageDrop({
     enabled: !scanOpen,
     onImage: (blob) => {
@@ -178,7 +172,6 @@ export function ShoppingPage() {
     busyProductId: altOwnedBusyProductId,
   } = useCardEdits({
     saveAltBuy: async (cardId, productId, qty) => {
-      // Same deck filter the shopping list is read with, so the pick lands on the decks shown.
       const deckIds = activeDeckIds.length === allDeckIds.length ? undefined : activeDeckIds;
       const res = await api.setCardPrinting(cardId, productId, qty, deckIds);
       applyAltBuyOptimistic(qc, cardId, productId, res.qty);
@@ -483,14 +476,11 @@ export function ShoppingPage() {
     onError: (e: Error) => setExportMsg(e.message),
   });
 
-  /** Everything on the "Used in" line besides the deck names (those render as chips). */
   function usedInNote(item: ShoppingItem): string {
     const parts: string[] = [];
     const breakdown = needBreakdownLabel(item);
     if ((item.leader_count ?? 1) > 1) {
       const primary = item.primary_leader_name || item.primary_leader_card_id || "earliest deck";
-      // The breakdown already says the card is shared; the sort note only
-      // matters when grouping by deck.
       if (!breakdown) parts.push(`shared (sorted under ${primary})`);
       else parts.push(sortingByDeck ? `${breakdown} · sorted under ${primary}` : breakdown);
     } else if (breakdown) {
@@ -541,7 +531,6 @@ export function ShoppingPage() {
 
   const shareInfo = shareQ.data;
   const shareUrl = shareInfo ? `${window.location.origin}${shareInfo.path}` : null;
-  // No decks and nothing added directly: only the search drawer and a hint.
   const emptyList = allDeckIds.length === 0 && (data?.items.length ?? 0) === 0;
 
   return (

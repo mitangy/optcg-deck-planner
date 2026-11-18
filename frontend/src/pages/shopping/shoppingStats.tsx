@@ -16,10 +16,6 @@ type ShoppingStatsData = {
 
 const cents = (n: number) => Math.round(n * 100) / 100;
 
-/**
- * Where the Est. cost goes (#1182), from the items so optimistic edits stay in sync: Extra copies (collector
- * wants), cards added directly to Master Shopping (in no included deck), and the rest, which is the decks.
- */
 export function shoppingCostSplit(data: ShoppingStatsData | null | undefined) {
   const items = data?.items ?? [];
   const extra = cents(collectorCostTotal(items));
@@ -28,12 +24,10 @@ export function shoppingCostSplit(data: ShoppingStatsData | null | undefined) {
   return { decks, added, extra };
 }
 
-/** "$850" or "$2K": short enough for three parts to fit under the total on a phone. */
 function compactMoney(n: number): string {
   return formatMoneyCompact(n);
 }
 
-/** The parts of the Est. cost worth naming; empty when one part (or none) is the whole total. */
 export function shoppingCostParts(data: ShoppingStatsData | null | undefined): string[] {
   const { decks, added, extra } = shoppingCostSplit(data);
   const parts = [
@@ -58,7 +52,6 @@ function shoppingListStats(data: ShoppingStatsData | null | undefined) {
 
 export function formatShoppingListStats(data: ShoppingStatsData | null | undefined) {
   const { totalUnique, uniqueStillNeeded, totalStillNeeded, remainingMarket } = shoppingListStats(data);
-  // Keep to one scannable line on mobile — avoid burying the card list below chrome.
   return (
     `${uniqueStillNeeded}/${totalUnique} uniques left · ${totalStillNeeded} copies · ` +
     `${money(remainingMarket)}`

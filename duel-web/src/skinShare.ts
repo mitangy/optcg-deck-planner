@@ -1,9 +1,3 @@
-/**
- * The playmat / card back this seat shares with the opponent through the game
- * server. An account upload with a public path is sent as that short path (the
- * opponent's board loads it from the API); anything else is shrunk to a small
- * base64 data URL, as before. The DON!! art id rides along.
- */
 import { activePublicPath } from "./account/cosmeticsSync";
 import { cardBackShareUrl } from "./cardBack";
 import type { CosmeticKind } from "./net/prefsApi";
@@ -12,11 +6,8 @@ import { playmatShareUrl } from "./playmat";
 import { currentSettings } from "./settings";
 
 export type SkinSources = {
-  /** Account upload path for the image in use, or null. */
   publicPath: (kind: CosmeticKind) => string | null;
-  /** Small data URL of the image in use, or null when none is set. */
   dataUrl: (kind: CosmeticKind) => Promise<string | null>;
-  /** DON!! card art id in use (#440), or null for the bundled art. */
   donArt: () => number | null;
 };
 
@@ -31,14 +22,9 @@ const browserSources: SkinSources = {
 
 export type SharedSkin = {
   skin: SeatSkin;
-  /** True when a field is a public path (an older game server rejects those). */
   usesPath: boolean;
 };
 
-/**
- * Build the skin message body (null when this seat uses the default art).
- * `allowPaths: false` forces data URLs, for a game server that predates paths.
- */
 export async function buildSharedSkin(
   opts: { allowPaths?: boolean } = {},
   sources: SkinSources = browserSources,
@@ -59,7 +45,6 @@ export async function buildSharedSkin(
   return { skin: { playmat, cardBack, donArt }, usesPath };
 }
 
-/** The game server's complaint about a skin field that is not a data URL (servers before public paths). */
 export function isSkinPathRejected(err: { code: string; message: string }): boolean {
   return err.code === "bad_protocol" && /^(playmat|cardBack) must be a small base64 image data URL/.test(err.message);
 }

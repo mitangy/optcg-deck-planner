@@ -1,4 +1,3 @@
-"""Card price alerts (#855): check watched prices after each price update, notify on a crossing."""
 
 from __future__ import annotations
 
@@ -24,7 +23,6 @@ ALERTS_LINK = "/alerts"
 
 
 def condition_met(direction: str, price: float | None, target: float) -> bool:
-    """Below fires at or under the target, above at or over it. No price never counts."""
     if price is None:
         return False
     if direction == "above":
@@ -33,7 +31,6 @@ def condition_met(direction: str, price: float | None, target: float) -> bool:
 
 
 def current_prices(db: Session, pairs: set[tuple[str, int]]) -> dict[tuple[str, int], float | None]:
-    """(card_id, product_id) -> market price; product 0 is the card's base art."""
     out: dict[tuple[str, int], float | None] = {}
     base_ids = {c for c, p in pairs if p == 0}
     alt_ids = {c for c, p in pairs if p != 0}
@@ -52,7 +49,6 @@ def current_price(db: Session, card_id: str, product_id: int) -> float | None:
 
 
 def _label(card_name: str, art_name: str) -> str:
-    """Base art shows the card name; an alt's printing name already includes it."""
     return card_name if art_name == "Base" else art_name
 
 
@@ -74,7 +70,6 @@ class Fired:
 
 
 def _names(db: Session, pairs: set[tuple[str, int]]) -> dict[tuple[str, int], tuple[str, str, str]]:
-    """(card_id, product_id) -> (card name, art name, TCGPlayer url)."""
     cards = {
         c.card_id: c
         for c in db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_({c for c, _ in pairs})))
@@ -145,7 +140,6 @@ def _email_content(fired: list[Fired], link: str) -> tuple[str, str, str]:
 
 
 def check_alerts(db: Session, now: datetime | None = None) -> dict:
-    """Compare every live alert with its current price; fire on a crossing, re-arm on the way back."""
     now = now or datetime.now(timezone.utc)
     alerts = db.scalars(select(PriceAlert).where(PriceAlert.paused.is_(False))).all()
     summary = {"checked": len(alerts), "fired": 0, "emails_sent": 0, "email_failures": 0}

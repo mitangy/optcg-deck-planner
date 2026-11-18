@@ -18,12 +18,6 @@ const lineMeta = (line: GroupBuyLine, excluded: boolean) =>
     .filter(Boolean)
     .join(" · ");
 
-/**
- * The merged card list as grid cards, phone cards or desktop table rows. The member page
- * and the view-only invite page both render it, so the art (`lineArtUrl`), meta, who chips
- * and price can't drift apart again (#887). The member-only parts are slots: leave them out
- * for the view-only page and the matching column / row disappears.
- */
 export function GroupBuyLines({
   layout,
   isNarrow,
@@ -42,9 +36,7 @@ export function GroupBuyLines({
   tableRows: GroupBuyDisplayRow[];
   cardsSort: ColumnSort | null;
   onCardsSort: ReturnType<typeof useColumnSort>["onSort"];
-  /** "Your buy" stepper (member page while the group buy is open). */
   renderBuyEditor?: (line: GroupBuyLine, excluded: boolean) => ReactNode;
-  /** Alt arts row (member page with Show alt arts on). */
   renderAltRow?: (line: GroupBuyLine) => ReactNode;
 }) {
   const heading = (row: Extract<GroupBuyDisplayRow, { kind: "header" }>) => (

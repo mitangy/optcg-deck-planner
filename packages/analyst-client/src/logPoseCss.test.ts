@@ -1,7 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-/** Where braces go unbalanced in `css`: a `}` with nothing open, or a `{` left open at the end. Comments and quoted strings are ignored. */
 function unbalancedBrace(css: string): string | null {
   const open: number[] = [];
   let line = 1;
@@ -25,7 +24,6 @@ function unbalancedBrace(css: string): string | null {
   return open.length ? `the block opened on line ${open[open.length - 1]} is never closed` : null;
 }
 
-/** The stylesheets the index pulls in with `@import "./x.css";`, in order (logPose.css is only that list). */
 function importedParts(index: string): string[] {
   return [...index.matchAll(/^@import "(\.\/[^"]+)";$/gm)].map((m) => m[1]!);
 }

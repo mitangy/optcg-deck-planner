@@ -52,7 +52,6 @@ const variant = defaultVariant(f.variant, scripted);
 const model = f.model ?? CHAT_MODEL;
 const extractorModel = f["extractor-model"] ?? EXTRACTOR_MODEL;
 
-// Games: from a file, or fresh self-play with fixed seeds (only games that finished).
 let replays: MatchReplay[];
 let source: string;
 if (f.games) {

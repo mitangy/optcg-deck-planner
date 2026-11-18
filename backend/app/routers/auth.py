@@ -49,7 +49,6 @@ _username_rate = RateLimiter(max_calls=20, period_s=60, name="auth_username_rate
 
 
 _SOURCE_CAPS = {"ref": 80, "land": 100, "utm_source": 60, "utm_medium": 60, "utm_campaign": 60}
-# An account counts as brand new (so its sign-in is its first touch) for this long.
 _NEW_ACCOUNT_WINDOW = timedelta(hours=1)
 
 
@@ -89,13 +88,6 @@ class ClaimBody(BaseModel):
 
 
 def _oauth_api_base(settings: Settings, return_to: str | None) -> str:
-    """Public API base whose /auth/callback Google should return to.
-
-    Login must start and finish on the same host so the nonce cookie set by
-    /auth/google is present at /auth/callback. SPAs that proxy /api to this
-    API (OAUTH_CALLBACK_ORIGINS, e.g. duel-web) therefore get their own
-    callback; everything else uses BACKEND_PUBLIC_URL (the planner).
-    """
     if return_to and return_to in settings.oauth_callback_origin_list:
         return f"{return_to}/api"
     return settings.backend_public_url.rstrip("/")
@@ -116,7 +108,6 @@ def _google_client(settings: Settings, api_base: str) -> AsyncOAuth2Client:
 
 
 def _cookie_flags(settings: Settings) -> dict:
-    """Prefer SameSite=Lax when API and frontend share a host (Vercel /api proxy)."""
     api_host = urlparse(settings.backend_public_url).hostname
     fe_host = urlparse(settings.frontend_origin).hostname
     cross_site = bool(api_host and fe_host and api_host != fe_host)
@@ -151,7 +142,6 @@ def _allowed_return_origins(settings: Settings) -> set[str]:
 
 
 def _sanitize_return_to(raw: str | None, settings: Settings) -> str | None:
-    """Allow only absolute http(s) origins on the planner / duel CORS allowlist."""
     if not raw:
         return None
     try:
@@ -161,7 +151,6 @@ def _sanitize_return_to(raw: str | None, settings: Settings) -> str | None:
     if parsed.scheme not in ("http", "https") or not parsed.netloc:
         return None
     if parsed.path not in ("", "/"):
-        # Origin only — path is fixed to /auth/complete on redirect.
         origin = f"{parsed.scheme}://{parsed.netloc}"
     else:
         origin = f"{parsed.scheme}://{parsed.netloc}"
@@ -176,7 +165,6 @@ async def google_login(
     settings: Annotated[Settings, Depends(get_settings)],
     return_to: str | None = None,
 ):
-    # Optional return origin for duel-web (or other allowlisted SPA). Defaults to planner.
     safe_return = _sanitize_return_to(return_to or request.query_params.get("return_to"), settings)
     client = _google_client(settings, _oauth_api_base(settings, safe_return))
     # Bind signed state to a short-lived nonce cookie on this host so a stolen
@@ -227,8 +215,6 @@ async def google_callback(
     if not verify_oauth_state(got_state, nonce, settings):
         raise HTTPException(status_code=400, detail="Invalid OAuth state")
 
-    # Same host as /auth/google, so the return cookie is here too and picks the
-    # same redirect_uri Google was given (required for the token exchange).
     return_to = _sanitize_return_to(request.cookies.get(OAUTH_RETURN_COOKIE), settings)
     api_base = _oauth_api_base(settings, return_to)
     client = _google_client(settings, api_base)
@@ -241,7 +227,6 @@ async def google_callback(
             authorization_response=authorization_response,
         )
     except Exception as exc:  # noqa: BLE001
-        # Do not echo provider/transport internals to the client.
         raise HTTPException(status_code=400, detail="OAuth failed") from exc
 
     access_token = token.get("access_token") if isinstance(token, dict) else None
@@ -266,15 +251,9 @@ async def google_callback(
 
     user = resolve_google_user(db, email=email, sub=sub, name=name)
 
-    # One-time ticket claimed by the SPA via same-origin POST so the session
-    # cookie is set on a fetch response (works on mobile Safari; proxy redirects often drop Set-Cookie).
-    # Put the ticket in the URL fragment (not the query string) so it is not
-    # sent to servers, proxies, or Referer headers.
     dest_origin = return_to or settings.frontend_origin.rstrip("/")
-    # Duel-web claims at /auth/complete; planner SPA still uses /login.
     dest_path = "/auth/complete" if return_to else "/login"
     if is_banned(user):
-        # No ticket for a banned account; the SPA shows "This account has been banned." (#667).
         redirect = RedirectResponse(f"{dest_origin}{dest_path}#error=banned")
     else:
         ticket = create_login_ticket(db, user.id, settings)
@@ -318,10 +297,6 @@ def claim_login(
 
 
 def _record_signup_source(db: Session, user: User, source: SignupSource | None) -> None:
-    """Save where a brand-new account came from; returning users are never relabelled (#905).
-
-    NULL stays "unknown" (signed up before tracking); "{}" means direct.
-    """
     if user.signup_source is not None or user.created_at is None:
         return
     created = as_utc(user.created_at)
@@ -338,7 +313,6 @@ def logout(
     settings: Annotated[Settings, Depends(get_settings)],
     user: Annotated[User | None, Depends(get_optional_user)],
 ):
-    # Bump session_version so any stolen cookie stops working immediately.
     if user is not None:
         user.session_version = int(user.session_version or 0) + 1
         db.commit()
@@ -392,7 +366,6 @@ def set_username(
     try:
         db.commit()
     except IntegrityError:
-        # Lost a race against a concurrent claim of the same name.
         db.rollback()
         raise HTTPException(status_code=409, detail="That username is already taken.") from None
     db.refresh(user)

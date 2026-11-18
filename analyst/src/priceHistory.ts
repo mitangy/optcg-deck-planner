@@ -20,10 +20,8 @@ const round2 = (x: number) => Math.round(x * 100) / 100;
 const round1 = (x: number) => Math.round(x * 10) / 10;
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-/** Weeks of history sampled for the model: enough to see the shape, few enough to cite. */
 export const SAMPLE_WEEKS = 26;
 
-/** One point a week for the last SAMPLE_WEEKS weeks, counted back from the newest point (which is always kept), oldest first. */
 export function weeklySample(points: PricePoint[]): [string, number][] {
   if (!points.length) return [];
   const last = dayNumber(points[points.length - 1]!.date);
@@ -41,7 +39,6 @@ export function weeklySample(points: PricePoint[]): [string, number][] {
   return out;
 }
 
-/** Percent change from the price `days` days before the newest day to `now`; null when the history does not reach back that far. */
 export function changeOver(points: PricePoint[], now: number, days: number): number | null {
   if (!points.length) return null;
   const cutoff = dayNumber(points[points.length - 1]!.date) - days;
@@ -54,7 +51,6 @@ export function changeOver(points: PricePoint[], now: number, days: number): num
   return round1(((now - past.price) / past.price) * 100);
 }
 
-/** What `price_history` tells Log Pose about one art: the shape of its TCGPlayer market price and a "when to buy" read from past sets. */
 export async function priceHistory(api: PlannerApi, q: { card_id: string; product_id?: number }, today: string = todayIso()) {
   const id = q.card_id.trim().toUpperCase();
   const productId = q.product_id && q.product_id > 0 ? Math.floor(q.product_id) : 0;

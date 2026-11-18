@@ -1,4 +1,3 @@
-"""Shared setup for the friend-view and trade tests (#703)."""
 
 from __future__ import annotations
 
@@ -61,7 +60,6 @@ def befriend(S, a: int, b: int) -> None:
 
 
 def request_only(S, a: int, b: int) -> None:
-    """A pending (not yet accepted) friend request from a to b."""
     low, high = min(a, b), max(a, b)
     with S() as db:
         db.add(Friendship(user_low_id=low, user_high_id=high, requester_id=a, status="pending"))

@@ -15,7 +15,6 @@ describe("credit meter (#446)", () => {
   it("says how much is left of this month's credit and how full the bar is", () => {
     expect(meterText(credit())).toBe("$3.40 of $5.00 left this month");
     expect(meterFill(credit())).toBeCloseTo(0.68);
-    // Overspent by one call never goes negative.
     expect(meterText(credit({ spentUsd: 5.12 }))).toBe("$0.00 of $5.00 left this month");
     expect(meterFill(credit({ spentUsd: 5.12 }))).toBe(0);
   });

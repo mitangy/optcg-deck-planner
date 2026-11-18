@@ -1,4 +1,3 @@
-"""Asking for the Log Pose chat panel: request, approve, deny, revoke (#393)."""
 
 from __future__ import annotations
 
@@ -74,7 +73,7 @@ def test_only_owners_can_list_or_decide_requests_393(chat):
     rows = c.get("/analyst/access/requests").json()["requests"]
     assert [(r["user_id"], r["status"], r["note"]) for r in rows] == [(nami, "pending", "please")]
     assert rows[0]["name"] == "nami"
-    assert _decide(c, zoro, "approved").status_code == 404  # no request, nothing created
+    assert _decide(c, zoro, "approved").status_code == 404
     db = SessionLocal()
     try:
         assert db.query(AnalystAccess).count() == 1

@@ -1,4 +1,3 @@
-"""Pure merge helpers for group-buy shopping lines (easy to unit test)."""
 
 from __future__ import annotations
 
@@ -31,12 +30,10 @@ class MergedLine:
     card_id: str
     total_qty: int
     members: tuple[MergedMemberQty, ...]
-    # First non-null product_id seen while merging (caller may override).
     suggested_product_id: int | None
 
 
 def merge_member_needs(needs: list[MemberNeed]) -> list[MergedLine]:
-    """Sum quantities per card_id across members; skip non-positive qtys."""
     by_card: dict[str, dict[int, MergedMemberQty]] = defaultdict(dict)
     suggested: dict[str, int | None] = {}
 

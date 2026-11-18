@@ -1,6 +1,3 @@
-/**
- * Trigger dispatch: event batches, once-per-turn gates, trigger queueing and ability start.
- */
 import { abilitiesFor, abilityById } from "../cards/abilities.js";
 import type { Ability, GameEventKind, Trigger } from "../effects/types.js";
 import type { BindingValue, CardInstance, InstanceId, MatchState, ResolutionFrame, Seat } from "../types.js";
@@ -8,10 +5,6 @@ import { type EvalCtx, ctxFor, evalCond, filterMatches, isNegated } from "./quer
 import { alloc, fieldCards, isOnField, locate } from "./zones.js";
 import { actingSource, type Sim, turnLog } from "./sim.js";
 import { B, getBinding } from "../effects/bindings.js";
-
-// ---------------------------------------------------------------------------
-// Trigger dispatch
-// ---------------------------------------------------------------------------
 
 export function newBatch(state: MatchState): void {
   state.triggerBatch += 1;
@@ -46,13 +39,11 @@ export function releaseDeclinedOncePerTurn(state: MatchState, frame: ResolutionF
   card.usedAbilities = rest;
 }
 
-/** Conditions checked only when a queued trigger is about to resolve (`Ability.resolveConditions`). */
 export function resolveGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string }, ability: Ability, eventCardId?: InstanceId): boolean {
   const ctx: EvalCtx = { seat, sourceId: source.id, sourceDefId: source.defId, vars: {}, ...(eventCardId ? { eventCardId } : {}) };
   return (ability.resolveConditions ?? []).every((c) => evalCond(state, ctx, c));
 }
 
-/** Header gates: [DON!! xN], [Your Turn]/[Opponent's Turn] and similar, plus once-per-turn. */
 export function abilityGateOpen(state: MatchState, seat: Seat, source: { id: InstanceId; defId: string; card?: CardInstance }, ability: Ability, eventCardId?: InstanceId): boolean {
   const card = source.card ?? locate(state, source.id)?.card;
   if (ability.don && (card?.attachedDonIds.length ?? 0) < ability.don) return false;
@@ -61,7 +52,6 @@ export function abilityGateOpen(state: MatchState, seat: Seat, source: { id: Ins
   return (ability.conditions ?? []).every((c) => evalCond(state, ctx, c));
 }
 
-/** Queue every ability of `source` for `window` whose gates are open. */
 export function queueWindow(state: MatchState, window: Trigger, seat: Seat, source: { id: InstanceId; defId: string }, opts: { eventCardId?: InstanceId; card?: CardInstance } = {}): void {
   const loc = locate(state, source.id);
   const card = opts.card ?? loc?.card;
@@ -74,20 +64,17 @@ export function queueWindow(state: MatchState, window: Trigger, seat: Seat, sour
 }
 
 export interface EventInfo {
-  /** Seat that owns the affected card (or the acting player). */
   seat: Seat;
   card?: { id: InstanceId; defId: string };
   byEffectOf?: Seat;
-  /** Quantity carried by the event (DON!! returned, cards drawn). */
   count?: number;
-  /** Zone a played card came from. */
   fromZone?: string;
 }
 
 /**
- * Dispatch an internal rules event to "When …" abilities on the field. One occurrence can carry several kinds
- * (a K.O. by an effect is both `character_ko` and `character_removed_by_effect`): each ability is queued at most once,
- * when any of the kinds matches it under its own gates.
+ * One occurrence can carry several kinds (a K.O. by an effect is both `character_ko` and
+ * `character_removed_by_effect`): each ability is queued at most once, when any of the kinds matches it under its own
+ * gates.
  */
 export function dispatchEvent(state: MatchState, event: GameEventKind | readonly GameEventKind[], info: EventInfo): void {
   const kinds: readonly GameEventKind[] = typeof event === "string" ? [event] : event;
@@ -134,7 +121,6 @@ export function dispatchEvent(state: MatchState, event: GameEventKind | readonly
   }
 }
 
-/** Start resolving an ability immediately (activation, events, accepted Triggers). */
 export function startAbility(sim: Sim, seat: Seat, source: { id: InstanceId; defId: string }, ability: Ability, window: string, extra: Record<string, BindingValue> = {}): void {
   const { state } = sim;
   markUsed(state, source.id, ability);

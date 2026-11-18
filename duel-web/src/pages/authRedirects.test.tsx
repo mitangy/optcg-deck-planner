@@ -16,7 +16,6 @@ let calls: string[] = [];
 const TOKEN = { token: "t.s", expires_at: 0, user_id: 7, email: "miko@e2e.test", rating: 1234, games_played: 0 };
 const user = (username: string | null) => ({ id: 7, email: "miko@e2e.test", name: "Miko", username });
 
-/** The fake API: `me` answers GET /auth/me (null = signed out); `claimed` answers POST /auth/claim. */
 function fakeApi(opts: { me?: ReturnType<typeof user> | null; claimed?: ReturnType<typeof user>; claimStatus?: number }) {
   vi.stubGlobal("fetch", async (url: string, init: RequestInit = {}) => {
     const path = new URL(url, "http://x").pathname;
@@ -91,7 +90,6 @@ describe("sign-in landing redirects (refactor 2.1b)", () => {
     expect(calls).toContain("POST /auth/claim");
     expect(calls).toContain("POST /duel/token");
     expect(document.querySelector('[data-testid="home"]')).not.toBeNull();
-    // The rest of the app (nav menu, lobby, account sync) learns who signed in from the auth store.
     expect(getAuth()).toMatchObject({ status: "ready", user: { id: 7 } });
   });
 

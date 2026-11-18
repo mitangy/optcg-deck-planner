@@ -16,9 +16,7 @@ describe("the puzzle set", () => {
     }
     expect(a.puzzles.filter((p) => p.type === "power")).toHaveLength(4);
     expect(a.puzzles.map((p) => p.id)).toEqual(["power-s1-1", "power-s1-2", "power-s1-3", "power-s1-4", "playable-s1-1", "playable-s1-2", "playable-s1-3", "playable-s1-4", "scenario-s1-1", "scenario-s1-2", "scenario-s1-3", "scenario-s1-4"]);
-    // Half the puzzles were asked to hold a card from OP18 or EB05, and every message fits the size bound.
     expect(a.puzzles.filter((p) => p.type !== "scenario" && p.newSet).length).toBeGreaterThanOrEqual(3);
-    // Asked for all of them to hold a new-set card, every position puzzle does.
     const all = generatePuzzles({ seed: 3, n: 8, types: ["power", "playable"], newShare: 1, synthShare: 0.5, catalog });
     expect(all.puzzles.every((p) => p.newSet)).toBe(true);
     for (const p of a.puzzles) expect(p.message.length).toBeLessThanOrEqual(MESSAGE_LIMIT);

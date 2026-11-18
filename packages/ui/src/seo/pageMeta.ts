@@ -3,13 +3,9 @@ import { useEffect } from "react";
 export type PageMeta = {
   title: string;
   description?: string;
-  /** Pathname of the page; query and hash are dropped from the canonical URL. */
   path?: string;
-  /** Site origin without a trailing slash, e.g. https://optcgduel.app. */
   origin: string;
-  /** Keep search engines from listing the page. Removes the canonical link. */
   noindex?: boolean;
-  /** Absolute URL of the share picture; pages that do not give one keep the site's. */
   image?: string;
 };
 
@@ -35,13 +31,11 @@ function removeAll(selector: string) {
   for (const el of Array.from(document.head.querySelectorAll(selector))) el.remove();
 }
 
-/** Only touches a social tag the page already ships (index.html carries the defaults). */
 function syncIfPresent(attr: "name" | "property", key: string, content: string) {
   const el = document.head.querySelector(`meta[${attr}="${key}"]`);
   if (el) el.setAttribute("content", content);
 }
 
-/** The canonical URL of a page: origin plus pathname, with no query, hash or trailing slash (except the root). */
 export function canonicalUrl(origin: string, path = "/"): string {
   const base = origin.replace(/\/+$/, "");
   const pathname = path.split(/[?#]/)[0] || "/";
@@ -49,7 +43,6 @@ export function canonicalUrl(origin: string, path = "/"): string {
   return `${base}${clean.startsWith("/") ? clean : `/${clean}`}`;
 }
 
-/** Sets the document title, description, canonical link, robots and social tags for the page being shown. */
 export function applyPageMeta({ title, description, path, origin, noindex, image }: PageMeta): void {
   document.title = title;
   if (description !== undefined) setNamedMeta("name", "description", description);
@@ -80,7 +73,6 @@ export function applyPageMeta({ title, description, path, origin, noindex, image
   }
 }
 
-/** Applies the page meta while the component is mounted and whenever a field changes. */
 export function usePageMeta(meta: PageMeta): void {
   const { title, description, path, origin, noindex, image } = meta;
   useEffect(() => {

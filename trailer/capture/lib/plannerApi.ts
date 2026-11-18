@@ -1,8 +1,3 @@
-/**
- * The planner's FastAPI backend (the little the deck page needs), answered in the browser through `FakeOptions.extra`.
- * Card names, costs and art come from the real card data in duel-web; owned counts, rarities and market prices are
- * invented for the trailer (they are not real TCGplayer prices).
- */
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Route } from "playwright";
@@ -18,7 +13,6 @@ const catalog = JSON.parse(readFileSync(join(assets, "cardCatalog.json"), "utf8"
 const COLOR: Record<string, string> = { red: "Red", green: "Green", blue: "Blue", purple: "Purple", black: "Black", yellow: "Yellow" };
 const hash = (s: string) => [...s].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 7);
 
-/** Rarity by cost, a stand-in: the duel data carries no rarity. Price by rarity with a per-card wobble. */
 function rarityOf(row: CatalogRow, leader: boolean): string {
   if (leader) return "L";
   const c = row.cost ?? 0;
@@ -29,7 +23,6 @@ function priceOf(id: string, rarity: string): number {
   const wobble = 0.75 + (hash(id) % 60) / 100;
   return Math.round(base * wobble * 100) / 100;
 }
-/** The art the duel board shows: a bundled print when there is one, else the TCGplayer image of the same card. */
 function imageFor(row: CatalogRow): string {
   const local = atlas[row.id]?.imageUrl ?? "";
   if (local.startsWith("/") && existsSync(join(REPO_DIR, "duel-web/public", local))) return `${WEB_ORIGIN}${local}`;

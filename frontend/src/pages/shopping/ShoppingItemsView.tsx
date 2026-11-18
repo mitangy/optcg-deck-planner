@@ -17,17 +17,19 @@ import { GridCard, MobileCard } from "../../ui/PlannerCard";
 import { UsedInCell } from "../../ui/UsedInCell";
 import { mainImageUrl, shownMarket, shownProductId } from "../../cards/altArt";
 import { MarketPrice } from "../../cards/MarketPrice";
+import { AltStripRow, CardBodies, useWideListRows } from "../../cards/AltTray";
 import { OwnedCell, StillNeededCell, ownedCellIsTotal, stillNeededText, totalOwned } from "../collection/OwnedCells";
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { OwnedInput, WantInput } from "../OwnedInputs";
 import { busyProductFor } from "../../cache/busyKey";
 import { COLSORT_SHOPPING_KEY } from "../../storage/keys";
 
+const STRIP_COLS = 7;
+
 function stopCardSelectBubble(e: { stopPropagation(): void }) {
   e.stopPropagation();
 }
 
-/** Used-in text on the public list: decks, the leader breakdown, and cards added without a deck. */
 export function sharedUsedIn(item: ShoppingItem): string {
   return [
     item.used_in.join(", "),
@@ -63,21 +65,15 @@ export function shoppingColumnValue(item: ShoppingItem, key: string) {
   }
 }
 
-/** Master Shopping Market cell: the price (and recent sales) of the art the card shows (#928). */
 function ShownMarketPrice({ item }: { item: ShoppingItem }) {
   const { price, productId } = shownMarket(item);
   return <MarketPrice price={price} productId={productId} />;
 }
 
-/** Collector-copy wiring for Master Shopping (#1031). */
 export type CollectorControls = {
-  /** Sets a printing's collector want (also used by the popover's art picker). */
   onChange: (cardId: string, productId: number, qty: number) => void;
-  /** Removes a line (qty 0) and offers Undo. */
   onRemove: (cardId: string, line: CollectorLine) => void;
-  /** `${cardId}:${productId}` while a collector save is in flight. */
   busyKey: string | null;
-  /** The "Still need" filter: lines already covered are hidden. */
   onlyNeed: boolean;
 };
 
@@ -108,21 +104,19 @@ export function ShoppingItemsView({
   onToggleSelectVisible: () => void;
   showAltArts: boolean;
   altRow: (item: ShoppingItem) => ReactNode;
-  /** Owner pages: saves how many still-needed copies are bought as one alt art (#906). */
   onBuyPick?: (cardId: string, productId: number, qty: number) => void;
-  /** `${cardId}:${productId}` while a buy pick is saving. */
   buyBusyKey?: string | null;
   usedInNote: (item: ShoppingItem) => string;
   onOwnedSaved: () => void;
   onRemoveExtra: (cardId: string) => void;
   removingExtraId: string | null;
-  /** Owner pages: collector copy lines under their card (#1031). */
   collector?: CollectorControls;
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_SHOPPING_KEY);
   const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
+  const wide = useWideListRows();
+  const altCol = showAltArts && !wide;
   if (items.length === 0) return null;
-  // Master Shopping's alt tiles are always editable, so they own the per-art counts.
   const ownedCell = (item: ShoppingItem) => (
     <OwnedCell
       isTotal={ownedCellIsTotal(showAltArts, item.alt_arts?.length ?? 0, true)}
@@ -229,6 +223,9 @@ export function ShoppingItemsView({
                 imageSrc={mainImageUrl(item)}
                 imageProductId={shownProductId(item)}
                 onMediaClick={stopCardSelectBubble}
+                alts={showAltArts && (item.alt_arts?.length ?? 0) > 0 ? altRow(item) : undefined}
+                altCount={item.alt_arts?.length ?? 0}
+                altsProps={{ onClick: stopCardSelectBubble }}
                 meta={
                   <>
                     {stillNeededText(item.still_need, item.need)}
@@ -270,11 +267,6 @@ export function ShoppingItemsView({
                     <div className="grid-card-extra muted" onClick={stopCardSelectBubble}>
                       <span>Added directly</span>
                       {removeExtraButton(item)}
-                    </div>
-                  )}
-                  {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
-                    <div className="grid-card-alts" onClick={stopCardSelectBubble}>
-                      {altRow(item)}
                     </div>
                   )}
               </GridCard>
@@ -371,19 +363,19 @@ export function ShoppingItemsView({
               <SortableTh label="Remaining" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} className="col-cost" />
               <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
-              {showAltArts ? <th>Alt arts</th> : null}
+              {altCol ? <th>Alt arts</th> : null}
             </tr>
           </thead>
-          <tbody>
+          <CardBodies wide={wide}>
             {tableItems.map((item: ShoppingItem) => {
               const checked = selectedCardIds.has(item.card_id);
               const lines = linesOf(item);
-              return (
-                <Fragment key={item.card_id}>
-                <tr
-                  className={`${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}${lines.length > 0 ? " has-collector" : ""}`}
-                >
-                  <td className="select-col">
+              const stripped = wide && showAltArts && (item.alt_arts?.length ?? 0) > 0;
+              const span = stripped ? 2 : undefined;
+              const rowClass = `${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}${lines.length > 0 ? " has-collector" : ""}`;
+              const mainRow = (
+                <tr className={`${rowClass}${wide ? " alt-main-row" : ""}${stripped ? " has-strip" : ""}`}>
+                  <td className="select-col" rowSpan={span}>
                     <input
                       type="checkbox"
                       checked={checked}
@@ -391,7 +383,7 @@ export function ShoppingItemsView({
                       aria-label={`Select ${item.card_id}`}
                     />
                   </td>
-                  <td className="card-cell">
+                  <td className="card-cell" rowSpan={span}>
                     <div className="card-cell-inner">
                       <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
                       <div>
@@ -418,13 +410,19 @@ export function ShoppingItemsView({
                   <td className="used-in">
                     <UsedInCell decks={item.used_in} note={usedInNote(item)} action={removeExtraButton(item)} />
                   </td>
-                  {showAltArts ? (
+                  {altCol ? (
                     <td className="alt-arts-cell" onClick={stopCardSelectBubble}>
                       {altRow(item)}
                     </td>
                   ) : null}
                 </tr>
-                {lines.map((line, idx) => {
+              );
+              const stripRow = stripped ? (
+                <AltStripRow colSpan={STRIP_COLS} className={rowClass} onClick={stopCardSelectBubble}>
+                  {altRow(item)}
+                </AltStripRow>
+              ) : null;
+              const lineRows = lines.map((line, idx) => {
                   const key = lineSelectKey(item, line);
                   const lineChecked = selectedCardIds.has(key);
                   return (
@@ -468,14 +466,33 @@ export function ShoppingItemsView({
                           {lineRemove(item, line)}
                         </div>
                       </td>
-                      {showAltArts ? <td className="alt-arts-cell" /> : null}
+                      {altCol ? <td className="alt-arts-cell" /> : null}
                     </tr>
                   );
-                })}
+                });
+              if (!wide) {
+                return (
+                  <Fragment key={item.card_id}>
+                    {mainRow}
+                    {lineRows}
+                  </Fragment>
+                );
+              }
+              return (
+                <Fragment key={item.card_id}>
+                  <tbody className="card-rows">
+                    {mainRow}
+                    {stripRow}
+                  </tbody>
+                  {lines.map((line, idx) => (
+                    <tbody key={lineSelectKey(item, line)} className="card-rows">
+                      {lineRows[idx]}
+                    </tbody>
+                  ))}
                 </Fragment>
               );
             })}
-          </tbody>
+          </CardBodies>
         </table>
       </div>
 

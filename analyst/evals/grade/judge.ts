@@ -15,10 +15,8 @@ export const JUDGE_MODEL: string = MODELS.sonnet;
 /** The judge for D-group rubrics (pinned here, not ANALYST_CHAT_MODEL, so a changed chat model doesn't change the judge). */
 export const RUBRIC_MODEL: string = MODELS.opus;
 
-/** Dollars per million tokens for the Sonnet judge (input, output, cache reads). */
 const JUDGE_PRICE = { input: 2, output: 10, cacheRead: 0.2 };
 
-/** What one judge call cost, priced by the model that answered: Opus at the chat model's price, anything else at Sonnet's. */
 export const judgeCostUsd = (u: Usage, model: string = JUDGE_MODEL) =>
   model.startsWith("claude-opus")
     ? costUsd(u, model)
@@ -40,7 +38,6 @@ export const RUBRIC_ITEMS: Record<string, string> = {
   R6: "Stats hygiene: when win rates are used, it gives games and interval, names the source, and flags too_few_games.",
 };
 
-/** The items for a case: R1-R6, then its focus items as R7 and up. */
 export const rubricItems = (focus: readonly string[]): Record<string, string> => ({ ...RUBRIC_ITEMS, ...Object.fromEntries(focus.map((f, i) => [`R${i + 7}`, f])) });
 
 const VERDICT_SYSTEM = `You read one answer that a One Piece Card Game deck analyst gave a player, and report what the answer says. You do not decide whether it is right.
@@ -120,7 +117,6 @@ export function anthropicJudge(client: CreateClient, opts: { retryMs?: number } 
   };
 }
 
-/** A D answer's score: passes over the items that apply, 0 when none apply. */
 export function rubricScore(rubric: Rubric): number {
   const applicable = Object.values(rubric).filter((i) => i.pass !== null);
   return applicable.length ? applicable.filter((i) => i.pass).length / applicable.length : 0;
@@ -128,7 +124,6 @@ export function rubricScore(rubric: Rubric): number {
 
 const ZERO: Usage = { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 };
 
-/** Regex stand-in for the judge, for dry runs and tests: no model, no cost. It reads simple, explicit answers only. */
 export function offlineJudge(): Judge {
   const meta = { usage: ZERO, model: "offline-judge", fallback: false };
   return {

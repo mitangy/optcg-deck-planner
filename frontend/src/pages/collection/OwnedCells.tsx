@@ -3,26 +3,18 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../api";
 import { nextWantTarget, wantAtDeckFloor } from "../shopping/shoppingExtras";
 
-/** Base copies plus every owned alt-art copy: what counts toward a deck. */
 export function totalOwned(owned: number, altsOwned?: number): number {
   return owned + Math.max(0, altsOwned ?? 0);
 }
 
-/**
- * Whether the main Owned cell is a read-only total. True only when the alt-art
- * tiles are on screen AND editable, because then the base count is edited under
- * the Base tile instead.
- */
 export function ownedCellIsTotal(showAltArts: boolean, altCount: number, altsEditable: boolean): boolean {
   return showAltArts && altCount > 0 && altsEditable;
 }
 
-/** "Still need 5 of 8", or "Have all 8" once nothing is left to get. */
 export function stillNeededText(still: number, need: number): string {
   return still > 0 ? `Still need ${still} of ${need}` : `Have all ${need}`;
 }
 
-/** "+2 alt" beside the Owned stepper: copies owned as alt arts. */
 export function AltsOwnedNote({ count }: { count?: number }) {
   if (!count || count <= 0) return null;
   return (
@@ -32,7 +24,6 @@ export function AltsOwnedNote({ count }: { count?: number }) {
   );
 }
 
-/** Read-only owned total (base + alts). Counts are edited under each art. */
 export function OwnedTotal({ owned, altsOwned }: { owned: number; altsOwned?: number }) {
   const alts = Math.max(0, altsOwned ?? 0);
   const total = totalOwned(owned, alts);
@@ -48,7 +39,6 @@ export function OwnedTotal({ owned, altsOwned }: { owned: number; altsOwned?: nu
   );
 }
 
-/** The Owned column/row content: read-only total under alt tiles, otherwise the stepper. */
 export function OwnedCell({
   isTotal,
   owned,
@@ -69,7 +59,6 @@ export function OwnedCell({
   );
 }
 
-/** Still-needed count with the deck need as a muted "of N" line (omit `need` where a Want column shows it). */
 export function StillNeededCell({ still, need }: { still: number; need?: number }) {
   return (
     <span className="still-need">
@@ -79,10 +68,6 @@ export function StillNeededCell({ still, need }: { still: number; need?: number 
   );
 }
 
-/**
- * Owned stepper that saves the base count. `compact` matches the alt-art tiles'
- * stepper (caption + small buttons) for use under the Base tile.
- */
 export function OwnedStepper({
   cardId,
   value,
@@ -94,10 +79,8 @@ export function OwnedStepper({
   cardId: string;
   value: number;
   onSaved: () => void;
-  /** Patches cached shopping / collection / deck data right away, and again on save or failure. */
   applyOptimistic: (cardId: string, qty: number) => void;
   compact?: boolean;
-  /** Card name, for the compact stepper's labels. */
   name?: string;
 }) {
   const [draft, setDraft] = useState(String(value));
@@ -128,7 +111,6 @@ export function OwnedStepper({
 
   useEffect(() => {
     serverValueRef.current = value;
-    // Don't clobber an in-progress edit or an optimistic value waiting on the server.
     if (focused || pendingRef.current !== null) return;
     setDraft(String(value));
   }, [value, cardId, focused]);
@@ -233,11 +215,6 @@ export function OwnedStepper({
   );
 }
 
-/**
- * Master Shopping "Want" stepper: copies wanted overall (decks and the direct
- * target combined). Looks like the Owned stepper; the number is read-only.
- * `saveExtra` stores the direct target (0 clears it).
- */
 export function WantStepper({
   cardId,
   name,
@@ -252,7 +229,6 @@ export function WantStepper({
   need: number;
   deckNeed: number;
   extraQty: number;
-  /** Patches the cached shopping list right away, and again with the server value on failure. */
   applyOptimistic: (cardId: string, extraQty: number) => void;
   onSaved: () => void;
 }) {

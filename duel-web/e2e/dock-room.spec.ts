@@ -1,7 +1,3 @@
-/**
- * The primary dock (End turn, Keep / Mulligan) floats in the midline strip. The
- * strip is tall enough for it, so the buttons sit in the gap between the mats.
- */
 import { test, expect, type Page } from "./fixtures";
 
 type Box = { left: number; top: number; right: number; bottom: number };

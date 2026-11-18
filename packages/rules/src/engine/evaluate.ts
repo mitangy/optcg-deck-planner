@@ -1,6 +1,3 @@
-/**
- * Values and conditions: evaluating counts, values and conditions against state.
- */
 import { getCardDef } from "../cards/definitions.js";
 import type { Cond, CountExpr, Value } from "../effects/types.js";
 import type { CardInstance, MatchState } from "../types.js";
@@ -9,10 +6,6 @@ import { type EvalCtx, namesOfDef, relSeat, seatsFor } from "./evalCtx.js";
 import { locateCard } from "./statics.js";
 import { basePowerOf, costOf, powerOf } from "./stats.js";
 import { asList, candidates, cmp, filterMatches, onField } from "./selectors.js";
-
-// ---------------------------------------------------------------------------
-// Values and conditions
-// ---------------------------------------------------------------------------
 
 export function evalCount(state: MatchState, ctx: EvalCtx, expr: CountExpr): number {
   switch (expr.of) {

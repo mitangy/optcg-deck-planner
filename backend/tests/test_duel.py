@@ -120,7 +120,6 @@ def test_dev_token_and_match_ingest(client):
 
 def test_guest_token_is_always_available(client, monkeypatch: pytest.MonkeyPatch):
     c, _SessionLocal = client
-    # The client fixture enables dev login; guest mint must not depend on it.
     monkeypatch.setenv("ENABLE_DEV_LOGIN", "false")
     monkeypatch.setenv("ENABLE_DUEL_DEV_TOKEN", "false")
     get_settings.cache_clear()
@@ -129,7 +128,6 @@ def test_guest_token_is_always_available(client, monkeypatch: pytest.MonkeyPatch
     body = r.json()
     assert body["token"]
     assert body["email"].startswith("guest-")
-    # Same guest id remints the same user.
     r2 = c.post("/duel/guest-token", json={"guest_id": "browserguestid001"})
     assert r2.json()["user_id"] == body["user_id"]
 
@@ -166,7 +164,6 @@ def test_dev_token_hidden_without_flags(monkeypatch: pytest.MonkeyPatch):
 
 
 def test_dev_token_via_staging_flag(monkeypatch: pytest.MonkeyPatch):
-    """Production-like: ENABLE_DEV_LOGIN off, ENABLE_DUEL_DEV_TOKEN on."""
     monkeypatch.setenv("ENABLE_DEV_LOGIN", "false")
     monkeypatch.setenv("ENABLE_DUEL_DEV_TOKEN", "true")
     monkeypatch.setenv("DUEL_INGEST_SECRET", "test-ingest")
@@ -235,7 +232,6 @@ def _ingest(c, match_id: str, seat0: int, seat1: int, winner: int, **extra):
 
 
 def test_ingest_keeps_leaders_turns_and_replay_server_side(client):
-    """Ingest stores leader ids, turn count and the replay (#244)."""
     from app.duel.models import DuelMatchLog
     import json as _json
 
@@ -255,7 +251,6 @@ def test_ingest_keeps_leaders_turns_and_replay_server_side(client):
 
 
 def test_oversized_replay_is_dropped_but_the_result_still_counts(client, monkeypatch: pytest.MonkeyPatch):
-    """An oversized replay is dropped; the result still counts (#244)."""
     from app.duel.models import DuelMatchLog
     from app.routers import duel as duel_router
 
@@ -277,12 +272,10 @@ def test_oversized_replay_is_dropped_but_the_result_still_counts(client, monkeyp
 
 
 def test_my_matches_lists_only_my_games_from_my_seat(client):
-    """Match history lists only my games, from my seat, newest first (#244)."""
     c, _ = client
     me = c.post("/auth/dev-login").json()
     a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
     b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
-    # I sit in seat 1 and win; then seat 0 and lose; then a game I'm not in.
     _ingest(c, "g1", a["user_id"], me["id"], 1, seat0_leader_id="OP01-001", seat1_leader_id="OP05-060", turns=7, replay={"seed": 1})
     _ingest(c, "g2", me["id"], b["user_id"], 1, seat0_leader_id="OP05-060", seat1_leader_id="OP12-001", turns=11)
     _ingest(c, "g3", a["user_id"], b["user_id"], 0)
@@ -324,7 +317,6 @@ def test_my_matches_lists_only_my_games_from_my_seat(client):
 
 
 def test_match_page_shows_only_my_seats_log(client):
-    """A match opened from history carries the log from my seat, never the opponent's (#252)."""
     c, _ = client
     me = c.post("/auth/dev-login").json()
     a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
@@ -343,7 +335,6 @@ def test_match_page_shows_only_my_seats_log(client):
 
 
 def test_oversized_seat_log_is_dropped_but_the_result_still_counts(client, monkeypatch: pytest.MonkeyPatch):
-    """An oversized seat log is dropped; the match still opens, without a log (#252)."""
     from app.routers import duel as duel_router
 
     c, _ = client
@@ -360,7 +351,6 @@ def test_oversized_seat_log_is_dropped_but_the_result_still_counts(client, monke
 
 
 def test_my_matches_needs_sign_in(client):
-    """Match history needs a signed-in player (#244)."""
     c, _ = client
     assert c.get("/duel/matches/me").status_code == 401
 
@@ -374,7 +364,6 @@ def _progress(c, match_id: str, seat0: int, seat1: int, token: str = "test-inges
 
 
 def test_unfinished_game_shows_its_log_so_far_from_my_seat(client):
-    """A game cut short keeps its latest per-turn log, listed as unfinished, my seat only (#316)."""
     c, _ = client
     me = c.post("/auth/dev-login").json()
     a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
@@ -412,7 +401,6 @@ def test_result_replaces_the_unfinished_log_and_late_progress_is_ignored(client)
 
 
 def test_progress_needs_the_ingest_secret(client):
-    """Only the game server can save a game's progress (#316)."""
     c, _ = client
     me = c.post("/auth/dev-login").json()
     a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
@@ -421,7 +409,6 @@ def test_progress_needs_the_ingest_secret(client):
 
 
 def test_oversized_progress_log_is_dropped(client, monkeypatch: pytest.MonkeyPatch):
-    """An unfinished game's oversized log is dropped like a finished one's (#316)."""
     from app.routers import duel as duel_router
 
     c, _ = client
@@ -437,7 +424,6 @@ def test_oversized_progress_log_is_dropped(client, monkeypatch: pytest.MonkeyPat
 
 
 def test_live_progress_stays_in_redis_and_lists_as_unfinished_389(client, fake_redis):
-    """With Redis, per-turn snapshots skip Postgres but still read back as the unfinished game."""
     from app.duel.models import DuelMatchProgress
 
     c, SessionLocal = client
@@ -452,12 +438,10 @@ def test_live_progress_stays_in_redis_and_lists_as_unfinished_389(client, fake_r
     listed = c.get("/duel/matches/me").json()["matches"]
     assert [(m["match_id"], m["finished"], m["turns"], m["your_seat"]) for m in listed] == [("live", False, 2, 1)]
     assert c.get("/duel/matches/me/live").json()["log"] == logs[1]
-    # Different players for the same match id are refused, as in Postgres.
     assert _progress(c, "live", me["id"], a["user_id"]).status_code == 409
 
 
 def test_final_progress_is_durable_in_postgres_with_redis_389(client, fake_redis):
-    """A room closing without a result sends closed: true; that snapshot must reach Postgres."""
     from app.duel.models import DuelMatchProgress
 
     c, SessionLocal = client
@@ -470,14 +454,12 @@ def test_final_progress_is_durable_in_postgres_with_redis_389(client, fake_redis
     with SessionLocal() as db:
         row = db.get(DuelMatchProgress, "cut")
         assert row is not None and row.turns == 2
-    # The durable copy replaces the live one.
     assert not fake_redis.exists("duel:progress:cut")
     assert [m["turns"] for m in c.get("/duel/matches/me").json()["matches"]] == [2]
     assert c.get("/duel/matches/me/cut").json()["log"] == last[0]
 
 
 def test_result_clears_live_progress_in_redis_389(client, fake_redis):
-    """The result deletes the live snapshot; a late or racing one never lists the game twice."""
     from datetime import datetime, timezone
 
     from app.duel import live as duel_live
@@ -489,10 +471,8 @@ def test_result_clears_live_progress_in_redis_389(client, fake_redis):
     _progress(c, "g", me["id"], a["user_id"], turns=1)
     _ingest(c, "g", me["id"], a["user_id"], 0)
     assert not fake_redis.exists("duel:progress:g")
-    # A snapshot that arrives after the result is not stored.
     assert _progress(c, "g", me["id"], a["user_id"], turns=1).status_code == 204
     assert not fake_redis.exists("duel:progress:g")
-    # One that raced past the check is hidden by the reader.
     duel_live.write_progress(
         fake_redis,
         DuelMatchProgress(
@@ -508,7 +488,6 @@ ADMIN = {"X-Catalog-Token": "dev-sync-token"}
 
 
 def test_tokens_carry_the_game_server_pool_pointer_389(client, fake_redis, monkeypatch: pytest.MonkeyPatch):
-    """New games follow the Redis pool pointer, else GAME_SERVER_URL (blue/green without a rebuild)."""
     c, _ = client
     monkeypatch.setenv("GAME_SERVER_URL", "https://gs-blue.example.com")
     get_settings.cache_clear()
@@ -522,7 +501,6 @@ def test_tokens_carry_the_game_server_pool_pointer_389(client, fake_redis, monke
     assert guest["game_server_url"] == "https://gs-green.example.com"
     assert c.get("/duel/admin/game-server-pool", headers=ADMIN).json()["pool_url"] == "https://gs-green.example.com"
 
-    # Clearing the pointer falls back to the environment.
     assert c.put("/duel/admin/game-server-pool", json={"url": None}, headers=ADMIN).json()["pool_url"] is None
     assert c.post("/duel/dev-token", json={"user_key": "alice"}).json()["game_server_url"] == "https://gs-blue.example.com"
 
@@ -588,11 +566,9 @@ def test_a_cut_off_games_recording_opens_only_after_its_room_closed_476(client):
     opened = c.get("/duel/matches/me/cut/replay")
     assert opened.status_code == 200, opened.text
     assert (opened.json()["finished"], opened.json()["turns"], opened.json()["replay"]) == (False, 3, _replay("cut"))
-    # A game of two other players is not mine, closed or not.
     b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()
     _progress(c, "theirs", a["user_id"], b["user_id"], replay=_replay("theirs"), closed=True)
     assert c.get("/duel/matches/me/theirs/replay").status_code == 404
-    # A closed game whose recording was too big to keep has nothing to watch.
     _progress(c, "nolog", me["id"], a["user_id"], closed=True)
     assert c.get("/duel/matches/me/nolog/replay").status_code == 404
 
@@ -656,13 +632,10 @@ def test_new_guest_accounts_are_capped_per_client_ip_318(client, monkeypatch: py
     first = c.post("/duel/guest-token", json={"guest_id": "freshguest0001"}, headers=ip)
     assert first.status_code == 200, first.text
     assert c.post("/duel/guest-token", json={"guest_id": "freshguest0002"}, headers=ip).status_code == 200
-    # A third brand-new id from the same client creates no account.
     assert c.post("/duel/guest-token", json={"guest_id": "freshguest0003"}, headers=ip).status_code == 429
-    # Re-minting an existing guest needs no new-account slot.
     again = c.post("/duel/guest-token", json={"guest_id": "freshguest0001"}, headers=ip)
     assert again.status_code == 200
     assert again.json()["user_id"] == first.json()["user_id"]
-    # Another client still gets in.
     assert c.post("/duel/guest-token", json={"guest_id": "freshguest0004"}, headers={"X-Forwarded-For": "198.51.100.9"}).status_code == 200
     with SessionLocal() as db:
         assert db.query(User).filter(User.email.like("guest-freshguest%")).count() == 3
@@ -712,15 +685,14 @@ def test_rating_me_counts_wins_losses_and_rank_431(client):
     a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()["user_id"]
     b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()["user_id"]
     d = c.post("/duel/dev-token", json={"user_key": "dave"}).json()["user_id"]
-    # Win from seat 1, loss from seat 0, unranked win from seat 0, and a game I'm not in.
     _ingest(c, "w1", a, me["id"], 1)
     _ingest(c, "l1", me["id"], b, 1)
     _ingest(c, "u1", me["id"], a, 0, ranked=False)
     _ingest(c, "x1", a, b, 0)
     _set_rating(SessionLocal, me["id"], 1100, 2)
-    _set_rating(SessionLocal, a, 1200, 5)  # higher, played
-    _set_rating(SessionLocal, b, 1100, 4)  # tied, not strictly higher
-    _set_rating(SessionLocal, d, 1900, 0)  # higher but never played
+    _set_rating(SessionLocal, a, 1200, 5)
+    _set_rating(SessionLocal, b, 1100, 4)
+    _set_rating(SessionLocal, d, 1900, 0)
 
     body = c.get("/duel/rating/me").json()
     assert body["wins"] == 2
@@ -772,13 +744,10 @@ def test_live_counts_fresh_playing_rooms_and_online_users_431(client):
     c, SessionLocal = client
     keys = ("p1", "p2", "p3", "wait", "fin", "stale", "spec", "seen", "oldseen", "seenplay")
     u = {k: _live_user(c, k) for k in keys}
-    # Room r1: two players are one match. A spectator is online but adds no match,
-    # even in a room of its own.
     _presence(SessionLocal, u["p1"], "r1")
     _presence(SessionLocal, u["p2"], "r1")
     _presence(SessionLocal, u["spec"], "r7", role="spectator")
     _presence(SessionLocal, u["p3"], "r2")
-    # A waiting room is online but not a match.
     _presence(SessionLocal, u["wait"], "r3", phase="waiting")
     # Finished rooms and stale rows count for nothing.
     _presence(SessionLocal, u["fin"], "r4", phase="finished")
@@ -788,12 +757,11 @@ def test_live_counts_fresh_playing_rooms_and_online_users_431(client):
         now = datetime.now(timezone.utc)
         db.add(DuelLobbySeen(user_id=u["seen"], seen_at=now))
         db.add(DuelLobbySeen(user_id=u["oldseen"], seen_at=now - timedelta(seconds=600)))
-        db.add(DuelLobbySeen(user_id=u["seenplay"], seen_at=now))  # counted once
+        db.add(DuelLobbySeen(user_id=u["seenplay"], seen_at=now))
         db.commit()
 
     r = c.get("/duel/live")
     assert r.status_code == 200
-    # online: p1 p2 p3 spec wait seen seenplay
     assert r.json() == {"online": 7, "matches": 2}
 
 
@@ -810,7 +778,6 @@ def test_live_result_is_cached_for_30_seconds_431(client, monkeypatch: pytest.Mo
 
 
 def test_idle_live_game_log_is_saved_to_postgres_when_its_server_dies_682(client, fake_redis):
-    """A crashed game server never sends the closed log, so the sweep saves the last live one."""
     from datetime import datetime, timedelta, timezone
 
     from app.duel import live as duel_live
@@ -826,12 +793,10 @@ def test_idle_live_game_log_is_saved_to_postgres_when_its_server_dies_682(client
     now = datetime.now(timezone.utc)
 
     with SessionLocal() as db:
-        # Both were updated a moment ago: nothing is idle yet.
         assert sweep_idle_progress(fake_redis, db, now + timedelta(minutes=5)) == 0
         assert db.get(DuelMatchProgress, "crashed") is None
         assert fake_redis.exists("duel:progress:crashed")
 
-    # 40 minutes on, "playing" has just sent another snapshot; "crashed" has not.
     later = now + timedelta(minutes=40)
     live = duel_live.read_progress(fake_redis, "playing")
     live.updated_at = later - timedelta(minutes=1)
@@ -843,7 +808,6 @@ def test_idle_live_game_log_is_saved_to_postgres_when_its_server_dies_682(client
         assert db.get(DuelMatchProgress, "playing") is None
     assert not fake_redis.exists("duel:progress:crashed")
     assert fake_redis.exists("duel:progress:playing")
-    # Now it reads like any game that closed without a result, from Postgres.
     listed = {m["match_id"]: m for m in c.get("/duel/matches/me").json()["matches"]}
     assert listed["crashed"]["finished"] is False and listed["crashed"]["has_log"] is True
     assert c.get("/duel/matches/me/crashed").json()["log"] == log[0]
@@ -862,18 +826,14 @@ def test_an_idle_game_swept_to_postgres_keeps_its_replay_locked_651(client, fake
     assert c.get("/duel/matches/me/slow/replay").status_code == 409
     with SessionLocal() as db:
         assert sweep_idle_progress(fake_redis, db, datetime.now(timezone.utc) + timedelta(minutes=31)) == 1
-    # A long turn is not a finished game: the swept copy stays locked...
     assert c.get("/duel/matches/me/slow/replay").status_code == 409
-    # ...also after the game sends its next live snapshot.
     _progress(c, "slow", me["id"], a["user_id"], replay=_replay("slow"), turns=4)
     assert c.get("/duel/matches/me/slow/replay").status_code == 409
-    # Even once the swept row is a day old, a fresh live snapshot keeps it locked.
     with SessionLocal() as db:
         row = db.get(DuelMatchProgress, "slow")
         row.updated_at = datetime.now(timezone.utc) - timedelta(hours=25)
         db.commit()
     assert c.get("/duel/matches/me/slow/replay").status_code == 409
-    # Once the room closes it opens.
     assert _progress(c, "slow", me["id"], a["user_id"], replay=_replay("slow"), turns=5, closed=True).status_code == 204
     assert c.get("/duel/matches/me/slow/replay").status_code == 200
 
@@ -889,7 +849,6 @@ def test_idle_sweep_does_not_bring_back_a_finished_game_682(client, fake_redis):
     me = c.post("/auth/dev-login").json()
     a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()
     _ingest(c, "done", me["id"], a["user_id"], 0)
-    # A snapshot that raced past the result check.
     stale = datetime.now(timezone.utc) - timedelta(hours=1)
     duel_live.write_progress(
         fake_redis,
@@ -918,7 +877,6 @@ def test_progress_sweep_only_runs_with_redis_682():
 
 
 def test_progress_sweep_leaves_postgres_alone_with_no_idle_games_682(fake_redis, monkeypatch):
-    """No idle snapshot, no query: a sweep every 10 minutes must not keep Neon awake."""
     from datetime import datetime, timedelta, timezone
 
     from app.core import db as app_db
@@ -930,7 +888,6 @@ def test_progress_sweep_leaves_postgres_alone_with_no_idle_games_682(fake_redis,
 
     monkeypatch.setattr(app_db, "try_advisory_lock", no_db)
     monkeypatch.setattr(app_db, "SessionLocal", no_db)
-    # A live game that is still sending snapshots is not idle.
     fake_redis.zadd(duel_live.PROGRESS_INDEX_KEY, {"live": datetime.now(timezone.utc).timestamp()})
     assert progress_sweep.run_once() == 0
     fake_redis.zadd(duel_live.PROGRESS_INDEX_KEY, {"live": (datetime.now(timezone.utc) - timedelta(hours=1)).timestamp()})
@@ -1051,7 +1008,6 @@ def test_a_bot_game_with_an_oversized_replay_is_still_counted_without_it_1202(cl
     assert (r.status_code, r.json()["created"]) == (200, True)
     with S() as db:
         row = db.query(DuelSoloGame).one()
-        # Compare sizes, not the text: a failure printing a 1.5 MB string overflows the mutation runner's output.
         assert (row.won, len(row.replay or "")) == (True, 0)
 
 

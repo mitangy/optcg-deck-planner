@@ -4,7 +4,6 @@ import { donArtUrl, fallbackToDefaultDon } from "../board/don/donArt";
 
 type DonPrinting = { productId: number; name: string; set: string };
 
-/** Settings picker for the DON!! card art (#440). The catalog loads on demand, off the board bundle. */
 export function DonArtPicker({
   value,
   onChange,

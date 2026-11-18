@@ -1,4 +1,3 @@
-/** Positions and sizes for the motion piece. One implementation, two layouts: scenes read everything from here. */
 export type MotionLayout = {
   name: string;
   width: number;
@@ -32,7 +31,6 @@ export const MOTION_16x9: MotionLayout = {
   end: {logoSize: 210, logoY: 250, headY: 520, headSize: 100, pillY: 690, pillSize: 54, discY: 960, discSize: 24, discW: 1400},
 };
 
-/** 9:16: text stays inside y 220..1580 (Instagram covers the top 220 and bottom 340 px). */
 export const MOTION_9x16: MotionLayout = {
   name: '9x16', width: 1080, height: 1920, vertical: true,
   bg: {cx: 540, cy: 960, compass: 820},

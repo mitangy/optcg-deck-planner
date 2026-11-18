@@ -1,8 +1,3 @@
-/**
- * Tab rows on the shared Headless UI Tabs (#719): the admin sections and the lobby's Create / Join row.
- * Real arrow keys, Home / End and focus. The FastAPI backend is faked in the browser, and the admin
- * is a fake account (no production sign-in). Runs at desktop-1280 and phone-375.
- */
 import { expect, test, FAKE_API, seedDecks, signInAs } from "./fixtures";
 
 const ADMIN = { uid: 1, name: "boss" };
@@ -24,7 +19,6 @@ test("Admin sections: arrows, Home and End move between tabs and each tab shows 
   await expect(tab("Players")).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("tabpanel")).toContainText("Could not load this tab");
 
-  // A mouse click draws no focus ring; keyboard focus does.
   await tab("Hosting").click();
   await expect(tab("Hosting")).toBeFocused();
   await expect(tab("Hosting")).toHaveCSS("outline-style", "none");
@@ -52,9 +46,7 @@ test("Admin sections: arrows, Home and End move between tabs and each tab shows 
   await expect(tab("Hosting")).toHaveAttribute("aria-selected", "true");
   await page.keyboard.press("Home");
   await expect(tab("Players")).toHaveAttribute("aria-selected", "true");
-  // Only the selected tab is in the Tab order.
   await expect(tab("Hosting")).toHaveAttribute("tabindex", "-1");
-  // The tab row never makes the page scroll sideways.
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });
 

@@ -5,14 +5,6 @@ import type { ChoiceRequestView, Intent, PendingChoiceView } from "../net/protoc
 import { CardTile } from "./CardTile";
 import { floatCardSize, floatLookAnswer, moveId, nearestSlot, tapInOrder } from "./floatOrder";
 
-/**
- * Floating-card prompts (mirrors duel-web's FloatingPrompt): instead of a panel
- * in the scroll view, the cards an effect works with float over a dimmed board.
- * Tap a card to pick it, drag cards (or use ◀ ▶) to reorder, then confirm. The
- * row reads left → right: top of deck → bottom, or first effect → last.
- */
-
-/** Pending choices that can float; everything else keeps the inline prompt. */
 export function canFloat(choice: PendingChoiceView): boolean {
   if (choice.kind === "order_effects") return (choice.unorderedChoices?.length ?? 0) > 1;
   const request = choice.request;
@@ -24,10 +16,6 @@ const GAP = 8;
 
 type Slots = Map<string, { x: number; y: number }>;
 
-/**
- * One card in the row. A press is a tap; moving past a few px turns it into a
- * drag: the card follows the finger and the row reorders live under it.
- */
 function FloatCard({ id, slots, onReorder, width, children, below, lifted, dimmed }: {
   id: string;
   slots: React.MutableRefObject<Slots>;
@@ -58,7 +46,6 @@ function FloatCard({ id, slots, onReorder, width, children, below, lifted, dimme
           const x = start.current.x + g.dx;
           const y = start.current.y + g.dy;
           live.current.onReorder(id, x, y);
-          // Follow the finger from wherever this card's slot is now.
           const slot = slots.current.get(id) ?? start.current;
           pan.setValue({ x: x - slot.x, y: y - slot.y });
         },
@@ -97,7 +84,6 @@ function FloatCard({ id, slots, onReorder, width, children, below, lifted, dimme
   );
 }
 
-/** Live drag reorder for a row: the dragged card takes the slot nearest the finger. */
 function useRowReorder(order: string[], setOrder: (next: string[]) => void) {
   const slots = useRef<Slots>(new Map());
   const live = useRef({ order, setOrder });
@@ -120,7 +106,6 @@ function Shell({ title, prompt, count, peek, onPeek, axis, note, actions, childr
   axis: [string, string] | null;
   note?: string;
   actions: ReactNode;
-  /** Gets the card width that fits the overlay's own box (the board area, not the whole window). */
   children: (cardW: number) => ReactNode;
 }) {
   const win = useWindowDimensions();
@@ -204,12 +189,10 @@ function sourceName(choice: PendingChoiceView): string {
   return choice.cardDefId && choice.cardDefId !== "HIDDEN" ? lookupCard(choice.cardDefId).name : "Effect";
 }
 
-/** Search / look at the top N cards: tap to take, drag to set the put-back order. */
 function FloatLook({ choice, request, onSend }: { choice: PendingChoiceView; request: Extract<ChoiceRequestView, { type: "look" }>; onSend: (i: Intent) => void }) {
   const byId = useMemo(() => new Map(request.options.map((o) => [o.id, o])), [request.options]);
   const [row, setRow] = useState<string[]>(() => request.options.map((o) => o.id));
   const [picked, setPicked] = useState<string[]>([]);
-  // "Top or bottom" moves the rest together: one switch for all of them.
   const [side, setSide] = useState<"top" | "bottom">("top");
   const [peek, setPeek] = useState(false);
   const { slots, onReorder } = useRowReorder(row, setRow);
@@ -303,7 +286,6 @@ function FloatLook({ choice, request, onSend }: { choice: PendingChoiceView; req
   );
 }
 
-/** Several effects at once: tap them in the order to resolve, or drag left → right. */
 function FloatEffectOrder({ choice, onSend }: { choice: PendingChoiceView; onSend: (i: Intent) => void }) {
   const effects = choice.unorderedChoices ?? [];
   const byId = useMemo(() => new Map(effects.map((c) => [c.id, c])), [effects]);
@@ -376,7 +358,6 @@ function FloatEffectOrder({ choice, onSend }: { choice: PendingChoiceView; onSen
   );
 }
 
-/** Floating version of the choice prompt for the pending choices `canFloat` accepts. */
 export function FloatingPrompt({ choice, onSend }: { choice: PendingChoiceView; onSend: (i: Intent) => void }) {
   if (choice.kind === "order_effects") return <FloatEffectOrder choice={choice} onSend={onSend} />;
   if (choice.request?.type === "look") return <FloatLook choice={choice} request={choice.request} onSend={onSend} />;

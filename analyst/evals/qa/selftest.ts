@@ -11,7 +11,6 @@ import type { EvalCase, Gold } from "./types";
 
 const BAD_ANSWERS = ["", "I don't know.", "The Eiffel Tower is about 330 metres tall and was finished in 1889."];
 
-/** The gold for a self-test case, taken from the committed case alone (no network). */
 function offlineGold(c: EvalCase): Gold {
   const cites = resolveCites(c.cites, { faq: "ruling:self#1", deck: "deck:self" });
   if (c.group === "A") return { status: "ok", cites, verdict: c.verdict === "no_ruling" ? "no_ruling" : c.verdict };

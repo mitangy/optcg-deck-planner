@@ -1,18 +1,12 @@
 import { useState } from "react";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 
-/** Escape and an outside click must not dismiss this notice; only its two buttons leave it. */
 const noop = () => {};
 
-/**
- * Shown on the old device after the account took this match over elsewhere
- * (#451). Fixed over the frozen board, so nothing in the board moves.
- */
 export function MovedElsewhereOverlay({
   onPlayHere,
   onLeave,
 }: {
-  /** Take the match back to this device. */
   onPlayHere: () => Promise<void> | void;
   onLeave: () => void;
 }) {

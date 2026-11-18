@@ -9,9 +9,7 @@ export type Budget = {
   spent_today_usd: number;
   daily_cap_usd: number;
   model?: string;
-  /** The limit that stops this player, when one does. */
   refusal?: Refusal | null;
-  /** This month's credit (null for an owner), what the player has used of it, and when it refills. */
   credit_usd?: number | null;
   credit_spent_usd?: number;
   credit_resets_at?: string;
@@ -25,14 +23,11 @@ function logEvent(event: string, fields: Record<string, unknown>) {
   console.error(JSON.stringify({ event, ...fields }));
 }
 
-/** The user id inside a chat token (`chat.<user>.<exp>.<sig>`): safe to log, unlike the token itself. */
 const userKey = (token: string) => token.split(".")[1] ?? "unknown";
 
-/** HTTP status of a failed planner call, or null for a network error / timeout. */
 const statusOf = (err: unknown): number | null => (err instanceof PlannerApiError ? err.status : null);
 const errorMessage = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-/** The model Log Pose runs on right now (the planner holds the one setting both apps share). A failed lookup means CHAT_MODEL. */
 export async function currentModel(api: PlannerApi, token: string): Promise<string> {
   try {
     return modelOf(await plannerCall<Budget>(api, token, "/analyst/chat/budget", true));
@@ -42,7 +37,6 @@ export async function currentModel(api: PlannerApi, token: string): Promise<stri
   }
 }
 
-/** Checks the chat token only; throws ChatHttpError before anything is streamed. */
 export async function admitToken(api: PlannerApi, token: string | null): Promise<string> {
   if (!token?.startsWith("chat.")) throw new ChatHttpError(401, "Sign in again to use Log Pose.", "auth");
   let valid: boolean;
@@ -66,17 +60,14 @@ export async function checkBudget(api: PlannerApi, token: string, kind: Kind = "
   return modelOf(budget);
 }
 
-/** Checks the chat token and the limits; throws ChatHttpError before anything is streamed. */
 export async function admit(api: PlannerApi, token: string | null, kind: Kind = "chat"): Promise<string> {
   const ok = await admitToken(api, token);
   await checkBudget(api, ok, kind);
   return ok;
 }
 
-/** How a request went, for the usage log. */
 type UsageMeta = { threadId?: number; outcome?: "ok" | "error" | "aborted"; toolCalls?: number; durationMs?: number };
 
-/** Wait before the one retry of a usage write. */
 const USAGE_RETRY_DELAY_MS = 250;
 
 /**
@@ -147,7 +138,6 @@ export async function refusalNow(api: PlannerApi, token: string, extra: number):
 const MAX_STREAMS_PER_USER = 2;
 const streaming = new Map<string, number>();
 
-/** Claims one of the user's streams (the token's user id; admit has checked its signature). Returns the release. */
 export async function claimStream(api: PlannerApi, token: string, kind: Kind): Promise<() => void> {
   const user = token.split(".")[1] ?? token;
   const running = streaming.get(user) ?? 0;

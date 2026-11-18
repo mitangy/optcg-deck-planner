@@ -10,7 +10,6 @@ export function invalidateAltWantViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: qk.groupBuys() });
 }
 
-/** Alt owned changes still-needed copies everywhere, including group-buy needs. */
 export function invalidateAltOwnedViews(qc: ReturnType<typeof useQueryClient>) {
   invalidateOwnedViews(qc);
   void qc.invalidateQueries({ queryKey: qk.decks() });

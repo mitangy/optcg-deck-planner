@@ -1,4 +1,3 @@
-/** First-visit "how it works" for guests, until dismissed or a match starts from the lobby. */
 export function IntroStrip({ onDismiss }: { onDismiss: () => void }) {
   return (
     <section className="intro" aria-label="How it works">

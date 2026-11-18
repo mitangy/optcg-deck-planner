@@ -36,10 +36,6 @@ type Active =
       colH: number;
     };
 
-/**
- * The height a panel's content needs, measured with its sizing styles lifted for
- * a moment (restored before anything paints).
- */
 function naturalHeightOf(el: HTMLElement): number {
   const saved = el.style.cssText;
   el.style.cssText = `${saved};flex:0 0 auto;height:auto;min-height:0;max-height:none`;
@@ -48,7 +44,6 @@ function naturalHeightOf(el: HTMLElement): number {
   return h;
 }
 
-/** A panel's smallest height in px: its floor, its CSS minimum (percentages against the column), its content. */
 function minHeightOf(el: HTMLElement, colH: number): number {
   const raw = getComputedStyle(el).minHeight;
   const css = raw.endsWith("%") ? (parseFloat(raw) / 100) * colH : parseFloat(raw);
@@ -56,7 +51,6 @@ function minHeightOf(el: HTMLElement, colH: number): number {
   return panelMinHeight(id, css, naturalHeightOf(el));
 }
 
-/** The narrowest a column goes: the widest minimum among the panels now in it. */
 function columnMinOf(col: HTMLElement | null): number {
   const ids = col ? [...col.querySelectorAll<HTMLElement>(":scope > [data-panel]")].map((e) => e.dataset.panel as PanelId) : [];
   return columnMinPx(ids);
@@ -67,7 +61,6 @@ function contentHeight(col: HTMLElement): number {
   return col.clientHeight - parseFloat(s.paddingTop) - parseFloat(s.paddingBottom);
 }
 
-/** Measure the two panels around a divider; null when either is not on screen. */
 function measureSplit(root: HTMLElement, a: PanelId, b: PanelId) {
   const elA = root.querySelector<HTMLElement>(`[data-panel="${a}"]`);
   const elB = root.querySelector<HTMLElement>(`[data-panel="${b}"]`);
@@ -88,12 +81,6 @@ function columnEl(root: HTMLElement, column: PanelColumn) {
   return root.querySelector<HTMLElement>(`[data-panel-col="${column}"]`);
 }
 
-/**
- * Drag-to-resize for the desktop side panels: the inner edge of each column
- * sets its width, the divider between two neighbouring panels moves height from
- * one to the other. The panels follow the pointer live (local state); the
- * size is only saved on release, and Esc puts everything back.
- */
 export function usePanelResize(
   rootRef: React.RefObject<HTMLElement | null>,
   sizes: PanelSizes,
@@ -103,7 +90,6 @@ export function usePanelResize(
   const liveRef = useRef<PanelSizes | null>(null);
   const activeRef = useRef<Active | null>(null);
   const [resizing, setResizing] = useState(false);
-  /** Sizes read from the screen for handles with nothing saved yet (aria-valuenow). */
   const [measured, setMeasured] = useState<Record<string, number>>({});
   const latest = useRef({ sizes, onChange });
   latest.current = { sizes, onChange };
@@ -176,7 +162,6 @@ export function usePanelResize(
     setResizing(true);
   };
 
-  /** Read the current size of a handle's target from the screen. */
   const measure = useCallback(
     (key: string, a: PanelColumn | PanelId, b?: PanelId) => {
       const root = rootRef.current;
@@ -232,7 +217,6 @@ export function usePanelResize(
         const root = rootRef.current;
         const el = root && columnEl(root, column);
         if (!el) return;
-        // The left column grows to the right, the right one to the left.
         const grow = e.key === (column === "left" ? "ArrowRight" : "ArrowLeft");
         const w = latest.current.sizes.widths[column] ?? el.getBoundingClientRect().width;
         commit(setWidth(latest.current.sizes, column, nudgeColumnWidth(w, grow, window.innerWidth, columnMinOf(el))));
@@ -241,10 +225,6 @@ export function usePanelResize(
     };
   };
 
-  /**
-   * The bar on a column's bottom edge (#633): drag it up to shorten the column and free a corner
-   * below it for the fanned hand; back down (or double-click, Home / Delete) to remove the cut.
-   */
   const cutHandleProps = (column: PanelColumn) => {
     const cut = shown.cuts[column];
     return {
@@ -277,7 +257,6 @@ export function usePanelResize(
     };
   };
 
-  /** The divider above panel `b`, between it and the panel `a` above it. */
   const dividerProps = (a: PanelId, b: PanelId, label: string) => {
     const key = `split:${a}:${b}`;
     const saved = shown.heights[a];
@@ -317,10 +296,8 @@ export function usePanelResize(
     };
   };
 
-  /** Inline overrides for the board root: the column widths, clamped by CSS for a smaller window. */
   const arenaStyle = (
     columns: Record<PanelColumn, readonly PanelId[]>,
-    /** Columns whose cut applies (on screen, desktop): `--cut-left` / `--cut-right`, the share of the window freed below. */
     cutColumns: Record<PanelColumn, boolean> = { left: false, right: false },
   ): CSSProperties | undefined => {
     const cutL = cutColumns.left ? shown.cuts.left : undefined;
@@ -335,10 +312,6 @@ export function usePanelResize(
         } as CSSProperties);
   };
 
-  /**
-   * A panel's inline height. `last` is the panel at the bottom of its column:
-   * it always grows, so a sized column never leaves an empty gap.
-   */
   const panelStyle = (id: PanelId, last: boolean, columnSized: boolean): CSSProperties | undefined => {
     const share = shown.heights[id];
     if (share != null) return { flex: `${last ? 1 : 0} 1 ${share * 100}%`, maxHeight: "none" };

@@ -85,7 +85,6 @@ export class OfficialLibrary {
       const entries: QaEntry[] = [];
       const general: QaEntry[] = [];
       const failed: string[] = [];
-      // Two at a time keeps memory low enough for a small instance.
       for (let i = 0; i < files.length; i += 2) {
         await Promise.all(
           files.slice(i, i + 2).map(async (f) => {
@@ -103,7 +102,6 @@ export class OfficialLibrary {
     });
   }
 
-  /** Bandai Organized Play's Tournament Rules Manual: event rules (time, rounds, penalties), not game rules. */
   tournamentRules(): Promise<TournamentDoc> {
     return this.cached("tournament", async () => {
       const doc = parseTournamentRules((await this.pdf(this.url("/pdf/tournament_rules_manual.pdf"))).flatMap(pageLines));

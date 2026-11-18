@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-/**
- * Duration-balanced Playwright shards (#737).
- *
- *   node scripts/e2e-shards.mjs <index> <total>        # files for shard <index> (1-based), space-separated
- *   node scripts/e2e-shards.mjs --update <report.json>... # refresh e2e/timings.json from Playwright JSON reports
- *
- * Run from duel-web/. Specs are assigned longest first to the lightest shard,
- * using the seconds in e2e/timings.json.
- */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -22,7 +13,6 @@ function median(xs) {
   return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
-/** Spec paths (e.g. "e2e/a.spec.ts") -> n arrays. Weight comes from `timings` by file name. */
 export function planShards(specs, timings, n) {
   const name = (p) => p.split("/").pop();
   const known = specs.map((p) => timings[name(p)]).filter((v) => typeof v === "number");
@@ -40,7 +30,6 @@ export function planShards(specs, timings, n) {
   return shards;
 }
 
-/** Sum test durations (ms) per spec file name across all projects in Playwright JSON reports. */
 export function sumReports(reports) {
   const ms = {};
   const walk = (suite) => {

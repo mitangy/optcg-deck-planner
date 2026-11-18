@@ -26,7 +26,6 @@ describe("hand order sender", () => {
     s.update(["a", "b"]);
     vi.advanceTimersByTime(HAND_ORDER_DEBOUNCE_MS);
     expect(send).toHaveBeenCalledTimes(1);
-    // Sorted, then put back before the timer fired: nothing changed from the room's view.
     s.update(["b", "a"]);
     vi.advanceTimersByTime(HAND_ORDER_DEBOUNCE_MS / 2);
     s.update(["a", "b"]);

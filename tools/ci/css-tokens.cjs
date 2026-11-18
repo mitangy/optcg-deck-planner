@@ -1,13 +1,5 @@
 #!/usr/bin/env node
-/**
- * Keeps the stylesheets on the shared z-index scale (refactor 4.1a).
- *
- *   node tools/ci/css-tokens.cjs
- *
- * Every layer lives in packages/ui/src/tokens.css as a `--z-*` custom property. A stylesheet that writes
- * `z-index: 42` instead of `var(--z-...)` puts a layer outside the scale again, and the next stacking bug
- * is found by trial and error. `z-index: auto` and `var(...)` are fine; so is a number in a comment.
- */
+// A raw `z-index: 42` puts a layer outside the `--z-*` scale in packages/ui/src/tokens.css, and the next stacking bug is found by trial and error.
 "use strict";
 
 const fs = require("fs");
@@ -15,7 +7,6 @@ const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const TOKENS = "packages/ui/src/tokens.css";
-/** Where the app and package stylesheets live. */
 const CSS_ROOTS = ["frontend/src", "duel-web/src", "packages"];
 
 /** Replaces comments with blank text of the same length, so line numbers stay right. */

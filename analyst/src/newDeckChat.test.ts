@@ -8,7 +8,6 @@ describe("Log Pose builds a new deck (#726)", () => {
     { id: "ST01-015", copies: 2 },
   ];
   const build = { type: "tool_use", id: "d1", name: "propose_new_deck", input: { name: "Red Luffy", leader_id: "ST01-001", cards: MAIN, summary: "Plain red beats." } };
-  // A new deck needs no open deck: the player can ask from any page.
   const body = { message: "Build me a red Luffy deck", context: { app: "planner" as const } };
   const run = async (save: boolean, call: typeof build = build) => {
     const { calls, api } = planner({

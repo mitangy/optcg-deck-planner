@@ -13,17 +13,11 @@ import { useTrackedBoxes } from "./layout/useTrackedBoxes";
 const CONFIRM_W = 250;
 const EDGE = 8;
 
-/**
- * The element's laid-out size on screen (laid-out size x `scale`, the Pop-up size setting: popupScale.css
- * scales these pop-ups without changing their layout box), re-read when its content or the window changes
- * (0 until it mounts).
- */
 function useMeasuredSize(ref: { current: HTMLElement | null }, key: string, scale = 1): PopoverSize {
   const [size, setSize] = useState<PopoverSize>({ width: 0, height: 0 });
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // scrollHeight: the natural height even while a short window caps it and scrolls.
     const read = () => {
       const next = { width: el.offsetWidth * scale, height: Math.max(el.offsetHeight, el.scrollHeight) * scale };
       setSize((prev) => (prev.width === next.width && prev.height === next.height ? prev : next));
@@ -37,11 +31,6 @@ function useMeasuredSize(ref: { current: HTMLElement | null }, key: string, scal
   return size;
 }
 
-/**
- * "Attach N DON!!" confirm, anchored to the tapped Leader / Character. Fixed
- * overlay (portal) so opening it never shifts the board; it follows the card
- * through resizes and flips below the card when there's no room above.
- */
 export function DonAttachConfirm({
   pending,
   targetName,
@@ -67,11 +56,10 @@ export function DonAttachConfirm({
 
   if (typeof document === "undefined") return null;
   const vw = window.innerWidth;
-  // CSS sizes the confirm with its font; before the first measure assume the old 250px.
+  // Before the first measure, assume 250px (CSS sizes the confirm with its font).
   const width = size.width || Math.min(CONFIRM_W * scale, vw - EDGE * 2);
   let style: CSSProperties;
   if (box) {
-    // Above the card when it fits, else below, else slid back on screen.
     const place = popoverPlacement(box, { width, height: size.height }, { width: vw, height: window.innerHeight }, EDGE, -8);
     style = {
       left: place.left,
@@ -117,20 +105,12 @@ export function DonAttachConfirm({
 export type CardActionButton = {
   id: string;
   text: CardActionText;
-  /** Hotkey badge data, as on the intent bar's buttons. */
   keyNum?: number | null;
   keyLetter?: string | null;
   keyTag?: string;
   onPress: () => void;
 };
 
-/**
- * The selected card's actions, as a small popover on the card itself ("Activate
- * Ability", "Counter +2000", Play, Attack...). With `donCounts` the +1 / +2 / All
- * DON!! chips sit in the same popover, so one card never gets two overlays.
- * Fixed overlay (portal) that follows the card, tucked over its top edge or
- * below it when there is no room, clamped to the viewport; never shifts layout.
- */
 export function CardActionPopover({
   anchorId,
   cardName,
@@ -159,7 +139,6 @@ export function CardActionPopover({
     top: place.top,
     transform: place.above ? "translate(-50%, -100%)" : "translate(-50%, 0)",
   };
-  // A window shorter than the popover scrolls its buttons rather than running them off screen.
   if (size.height > window.innerHeight - EDGE * 2) {
     style.maxHeight = (window.innerHeight - EDGE * 2) / scale;
     style.overflowY = "auto";
@@ -214,11 +193,6 @@ export type GhostPayload =
   | { type: "give_don"; count: number }
   | { type: "play_card" | "counter"; defId: string; artCopy?: number; ownerSeat?: Seat };
 
-/**
- * Card that follows the pointer while a drag is in flight (mouse or touch),
- * so desktop users can see what they're carrying. pointer-events: none so
- * drop hit-testing (elementFromPoint) sees the board underneath.
- */
 export function DragGhost({ payload }: { payload: GhostPayload | null }) {
   const donArt = useDonArt();
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);

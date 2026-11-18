@@ -6,7 +6,6 @@ vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeIt
 import { clearPreviewCard, endPreviewHover, getPreviewCard, getPreviewHovering } from "../preview/cardPreview";
 import { ZonePile } from "./ZonePile";
 
-/** Every element in a rendered tree whose className has `cls`. */
 function findAll(node: ReactNode, cls: string, out: ReactElement<Record<string, unknown>>[] = []) {
   if (Array.isArray(node)) node.forEach((n) => findAll(n, cls, out));
   else if (isValidElement<Record<string, unknown>>(node)) {
@@ -17,7 +16,6 @@ function findAll(node: ReactNode, cls: string, out: ReactElement<Record<string, 
 }
 
 const life = (pointerType: string) => {
-  // ZonePile has no hooks, so calling it returns its element tree.
   const tree = ZonePile({ label: "Life", count: 3, variant: "life", faceUp: [{ index: 0, defId: "OP16-108" }], ownerSeat: 1 });
   const faces = findAll(tree, "is-face-up");
   const hover = faces[0]?.props.onPointerEnter as ((e: { pointerType: string }) => void) | undefined;

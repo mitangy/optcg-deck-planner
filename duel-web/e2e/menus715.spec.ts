@@ -1,9 +1,3 @@
-/**
- * The match menu, the Undo menu and the site menu drawer on the shared Headless UI Menu / Dialog (#715):
- * they open fully on screen under their button at every phone and desktop size without moving it,
- * keys work inside them, the board's own keys stay quiet while one is open, and the drawer traps Tab.
- * The viewports are set here, so the board specs run once (in the desktop project).
- */
 import { test, expect, FAKE_API } from "./fixtures";
 import type { Locator, Page } from "@playwright/test";
 
@@ -33,7 +27,6 @@ function expectOnScreen(box: { x: number; y: number; width: number; height: numb
   expect(box.y + box.height, `${what} bottom`).toBeLessThanOrEqual(vp.height + 0.5);
 }
 
-/** Arrow down the open menu until the active row's text starts with `text`. */
 async function walkTo(page: Page, menu: Locator, text: string) {
   const active = () => menu.evaluate((el) => document.getElementById(el.getAttribute("aria-activedescendant") ?? "")?.textContent ?? "");
   for (let i = 0; i < 12 && !(await active()).startsWith(text); i += 1) await page.keyboard.press("ArrowDown");
@@ -54,12 +47,10 @@ for (const size of SIZES) {
     const menu = page.getByRole("menu", { name: "Match menu" });
     await expect(menu).toBeVisible();
     expectOnScreen((await menu.boundingBox())!, size, "menu");
-    // Opening it moves nothing, and the list does not cover its own button.
     expect(await trigger.boundingBox()).toEqual(before);
     const m = (await menu.boundingBox())!;
     const overlaps = m.x < before.x + before.width && m.x + m.width > before.x && m.y < before.y + before.height && m.y + m.height > before.y;
     expect(overlaps, "the menu covers its button").toBe(false);
-    // The last row is reachable: the list scrolls when the window is short.
     await menu.getByRole("menuitem").last().scrollIntoViewIfNeeded();
     expectOnScreen((await menu.getByRole("menuitem").last().boundingBox())!, size, "last row");
     await page.keyboard.press("Escape");
@@ -106,7 +97,6 @@ test("arrow keys walk the match menu, Enter runs a row and Escape returns focus 
   await expect(menu).toHaveCount(0);
   await expect(trigger).toBeFocused();
 
-  // Enter on Gameplay settings opens it.
   await page.keyboard.press("Enter");
   await expect(menu).toBeVisible();
   await walkTo(page, menu, "Gameplay settings");
@@ -120,7 +110,6 @@ test("Concede in the match menu needs two presses, by keyboard too (#715)", asyn
   await matchButton(page).focus();
   await page.keyboard.press("Enter");
   const menu = page.getByRole("menu", { name: "Match menu" });
-  // Armed, its name is "Click again to concede": find it by its danger class.
   const concede = menu.locator(".match-menu-danger");
   await walkTo(page, menu, "Concede");
   await page.keyboard.press("Enter");
@@ -194,7 +183,6 @@ test("the site menu drawer slides out when closed instead of vanishing (#722)", 
   await expect.poll(async () => (await panel.boundingBox())?.x, { message: "slid fully in" }).toBe(0);
 
   await page.keyboard.press("Escape");
-  // Mid-close: still in the page, marked closed, and partway off the left edge.
   await expect(drawer).toHaveCount(1);
   await expect(panel).toHaveAttribute("data-closed", "");
   await expect.poll(async () => (await panel.boundingBox())!.x).toBeLessThan(0);

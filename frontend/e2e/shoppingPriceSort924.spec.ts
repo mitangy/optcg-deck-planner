@@ -1,7 +1,3 @@
-/**
- * Master Shopping Price sort (#924): ticking Price in the Sort menu makes it the main sort, and a
- * column-header sort picked earlier no longer overrides the Sort menu on the desktop table.
- */
 import { expect, test } from "./fixtures";
 
 test.afterEach(({ planner }) => {
@@ -9,7 +5,6 @@ test.afterEach(({ planner }) => {
 });
 
 const SHOTS = process.env.PR_SHOTS_DIR;
-// Desktop table rows or phone list cards, whichever is on screen, as the card id each one shows.
 const rows = (page: import("@playwright/test").Page) => page.locator("table tbody tr:visible, .mobile-card-list > [aria-pressed]:visible");
 const ids = (page: import("@playwright/test").Page) =>
   rows(page).evaluateAll((els) => els.map((e) => /EB01-\d+/.exec(e.textContent ?? "")?.[0] ?? null));
@@ -18,7 +13,6 @@ test("Master Shopping: ticking Price sorts cards by market price, highest first,
   await planner.open("/");
   await expect(rows(page)).toHaveCount(4);
 
-  // Desktop only: put the table in lowest-market-first order with the header (two clicks: desc, then asc).
   const marketHeader = page.getByRole("button", { name: "Sort by Market" });
   if (await marketHeader.isVisible()) {
     await marketHeader.click();

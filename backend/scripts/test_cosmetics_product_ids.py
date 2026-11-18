@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Unit tests for cosmetics_common + backfill helpers."""
 
 from __future__ import annotations
 

@@ -1,10 +1,8 @@
-/** Long-press duration before opening card inspect (touch / pointer). */
 export const LONG_PRESS_MS = 400;
 
-/** Cancel long-press if the pointer moves farther than this (px) — room for future drag. */
 export const MOVE_CANCEL_PX = 12;
 
-/** Defer single-click so a double-click can cancel select/target. */
+// Deferred so a double-click can cancel select/target.
 export const DOUBLE_CLICK_DELAY_MS = 280;
 
 export function distanceSq(ax: number, ay: number, bx: number, by: number): number {
@@ -13,7 +11,6 @@ export function distanceSq(ax: number, ay: number, bx: number, by: number): numb
   return dx * dx + dy * dy;
 }
 
-/** True when movement from start exceeds the cancel threshold. */
 export function shouldCancelLongPress(
   startX: number,
   startY: number,
@@ -33,10 +30,6 @@ export type LongPressControllerOptions = {
   clearTimeoutFn?: typeof clearTimeout;
 };
 
-/**
- * Pure-ish long-press tracker for pointer events.
- * Call down → optional move → up/cancel. Fires `onLongPress` once if held still.
- */
 export function createLongPressController(opts: LongPressControllerOptions) {
   const durationMs = opts.durationMs ?? LONG_PRESS_MS;
   const moveThresholdPx = opts.moveThresholdPx ?? MOVE_CANCEL_PX;
@@ -67,7 +60,6 @@ export function createLongPressController(opts: LongPressControllerOptions) {
     get activated() {
       return activated;
     },
-    /** Consume the activated flag (e.g. suppress the following click). */
     consumeActivated(): boolean {
       const was = activated;
       activated = false;
@@ -105,7 +97,6 @@ export function createLongPressController(opts: LongPressControllerOptions) {
       cancelled = true;
       reset();
     },
-    /** Abort an in-flight long-press (e.g. pointer-drag armed past threshold). */
     cancel() {
       cancelled = true;
       clearTimer();
@@ -125,7 +116,7 @@ export type ClickDeferControllerOptions = {
   clearTimeoutFn?: typeof clearTimeout;
 };
 
-/** Defer a single click so double-click can cancel it. */
+// Deferred so a double-click can cancel it.
 export function createClickDeferController(opts: ClickDeferControllerOptions) {
   const delayMs = opts.delayMs ?? DOUBLE_CLICK_DELAY_MS;
   const setTimeoutFn = opts.setTimeoutFn ?? setTimeout;
@@ -155,24 +146,18 @@ export function createClickDeferController(opts: ClickDeferControllerOptions) {
   };
 }
 
-/** "I" on a focused card opens inspect: the chip is not a Tab stop, so the keyboard needs its own way in. */
+// The chip is not a Tab stop, so the keyboard needs its own way in.
 export function isInspectKey(e: { key: string; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }): boolean {
   return (e.key === "i" || e.key === "I") && !e.ctrlKey && !e.metaKey && !e.altKey;
 }
 
-/** Mouse-like desktops: hover plus a fine pointer. */
 export const FINE_POINTER_QUERY = "(hover: hover) and (pointer: fine)";
 
-/**
- * Right-click inspects a card only with a mouse-like pointer. A touch long-press
- * also fires `contextmenu`, but that gesture already has its own inspect path.
- * `pointerType` is undefined where contextmenu is a plain MouseEvent (Firefox).
- */
+// A touch long-press also fires `contextmenu`, but that gesture already has its own inspect path. `pointerType` is undefined where contextmenu is a plain MouseEvent (Firefox).
 export function shouldInspectOnContextMenu(finePointer: boolean, pointerType?: string): boolean {
   return finePointer && pointerType !== "touch";
 }
 
-/** `onContextMenu` handler body: open inspect and swallow the browser menu on desktop. */
 export function inspectOnContextMenu(
   e: { preventDefault: () => void; nativeEvent: Event },
   open: () => void,

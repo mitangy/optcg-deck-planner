@@ -1,6 +1,5 @@
 import { formatMoney } from "@optcg/card-core";
 
-/** Dates are ISO "YYYY-MM-DD" strings, read as UTC. */
 export type PricePoint = { date: string; price: number };
 
 export type ArtKind = "chase" | "alt" | "baseRare" | "other";
@@ -10,7 +9,6 @@ export type BuyTiming = {
   verdict: BuyVerdict;
   headline: string;
   reasons: string[];
-  /** Typical further drop from this age to 6 months, percent; set for cards that usually fall. */
   expectedFurtherDropPct?: number;
   seasonNote?: string;
 };
@@ -21,7 +19,6 @@ export function dayNumber(iso: string): number {
   return Math.floor(Date.parse(`${iso}T00:00:00Z`) / DAY_MS);
 }
 
-/** Days since release at which the typical curves are sampled. */
 export const CURVE_OFFSETS = [0, 14, 28, 42, 56, 70, 84, 98, 112, 126, 140, 154, 168, 182, 196, 210, 224, 238, 252, 266, 280, 294, 308, 322, 336, 350, 364];
 
 /** Median price as a percent of the release-day price (924 singles, OP06-OP17, EB01-EB05, PRB-01/02, 2024-02 to 2026-11). */
@@ -32,12 +29,10 @@ const CURVES: Record<ArtKind, number[]> = {
   other: [100, 84, 78, 68, 67, 69, 67, 71, 71, 71, 68, 66, 66, 64, 65, 64, 66, 65, 67, 69, 66, 66, 69, 69, 70, 69, 69],
 };
 
-/** The curve as [day, percent of release-day price] pairs. */
 export function typicalCurve(kind: ArtKind): { day: number; ratio: number }[] {
   return CURVE_OFFSETS.map((day, i) => ({ day, ratio: CURVES[kind][i]! }));
 }
 
-/** Typical price at `day` days after release, percent of the release-day price. Linear between the 14-day marks; 100 before release, flat after a year. */
 export function expectedRatio(kind: ArtKind, day: number): number {
   const curve = CURVES[kind];
   if (!(day > 0)) return 100;
@@ -52,7 +47,6 @@ const CHASE_MARK = /manga|\bsp\b|\btr\b|treasure|wanted poster|\bgold\b/i;
 const ALT_MARK = /alternate art|parallel/i;
 const BASE_RARE = /^(sr|sec|l|super rare|secret rare|leader)$/i;
 
-/** What kind of art a TCGPlayer product name is. A base SR / SEC / Leader needs its rarity to count as baseRare. */
 export function artKind(name: string, rarity?: string | null): ArtKind {
   const marks = [...name.matchAll(/\(([^)]*)\)/g)].map((m) => m[1]).join(" ");
   if (CHASE_MARK.test(marks)) return "chase";
@@ -79,7 +73,6 @@ function lastDays(points: PricePoint[], today: string, days: number): PricePoint
 /** Price level of older cards by calendar month (Jan first) against their yearly average, percent. Settled singles, detrended; only two winters of data (2024-25, 2025-26). */
 export const SEASON_PCT = [4, 7, 6, 4, 3, 2, 0, -3, -4, -6, -8, -4];
 
-/** The seasonal price factor on a date: 1 + the month's percent / 100, with a month's value at its 15th and a straight line between mid-months (Dec wraps to Jan). */
 export function seasonFactor(iso: string): number {
   const y = Number(iso.slice(0, 4));
   const m = Number(iso.slice(5, 7)) - 1;
@@ -102,7 +95,6 @@ const REPRINT_LAG = 30;
 const REPRINT_HORIZON = 120;
 const REPRINT_RECENT = 60;
 
-/** Relative expected price on a date: the release curve times the season, and the reprint dip once a reprint is a month out. Only ratios of two of these mean anything. */
 export function expectedPrice(kind: ArtKind, released: string, date: string, reprint?: string | null): number {
   let p = expectedRatio(kind, dayNumber(date) - dayNumber(released)) * seasonFactor(date);
   if (reprint && dayNumber(date) >= dayNumber(reprint) + REPRINT_LAG) p *= REPRINT_FACTOR;
@@ -127,14 +119,12 @@ function windowLabel(from: string, to: string): string {
   return `${monthYear(from)} – ${monthYear(to)}`;
 }
 
-/** The next reprint within 120 days after today, if any. */
 function upcomingReprint(reprints: string[] | undefined, today: string): string | null {
   const t = dayNumber(today);
   const next = (reprints ?? []).filter((r) => dayNumber(r) > t && dayNumber(r) - t <= REPRINT_HORIZON).sort()[0];
   return next ?? null;
 }
 
-/** The latest reprint that released in the last 60 days, if any. */
 function recentReprint(reprints: string[] | undefined, today: string): string | null {
   const t = dayNumber(today);
   const last = (reprints ?? []).filter((r) => dayNumber(r) <= t && t - dayNumber(r) <= REPRINT_RECENT).sort().pop();
@@ -145,7 +135,6 @@ const BULK_BELOW = 0.5;
 
 const SEASON_SHAPE = "prices run up from Christmas to a February peak, through tax refund season, then slide to a November low";
 
-/** Where this month sits in the year for older cards, from SEASON_PCT; only said for cards a few months old. */
 function seasonNote(today: string, age: number): string | undefined {
   if (age < 120) return undefined;
   const month = Number(today.slice(5, 7)) - 1;
@@ -164,17 +153,13 @@ function seasonNote(today: string, age: number): string | undefined {
 
 export type BuyTimingInput = {
   kind: ArtKind;
-  /** Release date of the set, ISO; null when unknown. */
   released: string | null;
   today: string;
-  /** Daily market prices, oldest first. */
   points: PricePoint[];
   current: number | null;
-  /** ISO release dates of later plain reprints of this card. */
   reprints?: string[];
 };
 
-/** A plain "when to buy" read from how similar cards moved after release and through the year. A judgement from past patterns, never a price forecast. */
 export function buyTiming({ kind, released, today, points, current, reprints }: BuyTimingInput): BuyTiming {
   if (!released || current == null || !(current > 0)) {
     return { verdict: "unknown", headline: "Not enough data to say", reasons: ["There is no release date or current price for this art yet."] };
@@ -271,26 +256,20 @@ export function buyTiming({ kind, released, today, points, current, reprints }: 
 
 export type BestBuy = {
   when: "now" | "window";
-  /** ISO dates. */
   from: string;
   to: string;
-  /** Short, e.g. "Now", "Now, on a dip", "Dec 2026 – Jan 2027". */
   label: string;
-  /** Estimated price range in USD (the middle half of outcomes for similar cards); left out when the price now says little about it. */
   estLow?: number;
   estHigh?: number;
-  /** The estimate the range is built around. */
   estMid?: number;
   basis: string;
 };
 
-/** Where a kind's price typically sits once settled (percent of release-day price): the median of the 154 to 210 day marks. */
 export function settledRatio(kind: ArtKind): number {
   const r = [154, 168, 182, 196, 210].map((d) => expectedRatio(kind, d)).sort((a, b) => a - b);
   return r[2]!;
 }
 
-/** The first day after release at which a kind's typical price is within 10% of where it settles. */
 export function buyableDay(kind: ArtKind): number {
   const target = settledRatio(kind) * (1 + SOON_DROP);
   for (let d = 0; d < 365; d++) if (expectedRatio(kind, d) <= target) return d;
@@ -326,7 +305,6 @@ const NOW_WITHIN = 14;
 /** A wait that saves less than this is not worth it: buy now. */
 const MIN_SAVING = 0.03;
 
-/** The best time to buy and roughly what it should cost then, from how similar cards moved after release and through the year. A pattern of past sets, never a forecast. */
 export function bestTimeToBuy({ kind, released, today, points, current, reprints }: BuyTimingInput): BestBuy | null {
   if (!released || current == null || !(current > 0)) return null;
   const age = dayNumber(today) - dayNumber(released);

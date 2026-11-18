@@ -1,12 +1,3 @@
-/**
- * Pop-up size (#555).
- *
- * The Pop-up size setting (70 to 160%) scales every in-game pop-up: the hover card, choice
- * and search pop-ups, effect order, card actions, DON!! and hand confirms, reveals and the
- * pick bar. The − / + buttons in the hover card and choice pop-up headers step it.
- *
- * SHOTS=1 also saves screenshots to /mnt/project-files/popup-size-drag/ (POPUP_SHOT_DIR=<dir> picks another).
- */
 import { test, expect } from "./fixtures";
 import type { Locator, Page } from "@playwright/test";
 
@@ -21,7 +12,6 @@ const desktopOnly = () => test.skip(test.info().project.name !== "desktop-1280",
 
 async function openDemo(page: Page, query = "", settings: Record<string, unknown> = {}) {
   await page.addInitScript((s) => {
-    // Only the first load: a reload must keep what the page saved itself.
     if (!sessionStorage.getItem("seeded")) {
       localStorage.setItem("optcg-duel:settings", JSON.stringify(s));
       sessionStorage.setItem("seeded", "1");
@@ -35,7 +25,6 @@ async function openDemo(page: Page, query = "", settings: Record<string, unknown
 const stored = (page: Page) => page.evaluate(() => JSON.parse(localStorage.getItem("optcg-duel:settings") ?? "{}") as Record<string, unknown>);
 const rect = async (loc: Locator) => (await loc.boundingBox())!;
 
-/** A mouse drag on desktop, a CDP touch drag on phones. */
 async function drag(page: Page, from: { x: number; y: number }, dx: number, dy: number) {
   if (phone()) {
     const cdp = await page.context().newCDPSession(page);
@@ -54,18 +43,15 @@ async function drag(page: Page, from: { x: number; y: number }, dx: number, dy: 
 
 async function press(page: Page, target: Locator) {
   if (phone()) await target.tap();
-  // dispatchEvent: at 160% the hover card that the pointer move opens covers the card being clicked.
   else await target.dispatchEvent("click");
 }
 
-/** Selecting a card opens its actions pop-up; Escape / an empty tap closes it. */
 async function selectCard(page: Page, id: string) {
   await press(page, page.locator(YOU(id)));
   await expect(page.locator(ACTIONS)).toBeVisible();
   await page.waitForTimeout(150);
 }
 
-/** Whole box in the window, `edge` px from each side (0 = just in the window). */
 function inside(box: { x: number; y: number; width: number; height: number }, vp: { width: number; height: number }, edge = 0, tol = 1) {
   return box.x >= edge - tol && box.y >= edge - tol && box.x + box.width <= vp.width - edge + tol && box.y + box.height <= vp.height - edge + tol;
 }
@@ -92,7 +78,6 @@ test("+ and − on the hover card pop-up make it wider and narrower, and stop at
   for (let i = 0; i < 12 && (await bigger.isEnabled()); i += 1) await bigger.click();
   await expect(bigger).toBeDisabled();
   expect((await stored(page)).previewPopupSize).toBe(160);
-  // Still fully on screen at 160%, and a dragged spot is pulled back inside after growing.
   expect(inside(await rect(page.locator(POPUP)), page.viewportSize()!, 8)).toBe(true);
 });
 
@@ -117,7 +102,6 @@ test("the hover card keeps its normal width at a big Pop-up size (#572)", async 
   await openDemo(page, "", { popupSize: 160 });
   await page.locator(YOU("y-leader")).hover();
   await expect(page.locator(POPUP)).toBeVisible();
-  // 22vw of the 1280px window: the unscaled width.
   expect((await rect(page.locator(POPUP))).width).toBeCloseTo(0.22 * page.viewportSize()!.width, 0);
 });
 
@@ -127,13 +111,10 @@ test("a choice pop-up keeps its size at a big Card pop-up size (#572)", async ({
   const prompt = page.locator(".ability-prompt").first();
   await expect(prompt).toBeVisible();
   await page.waitForTimeout(300);
-  // 460px: the choice pop-up's width in the wide arena at 100%.
   expect((await rect(prompt)).width).toBeCloseTo(460, 0);
 });
 
-/** The hover card's art box at a size, with the box around it. */
 async function previewArt(first: Page, size: number, big: boolean, vp: { width: number; height: number }) {
-  // A fresh page per size: the seeded settings only load once per page.
   const page = await first.context().newPage();
   await page.setViewportSize(vp);
   await openDemo(page, "", { previewPopupSize: size, previewBigCard: big });
@@ -156,22 +137,18 @@ for (const vp of [{ width: 1280, height: 720 }, { width: 1440, height: 900 }]) {
       for (const size of [130, 160]) {
         const at = await previewArt(page, size, big, vp);
         const note = `${size}%: art ${Math.round(at.art.width)}x${Math.round(at.art.height)} in a ${Math.round(at.box.width)}x${Math.round(at.box.height)} box`;
-        // The art box is card-shaped (5:7), so the art itself fills it: no letterbox that only the box grows around.
         expect(at.art.width / at.art.height, note).toBeCloseTo(5 / 7, 2);
-        // No empty band: the box is the art plus its padding.
         expect(at.box.width - at.art.width, note).toBeLessThan(30);
         expect(at.art.width, note).toBeGreaterThanOrEqual(widest - 1);
         widest = at.art.width;
         expect(at.clipped, note).toBe(false);
         expect(inside(at.box, vp, 8), note).toBe(true);
       }
-      // 130% is still well short of the window height, so it is bigger than 100%.
       expect(widest, "160% art is bigger than at 100%").toBeGreaterThan(base.art.width + 20);
     });
   }
 }
 
-/** Open the in-match Gameplay settings sheet (desktop ⚙, phone ⋯ menu). */
 async function openSheet(page: Page) {
   const gear = page.getByRole("button", { name: "Gameplay settings" });
   if (await gear.count()) await gear.click();
@@ -190,7 +167,6 @@ test("Gameplay settings have a separate Card pop-up size slider on desktop only,
   const card = sheet.locator("#preview-popup-size");
   const other = sheet.locator("#popup-size");
   await expect(other).toHaveCount(1);
-  // The Pop-up size row no longer claims the hover card.
   await expect(other.locator("xpath=..")).not.toContainText("hover card");
   if (phone()) {
     await expect(card).toHaveCount(0);
@@ -215,7 +191,7 @@ test("a hover card pop-up dragged to the right edge stays on screen when it is m
   desktopOnly();
   await openDemo(page);
   await page.locator(YOU("y-leader")).hover();
-  // Pinned: the drag ends past the edge, off the pop-up, and an unpinned hover pop-up would hide 250ms later (#819).
+  // Pinned: the drag ends past the edge, off the pop-up, and an unpinned hover pop-up would hide 250ms later.
   await page.getByRole("button", { name: "Pin card preview" }).click();
   const h = await rect(page.locator(".card-preview-popup-head"));
   await drag(page, { x: h.x + 30, y: h.y + h.height / 2 }, 900, 400);
@@ -256,13 +232,11 @@ test("the floating card row has − / + too (#555)", async ({ page }) => {
   expect((await rect(card)).width).toBeGreaterThan(before.width);
 });
 
-/** Give a DON!! to the Leader: the Attach DON!! confirm opens. */
 async function openDonConfirm(page: Page) {
   await page.locator('.don-strip-you .don-chip-btn[data-don-id="d1"]').click({ force: true });
   await press(page, page.locator(YOU("y-leader")));
 }
 
-/** Play a Counter event from the hand: its "you may" Yes / No opens above the card (desktop; phones counter from the tray). */
 async function openHandConfirm(page: Page) {
   await page.locator('.board-root [data-motion-id="y-h6"]').first().click();
   await page.getByRole("button", { name: "Counter event Color of the Supreme King Haki" }).click();

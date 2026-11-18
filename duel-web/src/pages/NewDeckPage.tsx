@@ -14,8 +14,6 @@ export function NewDeckPage() {
   const [createErr, setCreateErr] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
 
-  // A deck Log Pose built arrives in the router state (#726), on arrival or while this page is already open:
-  // fill the form in, then forget the state so a refresh does not refill it.
   useEffect(() => {
     const draft = readLogPoseDraft(location.state);
     if (!draft) return;

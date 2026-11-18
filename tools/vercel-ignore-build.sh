@@ -1,15 +1,6 @@
 #!/usr/bin/env bash
-# Vercel "Ignored Build Step" helper (exit 0 = skip build, exit 1 = build).
-# Usage: vercel-ignore-build.sh <path> [<path>...]   (paths relative to git repo root)
-# Skips non-production builds, and production builds where none of the given
-# paths changed between VERCEL_GIT_PREVIOUS_SHA and the current commit.
-# The root package.json and package-lock.json are always watched too: both apps
-# are npm workspaces installed from that one lockfile, and listing them here keeps
-# the ignoreCommand strings under Vercel's 256-character limit (#956).
-# packages/card-core is watched the same way: both apps import it (through rules and deck-analytics too).
-# So is packages/api-client: both apps send their API calls through it.
-# So is tools/vite: both vite configs import the version-file plugin from it.
-# Any unexpected condition falls through to building.
+# The root package.json and package-lock.json are always watched: both apps are npm workspaces installed from that one lockfile, and listing them here keeps the ignoreCommand strings under Vercel's 256-character limit.
+# packages/card-core, packages/api-client and tools/vite are watched the same way: both apps import them.
 
 cd "$(git rev-parse --show-toplevel)" || { echo "Cannot find repo root, building"; exit 1; }
 

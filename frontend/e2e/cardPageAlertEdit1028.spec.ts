@@ -1,7 +1,3 @@
-/**
- * The card page's price alert (#1028): Edit opens the editor on screen (it used to float off the page),
- * and a set alert shows as a chip by the actions. Runs at desktop-1200 and phone-375.
- */
 import { expect, test } from "./fixtures";
 import { mockCardApi, ZORO } from "./cardPageFake";
 

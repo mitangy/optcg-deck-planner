@@ -49,7 +49,6 @@ describe("attachEmbeddings", () => {
     expect(attachEmbeddings(cands, buf)).toBe(2);
     expect(Array.from(cands[0].embedding!)).toEqual([5, 6, 7, 8]);
     expect(Array.from(cands[1].embedding!)).toEqual([1, 2, 3, 4]);
-    // A printing newer than the embeddings keeps none and is ordered by hash alone.
     expect(cands[2].embedding).toBeUndefined();
   });
 });

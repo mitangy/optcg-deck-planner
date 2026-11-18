@@ -46,7 +46,6 @@ def test_a_second_startup_changes_nothing_and_keeps_the_data_refactor_3_8c(start
 
 
 def test_startup_refuses_a_database_that_has_tables_but_no_alembic_version_refactor_3_8c(startup_engine):
-    """The old create_all startup left no revision; running 0001 on it would die on 'table already exists'."""
     with startup_engine.begin() as conn:
         conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY, email VARCHAR(320) NOT NULL)"))
     with pytest.raises(UnstampedDatabaseError, match="alembic stamp 0001"):
@@ -71,7 +70,6 @@ def test_startup_leaves_the_apps_logging_alone_refactor_3_8c(startup_engine):
 
 @requires_postgres
 def test_the_lifespan_migrates_only_while_it_holds_the_startup_lock_refactor_3_8c(startup_engine, monkeypatch):
-    """Another worker already inside startup_lock: this one must not touch the schema until it is released."""
     import threading
 
     from fastapi.testclient import TestClient
@@ -80,7 +78,6 @@ def test_the_lifespan_migrates_only_while_it_holds_the_startup_lock_refactor_3_8
 
     from app.main import app
 
-    # The lifespan's boot backfills open SessionLocal; point it at this database too.
     monkeypatch.setattr(app_db, "SessionLocal", sessionmaker(bind=startup_engine))
 
     def boot() -> None:
@@ -103,7 +100,6 @@ def test_the_lifespan_migrates_only_while_it_holds_the_startup_lock_refactor_3_8
 
 @requires_postgres
 def test_startup_waits_for_another_worker_holding_the_startup_lock_389(startup_engine):
-    """Several uvicorn workers start at once; only one may run the migrations at a time."""
     import threading
 
     entered = threading.Event()
@@ -136,11 +132,9 @@ def _advisory_lock_states(conn, key: int) -> list[str]:
 
 @requires_postgres
 def test_startup_lock_is_held_by_an_open_transaction_so_a_pooler_cannot_strand_it_733(startup_engine):
-    """Behind pgbouncer transaction pooling a session lock is released (or stranded) on the
-    wrong server connection; a transaction-scoped lock lives and dies with its transaction."""
     with startup_engine.connect() as observer:
         with app_db.startup_lock(startup_engine):
-            observer.rollback()  # fresh snapshot of pg_locks / pg_stat_activity
+            observer.rollback()
             assert _advisory_lock_states(observer, app_db.STARTUP_LOCK_KEY) == ["idle in transaction"]
         observer.rollback()
         assert _advisory_lock_states(observer, app_db.STARTUP_LOCK_KEY) == []
@@ -148,10 +142,9 @@ def test_startup_lock_is_held_by_an_open_transaction_so_a_pooler_cannot_strand_i
 
 @requires_postgres
 def test_a_stale_lock_on_the_old_startup_key_does_not_block_startup_733(startup_engine):
-    """The prod deploy hung on a session lock stranded under the old key; the new key must not wait on it."""
     import threading
 
-    old_key = 0x6F707463675F7374  # "optcg_st", the key whose lock was stranded in prod
+    old_key = 0x6F707463675F7374
     assert app_db.STARTUP_LOCK_KEY != old_key
     entered = threading.Event()
 

@@ -82,7 +82,6 @@ describe("Share page Filters and Sort (#1203)", () => {
       ),
     );
     await flush();
-    // Default Color > Set: same color, so card order.
     expect(order()).toEqual(["OP01-001", "OP01-002", "OP01-003"]);
 
     const toggle = [...host.querySelectorAll<HTMLButtonElement>("button.filter-drawer-toggle")].find((b) =>

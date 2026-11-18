@@ -1,10 +1,3 @@
-/**
- * Hiding a pop-up shrinks it into the "Back to …" pill instead of vanishing (#587): a copy
- * of the pop-up flies from its box into the pill, which pops in, then the copy is gone.
- * Reduced motion keeps the instant hide.
- *
- * SHOTS=1 also saves a mid-flight frame and the end state to /mnt/project-files/hide-shrink/.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -26,7 +19,6 @@ async function hideAndRecord(page: Page, hide: string, box: string) {
     const w = window as unknown as { __frames: Frame[]; __done: boolean };
     w.__frames = [];
     w.__done = false;
-    // The clock starts at the click, not at the recorder: a loaded machine can take a while to click.
     let t0 = 0;
     let seen = false;
     let gone = 0;
@@ -59,9 +51,7 @@ for (const p of PROMPTS) {
     await expect(page.locator(PILL)).toBeVisible();
     const pill = (await page.locator(PILL).boundingBox())!;
     expect(ghosts.length).toBeGreaterThan(3);
-    // It starts as big as the pop-up it came from ...
     expect(Math.abs(ghosts[0]!.w - popup.width)).toBeLessThan(popup.width * 0.2);
-    // ... and ends smaller and nearer the pill.
     const first = ghosts[0]!;
     const end = ghosts[ghosts.length - 1]!;
     expect(end.w).toBeLessThan(first.w * 0.8);
@@ -69,7 +59,6 @@ for (const p of PROMPTS) {
     const to = { x: pill.x + pill.width / 2, y: pill.y + pill.height / 2 };
     const dist = (b: typeof first) => Math.hypot(centre(b).x - to.x, centre(b).y - to.y);
     expect(dist(end)).toBeLessThan(dist(first) * 0.7);
-    // Gone afterwards.
     expect(last.every((f) => f === null)).toBe(true);
     await expect(page.locator(GHOST)).toHaveCount(0);
   });

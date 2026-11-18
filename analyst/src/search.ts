@@ -1,25 +1,17 @@
-/**
- * Structured card search. Every filter is optional; list filters inside one field match
- * any value (colors, types, traits, timings, effects), except `keywords`, which needs all.
- */
 import { normalizeCardId } from "@optcg/card-core";
 import { ruleOffends } from "@optcg/deck-analytics";
 import type { Catalog, CardRow, CardType } from "./catalog";
 
 export type CardFilter = {
-  /** Case-insensitive substring of the name, text or trigger text. */
   query?: string;
-  /** Case-insensitive substring of the name only. */
   name?: string;
   colors?: string[];
-  /** "any" (default): shares a color. "only": every card color is in `colors`. */
   colorMode?: "any" | "only";
   types?: CardType[];
   costMin?: number;
   costMax?: number;
   powerMin?: number;
   powerMax?: number;
-  /** Printed counter values to allow; 0 means no counter. */
   counters?: number[];
   traits?: string[];
   attributes?: string[];
@@ -27,9 +19,7 @@ export type CardFilter = {
   timings?: string[];
   effects?: string[];
   hasTrigger?: boolean;
-  /** Set code prefix, e.g. OP05, ST10, EB01, P. */
   set?: string;
-  /** Only cards a deck led by this leader can include (shares a color, obeys the leader's deck rules). */
   legalFor?: string;
   limit?: number;
   offset?: number;
@@ -46,7 +36,6 @@ const inRange = (v: number | undefined, min?: number, max?: number) =>
 export const DEFAULT_LIMIT = 25;
 export const MAX_LIMIT = 100;
 
-/** Card number prefix: OP05-060 -> OP05, P-001 -> P. */
 export const setOf = (id: string) => id.split("-")[0] ?? id;
 
 export function searchCards(catalog: Catalog, f: CardFilter): SearchResult {

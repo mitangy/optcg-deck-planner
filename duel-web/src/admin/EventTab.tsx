@@ -42,7 +42,6 @@ function when(iso: string | null): string {
   return iso ? new Date(iso).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—";
 }
 
-/** Advisory flag pills (#809). On phones they sit under the name so they show without side-scrolling. */
 function FlagPills({ flags, className }: { flags: readonly string[]; className?: string }) {
   return (
     <span className={className ? `adm-evt-flags ${className}` : "adm-evt-flags"}>
@@ -156,7 +155,6 @@ function Winners({ event, busy, onForfeit }: { event: AdminEvent; busy: boolean;
 
 type Mode = { kind: "view" } | { kind: "edit" } | { kind: "new" };
 
-/** Admin: create, edit and delete events (#1019), and for each the counters, seed commit, participants, draw and forfeits (#794). */
 export function EventTab() {
   const [events, setEvents] = useState<AdminEventSummary[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
@@ -166,7 +164,6 @@ export function EventTab() {
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  /** Reload the picker, then the chosen event (or the default one when `pick` is not given and nothing is chosen). */
   const load = useCallback(async (pick?: string | null) => {
     try {
       const list = await fetchAdminEvents();

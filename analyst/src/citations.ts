@@ -2,7 +2,6 @@ import type { Block, Citation, PlacedCitation, SseEvent } from "./types";
 
 const MAX_CITED_TEXT = 800;
 
-/** A search-result citation from the API (a streamed delta or a stored block); anything else is not one of ours. */
 export function toCitation(raw: unknown): Citation | null {
   if (!raw || typeof raw !== "object") return null;
   const c = raw as Record<string, unknown>;
@@ -11,10 +10,6 @@ export function toCitation(raw: unknown): Citation | null {
   return { source: c.source, title: typeof c.title === "string" ? c.title : "", cited_text: cited.length > MAX_CITED_TEXT ? `${cited.slice(0, MAX_CITED_TEXT - 1)}…` : cited };
 }
 
-/**
- * The answer's text (its text blocks run together, as streamed) with each cited block's citations placed at
- * the end of that block, then trimmed with the offsets moved to match.
- */
 export function flattenCited(content: Block[]): { text: string; citations: PlacedCitation[] } {
   let text = "";
   const placed: PlacedCitation[] = [];
@@ -54,7 +49,6 @@ export function streamTo(emit: (e: SseEvent) => void, onDelta?: (delta: string) 
   };
 }
 
-/** Replays a saved answer as the stream would have sent it: text up to each citation's offset, then that offset's citations. */
 export function replayCited(text: string, citations: PlacedCitation[], emit: (e: SseEvent) => void) {
   const offsets = [...new Set(citations.map((c) => Math.min(c.at, text.length)))].sort((a, b) => a - b);
   let sent = 0;

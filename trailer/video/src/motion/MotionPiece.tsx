@@ -21,7 +21,6 @@ const SCENES: Record<keyof typeof S, React.FC> = {
   themes: ThemesScene, anywhere: AnywhereScene, stats: StatsScene, end: EndScene,
 };
 
-/** A gold band sweeping across the cut, on the beat */
 const CutSweep: React.FC<{at: number; L: MotionLayout}> = ({at, L}) => (
   <Sequence from={at - 8} durationInFrames={18} layout="none">
     <SweepInner L={L} />
@@ -44,7 +43,6 @@ const SweepInner: React.FC<{L: MotionLayout}> = ({L}) => {
 const hasMotionSfx = !!(generated as {hasMotionSfx?: boolean}).hasMotionSfx;
 const hasMotionMusic = !!(generated as {hasMotionMusic?: boolean}).hasMotionMusic;
 const CLAMP = {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'} as const;
-/** Ocean ambience envelope: in, hold, duck under the middle, swell for the end card, fade out. Capped lower when music leads. */
 const oceanVolume = (f: number) => {
   const end = S.end;
   const v = interpolate(f, [0, 20, 90, 120, end, end + 20, MOTION_TOTAL - 30, MOTION_TOTAL], [0, 0.9, 0.9, 0.25, 0.25, 0.8, 0.8, 0], CLAMP);
@@ -74,11 +72,9 @@ export const MotionPiece: React.FC<{layout: MotionLayout}> = ({layout: L}) => (
       {SCENE_ORDER.filter(([, s]) => s > 0).map(([k, s]) => (k === 'end' ? null : <CutSweep key={k} at={s} L={L} />))}
       {(generated as {hasOcean?: boolean}).hasOcean && <Html5Audio src={staticFile('motion/ocean.mp3')} volume={oceanVolume} />}
       {hasMotionMusic && (
-        // "Tributary" by Lish Grooves (YouTube Audio Library), beat-matched to 120 BPM by prerender-motion.mjs.
         <Html5Audio src={staticFile('motion/music.wav')} volume={(f) => interpolate(f, [0, 20, MOTION_TOTAL - 45, MOTION_TOTAL], [0, 1, 1, 0], CLAMP)} />
       )}
       {hasMotionSfx && SFX_CUES.map((c, i) => (
-        // synthesized by scripts/make-motion-sfx.mjs; cue frames and gains live in sfx.ts
         <Sequence key={`${c.frame}-${c.id}-${i}`} from={c.frame} layout="none">
           <Html5Audio src={staticFile(`motion/sfx/${c.id}.wav`)} volume={c.gain} playbackRate={c.rate} />
         </Sequence>

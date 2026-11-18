@@ -1,38 +1,29 @@
-/** The chat session: a short-lived token for the analyst service, minted by the API (cookie auth). */
-
-/** Where a player's request for Log Pose stands (only sent when requests are open for them). */
 export type AccessState = "none" | "pending" | "denied";
 
 export type ChatSession =
   | {
       enabled: false;
       access?: AccessState;
-      /** Free spots in all, how many are left, and the monthly credit a spot brings (only when requests are open). */
       freeSpots?: number;
       spotsLeft?: number;
       freeCreditUsd?: number;
     }
   | { enabled: true; token: string; expires_at: string; chat_url: string; owner?: boolean; pendingRequests?: number };
 
-/** The access state from a session body; anything unknown means "can't ask". */
 export function parseAccess(value: unknown): AccessState | undefined {
   return value === "none" || value === "pending" || value === "denied" ? value : undefined;
 }
 
-/** What a request to the analyst service needs. */
 export type ChatAuth = { token: string; chatUrl: string };
 
-/** Refresh the token when it has less than this left. */
 export const REFRESH_MARGIN_MS = 2 * 60 * 1000;
 
-/** True when a token expiring at `expiresAt` (ISO) should be replaced before use. */
 export function needsRefresh(expiresAt: string, now: number = Date.now()): boolean {
   const at = Date.parse(expiresAt);
   if (!Number.isFinite(at)) return true;
   return at - now < REFRESH_MARGIN_MS;
 }
 
-/** POST {apiBase}/analyst/chat/session. Signed out (401), errors and odd bodies all mean "off". */
 export async function fetchChatSession(apiBase: string, fetchImpl: typeof fetch = fetch): Promise<ChatSession> {
   try {
     const res = await fetchImpl(`${apiBase}/analyst/chat/session`, { method: "POST", credentials: "include" });
@@ -75,14 +66,8 @@ export async function fetchChatSession(apiBase: string, fetchImpl: typeof fetch 
 }
 
 export type SessionManager = {
-  /** The current session (null until the first answer). */
   current(): ChatSession | null;
-  /** Loads the session (again). */
   refresh(): Promise<ChatSession>;
-  /**
-   * Token + chat URL for one request. Refreshes first when the token is within
-   * REFRESH_MARGIN_MS of expiry, or always when `force` (after a 401). Null when chat is off.
-   */
   getAuth(force?: boolean): Promise<ChatAuth | null>;
 };
 

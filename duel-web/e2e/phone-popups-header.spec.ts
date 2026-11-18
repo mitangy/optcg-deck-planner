@@ -1,7 +1,3 @@
-/**
- * Phone pop-ups and the defend tray (#660): tall pop-ups stop under the top bar
- * so Undo stays in reach, and the tray that replaces the hand shows its size.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -18,7 +14,6 @@ async function openDemo(page: Page, query: string, popupSize = 100) {
   await page.waitForTimeout(500);
 }
 
-/** Undo is the real topmost thing at its centre, and `top` (the pop-up's top edge) is below the bar. */
 async function expectUndoReachable(page: Page, popupTop: number) {
   const undo = page.locator(".hud-undo-btn").first();
   await expect(undo).toBeVisible();
@@ -56,7 +51,6 @@ for (const prompt of ["order", "trigger"]) {
       return Math.min(...tops);
     });
     await expectUndoReachable(page, top);
-    // Its Confirm row stays inside the pop-up's box (the Life card shrinks to fit instead of spilling down).
     const spill = await page.evaluate(() => {
       const prompt = document.querySelector(".ability-prompt");
       const actions = prompt?.querySelector(".ability-prompt-actions");
@@ -78,7 +72,6 @@ test("answering an attack on a portrait phone shows how many cards are in your h
   const p = (await pill.boundingBox())!;
   expect(p.x).toBeGreaterThanOrEqual(verdict.x + verdict.width - 1);
   expect(p.x + p.width).toBeLessThanOrEqual(375);
-  // Staging a counter shows the hand after it and moves nothing.
   const chip = page.locator(".defend-chips .defend-chip").first();
   const before = await chip.boundingBox();
   await chip.click();

@@ -1,4 +1,3 @@
-/** 03-themes (10s): the nine crew themes on a live board, one a second, then light mode. */
 import { sleep } from "../lib/util";
 import { finishTake, startTake } from "../lib/take";
 import { MIKO } from "../lib/data";
@@ -24,7 +23,6 @@ export async function run(): Promise<void> {
     await t.rec.start();
     t.rec.markIn(0.2);
     await sleep(300);
-    // A slow drift so the cursor shows it is a live page, while the theme changes under it.
     void t.pointer.moveTo(1000, 470, { ms: 9000, curve: 0.6 });
     for (let i = 1; i < ORDER.length; i++) {
       await sleep(i === 1 ? 750 : 1000);

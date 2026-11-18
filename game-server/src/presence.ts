@@ -1,37 +1,27 @@
 import { randomUUID } from "node:crypto";
 import { getApiBaseUrl, getDuelIngestSecret, getPoolUrl } from "./env.js";
 
-/** One user in one room, as reported to the API for the friends list. */
 export type PresenceEntry = {
   user_id: number;
   room_id: string;
   role: "player" | "spectator";
   phase: "waiting" | "playing" | "finished";
   ranked: boolean;
-  /** Where clients reach this room's pool (POOL_URL); the API keeps it for invites and friends. */
   server_url?: string;
 };
 
-/** A cosmetic a moderator took down; the API repeats these in the presence answer for 15 minutes (#810). */
 export type Takedown = { user_id: number; kind: "playmat" | "cardBack"; cosmetic_id: number };
 
 export interface PresenceSource {
   presenceEntries(): PresenceEntry[];
 }
 
-/**
- * Pushes a full snapshot of who is in which room to FastAPI
- * (`PUT /duel/presence`). Each push replaces this process's previous rows, and
- * the API ignores rows it has not heard about recently, so a missed push or a
- * crashed process heals on its own. Changes push after a short debounce; a
- * heartbeat re-sends the snapshot so rows stay fresh during long games.
- */
+// Each push replaces this process's rows and the API ignores stale rows, so a missed push or a crashed process heals on its own.
 export class PresenceReporter {
   private sources = new Set<PresenceSource>();
   private started = false;
   private debounce: ReturnType<typeof setTimeout> | null = null;
   private heartbeat: ReturnType<typeof setInterval> | null = null;
-  /** The API already holds an empty snapshot for this process. */
   private lastSentEmpty = false;
   private takedownListeners = new Set<(list: Takedown[]) => void>();
 
@@ -52,13 +42,11 @@ export class PresenceReporter {
     this.markDirty();
   }
 
-  /** Called with the API's recent takedowns after every successful push (older APIs answer without any). */
   onTakedowns(listener: (list: Takedown[]) => void): () => void {
     this.takedownListeners.add(listener);
     return () => this.takedownListeners.delete(listener);
   }
 
-  /** Something about seats or phase changed; push soon (no-op until started). */
   markDirty(): void {
     if (!this.started || this.debounce) return;
     this.debounce = setTimeout(() => {
@@ -138,11 +126,7 @@ export class PresenceReporter {
     this.heartbeat.unref?.();
   }
 
-  /**
-   * Re-send so rows stay fresh during long games. With nobody in a room and the
-   * empty snapshot already delivered there is nothing to refresh: skipping it
-   * lets the API's database sleep while the game server is idle.
-   */
+  // With nobody in a room and the empty snapshot already delivered, skip the beat so the API's database can sleep.
   private async beat(): Promise<void> {
     if (this.lastSentEmpty && this.snapshot().length === 0) return;
     await this.flush();
@@ -157,5 +141,4 @@ export class PresenceReporter {
   }
 }
 
-/** Process-wide reporter; `index.ts` starts it, tests leave it idle. */
 export const presence = new PresenceReporter();

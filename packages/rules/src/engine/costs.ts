@@ -1,6 +1,3 @@
-/**
- * Cost payability and hidden-information checks.
- */
 import type { Cost, Selector } from "../effects/types.js";
 import type { MatchState } from "../types.js";
 import { activeDon, donOnField, otherSeat } from "./zones.js";
@@ -9,15 +6,6 @@ import { locateCard } from "./statics.js";
 import { hasRestriction } from "./stats.js";
 import { candidates, onField } from "./selectors.js";
 
-// ---------------------------------------------------------------------------
-// Cost payability
-// ---------------------------------------------------------------------------
-
-/**
- * The groups of Life cards (indices, 0 = top) a face-up/down turn may flip, each group being one legal choice.
- * Default / "top": the top `count` cards, all of which must currently be the opposite way. "top_or_bottom":
- * the top `count` or the bottom `count`. "any": any single card that is currently the opposite way (#492).
- */
 export function lifeFaceGroups(faceUpLife: boolean[], count: number, toFaceUp: boolean, position: "top" | "top_or_bottom" | "any" = "top"): number[][] {
   const n = faceUpLife.length;
   if (n < count) return [];
@@ -72,15 +60,13 @@ export function canPayCost(state: MatchState, ctx: EvalCtx, cost: Cost): boolean
 
 const HIDDEN_ZONES: ReadonlySet<string> = new Set(["hand", "deck", "life", "hand_or_trash", "deck_or_trash", "deck_top"]);
 
-/** True when the selector (or a union member) draws from a zone whose contents the opponent cannot see. */
 export function selectorReadsHiddenZone(selector: Selector): boolean {
   return HIDDEN_ZONES.has(selector.zone) || (selector.also ?? []).some(selectorReadsHiddenZone);
 }
 
 /**
- * True when whether the cost can be paid depends on hidden cards (#369): a hand/deck/Life selection narrowed by a
- * filter. Counts alone (hand size, Life count, rested DON!!, field cards, trash) are public, so those costs
- * keep the old "unpayable means silently declined" behavior.
+ * Counts alone (hand size, Life count, rested DON!!, field cards, trash) are public, so those costs keep the
+ * "unpayable means silently declined" behavior.
  */
 export function costDependsOnHiddenInfo(cost: Cost): boolean {
   switch (cost.k) {

@@ -22,7 +22,6 @@ const capture = (text = "On turn 3, you played Pearl.") => {
   return { seen, callModel };
 };
 
-/** The planner API the app talks to, faked: it serves the replay and takes the saved review. */
 const fakeApi = (model: string): ChatDeps["api"] => ({
   baseUrl: "https://api.test",
   serviceSecret: "svc",

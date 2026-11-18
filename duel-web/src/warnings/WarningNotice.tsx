@@ -9,7 +9,6 @@ type Props = {
   ack?: (id: number) => Promise<void>;
 };
 
-/** A moderator's warning, one at a time, until the player says they understand (which acknowledges it on the server). */
 export function WarningNotice({ signedIn, load = fetchWarnings, ack = ackWarning }: Props) {
   const [queue, setQueue] = useState<PlayerWarning[]>([]);
 
@@ -33,7 +32,6 @@ export function WarningNotice({ signedIn, load = fetchWarnings, ack = ackWarning
 
   const understood = () => {
     setQueue((q) => q.filter((w) => w.id !== current.id));
-    // A failed acknowledgement just means the notice comes back next visit.
     void ack(current.id).catch(() => undefined);
   };
 

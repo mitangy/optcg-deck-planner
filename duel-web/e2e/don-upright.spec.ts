@@ -1,8 +1,3 @@
-/**
- * "Upright DON!! on rested cards" (#351): DON!! under a rested Leader or
- * Character turns sideways with it by default and stays upright with the
- * Gameplay switch on.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 

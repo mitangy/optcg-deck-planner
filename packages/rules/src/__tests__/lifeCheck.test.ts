@@ -8,7 +8,6 @@ import type { GameEvent, Intent, Seat } from "../types.js";
 
 const TRIGGER_CARD = "ST01-014";
 
-/** Attacker's leader hits seat 1's Leader; returns what each step emitted. The Life check is left open. */
 function hit(lifeCard: string, opts: { legacy?: boolean } = {}) {
   const h = new Harness();
   if (opts.legacy) delete h.state.lifeCheckEveryHit;
@@ -91,12 +90,9 @@ describe("every Life hit is a private Life check (#352)", () => {
       expect(va.pendingTrigger).toEqual(vb.pendingTrigger);
       expect(va.legalIntents).toEqual(vb.legalIntents);
     }
-    // The owner alone is told.
     expect(getPlayerView(b.h.state, 1).pendingChoices[0]!.noTrigger).toBe(true);
     expect(getPlayerView(a.h.state, 1).pendingChoices[0]!.noTrigger).toBeUndefined();
-    // The narration the analyst reads is the same too.
     expect(describeEvents(projectGameEvents(a.events, opponent))).toEqual(describeEvents(projectGameEvents(b.events, opponent)));
-    // Declining looks the same too.
     const decline: Intent = { type: "resolve_pending_choice", accept: false };
     const ra = applyIntent(a.h.state, decline, { seat: 1 });
     const rb = applyIntent(b.h.state, decline, { seat: 1 });

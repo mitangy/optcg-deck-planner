@@ -6,7 +6,6 @@ import { gameSfxMuted, logSfx, mergeSfx, newLogEntries, resultSfx, viewSfx } fro
 const log = (...ids: string[]): BattleLogEntry[] =>
   ids.map((id) => ({ id, turn: 1, text: "x", tone: "play", important: false, segments: [] }));
 
-/** Real narration, as the board sees it, with you in seat 0. */
 const narrated = (...events: Record<string, unknown>[]) =>
   narrateEvents(events as never, { youSeat: 0, turnNumber: 2 });
 

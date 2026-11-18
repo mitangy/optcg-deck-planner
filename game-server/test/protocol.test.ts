@@ -63,7 +63,7 @@ describe("protocol parsers", () => {
         () => parseJoinOptions({ protocolVersion: PROTOCOL_VERSION, devUserId: "d", takeover: true, ...extra }),
         (err: Error & { code?: string }) => err.code === "bad_protocol",
       );
-    bad({}); // no preferredSeat
+    bad({});
     bad({ preferredSeat: 0, role: "spectator" });
     assert.throws(
       () => parseJoinOptions({ protocolVersion: PROTOCOL_VERSION, devUserId: "d", preferredSeat: 0, takeover: "yes" }),

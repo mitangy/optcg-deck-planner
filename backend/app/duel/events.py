@@ -1,8 +1,3 @@
-"""Giveaway events (#794): the registry, who is eligible, and the seeded verifiable draw.
-
-The pure functions (`is_eligible`, `rank_eligible`, `pick_winners`, `event_status`) have no
-database so they can be tested and re-run by anyone from the published seed.
-"""
 
 from __future__ import annotations
 
@@ -22,9 +17,7 @@ from app.duel.models import DuelEvent, DuelMatch, EventEntry
 from app.roles import is_banned, is_staff
 
 GUEST_SUFFIX = "@localhost"
-# How long after the end an event still shows (so the banner can say "winners being drawn").
 RECENT_DAYS = 7
-# Advisory flags for the admin (#809). They never change eligibility or the draw.
 NEW_ACCOUNT_DAYS = 7
 ISOLATED_GROUP_MAX = 4
 
@@ -55,7 +48,6 @@ class Event:
     best_of: int = 1
 
 
-# The first event; inserted once when the table has never held a row (#1019).
 SEED_EVENT = Event(
     id="stress-test-2026-11",
     title="Stress Test Sunday",
@@ -96,7 +88,6 @@ def event_from_row(row: DuelEvent) -> Event:
 
 
 def seed_default_event(db: Session) -> None:
-    """Insert Stress Test Sunday only into an empty table, so deleting it later keeps it deleted."""
     if db.scalar(select(DuelEvent.id).limit(1)) is not None:
         return
     e = SEED_EVENT
@@ -105,7 +96,6 @@ def seed_default_event(db: Session) -> None:
 
 
 def list_events(db: Session) -> list[Event]:
-    """Every event, newest start first."""
     rows = db.scalars(select(DuelEvent).order_by(DuelEvent.starts_at.desc(), DuelEvent.id)).all()
     return [event_from_row(r) for r in rows]
 
@@ -116,7 +106,6 @@ def get_event(db: Session, event_id: str) -> Event | None:
 
 
 def current_event(db: Session, now: datetime | None = None) -> Event | None:
-    """The event to show: live or upcoming first (soonest), else one that ended in the last week."""
     now = now or utcnow()
     events = list_events(db)
     ahead = [e for e in events if now < e.ends_at]
@@ -127,13 +116,11 @@ def current_event(db: Session, now: datetime | None = None) -> Event | None:
 
 
 def latest_event(db: Session) -> Event | None:
-    """The event that ends last, with no time window (admin tools and the rules page need it after the banner is gone)."""
     events = list_events(db)
     return max(events, key=lambda e: e.ends_at) if events else None
 
 
 def event_status(event: Event, now: datetime, drawn: bool) -> str:
-    """upcoming | live | ended | drawn."""
     if drawn:
         return "drawn"
     if now < event.starts_at:
@@ -168,7 +155,6 @@ def is_eligible(event: Event, *, opted_in: bool, excluded: bool, games: int, opp
 
 
 def window_matches(db: Session, event: Event) -> list[DuelMatch]:
-    """Finished matches that started counting in the window (start inclusive, end exclusive)."""
     return list(
         db.scalars(
             select(DuelMatch).where(
@@ -186,7 +172,6 @@ def _guest_ids(db: Session, matches: list[DuelMatch]) -> set[int]:
 
 
 def counted_matches(matches: Iterable[DuelMatch], min_turns: int) -> Iterable[DuelMatch]:
-    """Matches that count: at least `min_turns` turns (unknown does not count) and not against yourself."""
     for m in matches:
         if m.turns is None or m.turns < min_turns:
             continue
@@ -196,11 +181,6 @@ def counted_matches(matches: Iterable[DuelMatch], min_turns: int) -> Iterable[Du
 
 
 def player_stats(db: Session, event: Event) -> dict[int, tuple[int, set[int]]]:
-    """user_id -> (counted games, distinct opponent ids).
-
-    A game counts when it has at least `min_turns` turns (an unknown turn count does not
-    count) and the opponent is a signed-in, non-guest account other than the player.
-    """
     matches = window_matches(db, event)
     guests = _guest_ids(db, matches)
     stats: dict[int, tuple[int, set[int]]] = {}
@@ -216,7 +196,6 @@ def player_stats(db: Session, event: Event) -> dict[int, tuple[int, set[int]]]:
 
 
 def window_counters(db: Session, event: Event) -> tuple[int, int]:
-    """(all finished games in the window, distinct signed-in players with at least one)."""
     matches = window_matches(db, event)
     ids = {m.seat0_user_id for m in matches} | {m.seat1_user_id for m in matches}
     return len(matches), len(ids - _guest_ids(db, matches))
@@ -229,12 +208,10 @@ class Participant:
     opponents: int
     eligible: bool
     excluded: str | None
-    # Advisory only: new_account, new_opponents, isolated_group, private_only (in that order).
     flags: tuple[str, ...] = ()
 
 
 def compute_flags(db: Session, event: Event, entrant_ids: Iterable[int]) -> dict[int, tuple[str, ...]]:
-    """Cheat-review flags per entrant (#809). Advisory: nothing here changes eligibility."""
     matches = window_matches(db, event)
     guests = _guest_ids(db, matches)
     counted = [m for m in counted_matches(matches, event.min_turns) if m.seat0_user_id not in guests and m.seat1_user_id not in guests]
@@ -282,7 +259,6 @@ def compute_flags(db: Session, event: Event, entrant_ids: Iterable[int]) -> dict
 
 
 def participants(db: Session, event: Event) -> list[Participant]:
-    """Every player who opted in, with their counted games and whether they are eligible."""
     stats = player_stats(db, event)
     users = db.scalars(
         select(User).join(EventEntry, EventEntry.user_id == User.id).where(EventEntry.event_id == event.id)
@@ -315,8 +291,6 @@ def user_progress(db: Session, event: Event, user: User) -> dict:
     }
 
 
-# ---------------------------------------------------------------- the draw
-
 def new_seed() -> str:
     return secrets.token_hex(32)
 
@@ -330,7 +304,6 @@ def rank_key(seed: str, event_id: str, user_id: int) -> str:
 
 
 def rank_eligible(seed: str, event_id: str, user_ids: Iterable[int]) -> list[int]:
-    """Eligible ids sorted by HMAC-SHA256(key=seed, msg="<event_id>:<user_id>") hex, ascending."""
     return sorted(set(user_ids), key=lambda uid: rank_key(seed, event_id, uid))
 
 

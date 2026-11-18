@@ -12,7 +12,6 @@ describe("decideDragStart", () => {
     expect(decideDragStart({ dx: -60, dy: 4, pointerType: "mouse", panAxis: "none" })).toBe(
       "start",
     );
-    // Even if a (mis)detected pan axis is passed, mouse never pans by dragging.
     expect(decideDragStart({ dx: -60, dy: 4, pointerType: "mouse", panAxis: "x" })).toBe(
       "start",
     );

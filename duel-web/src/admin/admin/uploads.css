@@ -1,5 +1,3 @@
-/* —— Uploads (#812) —— */
-
 .upl-filter {
   flex: 0 1 auto;
   min-width: 0;
@@ -25,12 +23,10 @@
   align-items: flex-end;
 }
 
-/* A card back is narrower than a playmat; the frame keeps the same height either way. */
 .upl-frame {
   height: 9rem;
 }
 
-/* Reserved so taking down or restoring never changes the card's height. */
 .upl-down {
   min-height: 2.4em;
   color: var(--crimson-bright);

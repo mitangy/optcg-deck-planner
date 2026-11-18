@@ -1,8 +1,3 @@
-/**
- * Portrait phones: floating-card pop-ups and the Life trigger card stay off the
- * hand, and their buttons sit bottom right in the bar (#663). Landscape phones
- * keep the buttons in the pop-up.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -17,7 +12,6 @@ async function openDemo(page: Page, prompt: string) {
   await page.waitForTimeout(500);
 }
 
-/** How far the lowest pop-up part dips into the hand rail (px; <= 0 when clear). */
 async function overlapWithHand(page: Page) {
   return page.evaluate(() => {
     const hand = document.querySelector(".hand-rail")!.getBoundingClientRect();
@@ -30,7 +24,6 @@ async function overlapWithHand(page: Page) {
 const SIZES = [
   { width: 375, height: 667 },
   { width: 390, height: 844 },
-  // Just tall enough for two rows of cards: the card budget has to hold them clear of the hand.
   { width: 390, height: 741 },
 ];
 const CASES = [
@@ -51,7 +44,6 @@ for (const size of SIZES) {
       await expect(button).toBeVisible();
       const box = (await button.boundingBox())!;
       expect(box.y + box.height).toBeGreaterThan(size.height - 70);
-      // The row ends at the right edge (Activate Trigger is first of two buttons).
       const last = (await page.locator(".intent-prompt-slot button").last().boundingBox())!;
       expect(last.x + last.width).toBeGreaterThan(size.width - 20);
       expect(last.x + last.width).toBeLessThanOrEqual(size.width);
@@ -62,7 +54,6 @@ for (const size of SIZES) {
   }
 }
 
-// Bigger Pop-up size grows the pop-up: it still fits between the top bar and the hand.
 for (const prompt of ["look", "trigger"]) {
   test(`the ${prompt} pop-up at Pop-up size 160% stays between the top bar and the hand (#663)`, async ({ page }) => {
     phoneOnly();
@@ -87,7 +78,6 @@ test("the look pop-up's hint sits under its title and Hide sits in the bar on a 
   const bar = page.locator(".intent-bar");
   const hide = bar.getByRole("button", { name: "Hide" });
   await expect(hide).toBeVisible();
-  // Hide still shrinks the pop-up into its pill; the bar's buttons go with it.
   await hide.click();
   await expect(page.getByRole("button", { name: /^Back to/ })).toBeVisible();
   await expect(page.locator(".float-stage")).toHaveCount(0);

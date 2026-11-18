@@ -8,7 +8,6 @@ import { CatalogAddDrawer } from "./CatalogAddDrawer";
 import { COLLECTION_ADD_OPEN_KEY } from "../../storage/keys";
 import { qk } from "../../cache/queryKeys";
 
-/** "Add" for a card you don't own yet, the Owned stepper once you do. Same footprint either way. */
 export function CollectionOwnedControl({
   cardId,
   owned,
@@ -21,7 +20,6 @@ export function CollectionOwnedControl({
   const qc = useQueryClient();
   const add = useMutation({
     mutationFn: () => api.setOwned(cardId, 1),
-    // Refetch so the new card joins the list with its catalog details and price.
     onSuccess: () => invalidateOwnedViews(qc),
   });
   return (
@@ -44,7 +42,6 @@ export function CollectionOwnedControl({
   );
 }
 
-/** Collection action for an alt-art row: "Add" at 0 owned, else a stepper over that alt's copies. */
 export function CollectionAltControl({ card, onSaved }: { card: CatalogCardResult; onSaved: () => void }) {
   const qc = useQueryClient();
   const productId = card.alt_product_id ?? 0;
@@ -60,7 +57,6 @@ export function CollectionAltControl({ card, onSaved }: { card: CatalogCardResul
   return (
     <span className="collection-owned-control">
       {owned > 0 ? (
-        // Same size as the base card's Owned stepper so rows keep one hit target.
         <span className="shopping-extra-control">
           <button
             type="button"

@@ -1,4 +1,3 @@
-"""Player feedback on Log Pose answers: 👍 / 👎 / "This is wrong" (#679)."""
 
 from __future__ import annotations
 
@@ -82,7 +81,6 @@ def test_feedback_needs_a_signed_in_player_with_log_pose_679(chat):
     c.cookies.clear()
     assert _rate(c, tid, 0).status_code == 401
     assert c.get("/analyst/feedback", params={"thread_id": tid}).status_code == 401
-    # Signed in, but Log Pose is not on for them.
     _login(c, S, _mk_user(S, "nobody@x.test"))
     assert _rate(c, tid, 0).status_code == 403
     with S() as db:
@@ -112,7 +110,7 @@ def test_you_can_only_rate_your_own_answers_that_exist_679(chat):
         db.commit()
         theirs = row.id
     assert _rate(c, theirs, 0).status_code == 404
-    assert _rate(c, tid, 2).status_code == 404  # only two answers
+    assert _rate(c, tid, 2).status_code == 404
     assert _rate(c, 99999, 0).status_code == 404
     assert c.post("/analyst/feedback", json={"kind": "review", "match_id": "nope", "rating": "up"}).status_code == 404
     assert c.post("/analyst/feedback", json={"kind": "chat", "rating": "up"}).status_code == 422
@@ -125,7 +123,7 @@ def test_a_panel_that_drifted_from_the_thread_cannot_rate_another_answer_679(cha
     _, body = _session(c)
     tid = _thread(c, _as(body["token"]))
     base = {"kind": "chat", "thread_id": tid, "message_index": 1, "rating": "down"}
-    assert c.post("/analyst/feedback", json={**base, "starts_with": "Play  Zoro on"}).status_code == 409  # that is answer 0
+    assert c.post("/analyst/feedback", json={**base, "starts_with": "Play  Zoro on"}).status_code == 409
     assert c.post("/analyst/feedback", json={**base, "starts_with": "Keep the\nNami."}).status_code == 200
     with S() as db:
         assert [(f.message_index, f.answer_excerpt) for f in db.scalars(select(AnalystFeedback)).all()] == [(1, "Keep the Nami.")]
@@ -168,7 +166,7 @@ def test_the_admin_lists_feedback_newest_first_with_30_day_counts_679(chat):
         db.commit()
     _login(c, S, _mk_user(S, ADMIN_EMAIL, "admin"))
     out = c.get("/admin/feedback").json()
-    assert out["counts"] == {"up": 1, "down": 0, "wrong": 1}  # the 45-day-old down vote is not counted
+    assert out["counts"] == {"up": 1, "down": 0, "wrong": 1}
     assert [(i["rating"], i["note"], i["answer_excerpt"]) for i in out["items"]][:2] == [
         ("up", "", "Keep the Nami."),
         ("wrong", "Wrong cost.", "Play Zoro on turn 2."),
@@ -182,7 +180,7 @@ def test_other_players_and_moderators_cannot_read_feedback_679(chat):
     _, body = _session(c)
     tid = _thread(c, _as(body["token"]))
     _rate(c, tid, 0, "wrong", "secret note")
-    assert c.get("/admin/feedback").status_code == 403  # the author is not staff
+    assert c.get("/admin/feedback").status_code == 403
     assert c.get("/admin/feedback/export", params={"rating": "wrong"}).status_code == 403
     for email, role in (("p@x.test", "user"), ("mod@x.test", "moderator")):
         _login(c, S, _mk_user(S, email, role))
@@ -196,7 +194,6 @@ def test_another_player_with_log_pose_sees_none_of_your_ratings_and_cannot_rate_
     _, body = _session(c)
     tid = _thread(c, _as(body["token"]))
     _rate(c, tid, 0, "wrong", "secret note")
-    # Someone Else is on ANALYST_CHAT_EMAILS too, so Log Pose is on for them.
     _login(c, S, _mk_user(S, "someone@else.example"))
     assert c.get("/analyst/feedback", params={"thread_id": tid}).json() == {"votes": []}
     assert _rate(c, tid, 0, "down").status_code == 404

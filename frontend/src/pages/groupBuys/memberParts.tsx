@@ -3,7 +3,6 @@ import { GroupBuyLine, GroupBuyMember, GroupBuyMemberQty, money } from "../../ap
 import { mySelectedArtsTotal } from "./groupBuyArt";
 import { MemberSwatch, memberColor } from "./memberColors";
 
-/** Member's shopping "Copies needed" mode; hidden once quantities are frozen. */
 export function MemberModeTag({ member }: { member: GroupBuyMember }) {
   if (member.sum_across_leaders == null) return null;
   const separate = member.sum_across_leaders;
@@ -44,7 +43,6 @@ export function MemberBreakdown({
   );
 }
 
-/** Who wants this art (productId 0 = the Base tile, which holds the preferred printing's wants). */
 export function ArtWantChips({
   line,
   productId,
@@ -74,7 +72,6 @@ export function ArtWantChips({
   );
 }
 
-/** Passive note on an alt tile whose Extra copy the viewer left out of this group buy (#1269). */
 export function SkippedBadge({ line, productId }: { line: GroupBuyLine; productId: number }) {
   const skipped = (line.my_extras ?? []).some((e) => e.product_id === productId && e.skipped > 0);
   if (!skipped) return null;
@@ -87,7 +84,6 @@ export function SkippedBadge({ line, productId }: { line: GroupBuyLine; productI
   );
 }
 
-/** View-only alt row: Base plus the alts somebody wants, with who wants each; no steppers or Show. */
 export function readOnlyAltRow(line: GroupBuyLine, members: GroupBuyMember[]) {
   const wanted = new Set((line.art_wants ?? []).map((w) => w.product_id));
   const alts = (line.alt_arts ?? []).filter((a) => wanted.has(a.product_id));
@@ -125,11 +121,6 @@ export function MemberColorRail({
   );
 }
 
-/**
- * Price under a group-buy card. With copies in the viewer's buy it is the total
- * across the arts they picked (breakdown in the tooltip); otherwise the usual
- * clickable unit price. Both states keep one line of the same height.
- */
 export function GroupBuyCardPrice({ line }: { line: GroupBuyLine }) {
   if (line.my_qty <= 0) {
     return <MarketPrice price={line.market_price} productId={line.product_id} />;

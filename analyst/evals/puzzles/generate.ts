@@ -1,7 +1,3 @@
-/**
- * Builds the puzzle set (#677): positions from self-play and from the Harness, a generator per type, and quotas for how many
- * puzzles come from synthetic boards and from the newest sets. Deterministic for a seed and the same decks.
- */
 import { createSeededRng, type MatchState, type Rng } from "@optcg/rules";
 import type { Catalog } from "../../src/catalog";
 import { DEFEND_MIX, defendPuzzle } from "./defend";
@@ -13,24 +9,19 @@ import { PUZZLE_TYPES, type Puzzle, type PuzzleType } from "./types";
 
 export type GenerateOptions = {
   seed: number;
-  /** Puzzles per type. */
   n: number;
   types?: readonly PuzzleType[];
-  /** Share of puzzles with a card from OP18 / EB05. */
   newShare?: number;
   /** Share of position puzzles built by the Harness instead of sampled from self-play. */
   synthShare?: number;
   decks?: DeckSource[];
   catalog: Catalog;
-  /** Position batches to try before giving up on a short type (default 6). */
   maxRounds?: number;
 };
 
 export type GenerateResult = {
   puzzles: Puzzle[];
-  /** Positions a generator turned down, by type. */
   rejected: Record<string, number>;
-  /** Types that ended with fewer than `n` puzzles. */
   short: Record<string, number>;
 };
 
@@ -40,13 +31,10 @@ const hash = (...xs: (string | number)[]): number => {
   return h >>> 0;
 };
 
-/** The types that start from a sampled or Harness position (the lethal type builds its own boards, the scenario types come from rows). */
 const GENERATORS: Record<string, (state: MatchState, catalog: Catalog, rng: Rng, prefer?: string) => Made | null> = { ...POSITION_GENERATORS, defend: defendPuzzle };
 
-/** Share of puzzles by first tag, for the types that are steered toward a mix. */
 const TYPE_MIX: Record<string, Record<string, number>> = { power: POWER_MIX, defend: DEFEND_MIX };
 
-/** Boards the lethal builder is asked for per puzzle wanted, before giving up on a short set. */
 const LETHAL_TRIES = 25;
 
 const cellOf = (synthetic: boolean, newSet: boolean) => `${synthetic ? "harness" : "selfplay"}-${newSet ? "new" : "old"}`;
@@ -60,7 +48,6 @@ export function quotas(n: number, synthShare: number, newShare: number): Record<
   return { [cellOf(true, true)]: newSynth, [cellOf(true, false)]: synth - newSynth, [cellOf(false, true)]: newSelf, [cellOf(false, false)]: self - newSelf };
 }
 
-/** The kind of puzzle furthest below its share so far. */
 function nextKind(have: readonly { tags: string[] }[], n: number, mix: Record<string, number>): string {
   const short = (kind: string) => Math.ceil(n * mix[kind]!) - have.filter((p) => p.tags[0] === kind).length;
   return Object.keys(mix).sort((a, b) => short(b) - short(a))[0]!;
@@ -127,7 +114,6 @@ export function generatePuzzles(opts: GenerateOptions): GenerateResult {
   }
 
   if (types.includes("lethal")) {
-    // Boards built for the puzzle, one at a time; the first half of the tries keep to the new-set share, the rest take what fits.
     const rng = createSeededRng(hash(seed, "lethal"));
     const have: Puzzle[] = [];
     const wantNew = Math.round(n * newShare);

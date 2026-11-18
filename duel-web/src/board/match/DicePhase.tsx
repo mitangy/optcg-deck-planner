@@ -4,10 +4,8 @@ import { motionReduced } from "../prompts/hideShrink";
 import { diceSlot, diceStatus, type DiceView } from "./diceModel";
 import { seatLabel } from "./playerNames";
 
-/** How long the die tumbles after a roll arrives before its face and result are shown. */
 export const DICE_TUMBLE_MS = 1000;
 
-/** Which of the 3x3 grid cells hold a pip, per face. */
 const PIPS: Record<number, readonly number[]> = {
   1: [4],
   2: [0, 8],
@@ -17,7 +15,6 @@ const PIPS: Record<number, readonly number[]> = {
   6: [0, 2, 3, 5, 6, 8],
 };
 
-/** A die face drawn with CSS pips; `face` null shows a blank die. */
 export function DieFace({ face, tumbling }: { face: number | null; tumbling: boolean }) {
   const pips = face ? PIPS[face] : undefined;
   return (
@@ -30,10 +27,6 @@ export function DieFace({ face, tumbling }: { face: number | null; tumbling: boo
   );
 }
 
-/**
- * The face to draw and whether the die is still tumbling. A roll that arrives while this is mounted tumbles for
- * DICE_TUMBLE_MS (random faces, then the real one); a roll already there when it mounts (a reconnect) just shows.
- */
 function useTumble(roll: number | null): { face: number | null; tumbling: boolean } {
   const first = useRef(roll);
   const [tumbling, setTumbling] = useState(false);
@@ -56,7 +49,6 @@ function useTumble(roll: number | null): { face: number | null; tumbling: boolea
   return { face: tumbling ? shown : roll, tumbling };
 }
 
-/** Whole seconds left until `deadline` (epoch ms), ticking while it is in the future. */
 function useSecondsLeft(deadline: number | null): number | null {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -75,11 +67,6 @@ type Props = {
   onAction: (action: DiceAction) => void;
 };
 
-/**
- * The opening dice roll of a room's first game (#1190), shown where "Waiting for opponent" was: one player rolls,
- * the other calls High or Low, and the winner picks first or second. Spectators see the same, read-only.
- * The card keeps its size and every control keeps its place from step to step; only the labels change.
- */
 export function DicePhase({ state, onAction }: Props) {
   const spectating = state.role === "spectator";
   const me: Seat | null = spectating ? null : state.seat;

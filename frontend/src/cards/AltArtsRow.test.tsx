@@ -7,12 +7,10 @@ import type { PrintingView } from "../api";
 import { AltArtsRow } from "./MarketPrice";
 import previewIds from "../../../packages/ui/src/cardArt/previewArt.json";
 
-// Every card currently has official art, so the card preview list can be empty: use a fixed one (#1299).
 vi.mock("../../../packages/ui/src/cardArt/previewArt.json", () => ({ default: ["OP18-003", "OP18-031"] }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
-// A card id from the preview manifest (the daily art sync retires old ones).
 const CARD_ID = previewIds[0]!;
 const PREVIEW = `https://optcgduel.app/cards/preview/${CARD_ID}.webp`;
 const alt: PrintingView = {
@@ -27,7 +25,6 @@ const alt: PrintingView = {
   owned: 0,
 };
 
-/** Fails every image in the tile until its src is the card preview (or nothing is left). */
 function exhaust(tile: Element): string | null {
   for (let i = 0; i < 10; i++) {
     const img = tile.querySelector("img.thumb");

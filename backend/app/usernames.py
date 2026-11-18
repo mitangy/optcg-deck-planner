@@ -1,12 +1,3 @@
-"""Duel usernames: validation, availability, suggestions, and display names.
-
-Rules (kept in sync with duel-web/src/auth/username.ts):
-- 3–20 characters of ASCII letters, digits, underscore, or hyphen.
-- Unique case-insensitively (``ix_users_username_lower``); the chosen casing is kept.
-- Reserved words (``admin``, ``moderator``, …) and a small profanity list are
-  rejected. Checks run on a normalized form (lowercase, ``_``/``-`` removed,
-  common leetspeak folded) so ``Adm1n`` or ``f_u_c_k`` do not slip through.
-"""
 
 from __future__ import annotations
 
@@ -22,7 +13,6 @@ USERNAME_MIN_LEN = 3
 USERNAME_MAX_LEN = 20
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_-]{3,20}$")
 
-# Exact (normalized) matches that would confuse players or impersonate staff/UI.
 _RESERVED_EXACT = frozenset(
     {
         "admin",
@@ -59,10 +49,8 @@ _RESERVED_EXACT = frozenset(
     }
 )
 
-# Substrings that signal impersonation anywhere in the name (e.g. "the_admin").
 _RESERVED_SUBSTRINGS = ("admin", "moderator", "official", "optcgstaff")
 
-# Deliberately small and conservative to limit false positives (Scunthorpe problem).
 _PROFANITY_SUBSTRINGS = (
     "fuck",
     "shit",
@@ -100,7 +88,6 @@ class UsernameError(ValueError):
 
 
 def normalize_username(value: str) -> str:
-    """Folded form used for reserved/profanity checks (not for uniqueness)."""
     return value.lower().replace("_", "").replace("-", "").translate(_LEET)
 
 
@@ -115,7 +102,6 @@ def _is_blocked(value: str) -> bool:
 
 
 def validate_username(raw: str) -> str:
-    """Return the trimmed username or raise UsernameError with a user-facing message."""
     if not isinstance(raw, str):
         raise UsernameError("Username must be a string.")
     value = raw.strip()
@@ -149,7 +135,6 @@ def _base_from_user(user: User) -> str:
 
 
 def suggest_username(db: Session, user: User) -> str:
-    """An available, valid username derived from the user's name/email."""
     base = _base_from_user(user)
     if not username_taken(db, base, exclude_user_id=user.id) and base != "Pirate":
         return base
@@ -162,7 +147,6 @@ def suggest_username(db: Session, user: User) -> str:
 
 
 def duel_display_name(user: User) -> str:
-    """Name shown to other players: username, else the legacy account name."""
     if user.username:
         return user.username
     name = (user.name or "").strip()

@@ -1,4 +1,3 @@
-/** Public engine facade: match creation, intent validation/application and legal-intent listing. */
 import { abilitiesFor, REGISTRY_HASH } from "../cards/abilities.js";
 import { ensureDefsForPlayers, getCardDef, normalizeCardDefId } from "../cards/definitions.js";
 import { createSeededRng, type Rng } from "../rng.js";
@@ -15,7 +14,6 @@ function fail(state: MatchState, code: string, message: string): ApplyResult {
   return { ok: false, state, events: [], error: { code, message } };
 }
 
-/** "Under the rules of this game, your DON!! deck consists of N cards." */
 function donDeckSize(leaderId: string): number {
   for (const ability of abilitiesFor(leaderId)) for (const s of ability.statics ?? []) if (s.s === "deck_rule" && /^don_deck:\d+$/.test(s.rule)) return Number(s.rule.split(":")[1]);
   return 10;
@@ -44,10 +42,9 @@ function buildPlayer(state: MatchState, seat: Seat, cfg: PlayerDeckConfig, rng: 
   player.donTotal = player.donDeck.length;
   const dealt = cfg.deck.map((defId) => ({ defId: getCardDef(defId).id, id: alloc(state, "card") }));
   const shuffled = rng.shuffle(dealt);
-  // Ids allocated in decklist order would leak copy counts, and in draw order would leak the shuffle (#369):
-  // hand them out by an independent permutation.
-  // The permutation comes from its own stream derived from the seed, so the deck order, the draws and every later
-  // roll of the match rng are the same as without the flag.
+  // Ids allocated in decklist order would leak copy counts, and in draw order the shuffle: hand them out by an
+  // independent permutation from its own seed-derived stream, so deck order, draws and later rolls of the match rng
+  // stay the same as without the flag.
   if (state.privateChoicesV2) {
     const idRng = createSeededRng((state.rng.seed ^ 0x5bd1e995 ^ Math.imul(seat + 1, 0x9e3779b1)) >>> 0);
     const ids = idRng.shuffle(dealt.map((c) => c.id));
@@ -55,9 +52,8 @@ function buildPlayer(state: MatchState, seat: Seat, cfg: PlayerDeckConfig, rng: 
   }
   player.deck = shuffled.map((c) => c.defId);
   player.zoneInstanceIds.deck = shuffled.map((c) => c.id);
-  // "At the start of the game, play up to 1 {Trait} type Stage card from your deck."
-  // One eligible Stage plays itself; two or more different ones ask the player
-  // (the opening hand is drawn once they choose).
+  // One eligible Stage plays itself; two or more different ones ask the player (the opening hand is drawn once they
+  // choose).
   for (const ability of abilitiesFor(leaderDef.id)) for (const st of ability.statics ?? []) {
     if (st.s !== "deck_rule" || !st.rule.startsWith("start_stage:") || player.stage) continue;
     const trait = st.rule.slice("start_stage:".length);
@@ -87,7 +83,6 @@ function drawOpeningHand(player: PlayerState): void {
   for (let i = 0; i < 5 && player.deck.length; i += 1) player.hand.push(makeCard(player.deck.shift()!, player.zoneInstanceIds.deck.shift()!));
 }
 
-/** Answer to the start-of-game Stage prompt: play it, shuffle the deck, then draw the opening hand. */
 function resolveStartStage(sim: Sim, choice: PendingChoice, selectedOptionIds: string[]): ApplyError {
   const request = choice.request;
   if (request?.type !== "select") return err("INVALID_CHOICE", "Choice has no options");
@@ -102,7 +97,6 @@ function resolveStartStage(sim: Sim, choice: PendingChoice, selectedOptionIds: s
   sim.events.push({ type: "pending_choice_resolved", seat: choice.seat, kind: choice.kind, cardDefId: choice.cardDefId, accepted: true, privateToSeat: choice.seat });
   return null;
 }
-
 
 export function createMatch(config: CreateMatchConfig): MatchState {
   const players = config.players.map((p) => ({ leaderId: normalizeCardDefId(p.leaderId), deck: p.deck.map((id) => normalizeCardDefId(id)) })) as CreateMatchConfig["players"];
@@ -190,7 +184,6 @@ function canAttackWith(state: MatchState, seat: Seat, card: CardInstance, target
 
 function attackableCharacter(state: MatchState, seat: Seat, attacker: CardInstance, target: CardInstance): boolean {
   if (!(target.rested || hasRestriction(state, seat, attacker, "can_attack_active")) || !attackTargetAllowed(state, seat, target)) return false;
-  // "Cannot attack your opponent's Characters with a base cost of 7 or less."
   return !cannotAttackMatching(state, seat, attacker, target);
 }
 
@@ -370,7 +363,6 @@ function applyInner(sim: Sim, intent: Intent, seat: Seat): ApplyError {
       }
       const dons = activeDon(p);
       for (let i = 0; i < cost; i += 1) dons[i]!.rested = true;
-      // Consume one-shot cost reductions that applied to this play.
       const cardLoc = locate(state, card.id)!;
       state.modifiers = state.modifiers.filter((m) => !(m.target.kind === "player" && m.target.seat === seat && m.effect.type === "play_cost" && m.effect.once && filterMatches(state, ctxFor(seat, card), m.effect.filter, cardLoc)));
       if (def.type === "character" && p.characters.length >= 5) {
@@ -484,7 +476,6 @@ function legalIntentsOf(state: MatchState, seat: Seat): Intent[] {
 
 export function skipMulligans(state: MatchState): MatchState {
   let s = state;
-  // Start-of-game Stage prompts take the first option.
   while (s.phase === "mulligan" && s.pendingChoices[0]) {
     const front = s.pendingChoices[0];
     const r = applyIntent(s, { type: "resolve_pending_choice", ...defaultAnswer(front), accept: true }, { seat: front.seat });

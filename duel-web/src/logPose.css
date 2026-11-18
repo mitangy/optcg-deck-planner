@@ -1,6 +1,3 @@
-/* Log Pose chat (packages/analyst-client) in the crew theme: the palette tokens below follow
-   Settings → Theme and light / dark on their own. Layers: above the top bar (50) and deck menu
-   (60), below sheets (100), card inspect (200) and the reconnect banner. */
 .logpose {
   --lp-surface: var(--ui-panel-bg);
   --lp-surface-2: var(--arena-raised);
@@ -22,7 +19,6 @@
   --lp-z-panel: var(--z-drawer);
 }
 
-/* Post-game review on the match log page. */
 .lp-review {
   margin: 0 0 1rem;
 }
@@ -51,7 +47,6 @@
 }
 
 .lp-review-body {
-  /* Reserved while the review loads or streams in, so the turn log below doesn't jump. */
   min-height: 7.5rem;
   color: var(--ink);
   line-height: 1.5;
@@ -107,7 +102,6 @@
   color: var(--crimson-bright);
 }
 
-/* Always present under the review, so it never shifts the turn log as the review loads. */
 .lp-review-chat {
   display: flex;
   margin-top: 0.75rem;
@@ -135,15 +129,12 @@
   animation: none;
 }
 
-/* Phones: room under the footer's last line so the compass never covers it at the bottom of a page. */
 @media (max-width: 899.98px) {
   body:has(.lp-compass) .site-footer {
     padding-bottom: calc(52px + max(16px, env(safe-area-inset-bottom, 0px)));
   }
 }
 
-/* Matchup brief on the board (casual and practice games): pinned at the top of the Log Pose chat, so it scrolls
-   with the panel and never takes room from the board. Its header row folds the text away. */
 .match-brief-pinned {
   box-sizing: border-box;
   padding: 0.5rem 0.75rem;
@@ -261,7 +252,6 @@
   animation: none;
 }
 
-/* The Brief button in the top bar: a box sized by its fixed label, so loading, ready and error never change its size. */
 .hud-brief-btn {
   position: relative;
   flex: none;
@@ -309,7 +299,6 @@
   white-space: nowrap;
 }
 
-/* Busy shows only as a dot inside the box. */
 .hud-brief-dot {
   position: absolute;
   top: 4px;

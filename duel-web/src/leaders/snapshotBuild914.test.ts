@@ -7,7 +7,6 @@ import type { MetaLeader } from "../decks/meta";
 
 type Call = { url: string };
 
-/** A fake API: the fixture leaders, and for each leader the fixture decks (or an error for ids in `broken`). */
 function fakeApi(opts: { leadersFail?: boolean; broken?: string[]; leaders?: MetaLeader[] } = {}) {
   const calls: Call[] = [];
   const fetchFn = async (url: string) => {

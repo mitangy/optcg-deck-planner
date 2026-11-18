@@ -1,8 +1,3 @@
-/**
- * Card catalog for the analyst: printed card data, the ability DSL and the deck-analytics
- * atlas, merged into one searchable row per card. Loaded once at startup from the repo's
- * generated JSON (the same files the duel engine and the deck stats panels use).
- */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { StatsAtlas } from "@optcg/deck-analytics";
@@ -24,13 +19,9 @@ export type CardRow = {
   attributes: string[];
   text: string;
   trigger: string;
-  /** Keywords the card has, e.g. Rush, Blocker, Double Attack. */
   keywords: string[];
-  /** Ability timings from the DSL, e.g. on_play, when_attacking, counter, trigger. */
   timings: string[];
-  /** Effect verbs from the DSL, e.g. ko, draw, look, rest, to_hand. */
   effects: string[];
-  /** How completely the duel engine implements the card's text. */
   support: AbilitySupport;
 };
 
@@ -58,7 +49,6 @@ type RawCard = {
 
 type RawAbilities = Record<string, { abilities: Ability[]; status?: string }>;
 
-/** DSL control-flow nodes: they wrap effects but are not effects a player would search for. */
 const STRUCTURAL = new Set(["if", "seq", "may", "choose_one", "nothing", "select", "pay", "invoke", "delay"]);
 
 function collectVerbs(node: unknown, out: Set<string>): void {
@@ -116,7 +106,6 @@ const readJson = <T>(rel: string): T => JSON.parse(readFileSync(repoFile(rel), "
 
 let cached: Catalog | null = null;
 
-/** The catalog built from the repo's generated card files (read once). */
 export function loadCatalog(): Catalog {
   cached ??= buildCatalog(
     readJson("packages/rules/src/cards/cardData.json"),

@@ -19,7 +19,6 @@ import "./pages/decks/logPose.css";
 import "./friends/friends.css";
 import { qk } from "./cache/queryKeys";
 
-// Before routing can rewrite the URL: remember where a new visitor came from (#905).
 captureFirstTouch();
 startUpdateChecks();
 // A tab opened before a deploy asks for lazy-route chunks that no longer exist: reload instead of a blank page (#1074).

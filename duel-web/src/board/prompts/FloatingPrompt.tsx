@@ -15,16 +15,6 @@ import { useFitPopupScale } from "../preview/useFitPopupScale";
 import { usePromptDrag } from "./promptDrag";
 import { useDuelSettings } from "../../settings";
 
-/**
- * Floating-card prompts (always on in matches; `/demo?box` shows the pop-up fallback): instead of a pop-up panel,
- * the cards an effect is working with float over the board in a row. Tap a
- * card to pick it, drag cards left / right to reorder, then confirm. The row
- * always reads left → right: top of deck → bottom, or first effect → last.
- */
-
-/** Pending choices this prototype can float; everything else keeps the pop-up. */
-
-/** The effect-order pop-up drags like the others but does not dock (#449). */
 const FLOATING_NO_DOCK = { side: "" as const, dockable: false, setSide: () => undefined };
 export function canFloat(choice: PendingChoiceView): boolean {
   if (choice.kind === "order_effects") return (choice.unorderedChoices?.length ?? 0) > 1;
@@ -36,12 +26,7 @@ const sourceName = promptSourceName;
 
 const DRAG_START_PX = 14;
 
-/**
- * Drag-to-reorder for a row of `[data-float-id]` cards. The dragged card
- * follows the pointer; the others slide into their new slots (FLIP), so the
- * row reorders live under the finger. Slots are read from layout offsets, not
- * screen rects, so mid-slide transforms never confuse the drop point.
- */
+// Slots are read from layout offsets, not screen rects, so mid-slide transforms never confuse the drop point.
 function useFloatReorder(order: readonly string[], onReorder: (next: string[]) => void) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -53,7 +38,6 @@ function useFloatReorder(order: readonly string[], onReorder: (next: string[]) =
 
   const cards = () => [...(rowRef.current?.querySelectorAll<HTMLElement>("[data-float-id]") ?? [])];
 
-  // FLIP: slide every card (except the one under the pointer) from its old slot.
   useLayoutEffect(() => {
     const reduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const next = new Map<string, { x: number; y: number }>();
@@ -143,7 +127,6 @@ function useFloatReorder(order: readonly string[], onReorder: (next: string[]) =
   return { rowRef, dragId, bind };
 }
 
-/** Shell shared by the floating prompts: header, the card row, and the action bar. */
 function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions }: {
   choice: PendingChoiceView;
   count: number;
@@ -155,15 +138,12 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
   actions: ReactNode;
 }) {
   const name = choice.kind === "order_effects" ? "Order effects" : sourceName(choice);
-  // No floating prompt dims the board (#449, #542): the cards hover over it and the board behind
-  // the empty parts stays visible and clickable. Effect ordering is also a free-standing pop-up
-  // like the other choice prompts: its header drags it (promptPos).
+  // No floating prompt dims the board: the board behind the empty parts stays visible and clickable.
   const free = choice.kind === "order_effects";
   const wrapRef = useRef<HTMLDivElement | null>(null);
   usePromptDrag(wrapRef, useDuelSettings().promptPos, FLOATING_NO_DOCK);
   const stageRef = useRef<HTMLDivElement | null>(null);
   useFitPopupScale(stageRef);
-  // Portrait phones: the hint sits under the title, the buttons in the bottom bar (#663).
   const portrait = !useMediaQuery(WIDE_BOARD_QUERY);
   const noteEl = note ? <div className="float-note">{note}</div> : null;
   const layer = peek ? (
@@ -196,7 +176,6 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
               type="button"
               className="btn btn-secondary float-peek"
               onClick={() => {
-                // The stage is the visible box; its layer spans the screen (#587).
                 captureHideShrink(stageRef.current);
                 onPeek(true);
               }}
@@ -218,7 +197,6 @@ function FloatShell({ choice, count, peek, onPeek, children, axis, note, actions
   );
 }
 
-/** Left / right step buttons for one card (keyboard and precise taps). */
 function Nudge({ name, index, count, onMove }: { name: string; index: number; count: number; onMove: (to: number) => void }) {
   return (
     <span className="float-nudge">
@@ -229,7 +207,6 @@ function Nudge({ name, index, count, onMove }: { name: string; index: number; co
   );
 }
 
-/** Search / look at the top N cards: tap to take, drag to set the put-back order. */
 function FloatLook({ choice, request, mySeat, onSend }: {
   choice: PendingChoiceView;
   request: Extract<ChoiceRequestView, { type: "look" }>;
@@ -240,7 +217,6 @@ function FloatLook({ choice, request, mySeat, onSend }: {
   const byId = useMemo(() => new Map(request.options.map((o) => [o.id, o])), [request.options]);
   const [row, setRow] = useState<string[]>(() => request.options.map((o) => o.id));
   const [picked, setPicked] = useState<string[]>([]);
-  // "Top or bottom" moves the rest together: one switch for all of them.
   const [side, setSide] = useState<"top" | "bottom">("top");
   const [peek, setPeek] = useState(false);
   const { rowRef, dragId, bind } = useFloatReorder(row, setRow);
@@ -248,7 +224,6 @@ function FloatLook({ choice, request, mySeat, onSend }: {
   const eligible = (id: string) => request.maxSelect > 0 && request.groups.some((g) => g.eligibleIds.includes(id));
   const toggle = (id: string) =>
     setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : request.maxSelect === 1 ? [id] : cur.length >= request.maxSelect ? cur : [...cur, id]));
-  // Double click / tap on a card (#1287): take it (never drop it) and confirm when the picks are valid.
   const sent = useRef(false);
   const doubleToggle = (id: string) => {
     if (sent.current) return;
@@ -341,7 +316,6 @@ function FloatLook({ choice, request, mySeat, onSend }: {
   );
 }
 
-/** Several effects at once: tap them in the order to resolve, or drag left → right. */
 function FloatEffectOrder({ choice, mySeat, onSend }: { choice: PendingChoiceView; mySeat: Seat; onSend: (i: Intent) => void }) {
   const copy = useClickCopy();
   const effects = choice.unorderedChoices ?? [];
@@ -398,7 +372,6 @@ function FloatEffectOrder({ choice, mySeat, onSend }: { choice: PendingChoiceVie
   );
 }
 
-/** Floating version of the choice prompt for the pending choices `canFloat` accepts. */
 export function FloatingPrompt({ choice, mySeat, onSend }: { choice: PendingChoiceView; mySeat: Seat; onSend: (i: Intent) => void }) {
   if (choice.kind === "order_effects") return <FloatEffectOrder choice={choice} mySeat={mySeat} onSend={onSend} />;
   if (choice.request?.type === "look") return <FloatLook choice={choice} request={choice.request} mySeat={mySeat} onSend={onSend} />;

@@ -11,7 +11,6 @@ const memory = new Map<string, string>();
 
 beforeEach(() => {
   memory.clear();
-  // vitest node env — lightweight localStorage stub for deck persistence tests
   (globalThis as { localStorage?: Storage }).localStorage = {
     getItem: (k) => memory.get(k) ?? null,
     setItem: (k, v) => {

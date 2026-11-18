@@ -10,10 +10,6 @@ import type { spectatorFans } from "./handLayout";
 import { seatLabel } from "../match/playerNames";
 import type { useFanMove } from "./useFanMove";
 
-/**
- * The hand off the bottom of the board: the fan (centre, a corner, docked or dragged anywhere) on a desktop
- * board, or the dock on a wide board without a rail hand.
- */
 export function HandDockLayer({
   fanHand,
   fanRef,

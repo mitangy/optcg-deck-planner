@@ -70,7 +70,6 @@ describe("last seen storage (#450)", () => {
     const storage = memoryStorage();
     expect(loadUnseen("duel", storage, NOTES)).toEqual([]);
     expect(storage.data[lastSeenKey("duel")]).toBe("2026-10-08");
-    // The next update lands: only it is announced.
     const next = [...NOTES, note("2026-10-09", "duel", "duel-next")];
     expect(loadUnseen("duel", storage, next).map((n) => n.title)).toEqual(["duel-next"]);
   });
@@ -118,10 +117,8 @@ describe("notes added later on a day you already saw (#455)", () => {
     loadUnseen("duel", storage, NOTES);
     const later = [...NOTES, note("2026-10-08", "duel", "duel-same-day-late")];
     expect(loadUnseen("duel", storage, later).map((n) => n.title)).toEqual(["duel-same-day-late"]);
-    // Dismissing records it, so it is not announced again.
     markAllSeen("duel", storage, later);
     expect(loadUnseen("duel", storage, later)).toEqual([]);
-    // A third note the same day is announced alone.
     const third = [...later, note("2026-10-08", "both", "both-third")];
     expect(loadUnseen("duel", storage, third).map((n) => n.title)).toEqual(["both-third"]);
   });
@@ -143,7 +140,6 @@ describe("notes added later on a day you already saw (#455)", () => {
     const nextDay = [...both, note("2026-10-09", "duel", "next")];
     expect(loadUnseen("duel", storage, nextDay).map((n) => n.title)).toEqual(["next"]);
     markAllSeen("duel", storage, nextDay);
-    // The 10-08 notes are older than the recorded day, so they are never announced again.
     expect(loadUnseen("duel", storage, nextDay)).toEqual([]);
   });
 

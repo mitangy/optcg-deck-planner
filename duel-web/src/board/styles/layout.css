@@ -1,8 +1,4 @@
-/* Board layout: two official-ratio playmats (24" × 14" → 12:7) that always fit
-   the space between the HUD and the hand, plus a wide-screen layout with a
-   card preview column (left) and a hand / actions / log rail (right).
-   Loaded after styles.css + ui.css and scoped under .arena to win over the
-   older flow-layout rules there. */
+/* Loaded after styles.css + ui.css and scoped under .arena to win over the older flow-layout rules there. */
 
 .arena .arena-body {
   flex: 1;
@@ -15,12 +11,9 @@
   display: none;
 }
 
-/* Narrow: rail children join the column flow (hand, actions); log floats. */
 .arena .arena-rail {
   display: contents;
 }
-
-/* —— Playmat area —— */
 
 .arena .playmat {
   --mat-gap: 8px;
@@ -62,9 +55,7 @@
   --face-w: 13px;
 }
 
-/* Battle / choice prompt gets its own strip between the mats. The strip is
-   always reserved (empty when idle) so a battle starting never moves the
-   board, and the mat-size math below subtracts it. */
+/* The strip is always reserved (empty when idle) so a battle starting never moves the board, and the mat-size math below subtracts it. */
 .arena .playmat {
   --midline-h: 1.6rem;
 }
@@ -96,16 +87,13 @@
   box-shadow: none;
 }
 
-/* The text sits in its own span (the docked wide strip clamps it to two
-   lines); everywhere else it keeps the strip's one-line ellipsis. */
+/* The docked wide strip clamps the text span to two lines; everywhere else it keeps the strip's one-line ellipsis. */
 .arena .midline .prompt-text {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* A battle is the strip's loudest moment: a solid raised fill and a gold
-   edge so it stands out from the felt instead of blending in (#539). */
 .arena .midline .prompt.prompt-battle {
   background: var(--arena-raised);
   border-color: var(--chrome);

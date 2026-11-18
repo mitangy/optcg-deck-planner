@@ -1,6 +1,4 @@
 name: Price history backfill
-# Loads TCGCSV's daily price archives into the planner's price history (#946).
-# Re-running a day overwrites it, so a failed run can be resumed with a later start.
 on:
   workflow_dispatch:
     inputs:

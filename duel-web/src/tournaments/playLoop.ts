@@ -6,10 +6,6 @@ export const OPPONENT_OPENING = "Your opponent is opening the room. Try again.";
 
 export type RoomClaim = { action: "host" } | { action: "join"; room_id: string; server_url?: string | null };
 
-/**
- * Ask the API which side of the match room we are on. "wait" means the
- * opponent is opening it: poll every 2s, then give up after 15 tries.
- */
 export async function claimMatchRoom(
   play: () => Promise<PlayResult>,
   sleep: (ms: number) => Promise<void>,

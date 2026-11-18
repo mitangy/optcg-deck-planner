@@ -33,7 +33,6 @@ function bool(o: Obj, key: string): Field<boolean> {
   return { ok: true, value: v };
 }
 
-/** Optional id: absent (undefined/null) is fine, anything else must be a non-empty string. */
 function optId(o: Obj, key: string): Field<string | undefined> {
   if (o[key] === undefined || o[key] === null) return { ok: true, value: undefined };
   return id(o, key);
@@ -73,10 +72,8 @@ function withOptional<T extends object>(base: T, extra: Record<string, unknown>)
 }
 
 /**
- * Validate an untrusted value (a client message) as an `Intent` before it reaches `applyIntent`,
- * which indexes arrays and reads fields without checking their types. Unknown extra fields are
- * stripped rather than rejected: the result is rebuilt from the validated fields only, so a client
- * that adds a field never reaches the engine with it and old/new clients stay compatible.
+ * Unknown extra fields are stripped rather than rejected, so a client that adds a field never reaches the engine with
+ * it and old and new clients stay compatible.
  */
 export function parseIntent(raw: unknown): ParseIntentResult {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
@@ -154,7 +151,6 @@ export function parseIntent(raw: unknown): ParseIntentResult {
     case "end_turn":
       return done({ type });
     default: {
-      // Adding an Intent variant without a case above fails to compile here.
       const _exhaustive: undefined = type;
       void _exhaustive;
       return {

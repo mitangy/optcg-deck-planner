@@ -13,7 +13,6 @@ import { finish, headOf, type Made } from "./generators";
 import { lethalPool } from "./positions";
 import { declineLifeChecks, OverCap, step, Unfair, type Budget } from "./search";
 
-/** The default node budget: engine steps one search may spend before its position is turned down. */
 export const LETHAL_NODE_CAP = 40_000;
 
 export type LethalValue = {
@@ -21,7 +20,6 @@ export type LethalValue = {
   value: number;
   /** The same with a defender who never blocks and never counters: every attack lands. */
   undefended: number;
-  /** Most the attacker could ever deal: every Life card, and the hit on the Leader after them. */
   ceiling: number;
   steps: number;
 };
@@ -29,11 +27,6 @@ export type LethalValue = {
 const mods = (s: MatchState) => s.modifiers.map((m) => JSON.stringify([m.target, m.effect, m.expires])).sort();
 const piece = (c: MatchState["players"][number]["leader"], counted = true) => [c.defId, c.rested, counted ? c.attachedDonIds.length : 0];
 
-/**
- * What decides the rest of the search, with instance ids left out wherever two cards of one kind are interchangeable. The
- * defender's Characters only ever matter as the number of active Blockers: nothing attacks a Character (see `main`), and which
- * Blocker steps in changes no damage.
- */
 function keyOf(s: MatchState): string {
   const b = s.battle;
   return JSON.stringify([
@@ -42,7 +35,6 @@ function keyOf(s: MatchState): string {
     b ? [b.attackerId, b.target, b.blockerId ? 1 : 0] : null,
     mods(s),
     s.players.map((p, seat) => [
-      // DON!! on a card that has attacked and is out of the battle changes nothing any more.
       piece(p.leader, !p.leader.rested || p.leader.id === b?.attackerId),
       seat === s.activeSeat ? p.characters.map((c) => JSON.stringify(piece(c, !c.rested || c.id === b?.attackerId))).sort() : p.characters.filter((c) => !c.rested && hasKeyword(s, seat as Seat, c, "blocker")).length,
       p.hand.map((c) => c.defId).sort(),
@@ -69,7 +61,6 @@ export function answersTo(s: MatchState): Intent[] {
   return [{ type: "resolve_pending_choice", accept: true, selectedOptionIds: [option.id] }];
 }
 
-/** The most Counter power the defender's hand could add to one card of a battle: Counter Characters' values and the "+N power" of Counter Events. */
 function counterReserve(s: MatchState, defender: Seat): number {
   let total = 0;
   for (const c of s.players[defender].hand) {
@@ -81,7 +72,6 @@ function counterReserve(s: MatchState, defender: Seat): number {
   return total;
 }
 
-/** Two intents of one kind on cards of the same kind do the same thing: only the first of them is tried. */
 const sameKind = (s: MatchState, seat: Seat, intent: Intent): string => {
   const p = s.players[seat];
   if (intent.type === "declare_attack") {
@@ -118,14 +108,12 @@ function solve(start: MatchState, undefended: boolean, cap: number): { value: nu
   const budget: Budget = { used: 0, cap };
   const ceiling = startLife + 1;
   const dealt = (s: MatchState) => startLife - s.players[defender].life.length + (s.winner === attacker ? 1 : 0);
-  /** Most damage the cards that have not attacked yet could still add: one hit each, two for [Double Attack]. */
   const reach = (s: MatchState) => {
     const p = s.players[attacker];
     return [p.leader, ...p.characters].filter((c) => !c.rested || c.id === s.battle?.attackerId).reduce((n, c) => n + (hasKeyword(s, attacker, c, "double_attack") ? 2 : 1), 0);
   };
   type Bound = { lo: number; hi: number };
   const memo = new Map<string, Bound>();
-  /** Is the value of `s` at least `t`? `compute` decides it when the bounds do not. */
   const atLeast = (key: string, s: MatchState, t: number, compute: () => boolean): boolean => {
     let entry = memo.get(key);
     if (!entry) memo.set(key, (entry = { lo: dealt(s), hi: Math.min(ceiling, dealt(s) + reach(s)) }));
@@ -137,11 +125,6 @@ function solve(start: MatchState, undefended: boolean, cap: number): { value: nu
     return yes;
   };
 
-  /**
-   * The attacker's Main Phase: end the turn now, or attack. DON!! is given just before the attack it is for, to the attacking
-   * card: a DON!! given earlier does the same thing with less to go on, and the Leaders of these boards have no [DON!! xN]
-   * static that would let DON!! on one card change another's power.
-   */
   const main = (s: MatchState, t: number): boolean => {
     if (s.winner !== null) return dealt(s) >= t;
     if (s.phase !== "main" || s.battle || s.pendingChoices.length) throw new Unfair("not a Main Phase");
@@ -158,29 +141,22 @@ function solve(start: MatchState, undefended: boolean, cap: number): { value: nu
       for (const attack of firstOfKind(s, attacker, legal.filter((i) => i.type === "declare_attack" && i.target.kind === "leader"))) {
         if (attack.type !== "declare_attack") continue;
         const floor = powerOf(s, defender, foe.leader);
-        // The most power the Leader can have with every Counter card played on it. A Blocker that steps in takes the hit, so what
-        // the attacker's power is against it changes no damage.
         const roof = floor + reserve;
-        // The states with 0, 1, 2 ... DON!! given to the attacker, up to the ones that can matter.
         const tries: MatchState[] = [];
         let ready = s;
         for (let k = 0; k <= donCount; k += 1) {
           if (k > 0) ready = step(ready, { type: "give_don", donId: ready.players[attacker].costArea.find((d) => !d.rested)!.id, targetId: attack.attackerId }, attacker, budget);
           const mine = powerOf(ready, attacker, attack.attackerId === p.leader.id ? ready.players[attacker].leader : ready.players[attacker].characters.find((c) => c.id === attack.attackerId)!);
-          // Too weak to win against the card it attacks, even with no answer: the attack changes nothing and costs the DON!!.
           if (mine < floor) continue;
           tries.push(ready);
-          // Strong enough to win whatever the defender does: more DON!! on it only leaves less for the next attacker.
           if (mine >= roof) break;
         }
-        // The strongest first: it is the one most likely to settle a yes.
         for (const go of tries.reverse()) if (answer(step(go, attack, attacker, budget), t)) return true;
       }
       return false;
     });
   };
 
-  /** The block step: the defender blocks with whichever Blocker the engine allows, or does not, whichever is worse for the attacker. */
   const answer = (s: MatchState, t: number): boolean => {
     if (s.pendingChoices.length || s.phase !== "block") throw new Unfair("the declared attack opens a choice");
     return atLeast(`b${keyOf(s)}`, s, t, () => {
@@ -189,7 +165,6 @@ function solve(start: MatchState, undefended: boolean, cap: number): { value: nu
     });
   };
 
-  /** The counter step: the defender plays Counter cards one at a time, or passes and the battle resolves. */
   const counters = (s: MatchState, t: number): boolean => {
     if (s.winner !== null || (s.phase === "main" && !s.battle && !s.pendingChoices.length)) return main(s, t);
     if (s.phase !== "counter" || s.pendingChoices.length) throw new Unfair("not the counter step");
@@ -238,7 +213,6 @@ export function lethalPuzzle(state: MatchState, catalog: Catalog, rng: Rng, cap 
   if (!canAnswer && rng.next() >= LETHAL_KEEP.undefended) return null;
   const found = lethalValue(state, cap);
   if (!found) return null;
-  // The set should be mostly boards where the defender's answers or the order of the attacks change the number.
   if (found.value === 0 && rng.next() >= LETHAL_KEEP.none) return null;
   if (found.value === found.undefended && rng.next() >= LETHAL_KEEP.undefended) return null;
   const turn = [

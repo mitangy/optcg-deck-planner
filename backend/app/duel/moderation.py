@@ -23,7 +23,6 @@ REASON_MAX = 200
 
 
 def take_down_cosmetic(db: Session, cosmetic: DuelCosmetic, actor_id: int | None, reason: str = "") -> None:
-    """Soft-delete ``cosmetic`` and stop it being active anywhere. Idempotent; keeps the bytes."""
     if cosmetic.taken_down_at is None:
         cosmetic.taken_down_at = datetime.now(timezone.utc)
         cosmetic.taken_down_by = actor_id
@@ -42,7 +41,6 @@ def take_down_cosmetic(db: Session, cosmetic: DuelCosmetic, actor_id: int | None
 
 
 def restore_cosmetic(db: Session, cosmetic: DuelCosmetic) -> None:
-    """Undo a takedown. The owner has to pick the image as active again."""
     cosmetic.taken_down_at = None
     cosmetic.taken_down_by = None
     cosmetic.taken_down_reason = None
@@ -50,7 +48,6 @@ def restore_cosmetic(db: Session, cosmetic: DuelCosmetic) -> None:
 
 
 def recent_takedowns(db: Session, since: datetime) -> list[dict]:
-    """``[{user_id, kind, cosmetic_id}]`` for cosmetics taken down at or after ``since``."""
     rows = db.execute(
         select(DuelCosmetic.user_id, DuelCosmetic.kind, DuelCosmetic.id)
         .where(DuelCosmetic.taken_down_at.is_not(None), DuelCosmetic.taken_down_at >= since)

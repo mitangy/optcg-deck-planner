@@ -75,7 +75,6 @@ describe("a case through the pipeline", () => {
     expect(r).toMatchObject({ edit_source: "text", legal: true, recall: 1, precision: 1 });
     expect(r.sim!.after).toEqual(r.sim!.ceiling);
     expect(r.sim!.vs_ceiling!.diff).toBe(0);
-    // The sabotaged deck and the original, each against the three other decks once.
     expect(jobs).toHaveLength(2 * (decks.length - 1) * cfg.games);
   });
 

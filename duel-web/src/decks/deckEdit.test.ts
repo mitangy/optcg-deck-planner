@@ -119,9 +119,7 @@ describe("applying a Log Pose edit (#400)", () => {
     expect(copies("ST01-009")).toBe(0);
     expect(copies("ST01-008")).toBe(1);
     expect(getSavedDeck("apply-deck")!.cards).toHaveLength(5);
-    // One write for the whole edit, so a reload never shows half of it.
     expect(writes.filter((k) => k === "optcg.duel.savedDecks.v1")).toHaveLength(1);
-    // Undo is the reverse diff.
     expect(
       applyDeckOps("apply-deck", [
         { id: "ST01-006", before: 1, after: 3 },
@@ -142,7 +140,6 @@ describe("applying a Log Pose edit (#400)", () => {
       { id: "ST01-006", before: 3, after: 1 },
     ]);
     expect(result).toMatchObject({ ok: false, error: expect.stringMatching(/ST01-006 has 2 copies now, not 3/) });
-    // Nothing was saved, not even the card that was still right.
     expect(copies("ST01-008")).toBe(1);
     expect(copies("ST01-006")).toBe(2);
     deleteDeck("apply-deck");

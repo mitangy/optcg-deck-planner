@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 import { getPlayerView, getSpectatorView } from "../engine.js";
 import { Harness } from "../testing/harness.js";
 
-// Hidden cards are only sent once the match is over (#482).
-
 function table() {
   const h = new Harness();
   h.clearHands();

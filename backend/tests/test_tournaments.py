@@ -1,4 +1,3 @@
-"""Limitless TCG tournament sync and stats for Log Pose (#397). HTTP is mocked with real-shaped responses."""
 
 from __future__ import annotations
 
@@ -35,7 +34,6 @@ def _card(set_: str, number: str, count: int) -> dict:
 
 
 def _decklist(leader: str, cards: dict[str, int]) -> dict:
-    """The Limitless decklist shape: leader, then characters, events and stages by section."""
     ls, ln = leader.split("-")
     sections: dict[str, list] = {"character": [], "event": [], "stage": []}
     for key, n in cards.items():
@@ -77,8 +75,6 @@ def event(eid: str, name: str, date: datetime, players: int, standings, pairings
 
 
 class FakeLimitless:
-    """The Limitless API over httpx.MockTransport; `calls` lists every path requested."""
-
     def __init__(self, events: list[dict]) -> None:
         self.events = {e["listing"]["id"]: e for e in events}
         self.calls: list[str] = []
@@ -99,17 +95,16 @@ class FakeLimitless:
 
 
 def meta_events() -> list[dict]:
-    """E1: 4 Zoro and 4 Pudding entrants with 11 finished games. E2: 3 Zoro (one hid his list) and 6 Lucci. E3: too old for 30 days."""
     z = [("z1", {"OP01-A": 4, "OP01-B": 2, "event:OP01-050": 3, "stage:OP01-060": 1}, 1), ("z2", {"OP01-A": 4}, 2), ("z3", {"OP01-A": 3, "OP01-C": 1}, None), ("z4", {"OP01-A": 4}, 5)]
     e1 = [entrant(h, Z, c, placing=pl) for h, c, pl in z] + [entrant(f"p{i}", P, {"OP08-X": 4}, placing=i + 10) for i in range(1, 5)]
     e1_pairs = [
         pairing(1, "z1", "p1", "z1", 1), pairing(1, "z2", "p2", "z2", 2), pairing(1, "p3", "z3", "p3", 3), pairing(1, "z4", "p4", "z4", 4),
         pairing(2, "p1", "z2", "z2", 1), pairing(2, "p2", "z1", "z1", 2), pairing(2, "z3", "p4", "z3", 3), pairing(2, "p3", "z4", "p3", 4),
-        pairing(3, "z1", "z2", "z1", 1),  # Zoro mirror
-        pairing(3, "p1", "p2", "p1", 2),  # Pudding mirror
-        pairing(3, "z3", "p3", 0, 3),  # a tie
-        pairing(3, "z4", "p4", ABSENT, 4),  # not finished yet
-        pairing(3, "p4", None, "p4", 5),  # a bye
+        pairing(3, "z1", "z2", "z1", 1),
+        pairing(3, "p1", "p2", "p1", 2),
+        pairing(3, "z3", "p3", 0, 3),
+        pairing(3, "z4", "p4", ABSENT, 4),
+        pairing(3, "p4", None, "p4", 5),
     ]
     e2 = [entrant("z5", Z, {"OP01-A": 4}, placing=1), entrant("z6", Z, {"OP01-B": 4}, placing=3), entrant("z7", Z, listed=False)] + [entrant(f"l{i}", L, {"OP05-Y": 2}) for i in range(1, 7)]
     e2_pairs = [pairing(1, "z5", "l1", "z5"), pairing(1, "l2", "z6", "l2")]
@@ -137,11 +132,8 @@ def _stats(c, **params):
     return r.json()
 
 
-# ——— ingest ———
-
 
 def test_ingest_reads_set_label_card_ids_and_results_from_a_real_shaped_event_397(db: Session):
-    """An event is stored with its set label, card ids merged across sections, and who beat which leader (#397)."""
     api = FakeLimitless(meta_events()[:1])
     ts.sync_tournaments(db, api.client())
     t = db.get(Tournament, "e1")
@@ -151,14 +143,12 @@ def test_ingest_reads_set_label_card_ids_and_results_from_a_real_shaped_event_39
     z3 = [d for d in db.scalars(select(TournamentDeck)) if "OP01-C" in d.decklist][0]
     assert z3.placing is None
     games = db.scalars(select(TournamentGame).order_by(TournamentGame.id)).all()
-    # 13 pairings: a bye and an unfinished table are left out.
     assert len(games) == 11
     assert [(g.leader_a, g.leader_b, g.winner) for g in games[:3]] == [(Z, P, "A"), (Z, P, "A"), (P, Z, "A")]
     assert [(g.leader_a, g.leader_b, g.winner) for g in games[-3:]] == [(Z, Z, "A"), (P, P, "A"), (Z, P, "tie")]
 
 
 def test_set_label_comes_from_a_set_prefix_only_397():
-    """Only a bracketed set code names the set; country tags and plain names do not (#397)."""
     assert ts.set_label("[OP17.5] ChinoizeCup") == "OP17.5"
     assert ts.set_label("[OP17 NEW BANNED] Rumble league") == "OP17"
     assert ts.set_label("[GER] Dressrosa Tournament-OP17") is None
@@ -166,7 +156,6 @@ def test_set_label_comes_from_a_set_prefix_only_397():
 
 
 def test_no_player_names_or_handles_are_stored_397(db: Session):
-    """Names and handles from standings are used to join pairings and never reach any table (#397)."""
     api = FakeLimitless(meta_events()[:2])
     ts.sync_tournaments(db, api.client())
     dump = json.dumps(
@@ -182,7 +171,6 @@ def test_no_player_names_or_handles_are_stored_397(db: Session):
 
 
 def test_a_tie_is_not_a_win_for_either_side_and_a_missing_winner_is_not_a_game_397():
-    """Winner 0 or -1 is a tie; a handle is a side; no winner yet is skipped; byes are skipped (#397)."""
     stands = [entrant("a", Z), entrant("b", P)]
     for w, expected in (("a", "A"), ("b", "B"), (0, "tie"), (-1, "tie"), (ABSENT, None), (None, None), ("nobody", None)):
         _decks, games = ts.parse_event(stands, [pairing(1, "a", "b", w)])
@@ -192,19 +180,15 @@ def test_a_tie_is_not_a_win_for_either_side_and_a_missing_winner_is_not_a_game_3
 
 
 def test_a_deck_without_a_decklist_still_counts_for_its_leader_397():
-    """Entrants who hid their list keep their leader (from the deck id) and join pairings; the list is empty (#397)."""
     decks, games = ts.parse_event([entrant("a", Z, listed=False), entrant("b", P)], [pairing(1, "a", "b", "b")])
     assert [(d["leader_id"], d["decklist"]) for d in decks] == [(Z, {}), (P, {})]
     assert [(g["leader_a"], g["winner"]) for g in games] == [(Z, "B")]
 
 
-# ——— sync ———
-
 
 def test_resyncing_an_event_replaces_its_rows_instead_of_doubling_them_397(db: Session):
-    """Pulling a recent event again leaves one copy of every row, and picks up changes (#397)."""
     events = meta_events()[:1]
-    events[0]["listing"]["date"] = ago(1).isoformat()  # young enough to be pulled again
+    events[0]["listing"]["date"] = ago(1).isoformat()
     api = FakeLimitless(events)
     ts.sync_tournaments(db, api.client())
     first = ts.sync_status(db)
@@ -217,7 +201,6 @@ def test_resyncing_an_event_replaces_its_rows_instead_of_doubling_them_397(db: S
 
 
 def test_sync_skips_events_that_are_small_old_private_or_without_decklists_397(db: Session):
-    """Only public events with decklists and at least 8 players inside the window are stored (#397)."""
     ok = meta_events()[0]
     small = event("small", "Small", ago(1), 7, [], [])
     private = event("private", "Private", ago(1), 20, [], [], public=False)
@@ -231,8 +214,7 @@ def test_sync_skips_events_that_are_small_old_private_or_without_decklists_397(d
 
 
 def test_sync_does_not_refetch_an_event_that_finished_long_ago_but_refetches_a_young_one_397(db: Session):
-    """An event synced two days after it was played is complete; a younger one is pulled again (#397)."""
-    old, young = meta_events()[0], meta_events()[1]  # played 5 and 3 days ago
+    old, young = meta_events()[0], meta_events()[1]
     api = FakeLimitless([old, young])
     ts.sync_tournaments(db, api.client())
     api.calls.clear()
@@ -248,7 +230,6 @@ def test_sync_does_not_refetch_an_event_that_finished_long_ago_but_refetches_a_y
 
 
 def test_sync_pages_through_the_listing_until_it_passes_the_window_397(db: Session):
-    """More than one page of events are all read, and paging stops at the first event older than the window (#397)."""
     many = [event(f"x{i}", f"Cup {i}", ago(1 + i * 0.01), 8, [entrant("a", Z)], []) for i in range(60)]
     api = FakeLimitless(many + [event("ancient", "Ancient", ago(100), 8, [], [])])
     summary = ts.sync_tournaments(db, api.client(), days=30)
@@ -257,7 +238,6 @@ def test_sync_pages_through_the_listing_until_it_passes_the_window_397(db: Sessi
 
 
 def test_one_broken_event_does_not_stop_the_run_397(db: Session):
-    """An event whose pairings fail is counted as failed and the others still sync (#397)."""
     good, bad = meta_events()[0], meta_events()[1]
     bad["pairings"] = "not a list"
     del bad["standings"]
@@ -267,11 +247,8 @@ def test_one_broken_event_does_not_stop_the_run_397(db: Session):
     assert [t.id for t in db.scalars(select(Tournament))] == ["e1"]
 
 
-# ——— throttling ———
-
 
 def test_requests_are_spaced_by_the_interval_397():
-    """Back-to-back requests wait out the rest of the interval (#397)."""
     now = [100.0]
     slept: list[float] = []
 
@@ -288,7 +265,6 @@ def test_requests_are_spaced_by_the_interval_397():
 
 
 def test_a_429_is_waited_out_then_retried_and_gives_up_after_the_retries_397():
-    """429 waits for Retry-After (or backs off) and retries; endless 429s raise RateLimited (#397)."""
     slept: list[float] = []
     answers = [httpx.Response(429, headers={"retry-after": "42"}), httpx.Response(429), httpx.Response(200, json=[{"id": "x"}])]
     http = httpx.Client(transport=httpx.MockTransport(lambda r: answers.pop(0)))
@@ -304,14 +280,12 @@ def test_a_429_is_waited_out_then_retried_and_gives_up_after_the_retries_397():
 
 
 def test_a_rate_limited_run_stops_and_says_so_397(db: Session):
-    """When Limitless keeps refusing, the run ends, reports rate_limited and keeps what it stored (#397)."""
     http = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(429)))
     summary = ts.sync_tournaments(db, ts.LimitlessClient(http, interval=0, retries=1, sleep=lambda _s: None))
     assert summary["rate_limited"] is True and summary["synced"] == 0
 
 
 def test_a_429_in_the_middle_of_a_run_ends_the_run_not_just_the_event_397(db: Session):
-    """A 429 that outlasts the retries on one event stops the run (rate_limited) rather than counting as one failed event (#397)."""
     api = FakeLimitless(meta_events()[:2])
 
     def handle(req: httpx.Request) -> httpx.Response:
@@ -323,7 +297,6 @@ def test_a_429_in_the_middle_of_a_run_ends_the_run_not_just_the_event_397(db: Se
 
 
 def test_the_app_starts_the_sync_task_with_the_lifespan_and_stops_it_on_shutdown_397(client, monkeypatch: pytest.MonkeyPatch):  # noqa: F811
-    """With the flag on the app runs the sync loop while it is up and cancels it at shutdown (#397)."""
     from fastapi.testclient import TestClient
 
     from app import main
@@ -350,11 +323,8 @@ def test_the_app_starts_the_sync_task_with_the_lifespan_and_stops_it_on_shutdown
     assert events == ["started", "cancelled"]
 
 
-# ——— background task ———
-
 
 def test_the_sync_loop_survives_a_run_that_crashes_397():
-    """A run that raises is logged and the loop runs again (#397)."""
     calls: list[int] = []
 
     def run():
@@ -376,7 +346,6 @@ def test_the_sync_loop_survives_a_run_that_crashes_397():
 
 
 def test_tournament_sync_is_on_in_production_and_off_elsewhere_unless_set_397():
-    """Unset, the flag follows production; TOURNAMENT_SYNC overrides either way (#397)."""
     prod = {"frontend_origin": "https://app.example"}
     assert Settings(**prod).tournament_sync_enabled is True
     assert Settings().tournament_sync_enabled is False
@@ -396,11 +365,8 @@ def test_the_background_task_only_starts_when_the_flag_is_on_397():
     asyncio.run(go())
 
 
-# ——— stats ———
-
 
 def test_matchup_record_follows_the_leader_whichever_side_it_sat_on_397(analyst):  # noqa: F811
-    """Zoro beat Pudding in 6 of 8 decisive games whether Zoro was player 1 or 2; Pudding's record is the reverse; ties are apart (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     s = _stats(c, leader=Z, opponent=P)
@@ -412,12 +378,11 @@ def test_matchup_record_follows_the_leader_whichever_side_it_sat_on_397(analyst)
 
 
 def test_mirrors_are_kept_out_of_a_leaders_record_and_counted_on_their_own_397(analyst):  # noqa: F811
-    """A mirror is neither a win nor a loss for the leader; overview and matchup views both report it (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     s = _stats(c, leader=Z)
     assert s["mirror_games"] == 1
-    assert (s["overall"]["games"], s["overall"]["wins"]) == (10, 7)  # 8 against Pudding (6 wins) and 2 against Lucci (1 win)
+    assert (s["overall"]["games"], s["overall"]["wins"]) == (10, 7)
     assert {o["opponent"] for o in s["opponents"]} == {P, L}
     mirror = _stats(c, leader=Z, opponent=Z)
     assert (mirror["mirror"], mirror["games"]) == (True, 1)
@@ -425,7 +390,6 @@ def test_mirrors_are_kept_out_of_a_leaders_record_and_counted_on_their_own_397(a
 
 
 def test_a_matchup_under_five_games_gives_only_its_game_count_397(analyst):  # noqa: F811
-    """Two games of Zoro against Lucci are marked too_few_games, with no wins or rate (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     s = _stats(c, leader=Z, opponent=L)
@@ -435,14 +399,12 @@ def test_a_matchup_under_five_games_gives_only_its_game_count_397(analyst):  # n
 
 
 def test_a_leaders_opponents_are_listed_most_games_first_397(analyst):  # noqa: F811
-    """Zoro played Pudding 8 times and Lucci twice, so Pudding comes first though Lucci sorts first by number (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     assert [(o["opponent"], o["games"]) for o in _stats(c, leader=Z)["opponents"]] == [(P, 8), (L, 2)]
 
 
 def test_meta_share_is_a_leaders_decks_over_all_decks_in_the_window_397(analyst):  # noqa: F811
-    """Zoro is 7 of 17 decks in the two recent events; the ancient event is outside 30 days (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     s = _stats(c, leader=Z, days=30)
@@ -454,7 +416,6 @@ def test_meta_share_is_a_leaders_decks_over_all_decks_in_the_window_397(analyst)
 
 
 def test_without_a_leader_every_leader_gets_a_share_and_a_record_397(analyst):  # noqa: F811
-    """The overview lists leaders by deck count with shares that add up, and a record from their games (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     s = _stats(c, days=30)
@@ -467,7 +428,6 @@ def test_without_a_leader_every_leader_gets_a_share_and_a_record_397(analyst):  
 
 
 def test_the_top_leaders_by_win_rate_need_a_minimum_sample_397(db: Session):
-    """Leaders under the ranking minimum are left out, and the rest are ordered by win rate (#397)."""
     db.add(Tournament(id="t", name="Cup", date=ago(1), players=32, synced_at=ago(0)))
     db.flush()
 
@@ -475,9 +435,9 @@ def test_the_top_leaders_by_win_rate_need_a_minimum_sample_397(db: Session):
         for i in range(total):
             db.add(TournamentGame(tournament_id="t", round=1, leader_a=a, leader_b=b, winner="A" if i < a_wins else "B"))
 
-    games("OP01-001", "OP09-001", 20, 25)  # 80%
-    games("OP02-001", "OP09-001", 11, 20)  # 55%
-    games("OP03-001", "OP09-001", 5, 5)  # 100% but only 5 games: not ranked
+    games("OP01-001", "OP09-001", 20, 25)
+    games("OP02-001", "OP09-001", 11, 20)
+    games("OP03-001", "OP09-001", 5, 5)
     for lid in ("OP01-001", "OP02-001", "OP03-001", "OP09-001"):
         db.add(TournamentDeck(tournament_id="t", leader_id=lid))
     db.commit()
@@ -487,7 +447,6 @@ def test_the_top_leaders_by_win_rate_need_a_minimum_sample_397(db: Session):
 
 
 def test_card_inclusion_counts_the_leaders_decklists_397(analyst):  # noqa: F811
-    """A card's rate is the share of the leader's decklists that include it, with its average copies (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     s = _stats(c, leader=Z, days=30)
@@ -500,7 +459,6 @@ def test_card_inclusion_counts_the_leaders_decklists_397(analyst):  # noqa: F811
 
 
 def test_top_placings_are_the_best_finishes_with_event_record_and_list_397(analyst):  # noqa: F811
-    """Best placing first (bigger event on a tie), dropped entrants left out, each with its event, record and list (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     top = _stats(c, leader=Z, days=30)["top_placings"]
@@ -511,7 +469,6 @@ def test_top_placings_are_the_best_finishes_with_event_record_and_list_397(analy
 
 
 def test_days_and_min_players_narrow_the_events_397(analyst):  # noqa: F811
-    """min_players leaves out smaller events; days leaves out older ones (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     big = _stats(c, leader=Z, min_players=10)
@@ -522,7 +479,6 @@ def test_days_and_min_players_narrow_the_events_397(analyst):  # noqa: F811
 
 
 def test_a_leaders_view_of_a_window_whose_only_event_has_no_decks_answers_with_zero_share_405(analyst):  # noqa: F811
-    """A just-started event is stored with empty standings; the leader view must not divide by zero (#405)."""
     c, SessionLocal = analyst
     seed(SessionLocal, [event("e9", "Live Cup", ago(0.1), 32, [], [])])
     out = _stats(c, leader=Z, days=7)
@@ -531,7 +487,6 @@ def test_a_leaders_view_of_a_window_whose_only_event_has_no_decks_answers_with_z
 
 
 def test_stats_and_sync_status_are_for_the_analyst_service_only_397(analyst):  # noqa: F811
-    """Both endpoints refuse a missing or wrong service secret (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     for path in ("/analyst/tournaments/stats", "/analyst/tournaments/sync-status"):
@@ -542,7 +497,6 @@ def test_stats_and_sync_status_are_for_the_analyst_service_only_397(analyst):  #
 
 
 def test_sync_status_reports_what_is_stored_and_the_last_run_397(analyst):  # noqa: F811
-    """Counts of events, decks and games, and the last run's summary (#397)."""
     c, SessionLocal = analyst
     seed(SessionLocal)
     s = c.get("/analyst/tournaments/sync-status", headers=SERVICE).json()
@@ -566,7 +520,6 @@ def test_only_one_api_worker_runs_a_tournament_sync_at_a_time_682(monkeypatch):
         other_worker.commit()
     assert ts.run_once(30) == {"synced": 0}
     assert runs == [30]
-    # The run gave the lock back, so the next one (here or in another worker) can start.
     again = app_db.try_advisory_lock(app_db.TOURNAMENT_SYNC_LOCK_KEY, engine)
     assert again is not None
     again.release()

@@ -15,7 +15,6 @@ import { REVIEW_INSTRUCTIONS } from "./review";
 
 export type SystemBlock = { type: "text"; text: string; cache_control?: { type: "ephemeral" } };
 
-/** What a request is for. `game` is the live game attached to a chat turn, if any. */
 export type PromptMode = { kind: "chat"; game?: { plans?: boolean; autopilot?: boolean } } | { kind: "review" } | { kind: "brief" };
 
 export function systemFor(mode: PromptMode): SystemBlock[] {

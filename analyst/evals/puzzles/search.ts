@@ -5,15 +5,12 @@
  */
 import { applyIntent, type Intent, type MatchState, type Seat } from "@optcg/rules";
 
-/** The position holds something that makes the answer unfair to ask: a pending choice, or a line the engine refuses. */
 export class Unfair extends Error {}
 
-/** The search ran past its node budget. */
 export class OverCap extends Error {}
 
 export type Budget = { used: number; cap: number };
 
-/** One intent applied by `seat`; throws `Unfair` when the engine refuses it and `OverCap` when the budget is spent. */
 export function step(state: MatchState, intent: Intent, seat: Seat, budget?: Budget): MatchState {
   if (budget) {
     budget.used += 1;
@@ -24,7 +21,6 @@ export function step(state: MatchState, intent: Intent, seat: Seat, budget?: Bud
   return r.state;
 }
 
-/** Life cards that were taken are checked one at a time; a card with no [Trigger] is simply added to the hand. */
 export function declineLifeChecks(state: MatchState, owner: Seat, budget?: Budget): MatchState {
   let s = state;
   while (s.pendingChoices.length) {

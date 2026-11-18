@@ -50,7 +50,6 @@ describe("sortByColumn", () => {
   });
 
   it("compares numbers by value, not as text (#636)", () => {
-    // As text "10" < "2"; numerically 2 comes first.
     expect(ids(sortByColumn(rows, { key: "price", dir: "asc" }, value)).slice(0, 2)).toEqual(["a", "d"]);
   });
 

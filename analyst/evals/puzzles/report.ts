@@ -1,4 +1,3 @@
-/** report.md for the rules-puzzle eval (#677). */
 import type { EvalRunPost } from "../shared/post";
 import { wilson } from "../qa/stats";
 import type { PuzzleError, PuzzleRow } from "./pipeline";
@@ -17,12 +16,10 @@ export function scoreOf(rows: readonly PuzzleRow[]): Score {
 
 const scoreText = (s: Score) => `${pct(s.accuracy)} (${s.correct}/${s.n}, 95% Wilson ${pct(s.interval[0])} to ${pct(s.interval[1])})`;
 
-/** The run's headline number: the share of puzzles answered exactly right. */
 export function headline(rows: readonly PuzzleRow[], errors: readonly PuzzleError[], spent: number): string {
   return `puzzles: ${scoreText(scoreOf(rows))}, ${errors.length} errors, ${usd(spent)}`;
 }
 
-/** The run as POST /admin/evals takes it (#679): puzzles answered exactly right out of puzzles answered (as the headline counts them, no answer is wrong), by type. */
 export function puzzlesRunPayload(i: { variant: string; model: string; rows: readonly PuzzleRow[]; errors?: readonly PuzzleError[]; notes?: string }): EvalRunPost {
   const score = scoreOf(i.rows);
   const groups: NonNullable<EvalRunPost["groups"]> = {};
@@ -43,7 +40,6 @@ export function puzzlesRunPayload(i: { variant: string; model: string; rows: rea
   };
 }
 
-/** Wrong answers worth reading first: no usable answer, then the rest in puzzle order. */
 export function worstMisses(rows: readonly PuzzleRow[], n = 10): PuzzleRow[] {
   return rows.filter((r) => !r.correct).sort((a, b) => Number(a.parsed) - Number(b.parsed)).slice(0, n);
 }

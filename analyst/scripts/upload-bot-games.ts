@@ -50,7 +50,6 @@ for (const file of files) {
       replay,
       tallies: tallies ?? counted.tallies,
       turns: counted.turns,
-      // Paired runs swap which level sits in which seat every other game.
       ...(paired && first && second && first !== second ? { levels: index % 2 === 1 ? `${second}/${first}` : `${first}/${second}` } : {}),
     };
   });

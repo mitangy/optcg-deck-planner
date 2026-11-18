@@ -1,9 +1,5 @@
 name: Discord patch notes
 
-# Posts new entries of packages/patch-notes/src/notes.ts to the Discord channel behind the
-# DISCORD_PATCH_NOTES_WEBHOOK secret when they land on main (#974). A note counts as new
-# when its date, app, PR and title are not in notes.ts at the previous commit, so editing an
-# old note never reposts it. Run it by hand with "latest" to repost the newest N notes.
 on:
   push:
     branches: [main]

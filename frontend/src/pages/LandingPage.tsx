@@ -27,10 +27,6 @@ const FEATURES: readonly { title: string; body: string }[] = [
   },
 ];
 
-/**
- * What a visitor who is not signed in sees at `/`. Signed-in players get the shopping list
- * there instead (see HomeRoute in App.tsx).
- */
 export function PlannerLandingPage({ onDevLogin }: { onDevLogin: () => Promise<void> }) {
   const [err, setErr] = useState<string | null>(null);
 

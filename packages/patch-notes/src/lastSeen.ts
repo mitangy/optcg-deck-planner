@@ -1,7 +1,6 @@
 import { latestNoteDate, noteKey, notesFor, unseenNotes, type AppName } from "./helpers";
 import type { PatchNote } from "./types";
 
-/** The slice of Storage we use, so tests can pass a plain object. */
 export type NotesStorage = Pick<Storage, "getItem" | "setItem">;
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -18,7 +17,6 @@ function defaultStorage(): NotesStorage | null {
   }
 }
 
-/** The newest note date this browser has been shown, or null when none was ever recorded (or storage is unavailable). */
 export function readLastSeen(app: AppName, storage: NotesStorage | null = defaultStorage()): string | null {
   try {
     const value = storage?.getItem(lastSeenKey(app));
@@ -32,7 +30,6 @@ export function seenKeysKey(app: AppName): string {
   return `optcg.patchNotes.seenOnLastDay.${app}`;
 }
 
-/** The note keys recorded as seen on the last-seen day, or null when none were recorded (a date stored by an older version). */
 export function readSeenOnLastDay(app: AppName, storage: NotesStorage | null = defaultStorage()): string[] | null {
   try {
     const lastSeen = readLastSeen(app, storage);
@@ -46,11 +43,7 @@ export function readSeenOnLastDay(app: AppName, storage: NotesStorage | null = d
   }
 }
 
-/**
- * Records every note `app` has as seen: the newest day, and which notes of that
- * day were shown, so a note added later the same day is still announced.
- * Never moves backwards.
- */
+// Records which notes of the newest day were shown, so a note added later the same day is still announced.
 export function markAllSeen(app: AppName, storage: NotesStorage | null = defaultStorage(), notes: readonly PatchNote[]): void {
   try {
     const latest = latestNoteDate(app, notes);
@@ -65,7 +58,6 @@ export function markAllSeen(app: AppName, storage: NotesStorage | null = default
   }
 }
 
-/** Records `date` as seen. Never moves backwards. */
 export function markSeen(app: AppName, date: string, storage: NotesStorage | null = defaultStorage()): void {
   try {
     const current = readLastSeen(app, storage);
@@ -76,11 +68,7 @@ export function markSeen(app: AppName, date: string, storage: NotesStorage | nul
   }
 }
 
-/**
- * The notes to announce on this launch. With nothing recorded yet it quietly
- * records the newest date and announces nothing, so the NEXT update is the
- * first one shown.
- */
+// With nothing recorded yet it records the newest date and announces nothing, so the NEXT update is the first one shown.
 export function loadUnseen(
   app: AppName,
   storage: NotesStorage | null = defaultStorage(),

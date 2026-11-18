@@ -1,10 +1,3 @@
-/**
- * How big the Log Pose panel is. Desktop and tablets (fine pointer or width of 640px and up) get a
- * window anchored to the bottom-right corner that is resized from any of its four edges or four
- * corners; phones get a sheet whose height is a share of the screen, changed by dragging its grab handle.
- * Pure helpers, so clamping and remembering are tested without a browser.
- */
-
 import type { Pos } from "./panelPos";
 
 export type Size = { w: number; h: number };
@@ -12,37 +5,26 @@ export type Edge = "top" | "bottom" | "left" | "right" | "top-left" | "top-right
 
 export const MIN_W = 320;
 export const MIN_H = 360;
-/** Space kept free at the top and left of the viewport. */
 export const MARGIN = 16;
 export const SIZE_KEY = "optcg-logpose:size";
 export const SHEET_KEY = "optcg-logpose:sheet";
-/** The phone sheet is never lower than this share of the screen, and snaps to full height above SNAP_FULL. */
 export const SHEET_MIN = 0.45;
 export const SNAP_FULL = 0.92;
 
-/** Within min..max; when the room is smaller than the minimum the room wins. */
 const clampDim = (v: number, min: number, max: number) => Math.min(Math.max(v, min), max);
 
-/** The largest panel: the viewport less the margin on its free sides. */
 export function maxSize(vp: Size): Size {
   return { w: Math.max(vp.w - MARGIN, 0), h: Math.max(vp.h - MARGIN, 0) };
 }
 
-/** `size` within the minimum and the viewport maximum (the minimum gives way when the viewport is smaller). */
 export function clampSize(size: Size, vp: Size): Size {
   const max = maxSize(vp);
   return { w: Math.round(clampDim(size.w, MIN_W, max.w)), h: Math.round(clampDim(size.h, MIN_H, max.h)) };
 }
 
-/** The window as the resize handles see it: its size, and its gap to the right and bottom edges of the viewport. */
 export type Frame = { size: Size; pos: Pos };
 
-/**
- * The window after dragging `edge` by (dx, dy) from `start`. The window is anchored bottom-right, so dragging
- * its top or left edge only changes the size (up and left grow it), while dragging its right or bottom edge
- * changes the size and the gap to that viewport edge by the same amount, which keeps the opposite edge where it
- * is. When a minimum or the viewport stops the edge, the opposite edge still doesn't move.
- */
+// Anchored bottom-right: dragging the right or bottom edge also changes the gap to that viewport edge, which keeps the opposite edge where it is.
 export function dragRect(start: Frame, edge: Edge, dx: number, dy: number, vp: Size): Frame {
   let { w, h } = start.size;
   let { r, b } = start.pos;
@@ -62,10 +44,6 @@ export function dragRect(start: Frame, edge: Edge, dx: number, dy: number, vp: S
 export const KEY_STEP = 16;
 export const KEY_STEP_BIG = 64;
 
-/**
- * The window after an arrow key on a handle (arrows point the way the edge moves); null for keys it doesn't use,
- * including arrows across a side edge's own axis.
- */
 export function keyRect(start: Frame, edge: Edge, key: string, big: boolean, vp: Size): Frame | null {
   const step = big ? KEY_STEP_BIG : KEY_STEP;
   const move = { ArrowUp: [0, -step], ArrowLeft: [-step, 0], ArrowDown: [0, step], ArrowRight: [step, 0] }[key];
@@ -103,14 +81,12 @@ export function writeSize(size: Size | null): void {
   }
 }
 
-/** The phone sheet's height as a share of the screen: within SHEET_MIN..1, snapping to 1 near the top. */
 export function clampSheet(frac: number, snap = false): number {
   if (!Number.isFinite(frac)) return 1;
   const f = Math.min(Math.max(frac, SHEET_MIN), 1);
   return snap && f >= SNAP_FULL ? 1 : f;
 }
 
-/** The share after dragging the grab handle from `startY` to `y` (up makes the sheet taller) on a screen `screenH` tall. */
 export function dragSheet(startFrac: number, startY: number, y: number, screenH: number): number {
   return screenH > 0 ? clampSheet(startFrac + (startY - y) / screenH) : 1;
 }

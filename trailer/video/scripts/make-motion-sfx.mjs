@@ -1,12 +1,4 @@
 #!/usr/bin/env node
-// Renders the motion piece's sound effects to 48 kHz 16-bit mono WAVs: public/motion/sfx/<id>.wav (gitignored).
-// Usage: node scripts/make-motion-sfx.mjs [outDir]
-//
-// Everything is synthesized with WebAudio in an OfflineAudioContext inside Playwright's Chromium, so there is
-// nothing to download or license. The game sounds reuse the exact recipes of duel-web/src/board/sfx.ts (noiseBurst,
-// NOTES) and turnAlert.ts (playNotes); whoosh / impact / riser / pop / shimmer are motion-design sounds the app lacks.
-// Noise comes from a seeded PRNG (never Math.random) so renders are deterministic. Each file is peak-normalised to
-// -3 dBFS; the mix level of every cue lives in src/motion/sfx.ts.
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -18,12 +10,9 @@ const root = path.resolve(here, '..');
 const SR = 48000;
 const PEAK = Math.pow(10, -3 / 20);
 
-/** Hash of this file: prerender-motion.mjs re-renders only when it changes. */
 export const sfxSourceHash = () => crypto.createHash('sha1').update(fs.readFileSync(fileURLToPath(import.meta.url))).digest('hex').slice(0, 12);
 
-/** Runs in the browser. Returns {id: number[]} of mono samples (before normalisation). */
 function synthAll(sr) {
-  // Seeded noise (mulberry32), one stream per sound so adding a sound never changes another.
   const rngFor = (seed) => {
     let a = seed >>> 0;
     return () => {
@@ -35,7 +24,6 @@ function synthAll(sr) {
     };
   };
 
-  // ---- the app's recipes (duel-web/src/board/sfx.ts + turnAlert.ts), scheduled on an offline context ----
   const noiseBurst = (ctx, rng, at, len, gain, cutoff, kind) => {
     const frames = Math.max(1, Math.floor(ctx.sampleRate * len));
     const buf = ctx.createBuffer(1, frames, ctx.sampleRate);
@@ -77,8 +65,6 @@ function synthAll(sr) {
     win: [523, 659, 784, 1047].map((f, i) => ({freq: f, at: i * 0.11, len: 0.3, gain: 0.14, type: 'sine'})),
   };
 
-  // ---- motion-design sounds ----
-  /** Bandpassed noise whose centre sweeps lo -> hi; swell in the first 40 %, then fade. */
   const whoosh = (ctx, rng, len, lo, hi, gain = 1) => {
     const frames = Math.floor(sr * len);
     const buf = ctx.createBuffer(1, frames, sr);
@@ -117,7 +103,6 @@ function synthAll(sr) {
     noiseBurst(ctx, rng, 0, 0.28, 0.5, 700, 'lowpass');
     noiseBurst(ctx, rng, 0, 0.04, 0.35, 5000, 'highpass'); // crack
   };
-  /** Noise + sine sweep that gets louder along a cubic curve, so the last second carries it. */
   const riser = (ctx, rng, len) => {
     const frames = Math.floor(sr * len);
     const buf = ctx.createBuffer(1, frames, sr);
@@ -169,9 +154,7 @@ function synthAll(sr) {
     osc.stop(0.64);
   };
 
-  // id -> [seconds, builder(ctx, rng)]
   const DEFS = {
-    // whooshes: cutoff sweep 400 -> 4000 Hz; -hi / -lo shift the sweep for variety
     whoosh: [0.4, (c, r) => whoosh(c, r, 0.35, 400, 4000)],
     'whoosh-hi': [0.4, (c, r) => whoosh(c, r, 0.35, 560, 5600)],
     'whoosh-lo': [0.4, (c, r) => whoosh(c, r, 0.35, 280, 2800)],
@@ -180,13 +163,11 @@ function synthAll(sr) {
     'whoosh-short-lo': [0.25, (c, r) => whoosh(c, r, 0.2, 300, 3000)],
     impact: [0.55, impact],
     riser: [2.45, (c, r) => riser(c, r, 2.4)],
-    // pop / tick: 40 ms sine blip at several pitches
     pop: [0.08, (c) => sine(c, 1200, 1200, 0.04, 0.5)],
     'pop-lo': [0.08, (c) => sine(c, 900, 900, 0.04, 0.5)],
     'pop-hi': [0.08, (c) => sine(c, 1500, 1500, 0.04, 0.5)],
     'pop-up': [0.08, (c) => sine(c, 1900, 1900, 0.04, 0.5)],
     shimmer: [0.8, (c) => shimmer(c)],
-    // the app's own cues
     draw: [0.15, (c, r) => noiseBurst(c, r, 0, 0.09, 0.09, 3200, 'bandpass')],
     tuck: [0.1, (c, r) => noiseBurst(c, r, 0, 0.05, 0.08, 1400, 'lowpass')],
     riffle: [0.4, (c, r) => { for (let i = 0; i < 7; i++) noiseBurst(c, r, i * 0.032, 0.03, 0.05 + i * 0.004, 3800, 'bandpass'); }],
@@ -196,9 +177,7 @@ function synthAll(sr) {
     don: [0.3, (c) => playNotes(c, NOTES.don)],
     trigger: [0.45, (c) => playNotes(c, NOTES.trigger)],
     win: [1.0, (c) => playNotes(c, NOTES.win)],
-    // composites
     'attack-sweep': [0.7, (c) => attackSweep(c)],
-    // word slam: the app's "play" note (pitch stepped per word) over a low thump
     accent: [0.45, (c) => { playNotes(c, [{...NOTES.play[0], len: 0.14}]); thump(c, 0.3, 0.9, 110, 50); }],
     'accent-2': [0.45, (c) => { playNotes(c, [{...NOTES.play[0], freq: 523, len: 0.14}]); thump(c, 0.3, 0.9, 110, 50); }],
     'accent-3': [0.55, (c) => { playNotes(c, [{...NOTES.play[0], freq: 659, len: 0.18}]); thump(c, 0.4, 1, 120, 45); }],
@@ -224,7 +203,6 @@ function wav16(samples) {
   return buf;
 }
 
-/** Renders every sound into outDir. Returns the list of ids. */
 export async function makeMotionSfx(outDir = path.join(root, 'public/motion/sfx')) {
   const {chromium} = createRequire(import.meta.url)('playwright');
   fs.mkdirSync(outDir, {recursive: true});
@@ -237,7 +215,6 @@ export async function makeMotionSfx(outDir = path.join(root, 'public/motion/sfx'
       for (const s of data) peak = Math.max(peak, Math.abs(s));
       const k = peak > 0 ? PEAK / peak : 1;
       const out = Float32Array.from(data, (s) => s * k);
-      // 2 ms fade-out so a hard cut at the end of the buffer never clicks
       const fade = Math.floor(SR * 0.002);
       for (let i = 0; i < fade; i++) out[out.length - 1 - i] *= i / fade;
       fs.writeFileSync(path.join(outDir, `${id}.wav`), wav16(out));

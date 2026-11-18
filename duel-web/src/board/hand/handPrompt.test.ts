@@ -24,7 +24,6 @@ function hakiConfirm(over: Partial<PendingChoiceView> = {}): PendingChoiceView {
   };
 }
 
-/** Your side with the Haki mid-resolution (out of the hand, not yet trashed). */
 function you(over: Partial<PlayerView["you"]> = {}): PlayerView["you"] {
   return {
     ...DEMO_VIEW.you,

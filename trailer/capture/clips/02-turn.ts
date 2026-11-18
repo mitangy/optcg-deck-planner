@@ -1,4 +1,3 @@
-/** 02-turn (8s): a real turn against the Bot. Play a Character, give DON!! to the Leader, drag the attack arrow. */
 import { sleep } from "../lib/util";
 import { finishTake, settle, startTake } from "../lib/take";
 import { MIKO, WANO } from "../lib/data";
@@ -19,7 +18,6 @@ export async function run(): Promise<void> {
   try {
     await t.goto("/");
     await sleep(2000);
-    // Off camera: start the match and play through the opening turn.
     await startBotGame(p, { botDeck: "d-wano" });
     await p.getByRole("button", { name: "Keep opening hand" }).click();
     await waitFor(p, (s) => s.phase === "main" && s.turn === 1);
@@ -35,7 +33,6 @@ export async function run(): Promise<void> {
     t.rec.markIn(0.2);
     await sleep(350);
 
-    // The tucked fan rises when the pointer comes near it; hovering a card opens its preview.
     await t.pointer.hover({ x: 800, y: 1062 }, { ms: 650 });
     await sleep(380);
     const sanji = p.locator(".hand-fan-cards .card-tile", { hasText: "Sanji" }).first();

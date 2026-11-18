@@ -1,4 +1,3 @@
-/** 09-logpose (6s): Log Pose reviews a finished match (the analyst's reply is faked in the page), then the replay viewer steps through turns. */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { sleep } from "../lib/util";
@@ -11,7 +10,6 @@ import type { FakeMatch } from "../lib/fakeApi";
 export const id = "09-logpose";
 const MATCH_ID = "g9";
 
-/** The review Log Pose "writes": it only states things that happen in assets/match.json (turn numbers, counters, damage). */
 const REVIEW = [
   "**A clean win on turn 9, and you earned it by making them spend their counters first.**\n\n",
   "**Turn 5 set the pace.** Monkey.D.Luffy came down with 5 DON!!, and three swings at the Leader took two of their Life cards before they had a board.\n\n",
@@ -38,7 +36,6 @@ export async function run(): Promise<void> {
   });
   const p = t.page;
   const shot = async (n: string) => { if (process.env.SHOTS) await p.screenshot({ path: `/tmp/shots/${id}-${n}.png` }); };
-  // Log Pose's answer is streamed by the page itself (the analyst service does not exist here), word by word, once told to start.
   await t.win.ctx.addInitScript((review: string[]) => {
     const real = window.fetch.bind(window);
     window.fetch = (input: RequestInfo | URL, init?: RequestInit) => {

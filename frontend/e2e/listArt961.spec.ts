@@ -1,7 +1,3 @@
-/**
- * List view card art (#961): in the desktop tables the main art fills the Card column and the
- * card id / name / TCGPlayer link sit under it, without the table scrolling sideways.
- */
 import { expect, test } from "./fixtures";
 
 test.afterEach(({ planner }) => {

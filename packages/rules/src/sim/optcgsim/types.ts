@@ -1,14 +1,5 @@
-/**
- * Types for the OPTCGSim combat-log reader (issue #1030, step 1).
- *
- * Pure data only. Real player names must never be stored in fixtures: tests use
- * `PlayerA#1` / `PlayerB#2`. Names are normalized by stripping U+200B.
- */
-
-/** "me" is the recording player (the JSON `playerName`); "opp" is the other side. */
 export type SimSide = "me" | "opp";
 
-/** One element of the Card Kaizoku `/matches` JSON array (fields we read). */
 export interface SimMatchRecord {
   GameMode?: number;
   coinflip?: boolean;
@@ -44,13 +35,11 @@ export interface SimCardCount {
 export interface SimPlayer {
   side: SimSide;
   name: string;
-  /** RZ1 owner number (1 or 2) in this log, or null when the log has no PLY line for the player. */
   owner: 1 | 2 | null;
   leaderId: string | null;
   leaderName: string | null;
   decklist: SimCardCount[];
   startingHand: SimCardCount[];
-  /** Took a mulligan (a "Mulligan" line from this player). */
   mulligan: boolean;
 }
 
@@ -110,10 +99,8 @@ export type SimEvent =
 export type SimEventKind = SimEvent["kind"];
 
 export interface SimTurn {
-  /** 1-based turn number (each player's turn counts; turn 1 = first player's first turn). */
   number: number;
   active: SimSide;
-  /** Both boards after refresh/draw/DON phases of this turn (first moment the active player can act). */
   snapshot: SimSnapshot;
   events: SimEvent[];
 }
@@ -130,18 +117,14 @@ export interface SimGame {
   me: SimPlayer;
   opp: SimPlayer;
   players: [SimPlayer, SimPlayer];
-  /** Who went first (from the "Chose to go ..." line; falls back to `turnOrder`). */
   firstPlayer: SimSide;
-  /** Raw JSON turnOrder: 0 = me first, 1 = me second. */
   turnOrder: number | null;
   /** Winner from the JSON `result` (the log can end mid-game); null when the result is missing. */
   winner: SimSide | null;
   date: string | null;
   simVersion: string | null;
   turns: SimTurn[];
-  /** Events before turn 1 starts (leaders, order choice, mulligans). */
   preEvents: SimEvent[];
-  /** Text lines nothing matched (also present as `unknown` events). */
   unknownLines: string[];
   chkChecked: number;
   chkMismatches: SimChkMismatch[];
@@ -154,7 +137,6 @@ export interface SimParseReport {
   turns: number;
   eventsByKind: Partial<Record<SimEventKind, number>>;
   unknownLineCount: number;
-  /** Top unknown line patterns (digits and card ids collapsed), most common first. */
   unknownPatterns: { pattern: string; count: number; example: string }[];
   chkChecked: number;
   chkMismatchCount: number;

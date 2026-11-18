@@ -1,4 +1,3 @@
-/** Effect grammar: rule table, clause splitting and sentence/body parsers → `Effect`. */
 import type { Cost, Effect, LookPick, Placement, Target } from "../../../effects/types.js";
 import {
   and,
@@ -103,7 +102,6 @@ function pickFrom(countText: string, cardText: string, dest: LookPick["dest"], c
 }
 
 function parseLookPicks(text: string, ctx: Ctx): LookPick[] | null {
-  // "reveal up to 1 {X} type card and add it to your hand"
   const t = text.trim().replace(/^and /i, "");
   let m: RegExpExecArray | null;
   if (
@@ -575,7 +573,7 @@ const EFFECT_RULES: EffectRule[] = [
     const inner = parseStatement(m[1]!, ctx);
     return inner ? { do: "delay", when: "end_of_turn", effect: inner } : null;
   }),
-  // "Your Leader with N power or less and up to M of your Characters gain +X power": the Leader is not optional, the Characters are.
+  // The Leader is not optional, the Characters are.
   rule(
     new RegExp("^your leader with (\\d+) power or less and up to (\\d+) of your characters gain ([+-]\\d+) power " + DUR + "$", "i"),
     (m) => {
@@ -603,7 +601,7 @@ const EFFECT_RULES: EffectRule[] = [
     const p = parseCardPhrase("all " + m[2]!, ctx);
     return p ? { do: "give_don", target: { ref: "all", selector: p.selector }, count: num(m[1]!), donState: "rested" } : null;
   }),
-  // "Give up to a total of 4 of your Leader or Characters 1 rested DON!! card each": one pick among the Leader and Characters together.
+  // One pick among the Leader and Characters together.
   rule(/^give up to a total of (\d+) of your leader or (characters) (\d+) rested DON!! cards? each$/i, (m, ctx) => {
     const p = parseCardPhrase(`up to ${m[1]} of your leader or ${m[2]}`, ctx);
     return p ? { do: "give_don", target: toTarget(p), count: num(m[3]!), donState: "rested" } : null;
@@ -835,7 +833,6 @@ const EFFECT_RULES: EffectRule[] = [
     chooser: "you",
     random: true,
   })),
-  // Ask first (only when the hand has a card it could trash), then pick the cards.
   rule(/^you may trash any number of (.+?) from your hand$/i, (m, ctx) => {
     const p = /^cards?$/i.test(m[1]!) ? null : parseCardPhrase("all " + m[1]!, ctx);
     const filter = p?.selector.filter ? { filter: p.selector.filter } : {};
@@ -1067,7 +1064,6 @@ const EFFECT_RULES: EffectRule[] = [
     return target ? { do: "play", target, ...(m[3] ? { rested: true } : {}) } : null;
   }),
   rule(/^play (.+?)( rested)?$/i, (m, ctx) => {
-    // Bare "play up to 1 [X]" means from hand.
     if (/ from /i.test(m[1]!)) return null;
     const target = zoneTarget(m[1]!, "hand", ctx);
     return target ? { do: "play", target, ...(m[2] ? { rested: true } : {}) } : null;
@@ -1098,7 +1094,6 @@ const EFFECT_RULES: EffectRule[] = [
     const d = parseDuration(m[3]);
     return target && d ? { do: "cost", target, amount: signed(m[2]!), duration: d } : null;
   }),
-  // "The base power of your Leader with a type including "X" becomes N during this turn": only applies while the Leader's type matches.
   rule(new RegExp(`^the base power of your leader with a type including (§Q\\d+§) becomes (\\d+) ${DUR}$`, "i"), (m, ctx) => {
     const q = quote(m[1]!, ctx);
     const d = parseDuration(m[3]);
@@ -1120,7 +1115,7 @@ const EFFECT_RULES: EffectRule[] = [
     const d = parseDuration(m[3]);
     return target && k && d ? keyword(target, k, d) : null;
   }),
-  // "Up to 1 of your X gains [A], [B], or [C] during this turn" (Bandai drops the comma before "or"): the player selects the card, then picks exactly one keyword to grant.
+  // The player selects the card, then picks exactly one keyword to grant.
   rule(
     new RegExp(
       `^(up to \\d+ .+?) gains? ((?:\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\], )+(?:or )?\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\]|(?:\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\], )*\\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\] or \\[(?:Rush|Blocker|Double Attack|Banish|Unblockable)\\]) ${DUR}$`,
@@ -1386,7 +1381,6 @@ const EFFECT_RULES: EffectRule[] = [
   }),
 ];
 
-/** Resolve the rest-placement sentence that follows a look ("Then, place the rest..."). */
 export function applyRestSentence(effect: Effect, sentence: string): boolean {
   const rest = restPlacement(sentence);
   if (!rest) return false;
@@ -1403,26 +1397,22 @@ function lastLook(effect: Effect): Extract<Effect, { do: "look" }> | null {
   return null;
 }
 
-/** Parse a single effect clause (no leading "If ..., " handled here). */
 export function parseEffectClause(text: string, ctx: Ctx): Effect | null {
   const t = clean(text);
   if (!t) return null;
   const direct = firstMatch(t, EFFECT_RULES, ctx);
   if (direct) return direct;
-  // "you may X" as an optional effect with no cost
   let m = /^you may (.+)$/i.exec(t);
   if (m) {
     const inner = parseEffectClause(m[1]!, ctx);
     if (inner) return { do: "may", then: inner, bind: "_did", prompt: restoreNames(m[1]!, ctx.ph) };
   }
-  // Suffix condition: "draw 1 card if you have 3 or less cards in your hand"
   m = /^(.+?) if (.+)$/i.exec(t);
   if (m) {
     const eff = parseEffectClause(m[1]!, ctx);
     const cond = eff && parseCondition(m[2]!, ctx);
     if (eff && cond) return when(cond, eff);
   }
-  // Verb distribution: "KO up to 1 X and up to 1 Y" / "place up to 1 X and up to 1 Y at the bottom of the owner's deck"
   const dist =
     /^(ko|rest|return|place|trash|give) (up to .+?) and (up to .+?)( (?:to the owner's hand|at the (?:top|bottom) of the owner's deck(?: in any order(?: of their choosing)?)?|[+-]\d+ (?:power|cost) (?:during this turn|during this battle)))?$/i.exec(
       t,
@@ -1439,7 +1429,6 @@ export function parseEffectClause(text: string, ctx: Ctx): Effect | null {
     const b = a && parseEffectClause(thenSplit[1]!, ctx);
     if (a && b) return seq(a, b);
   }
-  // Conjunction: "A and B" / "A, and B"
   const parts = t.split(/,? and (?!add it|add them|play it|rest it|set it|set them)/i);
   if (parts.length > 1) {
     for (let i = 1; i < parts.length; i += 1) {
@@ -1451,7 +1440,6 @@ export function parseEffectClause(text: string, ctx: Ctx): Effect | null {
   return null;
 }
 
-/** "If COND, EFFECT" / "COND ... EFFECT" with the leftmost workable comma split. */
 export function parseConditionalClause(text: string, ctx: Ctx): Effect | null {
   const t = clean(text);
   const m = /^if (.+)$/i.exec(t);
@@ -1471,7 +1459,6 @@ export function parseConditionalClause(text: string, ctx: Ctx): Effect | null {
   return firstMatch(t, EFFECT_RULES, ctx);
 }
 
-/** An effect body that may itself contain a "you may X: Y" cost prefix or conditionals. */
 function parseStatementBody(text: string, ctx: Ctx): Effect | null {
   const t = clean(text);
   const eff = parseEffectClause(t, ctx);
@@ -1480,7 +1467,6 @@ function parseStatementBody(text: string, ctx: Ctx): Effect | null {
   return null;
 }
 
-/** Parse a multi-sentence effect body into a sequence. */
 export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) => string[]): { effect: Effect | null; failed: string[] } {
   const bullets = body.split(/\s*•\s*/);
   if (bullets.length > 1) {
@@ -1528,7 +1514,6 @@ export function parseEffectBody(body: string, ctx: Ctx, split: (text: string) =>
       }
     }
     openIf = null;
-    // "Then, place the rest ... and play up to 1 X from your hand."
     const restAnd = /^(then, )?(place the rest at the bottom of your deck in any order|trash the rest) and (.+)$/i.exec(clean(s));
     if (restAnd && steps.length && applyRestSentence(steps[steps.length - 1]!, restAnd[2]!)) {
       const tail = parseStatement(restAnd[3]!, ctx);
@@ -1558,14 +1543,9 @@ function bindTrashedCard(effect: Effect): void {
   else if (effect.do === "seq" && effect.steps.length) bindTrashedCard(effect.steps[effect.steps.length - 1]!);
 }
 
-/**
- * Effects that run through `forEachTarget` (or `play`) in `execActInner` and so reset and fill `_affected`
- * (keep in step with WRITES_AFFECTED in programLint.ts, which the grammar cannot import without a cycle).
- * Notably not `to_life`, `life_to_hand`, `give_don`, `power`, ...: those never write it.
- */
+/** Duplicated in WRITES_AFFECTED (programLint.ts) because the grammar cannot import it without a cycle. */
 const WRITES_AFFECTED: ReadonlySet<string> = new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "activate"]);
 
-/** Whether any effect inside the tree writes `_affected`. */
 function writesAffected(node: unknown): boolean {
   if (Array.isArray(node)) return node.some(writesAffected);
   if (!node || typeof node !== "object") return false;
@@ -1573,7 +1553,6 @@ function writesAffected(node: unknown): boolean {
   return (typeof o.do === "string" && WRITES_AFFECTED.has(o.do)) || Object.values(o).some(writesAffected);
 }
 
-/** Every `may` inside an effect tree. */
 function mayEffectsIn(effect: Effect | undefined): Extract<Effect, { do: "may" }>[] {
   if (!effect) return [];
   switch (effect.do) {
@@ -1593,10 +1572,8 @@ function mayEffectsIn(effect: Effect | undefined): Extract<Effect, { do: "may" }
 }
 
 /**
- * Tie an "If you do, Y" sentence to the step before it.
- * After "you may X": X becomes a cost when it parses as one, so it is only offered when it can be paid in full
- * and the payoff never follows a partial payment; the prompt names X and the payoff.
- * After a plain action ("Play up to 1 ... If you do, ..."): gate on that action having affected a card.
+ * After "you may X", X becomes a cost when it parses as one, so it is only offered when it can be paid in full and the
+ * payoff never follows a partial payment.
  */
 function linkIfYouDo(steps: Effect[], gate: Extract<Effect, { do: "if" }>, sentence: string, ctx: Ctx): void {
   const prev = steps[steps.length - 1];
@@ -1631,16 +1608,13 @@ function linkIfYouDo(steps: Effect[], gate: Extract<Effect, { do: "if" }>, sente
     `${prev.prompt}, and if you do, ${restoreNames(clean(sentence).replace(/^if you do, /i, ""), ctx.ph)}`;
 }
 
-/** One sentence: optional "You may COST: EFFECT", conditionals, plain effects. */
 export function parseStatement(sentence: string, ctx: Ctx): Effect | null {
   const s = clean(sentence);
-  // Inline cost: "you may trash 1 card from your hand: draw 2 cards" (rare mid-body)
   const colon = s.indexOf(": ");
   if (colon > 0) {
     const costs = parseCosts(s.slice(0, colon), ctx);
     const eff = costs && parseStatementBody(s.slice(colon + 2), ctx);
     if (costs && eff) return /^you may/i.test(s) ? { do: "may", costs, then: eff, bind: "_did" } : { do: "pay", costs, then: eff };
   }
-  // "You may X. If you do, Y" split across sentences is handled by the "if you do" rule.
   return parseConditionalClause(s, ctx);
 }

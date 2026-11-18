@@ -1,13 +1,7 @@
-/**
- * Keeps Bandai's text out of git: an answer is stored in human-grades.jsonl only when it shares fewer than
- * OVERLAP_WORDS consecutive words with the official text the run read.
- */
-
 export const OVERLAP_WORDS = 12;
 
 const words = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, " ").split(/\s+/).filter(Boolean);
 
-/** The longest run of consecutive words the text shares with the corpus. */
 export function officialOverlap(text: string, corpus: string): number {
   const a = words(text);
   const b = words(corpus);
@@ -24,7 +18,6 @@ export function officialOverlap(text: string, corpus: string): number {
   return best;
 }
 
-/** True when the answer is safe to commit: it repeats fewer than `n` consecutive words of the official text. */
 export function shareable(text: string, corpus: string, n = OVERLAP_WORDS): boolean {
   return officialOverlap(text, corpus) < n;
 }

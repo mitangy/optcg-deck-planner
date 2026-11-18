@@ -20,7 +20,6 @@ type SideData = {
   stage: CardView | null;
   deckCount: number;
   trash: string[];
-  /** Copy rank per trash card (null for ordinary cards); absent when no any-number card is in the trash (#1292). */
   trashCopies?: (number | null)[];
   lifeCount: number;
   faceUpLife?: Array<{ index: number; defId: string; artCopy?: number }>;
@@ -33,38 +32,29 @@ type SideData = {
 
 type DragHandlers = {
   draggableDonIds?: ReadonlySet<string>;
-  /** DON!! ids currently carried by an in-progress drag. */
   draggingDonIds?: ReadonlySet<string>;
-  /** DON!! ids toggled into the multi-select set. */
   selectedDonIds?: ReadonlySet<string>;
   onDonDragStart?: (donId: string) => void;
   onDonDragEnd?: (donId: string, clientX: number, clientY: number) => void;
   onDonDragCancel?: () => void;
   onDonToggleSelect?: (donId: string) => void;
   onClearDonSelection?: () => void;
-  /** Instance ids highlighted as give_don drop targets. */
   giveDonHighlightIds?: ReadonlySet<string>;
-  /** Character ids highlighted for play_card trash. */
   playTrashHighlightIds?: ReadonlySet<string>;
-  /** Highlight stage + character zones for play_card field drop. */
   playFieldHighlight?: boolean;
 };
 
-/** Tap-select a leader/character on this side for contextual actions. */
 type SelectHandlers = {
   selectedId: string | null;
   onSelect: (id: string) => void;
-  /** Board ids that currently have a non-global legal action (discoverability hint). */
   actionableIds?: ReadonlySet<string>;
 };
 
-/** Tap a legal attack target on this side to declare the selected attack. */
 type TargetHandlers = {
   targetableIds: ReadonlySet<string>;
   onSelectTarget: (id: string) => void;
 };
 
-/** Drag one of this side's Leader / Characters onto an opposing card to attack. */
 type AttackDragHandlers = {
   draggableIds: ReadonlySet<string>;
   onDragStart: (id: string) => void;
@@ -72,10 +62,6 @@ type AttackDragHandlers = {
   onDragCancel: () => void;
 };
 
-/**
- * Cards on this side that accept an in-flight attack or counter drag. Attack
- * targets already pulse via `target`; counter drops get the drop highlight.
- */
 type BattleDropTargets = {
   kind: "attack" | "counter";
   ids: ReadonlySet<string>;
@@ -83,51 +69,29 @@ type BattleDropTargets = {
 
 type Props = {
   side: "you" | "opp";
-  /** Your Life fan setting; the opponent side draws the mirror of it (#499). */
   lifeFan?: LifeFan;
   data: SideData;
   compact?: boolean;
   drag?: DragHandlers;
-  /** Your side only: separate DON!! piles (#381). Works on the opponent's turn too. */
   donPile?: { piles: DonPiles; onMove: (donId: string) => void };
-  /** Enables tap-to-select on this side's leader/characters. */
   select?: SelectHandlers;
-  /** Enables tap-to-attack on this side's leader/characters (legal targets only). */
   target?: TargetHandlers;
-  /** Drag-to-attack from this side's Leader / Characters. */
   attackDrag?: AttackDragHandlers;
-  /** Your Leader / Characters that can attack now: they glow green (#412). */
   attackReadyIds?: ReadonlySet<string>;
-  /** Drop targets for an attack / counter drag on this side. */
   battleDrop?: BattleDropTargets;
-  /** Seat that owns cards on this half of the board. */
   ownerSeat?: Seat;
-  /** Seat controlling the UI (alt-art picker). */
   viewingSeat?: Seat;
-  /** Custom playmat art (object URL) for this half of the board. */
   matImageUrl?: string | null;
-  /** Darkening over custom art, 0–0.8. */
   matDim?: number;
-  /** Art opacity, 0.2–1 (1 = solid art). */
   matOpacity?: number;
-  /** Turn order tag shown on the mat edge ("1st" / "2nd"). */
   turnOrder?: "first" | "second";
-  /** Custom card back (object URL) for face-down cards on this half. */
   cardBackUrl?: string | null;
-  /** DON!! face for this half (already resolved to a URL); the bundled art when absent (#440). */
   donArtUrl?: string;
-  /** This half's player is taking the current turn (glow + tag). */
   activeTurn?: boolean;
-  /**
-   * Opponent half on portrait phones: the four piles collapse into one row of
-   * count chips so the characters get the space.
-   */
   countRow?: boolean;
 };
 
-/** Active / rested / empty-slot counts for the character row, so the arena CSS
- *  can give rested cards a full-size sideways footprint and only scale the row
- *  down when those footprints would not fit. */
+// So the arena CSS can give rested cards a full-size sideways footprint and only scale the row down when those footprints would not fit.
 function characterRowVars(characters: { rested?: boolean }[]): CSSProperties {
   const rested = characters.filter((c) => c.rested).length;
   return {
@@ -223,16 +187,14 @@ export function SideField({
   activeTurn = false,
   countRow = false,
 }: Props) {
-  /** One-tap actions: a click can fire a one-shot action, so wait out the double-click (inspect) window (#513). */
+  // A click can fire a one-shot action, so wait out the double-click (inspect) window.
   const oneTap = useDuelSettings().oneTapActions;
   const mirrored = side === "opp";
   const interactive = side === "you" && drag;
   const [trashOpen, setTrashOpen] = useState(false);
   const [trashTopInspect, setTrashTopInspect] = useState(false);
   const [lifeOpen, setLifeOpen] = useState(false);
-  /** A face-up Life card opened by right-click on the pile. */
   const [lifeFaceInspect, setLifeFaceInspect] = useState<{ defId: string; artCopy?: number } | null>(null);
-  /** Count row instead of piles: the opponent's mat on a portrait phone, and yours with "Simple board". */
   const counts = countRow;
   const who = side === "you" ? "Your" : "Opponent";
   const faceUpLife = data.faceUpLife ?? [];
@@ -245,13 +207,11 @@ export function SideField({
     battleDrop?.ids.has(id) ? `${battleDrop.kind}:${id}` : null;
   const counterDropHl = (id: string): boolean =>
     battleDrop?.kind === "counter" && battleDrop.ids.has(id);
-  /** CardTile drag props for a card that can start an attack drag. */
   const attackDragProps = (id: string) =>
     attackDrag?.draggableIds.has(id)
       ? {
           dragEnabled: true,
           dragPayload: { type: "attack", attackerId: id },
-          // The mat has nothing to scroll: keep every direction for the drag.
           dragTouchAction: "none" as const,
           onDragStart: () => attackDrag.onDragStart(id),
           onDragEnd: (x: number, y: number) => attackDrag.onDragEnd(id, x, y),
@@ -390,10 +350,6 @@ export function SideField({
                 />
               );
             })}
-            {/* Exactly 5 slot cells total: real character tiles plus dashed
-                fillers for the remainder. When there are zero characters this
-                renders 5 filler slots (not an extra "empty" placeholder cell
-                on top of 5 fillers). */}
             {Array.from({ length: Math.max(0, 5 - data.characters.length) }).map((_, i) => (
               <div
                 key={`slot-${i}`}
@@ -415,7 +371,6 @@ export function SideField({
         <div className="zone-leader">
           <div className="zone-caption">Leader</div>
           {data.leader.defId === "" ? (
-            // Seat not filled yet (queueing / connecting): an empty slot, not a card.
             <div className="zone-slot leader-empty" aria-label="Leader not revealed yet">
               Leader
             </div>
