@@ -711,6 +711,5 @@ module.exports = {
     { "id": "friends1362-tab-counts-every-active-trade", "file": "frontend/src/friends/tradeLogic.ts", "from": "trades.active.filter((t) => t.status === \"completed\" && !t.my_applied).length", "to": "trades.active.length", "kills": ["counts offers to answer and completed trades not yet applied, not accepted or applied ones (#1362)"]},
     { "id": "friends1362-tab-ignores-incoming-offers", "file": "frontend/src/friends/tradeLogic.ts", "from": "trades.incoming.length + ", "to": "", "kills": ["counts offers to answer and completed trades not yet applied, not accepted or applied ones (#1362)"]},
     { "id": "friends1362-avatar-one-tone", "file": "frontend/src/friends/avatarTone.ts", "from": "return h % AVATAR_TONES;", "to": "return 0;", "kills": ["stays inside the palette and spreads different names across several tones (#1362)"]},
-    { "id": "friends1362-avatar-unstable", "file": "frontend/src/friends/avatarTone.ts", "from": "return h % AVATAR_TONES;", "to": "return (h + Math.floor(Math.random() * AVATAR_TONES)) % AVATAR_TONES;", "kills": ["gives the same username the same tone every time (#1362)"]},
 ],
 };

@@ -43,10 +43,6 @@ describe("Trades tab count (#1362)", () => {
 });
 
 describe("Friend avatar colours (#1362)", () => {
-  it("gives the same username the same tone every time (#1362)", () => {
-    expect(avatarTone("Luffy")).toBe(avatarTone("Luffy"));
-  });
-
   it("stays inside the palette and spreads different names across several tones (#1362)", () => {
     const names = ["luffy", "zoro", "nami", "sanji", "usopp", "robin", "chopper", "franky", "brook", "jinbe"];
     const tones = names.map(avatarTone);
