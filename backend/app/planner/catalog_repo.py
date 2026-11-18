@@ -24,13 +24,20 @@ def alt_arts_map(
     wanted: dict[str, dict[int, int]] | None = None,
     owned: dict[str, dict[int, int]] | None = None,
     collector: dict[str, dict[int, int]] | None = None,
+    *,
+    catalog: dict[str, CatalogCard] | None = None,
+    primary_ids: dict[str, int] | None = None,
 ) -> dict[str, list[PrintingView]]:
+    """``catalog`` and ``primary_ids`` are what ``catalog_map`` / ``primary_product_ids``
+    return for (a superset of) ``card_ids``; pass them when the caller already has them."""
     if not card_ids:
         return {}
-    primary_ids = primary_product_ids(db, card_ids)
+    if primary_ids is None:
+        primary_ids = primary_product_ids(db, card_ids)
+    if catalog is None:
+        catalog = catalog_map(db, card_ids)
     preferred_image = {
-        row.card_id: (row.image_url or "").strip()
-        for row in db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(card_ids))).all()
+        card_id: (catalog[card_id].image_url or "").strip() for card_id in card_ids if card_id in catalog
     }
     rows = db.scalars(
         select(CatalogPrinting).where(

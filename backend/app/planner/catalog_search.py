@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import time
 from collections import defaultdict
 
 from sqlalchemy import func, or_, select
@@ -49,14 +50,36 @@ def card_printings(db: Session, card_id: str) -> list[PrintingView]:
 _FUZZY_INDEX: dict[tuple, list[tuple[str, list[tuple[str, ...]]]]] = {}
 
 
-def _fuzzy_index(db: Session) -> list[tuple[str, list[tuple[str, ...]]]]:
+# The key below costs three queries; reuse it for a minute so a search does not
+# pay them each time. A catalog sync is picked up when the minute is over.
+FUZZY_KEY_TTL_S = 60.0
+_FUZZY_KEYS: dict[int, tuple[float, tuple]] = {}
+
+
+def reset_fuzzy_cache() -> None:
+    _FUZZY_INDEX.clear()
+    _FUZZY_KEYS.clear()
+
+
+def _fuzzy_key(db: Session) -> tuple:
+    bind_id = id(db.get_bind())
+    cached = _FUZZY_KEYS.get(bind_id)
+    now = time.monotonic()
+    if cached is not None and now - cached[0] < FUZZY_KEY_TTL_S:
+        return cached[1]
     meta = db.scalar(select(CatalogMeta.last_synced_at).order_by(CatalogMeta.id.desc()).limit(1))
     key = (
-        id(db.get_bind()),
+        bind_id,
         db.scalar(select(func.count()).select_from(CatalogCard)),
         db.scalar(select(func.count()).select_from(CatalogPrinting)),
         meta,
     )
+    _FUZZY_KEYS[bind_id] = (now, key)
+    return key
+
+
+def _fuzzy_index(db: Session) -> list[tuple[str, list[tuple[str, ...]]]]:
+    key = _fuzzy_key(db)
     hit = _FUZZY_INDEX.get(key)
     if hit is not None:
         return hit

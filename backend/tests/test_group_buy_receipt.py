@@ -1,7 +1,8 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+import pytest
+from sqlalchemy import select, update
 
 from app.group_buy import service as group_buy
 from app.planner.models import Owned
@@ -319,3 +320,65 @@ Qty	Description
     lines = parse_tcgplayer_receipt(text)
     assert len(lines) == 3
     assert lines[2].card_name.startswith("DON!!")
+
+
+RECEIPT_1346 = "Qty\tDescription\n2\tOne Piece Card Game - Test Set - Luffy - Near Mint Foil"
+
+
+def _locked_group_1346(db):
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1001, market=2.5)
+    host = make_user(db, email="host@example.com", name="Host", sub="sub-host")
+    add_deck_with_cards(db, host, "Solo", {"OP01-001": 2})
+    set_owned(db, host, "OP01-001", 0)
+    created = group_buy.create_group_buy(db, host, "Bulk buy")
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(db, host, created.id, None)
+    return host, created
+
+
+def test_second_receipt_apply_from_a_stale_session_adds_nothing_1346(db):
+    from sqlalchemy.orm import sessionmaker
+
+    host, created = _locked_group_1346(db)
+    other = sessionmaker(bind=db.get_bind(), autoflush=False, autocommit=False)()
+    try:
+        other_host = other.get(type(host), host.id)
+        stale_group = group_buy._get_group(other, created.id)
+        assert stale_group.status == "ordered"
+        body = GroupBuyReceiptApplyRequest(receipt_text=RECEIPT_1346, allow_partial=True)
+
+        group_buy.apply_receipt_to_group_buy(db, host, created.id, body)
+        assert _owned(db, host.id, "OP01-001") == 2
+
+        with pytest.raises(PermissionError):
+            group_buy.apply_receipt_to_group_buy(other, other_host, created.id, body)
+        assert _owned(db, host.id, "OP01-001") == 2
+        assert stale_group.status == "completed"
+    finally:
+        other.close()
+
+
+def test_receipt_owned_increment_does_not_overwrite_a_concurrent_change_1346(db):
+    from sqlalchemy.orm import sessionmaker
+
+    host, created = _locked_group_1346(db)
+    set_owned(db, host, "OP01-001", 1)
+    stale = db.scalar(select(Owned).where(Owned.user_id == host.id, Owned.card_id == "OP01-001"))
+    assert stale.qty == 1
+
+    writer = sessionmaker(bind=db.get_bind(), autoflush=False, autocommit=False)()
+    try:
+        writer.execute(
+            update(Owned).where(Owned.user_id == host.id, Owned.card_id == "OP01-001").values(qty=5)
+        )
+        writer.commit()
+    finally:
+        writer.close()
+
+    group_buy.apply_receipt_to_group_buy(
+        db, host, created.id, GroupBuyReceiptApplyRequest(receipt_text=RECEIPT_1346, allow_partial=True)
+    )
+    assert _owned(db, host.id, "OP01-001") == 7
+
+    group_buy.undo_last_receipt_apply(db, host, created.id)
+    assert _owned(db, host.id, "OP01-001") == 5
