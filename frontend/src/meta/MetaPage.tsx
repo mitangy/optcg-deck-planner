@@ -313,7 +313,7 @@ function MetaWindowSelect({ days, onChange }: { days: number; onChange: (d: numb
   return (
     <label className="meta-select">
       <span className="muted">Window</span>
-      <Select value={days} onChange={onChange} options={META_DAY_OPTIONS.map((d) => ({ value: d, label: `Last ${d} days` }))} />
+      <Select value={days} onChange={onChange} options={META_DAY_OPTIONS.map((d) => ({ value: d, label: `${d} days` }))} />
     </label>
   );
 }
