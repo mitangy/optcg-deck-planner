@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-18", app: "planner", pr: 0, title: "Four new OP18 alt arts", text: "New alt arts for Tony Tony.Chopper (OP18-029), Mr.0 & Ms. All Sunday (OP18-046), Mr.2.Bon.Kurei (OP18-049, Treasure Rare) and Saint Gunko (OP18-065) are in the planner and the duel app. Loki (OP17-119), Saint Shamrock (OP18-119), the Nico Robin Manga Rare (OP18-031) and the Saint Gunko Special Art (OP18-060) now show their official pictures instead of preview scans." },
   { date: "2026-11-18", app: "planner", pr: 1334, title: "Wider Grid cards for alt arts on big screens", text: "On wide monitors, 1600 pixels and up, a Grid card with alt arts is now wider and shows its alt arts side by side in a panel next to the card, instead of one tall, skinny column. Cards without alt arts, and smaller screens and phones, look the same as before." },
   { date: "2026-11-17", app: "planner", pr: 1329, title: "Bigger planner on big screens", text: "On wide monitors, 1920 pixels and up, the whole planner now scales up, so text, card art and buttons are easier to read. In the list, each card's alt arts now sit side by side in a panel under its numbers, so rows are shorter. Laptops, tablets and phones look the same as before." },
   { date: "2026-11-17", app: "planner", pr: 1324, title: "Decks page uses wide screens", text: "On a wide screen the Decks page now shows leaders side by side instead of one under the other, and a leader's decks sit next to each other. Phones still show one column." },
