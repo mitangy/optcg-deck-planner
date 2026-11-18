@@ -34,6 +34,7 @@ async function openDecks(page: Page, planner: { open(p: string): Promise<void> }
     return route.fulfill({ json: { ok: true } });
   });
   await planner.open("/decks");
+  await expect(page.locator(".deck-card")).toHaveCount(decks.length);
 }
 
 const SOLO_AND_PAIR = [

@@ -79,7 +79,7 @@ test("The edit toggle reads Done editing with a single space between the words (
     const rects = words(el).map((r) => r.getBoundingClientRect());
     return { gap: rects[1]!.left - rects[0]!.right, font: parseFloat(getComputedStyle(el).fontSize) };
   });
-  expect(gap.gap).toBeLessThan(gap.font * 0.6);
+  expect(gap.gap).toBeLessThan(gap.font * 0.4);
 });
 
 test("On a wide, tall screen the stats stay visible under Add cards while editing (#1342)", async ({ page, planner }, testInfo) => {
