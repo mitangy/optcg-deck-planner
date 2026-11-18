@@ -3,6 +3,13 @@
   --bottom-nav-h: 0px;
   --bg: #f3ecdf;
   --bg-deep: #e8dcc6;
+  /* One Piece card colours: the colour dots and the Meta leader stripes. Same in light and dark. */
+  --card-red: #c0392f;
+  --card-green: #2f8a55;
+  --card-blue: #2b72b8;
+  --card-purple: #7a4aa8;
+  --card-black: #22282c;
+  --card-yellow: #e2b020;
   --ink: #17252e;
   --muted: #4b565c;
   --label: #3f4a50;
@@ -61,6 +68,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0f1c23;
+    --card-black: #56616a;
     --bg-deep: #0b161c;
     --ink: #ece3cf;
     --muted: #a3afb3;
@@ -106,6 +114,7 @@
 }
 
 :root[data-theme="dark"] {
+  --card-black: #56616a;
   --bg: #0f1c23;
   --bg-deep: #0b161c;
   --ink: #ece3cf;

@@ -39,6 +39,8 @@ export type HandCardsCtx = {
   defend: ReturnType<typeof useDefendFlow>["defend"];
   earlyCounterIds: ReadonlySet<string>;
   selectHandCard: (idx: number) => void;
+  // Cards staged as Counters, drawn highlighted (the phone defend tray's hand view, #1368).
+  stagedIds?: ReadonlySet<string>;
   setDragPayload: (payload: DragPayload | null) => void;
   commitDrop: (payload: DragPayload, clientX: number, clientY: number) => void;
 };
@@ -69,6 +71,7 @@ export function renderHandCardsFor(ctx: HandCardsCtx, fanned = false): ReactNode
     defend,
     earlyCounterIds,
     selectHandCard,
+    stagedIds,
     setDragPayload,
     commitDrop,
   } = ctx;
@@ -162,7 +165,7 @@ export function renderHandCardsFor(ctx: HandCardsCtx, fanned = false): ReactNode
           ownerSeat={boardSeat}
           viewingSeat={viewingSeat}
           revealed={myRevealed.has(c.id)}
-          classNameExtra={[unaffordable ? "hand-unaffordable" : "", myRevealed.has(c.id) ? "hand-revealed" : "", marker?.id === c.id ? marker.cls : "", liftedHandId === c.id ? "card-lifted" : ""].filter(Boolean).join(" ") || undefined}
+          classNameExtra={[unaffordable ? "hand-unaffordable" : "", myRevealed.has(c.id) ? "hand-revealed" : "", marker?.id === c.id ? marker.cls : "", liftedHandId === c.id ? "card-lifted" : "", stagedIds?.has(c.id) ? "hand-staged" : ""].filter(Boolean).join(" ") || undefined}
           style={pose(pos, order.length)}
         />
       );
