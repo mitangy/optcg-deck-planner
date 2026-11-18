@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
 import type { Worker } from "node:worker_threads";
-import { BotPool, type BotJobInput } from "../src/botPool.js";
+import { BotPool, MIN_BUDGET_MS, scaleBudgetMs, type BotJobInput } from "../src/botPool.js";
 import type { BotJob } from "../src/botWorker.js";
 
 class FakeWorker extends EventEmitter {
@@ -120,5 +120,29 @@ describe("bot worker pool (#635)", () => {
     workers[1]!.answer(workers[1]!.jobs[0]!);
     await second;
     await p.close();
+  });
+
+  describe("search budget under load (#1351)", () => {
+    it("scaleBudgetMs keeps the full budget with nothing waiting, shrinks as the queue grows and never drops below the floor (#1351)", () => {
+      assert.equal(scaleBudgetMs(1500, 0), 1500);
+      assert.equal(scaleBudgetMs(1500, 1), 750);
+      assert.equal(scaleBudgetMs(1500, 2), 500);
+      assert.equal(scaleBudgetMs(1500, 50), MIN_BUDGET_MS);
+      assert.equal(scaleBudgetMs(100, 3), 100, "a budget already under the floor is never raised");
+    });
+
+    it("a job dispatched with others still waiting behind it gets a smaller budget; the last one gets the full budget back (#1351)", async () => {
+      const { p, workers } = pool(1);
+      const withBudget = (seed: number): BotJobInput => ({ ...input(seed), budgetMs: 1500 });
+      const jobsRun = [1, 2, 3, 4].map((n) => p.run(withBudget(n), 10_000));
+      const expected = [1500, 500, 750, 1500]; // job 1 starts at once with nothing waiting; then 2, 1 and 0 behind
+      for (let i = 0; i < 4; i++) {
+        await tick();
+        assert.equal(workers[0]!.jobs[i]!.budgetMs, expected[i], `job ${i + 1}`);
+        workers[0]!.answer(workers[0]!.jobs[i]!);
+        await jobsRun[i];
+      }
+      await p.close();
+    });
   });
 });

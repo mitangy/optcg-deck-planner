@@ -15,6 +15,15 @@ interface Pending {
   timeoutMs: number;
 }
 
+/** Lowest search budget a queued job is given, however deep the queue. */
+export const MIN_BUDGET_MS = 250;
+
+/** Queue depth (jobs still waiting behind the one being dispatched) in, search budget out: 0 waiting keeps the full budget. */
+export function scaleBudgetMs(baseMs: number, waiting: number): number {
+  if (waiting <= 0) return baseMs;
+  return Math.min(baseMs, Math.max(MIN_BUDGET_MS, Math.round(baseMs / (1 + waiting))));
+}
+
 export interface BotPoolOptions {
   size?: number;
   spawn?: () => Worker;
@@ -107,6 +116,7 @@ export class BotPool {
         continue;
       }
       p.worker = worker;
+      p.job = { ...p.job, budgetMs: scaleBudgetMs(p.job.budgetMs, this.queue.length) };
       this.busy += 1;
       const onMessage = (m: BotJobResult): void => {
         if (m.id !== p.job.id) return;
