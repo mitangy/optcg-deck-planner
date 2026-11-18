@@ -64,8 +64,7 @@ test("a spectator tab goes quiet while another tab plays, and sound returns when
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
   }, [{ id: "e2e-you", name: "E2E You", ...RED_VANILLA, updatedAt: 1 }]);
   await page.goto("/");
-  await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: /^Play vs Bot/ }).click();
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Play vs Bot/ }).click();
   await page.getByRole("button", { name: "Start game" }).click();
   await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };

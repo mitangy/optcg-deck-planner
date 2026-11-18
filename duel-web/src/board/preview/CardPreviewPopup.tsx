@@ -7,7 +7,7 @@ import { CardPreviewContent } from "./CardPreviewPanel";
 import { POPUP_LEAVE_MS, clearPreviewCard, getHoverAnchor, previewPopupLive, usePreviewCard, usePreviewHovering } from "./cardPreview";
 import {
   clampPreviewPopupPos,
-  dodgePreviewPopup,
+  placePreviewPopup,
   parsePreviewPopupPos,
   serializePreviewPopupPos,
   type PopupPos,
@@ -61,8 +61,13 @@ export function CardPreviewPopup() {
         box.style.left = `${base.x}px`;
         box.style.top = `${base.y}px`;
       }
-      const anchor = pinned || drag || overPopup ? null : getHoverAnchor();
-      const at = anchor ? dodgePreviewPopup(base, r, anchor, view) : base;
+      const adjust = !(pinned || drag || overPopup);
+      const anchor = adjust ? getHoverAnchor() : null;
+      // A spot you dragged it to is yours; only the default spot steps off the dock.
+      const dock = adjust && !pos
+        ? Array.from(document.querySelectorAll<HTMLElement>(".board-root .primary-dock")).map((el) => el.getBoundingClientRect())
+        : [];
+      const at = anchor || dock.length > 0 ? placePreviewPopup(base, r, anchor, view, dock) : base;
       if (at === base) return;
       box.style.left = `${at.x}px`;
       box.style.top = `${at.y}px`;

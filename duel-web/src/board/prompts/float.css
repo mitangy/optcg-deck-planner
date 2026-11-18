@@ -1,4 +1,4 @@
-/* Nothing dims the mat: the header, note and buttons carry their own small backing instead of a full-board scrim. */
+/* A half-strength scrim dims the board behind the cards. It never catches the pointer, so the board stays clickable and the Hide pill still lets you peek (the peek layer has no scrim). */
 
 .float-layer {
   position: fixed;
@@ -16,6 +16,28 @@
   --per-row: var(--n);
   /* Height budget for one row of cards: header, axis, note and actions ≈ 11rem. */
   --card-max: min(176px, calc(((100dvh - var(--hud-h, 0px) - var(--hand-room, 0px)) / var(--popup-scale, 1) - 11rem) * 0.714));
+}
+
+.float-layer:not(.float-layer-peek)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: var(--z-under);
+  background: rgb(var(--deep-rgb) / 0.5);
+  pointer-events: none;
+  animation: float-scrim-in 200ms ease-out backwards;
+}
+
+/* Portrait: the top bar, hand and action bar sit outside the dimmed board, so Undo, the menu and the buttons keep their normal look. */
+.arena:not(.arena-wide) .float-layer:not(.float-layer-peek)::before {
+  top: var(--hud-h, 0px);
+  bottom: var(--hand-room, 0px);
+}
+
+@keyframes float-scrim-in {
+  from {
+    opacity: 0;
+  }
 }
 
 .arena.arena-wide .float-layer {
@@ -55,12 +77,25 @@
 
 .float-head {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: center;
-  gap: 0.15rem;
+  gap: 0.15rem var(--space-2);
   max-width: 40rem;
   text-align: center;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+}
+
+/* The name and the size buttons share a row; the sentence and the note take the full width under them. */
+.float-head > .float-prompt,
+.float-head > .float-note,
+.float-head > .float-head-title {
+  flex: 0 0 100%;
+}
+
+.float-head > .float-prompt,
+.float-head > .float-note {
+  order: 1;
 }
 
 .float-head strong {
@@ -247,7 +282,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  font-size: 0.66rem;
+  font-size: 0.75rem;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -362,15 +397,19 @@
 }
 
 @media (orientation: landscape) and (max-height: 499px) {
+  /* Head (name row, two-line sentence, note), axis and buttons take about 12rem; the effect captions add two more. */
   .float-layer {
     --gap: 0.4rem;
-    --card-max: min(150px, calc((100dvh / var(--popup-scale, 1) - 8.6rem) * 0.714));
+    --card-max: min(150px, calc((100dvh / var(--popup-scale, 1) - 12.4rem) * 0.714));
+  }
+  .float-layer-free {
+    --card-max: min(150px, calc((100dvh / var(--popup-scale, 1) - 14.6rem) * 0.714));
   }
   .float-stage {
     gap: 0.3rem;
   }
-  .float-prompt {
-    -webkit-line-clamp: 1;
+  .float-head {
+    padding-block: 0.15rem;
   }
   .float-effect-text {
     -webkit-line-clamp: 2;
@@ -464,10 +503,6 @@
   cursor: default;
 }
 
-.float-head .popup-size-btns {
-  margin-top: 0.1rem;
-}
-
 .prompt-hide-wrap[hidden] {
   display: none;
 }
@@ -480,7 +515,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .float-card {
+  .float-card,
+  .float-layer::before {
     animation: none;
   }
   .float-card-inner {
@@ -521,7 +557,6 @@
 
 .float-layer .float-head,
 .float-layer .float-card,
-.float-layer .float-note,
 .float-layer .float-actions {
   pointer-events: auto;
 }
@@ -543,7 +578,7 @@
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  border-radius: var(--radius-pill);
+  border-radius: 1.4rem;
 }
 
 .float-stage-free > .float-head strong::before {
@@ -558,7 +593,6 @@
 }
 
 .float-layer .float-effect-text,
-.float-layer .float-note,
 .float-layer .float-axis > span:not(.float-axis-line) {
   padding: 0.1rem 0.5rem;
   border-radius: 0.5rem;

@@ -5,7 +5,8 @@ import { useClickCopy } from "../input/clickCopy";
 import { spectateUrl } from "../input/clipboard";
 import { useCopyFlash } from "./RoomShare";
 import { HideArtItems, type ArtToggle } from "../prompts/HideArtItems";
-import type { MatchMenuItemId } from "./matchMenuItems";
+import { groupMatchMenu, type MatchMenuItemId } from "./matchMenuItems";
+import { HudIcon } from "../hud/HudIcons";
 
 type Props = {
   items: MatchMenuItemId[];
@@ -61,25 +62,7 @@ export function MatchMenu({
     [],
   );
 
-  return (
-    <Menu>
-      {({ close }) => (
-        <>
-          <MenuButton
-            type="button"
-            className="hud-undo-btn hud-icon-btn hud-menu-btn"
-            aria-label="Match menu"
-          >
-            ⋯
-          </MenuButton>
-          <MenuList anchor={ANCHORS[placement]} className="match-menu">
-            <div className="match-menu-info">
-              {info.matchup ? <strong>{info.matchup}</strong> : null}
-              <span>
-                {info.seat ? `${info.seat} · ` : ""}{info.order}
-              </span>
-            </div>
-            {items.map((id) => {
+  const renderItem = (id: MatchMenuItemId, close: () => void) => {
               switch (id) {
                 case "copy-room":
                   return (
@@ -134,11 +117,13 @@ export function MatchMenu({
                     <MenuItem key={id}>
                       <button
                         type="button"
-                        className="match-menu-item"
+                        className="match-menu-item match-menu-icon-item"
+                        aria-label={isFullscreen ? "Exit full screen" : "Full screen"}
                         aria-pressed={isFullscreen}
                         onClick={onToggleFullscreen}
                       >
-                        {isFullscreen ? "Exit full screen" : "Full screen"}
+                        <HudIcon kind={isFullscreen ? "fullscreen-exit" : "fullscreen"} />
+                        <span aria-hidden>{isFullscreen ? "Exit" : "Full screen"}</span>
                       </button>
                     </MenuItem>
                   );
@@ -147,12 +132,14 @@ export function MatchMenu({
                     <MenuItem key={id}>
                       <button
                         type="button"
-                        className="match-menu-item"
+                        className="match-menu-item match-menu-icon-item"
+                        aria-label={tabMute.label}
                         aria-pressed={tabMute.silenced}
                         title={tabMute.title}
                         onClick={tabMute.onToggle}
                       >
-                        {tabMute.label}
+                        <HudIcon kind={tabMute.silenced ? "muted" : "sound"} />
+                        <span aria-hidden>{tabMute.silenced ? "Unmute" : "Mute"}</span>
                       </button>
                     </MenuItem>
                   );
@@ -216,13 +203,47 @@ export function MatchMenu({
                 case "leave":
                   return (
                     <MenuItem key={id}>
-                      <button type="button" className="match-menu-item" onClick={onLeave}>
+                      <button type="button" className="match-menu-item match-menu-danger" onClick={onLeave}>
                         {leaveLabel}
                       </button>
                     </MenuItem>
                   );
               }
-            })}
+  };
+
+  const groups = groupMatchMenu(items);
+
+  return (
+    <Menu>
+      {({ close }) => (
+        <>
+          <MenuButton
+            type="button"
+            className="hud-undo-btn hud-icon-btn hud-menu-btn"
+            aria-label="Match menu"
+          >
+            ⋯
+          </MenuButton>
+          <MenuList anchor={ANCHORS[placement]} className="match-menu">
+            <div className="match-menu-info">
+              {info.matchup ? <strong>{info.matchup}</strong> : null}
+              <span>
+                {info.seat ? `${info.seat} · ` : ""}{info.order}
+              </span>
+            </div>
+            {([["room", groups.room], ["view", groups.view]] as const).map(([name, ids]) =>
+              ids.length ? (
+                <div key={name} className="match-menu-group">
+                  {ids.map((id) => renderItem(id, close))}
+                </div>
+              ) : null,
+            )}
+            {groups.icons.length ? (
+              <div className="match-menu-group match-menu-icons">{groups.icons.map((id) => renderItem(id, close))}</div>
+            ) : null}
+            {groups.exits.length ? (
+              <div className="match-menu-group match-menu-exits">{groups.exits.map((id) => renderItem(id, close))}</div>
+            ) : null}
           </MenuList>
         </>
       )}

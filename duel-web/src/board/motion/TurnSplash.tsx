@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { splashAnchor } from "./splashAnchor";
+import { splashAnchor, splashAnchorAboveMat } from "./splashAnchor";
 
 export type SplashMessage = {
   key: string;
@@ -11,7 +11,7 @@ export type SplashMessage = {
 
 export function TurnSplash({ message }: { message: SplashMessage | null }) {
   const [shown, setShown] = useState<SplashMessage | null>(null);
-  const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [anchor, setAnchor] = useState<{ x: number; y: number; above?: boolean } | null>(null);
   const latest = useRef(message);
   latest.current = message;
   const key = message?.key ?? null;
@@ -20,7 +20,9 @@ export function TurnSplash({ message }: { message: SplashMessage | null }) {
   useEffect(() => {
     const m = latest.current;
     if (!key || !m) return;
-    setAnchor(splashAnchor(measureOppMat()));
+    const onMat = splashAnchor(measureOppMat());
+    const above = onMat ? null : splashAnchorAboveMat(measureMat(".side-opp"), measureMat(".side-you"));
+    setAnchor(onMat ?? (above ? { ...above, above: true } : null));
     setShown(m);
     const id = window.setTimeout(() => setShown(null), m.ms ?? 1500);
     return () => window.clearTimeout(id);
@@ -29,7 +31,7 @@ export function TurnSplash({ message }: { message: SplashMessage | null }) {
   if (!shown) return null;
   return (
     <div
-      className={`turn-splash turn-splash-${shown.tone}${anchor ? " turn-splash-anchored" : ""}`}
+      className={`turn-splash turn-splash-${shown.tone}${anchor ? " turn-splash-anchored" : ""}${anchor?.above ? " turn-splash-above" : ""}`}
       style={anchor ? ({ left: anchor.x, top: anchor.y } as CSSProperties) : undefined}
       aria-hidden
       key={shown.key}
@@ -46,7 +48,11 @@ export function TurnSplash({ message }: { message: SplashMessage | null }) {
 }
 
 function measureOppMat() {
-  const mat = document.querySelector<HTMLElement>(".arena.arena-wide:not(.arena-lp) .side-opp");
+  return measureMat(".arena.arena-wide:not(.arena-lp) .side-opp");
+}
+
+function measureMat(selector: string) {
+  const mat = document.querySelector<HTMLElement>(selector);
   if (!mat) return null;
   const r = mat.getBoundingClientRect();
   return { left: r.left, top: r.top, width: r.width, height: r.height };

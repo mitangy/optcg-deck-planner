@@ -28,50 +28,58 @@ type SideStats = {
   donTotal: number;
 };
 
+const STAT_GLYPHS = {
+  life: "M12 21s-7-4.6-9.2-9.2C1.2 8.3 3 5 6.2 5c2 0 3.4 1.1 5.8 3.6C14.4 6.1 15.8 5 17.800 5 21 5 22.800 8.300 21.200 11.800 19 16.400 12 21 12 21z",
+  hand: "M7 3h9a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zm1 3v3h7V6z",
+  deck: "M8 2h11a2 2 0 0 1 2 2v13h-2V4H8zM5 6h11a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z",
+  don: "M12 2a10 10 0 1 1 0 20 10 10 0 0 1 0-20zm-3 5v10h3.2c2.7 0 4.3-1.8 4.3-5s-1.6-5-4.3-5zm2.2 2h.8c1.3 0 2 1 2 3s-.7 3-2 3h-.8z",
+} as const;
+
+function StatGlyph({ kind }: { kind: keyof typeof STAT_GLYPHS }) {
+  return (
+    <svg className="turn-stat-glyph" viewBox="0 0 24 24" width="11" height="11" aria-hidden focusable="false">
+      <path d={STAT_GLYPHS[kind]} fill="currentColor" fillRule="evenodd" />
+    </svg>
+  );
+}
+
+function StatItem({ kind, label, value }: { kind: keyof typeof STAT_GLYPHS; label: string; value: string }) {
+  return (
+    <div title={label}>
+      <dt>
+        <StatGlyph kind={kind} />
+        <span className="visually-hidden">{label}</span>
+      </dt>
+      <dd>{value}</dd>
+    </div>
+  );
+}
+
+// One line per player: the numbers repeat what the board shows, so they only need to be glanceable.
 function PlayerRow({ side, stats }: { side: "you" | "opp"; stats: SideStats }) {
   return (
     <div
       className={`turn-player turn-player-${side}${stats.active ? " is-active" : ""}`}
       aria-current={stats.active ? "true" : undefined}
     >
-      <div className="turn-player-head">
-        <span className="turn-player-dot" aria-hidden />
-        <span className="turn-player-name" title={stats.name}>
-          {stats.name}
+      <span className="turn-player-dot" aria-hidden />
+      <span className="turn-player-name" title={stats.name}>
+        {stats.name}
+      </span>
+      <span className={`turn-order-badge ${stats.order}`}>{stats.order === "first" ? "1st" : "2nd"}</span>
+      {stats.clock ? (
+        <span
+          className={`turn-player-clock${stats.clock.running ? " running" : ""}${stats.clock.low ? " low" : ""}`}
+          title="Time left"
+        >
+          {stats.clock.text}
         </span>
-        {stats.clock ? (
-          <span
-            className={`turn-player-clock${stats.clock.running ? " running" : ""}${
-              stats.clock.low ? " low" : ""
-            }`}
-            title="Time left"
-          >
-            {stats.clock.text}
-          </span>
-        ) : null}
-        <span className={`turn-order-badge ${stats.order}`}>
-          {stats.order === "first" ? "1st" : "2nd"}
-        </span>
-      </div>
+      ) : null}
       <dl className="turn-player-stats">
-        <div>
-          <dt>Life</dt>
-          <dd>{stats.life}</dd>
-        </div>
-        <div>
-          <dt>Hand</dt>
-          <dd>{stats.hand}</dd>
-        </div>
-        <div>
-          <dt>Deck</dt>
-          <dd>{stats.deck}</dd>
-        </div>
-        <div>
-          <dt>DON!!</dt>
-          <dd>
-            {stats.donActive}/{stats.donTotal}
-          </dd>
-        </div>
+        <StatItem kind="life" label="Life" value={String(stats.life)} />
+        <StatItem kind="hand" label="Hand" value={String(stats.hand)} />
+        <StatItem kind="deck" label="Deck" value={String(stats.deck)} />
+        <StatItem kind="don" label="DON!!" value={`${stats.donActive}/${stats.donTotal}`} />
       </dl>
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupDeckStacks } from "./groupStacks";
+import { groupDeckStacks, groupStacksByCost } from "./groupStacks";
 
 describe("groupDeckStacks", () => {
   it("groups main-deck copies by defId with counts", () => {
@@ -23,5 +23,23 @@ describe("groupDeckStacks", () => {
     const stacks = groupDeckStacks("OP16-080", []);
     expect(stacks.leader.defId).toBe("OP16-080");
     expect(stacks.main).toEqual([]);
+  });
+});
+
+describe("groupStacksByCost (#1343)", () => {
+  const costs: Record<string, number> = { A: 5, B: 1, C: 5, D: 0 };
+  const stacks = [
+    { defId: "A", count: 2 },
+    { defId: "B", count: 4 },
+    { defId: "C", count: 3 },
+    { defId: "D", count: 1 },
+  ];
+  it("orders groups cheapest first, keeps the given order inside a cost and totals the copies", () => {
+    const groups = groupStacksByCost(stacks, (id) => costs[id]);
+    expect(groups.map((g) => [g.cost, g.stacks.map((s) => s.defId), g.cards])).toEqual([
+      [0, ["D"], 1],
+      [1, ["B"], 4],
+      [5, ["A", "C"], 5],
+    ]);
   });
 });

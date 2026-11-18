@@ -346,6 +346,10 @@ button.zone-pile {
   line-height: 1.15;
 }
 
+.zone-pile-meta .count-icon {
+  display: none;
+}
+
 .zone-pile-label {
   display: block;
   font-size: 0.55rem;

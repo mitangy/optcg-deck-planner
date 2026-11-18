@@ -11,6 +11,7 @@ export function SiteFooter({
   onFeedback,
   extraLinks,
   externalLinks,
+  compact,
 }: {
   Link: ComponentType<FooterLinkProps>;
   className?: string;
@@ -18,7 +19,31 @@ export function SiteFooter({
   /** Links to other sites, opened in a new tab (no nofollow: they are our own listings). */
   externalLinks?: readonly { href: string; label: string }[];
   onFeedback?: () => void;
+  /** One line: Terms, Privacy, feedback and the fan-made disclaimer. For app pages; content pages keep the full footer. */
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <footer className={`site-footer site-footer-compact${className ? ` ${className}` : ""}`}>
+        <div className="site-footer-inner">
+          <nav className="site-footer-links" aria-label="Legal">
+            <Link to={LEGAL_PATHS.terms} className="site-footer-link">
+              Terms
+            </Link>
+            <Link to={LEGAL_PATHS.privacy} className="site-footer-link">
+              Privacy
+            </Link>
+            {onFeedback ? (
+              <button type="button" className="site-footer-link site-footer-feedback" onClick={onFeedback}>
+                Send feedback
+              </button>
+            ) : null}
+          </nav>
+          <p className="site-footer-disclaimer">{FAN_DISCLAIMER}</p>
+        </div>
+      </footer>
+    );
+  }
   return (
     <footer className={`site-footer${className ? ` ${className}` : ""}`}>
       <div className="site-footer-inner">

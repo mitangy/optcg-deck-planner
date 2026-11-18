@@ -1,7 +1,7 @@
 const stripQuery = (p) => p.split(/[?#]/)[0];
 
 /**
- * @param {{ src?: string; dest?: string; status?: number; handle?: string; check?: boolean }[]} routes
+ * @param {{ src?: string; dest?: string; status?: number; handle?: string; check?: boolean; continue?: boolean }[]} routes
  * @param {ReadonlySet<string>} files
  * @param {string} rawPath
  * @param {{ directoryIndex?: boolean }} [opts]
@@ -18,7 +18,8 @@ export function resolveRequest(routes, files, rawPath, { directoryIndex = true }
   const substitute = (dest, m) => dest.replace(/\$(\d+)/g, (_, n) => m[Number(n)] ?? "").replace(/^\//, "");
   const match = (list, current) => {
     for (const r of list) {
-      if (!r.src) continue;
+      // `continue: true` routes only add response headers; they never pick the file.
+      if (!r.src || r.continue) continue;
       const m = new RegExp(`^${r.src}$`).exec(current);
       if (m) return { r, m };
     }

@@ -1,26 +1,33 @@
 import type { LastMode } from "./lastMode";
 
-export type PrimaryAction =
-  | { act: "choose"; mode: null; subline: string }
-  | { act: "start"; mode: "queue"; subline: string }
-  | { act: "sheet"; mode: Exclude<LastMode, "queue">; subline: string };
-
-const SUBLINE: Record<LastMode, string> = {
-  queue: "Ranked · 15 min per player",
-  hotseat: "Practice",
-  bot: "Play vs Bot",
-  create: "Private room",
-  spectate: "Spectate",
+export type PrimaryAction = {
+  mode: LastMode;
+  act: "start" | "sheet";
+  title: string;
+  subline: string;
 };
 
-export function primaryAction(mode: LastMode | null): PrimaryAction {
-  if (mode === null) return { act: "choose", mode: null, subline: "Choose a mode" };
-  if (mode === "queue") return { act: "start", mode, subline: SUBLINE[mode] };
-  return { act: "sheet", mode, subline: SUBLINE[mode] };
-}
+const TITLE: Record<LastMode, string> = {
+  queue: "Play Ranked",
+  bot: "Play vs Bot",
+  hotseat: "Practice",
+  create: "Private room",
+};
 
-const TILE_ORDER: readonly LastMode[] = ["queue", "hotseat", "bot", "create", "spectate"];
+const DESCRIPTION: Record<LastMode, string> = {
+  queue: "15 min per player",
+  bot: "Casual, vs computer",
+  hotseat: "Both sides on this device",
+  create: "Play a friend",
+};
 
-export function modeTiles(lastMode: LastMode | null): LastMode[] {
-  return TILE_ORDER.filter((m) => m !== lastMode);
+export function primaryAction(remembered: LastMode | null, signedIn: boolean): PrimaryAction {
+  const usable = remembered !== null && (remembered !== "queue" || signedIn);
+  const mode: LastMode = usable ? remembered : signedIn ? "queue" : "bot";
+  return {
+    mode,
+    act: usable && mode === "queue" ? "start" : "sheet",
+    title: TITLE[mode],
+    subline: usable ? "Last played" : DESCRIPTION[mode],
+  };
 }

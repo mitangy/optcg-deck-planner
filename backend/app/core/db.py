@@ -129,6 +129,12 @@ def _request_slot_count() -> int:
     return max(1, size() + getattr(pool, "_max_overflow", 0) - _POOL_HEADROOM)
 
 
+def get_session_factory() -> sessionmaker:
+    """The session factory, as a dependency, for handlers that must not hold a
+    session (and a request slot) across a slow upstream call."""
+    return SessionLocal
+
+
 async def get_db() -> AsyncGenerator[Session, None]:
     loop = asyncio.get_running_loop()
     slots = _request_slots.get(loop)

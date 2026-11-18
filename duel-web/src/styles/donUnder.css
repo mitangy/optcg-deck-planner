@@ -113,83 +113,7 @@
   display: none;
 }
 
-.deck-count-bar {
-  display: none;
-}
-
 @media (max-width: 599px) {
-  .deck-count-bar {
-    position: sticky;
-    top: var(--sticky-head-h, 0px);
-    z-index: var(--z-raise-5);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-    padding: 0.4rem 0.6rem;
-    margin-bottom: 0.5rem;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-10);
-    background: var(--arena-panel);
-    font-size: 0.9rem;
-  }
-
-  .deck-count-bar .btn {
-    min-height: 40px;
-  }
-
-  .deck-stack-grid,
-  .deck-editor-leader .deck-stack-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.4rem;
-  }
-
-  .deck-stack {
-    display: grid;
-    grid-template-columns: 56px minmax(0, 1fr);
-    align-items: center;
-    column-gap: 0.6rem;
-    padding: 0.3rem 0.5rem 0.3rem 0.3rem;
-  }
-
-  .deck-stack-art-btn {
-    width: 56px;
-  }
-
-  .card-stack.deck-stack-pile {
-    --card-stack-step-y: 3px;
-    --card-stack-step-x: 3px;
-  }
-
-  .deck-stack-badge {
-    right: 2px;
-    bottom: 2px;
-    min-width: 0;
-    padding: 0 0.3rem;
-    font-size: 0.65rem;
-  }
-
-  .deck-stack-meta {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.15rem 0.5rem;
-  }
-
-  .deck-stack-meta .deck-stack-name-btn {
-    min-height: 44px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .deck-stack-meta .deck-stack-id + .deck-stack-id,
-  .deck-stack-art-label,
-  .deck-stack-meta > .meta,
-  .deck-stack .deck-stack-remove {
-    display: none;
-  }
-
   .deck-config-title {
     font-size: 1.25rem;
     display: -webkit-box;
@@ -198,34 +122,35 @@
     overflow: hidden;
     overflow-wrap: anywhere;
   }
-
-  .deck-stack-edit {
-    margin-top: 0;
-    flex-wrap: nowrap;
-  }
-
-  .deck-stack-qty {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  .deck-edit-error {
-    grid-column: 1 / -1;
-  }
 }
 
 .settings-jump {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
   margin: 0 0 0.75rem;
+  /* One row: the chips scroll sideways on a narrow screen instead of wrapping. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.settings-jump::-webkit-scrollbar {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .settings-jump a {
+    min-height: 44px;
+  }
 }
 
 .settings-jump a {
+  flex: none;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   min-height: 36px;
-  padding: 0 0.7rem;
+  padding: 0 0.6rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   color: var(--muted);

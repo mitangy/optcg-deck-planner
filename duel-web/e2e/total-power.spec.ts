@@ -12,14 +12,15 @@ function buffedBadge(page: Page) {
   return page.locator(".side-you .power-badge-buffed").first();
 }
 
-test("Power shows base and bonus by default (#534)", async ({ page }, info) => {
+test("Power leads with the total and shows the bonus as a small delta by default (#534, #1343)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "desktop tiles show the breakdown");
   await openDemo(page, {});
   const badge = buffedBadge(page);
   await expect(badge).toBeVisible();
-  await expect(badge.locator(".power-base")).toBeVisible();
+  const current = (await badge.getAttribute("title"))!.match(/^Power (\d+)/)![1];
+  await expect(badge.locator(".power-now")).toHaveText(current);
   await expect(badge.locator(".power-mod")).toBeVisible();
-  await expect(badge.locator(".power-now")).toBeHidden();
+  await expect(badge.locator(".power-base")).toBeHidden();
 });
 
 test("Show total power on: board shows only the total (#534)", async ({ page }) => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { matchMenuItems } from "./matchMenuItems";
+import { groupMatchMenu, matchMenuItems } from "./matchMenuItems";
 
 const live = { spectating: false, over: false, hotseat: false, fullscreenOffered: false, canConcede: true };
 
@@ -96,3 +96,23 @@ describe("match menu items", () => {
     expect(matchMenuItems({ ...live, hideArtOffered: true, spectating: true })).toContain("hide-art");
   });
 });
+
+describe("match menu groups (#1343)", () => {
+  const all = matchMenuItems({ ...live, fullscreenOffered: true, canReportPlayer: true, hideArtOffered: true });
+
+  it("puts the room links first, the view and help rows next, then the icon pair, and the ways out last (#1343)", () => {
+    const g = groupMatchMenu(all);
+    expect(g.room).toEqual(["copy-room", "copy-spectate"]);
+    expect(g.view).toEqual(["settings", "reload", "report-player", "hide-art", "report"]);
+    expect(g.icons).toEqual(["fullscreen", "mute-tab"]);
+    expect(g.exits).toEqual(["concede", "leave"]);
+  });
+
+  it("keeps every item exactly once and Concede above Leave (#1343)", () => {
+    const g = groupMatchMenu(all);
+    expect([...g.room, ...g.view, ...g.icons, ...g.exits].sort()).toEqual([...all].sort());
+    const spectator = groupMatchMenu(matchMenuItems({ ...live, spectating: true }));
+    expect(spectator.exits).toEqual(["leave"]);
+  });
+});
+

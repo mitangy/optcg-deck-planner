@@ -108,7 +108,8 @@ test("phones show no S key tab on the hand Sort button (#340)", async ({ page })
   await openDemo(page, "", {});
   const sort = page.locator(".hand-sort-btn:visible").first();
   await expect(sort).toBeVisible();
-  expect(await sort.evaluate((el) => getComputedStyle(el, "::after").content)).toBe("none");
+  // On touch the ::after is an empty, invisible hit area (#1343); it must not print the key.
+  expect(await sort.evaluate((el) => getComputedStyle(el, "::after").content)).not.toContain("S");
 });
 
 test("an unplayable hand card is grayed out at full opacity (#356)", async ({ page }) => {

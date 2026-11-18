@@ -57,73 +57,6 @@
   margin-top: 0.25rem;
 }
 
-.mode-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.65rem;
-}
-
-.mode-card {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.3rem;
-  min-width: 0;
-  min-height: 128px;
-  padding: 0.9rem 0.9rem 1rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-14);
-  background:
-    linear-gradient(160deg, rgb(var(--sea-rgb) / 0.16), transparent 60%),
-    var(--arena-mid);
-  color: var(--ink);
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 140ms ease, transform 140ms ease;
-}
-
-.mode-card:last-child:nth-child(odd) {
-  grid-column: 1 / -1;
-}
-
-.mode-card:hover {
-  border-color: var(--line-strong);
-  transform: translateY(-1px);
-}
-
-.mode-card:focus-visible {
-  outline: none;
-  box-shadow: var(--focus);
-}
-
-.mode-glyph {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-round);
-  border: 1px solid var(--line-strong);
-  color: var(--chrome-bright);
-  font-family: "Segoe UI Symbol", "Noto Sans Symbols 2", system-ui, sans-serif;
-  font-size: 1.05rem;
-  font-variant-emoji: text;
-  margin-bottom: 0.25rem;
-}
-
-.mode-title {
-  font-family: var(--font-display);
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--chrome-bright);
-}
-
-.mode-blurb {
-  font-size: 0.78rem;
-  line-height: 1.4;
-  color: var(--muted);
-}
-
 .segmented {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -213,11 +146,6 @@
     max-width: none;
     border-radius: 18px 18px 0 0;
     padding-bottom: max(1.1rem, var(--safe-b));
-  }
-
-  .mode-card {
-    min-height: 116px;
-    padding: 0.75rem;
   }
 
   .topbar-inner {

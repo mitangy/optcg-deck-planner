@@ -27,25 +27,23 @@ test("deck editor edits stay a draft until Save, and leaving asks first (#481)",
   };
   await page.goto(`/decks/${DECK_ID}/configure`);
 
-  const save = page.getByRole("button", { name: /^(Save|Saved)$/ });
+  const save = page.getByRole("button", { name: "Save", exact: true });
   const discard = page.getByRole("button", { name: "Discard", exact: true });
-  await expect(save).toHaveText("Saved");
-  await expect(save).toBeDisabled();
+  const saved = page.locator(".deck-saved-status");
+  await expect(saved).toHaveText("Saved");
+  await expect(save).toHaveCount(0);
+  await expect(discard).toHaveCount(0);
   await page.evaluate(() => document.fonts.ready);
   await page.evaluate(() => window.scrollTo(0, 0));
-  const clean = await save.boundingBox();
   await shot("clean");
 
   await page.getByRole("button", { name: "Remove one Tony Tony.Chopper" }).click();
   await expect(page.locator("article.deck-stack", { hasText: "ST01-006" }).getByLabel("3 copies")).toBeVisible();
-  await expect(save).toHaveText("Save");
   await expect(save).toBeEnabled();
+  await expect(discard).toBeVisible();
+  await expect(saved).toHaveCount(0);
   expect(await storedCards(page)).toBe(RED_VANILLA.cards.length);
   await page.evaluate(() => window.scrollTo(0, 0));
-  const dirty = await save.boundingBox();
-  expect(Math.abs(dirty!.x - clean!.x)).toBeLessThanOrEqual(1);
-  expect(Math.abs(dirty!.y - clean!.y)).toBeLessThanOrEqual(1);
-  expect(Math.abs(dirty!.width - clean!.width)).toBeLessThanOrEqual(1);
   await shot("dirty");
 
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
@@ -58,17 +56,17 @@ test("deck editor edits stay a draft until Save, and leaving asks first (#481)",
   await shot("leave-dialog");
   await dialog.getByRole("button", { name: "Keep editing" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(save).toHaveText("Save");
+  await expect(save).toBeVisible();
   expect(await storedCards(page)).toBe(RED_VANILLA.cards.length);
 
   await discard.click();
-  await expect(save).toHaveText("Saved");
+  await expect(saved).toHaveText("Saved");
   await expect(page.locator("article.deck-stack", { hasText: "ST01-006" }).getByLabel("4 copies")).toBeVisible();
   await page.getByRole("button", { name: "Remove one Tony Tony.Chopper" }).click();
 
   await save.click();
-  await expect(save).toHaveText("Saved");
-  await expect(save).toBeDisabled();
+  await expect(saved).toHaveText("Saved");
+  await expect(save).toHaveCount(0);
   expect(await storedCards(page)).toBe(RED_VANILLA.cards.length - 1);
 
   await page.getByRole("link", { name: "Back to decks" }).click();
@@ -90,26 +88,27 @@ test("Back with unsaved deck edits asks Save / Discard / Keep editing (#483)", a
   const shot = async (name: string) => {
     if (shotDir) await page.screenshot({ path: `${shotDir}/${info.project.name}-${name}.png` });
   };
-  const save = page.getByRole("button", { name: /^(Save|Saved)$/ });
+  const save = page.getByRole("button", { name: "Save", exact: true });
+  const saved = page.locator(".deck-saved-status");
   const dialog = page.getByRole("dialog", { name: /Save changes to Red Vanilla\?/ });
   const chopper = page.getByRole("button", { name: "Remove one Tony Tony.Chopper" });
   const openEditor = async () => {
     await page.goto("/decks");
     await page.locator(".deck-list li", { hasText: "Red Vanilla" }).getByRole("button", { name: "Edit Red Vanilla" }).click();
     await expect(page).toHaveURL(/configure$/);
-    await expect(save).toHaveText("Saved");
+    await expect(saved).toHaveText("Saved");
   };
 
   await openEditor();
   await chopper.click();
-  await expect(save).toHaveText("Save");
+  await expect(save).toBeVisible();
   await page.goBack();
   await expect(dialog).toBeVisible();
   await expect(page).toHaveURL(/configure$/);
   await shot("back-dialog");
   await dialog.getByRole("button", { name: "Keep editing" }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(save).toHaveText("Save");
+  await expect(save).toBeVisible();
   await page.goBack();
   await expect(dialog).toBeVisible();
 
@@ -129,7 +128,7 @@ test("Back with unsaved deck edits asks Save / Discard / Keep editing (#483)", a
 
   await page.getByRole("button", { name: "Remove one Tony Tony.Chopper" }).click();
   await save.click();
-  await expect(save).toHaveText("Saved");
+  await expect(saved).toHaveText("Saved");
   await page.goBack();
   await expect(page).toHaveURL(/\/decks$/);
   await expect(dialog).toHaveCount(0);

@@ -267,9 +267,10 @@ details.deck-config-section.deck-collapsible {
   .deck-editor-main {
     grid-column: 1;
     grid-row: 1;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
+    display: grid;
+    grid-template-columns: 132px minmax(0, 1fr);
+    column-gap: 1.25rem;
+    align-items: start;
     min-width: 0;
   }
 
@@ -310,19 +311,6 @@ details.deck-config-section.deck-collapsible {
 
   .deck-editor-side .deck-filter-row {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  }
-}
-
-@media (min-width: 1440px) {
-  .deck-editor-main {
-    display: grid;
-    grid-template-columns: 180px minmax(0, 1fr);
-    column-gap: 1.25rem;
-    align-items: start;
-  }
-
-  .deck-editor-leader .deck-stack-grid {
-    grid-template-columns: minmax(0, 1fr);
   }
 }
 

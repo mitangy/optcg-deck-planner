@@ -9,3 +9,4 @@ export * from "./clipboard";
 export * from "./hooks";
 export * from "./storage";
 export * from "./username";
+export * from "./errorBoundary";

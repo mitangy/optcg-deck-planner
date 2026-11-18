@@ -140,8 +140,10 @@
   min-height: 7rem;
 }
 
+/* The hand is the thing played from, so it takes the lion's share of the column: two full rows of cards at 1280x720 (#1343). */
 .arena.arena-wide .board-panel[data-panel="hand"] {
-  min-height: min(calc(clamp(60px, 9.4dvh, 150px) * 1.4 + 3.4rem), 50%);
+  flex-grow: 3;
+  min-height: min(calc(clamp(60px, 9.4dvh, 150px) * 2.8 + 0.4rem + 3.4rem), 52%);
 }
 
 /* It lists every counter card, so it takes the height it needs; on a short window it gives way (the chips scroll) rather than overflow. */

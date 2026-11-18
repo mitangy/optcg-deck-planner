@@ -12,6 +12,16 @@
   "outputDirectory": "frontend/dist",
   "routes": [
     {
+      "src": "/(.*)",
+      "headers": {
+        "X-Content-Type-Options": "nosniff",
+        "Referrer-Policy": "strict-origin-when-cross-origin",
+        "X-Frame-Options": "SAMEORIGIN",
+        "Permissions-Policy": "camera=(self), microphone=(), geolocation=()"
+      },
+      "continue": true
+    },
+    {
       "src": "/api/(.*)",
       "dest": "https://optcg-api-nutb.onrender.com/$1",
       "transforms": [

@@ -177,17 +177,23 @@ export function DeckConfigurePage() {
           }
         >
           <div className="deck-planner-actions deck-header-actions">
-            <button type="button" className="btn btn-secondary deck-discard-btn" onClick={onDiscard} disabled={!dirty}>
-              Discard
-            </button>
-            <button
-              type="button"
-              className="btn btn-primary deck-save-btn"
-              onClick={() => commit(draft)}
-              disabled={!dirty || blankName}
-            >
-              {dirty ? "Save" : "Saved"}
-            </button>
+            {dirty ? (
+              <>
+                <button type="button" className="btn btn-secondary deck-discard-btn" onClick={onDiscard}>
+                  Discard
+                </button>
+                <button type="button" className="btn btn-primary deck-save-btn" onClick={() => commit(draft)} disabled={blankName}>
+                  Save
+                </button>
+              </>
+            ) : (
+              <span className="deck-saved-status">
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                  <path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Saved
+              </span>
+            )}
             {deck.plannerDeckId ? (
               <span className="deck-planner-badge" title="Edits here and in the planner reach both">
                 Synced with planner
@@ -206,9 +212,9 @@ export function DeckConfigurePage() {
           deck={deck}
           onChange={onChangeDraft}
           onArtChanged={onArtChanged}
-          sideTop={
+          sideTop={(panel) => (
             <DeckImportPanel
-              collapsible
+              collapsible={!panel}
               heading="Replace with deck list"
               buttonLabel="Replace deck"
               hint="Paste an OPTCGSim deck code (one card per line like 4xST01-003). Replaces the leader and main deck; press Save to keep it."
@@ -219,7 +225,7 @@ export function DeckConfigurePage() {
               error={importErr}
               message={importMsg}
             />
-          }
+          )}
         />
       </div>
 
