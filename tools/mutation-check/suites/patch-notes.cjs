@@ -32,7 +32,7 @@ module.exports = {
     { id: "last-seen-moves-backwards", file: seen, from: "    if (current !== null && current >= date) return;\n", to: "", kills: ["never moves the recorded day backwards"] },
     { id: "last-seen-garbage-accepted", file: seen, from: "return value && DATE.test(value) ? value : null;", to: "return value ? value : null;", kills: ["treats a garbled stored value like a first run"] },
     { id: "last-seen-read-throws", file: seen, from: "  } catch {\n    return null;\n  }\n}\n\nexport function seenKeysKey", to: "  } catch (e) {\n    throw e;\n  }\n}\n\nexport function seenKeysKey", kills: ["keeps working when storage throws"] },
-    { id: "last-seen-write-throws", file: seen, from: "  } catch {\n    // Private mode or blocked storage: the card just comes back next visit.\n  }\n}\n\n/**\n * The notes", to: "  } catch (e) {\n    throw e;\n  }\n}\n\n/**\n * The notes", kills: ["keeps working when storage throws"] },
+    { id: "last-seen-write-throws", file: seen, from: "    storage?.setItem(lastSeenKey(app), date);\n  } catch {\n    // Private mode or blocked storage: the card just comes back next visit.\n  }\n}", to: "    storage?.setItem(lastSeenKey(app), date);\n  } catch (e) {\n    throw e;\n  }\n}", kills: ["keeps working when storage throws"] },
     // the notes themselves
     { id: "notes-entry-out-of-order", file: notes, from: "{ date: \"2026-10-08\", app: \"duel\", pr: 441,", to: "{ date: \"2026-09-01\", app: \"duel\", pr: 441,", kills: ["lists days newest first, so a new entry goes at the top"] },
     { id: "notes-entry-impossible-date", file: notes, from: "{ date: \"2026-10-08\", app: \"both\", pr: 444,", to: "{ date: \"2026-10-32\", app: \"both\", pr: 444,", kills: ["uses real calendar dates"] },

@@ -42,7 +42,7 @@ module.exports = {
     { id: "tcg-art-always-mapped", file: art, from: "return hit ? tcgProductImageUrl(hit.productId, \"thumb\") : undefined;", to: "return tcgProductImageUrl(hit?.productId ?? 0, \"thumb\");", kills: ["gives no art for an unmapped card"] },
     // formatMoney / formatMoneyCompact (#1223)
     { id: "money1223-no-thousands-separator", file: money, from: "return USD.format(n);", to: "return `$${n.toFixed(2)}`;", kills: ["groups thousands with commas and keeps two decimals"] },
-    { id: "money1223-whole-no-separator", file: money, from: "return USD_WHOLE.format(n);\n}\n\n/** \"$2K\"", to: "return `$${Math.round(n)}`;\n}\n\n/** \"$2K\"", kills: ["whole dollars also group thousands"] },
+    { id: "money1223-whole-no-separator", file: money, from: "return USD_WHOLE.format(n);\n}\n\n", to: "return `$${Math.round(n)}`;\n}\n\n", kills: ["whole dollars also group thousands"] },
     { id: "money1223-compact-old-k", file: money, from: "? USD_COMPACT.format(n) :", to: "? `$${(n / 1000).toFixed(1)}k` :", kills: ["compact reads $2K / $1.2K from a thousand and whole dollars below"] },
   ],
 };
