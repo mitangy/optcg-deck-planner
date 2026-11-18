@@ -32,7 +32,7 @@ export type FriendsFake = {
   username: string | null;
 };
 
-export type Seed = { trades?: FakeTrade[]; prompted?: boolean; noUsername?: boolean };
+export type Seed = { trades?: FakeTrade[]; prompted?: boolean; noUsername?: boolean; noRequests?: boolean };
 
 export function trade(over: Partial<FakeTrade> & Pick<FakeTrade, "id" | "lines">): FakeTrade {
   return { from: KAI, to: ME, status: "pending", message: "", applied: false, deltas: {}, ...over };
@@ -42,7 +42,7 @@ export async function installFriendsApi(page: Page, owned: Map<string, number>, 
   const fake: FriendsFake = {
     trades: seed.trades ?? [],
     friends: [KAI],
-    incomingRequests: [ZORO],
+    incomingRequests: seed.noRequests ? [] : [ZORO],
     outgoingRequests: [],
     sent: [],
     kaiSpare: new Map([
