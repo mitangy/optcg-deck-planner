@@ -8,6 +8,12 @@ export const FILTERS_OPEN_KEY = "optcg_filters_open";
 export const SHOW_ALT_ARTS_KEY = "optcg_show_alt_arts_v2";
 export const OWNED_SORTS_KEY = "optcg_owned_sorts";
 export const CARD_LAYOUT_KEY = "optcg_card_layout";
+export const LIST_DENSITY_KEYS = {
+  shopping: "optcg_list_density_shopping",
+  collection: "optcg_list_density_collection",
+  deck: "optcg_list_density_deck",
+  share: "optcg_list_density_share",
+} as const;
 
 export const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 export const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
@@ -21,6 +27,9 @@ export const COLLECTION_SHOW_DONS_KEY = "optcg_collection_show_dons";
 export const COLLECTION_SPARES_KEY = "optcg_collection_spares_only";
 export const COLLECTION_COLORS_KEY = "optcg_collection_colors";
 export const COLLECTION_TYPE_KEY = "optcg_collection_type";
+export const SHOPPING_COLORS_KEY = "optcg_shopping_colors";
+export const SHOPPING_TYPE_KEY = "optcg_shopping_type";
+
 export const COLLECTION_ADD_OPEN_KEY = "optcg_collection_add_open";
 
 export const DECK_ONLY_NEED_KEY = "optcg_deck_only_need";

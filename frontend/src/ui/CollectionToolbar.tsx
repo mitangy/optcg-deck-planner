@@ -114,15 +114,17 @@ export function TypeFilterChips({
 
 export function CollectionFilterMenu({
   badge,
+  label = "Filters",
   children,
 }: {
   badge: number;
+  label?: string;
   children: ReactNode;
 }) {
   return (
     <Popover as="div" className="collection-filter-menu">
       <PopoverButton type="button" className="sort-menu-btn collection-filter-btn">
-        Filters
+        {label}
         <span className={`collection-filter-badge${badge ? "" : " empty"}`} aria-hidden={badge ? undefined : true}>
           {badge || ""}
         </span>
@@ -131,7 +133,7 @@ export function CollectionFilterMenu({
       <PopoverPanel
         anchor={{ to: "bottom end", gap: 6, padding: 8 }}
         role="dialog"
-        aria-label="Collection filters"
+        aria-label="Filters"
         className="collection-filter-panel"
       >
         {children}

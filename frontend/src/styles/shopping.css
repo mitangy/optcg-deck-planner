@@ -1290,7 +1290,7 @@ span.deck-filter-group-head {
   .grid-card-select {
     position: absolute;
     top: 0.55rem;
-    left: 0.55rem;
+    right: 0.55rem;
     z-index: var(--z-raise-2);
     width: auto;
     min-width: 1.75rem;
@@ -1582,5 +1582,78 @@ body:has(.lp-compass) .buy-dock {
   .buy-dock-actions .tcg-buy-main {
     flex: 1 1 auto;
     justify-content: center;
+  }
+}
+
+/* Phone: a shorter head so the list starts higher (#1342). Same elements, tighter sizes. */
+@media (max-width: 600px) {
+  .page-head.shopping-head {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .shopping-head .page-head-actions {
+    gap: 0.3rem;
+  }
+
+  .shopping-head .page-head-actions .btn {
+    min-height: 2.25rem;
+    padding-block: 0.25rem;
+  }
+
+  .shopping-head-title .eyebrow {
+    display: none;
+  }
+
+  .shopping-head h1 {
+    font-size: 1.25rem;
+    line-height: 1.1;
+  }
+
+  /* Title and Buy share one row, totals sit under them: the wrapper stops being a box so its children join the head's flow. */
+  .shopping-head-stats {
+    display: contents;
+  }
+
+  .shopping-head-title {
+    flex: 1 1 0;
+    align-self: center;
+  }
+
+  .shopping-head-stats .tcg-buy {
+    order: 1;
+    flex: 0 0 auto;
+  }
+
+  .shopping-head .stat-strip {
+    order: 2;
+  }
+
+  .shopping-head .page-head-actions {
+    order: 3;
+    flex: 1 1 100%;
+  }
+
+  .shopping-head .stat-value {
+    font-size: 1.05rem;
+    line-height: 1.1;
+  }
+
+  .shopping-head .stat-strip {
+    gap: 0.2rem 1rem;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main,
+  .shopping-head-stats .tcg-buy .tcg-buy-caret {
+    min-height: 2.25rem;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main {
+    flex: 0 1 auto;
+    padding-inline: 0.55rem;
+    font-size: 0.85rem;
   }
 }

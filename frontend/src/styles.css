@@ -25,3 +25,5 @@
 @import "./styles/wideLayout.css";
 @import "./styles/deckCopies.css";
 @import "./styles/bottomNav.css";
+@import "./styles/density.css";
+@import "./styles/touch.css";

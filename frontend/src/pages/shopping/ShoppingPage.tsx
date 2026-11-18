@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { api, CollectorLine, ShoppingItem, User } from "../../api";
@@ -9,15 +9,15 @@ import { shoppingMenuPrice } from "./deckCost";
 import { UndoToast } from "../collection/CollectorLine";
 import { itemNeedsCopies } from "../collection/collectorLines";
 import { useMe } from "../../auth/useMe";
-import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
+import { useCardLayout, useListDensity } from "../../ui/CardLayout";
+import { FilterCheck, HintHeading, ListToolbar } from "../../ui/ListToolbar";
+import { cardHasColor, cardHasType, COLLECTION_TYPES, typesPresent } from "../collection/collectionView";
 import {
-  CardSearchInput,
-  CollapsibleFilters,
+  COLOR_ORDER,
   compareCardOrder,
   matchesCardSearch,
-  SORT_LABELS,
-  SortMenu,
   useCardSorts,
+  usePersistedChoice,
   usePersistedOpen,
   useShowAltArts,
   type SortKey,
@@ -33,7 +33,7 @@ import { busyKeyFor } from "../../cache/busyKey";
 import { AltArtsRow } from "../../cards/MarketPrice";
 import { ShoppingListSkeleton } from "../../ui/Skeleton";
 import { useNarrowLayout } from "../../hooks/useNarrowLayout";
-import { otherChipSummary, showExtraCopiesChip } from "../../ui/deckGroups";
+import { showExtraCopiesChip } from "../../ui/deckGroups";
 import { DeckIncludeFilter } from "../../ui/DeckIncludeFilter";
 import { useFullShoppingById, ShoppingScanHitAction } from "./lightboxActions";
 import { invalidateAltWantViews, invalidateCollectorViews } from "../../cache/invalidate";
@@ -52,16 +52,20 @@ import {
   COLSORT_SHOPPING_KEY,
   SHOPPING_EXTRAS_KEY,
   SHOPPING_COLLECTOR_KEY,
+  SHOPPING_COLORS_KEY,
   SHOPPING_ONLY_NEED_KEY,
+  SHOPPING_TYPE_KEY,
   SHOPPING_SELECTED_KEY,
   SHOW_SHOPPING_DONS_KEY,
 } from "../../storage/keys";
-import { jsonSetCodec, usePersistedState } from "@optcg/ui/storage";
+import { jsonArrayCodec, jsonSetCodec, usePersistedState } from "@optcg/ui/storage";
 import { qk } from "../../cache/queryKeys";
 import { copyText } from "@optcg/ui/clipboard";
 
 const isString = (x: unknown): x is string => typeof x === "string";
 const selectedCardsCodec = jsonSetCodec(isString);
+const isColor = (c: unknown): c is string => COLOR_ORDER.includes(c as string);
+const shoppingColorsCodec = jsonArrayCodec(isColor);
 
 export function ShoppingPage() {
   const qc = useQueryClient();
@@ -105,6 +109,8 @@ export function ShoppingPage() {
         collector: includeCollector,
       }),
     enabled: filterReady,
+    // Ticking a deck or a chip in Filters changes the key; keep the old list (and the open Filters panel) until the new one lands.
+    placeholderData: keepPreviousData,
   });
   const fullShoppingById = useFullShoppingById();
   const hasExtras = useMemo(
@@ -149,6 +155,9 @@ export function ShoppingPage() {
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, shoppingUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [layout, setLayout] = useCardLayout();
+  const [density, setDensity] = useListDensity("shopping");
+  const [colors, setColors] = usePersistedState<string[]>(SHOPPING_COLORS_KEY, [], shoppingColorsCodec);
+  const [typeChoice, setTypeChoice] = usePersistedChoice(SHOPPING_TYPE_KEY, "", ["", ...COLLECTION_TYPES]);
   const [search, setSearch] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<Blob | null>(null);
@@ -232,13 +241,24 @@ export function ShoppingPage() {
     />
   );
 
+  const typeOptions = useMemo(
+    () => typesPresent((data?.items ?? []).filter((i) => showDons || !isDonCard(i))),
+    [data, showDons],
+  );
+  const type = typeOptions.includes(typeChoice) ? typeChoice : "";
+  function toggleColor(color: string) {
+    setColors((prev) => (prev.includes(color) ? prev.filter((c) => c !== color) : [...prev, color]));
+  }
+
   const filteredItems = useMemo(() => {
     let list = data?.items ?? [];
     if (onlyNeed) list = list.filter(itemNeedsCopies);
+    if (colors.length) list = list.filter((i) => cardHasColor(i, colors));
+    if (type) list = list.filter((i) => cardHasType(i, type));
     if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
     list = [...list].sort((a, b) => compareCardOrder({ ...a, market_price: shoppingMenuPrice(a) }, { ...b, market_price: shoppingMenuPrice(b) }, effectiveSorts));
     return list;
-  }, [data, onlyNeed, effectiveSorts, search]);
+  }, [data, onlyNeed, effectiveSorts, search, colors, type]);
 
   const mainItems = useMemo(() => filteredItems.filter((i) => !isDonCard(i)), [filteredItems]);
   const donItems = useMemo(() => filteredItems.filter((i) => isDonCard(i)), [filteredItems]);
@@ -389,31 +409,15 @@ export function ShoppingPage() {
   const allVisibleSelected =
     items.length > 0 && items.every((i) => selectedCardIds.has(i.card_id));
 
-  const filterSummary = useMemo(() => {
-    const parts: string[] = [];
-    if (onlyNeed) parts.push("Still need");
-    if (showDons) parts.push("DON!!");
-    if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
-    if (showAltArts) parts.push("Alt arts");
-    if (layout === "grid") parts.push("Grid");
-    if (sumAcrossLeaders) parts.push("Separate per leader");
-    if (allDeckIds.length > 0 && activeDeckIds.length < allDeckIds.length) {
-      parts.push(`${activeDeckIds.length}/${allDeckIds.length} decks`);
-    }
-    parts.push(...otherChipSummary(includeExtras, includeCollector));
-    return parts.join(" · ");
-  }, [
-    onlyNeed,
-    showDons,
-    effectiveSorts,
-    showAltArts,
-    layout,
-    sumAcrossLeaders,
-    activeDeckIds.length,
-    allDeckIds.length,
-    includeExtras,
-    includeCollector,
-  ]);
+  // Count of filters that differ from their defaults, shown on the Filters button.
+  const filterBadge =
+    (onlyNeed ? 0 : 1) +
+    (showDons ? 0 : 1) +
+    (showAltArts ? 0 : 1) +
+    (sumAcrossLeaders ? 1 : 0) +
+    (allDeckIds.length > 0 && activeDeckIds.length < allDeckIds.length ? 1 : 0) +
+    (includeExtras ? 0 : 1) +
+    (includeCollector ? 0 : 1);
 
   const createShare = useMutation({
     mutationFn: () =>
@@ -586,98 +590,90 @@ export function ShoppingPage() {
 
       <CardWorkspace
         rail={
-      <div className="list-toolbar">
-        <div className="list-toolbar-row">
-          <CardSearchInput value={search} onChange={setSearch} placeholder="Filter this list" label="Filter this list" icon="filter" />
+      <ListToolbar
+        search={{ value: search, onChange: setSearch, placeholder: "Filter this list", label: "Filter this list", icon: "filter" }}
+        colors={{ selected: colors, onToggle: toggleColor, onClear: () => setColors([]) }}
+        types={{ types: typeOptions, value: type, onChange: setTypeChoice }}
+        sort={{
+          sorts,
+          onChange: setSorts,
+          onlyNeed,
+          unavailableKeys: shoppingUnavailableSorts,
+          columnSortKey: COLSORT_SHOPPING_KEY,
+          priceHint: "Price is what you still pay for each card, highest first, with picked alt arts at their own price and Extra copies still to buy added.",
+        }}
+        filterBadge={filterBadge}
+        filters={
+          <>
+            <div className="collection-filter-list">
+              <FilterCheck checked={onlyNeed} onChange={setOnlyNeed}>
+                To buy only
+              </FilterCheck>
+              <FilterCheck checked={showDons} onChange={setShowDons}>
+                Show DON!!
+              </FilterCheck>
+              <FilterCheck checked={showAltArts} onChange={setShowAltArts}>
+                Show alt arts
+              </FilterCheck>
+            </div>
+            <div className="deck-filter need-mode">
+              <HintHeading title="Copies needed" titleId="need-mode-label" label="How copies needed are counted">
+                {sumAcrossLeaders
+                  ? "Each leader gets its own copies: 4 in a Luffy deck + 3 in a Sabo deck = 7 to buy. Owned copies fill leaders in deck order."
+                  : "One set of copies is moved between decks: 4 in a Luffy deck and 3 in a Sabo deck = 4 to buy."}{" "}
+                Decks with the same leader always share. Also used for deck pages, your public link and group buys. Only decks ticked under Include decks count on deck pages.
+              </HintHeading>
+              <div className="layout-toggle" role="radiogroup" aria-labelledby="need-mode-label">
+                {(
+                  [
+                    [false, "Share between leaders"],
+                    [true, "Separate per leader"],
+                  ] as const
+                ).map(([value, label]) => (
+                  <button
+                    key={label}
+                    type="button"
+                    role="radio"
+                    aria-checked={sumAcrossLeaders === value}
+                    className={sumAcrossLeaders === value ? "active" : ""}
+                    disabled={!meQ.data || setSumAcrossLeaders.isPending}
+                    onClick={() => {
+                      if (sumAcrossLeaders !== value) setSumAcrossLeaders.mutate(value);
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <DeckIncludeFilter
+              heading="Include decks"
+              decks={decksQ.data ?? []}
+              selectedIds={activeDeckIds}
+              onChange={setSelectedDeckIds}
+              onSelectAll={selectAllDecks}
+              selectAllLabel="Select all"
+              otherChips={[
+                ...(hasExtras || !includeExtras
+                  ? [{ key: "extras", label: "Added directly", checked: includeExtras, onChange: setIncludeExtras }]
+                  : []),
+                ...(showExtraCopiesChip(hasCollectorWants, includeCollector)
+                  ? [{ key: "collector", label: "Extra copies", checked: includeCollector, onChange: setIncludeCollector }]
+                  : []),
+              ]}
+            />
+          </>
+        }
+        layout={layout}
+        onLayout={setLayout}
+        density={density}
+        onDensity={setDensity}
+        extras={
           <button type="button" className="ghost scan-open" onClick={() => setScanOpen(true)}>
             Scan
           </button>
-          <CardLayoutToggle layout={layout} onChange={setLayout} />
-        </div>
-        <CollapsibleFilters summary={filterSummary}>
-          <div className="filters">
-            <label>
-              <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
-              Still need only
-            </label>
-            <label>
-              <input type="checkbox" checked={showDons} onChange={(e) => setShowDons(e.target.checked)} />
-              Show DON!!
-            </label>
-            <SortMenu
-              sorts={sorts}
-              onChange={setSorts}
-              onlyNeed={onlyNeed}
-              unavailableKeys={shoppingUnavailableSorts}
-              columnSortKey={COLSORT_SHOPPING_KEY}
-              priceHint="Price is what you still pay for each card, highest first, with picked alt arts at their own price and Extra copies still to buy added."
-            />
-            <label>
-              <input
-                type="checkbox"
-                checked={showAltArts}
-                onChange={(e) => setShowAltArts(e.target.checked)}
-              />
-              Show alt arts
-            </label>
-          </div>
-          <div className="deck-filter need-mode">
-            <div className="deck-filter-head">
-              <span id="need-mode-label">Copies needed</span>
-            </div>
-            <div className="layout-toggle" role="radiogroup" aria-labelledby="need-mode-label">
-              {(
-                [
-                  [false, "Share between leaders"],
-                  [true, "Separate per leader"],
-                ] as const
-              ).map(([value, label]) => (
-                <button
-                  key={label}
-                  type="button"
-                  role="radio"
-                  aria-checked={sumAcrossLeaders === value}
-                  className={sumAcrossLeaders === value ? "active" : ""}
-                  disabled={!meQ.data || setSumAcrossLeaders.isPending}
-                  onClick={() => {
-                    if (sumAcrossLeaders !== value) setSumAcrossLeaders.mutate(value);
-                  }}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <p className="need-mode-note muted">
-              {sumAcrossLeaders
-                ? "Each leader gets its own copies: 4 in a Luffy deck + 3 in a Sabo deck = 7 to buy. Owned copies fill leaders in deck order."
-                : "One set of copies is moved between decks: 4 in a Luffy deck and 3 in a Sabo deck = 4 to buy."}{" "}
-              Decks with the same leader always share. Also used for deck pages, your public link and group buys. Only decks ticked under Include decks count on deck pages.
-            </p>
-          </div>
-          {sortingByDeck && (
-            <p className="sort-deck-note muted">
-              Deck sort groups cards by leader (deck list order). Cards used by multiple leaders stay under
-              their earliest deck&apos;s leader.
-            </p>
-          )}
-          <DeckIncludeFilter
-            heading="Include decks"
-            decks={decksQ.data ?? []}
-            selectedIds={activeDeckIds}
-            onChange={setSelectedDeckIds}
-            onSelectAll={selectAllDecks}
-            selectAllLabel="Select all"
-            otherChips={[
-              ...(hasExtras || !includeExtras
-                ? [{ key: "extras", label: "Added directly", checked: includeExtras, onChange: setIncludeExtras }]
-                : []),
-              ...(showExtraCopiesChip(hasCollectorWants, includeCollector)
-                ? [{ key: "collector", label: "Extra copies", checked: includeCollector, onChange: setIncludeCollector }]
-                : []),
-            ]}
-          />
-        </CollapsibleFilters>
-      </div>
+        }
+      />
         }
       >
 
@@ -690,6 +686,7 @@ export function ShoppingPage() {
       <ShoppingItemsView
         items={mainItems}
         layout={layout}
+        density={density}
         isNarrow={isNarrow}
         selectedCardIds={selectedCardIds}
         onToggleCard={toggleCard}
@@ -717,6 +714,7 @@ export function ShoppingPage() {
             <ShoppingItemsView
               items={donItems}
               layout={layout}
+              density={density}
               isNarrow={isNarrow}
               selectedCardIds={selectedCardIds}
               onToggleCard={toggleCard}

@@ -23,7 +23,7 @@ export const OWNED_DEFAULT_SORTS: SortKey[] = ["value"];
 export const SORT_LABELS: Record<SortKey, string> = {
   deck: "Deck",
   user: "User",
-  still_need: "Still need",
+  still_need: "To buy",
   price: "Price",
   value: "Value",
   owned: "Owned",
@@ -177,7 +177,7 @@ export function SortMenu({
           .join(" › ");
 
   function keyDisabled(key: SortKey): string | null {
-    if (key === "still_need" && onlyNeed) return "Off while Still need only";
+    if (key === "still_need" && onlyNeed) return "Off while To buy only";
     if (unavailableKeys.includes(key)) {
       if (key === "deck") return "Shopping list only";
       if (key === "user") return "Group buy only";
@@ -212,8 +212,8 @@ export function SortMenu({
 
   return (
     <Popover as="div" className="sort-menu">
-      <PopoverButton type="button" className="sort-menu-btn">
-        Sort: {summary}
+      <PopoverButton type="button" className="sort-menu-btn" aria-label={`Sort: ${summary}`}>
+        Sort<span className="sort-menu-summary">: {summary}</span>
       </PopoverButton>
       <PopoverPanel anchor={{ to: "bottom start", gap: 6, padding: 8 }} className="sort-menu-panel" role="dialog" aria-label="Sort order">
         <p className="sort-menu-hint">
@@ -480,7 +480,7 @@ export function buildFilterSummary(parts: {
   extra?: string[];
 }): string {
   const out: string[] = [];
-  if (parts.onlyNeed) out.push("Still need");
+  if (parts.onlyNeed) out.push("To buy");
   if (parts.sorts.length) out.push(parts.sorts.map((k) => SORT_LABELS[k]).join(" › "));
   if (parts.showAltArts) out.push("Alt arts");
   if (parts.layout === "grid") out.push("Grid");

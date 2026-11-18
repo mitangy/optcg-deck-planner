@@ -8,7 +8,7 @@ async function expectStill(row: Locator, still: number, need: number) {
     await expect(num).toHaveText(String(still));
     await expect(row.locator(".still-need-of")).toHaveText(`of ${need}`);
   } else {
-    await expect(row).toContainText(`Still need ${still} of ${need}`);
+    await expect(row).toContainText(`To buy ${still} of ${need}`);
   }
 }
 
@@ -42,10 +42,14 @@ test("opens the deck and passes the UI audit", async ({ page, planner }) => {
   `);
   await expect(page.locator(".deck-toolbar")).toMatchAriaSnapshot(`
     - searchbox "Search cards"
+    - button /^Sort/
+    - button /Filters/
     - group "Card layout":
       - button "List" [pressed]
       - button "Grid"
-    - button /Filters/
+    - group "List density":
+      - button "Comfortable" [pressed]
+      - button "Compact"
   `);
 
   const issues = await planner.audit();
@@ -57,8 +61,7 @@ test("each card row names the card, how many are still needed and its price", as
   await expect(page.locator(IZO)).toContainText("Izo");
   await expectStill(page.locator(IZO), 2, 4);
   await expect(page.locator(IZO).locator("button:not(.alt-arts button)").filter({ hasText: /\$1\.25/ })).toBeVisible();
-  await expect(page.locator(IZO).locator(".owned-total-num")).toHaveText("2");
-  await expect(page.locator(IZO).getByRole("textbox")).toHaveCount(0);
+  await expect(page.locator(IZO).locator("input.owned")).toHaveValue("2");
 });
 
 test("List/Grid toggle swaps the layout and passes the audit", async ({ page, planner }) => {
@@ -102,7 +105,8 @@ test("opening the filters and the sort menu moves nothing", async ({ page, plann
   await expect(filters).toHaveAttribute("aria-expanded", "false");
   await expectStationary(filters, () => filters.click(), "Filters toggle");
   await expect(filters).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByLabel("Still need only")).toBeChecked();
+  await expect(page.getByLabel("To buy only")).toBeChecked();
+  await page.keyboard.press("Escape");
 
   const sort = page.getByRole("button", { name: /^Sort:/ });
   await expectStationary(sort, () => sort.click(), "Sort menu");
@@ -113,7 +117,8 @@ test("opening the filters and the sort menu moves nothing", async ({ page, plann
   await page.keyboard.press("Escape");
   await expect(sortPanel).toHaveCount(0);
 
-  await page.getByLabel("Still need only").uncheck();
+  await filters.click();
+  await page.getByLabel("To buy only").uncheck();
   await expect(page.locator('[data-card-id="EB01-006"]:visible')).toBeVisible();
   issues = await planner.audit();
   expect(issues, `filters open:\n${formatIssues(issues)}`).toEqual([]);
@@ -121,20 +126,20 @@ test("opening the filters and the sort menu moves nothing", async ({ page, plann
 
 test("owned stepper saves each click and updates still needed (#652)", async ({ page, planner }) => {
   const row = page.locator(IZO);
-  const total = row.locator(".owned-total-num");
-  await expect(total).toHaveText("2");
+  const total = row.locator("input.owned");
+  await expect(total).toHaveValue("2");
 
   const inc = row.getByRole("button", { name: "Increase owned for Izo base art", exact: true });
   const dec = row.getByRole("button", { name: "Decrease owned for Izo base art", exact: true });
   await inc.click();
-  await expect(total).toHaveText("3");
+  await expect(total).toHaveValue("3");
   await expectStill(row, 1, 4);
   expect(planner.owned.get("EB01-002")).toBe(3);
   expect(planner.requests).toContain("PUT /owned/EB01-002");
 
   await dec.click();
   await dec.click();
-  await expect(total).toHaveText("1");
+  await expect(total).toHaveValue("1");
   await expectStill(row, 3, 4);
   expect(planner.owned.get("EB01-002")).toBe(1);
 
@@ -144,7 +149,7 @@ test("owned stepper saves each click and updates still needed (#652)", async ({ 
   await expect(owned).toHaveValue("1");
   await owned.fill("4");
   await owned.blur();
-  await expect(row).toHaveCount(0); // fully owned: drops out of "Still need only"
+  await expect(row).toHaveCount(0); // fully owned: drops out of "To buy only"
   expect(planner.owned.get("EB01-002")).toBe(4);
 
   const issues = await planner.audit();
@@ -233,7 +238,7 @@ test("no Why? on a hint while Log Pose is off (#399)", async ({ page }) => {
 
 test("an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625)", async ({ page, planner }) => {
   const left = page.locator(".deck-progress-meta");
-  await expect(left).toHaveText("$36.80 left");
+  await expect(left).toHaveText("$36.80 to finish");
 
   const inc = page.locator(IZO).getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true });
   const qty = page.locator(IZO).locator(".alt-art:not(.alt-art-base) .alt-want-qty");
@@ -242,21 +247,21 @@ test("an owned alt art lowers $ left, becomes the main art, and leaves a Base ti
 
   await inc.click();
   await expect(qty).toHaveText("1");
-  await expect(left).toHaveText("$35.55 left");
+  await expect(left).toHaveText("$35.55 to finish");
   expect(planner.altOwned.get("EB01-002:201")).toBe(1);
-  await expect(page.locator(IZO).locator(".owned-total-num")).toHaveText("3");
-  await expect(page.locator(IZO).locator(".owned-total-split")).toHaveText("2 base + 1 alt");
+  await expect(page.locator(IZO).locator("input.owned")).toHaveValue("2");
+  await expect(page.locator(IZO).locator(".alts-owned-note")).toHaveText("+1 alt · 3 total");
   await expectStill(page.locator(IZO), 1, 4);
   await expect(page.locator(IZO).locator(".alt-art-base")).toContainText("Base");
   await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);
   await inc.click();
-  await expect(left).toHaveText("$34.30 left");
+  await expect(left).toHaveText("$34.30 to finish");
   await expect(page.locator(IZO)).toHaveCount(0);
 });
 
 test("Show picks the card's art, an unowned alt or the base over an owned alt, without changing counts (#702)", async ({ page, planner }) => {
   const left = page.locator(".deck-progress-meta");
-  await expect(left).toHaveText("$36.80 left");
+  await expect(left).toHaveText("$36.80 to finish");
   const mainArt = page.locator(IZO).locator("img.thumb").first();
   await expect(mainArt).toHaveAttribute("src", /101_400w/);
 
@@ -265,10 +270,10 @@ test("Show picks the card's art, an unowned alt or the base over an owned alt, w
   await expect(page.locator(IZO).locator(".alt-art:not(.alt-art-base) .alt-shown-chip")).toHaveText("Shown");
   expect(planner.displayArt.get("EB01-002")).toBe(201);
   expect(planner.altOwned.get("EB01-002:201")).toBeUndefined();
-  await expect(left).toHaveText("$36.80 left");
+  await expect(left).toHaveText("$36.80 to finish");
 
   await page.locator(IZO).getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true }).click();
-  await expect(left).toHaveText("$35.55 left");
+  await expect(left).toHaveText("$35.55 to finish");
   await page.locator(IZO).getByRole("button", { name: "Show Izo base art as the card's art" }).click();
   await expect(mainArt).toHaveAttribute("src", /101_400w/);
   expect(planner.displayArt.get("EB01-002")).toBe(0);

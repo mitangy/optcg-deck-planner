@@ -1,0 +1,280 @@
+/* List density (#1342). Comfortable is the original look and has no rules here; Compact is `.density-compact`
+   on the table wrapper and the phone card list. Sizes are rem so the wide-screen root scaling applies. */
+
+.alt-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.75rem;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  position: relative;
+}
+
+.alt-chip:hover,
+.alt-chip.open {
+  border-color: var(--gold);
+}
+
+.alt-chip-chevron {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+/* Compact table rows */
+.table-wrap.density-compact .data-table {
+  min-width: 0;
+}
+
+.table-wrap.density-compact .data-table > :is(thead, tbody) > tr > :is(th, td) {
+  padding: 0.1rem 0.6rem;
+}
+
+.table-wrap.density-compact .data-table > thead > tr > th {
+  padding-block: 0.4rem;
+  white-space: nowrap;
+}
+
+.table-wrap.density-compact .data-table .card-cell {
+  width: auto;
+  min-width: 16rem;
+  max-width: 26rem;
+}
+
+.table-wrap.density-compact .data-table .card-cell-inner {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.table-wrap.density-compact .data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
+  flex: 0 0 auto;
+  width: 3.5rem;
+  max-width: 3.5rem;
+  height: 4.9rem;
+  aspect-ratio: auto;
+  border-radius: var(--radius-8);
+}
+
+.table-wrap.density-compact .data-table .card-cell-inner > .thumb-btn > .thumb {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-8);
+}
+
+.table-wrap.density-compact .data-table .card-cell-inner > .card-stack.deck-copies {
+  --card-stack-step-x: 2px;
+  --card-stack-step-y: 3px;
+  flex: 0 0 auto;
+  width: calc(3.5rem + var(--card-stack-reserve-x));
+  max-width: calc(3.5rem + var(--card-stack-reserve-x));
+}
+
+.table-wrap.density-compact .data-table .card-cell-inner > .card-stack.deck-copies .card-stack-front > :is(.thumb-btn, .thumb) {
+  width: 100%;
+  height: 4.9rem;
+  aspect-ratio: auto;
+}
+
+.table-wrap.density-compact .data-table .card-cell-inner > div.card-cell-text {
+  flex: 1 1 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+  min-width: 0;
+  overflow-wrap: normal;
+}
+
+.table-wrap.density-compact .card-cell-text .card-cell-name {
+  flex: 1 1 6rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-wrap.density-compact .card-cell-text > a {
+  font-size: 0.8rem;
+}
+
+/* The strip row holds the alt tray of an expanded row; it spans every column. */
+.table-wrap.density-compact td.alt-strip-cell {
+  vertical-align: top;
+  padding: 0.25rem 0.75rem 0.85rem;
+}
+
+.table-wrap.density-compact .alt-tray {
+  box-sizing: border-box;
+  background: var(--card-sunk);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0.55rem 0.75rem 0.75rem;
+}
+
+.table-wrap.density-compact .alt-tray-label {
+  margin-bottom: 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.table-wrap.density-compact .alt-tray .alt-arts {
+  max-width: none;
+}
+
+.table-wrap.density-compact .alt-tray .alt-arts-grid {
+  grid-template-columns: repeat(auto-fill, var(--alt-tile-w));
+}
+
+.table-wrap.density-compact .data-table .used-in-chips {
+  flex-wrap: nowrap;
+}
+
+/* Phone cards */
+@media (max-width: 800px) {
+  .mobile-card-list.density-compact {
+    gap: 0.4rem;
+  }
+
+  .mobile-card-list.density-compact .mobile-card {
+    padding: 0.4rem 0.5rem;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-top {
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-media {
+    width: 3.75rem;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-media:has(> .card-stack.deck-copies) {
+    width: calc(3.75rem + var(--card-stack-reserve-x, 0px));
+  }
+
+  .mobile-card-list.density-compact .mobile-card .thumb {
+    width: 3.75rem;
+    height: 5.25rem;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-media-meta,
+  .mobile-card-list.density-compact .mobile-used-in,
+  .mobile-card-list.density-compact .mobile-card-price-main > a {
+    display: none;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-info {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 0.45rem;
+    align-items: baseline;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-info > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-info > .card-id {
+    grid-column: 1;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-info > .mobile-card-name {
+    grid-column: 2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-meta {
+    margin-top: 0;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-price-row,
+  .mobile-card-list.density-compact .mobile-card-price-row:has(.mobile-card-want) {
+    margin-top: 0.15rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 0.15rem 0.7rem;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-price-main,
+  .mobile-card-list.density-compact .mobile-card-price-row:has(.mobile-card-want) .mobile-card-price-main {
+    flex: 1 0 100%;
+    align-items: center;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-price-main > .muted {
+    display: none;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-price-row .mobile-card-owned {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.3rem;
+    margin: 0;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-owned > span:first-child {
+    color: var(--muted);
+    font-size: 0.75rem;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-price-row .mobile-card-owned .owned-btn {
+    width: 1.75rem;
+    height: 1.75rem;
+    font-size: 1rem;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-price-row .mobile-card-owned .owned {
+    width: 1.75rem;
+    padding: 0.15rem 0.05rem;
+    font-size: 0.85rem;
+  }
+
+  .mobile-card-list.density-compact .alts-owned-note,
+  .mobile-card-list.density-compact .buy-split-action {
+    display: none;
+  }
+
+  .mobile-card-list.density-compact .want-note {
+    display: none;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-alts {
+    margin-top: 0.4rem;
+  }
+}
+
+/* Alt copies you own, shown under the base-art stepper in the Owned column (#1342). */
+.alts-owned-note {
+  display: block;
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.grid-card-alt-chip {
+  display: flex;
+}
+
+.grid-card-alt-chip:empty {
+  display: none;
+}

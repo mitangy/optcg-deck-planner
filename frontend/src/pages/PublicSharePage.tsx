@@ -7,14 +7,11 @@ import { api, money } from "../api";
 import { DUEL_URL } from "../app/duelLink";
 import { UpdateNotice } from "../app/UpdateNotice";
 import { useMe } from "../auth/useMe";
-import { CardLayoutToggle, useCardLayout } from "../ui/CardLayout";
+import { useCardLayout } from "../ui/CardLayout";
+import { FilterCheck, ListToolbar } from "../ui/ListToolbar";
 import {
-  buildFilterSummary,
-  CardSearchInput,
-  CollapsibleFilters,
   compareCardOrder,
   matchesCardSearch,
-  SortMenu,
   useCardSorts,
   usePersistedOpen,
   type SortKey,
@@ -141,31 +138,20 @@ export function PublicSharePage() {
             <CardWorkspace
               wider={data.kind === "deck"}
               rail={
-            <div className="list-toolbar">
-              <div className="list-toolbar-row">
-                <CardSearchInput value={search} onChange={setSearch} />
-                <CardLayoutToggle layout={layout} onChange={setLayout} />
-              </div>
-              <CollapsibleFilters summary={buildFilterSummary({ onlyNeed, sorts: effectiveSorts, layout })}>
-                <div className="filters">
-                  <SortMenu
-                    sorts={sorts}
-                    onChange={setSorts}
-                    onlyNeed={onlyNeed}
-                    unavailableKeys={unavailableSorts}
-                    columnSortKey={COLSORT_SHARE_KEY}
-                  />
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={onlyNeed}
-                      onChange={(e) => setOnlyNeed(e.target.checked)}
-                    />
-                    Still need only
-                  </label>
+            <ListToolbar
+              search={{ value: search, onChange: setSearch }}
+              sort={{ sorts, onChange: setSorts, onlyNeed, unavailableKeys: unavailableSorts, columnSortKey: COLSORT_SHARE_KEY }}
+              filterBadge={onlyNeed ? 0 : 1}
+              filters={
+                <div className="collection-filter-list">
+                  <FilterCheck checked={onlyNeed} onChange={setOnlyNeed}>
+                    To buy only
+                  </FilterCheck>
                 </div>
-              </CollapsibleFilters>
-            </div>
+              }
+              layout={layout}
+              onLayout={setLayout}
+            />
               }
             >
 

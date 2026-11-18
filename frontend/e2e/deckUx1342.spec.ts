@@ -19,7 +19,7 @@ test("Stats does not float over the list search or the List/Grid switch in edit 
   const stats = page.getByRole("button", { name: /^Deck stats/ });
   await expect(stats).toBeVisible();
   const listSearch = page.locator(".deck-toolbar").getByRole("searchbox");
-  const viewSwitch = page.locator(".deck-toolbar .layout-toggle");
+  const viewSwitch = page.locator(".deck-toolbar").getByRole("group", { name: "Card layout" });
   for (const control of [listSearch, viewSwitch]) {
     const target = await boxAtViewportBottom(control);
     const statsBox = (await stats.boundingBox())!;
@@ -48,10 +48,10 @@ test("While editing, the count column is headed In deck and holds the stepper (#
   test.skip(testInfo.project.name !== "desktop-1200", "the table is the desktop layout");
   await planner.open(`/decks/${DECK_ID}`);
   const headers = page.locator(".deck-table thead");
-  await expect(headers).toContainText("Still needed");
+  await expect(headers).toContainText("To buy");
   await openEdit(page);
   await expect(headers).toContainText("In deck");
-  await expect(headers).not.toContainText("Still needed");
+  await expect(headers).not.toContainText("To buy");
   const row = page.locator('.deck-table [data-card-id="EB01-002"]');
   await expect(row.getByRole("button", { name: "Increase EB01-002 in deck" })).toBeVisible();
   await expect(row.locator(".need-cell")).not.toContainText("of");

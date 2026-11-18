@@ -37,10 +37,18 @@ test("opening Add cards does not move the list (#1342)", async ({ page, planner 
 
 test("the list starts higher: totals share the title row and Add cards is a button (#1342)", async ({ page, planner }, info) => {
   test.skip(info.project.name !== "desktop-1200", "the phone keeps its stacked head");
+  planner.defaultDensity = true;
   await planner.open("/");
   await page.setViewportSize({ width: 1280, height: 720 });
-  // Was 495 with the Add cards bar and the stats row above the search.
-  expect(await stableTop(page)).toBeLessThan(450);
+  // Was 495 with the Add cards bar and the stats row above the search; one toolbar and a Compact list brought it to about 320.
+  expect(await stableTop(page)).toBeLessThanOrEqual(320);
+});
+
+test("on a phone the first card starts above 400px with nothing selected (#1342)", async ({ page, planner }, info) => {
+  test.skip(info.project.name !== "phone-375", "phone head");
+  planner.defaultDensity = true;
+  await planner.open("/");
+  expect(await stableTop(page)).toBeLessThanOrEqual(400);
 });
 
 test("ticking a card shows the selection bar over the page and moves nothing (#1342)", async ({ page, planner }, info) => {

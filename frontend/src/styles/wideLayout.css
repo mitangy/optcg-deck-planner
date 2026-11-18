@@ -117,6 +117,24 @@
     vertical-align: middle;
   }
 
+  /* Numbers and prices get the big type; names, types and captions keep body size and weight (#1342). */
+  .data-table tr.alt-main-row > td:is(.used-in, .col-type) {
+    font-size: 1rem;
+    font-weight: 400;
+  }
+
+  .data-table tr.alt-main-row > td :is(.alts-owned-note, .owned-claim-note, .used-in-note, .want-note, .collector-card-sub) {
+    font-weight: 400;
+  }
+
+  .data-table tr.alt-main-row > td .alts-owned-note {
+    font-size: 0.8rem;
+  }
+
+  .data-table tr.alt-main-row > td .used-in-note {
+    font-size: 1rem;
+  }
+
   .data-table tr.has-strip > td[rowspan] {
     vertical-align: top;
   }

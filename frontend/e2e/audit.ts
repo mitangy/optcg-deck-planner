@@ -165,6 +165,9 @@ function runAudit(
       }
 
       function paintsAt(el: Element, x: number, y: number): boolean {
+        // A point that only reaches the element through its invisible ::after hit-slop is not painted by it.
+        const own = el.getBoundingClientRect();
+        if (x < own.left - 0.5 || x > own.right + 0.5 || y < own.top - 0.5 || y > own.bottom + 0.5) return false;
         if (/^(IMG|CANVAS|VIDEO|INPUT|SELECT|TEXTAREA)$/i.test(el.tagName)) return true;
         if (el instanceof SVGElement) return !(el instanceof SVGSVGElement);
         const s = getComputedStyle(el);

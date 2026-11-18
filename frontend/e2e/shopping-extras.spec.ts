@@ -72,11 +72,11 @@ test("turning off Added directly leaves directly added copies out of the list (#
   await expect(page.getByText("Oden Red/Green").filter({ visible: true }).first()).toBeVisible();
 });
 
-test("Shopping remembers Still need only and the Add cards color after a reload (#527)", async ({ page, planner }) => {
+test("Shopping remembers To buy only and the Add cards color after a reload (#527)", async ({ page, planner }) => {
   await planner.open("/");
   await page.getByRole("button", { name: /Filters/ }).click();
-  await expect(page.getByLabel("Still need only")).toBeChecked();
-  await page.getByLabel("Still need only").uncheck();
+  await expect(page.getByLabel("To buy only")).toBeChecked();
+  await page.getByLabel("To buy only").uncheck();
 
   await openAdd(page);
   const color = addPanel(page).getByLabel("Filter catalog by color");
@@ -84,7 +84,9 @@ test("Shopping remembers Still need only and the Add cards color after a reload 
   await page.getByRole("option", { name: "Blue", exact: true }).click();
 
   await page.reload();
-  await expect(page.getByLabel("Still need only")).not.toBeChecked();
+  await page.getByRole("button", { name: /Filters/ }).click();
+  await expect(page.getByLabel("To buy only")).not.toBeChecked();
+  await page.keyboard.press("Escape");
   await openAdd(page);
   await expect(addPanel(page).getByLabel("Filter catalog by color")).toHaveText(/Blue/);
 });

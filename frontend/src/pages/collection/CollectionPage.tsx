@@ -3,14 +3,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, money, OwnedCard } from "../../api";
-import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
+import { useCardLayout, useListDensity } from "../../ui/CardLayout";
+import { FilterCheck, ListToolbar } from "../../ui/ListToolbar";
 import {
-  CardSearchInput,
   COLOR_ORDER,
   compareCardOrder,
   OWNED_DEFAULT_SORTS,
   OWNED_SORT_KEYS,
-  SortMenu,
   useCardSorts,
   usePersistedChoice,
   usePersistedOpen,
@@ -18,12 +17,7 @@ import {
   type SortKey,
 } from "../../ui/cardListControls";
 import { CardWorkspace } from "../../ui/CardWorkspace";
-import {
-  CollectionFilterMenu,
-  CollectionStatCards,
-  ColorFilterChips,
-  TypeFilterChips,
-} from "../../ui/CollectionToolbar";
+import { CollectionStatCards } from "../../ui/CollectionToolbar";
 import { COLLECTION_TYPES, filterOwnedCards, typesPresent } from "./collectionView";
 import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
 import { collectionTotals, holdsCopies, invalidateOwnedViews } from "./ownedCollection";
@@ -64,6 +58,7 @@ export function CollectionPage() {
     defaults: OWNED_DEFAULT_SORTS,
   });
   const [layout, setLayout] = useCardLayout();
+  const [density, setDensity] = useListDensity("collection");
   const [search, setSearch] = useState("");
   const [showDons, setShowDons] = usePersistedOpen(COLLECTION_SHOW_DONS_KEY, true);
   const [showAltArts, setShowAltArts] = useShowAltArts();
@@ -160,42 +155,35 @@ export function CollectionPage() {
         <>
           <CardWorkspace
             rail={
-          <div className="list-toolbar collection-toolbar">
-            <div className="collection-toolbar-row">
-              <CardSearchInput value={search} onChange={setSearch} icon placeholder="Search name, ID, color…" />
-              <ColorFilterChips selected={colors} onToggle={toggleColor} onClear={() => setColors([])} />
-            </div>
-            <div className="collection-toolbar-row">
-              {types.length > 0 ? (
-                <TypeFilterChips types={types} value={type} onChange={setTypeChoice} />
-              ) : (
-                <span />
-              )}
-              <div className="collection-toolbar-tools">
-                <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={false} keys={OWNED_SORT_KEYS} columnSortKey={COLSORT_COLLECTION_KEY} />
-                <CollectionFilterMenu badge={activeFilters}>
-                  <div className="collection-filter-list">
-                    <label>
-                      <input type="checkbox" checked={sparesOnly} onChange={(e) => setSparesOnly(e.target.checked)} />
-                      Not in a deck
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={showDons} onChange={(e) => setShowDons(e.target.checked)} />
-                      Show DON!!
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={showAltArts} onChange={(e) => setShowAltArts(e.target.checked)} />
-                      Show alt arts
-                    </label>
-                  </div>
-                  <p className="need-mode-note muted">
-                    Value is owned copies × the standard printing&apos;s TCGPlayer market price.
-                  </p>
-                </CollectionFilterMenu>
-                <CardLayoutToggle layout={layout} onChange={setLayout} icons />
-              </div>
-            </div>
-          </div>
+          <ListToolbar
+            search={{ value: search, onChange: setSearch, placeholder: "Search name, ID, color…" }}
+            colors={{ selected: colors, onToggle: toggleColor, onClear: () => setColors([]) }}
+            types={{ types, value: type, onChange: setTypeChoice }}
+            sort={{ sorts, onChange: setSorts, onlyNeed: false, keys: OWNED_SORT_KEYS, columnSortKey: COLSORT_COLLECTION_KEY }}
+            filterBadge={activeFilters}
+            filters={
+              <>
+                <div className="collection-filter-list">
+                  <FilterCheck checked={sparesOnly} onChange={setSparesOnly}>
+                    Not in a deck
+                  </FilterCheck>
+                  <FilterCheck checked={showDons} onChange={setShowDons}>
+                    Show DON!!
+                  </FilterCheck>
+                  <FilterCheck checked={showAltArts} onChange={setShowAltArts}>
+                    Show alt arts
+                  </FilterCheck>
+                </div>
+                <p className="need-mode-note muted">
+                  Value is owned copies × the standard printing&apos;s TCGPlayer market price.
+                </p>
+              </>
+            }
+            layout={layout}
+            onLayout={setLayout}
+            density={density}
+            onDensity={setDensity}
+          />
             }
           >
 
@@ -212,6 +200,7 @@ export function CollectionPage() {
             <CollectionItemsView
               items={items}
               layout={layout}
+              density={density}
               onOwnedSaved={onOwnedSaved}
               showAltArts={showAltArts}
               altRow={altRow}

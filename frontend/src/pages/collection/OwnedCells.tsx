@@ -7,58 +7,26 @@ export function totalOwned(owned: number, altsOwned?: number): number {
   return owned + Math.max(0, altsOwned ?? 0);
 }
 
-export function ownedCellIsTotal(showAltArts: boolean, altCount: number, altsEditable: boolean): boolean {
-  return showAltArts && altCount > 0 && altsEditable;
-}
-
-export function stillNeededText(still: number, need: number): string {
-  return still > 0 ? `Still need ${still} of ${need}` : `Have all ${need}`;
-}
-
 export function toBuyText(still: number, need: number): string {
   return still > 0 ? `To buy ${still} of ${need}` : `Have all ${need}`;
 }
 
-export function AltsOwnedNote({ count }: { count?: number }) {
+export function AltsOwnedNote({ count, total }: { count?: number; total?: number }) {
   if (!count || count <= 0) return null;
+  const label = total != null ? `${total} owned in total: the stepper counts the base art, ${count} more ${count === 1 ? "is an alt" : "are alts"}` : "Alt-art copies you own, on top of Owned";
   return (
-    <span className="alts-owned-note" title="Alt-art copies you own, on top of Owned">
-      +{count} alt
+    <span className="alts-owned-note" title={label}>
+      +{count} alt{total != null ? ` · ${total} total` : ""}
     </span>
   );
 }
 
-export function OwnedTotal({ owned, altsOwned }: { owned: number; altsOwned?: number }) {
-  const alts = Math.max(0, altsOwned ?? 0);
-  const total = totalOwned(owned, alts);
-  return (
-    <div
-      className="owned-total"
-      aria-label={`${total} owned in total; change counts under each art`}
-      title={`${total} owned in total; change counts under each art`}
-    >
-      <span className="owned-total-num">{total}</span>
-      {alts > 0 && <span className="owned-total-split">{owned} base + {alts} alt</span>}
-    </div>
-  );
-}
-
-export function OwnedCell({
-  isTotal,
-  owned,
-  altsOwned,
-  stepper,
-}: {
-  isTotal: boolean;
-  owned: number;
-  altsOwned?: number;
-  stepper: ReactNode;
-}) {
-  if (isTotal) return <OwnedTotal owned={owned} altsOwned={altsOwned} />;
+/** The Owned column always steps the base art; alt copies show as a note with the total (per-art steppers live in the alt tiles). */
+export function OwnedCell({ owned, altsOwned, stepper }: { owned: number; altsOwned?: number; stepper: ReactNode }) {
   return (
     <>
       {stepper}
-      <AltsOwnedNote count={altsOwned} />
+      <AltsOwnedNote count={altsOwned} total={totalOwned(owned, altsOwned)} />
     </>
   );
 }

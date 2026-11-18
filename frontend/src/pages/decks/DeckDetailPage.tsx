@@ -12,14 +12,11 @@ import {
   type DeckEditor,
 } from "@optcg/analyst-client";
 import { applyPlannerEdit, plannerDeckContext, plannerDeckPage } from "./logPose";
-import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
+import { useCardLayout, useListDensity } from "../../ui/CardLayout";
+import { FilterCheck, ListToolbar } from "../../ui/ListToolbar";
 import {
-  CardSearchInput,
-  CollapsibleFilters,
   compareCardOrder,
   matchesCardSearch,
-  SORT_LABELS,
-  SortMenu,
   useCardSorts,
   usePersistedOpen,
   useShowAltArts,
@@ -98,6 +95,7 @@ export function DeckDetailPage() {
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, deckUnavailableSorts);
   const [showAltArts, setShowAltArts] = useShowAltArts();
   const [layout, setLayout] = useCardLayout();
+  const [density, setDensity] = useListDensity("deck");
   const [search, setSearch] = useState("");
   const [editing, setEditing] = useState(() => searchParams.get("edit") === "1");
   const sideEdit = useMediaQuery(DOCK_QUERY) && editing;
@@ -323,15 +321,6 @@ export function DeckDetailPage() {
     () => (askLogPose ? { ...baseHints, onAsk: (h: DeckHint) => askLogPose(hintAsk(h)) } : baseHints),
     [baseHints, askLogPose],
   );
-  const filterSummary = useMemo(() => {
-    const parts: string[] = [];
-    if (onlyNeed) parts.push("Still need");
-    if (effectiveSorts.length) parts.push(effectiveSorts.map((k) => SORT_LABELS[k]).join(" › "));
-    if (showAltArts) parts.push("Alt arts");
-    if (layout === "grid") parts.push("Grid");
-    return parts.join(" · ");
-  }, [onlyNeed, effectiveSorts, showAltArts, layout]);
-  const filterCount = (onlyNeed ? 1 : 0) + (effectiveSorts.length ? 1 : 0) + (showAltArts ? 1 : 0);
 
   if (!data && lastError.current) {
     return <LoadErrorBlock title="Couldn't load this deck" message={lastError.current.message} retrying={isFetching} onRetry={() => void refetch()} />;
@@ -584,35 +573,26 @@ export function DeckDetailPage() {
       <CardWorkspace
         wider
         rail={
-      <div className="list-toolbar deck-toolbar">
-        <div className="list-toolbar-row">
-          <CardSearchInput value={search} onChange={setSearch} />
-          <CardLayoutToggle layout={layout} onChange={setLayout} />
-        </div>
-        <CollapsibleFilters summary={filterSummary} badge={filterCount} badgeLabel="active filters">
-          <div className="filters">
-            <label>
-              <input type="checkbox" checked={onlyNeed} onChange={(e) => setOnlyNeed(e.target.checked)} />
-              Still need only
-            </label>
-            <SortMenu
-              sorts={sorts}
-              onChange={setSorts}
-              onlyNeed={onlyNeed}
-              unavailableKeys={deckUnavailableSorts}
-              columnSortKey={COLSORT_DECK_KEY}
-            />
-            <label>
-              <input
-                type="checkbox"
-                checked={showAltArts}
-                onChange={(e) => setShowAltArts(e.target.checked)}
-              />
+      <ListToolbar
+        className="deck-toolbar"
+        search={{ value: search, onChange: setSearch }}
+        sort={{ sorts, onChange: setSorts, onlyNeed, unavailableKeys: deckUnavailableSorts, columnSortKey: COLSORT_DECK_KEY }}
+        filterBadge={(onlyNeed ? 0 : 1) + (showAltArts ? 0 : 1)}
+        filters={
+          <div className="collection-filter-list">
+            <FilterCheck checked={onlyNeed} onChange={setOnlyNeed}>
+              To buy only
+            </FilterCheck>
+            <FilterCheck checked={showAltArts} onChange={setShowAltArts}>
               Show alt arts
-            </label>
+            </FilterCheck>
           </div>
-        </CollapsibleFilters>
-      </div>
+        }
+        layout={layout}
+        density={density}
+        onLayout={setLayout}
+        onDensity={setDensity}
+      />
         }
       >
 
@@ -637,6 +617,7 @@ export function DeckDetailPage() {
         onOwnedSaved={refresh}
         showAltArts={showAltArts}
         layout={layout}
+        density={density}
         editing={editing}
         onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
         neededBusyId={neededBusyId}
@@ -657,6 +638,7 @@ export function DeckDetailPage() {
             onOwnedSaved={refresh}
             showAltArts={showAltArts}
             layout={layout}
+            density={density}
             editing={editing}
             onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
             neededBusyId={neededBusyId}
@@ -687,6 +669,7 @@ export function DeckDetailPage() {
           onOwnedSaved={refresh}
           showAltArts={showAltArts}
           layout={layout}
+          density={density}
           editing={editing}
           onNeededChange={(cardId, needed) => void changeNeeded(cardId, needed)}
           neededBusyId={neededBusyId}

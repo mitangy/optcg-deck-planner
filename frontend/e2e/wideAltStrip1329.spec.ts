@@ -58,6 +58,7 @@ test("1920px Master Shopping with Show alt arts off has no strip rows (#1329)", 
   await page.setViewportSize({ width: 1920, height: 1080 });
   await planner.open("/shopping");
   await expect(page.locator("tr.alt-strip-row").first()).toBeVisible();
+  await page.getByRole("button", { name: /^Filters/ }).click();
   await page.getByLabel("Show alt arts").uncheck();
   await expect(page.locator("tr.alt-strip-row")).toHaveCount(0);
   await expect(page.locator("td.alt-arts-cell")).toHaveCount(0);
