@@ -2,6 +2,7 @@ import { useEffect, useMemo } from "react";
 import { groupByDate, notesFor, type AppName } from "./helpers";
 import { markAllSeen } from "./lastSeen";
 import { usePatchNotes } from "./loadNotes";
+import { NoteCards } from "./NoteCards";
 import type { PatchNote } from "./types";
 
 const DAY = new Intl.DateTimeFormat("en-US", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" });
@@ -12,7 +13,7 @@ export function formatNoteDate(date: string): string {
   return Number.isNaN(d.getTime()) ? date : DAY.format(d);
 }
 
-export function WhatsNewList({ notes, className }: { notes: readonly PatchNote[]; className?: string }) {
+export function WhatsNewList({ notes, className, cardHref }: { notes: readonly PatchNote[]; className?: string; cardHref?: (id: string) => string }) {
   const groups = groupByDate(notes);
   if (groups.length === 0) return <p className={`wn-empty${className ? ` ${className}` : ""}`}>Nothing new yet.</p>;
   return (
@@ -30,6 +31,7 @@ export function WhatsNewList({ notes, className }: { notes: readonly PatchNote[]
                   {note.app === "both" ? <span className="wn-tag">Duel + Planner</span> : null}
                 </p>
                 <p className="wn-text">{note.text}</p>
+                {note.cards?.length ? <NoteCards cards={note.cards} cardHref={cardHref} /> : null}
               </li>
             ))}
           </ul>
@@ -39,7 +41,17 @@ export function WhatsNewList({ notes, className }: { notes: readonly PatchNote[]
   );
 }
 
-export function WhatsNewFeed({ app, notes, className }: { app: AppName; notes?: readonly PatchNote[]; className?: string }) {
+export function WhatsNewFeed({
+  app,
+  notes,
+  className,
+  cardHref,
+}: {
+  app: AppName;
+  notes?: readonly PatchNote[];
+  className?: string;
+  cardHref?: (id: string) => string;
+}) {
   const fetched = usePatchNotes();
   const all = notes ?? fetched;
   useEffect(() => {
@@ -47,5 +59,5 @@ export function WhatsNewFeed({ app, notes, className }: { app: AppName; notes?: 
   }, [app, all]);
   const mine = useMemo(() => (all ? notesFor(app, all) : null), [app, all]);
   if (!mine) return <div className="wn-loading" aria-busy="true" />;
-  return <WhatsNewList notes={mine} className={className} />;
+  return <WhatsNewList notes={mine} className={className} cardHref={cardHref} />;
 }

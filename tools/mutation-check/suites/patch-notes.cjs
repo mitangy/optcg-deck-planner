@@ -2,6 +2,7 @@
 const helpers = "packages/patch-notes/src/helpers.ts";
 const seen = "packages/patch-notes/src/lastSeen.ts";
 const notes = "packages/patch-notes/src/notes.ts";
+const noteCards = "packages/patch-notes/src/NoteCards.tsx";
 module.exports = {
   cwd: "packages/patch-notes",
   runner: "vitest",
@@ -36,5 +37,9 @@ module.exports = {
     // the notes themselves
     { id: "notes-entry-out-of-order", file: notes, from: "{ date: \"2026-10-08\", app: \"duel\", pr: 441,", to: "{ date: \"2026-09-01\", app: \"duel\", pr: 441,", kills: ["lists days newest first, so a new entry goes at the top"] },
     { id: "notes-entry-impossible-date", file: notes, from: "{ date: \"2026-10-08\", app: \"both\", pr: 444,", to: "{ date: \"2026-10-32\", app: \"both\", pr: 444,", kills: ["uses real calendar dates"] },
+    // cards shown with a note (#1367)
+    { id: "note-card-art-typo", file: notes, from: "product/733606_400w.jpg", to: "product/733660_400w.jpg", kills: ["every tagged card uses the catalog art for that id, with the matching alt label (#1367)"] },
+    { id: "note-card-thumb-no-open", file: noteCards, from: "onClick={() => setOpen(card)}", to: "onClick={() => undefined}", kills: ["tapping a thumbnail opens the card enlarged (#1367)"] },
+    { id: "note-card-page-link-always", file: noteCards, from: "{cardHref ? (\n                <a className=\"wn-zoom-link\" href={cardHref(open.id)}>", to: "{true ? (\n                <a className=\"wn-zoom-link\" href={cardHref?.(open.id) ?? `/cards/${open.id}`}>", kills: ["links to the card page only when the app gives a cardHref (#1367)"] },
   ],
 };
