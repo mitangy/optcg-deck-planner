@@ -662,26 +662,22 @@
     min-width: 0;
   }
 
-  .brand a span {
-    font-size: 1rem;
+  /* Phones show the mark alone: the wordmark and "Planner" would wrap out of sight (or clip) beside the user controls. The link keeps its aria-label. */
+  .brand-mark {
+    width: 30px;
+    height: 30px;
   }
 
-  .brand-wordmark {
-    font-size: 1.15rem;
-    line-height: 1.45rem;
+  .brand-wordmark,
+  .brand a span {
+    display: none;
   }
 
   .brand a {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-2);
-    height: 1.45rem;
+    height: 1.875rem;
     max-width: 100%;
     overflow: hidden;
-  }
-
-  .brand a span {
-    padding-left: 0.5rem;
   }
 
   .topbar nav {
