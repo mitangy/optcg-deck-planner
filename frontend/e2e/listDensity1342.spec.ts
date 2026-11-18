@@ -37,7 +37,7 @@ test("Compact is the default on Shopping and fits many more rows on screen than 
   await expect(page.getByRole("group", { name: "List density" }).getByRole("button", { name: "Compact" })).toHaveAttribute("aria-pressed", "true");
   const compact = await stableRows(page);
   expect(compact.count).toBeGreaterThanOrEqual(8);
-  expect(compact.height).toBeLessThanOrEqual(88);
+  expect(compact.height).toBeLessThanOrEqual(72);
 
   await page.setViewportSize({ width: 1280, height: 720 });
   const small = await stableRows(page);
@@ -94,4 +94,31 @@ test("Compact phone cards are about half the height of Comfortable ones, with th
   const comfortable = await stableRows(page);
   expect(compact.height).toBeLessThan(comfortable.height * 0.65);
   expect(compact.height).toBeLessThan(210);
+});
+
+test("Shopping Compact list shows no clipped column at 1200 (#1342)", async ({ page, planner }, info) => {
+  test.skip(info.project.name !== "desktop-1200", "desktop table");
+  planner.defaultDensity = true;
+  await planner.open("/shopping");
+  await expect(page.locator(".table-wrap.density-compact")).toBeVisible();
+  const overflow = await page.evaluate(() => {
+    const wrap = document.querySelector<HTMLElement>(".table-wrap.density-compact")!;
+    const last = [...wrap.querySelectorAll<HTMLElement>("thead th")].pop()!;
+    return { clipped: Math.round(last.getBoundingClientRect().right - wrap.getBoundingClientRect().right), scroll: wrap.scrollWidth - wrap.clientWidth };
+  });
+  expect(overflow.scroll).toBeLessThanOrEqual(0);
+  expect(overflow.clipped).toBeLessThanOrEqual(0);
+});
+
+test("phone colour and type chips stay on one row that scrolls (#1342)", async ({ page, planner }, info) => {
+  test.skip(info.project.name !== "phone-375", "phone toolbar");
+  await planner.open("/shopping");
+  const colors = page.getByRole("group", { name: "Colors" });
+  const types = page.getByRole("group", { name: "Card type" });
+  await expect(colors).toBeVisible();
+  const [c, t] = await Promise.all([colors.boundingBox(), types.boundingBox()]);
+  expect(Math.abs(c!.y - t!.y), "colour dots and type chips share a row").toBeLessThan(8);
+  const row = await page.locator(".toolbar-chip-scroll").evaluate((e) => ({ h: e.getBoundingClientRect().height, sideways: document.documentElement.scrollWidth - innerWidth }));
+  expect(row.h).toBeLessThan(60);
+  expect(row.sideways).toBeLessThanOrEqual(0);
 });

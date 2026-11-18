@@ -539,9 +539,9 @@ export function ShoppingItemsView({
               mediaWrapProps={{ onClick: stopCardSelectBubble, onKeyDown: stopCardSelectBubble }}
               meta={
                 <>
-                  {[item.color, toBuyText(item.still_need, item.need)]
-                    .filter(Boolean)
-                    .join(" · ")}
+                  <span className="mobile-card-meta-text">
+                    {[item.color, toBuyText(item.still_need, item.need)].filter(Boolean).join(" · ")}
+                  </span>
                   {item.still_need > 0 || canOpenBuyPopover(item, Boolean(collector)) ? (
                     <span className="buy-split-line">{buySplit(item, "To buy ")}</span>
                   ) : null}

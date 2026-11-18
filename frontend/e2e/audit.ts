@@ -19,7 +19,8 @@ const DEFAULT_STACKS: string[] = [];
 
 const DEFAULT_OFFSCREEN_OK: string[] = [];
 
-const DEFAULT_HSCROLL_OK: string[] = [];
+// The phone colour and type chips are one row that scrolls sideways on purpose (#1342).
+const DEFAULT_HSCROLL_OK: string[] = [".toolbar-chip-scroll"];
 
 const DEFAULT_OVERLAYS = ["[role=dialog]", "[aria-modal=true]", ".market-sales", ".head-popover-panel", ".sort-menu-panel", ".stats-pill"];
 

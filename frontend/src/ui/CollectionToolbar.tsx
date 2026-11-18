@@ -4,9 +4,10 @@ import { money, type OwnedCollectionResponse } from "../api";
 import { COLOR_ORDER } from "./cardListControls";
 import { cardColorNames } from "../pages/collection/collectionView";
 
-export function CollectionStatCards({ data }: { data: OwnedCollectionResponse | undefined }) {
+/** The collection totals, in the same inline strip the Shopping head uses. */
+export function CollectionStatStrip({ data }: { data: OwnedCollectionResponse | undefined }) {
   return (
-    <ul className="stat-cards" aria-label="Collection totals">
+    <ul className="stat-strip" aria-label="Collection totals">
       <li>
         <span className="stat-label">Unique cards</span>
         <span className="stat-value">{data?.unique_cards ?? 0}</span>

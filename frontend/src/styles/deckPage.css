@@ -492,3 +492,15 @@ tr.row-flash > td {
     justify-content: center;
   }
 }
+
+/* The "Deck list" heading stays for screen readers and heading navigation; the toolbar right above the table already says it (#1342). */
+.deck-list-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}

@@ -1,7 +1,11 @@
 import { useId, useState, type ReactNode } from "react";
+import { useMediaQuery } from "@optcg/ui/hooks";
 import { CardSearchInput, SortMenu } from "./cardListControls";
 import { CardLayoutToggle, DensityToggle, type CardLayout, type ListDensity } from "./CardLayout";
 import { CollectionFilterMenu, ColorFilterChips, TypeFilterChips } from "./CollectionToolbar";
+
+/** Phones and short landscape screens: colour dots and type chips share one row that scrolls sideways. */
+export const CHIP_SCROLL_QUERY = "(max-width: 640px), (max-height: 500px) and (orientation: landscape)";
 
 type SortMenuProps = Parameters<typeof SortMenu>[0];
 
@@ -39,25 +43,44 @@ export function ListToolbar({
   onDensity?: (next: ListDensity) => void;
   extras?: ReactNode;
 }) {
+  const chipScroll = useMediaQuery(CHIP_SCROLL_QUERY);
+  const colorChips = colors ? <ColorFilterChips selected={colors.selected} onToggle={colors.onToggle} onClear={colors.onClear} /> : null;
+  const typeChips = types && types.types.length > 0 ? <TypeFilterChips {...types} /> : null;
+  const oneRow = !colorChips && !typeChips;
+  const tools = (
+    <div className="collection-toolbar-tools">
+      <SortMenu {...sort} />
+      <CollectionFilterMenu badge={filterBadge} label={filterLabel}>
+        {filters}
+      </CollectionFilterMenu>
+      <CardLayoutToggle layout={layout} onChange={onLayout} icons />
+      {/* Kept (just hidden) in Grid, so switching layouts never moves the List/Grid switch. */}
+      {density && onDensity ? <DensityToggle density={density} onChange={onDensity} hidden={layout !== "list"} /> : null}
+    </div>
+  );
   return (
-    <div className={`list-toolbar collection-toolbar${className ? ` ${className}` : ""}`}>
+    <div className={`list-toolbar collection-toolbar${chipScroll ? " chips-scroll" : ""}${className ? ` ${className}` : ""}`}>
       <div className="collection-toolbar-row">
         <CardSearchInput icon="search" {...search} />
         {extras}
-        {colors ? <ColorFilterChips selected={colors.selected} onToggle={colors.onToggle} onClear={colors.onClear} /> : null}
+        {chipScroll ? null : colorChips}
+        {/* No colour or type chips (the deck page): search and the tools share one row. */}
+        {oneRow ? tools : null}
       </div>
-      <div className="collection-toolbar-row">
-        {types && types.types.length > 0 ? <TypeFilterChips {...types} /> : <span />}
-        <div className="collection-toolbar-tools">
-          <SortMenu {...sort} />
-          <CollectionFilterMenu badge={filterBadge} label={filterLabel}>
-            {filters}
-          </CollectionFilterMenu>
-          <CardLayoutToggle layout={layout} onChange={onLayout} icons />
-          {/* Kept (just hidden) in Grid, so switching layouts never moves the List/Grid switch. */}
-          {density && onDensity ? <DensityToggle density={density} onChange={onDensity} hidden={layout !== "list"} /> : null}
+      {chipScroll ? (
+        (colorChips || typeChips) && (
+          <div className="collection-toolbar-row toolbar-chip-scroll">
+            {colorChips}
+            {typeChips}
+          </div>
+        )
+      ) : null}
+      {oneRow ? null : (
+        <div className="collection-toolbar-row">
+          {chipScroll ? null : (typeChips ?? <span />)}
+          {tools}
         </div>
-      </div>
+      )}
     </div>
   );
 }

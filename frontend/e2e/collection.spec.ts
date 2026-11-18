@@ -302,20 +302,20 @@ test("the Grid layout shows the alt tiles, the Owned total and Show too (#723)",
   expect(issues, formatIssues(issues)).toEqual([]);
 });
 
-test("type and colour chips narrow the Collection together, and the count line keeps its place (#752)", async ({ page, planner }) => {
+test("type and colour chips narrow the Collection together, and the count line only shows while filtered (#752, #1342)", async ({ page, planner }) => {
   const count = page.getByRole("status");
   const types = page.getByRole("group", { name: "Card type" });
   const colors = page.getByRole("group", { name: "Colors" });
   await expect(types.getByRole("button")).toHaveText(["All", "Leader", "Character"]);
-  await expect(count).toHaveText("3 cards · 6 copies · $5.80");
+  await expect(count).toHaveCount(0);
 
-  const before = await page.locator(row("EB01-002")).boundingBox();
+  const chipBefore = await types.getByRole("button", { name: "Character" }).boundingBox();
   await types.getByRole("button", { name: "Character" }).click();
   await expect(types.getByRole("button", { name: "Character" })).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("[data-card-id]:visible")).toHaveCount(2);
   await expect(page.locator(row("EB01-001"))).toHaveCount(0);
   await expect(count).toHaveText("Showing 2 of 3 cards · 5 copies · $3.40");
-  expect((await page.locator(row("EB01-002")).boundingBox())!.y).toBeCloseTo(before!.y, 0);
+  expect((await types.getByRole("button", { name: "Character" }).boundingBox())!.y).toBeCloseTo(chipBefore!.y, 0);
 
   await colors.getByRole("button", { name: "Red", exact: true }).click();
   await expect(page.locator("[data-card-id]:visible")).toHaveCount(2);

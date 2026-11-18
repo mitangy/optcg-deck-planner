@@ -622,3 +622,41 @@
     width: auto;
   }
 }
+
+/* Phones and short landscape screens: colour dots and type chips on one row that scrolls sideways, no scrollbar (#1342). */
+.toolbar-chip-scroll {
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* Room for the 44px hit areas (touch.css) that stick out of the 2.2rem chips; overflow would clip them. */
+  padding-block: 0.3rem;
+  margin-block: -0.3rem;
+}
+
+.toolbar-chip-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.toolbar-chip-scroll > * {
+  flex: 0 0 auto;
+}
+
+.toolbar-chip-scroll :is(.color-filter, .type-filter) {
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+}
+
+.toolbar-chip-scroll .color-filter-btn,
+.toolbar-chip-scroll .color-filter-clear {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.toolbar-chip-scroll .type-chip {
+  min-height: 2.2rem;
+  white-space: nowrap;
+}

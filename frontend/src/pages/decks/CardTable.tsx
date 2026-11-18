@@ -319,7 +319,9 @@ export function CardTable({
             rarity={c.rarity}
             meta={
               <>
-                {[c.color, toBuyText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                <span className="mobile-card-meta-text">
+                  {[c.color, toBuyText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                </span>
                 {c.collector_want ? <CollectorDeckChip count={c.collector_want} /> : null}
                 {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
               </>

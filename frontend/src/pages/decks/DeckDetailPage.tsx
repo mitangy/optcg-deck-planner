@@ -611,7 +611,7 @@ export function DeckDetailPage() {
           differ appear under Additional Cards.
         </p>
       )}
-      <h2>Deck list</h2>
+      <h2 className="deck-list-heading">Deck list</h2>
       <CardTable
         cards={main}
         onOwnedSaved={refresh}

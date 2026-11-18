@@ -17,7 +17,7 @@ import {
   type SortKey,
 } from "../../ui/cardListControls";
 import { CardWorkspace } from "../../ui/CardWorkspace";
-import { CollectionStatCards } from "../../ui/CollectionToolbar";
+import { CollectionStatStrip } from "../../ui/CollectionToolbar";
 import { COLLECTION_TYPES, filterOwnedCards, typesPresent } from "./collectionView";
 import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
 import { collectionTotals, holdsCopies, invalidateOwnedViews } from "./ownedCollection";
@@ -131,24 +131,22 @@ export function CollectionPage() {
 
   return (
     <section>
-      <div className="page-head collection-head">
-        <div>
+      <div className="page-head shopping-head collection-head">
+        <div className="shopping-head-title">
           <p className="eyebrow">Cards you own</p>
           <h1>Collection</h1>
         </div>
+        <div className="shopping-head-stats">
+          <CollectionStatStrip data={data} />
+        </div>
+        <div className="page-head-actions">
+          <CollectionAddPanel ownedById={ownedById} onScan={() => setScanOpen(true)} onOwnedSaved={onOwnedSaved} />
+        </div>
       </div>
-      <CollectionStatCards data={data} />
-
-      <CollectionAddPanel
-        ownedById={ownedById}
-        defaultOpen={allItems.length === 0}
-        onScan={() => setScanOpen(true)}
-        onOwnedSaved={onOwnedSaved}
-      />
 
       {allItems.length === 0 ? (
         <p className="muted">
-          No owned cards yet. Add some above, or set Owned on the <Link to="/">shopping list</Link> or a{" "}
+          No owned cards yet. Use Add cards, or set Owned on the <Link to="/">shopping list</Link> or a{" "}
           <Link to="/decks">deck</Link>. Owned is shared, so every deck counts these copies.
         </p>
       ) : (
@@ -188,12 +186,12 @@ export function CollectionPage() {
           >
 
           {altArt.error && <p className="error">{altArt.error}</p>}
-          {/* Always present, so narrowing the list never shifts the cards below it. */}
-          <p className="collection-count muted" role="status">
-            {narrowed ? `Showing ${shown.cards} of ${allItems.length} cards` : `${allItems.length} ${allItems.length === 1 ? "card" : "cards"}`}
-            {" · "}
-            {shown.copies} {shown.copies === 1 ? "copy" : "copies"} · {money(shown.value)}
-          </p>
+          {/* The head already shows the unfiltered totals, so this line only appears while a filter changes them. */}
+          {narrowed ? (
+            <p className="collection-count muted" role="status">
+              Showing {shown.cards} of {allItems.length} cards · {shown.copies} {shown.copies === 1 ? "copy" : "copies"} · {money(shown.value)}
+            </p>
+          ) : null}
           {items.length === 0 ? (
             <p className="muted">No owned cards match the current search and filters.</p>
           ) : (

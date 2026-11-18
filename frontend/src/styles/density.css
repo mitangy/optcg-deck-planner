@@ -36,7 +36,7 @@
 }
 
 .table-wrap.density-compact .data-table > :is(thead, tbody) > tr > :is(th, td) {
-  padding: 0.1rem 0.6rem;
+  padding: 0.2rem 0.5rem;
 }
 
 .table-wrap.density-compact .data-table > thead > tr > th {
@@ -46,8 +46,8 @@
 
 .table-wrap.density-compact .data-table .card-cell {
   width: auto;
-  min-width: 16rem;
-  max-width: 26rem;
+  min-width: 11rem;
+  max-width: 24rem;
 }
 
 .table-wrap.density-compact .data-table .card-cell-inner {
@@ -59,9 +59,9 @@
 
 .table-wrap.density-compact .data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
   flex: 0 0 auto;
-  width: 3.5rem;
-  max-width: 3.5rem;
-  height: 4.9rem;
+  width: 2.6rem;
+  max-width: 2.6rem;
+  height: 3.64rem;
   aspect-ratio: auto;
   border-radius: var(--radius-8);
 }
@@ -76,20 +76,20 @@
   --card-stack-step-x: 2px;
   --card-stack-step-y: 3px;
   flex: 0 0 auto;
-  width: calc(3.5rem + var(--card-stack-reserve-x));
-  max-width: calc(3.5rem + var(--card-stack-reserve-x));
+  width: calc(2.6rem + var(--card-stack-reserve-x));
+  max-width: calc(2.6rem + var(--card-stack-reserve-x));
 }
 
 .table-wrap.density-compact .data-table .card-cell-inner > .card-stack.deck-copies .card-stack-front > :is(.thumb-btn, .thumb) {
   width: 100%;
-  height: 4.9rem;
+  height: 3.64rem;
   aspect-ratio: auto;
 }
 
 .table-wrap.density-compact .data-table .card-cell-inner > div.card-cell-text {
   flex: 1 1 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.1rem 0.5rem;
   min-width: 0;
@@ -97,7 +97,7 @@
 }
 
 .table-wrap.density-compact .card-cell-text .card-cell-name {
-  flex: 1 1 6rem;
+  flex: 1 1 4rem;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -106,6 +106,10 @@
 
 .table-wrap.density-compact .card-cell-text > a {
   font-size: 0.8rem;
+}
+
+.table-wrap.density-compact .card-cell-text > :not(.card-cell-name) {
+  flex: 0 0 auto;
 }
 
 /* The strip row holds the alt tray of an expanded row; it spans every column. */
@@ -139,11 +143,74 @@
   grid-template-columns: repeat(auto-fill, var(--alt-tile-w));
 }
 
-.table-wrap.density-compact .data-table .used-in-chips {
-  flex-wrap: nowrap;
+.table-wrap.density-compact .data-table td.used-in {
+  min-width: 7rem;
 }
 
-/* Phone cards */
+/* Used-in chips wrap to at most two lines (the cell's title lists them all). */
+.table-wrap.density-compact .data-table .used-in-chips {
+  flex-wrap: wrap;
+  max-height: 3.1rem;
+  overflow: hidden;
+  gap: 0.15rem 0.3rem;
+}
+
+/* Desktop Compact: smaller Own / Need steppers and a one-line To buy $ button. Phones keep 44px hit areas (touch.css). */
+@media (min-width: 801px) {
+  .table-wrap.density-compact .data-table .owned-wrap {
+    gap: 0.15rem;
+  }
+
+  .table-wrap.density-compact .data-table .owned-btn {
+    width: 1.9rem;
+    height: 1.9rem;
+    font-size: 1.05rem;
+  }
+
+  .table-wrap.density-compact .data-table .want-qty {
+    width: 2.2rem;
+    height: 1.9rem;
+    font-size: 0.95rem;
+  }
+
+  .table-wrap.density-compact .data-table .owned {
+    width: 2.2rem;
+    padding: 0.25rem 0.1rem;
+    font-size: 0.95rem;
+  }
+
+  .table-wrap.density-compact .data-table .buy-split-box {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .table-wrap.density-compact .data-table .buy-split-action-text {
+    display: none;
+  }
+}
+
+/* The To buy cell (Deck): the count, "of N" and the button share one line. */
+.table-wrap.density-compact .data-table td:has(> .still-need) {
+  white-space: nowrap;
+}
+
+.table-wrap.density-compact .data-table .still-need {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 0.3rem;
+  vertical-align: middle;
+}
+
+.table-wrap.density-compact .data-table .buy-split-line {
+  display: inline-block;
+  margin: 0 0 0 0.4rem;
+  vertical-align: middle;
+}
+
+/* Phone cards: about 7.5rem tall. Art fills the height on the left; line 1 id, name and alt chip, line 2 the To buy text
+   and the To buy $ button, line 3 the Own / Need steppers side by side. The price rows are unwrapped (display: contents)
+   so their pieces take part in the info column's flow. */
 @media (max-width: 800px) {
   .mobile-card-list.density-compact {
     gap: 0.4rem;
@@ -154,79 +221,100 @@
   }
 
   .mobile-card-list.density-compact .mobile-card-top {
-    gap: 0.5rem;
+    gap: 0.55rem;
     align-items: center;
   }
 
   .mobile-card-list.density-compact .mobile-card-media {
-    width: 3.75rem;
+    width: 4.6rem;
   }
 
   .mobile-card-list.density-compact .mobile-card-media:has(> .card-stack.deck-copies) {
-    width: calc(3.75rem + var(--card-stack-reserve-x, 0px));
+    width: calc(4.6rem + var(--card-stack-reserve-x, 0px));
   }
 
   .mobile-card-list.density-compact .mobile-card .thumb {
-    width: 3.75rem;
-    height: 5.25rem;
+    width: 4.6rem;
+    height: 6.4rem;
   }
 
   .mobile-card-list.density-compact .mobile-card-media-meta,
   .mobile-card-list.density-compact .mobile-used-in,
-  .mobile-card-list.density-compact .mobile-card-price-main > a {
+  .mobile-card-list.density-compact .mobile-card-price-main > :is(a, .muted, .market-price),
+  .mobile-card-list.density-compact .alts-owned-note,
+  .mobile-card-list.density-compact .owned-claim-note,
+  .mobile-card-list.density-compact .buy-split-action,
+  .mobile-card-list.density-compact .want-note {
     display: none;
   }
 
   .mobile-card-list.density-compact .mobile-card-info {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr);
-    column-gap: 0.45rem;
-    align-items: baseline;
-  }
-
-  .mobile-card-list.density-compact .mobile-card-info > * {
-    grid-column: 1 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.15rem 0.4rem;
     min-width: 0;
   }
 
+  .mobile-card-list.density-compact :is(.mobile-card-price-row, .mobile-card-price-main) {
+    display: contents;
+  }
+
   .mobile-card-list.density-compact .mobile-card-info > .card-id {
-    grid-column: 1;
+    order: 1;
+    flex: 0 0 auto;
   }
 
   .mobile-card-list.density-compact .mobile-card-info > .mobile-card-name {
-    grid-column: 2;
+    order: 2;
+    flex: 1 1 0;
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .mobile-card-list.density-compact .mobile-card-meta {
-    margin-top: 0;
+  .mobile-card-list.density-compact .mobile-card-price-main > .alt-chip {
+    order: 3;
+    flex: 0 0 auto;
+    min-height: 1.5rem;
   }
 
-  .mobile-card-list.density-compact .mobile-card-price-row,
-  .mobile-card-list.density-compact .mobile-card-price-row:has(.mobile-card-want) {
-    margin-top: 0.15rem;
-    flex-wrap: wrap;
-    justify-content: flex-start;
-    gap: 0.15rem 0.7rem;
-  }
-
-  .mobile-card-list.density-compact .mobile-card-price-main,
-  .mobile-card-list.density-compact .mobile-card-price-row:has(.mobile-card-want) .mobile-card-price-main {
+  .mobile-card-list.density-compact .mobile-card-info > .mobile-card-meta {
+    order: 4;
     flex: 1 0 100%;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
+    gap: 0.4rem;
+    min-width: 0;
+    margin-top: 0;
+    overflow: hidden;
+    white-space: nowrap;
   }
 
-  .mobile-card-list.density-compact .mobile-card-price-main > .muted {
-    display: none;
+  .mobile-card-list.density-compact .mobile-card-meta-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
-  .mobile-card-list.density-compact .mobile-card-price-row .mobile-card-owned {
+  .mobile-card-list.density-compact .mobile-card-meta .buy-split-line {
+    flex: 0 0 auto;
+    margin: 0;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-owned {
+    order: 5;
+    flex: 0 0 auto;
     flex-direction: row;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.25rem;
     margin: 0;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-want {
+    order: 6;
   }
 
   .mobile-card-list.density-compact .mobile-card-owned > span:first-child {
@@ -234,25 +322,31 @@
     font-size: 0.75rem;
   }
 
-  .mobile-card-list.density-compact .mobile-card-price-row .mobile-card-owned .owned-btn {
+  .mobile-card-list.density-compact .mobile-card-owned .owned-wrap {
+    gap: 0.1rem;
+  }
+
+  .mobile-card-list.density-compact .mobile-card-owned .owned-btn {
     width: 1.75rem;
     height: 1.75rem;
     font-size: 1rem;
   }
 
-  .mobile-card-list.density-compact .mobile-card-price-row .mobile-card-owned .owned {
+  .mobile-card-list.density-compact .mobile-card-owned .want-qty {
     width: 1.75rem;
-    padding: 0.15rem 0.05rem;
+    height: 1.75rem;
     font-size: 0.85rem;
   }
 
-  .mobile-card-list.density-compact .alts-owned-note,
-  .mobile-card-list.density-compact .buy-split-action {
-    display: none;
-  }
-
-  .mobile-card-list.density-compact .want-note {
-    display: none;
+  /* The number box keeps its 44px hit area: the extra width is a transparent border pulled back with a negative margin
+     (the 44px height comes from touch.css), so two steppers fit side by side without the hit areas covering each other. */
+  .mobile-card-list.density-compact .mobile-card-owned .owned-wrap input.owned {
+    width: 2.75rem;
+    min-width: 2.75rem;
+    margin-inline: -0.5rem;
+    padding-inline: 0;
+    border-inline-width: 0.5rem;
+    font-size: 0.85rem;
   }
 
   .mobile-card-list.density-compact .mobile-card-alts {
