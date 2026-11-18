@@ -684,7 +684,7 @@ a.alert-card-name:hover {
   .alert-dialog-panel .alert-form-actions {
     position: sticky;
     bottom: -1.1rem;
-    z-index: 1;
+    z-index: var(--z-raise-1);
     margin: 0 -0.2rem -1.1rem;
     padding: 0.5rem 0.2rem 0.6rem;
     background: var(--card);
