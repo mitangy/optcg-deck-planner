@@ -51,10 +51,6 @@
   color: var(--muted);
 }
 
-.voyage-games {
-  min-height: calc(3 * 44px);
-}
-
 .voyage-games > .friends-empty {
   padding: 0.75rem;
 }
@@ -250,6 +246,7 @@
 
 .topbar-mark {
   text-decoration: none;
+  margin-right: auto;
 }
 
 .topbar-right .icon-btn:has(.icon-btn-label) {
