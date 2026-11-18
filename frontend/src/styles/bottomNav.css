@@ -173,3 +173,15 @@
     gap: 0.4rem;
   }
 }
+
+.nav-unread-dot {
+  position: absolute;
+  top: 0.5rem;
+  right: calc(50% - 1.35rem);
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: var(--radius-round);
+  background: var(--danger);
+  border: 2px solid var(--sea-night);
+  box-sizing: content-box;
+}

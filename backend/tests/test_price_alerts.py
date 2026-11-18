@@ -129,7 +129,7 @@ def test_alt_art_alert_watches_that_printings_price_not_the_base_price_855(db, o
     assert (base_alert.armed, base_alert.last_price) == (True, 10.0)
     assert (alt_alert.armed, alt_alert.last_price) == (False, 3.0)
     assert [n.product_id for n in _inbox(db, user)] == [ALT]
-    assert _inbox(db, user)[0].title.startswith("Luffy (Alt) is now")
+    assert _inbox(db, user)[0].title.startswith("Luffy · Alt is now")
 
 
 def test_above_alert_fires_when_the_price_rises_to_the_target_855(db, outbox):
@@ -180,8 +180,8 @@ def test_app_only_alert_sends_no_email_and_email_only_alert_leaves_no_notificati
 
     assert [n.product_id for n in _inbox(db, user)] == [0]
     assert len(outbox.sent) == 1
-    assert outbox.sent[0]["subject"] == "Price alert: Luffy is now $1.00"
-    assert "Luffy (Alt)" in outbox.sent[0]["text"]
+    assert outbox.sent[0]["subject"] == "Price alert: Luffy · Alt is now $1.00"
+    assert "Luffy · Alt: $1.00" in outbox.sent[0]["text"]
 
 
 def test_several_fired_alerts_make_one_email_per_user_855(db, outbox):
@@ -644,3 +644,45 @@ def test_gmail_smtp_sends_from_the_login_address_when_no_sender_is_set_860(mail_
 
     assert mailer.send_email("a@x.test", "Subj", "<p>h</p>", "t") is True
     assert sent == ["OPTCG Planner <planner@gmail.com>"]
+
+
+REAL_ARTS = [
+    ("Monkey.D.Luffy", "OP05-119", "Monkey.D.Luffy (118) (Super Alternate Art)", "Super Alternate Art"),
+    ("Gol.D.Roger", "OP09-118", "Gol.D.Roger - OP09-118 (SP) (Wanted Poster)", "SP · Wanted Poster"),
+    ("Boa Hancock", "OP14-041", "Boa Hancock (OP14-041) (Heroine Leader)", "Heroine Leader"),
+    ("Dracule Mihawk", "OP12-030", "Dracule Mihawk - OP12-030 (SP)", "SP"),
+    ("Luffy", "OP01-001", "Base", "Base art"),
+]
+
+
+@pytest.mark.parametrize("card_name,card_id,art,expected", REAL_ARTS)
+def test_short_art_name_strips_the_card_name_id_and_wrapping_parentheses_1360(card_name, card_id, art, expected):
+    assert price_alerts.short_art_name(art, card_name, card_id) == expected
+
+
+def test_short_art_name_falls_back_to_the_raw_name_when_nothing_is_left_1360():
+    assert price_alerts.short_art_name("Luffy - OP01-001", "Luffy", "OP01-001") == "Luffy - OP01-001"
+
+
+def test_clean_card_name_drops_the_id_suffix_and_reprint_but_keeps_numbers_1360():
+    assert price_alerts.clean_card_name("Boa Hancock - OP14-041", "OP14-041") == "Boa Hancock"
+    assert price_alerts.clean_card_name("Monkey.D.Luffy - EB02-061 (Reprint)", "EB02-061") == "Monkey.D.Luffy"
+    assert price_alerts.clean_card_name("Monkey.D.Luffy (118)", "OP05-119") == "Monkey.D.Luffy (118)"
+
+
+def test_notification_title_names_the_card_and_short_art_1360(db, outbox):
+    user = _seed(db, base=300.0, alt=205.0)
+    db.get(CatalogCard, LUFFY).name = "Gol.D.Roger - OP01-001"
+    row = db.scalar(select(CatalogPrinting).where(CatalogPrinting.product_id == ALT))
+    row.name = "Gol.D.Roger - OP01-001 (SP) (Wanted Poster)"
+    db.commit()
+    _alert(db, user, product_id=ALT, target=210.0)
+    _alert(db, user, product_id=0, target=310.0)
+
+    price_alerts.check_alerts(db, LATER)
+
+    assert sorted(n.title for n in _inbox(db, user)) == [
+        "Gol.D.Roger is now $300.00",
+        "Gol.D.Roger · SP · Wanted Poster is now $205.00",
+    ]
+    assert "Gol.D.Roger · SP · Wanted Poster: $205.00" in outbox.sent[0]["text"]

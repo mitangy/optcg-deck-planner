@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import { Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
 import { NavBadge, useFriendsBadgeCount } from "../friends/FriendsNavLink";
+import { useNotifications } from "../prices/PriceAlerts";
 import { CollectionIcon, DecksIcon, MetaIcon, MoreDotsIcon, ShoppingIcon } from "./navIcons";
 
 type MainItem = { to: string; label: string; end?: boolean; icon: () => ReactNode };
@@ -40,15 +41,31 @@ function MoreItems() {
   );
 }
 
-function MoreMenu({ className, anchor, children }: { className: string; anchor: "bottom end" | "top end"; children: ReactNode }) {
+function MoreMenu({
+  className,
+  anchor,
+  unread = 0,
+  children,
+}: {
+  className: string;
+  anchor: "bottom end" | "top end";
+  /** Unread bell notifications: shows a dot on the button. */
+  unread?: number;
+  children: ReactNode;
+}) {
   const { pathname } = useLocation();
   const friends = useFriendsBadgeCount();
   const active = isMorePath(pathname);
   return (
     <Menu as="div" className="nav-more-wrap">
-      <MenuButton className={`${className}${active ? " active" : ""}`} aria-current={active ? "page" : undefined}>
+      <MenuButton
+        className={`${className}${active ? " active" : ""}`}
+        aria-current={active ? "page" : undefined}
+        aria-label={unread > 0 ? `More, ${unread} unread notification${unread === 1 ? "" : "s"}` : undefined}
+      >
         {children}
         <NavBadge count={friends} />
+        {unread > 0 ? <span className="nav-unread-dot" aria-hidden="true" /> : null}
       </MenuButton>
       <MenuList anchor={{ to: anchor, gap: 6, padding: 8 }} className="head-popover-panel head-popover-menu nav-more-menu">
         <MoreItems />
@@ -78,6 +95,7 @@ export function TopNav() {
 
 /** Phone tab bar fixed to the bottom of the viewport (hidden by CSS on wider or very short screens). */
 export function BottomNav() {
+  const unread = useNotifications().data?.unread ?? 0;
   return (
     <nav aria-label="Primary" className="bottom-nav">
       {MAIN_NAV.map((i) => (
@@ -86,7 +104,7 @@ export function BottomNav() {
           <span>{i.label}</span>
         </NavLink>
       ))}
-      <MoreMenu className="bottom-nav-item bottom-nav-more" anchor="top end">
+      <MoreMenu className="bottom-nav-item bottom-nav-more" anchor="top end" unread={unread}>
         <MoreDotsIcon />
         <span>More</span>
       </MoreMenu>
