@@ -6,7 +6,7 @@ import secrets
 from datetime import datetime, timezone
 from urllib.parse import urlencode
 
-from sqlalchemy import delete, select
+from sqlalchemy import case, delete, select, update
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import Forbidden, Invalid, NotFound
@@ -43,6 +43,7 @@ from app.planner.schemas import GroupBuyArtWantOut
 from app.group_buy.receipt import aggregate_receipt_matches, parse_tcgplayer_receipt
 from app.planner import shopping as shopping_svc
 from app.planner import catalog_repo
+from app.planner.owned import increment_owned
 from app.planner.printings import deck_alt_buy_inputs
 
 FROZEN_STATUSES = frozenset({GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED})
@@ -56,6 +57,33 @@ def _display_name(user: User) -> str:
     if user.username:
         return user.username
     return (user.name or user.email or f"User {user.id}").strip()
+
+
+def _public_names(group: GroupBuy) -> dict[int, str]:
+    """Names for pages anyone with the link can open: a username the person chose,
+    else a neutral label. Google names and emails never leave the signed-in views."""
+    names: dict[int, str] = {}
+    guests = 0
+    for member in sorted(group.members, key=lambda m: m.id):
+        if member.user_id == group.host_user_id:
+            fallback = "Host"
+        else:
+            guests += 1
+            fallback = f"Member {guests}"
+        names[member.user_id] = member.user.username or fallback
+    names.setdefault(group.host_user_id, group.host.username or "Host")
+    return names
+
+
+def _anonymize_detail(detail: GroupBuyDetail, group: GroupBuy) -> GroupBuyDetail:
+    names = _public_names(group)
+    detail.host_name = names[group.host_user_id]
+    for member in detail.members:
+        member.display_name = names.get(member.user_id, "Member")
+    for line in detail.lines:
+        for member in line.members:
+            member.display_name = names.get(member.user_id, "Member")
+    return detail
 
 
 def _parse_deck_ids(raw: str | None) -> list[int] | None:
@@ -84,10 +112,15 @@ def _dump_deck_ids(deck_ids: list[int] | None) -> str | None:
     return json.dumps(sorted(set(int(x) for x in deck_ids)))
 
 
-def _get_group(db: Session, group_id: int) -> GroupBuy:
+def _get_group(db: Session, group_id: int, *, lock: bool = False) -> GroupBuy:
+    if lock:
+        # Row lock first (Postgres; a no-op on SQLite), then re-read everything so a
+        # second request waiting here sees what the first one committed.
+        db.execute(select(GroupBuy.id).where(GroupBuy.id == group_id).with_for_update())
     group = db.scalar(
         select(GroupBuy)
         .where(GroupBuy.id == group_id)
+        .execution_options(populate_existing=lock)
         .options(
             selectinload(GroupBuy.members).selectinload(GroupBuyMember.user),
             selectinload(GroupBuy.host),
@@ -102,7 +135,17 @@ def _get_group(db: Session, group_id: int) -> GroupBuy:
     return group
 
 
-def _member_shopping(db: Session, member: GroupBuyMember):
+def _member_shopping(db: Session, member: GroupBuyMember, memo: dict | None = None):
+    """A member's shopping list; ``memo`` (one per request) keeps one build per member."""
+    if memo is not None and member.user_id in memo:
+        return memo[member.user_id]
+    result = _compute_member_shopping(db, member)
+    if memo is not None:
+        memo[member.user_id] = result
+    return result
+
+
+def _compute_member_shopping(db: Session, member: GroupBuyMember):
     return shopping_svc.shopping_list(
         db,
         member.user,
@@ -216,12 +259,12 @@ def _qty_override_map(group: GroupBuy) -> dict[tuple[int, str], int]:
     }
 
 
-def _member_needs_live(db: Session, group: GroupBuy) -> list[MemberNeed]:
+def _member_needs_live(db: Session, group: GroupBuy, memo: dict | None = None) -> list[MemberNeed]:
     overrides = _qty_override_map(group)
     skips = _extra_skip_map(group)
     needs: list[MemberNeed] = []
     for member in group.members:
-        shopping = _member_shopping(db, member)
+        shopping = _member_shopping(db, member, memo)
         name = _display_name(member.user)
         shop_by_id = {item.card_id.upper(): item for item in shopping.items}
         card_ids = set(shop_by_id) | {
@@ -283,7 +326,9 @@ def _catalog_bundle(
         rows = db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(card_ids))).all()
         catalog = {r.card_id: r for r in rows}
     product_ids = catalog_repo.primary_product_ids(db, card_ids)
-    alts = catalog_repo.alt_arts_map(db, card_ids, wanted=wanted)
+    alts = catalog_repo.alt_arts_map(
+        db, card_ids, wanted=wanted, catalog=catalog, primary_ids=product_ids
+    )
     printings: dict[int, CatalogPrinting] = {}
     if card_ids:
         rows = db.scalars(
@@ -297,13 +342,14 @@ def _viewer_zero_customs(
     db: Session,
     group: GroupBuy,
     viewer_user_id: int,
+    memo: dict | None = None,
 ) -> dict[str, MergedMemberQty]:
     if group.status != GroupBuyStatus.OPEN:
         return {}
     member = next((m for m in group.members if m.user_id == viewer_user_id), None)
     if member is None:
         return {}
-    shopping = _member_shopping(db, member)
+    shopping = _member_shopping(db, member, memo)
     shop_by_id = {item.card_id.upper(): item for item in shopping.items}
     name = _display_name(member.user)
     skips = _extra_skip_map(group)
@@ -353,14 +399,17 @@ def _build_lines(
     db: Session,
     group: GroupBuy,
     viewer_user_id: int | None = None,
+    memo: dict | None = None,
 ) -> tuple[list[GroupBuyLineOut], dict[int, tuple[int, float]]]:
+    if memo is None:
+        memo = {}
     needs = (
         _member_needs_locked(group)
         if group.status in FROZEN_STATUSES
-        else _member_needs_live(db, group)
+        else _member_needs_live(db, group, memo)
     )
     zero_customs = (
-        _viewer_zero_customs(db, group, viewer_user_id) if viewer_user_id is not None else {}
+        _viewer_zero_customs(db, group, viewer_user_id, memo) if viewer_user_id is not None else {}
     )
     merged = merge_member_needs(needs)
     card_ids = {line.card_id for line in merged} | set(zero_customs)
@@ -376,7 +425,7 @@ def _build_lines(
     viewer_items: dict[str, object] = {}
     member_display: dict[int, dict[str, int]] = {}
     for member in group.members:
-        shop = _member_shopping(db, member)
+        shop = _member_shopping(db, member, memo)
         by_card: dict[str, list] = {}
         by_card_items: dict[str, object] = {}
         for item in shop.items:
@@ -739,13 +788,13 @@ def invite_preview(db: Session, token: str) -> GroupBuyInvitePreview:
     group = db.scalar(
         select(GroupBuy)
         .where(GroupBuy.invite_token == token)
-        .options(selectinload(GroupBuy.host), selectinload(GroupBuy.members))
+        .options(selectinload(GroupBuy.host), selectinload(GroupBuy.members).selectinload(GroupBuyMember.user))
     )
     if group is None:
         raise NotFound("Invite link not found")
     return GroupBuyInvitePreview(
         title=group.title,
-        host_name=_display_name(group.host),
+        host_name=_public_names(group)[group.host_user_id],
         member_count=len(group.members),
         status=group.status,
         invite_token=group.invite_token,
@@ -763,6 +812,14 @@ def set_public(
     group = _get_group(db, group_id)
     _require_host(group, user)
     group.is_public = bool(is_public)
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def reset_invite(db: Session, user: User, group_id: int) -> GroupBuyDetail:
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    group.invite_token = secrets.token_urlsafe(18)
     db.commit()
     return get_group_buy(db, user, group_id)
 
@@ -797,7 +854,7 @@ def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
     )
     if group is None:
         raise NotFound("Group buy not found")
-    return _detail_from_group(db, group, user=None, read_only=True)
+    return _anonymize_detail(_detail_from_group(db, group, user=None, read_only=True), group)
 
 
 def update_contribution(
@@ -1035,26 +1092,18 @@ def _freeze_snapshot(db: Session, group: GroupBuy) -> None:
 def _add_owned(db: Session, user_id: int, card_id: str, delta: int) -> None:
     if delta <= 0:
         return
-    card_id = card_id.upper().strip()
-    row = db.scalar(
-        select(Owned).where(Owned.user_id == user_id, Owned.card_id == card_id)
-    )
-    if row is None:
-        db.add(Owned(user_id=user_id, card_id=card_id, qty=delta))
-    else:
-        row.qty = int(row.qty) + delta
+    increment_owned(db, user_id, card_id.upper().strip(), delta)
 
 
 def _subtract_owned(db: Session, user_id: int, card_id: str, delta: int) -> None:
     if delta <= 0:
         return
-    card_id = card_id.upper().strip()
-    row = db.scalar(
-        select(Owned).where(Owned.user_id == user_id, Owned.card_id == card_id)
+    db.execute(
+        update(Owned)
+        .where(Owned.user_id == user_id, Owned.card_id == card_id.upper().strip())
+        .values(qty=case((Owned.qty > delta, Owned.qty - delta), else_=0))
+        .execution_options(synchronize_session="fetch")
     )
-    if row is None:
-        return
-    row.qty = max(0, int(row.qty) - delta)
 
 
 def _apply_order_fields(group: GroupBuy, body: GroupBuyOrderUpdate) -> None:
@@ -1152,12 +1201,13 @@ def complete_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail
 def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
     group = _get_group(db, group_id)
     _require_member(group, user)
-    lines, _ = _build_lines(db, group, viewer_user_id=user.id)
+    memo: dict = {}
+    lines, _ = _build_lines(db, group, viewer_user_id=user.id, memo=memo)
 
     skips = _extra_skip_map(group)
     member_items: dict[int, dict[str, object]] = {}
     for member in group.members:
-        shop = _member_shopping(db, member)
+        shop = _member_shopping(db, member, memo)
         # Uppercase keys — line.card_id is uppercased in merge; mismatched case
         # silently dropped AA wants and fell back to whole-line printing.
         member_items[member.user_id] = {item.card_id.upper(): item for item in shop.items}
@@ -1408,7 +1458,7 @@ def apply_receipt_to_group_buy(
     group_id: int,
     body: GroupBuyReceiptApplyRequest,
 ) -> GroupBuyDetail:
-    group = _get_group(db, group_id)
+    group = _get_group(db, group_id, lock=True)
     _require_host(group, user)
     if group.status == GroupBuyStatus.COMPLETED:
         raise Forbidden("Group buy is already completed")
@@ -1512,7 +1562,7 @@ def apply_receipt_to_group_buy(
 
 
 def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyDetail:
-    group = _get_group(db, group_id)
+    group = _get_group(db, group_id, lock=True)
     _require_host(group, user)
     if group.status not in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
         raise Forbidden("Nothing to undo in this status")

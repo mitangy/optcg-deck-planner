@@ -14,8 +14,22 @@ import { ShoppingPage } from "./lazyPages";
 import { renderCardPageActions } from "../pages/shopping/lightboxActions";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { data: user, isLoading } = useMe();
+  const { data: user, isLoading, isError, isFetching, refetch } = useMe();
   if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  // A failed check says nothing about whether the visitor is signed in, so don't bounce them to the sign-in page.
+  if (isError && user === undefined) {
+    return (
+      <main className="app-main">
+        <div className="empty-state" role="alert">
+          <h2>Can't reach the server</h2>
+          <p>We couldn't check your sign-in. Your decks and collection are safe.</p>
+          <button type="button" className="btn primary" disabled={isFetching} onClick={() => void refetch()}>
+            Try again
+          </button>
+        </div>
+      </main>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
   return <Shell user={user}>{children}</Shell>;
 }

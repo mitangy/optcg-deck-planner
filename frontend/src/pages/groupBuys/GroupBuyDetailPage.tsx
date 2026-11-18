@@ -387,6 +387,15 @@ export function GroupBuyDetailPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const resetInvite = useMutation({
+    mutationFn: () => api.resetGroupBuyInvite(groupId),
+    onSuccess: (d) => {
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      setMsg("Invite link reset. The old link no longer works.");
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
   const remove = useMutation({
     mutationFn: () => api.deleteGroupBuy(groupId),
     onSuccess: async () => {
@@ -601,6 +610,26 @@ export function GroupBuyDetailPage() {
         <button type="button" className="btn secondary" onClick={() => void copyInvite(detail.invite_path)}>
           Copy invite link
         </button>
+        {detail.is_host && (
+          <button
+            type="button"
+            className="btn secondary"
+            data-testid="gb-reset-invite"
+            disabled={resetInvite.isPending}
+            onClick={() => {
+              if (
+                window.confirm(
+                  "Reset the invite link? The current link stops working for everyone who has it. People already in the group buy stay in.",
+                )
+              ) {
+                setInviteMsg(null);
+                resetInvite.mutate();
+              }
+            }}
+          >
+            Reset link
+          </button>
+        )}
         {detail.status !== "completed" && (
           <button
             type="button"

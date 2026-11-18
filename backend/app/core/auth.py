@@ -20,6 +20,7 @@ SESSION_COOKIE = "optcg_session"
 OAUTH_NONCE_COOKIE = "optcg_oauth_nonce"
 OAUTH_RETURN_COOKIE = "optcg_oauth_return"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+SESSION_RENEW_AFTER_SECONDS = 60 * 60 * 24 * 7
 LOGIN_TICKET_MAX_AGE_SECONDS = 120
 OAUTH_STATE_MAX_AGE_SECONDS = 600
 
@@ -63,6 +64,17 @@ def read_session_token(
         return int(uid), int(sv)
     except (TypeError, ValueError):
         return None
+
+
+def session_token_age_seconds(token: str, settings: Settings | None = None) -> float | None:
+    settings = settings or get_settings()
+    try:
+        _data, issued_at = _serializer(settings).loads(
+            token, max_age=SESSION_MAX_AGE_SECONDS, return_timestamp=True
+        )
+    except (BadSignature, SignatureExpired):
+        return None
+    return (datetime.now(timezone.utc) - as_utc(issued_at)).total_seconds()
 
 
 def new_oauth_nonce() -> str:

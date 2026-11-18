@@ -156,5 +156,10 @@ module.exports = {
     { id: "analytics-empty-token-masked", file: "packages/ui/src/appShell/analytics.ts", from: "path.length > prefix.length", to: "path.length >= prefix.length", kills: ["keeps a path that has no token after the prefix"] },
     { id: "analytics-before-send-drops-fields", file: "packages/ui/src/appShell/analytics.ts", from: "({ ...event, url:", to: "({ url:", kills: ["rewrites the event url and keeps the other fields"] },
     { id: "version-dismiss-nothing-hides", file: "packages/ui/src/appShell/appVersion.ts", from: "dismissedSha = status.deployed.sha;\n", to: "", kills: ["a dismissed build stays hidden until a newer one is deployed"] },
-  ],
+      // Error boundary (#1346)
+    {"id": "errorboundary1346-no-reset", "file": "packages/ui/src/errorBoundary/ErrorBoundary.tsx", "from": "if (this.state.failed && prev.resetKey !== this.props.resetKey) this.setState({ failed: false });", "to": "void prev;", "kills": ["the fallback clears when the reset key changes (#1346)"], "args": "src/errorBoundary"},
+    {"id": "errorboundary1346-resets-on-every-update", "file": "packages/ui/src/errorBoundary/ErrorBoundary.tsx", "from": "prev.resetKey !== this.props.resetKey) this.setState", "to": "true) this.setState", "kills": ["the fallback stays while the reset key is unchanged (#1346)"], "args": "src/errorBoundary"},
+    {"id": "errorboundary1346-no-fallback", "file": "packages/ui/src/errorBoundary/ErrorBoundary.tsx", "from": "return { failed: true };", "to": "return { failed: false };", "kills": ["a child that throws shows the fallback and logs the error (#1346)"], "args": "src/errorBoundary"},
+    {"id": "errorboundary1346-no-log", "file": "packages/ui/src/errorBoundary/ErrorBoundary.tsx", "from": "console.error(\"Uncaught render error\", error, info.componentStack);", "to": "void error; void info;", "kills": ["a child that throws shows the fallback and logs the error (#1346)"], "args": "src/errorBoundary"},
+],
 };

@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import Invalid, NotFound
@@ -129,15 +130,22 @@ def owned_collection(
     base = {card_id: qty for card_id, qty in owned_map(db, user.id).items() if qty > 0}
     alt_owned = alt_owned_map(db, user.id)
     card_ids = set(base) | set(alt_owned)
-    alts = alt_arts_map(db, card_ids, owned=alt_owned, collector=_collector_map(db, user.id))
+    catalog = catalog_map(db, card_ids)
+    product_ids = primary_product_ids(db, card_ids)
+    alts = alt_arts_map(
+        db,
+        card_ids,
+        owned=alt_owned,
+        collector=_collector_map(db, user.id),
+        catalog=catalog,
+        primary_ids=product_ids,
+    )
     display_choices = _display_choice_map(db, user.id)
     buying = {
         item.card_id: item.still_need
         for item in shopping_list(db, user, deck_ids=deck_ids).items
         if item.still_need > 0
     }
-    catalog = catalog_map(db, card_ids)
-    product_ids = primary_product_ids(db, card_ids)
     alt_prices: dict[int, float | None] = {}
     if alt_owned:
         pids = {pid for by_pid in alt_owned.values() for pid in by_pid}
@@ -303,6 +311,23 @@ def set_owned(db: Session, user: User, card_id: str, qty: int) -> int:
     return row.qty
 
 
+def increment_owned(db: Session, user_id: int, card_id: str, delta: int) -> None:
+    """Add ``delta`` copies in SQL, so a concurrent write or a stale loaded row cannot be lost."""
+    bump = (
+        update(Owned)
+        .where(Owned.user_id == user_id, Owned.card_id == card_id)
+        .values(qty=Owned.qty + delta)
+        .execution_options(synchronize_session="fetch")
+    )
+    if db.execute(bump).rowcount:
+        return
+    try:
+        with db.begin_nested():
+            db.add(Owned(user_id=user_id, card_id=card_id, qty=delta))
+    except IntegrityError:
+        db.execute(bump)
+
+
 def add_owned(db: Session, user: User, items: list[tuple[str, int]]) -> list[tuple[str, int]]:
     wanted: dict[str, int] = {}
     for card_id, add in items:
@@ -311,23 +336,15 @@ def add_owned(db: Session, user: User, items: list[tuple[str, int]]) -> list[tup
     for key in wanted:
         if db.get(CatalogCard, key) is None:
             raise NotFound(f"Card not found in catalog: {key}")
-    rows = {
-        r.card_id: r
-        for r in db.scalars(
-            select(Owned).where(Owned.user_id == user.id, Owned.card_id.in_(wanted))
-        )
-    }
-    out: list[tuple[str, int]] = []
     for key, add in wanted.items():
-        row = rows.get(key)
-        if row is None:
-            row = Owned(user_id=user.id, card_id=key, qty=add)
-            db.add(row)
-        else:
-            row.qty += add
-        out.append((key, row.qty))
+        increment_owned(db, user.id, key, add)
+    totals = dict(
+        db.execute(
+            select(Owned.card_id, Owned.qty).where(Owned.user_id == user.id, Owned.card_id.in_(wanted))
+        ).all()
+    )
     db.commit()
-    return out
+    return [(key, totals[key]) for key in wanted]
 
 
 def reset_deck_owned(db: Session, user: User, deck_id: int) -> tuple[int, DeckDetail]:

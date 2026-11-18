@@ -12,7 +12,7 @@ from app.planner import recent_sales
 from app.core.auth import SESSION_COOKIE, create_session_token
 from app.core.body_limit import DEFAULT_MAX_BODY_BYTES
 from app.core.config import get_settings
-from app.core.db import get_db
+from app.core.db import get_db, get_session_factory
 from app.main import app
 from app.core.models import User
 from app.core.rate_limit import RateLimiter
@@ -38,6 +38,7 @@ def client(monkeypatch: pytest.MonkeyPatch):
             db.close()
 
     app.dependency_overrides[get_db] = _override_db
+    app.dependency_overrides[get_session_factory] = lambda: SessionLocal
     with TestClient(app) as c:
         yield c, SessionLocal
     app.dependency_overrides.clear()
@@ -115,6 +116,50 @@ def test_sales_proxy_counts_a_wider_request_than_the_cached_one_as_upstream_1218
         assert c.get("/catalog/sales/555124", params={"limit": 10}, headers=headers).status_code == 429
     finally:
         recent_sales._CACHE.clear()
+
+
+def test_sales_proxy_holds_no_session_during_the_upstream_call_1346(client, monkeypatch: pytest.MonkeyPatch):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_catalog(db, "OP01-016", name="Nami", product_id=555125, market=1.0)
+    open_sessions: list = []
+
+    def tracking_factory():
+        session = SessionLocal()
+        open_sessions.append(session)
+        return session
+
+    app.dependency_overrides[get_session_factory] = lambda: tracking_factory
+    seen: dict = {}
+
+    def fake_fetch(product_id, limit=3):
+        seen["open_at_fetch"] = [s.in_transaction() for s in open_sessions]
+        seen["sessions"] = len(open_sessions)
+        return []
+
+    monkeypatch.setattr(api_router, "fetch_recent_sales", fake_fetch)
+    assert c.get("/catalog/sales/555125", headers={"X-Forwarded-For": "192.0.2.60"}).status_code == 200
+    assert seen["sessions"] == 1
+    assert seen["open_at_fetch"] == [False]
+
+
+def test_sales_proxy_caps_concurrent_upstream_calls_1346(client, monkeypatch: pytest.MonkeyPatch):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_catalog(db, "OP01-016", name="Nami", product_id=555126, market=1.0)
+    recent_sales._CACHE.clear()
+    cap = api_router._sales_in_flight
+    held = [cap.acquire(blocking=False) for _ in range(4)]
+    called = []
+    monkeypatch.setattr(api_router, "fetch_recent_sales", lambda *a, **k: called.append(1) or [])
+    try:
+        assert all(held)
+        assert c.get("/catalog/sales/555126", headers={"X-Forwarded-For": "192.0.2.61"}).status_code == 429
+        assert called == []
+    finally:
+        for _ in held:
+            cap.release()
+    assert c.get("/catalog/sales/555126", headers={"X-Forwarded-For": "192.0.2.62"}).status_code == 200
 
 
 def test_deck_with_too_many_different_cards_is_refused_318(client):
