@@ -1,16 +1,9 @@
 import { GroupBuyLine, GroupBuyMember, GroupBuyMemberQty } from "../../api";
-import { MemberSwatch, memberColorIndex } from "./memberColors";
+import { MemberSwatch } from "./memberColors";
 
-export function cardShellClass(
-  base: string,
-  line: GroupBuyLine,
-  members: GroupBuyMember[],
-  excluded: boolean,
-): string {
-  const active = line.members.filter((m) => m.qty > 0);
-  const sole =
-    active.length === 1 ? ` gb-user-${memberColorIndex(active[0].user_id, members)}` : "";
-  return `${base}${excluded ? " excluded" : ""}${sole}`;
+/** The member colour shows on the rail beside the card, not as a tint over the whole row (#1361). */
+export function cardShellClass(base: string, excluded: boolean): string {
+  return `${base}${excluded ? " excluded" : ""}`;
 }
 
 function primaryWantingMember(

@@ -13,6 +13,7 @@ export const LIST_DENSITY_KEYS = {
   collection: "optcg_list_density_collection",
   deck: "optcg_list_density_deck",
   share: "optcg_list_density_share",
+  groupBuy: "optcg_list_density_group_buy",
 } as const;
 
 export const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
@@ -44,7 +45,8 @@ export const SHARE_ONLY_NEED_KEY = "optcg_share_only_need";
 export const ALERTS_ADD_OPEN_KEY = "optcg_alerts_add_open";
 
 export const SETTLEMENT_OPEN_KEY = "optcg_group_buy_settlement_open";
-export const MEMBERS_OPEN_KEY = "optcg_group_buy_members_open";
+// v2: the old key mostly holds "open" (the drawer used to start open), which would keep it open.
+export const MEMBERS_OPEN_KEY = "optcg_group_buy_members_open_v2";
 
 export const COLSORT_GB_CARDS_KEY = "optcg_colsort_gb_cards";
 export const COLSORT_GB_OWE_KEY = "optcg_colsort_gb_owe";

@@ -318,16 +318,19 @@ export function CollapsibleDrawer({
   badgeLabel,
   headerExtra,
   pinnedOpen = false,
+  hideSummaryWhenOpen = false,
   children,
 }: {
   label: string;
-  summary?: string;
+  summary?: ReactNode;
   storageKey?: string;
   defaultOpen?: boolean;
   badge?: number;
   badgeLabel?: string;
   headerExtra?: ReactNode;
   pinnedOpen?: boolean;
+  /** The summary repeats what the open drawer shows, so it only appears while the drawer is closed. */
+  hideSummaryWhenOpen?: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = usePersistedOpen(storageKey, defaultOpen);
@@ -356,7 +359,7 @@ export function CollapsibleDrawer({
       >
         <span className="filter-drawer-label">
           {label}
-          {summary ? <span className="filter-drawer-summary"> · {summary}</span> : null}
+          {summary && !(hideSummaryWhenOpen && open) ? <span className="filter-drawer-summary"> · {summary}</span> : null}
         </span>
         {badge ? (
           <span

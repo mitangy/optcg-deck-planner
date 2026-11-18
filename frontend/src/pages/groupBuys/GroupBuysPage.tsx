@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { qk } from "../../cache/queryKeys";
+import { stepLabel } from "./groupBuyActions";
 
 export function GroupBuysPage() {
   const navigate = useNavigate();
@@ -74,7 +75,7 @@ export function GroupBuysPage() {
               <Link to={`/group-buys/${g.id}`} className="group-buy-card">
                 <div className="group-buy-card-top">
                   <strong>{g.title}</strong>
-                  <span className={`group-buy-status status-${g.status}`}>{g.status}</span>
+                  <span className={`group-buy-status status-${g.status}`}>{stepLabel(g.status)}</span>
                 </div>
                 <p className="muted">
                   Host {g.host_name} · {g.member_count} member{g.member_count === 1 ? "" : "s"} ·{" "}

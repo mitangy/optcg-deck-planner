@@ -645,7 +645,7 @@ export const test = base.extend<{ planner: Planner }>({
         // Older specs were written for the roomy rows with inline alt tiles; a spec about the new defaults opts in.
         if (!this.defaultDensity) {
           await page.addInitScript(() => {
-            for (const k of ["shopping", "collection", "deck", "share"]) {
+            for (const k of ["shopping", "collection", "deck", "share", "group_buy"]) {
               if (localStorage.getItem(`optcg_list_density_${k}`) === null) localStorage.setItem(`optcg_list_density_${k}`, "comfortable");
             }
           });

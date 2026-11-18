@@ -1,18 +1,21 @@
-import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
+import { useCardLayout, useListDensity } from "../../ui/CardLayout";
+import { CardWorkspace } from "../../ui/CardWorkspace";
+import { FilterCheck, ListToolbar } from "../../ui/ListToolbar";
 import { AuthLoadingSkeleton, GroupBuyDetailSkeleton } from "../../ui/Skeleton";
 import { ThemeToggle } from "../../ui/ThemeToggle";
 import { Topbar } from "../../app/Topbar";
 import { api, GroupBuyDetail } from "../../api";
 import { useMe } from "../../auth/useMe";
-import { buildFilterSummary, CardSearchInput, CollapsibleFilters, SortMenu, useCardSorts, type SortKey } from "../../ui/cardListControls";
+import { useCardSorts, useShowAltArts, type SortKey } from "../../ui/cardListControls";
 import { rememberLoginNext } from "../../auth/loginNext";
-import { useNarrowLayout } from "../../hooks/useNarrowLayout";
+import { useGroupBuyListNarrow } from "../../hooks/useGroupBuyListNarrow";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { GroupBuyLines } from "./GroupBuyLines";
 import { GroupBuyMembersList, GroupBuyOrderDetails, GroupBuySettlement, hasOrderPanel } from "./GroupBuyPanels";
-import { readOnlyAltRow } from "./memberParts";
+import { stepLabel } from "./groupBuyActions";
+import { readOnlyAltRow, wantedAlts } from "./memberParts";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_PUBLIC_KEY } from "../../storage/keys";
 import { qk } from "../../cache/queryKeys";
@@ -75,7 +78,7 @@ export function GroupBuyJoinPage() {
               <p className="eyebrow">Group buy invite · read-only preview</p>
               <h1>{preview.title}</h1>
               <p className="muted">
-                <span className={`group-buy-status status-${preview.status}`}>{preview.status}</span>
+                <span className={`group-buy-status status-${preview.status}`}>{stepLabel(preview.status)}</span>
                 {" · "}
                 Hosted by {preview.host_name} · {preview.member_count} member
                 {preview.member_count === 1 ? "" : "s"}
@@ -117,8 +120,10 @@ export function GroupBuyJoinPage() {
 }
 
 function GroupBuyReadOnlyContent({ detail }: { detail: GroupBuyDetail }) {
-  const isNarrow = useNarrowLayout();
+  const isNarrow = useGroupBuyListNarrow();
   const [layout, setLayout] = useCardLayout();
+  const [density, setDensity] = useListDensity("groupBuy");
+  const [showAltArts, setShowAltArts] = useShowAltArts();
   const [search, setSearch] = useState("");
   const unavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(true, unavailableSorts);
@@ -140,32 +145,59 @@ function GroupBuyReadOnlyContent({ detail }: { detail: GroupBuyDetail }) {
         </GroupBuySettlement>
       ) : null}
 
-      <div className="list-toolbar">
-        <div className="list-toolbar-row">
-          <CardSearchInput value={search} onChange={setSearch} />
-          <CardLayoutToggle layout={layout} onChange={setLayout} />
-        </div>
-        <CollapsibleFilters summary={buildFilterSummary({ sorts })}>
-          <div className="filters">
-            <SortMenu sorts={sorts} onChange={setSorts} onlyNeed unavailableKeys={unavailableSorts} columnSortKey={COLSORT_GB_PUBLIC_KEY} />
-          </div>
-        </CollapsibleFilters>
-      </div>
-
+      <h2 className="group-buy-merged-heading">Cards · {detail.lines?.length ?? 0}</h2>
+      <CardWorkspace
+        rail={
+          <ListToolbar
+            className="group-buy-merged-toolbar"
+            search={{ value: search, onChange: setSearch }}
+            sort={{
+              sorts,
+              onChange: setSorts,
+              onlyNeed: true,
+              unavailableKeys: unavailableSorts,
+              columnSortKey: COLSORT_GB_PUBLIC_KEY,
+            }}
+            filterBadge={showAltArts ? 0 : 1}
+            filters={
+              <>
+                <div className="collection-filter-list">
+                  <FilterCheck checked={showAltArts} onChange={setShowAltArts}>
+                    Show alt arts
+                  </FilterCheck>
+                </div>
+                {effectiveSorts.includes("user") ? (
+                  <p className="sort-deck-note muted">
+                    User sort groups cards by who wants them (member list order). Cards wanted by
+                    multiple people stay under their earliest member.
+                  </p>
+                ) : null}
+              </>
+            }
+            layout={layout}
+            onLayout={setLayout}
+            density={density}
+            onDensity={setDensity}
+          />
+        }
+      >
       {lines.length ? (
         <GroupBuyLines
           layout={layout}
+          density={density}
           isNarrow={isNarrow}
           members={members}
           displayRows={displayRows}
           tableRows={tableRows}
           cardsSort={cardsSort}
           onCardsSort={onCardsSort}
-          renderAltRow={(line) => readOnlyAltRow(line, members)}
+          renderAltRow={showAltArts ? (line) => readOnlyAltRow(line, members) : undefined}
+          altsOf={wantedAlts}
         />
       ) : (
         <p className="muted">No cards in this group buy.</p>
       )}
+      </CardWorkspace>
     </>
   );
 }

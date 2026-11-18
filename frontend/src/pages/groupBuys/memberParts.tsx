@@ -1,5 +1,6 @@
 import { AltArtsRow, MarketPrice } from "../../cards/MarketPrice";
 import { GroupBuyLine, GroupBuyMember, GroupBuyMemberQty, money } from "../../api";
+import { shownMarket } from "../../cards/altArt";
 import { mySelectedArtsTotal } from "./groupBuyArt";
 import { MemberSwatch, memberColor } from "./memberColors";
 
@@ -35,8 +36,12 @@ export function MemberBreakdown({
           <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
           <span>
             {m.display_name} ×{m.qty}
-            {m.is_custom ? "*" : ""}
           </span>
+          {m.is_custom ? (
+            <span className="group-buy-custom-tag" title="Custom quantity, not Shopping still-need">
+              custom
+            </span>
+          ) : null}
         </span>
       ))}
     </span>
@@ -84,9 +89,14 @@ export function SkippedBadge({ line, productId }: { line: GroupBuyLine; productI
   );
 }
 
-export function readOnlyAltRow(line: GroupBuyLine, members: GroupBuyMember[]) {
+/** The alt arts somebody in the group buy wants; the read-only view shows only those. */
+export function wantedAlts(line: GroupBuyLine) {
   const wanted = new Set((line.art_wants ?? []).map((w) => w.product_id));
-  const alts = (line.alt_arts ?? []).filter((a) => wanted.has(a.product_id));
+  return (line.alt_arts ?? []).filter((a) => wanted.has(a.product_id));
+}
+
+export function readOnlyAltRow(line: GroupBuyLine, members: GroupBuyMember[]) {
+  const alts = wantedAlts(line);
   if (!alts.length) return null;
   return (
     <AltArtsRow
@@ -121,17 +131,35 @@ export function MemberColorRail({
   );
 }
 
-export function GroupBuyCardPrice({ line }: { line: GroupBuyLine }) {
-  if (line.my_qty <= 0) {
-    return <MarketPrice price={line.market_price} productId={line.product_id} />;
-  }
+/** Yours: what the signed-in member pays for their own copies of this line, on its own line. */
+export function GroupBuyYours({ line }: { line: GroupBuyLine }) {
+  if (line.my_qty <= 0) return null;
   const t = mySelectedArtsTotal(line);
   return (
     <span className="gb-arts-total" title={t.breakdown} data-testid="gb-arts-total">
-      <span className="gb-arts-total-amount">{money(t.total)}</span>
+      <span className="gb-arts-total-cap muted">Yours</span>{" "}
+      <span className="gb-arts-total-amount">{money(t.total)}</span>{" "}
       <span className="gb-arts-total-cap muted">
-        Your {t.copies} {t.copies === 1 ? "copy" : "copies"}
+        · {t.copies} {t.copies === 1 ? "copy" : "copies"}
       </span>
     </span>
+  );
+}
+
+/** Each (the shown art's market price), Line total (what the whole pool pays for the line) and Yours, in one vocabulary. */
+export function GroupBuyPrices({ line }: { line: GroupBuyLine }) {
+  const shown = shownMarket(line);
+  return (
+    <div className="gb-prices">
+      <span className="gb-price-line gb-price-each">
+        <span className="muted">Each</span>{" "}
+        <MarketPrice price={shown.price} productId={shown.productId} />
+      </span>
+      <span className="gb-price-line gb-price-total">
+        <span className="muted">Line total</span>{" "}
+        <span className="gb-price-amount">{money(line.remaining_cost)}</span>
+      </span>
+      <GroupBuyYours line={line} />
+    </div>
   );
 }
