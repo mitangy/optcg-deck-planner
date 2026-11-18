@@ -2981,6 +2981,27 @@ describe("DuelRoom", () => {
     }));
   });
 
+  describe("health reports live matches (#1352)", () => {
+    const liveMatches = async () => ((await (await fetch("http://127.0.0.1:2568/health")).json()) as { liveMatches: number | null }).liveMatches;
+
+    it("counts a game being played but not a room still waiting for its opponent (#1352)", async () => {
+      assert.equal(await liveMatches(), 0);
+      const waiting = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 94 });
+      const w = await colyseus.connectTo(waiting, joinOpts("carol", 0));
+      await roundTrip(w);
+      assert.equal(await liveMatches(), 0);
+      const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 95, autoSkipMulligan: true });
+      const bags: [SeatBag, SeatBag] = [{ views: [], errors: [] }, { views: [], errors: [] }];
+      const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+      attach(c0, bags[0]);
+      const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+      attach(c1, bags[1]);
+      await syncSeat(c0, bags[0]);
+      await waitUntil(() => (matchMaker.getLocalRoomById(room.roomId)?.metadata as { phase?: string } | undefined)?.phase === "playing", 5000);
+      assert.equal(await liveMatches(), 1);
+    });
+  });
+
   deviceHandoffTests(() => colyseus);
   botRoomTests(() => colyseus);
   diceRoomTests(() => colyseus);
