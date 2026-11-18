@@ -12,7 +12,7 @@ import { describeBattle } from "./combat/battleBanner";
 import { battleEndpoints } from "./combat/battleArc";
 import { useScreenWakeLock } from "./layout/wakeLock";
 import { type CardActionButton } from "./BoardOverlays";
-import { cardActionText, splitCardActions } from "./input/cardActions";
+import { cardActionText, counterIntentForCard, splitCardActions } from "./input/cardActions";
 import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./hand/handPrompt";
 import { isHandPick } from "./prompts/fieldTargets";
 import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand, usesWideFan } from "./hand/handLayout";
@@ -69,7 +69,7 @@ import { usePromptState } from "./prompts/usePromptState";
 import { mulliganBodyFor, mulliganOpeningFor } from "./match/mulliganBody";
 import { splashMessageFor } from "./motion/splashMessage";
 import { ghostPayloadFor } from "./combat/ghostPayload";
-import { renderHandCardsFor } from "./hand/handCards";
+import { renderHandCardsFor, type HandCardsCtx } from "./hand/handCards";
 import { specGripFor, specHandToggleFor } from "./hand/specHandChrome";
 import { BoardDefendTray } from "./combat/BoardDefendTray";
 import { useBoardSelection } from "./input/useBoardSelection";
@@ -329,6 +329,8 @@ export function DuelBoard({
     railDefend,
     defendPrimary,
     counterLabel,
+    defendHandOpen,
+    setDefendHandOpen,
     setStagedCounterIds,
     setStagedBlockerId,
     setQueuedCounter,
@@ -634,7 +636,7 @@ export function DuelBoard({
 
   const undoUi = deriveUndoUi(undo, boardSeat);
 
-  const renderHandCards = (fanned = false) =>
+  const renderHandCards = (fanned = false, override?: Partial<HandCardsCtx>) =>
     renderHandCardsFor(
       {
         view,
@@ -662,6 +664,7 @@ export function DuelBoard({
         selectHandCard,
         setDragPayload,
         commitDrop,
+        ...override,
       },
       fanned,
     );
@@ -686,6 +689,33 @@ export function DuelBoard({
   const dockHeading = sideActions && !over && defend != null ? defend : null;
   // The phone tray already opens with the same sentence, so the strip over the mats would only repeat it.
   const stripText = trayHere && defend != null && midlineBattle ? null : midlineShown;
+  const skins = sideSkins({
+    own: { playmat: playmatUrl, cardBack: cardBackUrl, donArt: prefs.donArt },
+    seatSkins,
+    nearSeat: boardSeat,
+    farSeat: oppSeat,
+    hotseat: Boolean(hotseatPass),
+    spectating,
+    showOthersArt: prefs.showOthersArt,
+    hiddenSeats: hiddenArtSeats,
+  });
+  const toggleCounterCard = (id: string) => {
+    const counter = prefs.oneTapActions || railDefend ? counterIntentForCard(intents, you.hand, id) : null;
+    if (counter) onSendIntent(counter);
+    else setStagedCounterIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
+  };
+  // The phone tray's Hand toggle: the real hand in place of the chips. A Counter card toggles like its chip; the rest keep the normal tap (#1368).
+  const defendHandView =
+    trayHere && defendHandOpen && defend
+      ? renderHandCards(false, {
+          stagedIds: new Set(defend.phase === "counter" ? defend.stagedIds : []),
+          selectHandCard: (idx) => {
+            const card = you.hand[idx];
+            if (card && defend.phase === "counter" && defend.counters.some((c) => c.id === card.id)) toggleCounterCard(card.id);
+            else selectHandCard(idx);
+          },
+        })
+      : null;
   const defendTray =
     (trayHere || railDefend) && defend ? (
       <BoardDefendTray
@@ -694,6 +724,10 @@ export function DuelBoard({
         railDefend={railDefend}
         trayHere={trayHere}
         handCount={handCount}
+        handView={defendHandView}
+        handOpen={defendHandOpen}
+        onToggleHand={() => setDefendHandOpen((v) => !v)}
+        onToggleCounter={toggleCounterCard}
         boardSeat={boardSeat}
         timer={timer}
         now={now}
@@ -701,7 +735,6 @@ export function DuelBoard({
         intents={intents}
         you={you}
         setStagedBlockerId={setStagedBlockerId}
-        setStagedCounterIds={setStagedCounterIds}
         skipBlockToCounter={skipBlockToCounter}
         onSendIntent={onSendIntent}
         setDragPayload={setDragPayload}
@@ -797,16 +830,6 @@ export function DuelBoard({
       defaultOpen={wide}
     />
   ) : null;
-  const skins = sideSkins({
-    own: { playmat: playmatUrl, cardBack: cardBackUrl, donArt: prefs.donArt },
-    seatSkins,
-    nearSeat: boardSeat,
-    farSeat: oppSeat,
-    hotseat: Boolean(hotseatPass),
-    spectating,
-    showOthersArt: prefs.showOthersArt,
-    hiddenSeats: hiddenArtSeats,
-  });
   const artToggles: ArtToggle[] = hotseatPass || !prefs.showOthersArt
     ? []
     : (spectating ? [boardSeat, oppSeat] : [oppSeat])

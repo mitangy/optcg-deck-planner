@@ -43,12 +43,12 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 28%, transparent);
 }
 
-.color-dot[data-color="red"] { --dot: #c0392f; }
-.color-dot[data-color="green"] { --dot: #2f8a55; }
-.color-dot[data-color="blue"] { --dot: #2b72b8; }
-.color-dot[data-color="purple"] { --dot: #7a4aa8; }
-.color-dot[data-color="black"] { --dot: #22282c; }
-.color-dot[data-color="yellow"] { --dot: #e2b020; }
+.color-dot[data-color="red"] { --dot: var(--card-red); }
+.color-dot[data-color="green"] { --dot: var(--card-green); }
+.color-dot[data-color="blue"] { --dot: var(--card-blue); }
+.color-dot[data-color="purple"] { --dot: var(--card-purple); }
+.color-dot[data-color="black"] { --dot: var(--card-black); }
+.color-dot[data-color="yellow"] { --dot: var(--card-yellow); }
 
 .color-chips {
   display: flex;
