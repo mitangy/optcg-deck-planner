@@ -44,7 +44,7 @@ module.exports = {
       { file: "duel-web/src/board/styles/rail.css", from: ".arena.arena-wide .board-panel[data-panel=\"chat\"]:has(> .chat-panel:not(.collapsed)) {\n  flex: 1 1 0;\n  min-height: 7rem;", to: ".arena.arena-wide .board-panel[data-panel=\"chat\"]:has(> .chat-panel:not(.collapsed)) {\n  flex: 1 1 0;\n  min-height: 14rem;" },
     ], kills: ["board-layout-1343.spec.ts > the hand in the side column shows two full rows at 1280x720 (#1343) [desktop-1280]"] },
     { id: "e2e-bl1343-landscape-hand-sliver", args: "board-layout-1343.spec", edits: [
-      { file: "duel-web/src/board/styles/defend.css", from: "--rail-hand-cw: 52px;", to: "--rail-hand-cw: 60px;" },
+      { file: "duel-web/src/board/styles/defend.css", from: "--rail-hand-cw: 58px;", to: "--rail-hand-cw: 66px;" },
     ], kills: ["board-layout-1343.spec.ts > the hand beside the board is not a sliver on a sideways phone (#1343) [phone-375]"] },
     { id: "e2e-bl1343-player-stats-wrap", args: "board-layout-1343.spec", edits: [
       { file: "duel-web/src/board/styles/gameState.css", from: "  flex-wrap: nowrap;\n  align-items: center;\n  column-gap: 0.25rem;", to: "  flex-wrap: wrap;\n  align-items: center;\n  column-gap: 0.25rem;" },
