@@ -43,6 +43,7 @@ export class DuelGame {
   /** Never sent to players. */
   replay: MatchReplay | null = null;
   ranked = true;
+  tournament = false;
   matchStarted = false;
   matchOverSent = false;
   disposed = false;
@@ -56,6 +57,11 @@ export class DuelGame {
   firstSeatPickedBy: Seat | null = null;
   dice: DiceResult | null = null;
   bot: BotSeatConfig | null = null;
+
+  /** Ranked and tournament games share the rules that stop information leaking to a player: no spectator hands, no undo. */
+  get competitive(): boolean {
+    return this.ranked || this.tournament;
+  }
 
   gameKey(): string {
     return this.gameNumber > 1 ? `${this.matchId}-r${this.gameNumber - 1}` : this.matchId;

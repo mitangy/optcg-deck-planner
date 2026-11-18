@@ -1,0 +1,12 @@
+{
+  "secret": "vector-secret",
+  "now": 1900000000,
+  "claims": {
+    "tm": 42,
+    "seats": [
+      7,
+      9
+    ]
+  },
+  "ticket": "tr1.eyJleHAiOjE5MDAwMDA5MDAsImsiOiJ0b3VybmFtZW50X3Jvb20iLCJzZWF0cyI6WzcsOV0sInRtIjo0Mn0.QkdcVeAxRFlBtikua6sVdpHgo0Amqt1WvTH66AxVlRg"
+}

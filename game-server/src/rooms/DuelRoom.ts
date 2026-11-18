@@ -135,7 +135,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       for (const deck of config.players) assertKnownDeck(deck);
     }
     // Ranked checks use the request's own flag: a forged one is rejected for its decks too.
-    if (config.requestedRanked && config.players) {
+    if ((config.requestedRanked || config.tournament) && config.players) {
       for (const deck of config.players) {
         const problem = rankedDeckProblem(deck);
         if (problem) throw new Error(problem);
@@ -147,6 +147,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     // config.ranked already ignores a browser-provided `ranked: true`: only the in-process
     // matchmaker can supply the server-only capability needed for Elo matches.
     game.ranked = config.ranked;
+    game.tournament = config.tournament;
     this.clocks.configure(config.timer);
     if (config.seatUserIds) {
       // A paired ranked room: if one player never makes it in (deck turned
@@ -378,7 +379,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       return;
     }
 
-    if (game.ranked && identity.deck) {
+    if (game.competitive && identity.deck) {
       const problem = rankedDeckProblem(identity.deck);
       if (problem) {
         this.rejectJoin(client, "unsupported_deck", problem);
@@ -389,6 +390,12 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     // The same hole from the other side: spectate first, then take a seat.
     if (this.spectators.list.some((s) => s.userId === identity.userId)) {
       this.rejectJoin(client, "unauthorized", "You are watching this match");
+      return;
+    }
+
+    // Seats are not fixed per account in a tournament room, so nothing else stops one account filling both.
+    if (this.config.tournament && this.seats.holdsSeat(identity.userId)) {
+      this.rejectJoin(client, "room_full", "You already hold a seat in this match");
       return;
     }
 
@@ -669,8 +676,16 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     preferredSeat?: Seat;
     role: "player" | "spectator";
   }): Seat | null {
-    const { seatUserIds } = this.config;
-    if (identity.role === "spectator" || !seatUserIds) return null;
+    const { seatUserIds, tournamentSeats } = this.config;
+    if (identity.role === "spectator") return null;
+    // A tournament room names its two accounts but not their seats: either may sit in any free one.
+    if (tournamentSeats) {
+      if (!tournamentSeats.includes(identity.userId)) {
+        throw new ProtocolError("Identity is not reserved for this match", "unauthorized");
+      }
+      return null;
+    }
+    if (!seatUserIds) return null;
     const seat = seatUserIds.indexOf(identity.userId) as -1 | Seat;
     if (seat !== 0 && seat !== 1) {
       throw new ProtocolError("Identity is not reserved for this match", "unauthorized");

@@ -363,11 +363,13 @@ def ingest_match(
     db.execute(delete(DuelMatchProgress).where(DuelMatchProgress.match_id == body.match_id))
     db.commit()
     _forget_live_progress(body.match_id, (body.seat0_user_id, body.seat1_user_id))
-    try:
-        duel_tournaments.record_game(db, body.match_id, body.seat0_user_id, body.seat1_user_id, body.winner_seat)
-    except Exception:
-        db.rollback()
-        log.exception("tournament result for %s not recorded", body.match_id)
+    # Only a room opened with a tournament ticket hides hands; any other room's result must not decide a match.
+    if body.tournament:
+        try:
+            duel_tournaments.record_game(db, body.match_id, body.seat0_user_id, body.seat1_user_id, body.winner_seat)
+        except Exception:
+            db.rollback()
+            log.exception("tournament result for %s not recorded", body.match_id)
     return DuelMatchOut(
         match_id=row.match_id,
         created=True,

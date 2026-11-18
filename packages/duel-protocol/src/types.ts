@@ -46,6 +46,8 @@ export type DuelCreateOptions = {
   };
   /** Server-only capability; never sent to browser clients. */
   rankedAttestation?: string;
+  /** Signed by the backend for a tournament match's room; the game server checks it before treating the room as a tournament room. */
+  tournamentTicket?: string;
   bot?: BotRoomOptions;
 };
 
@@ -71,6 +73,7 @@ export type WelcomeMessage = {
   view: PlayerView;
   players?: SeatPlayers;
   ranked?: boolean;
+  tournament?: boolean;
   firstSeatPickedBy?: Seat | null;
   dice?: DiceResult | null;
   brief?: BriefTicketWire;

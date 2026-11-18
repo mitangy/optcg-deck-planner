@@ -19,6 +19,7 @@ import { botRoomTests } from "./botRoom.js";
 import { diceRoomTests } from "./diceRoom.js";
 import { withFakeTime } from "./fakeTime.js";
 import { withRoomEnv } from "./roomEnv.js";
+import { mintTestTournamentTicket } from "./tournamentTicketHelper.js";
 import { BOT_META_DECKS, replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
 
 type PlayerView = {
@@ -592,6 +593,187 @@ describe("DuelRoom", () => {
     assert.deepEqual(welcome.view.you.hand, []);
   });
 
+  // The refusal is sent before a client can register a handler, so the room's rejectJoin is observed instead.
+  async function attempt(room: DuelRoom, options: Record<string, unknown>) {
+    const target = room as unknown as { rejectJoin(c: unknown, code: string, message: string): void };
+    const original = target.rejectJoin;
+    const refusals: { code: string; message: string }[] = [];
+    target.rejectJoin = function (this: unknown, c, code, message) {
+      refusals.push({ code, message });
+      return original.call(this, c, code, message);
+    };
+    const views: { revealedHands?: unknown }[] = [];
+    try {
+      const c = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, ...options });
+      c.onMessage("welcome", (m: { view: { revealedHands?: unknown } }) => views.push(m.view));
+      c.send("sync", { protocolVersion: PROTOCOL_VERSION });
+      await new Promise((r) => setTimeout(r, 250));
+    } catch {
+      // A refused join may close the socket before the SDK settles.
+    } finally {
+      target.rejectJoin = original;
+    }
+    return { refusals, views };
+  }
+  const spectate = (room: DuelRoom, uid: number) =>
+    attempt(room, { gameToken: gameToken(uid), role: "spectator", preferredSeat: 0 });
+
+  describe("tournament rooms (#1344)", () => {
+    const ticketed = (seats: [number, number], extra: Record<string, unknown> = {}) =>
+      colyseus.createRoom<DuelRoom>("duel", {
+        protocolVersion: PROTOCOL_VERSION,
+        seed: 42,
+        autoSkipMulligan: true,
+        tournamentTicket: mintTestTournamentTicket({ seats }),
+        ...extra,
+      });
+    const asPlayer = (uid: number, extra: Record<string, unknown> = {}) => ({
+      protocolVersion: PROTOCOL_VERSION,
+      gameToken: gameToken(uid),
+      ...extra,
+    });
+    async function seatBoth(room: DuelRoom, uids: [number, number]) {
+      const bags: [SeatBag, SeatBag] = [{ views: [], errors: [] }, { views: [], errors: [] }];
+      const c0 = await colyseus.connectTo(room, asPlayer(uids[0]));
+      attach(c0, bags[0]);
+      const c1 = await colyseus.connectTo(room, asPlayer(uids[1]));
+      attach(c1, bags[1]);
+      await syncSeat(c0, bags[0]);
+      await syncSeat(c1, bags[1]);
+      return { bags, c0, c1 };
+    }
+
+    it("only the two ticketed accounts can take a seat, in whichever order they arrive", async () => {
+      const room = await ticketed([931, 932]);
+      // The refused stranger would otherwise leave the room empty and disposed.
+      room.autoDispose = false;
+      const stranger = await attempt(room, asPlayer(933, { preferredSeat: 0 }));
+      assert.deepEqual(stranger.refusals.map((r) => r.code), ["unauthorized"]);
+      assert.equal(room.seats.filled(), 0);
+      // The listed order does not matter: whoever arrives first takes seat 0.
+      const { c0 } = await seatBoth(room, [932, 931]);
+      assert.equal(room.seats.slot(0)!.userId, 932);
+      assert.equal(room.seats.slot(1)!.userId, 931);
+      const third = await attempt(room, asPlayer(933));
+      assert.deepEqual(third.refusals.map((r) => r.code), ["unauthorized"]);
+      await c0.leave(true);
+    });
+
+    it("one ticketed account cannot fill both seats with two connections", async () => {
+      const room = await ticketed([934, 935]);
+      const c0 = await colyseus.connectTo(room, asPlayer(934));
+      attach(c0, { views: [], errors: [] });
+      const again = await attempt(room, asPlayer(934));
+      assert.deepEqual(again.refusals.map((r) => r.code), ["room_full"]);
+      assert.equal(room.seats.filled(), 1);
+    });
+
+    it("spectators of a tournament room see no hands, and the welcome says tournament", async () => {
+      const room = await ticketed([936, 937]);
+      await seatBoth(room, [936, 937]);
+      const spec = await attempt(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(938), role: "spectator", preferredSeat: 0 });
+      assert.deepEqual(spec.refusals, []);
+      assert.ok(spec.views.length > 0);
+      for (const view of spec.views) assert.equal(view.revealedHands, undefined);
+      assert.equal(room.game.tournament, true);
+      assert.equal(room.game.ranked, false);
+    });
+
+    it("a room with a forged ticket is a casual room: spectators still see hands and any account can sit", async () => {
+      const room = await colyseus.createRoom<DuelRoom>("duel", {
+        protocolVersion: PROTOCOL_VERSION,
+        seed: 42,
+        autoSkipMulligan: true,
+        tournamentTicket: mintTestTournamentTicket({ seats: [939, 940], secret: "not-the-secret" }),
+      });
+      await seatBoth(room, [941, 942]);
+      const spec = await attempt(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(943), role: "spectator", preferredSeat: 0 });
+      assert.ok(spec.views.at(-1)!.revealedHands);
+    });
+
+    it("a player's welcome says tournament and carries no brief ticket, and hand_order sends spectators nothing", async () => {
+      const room = await ticketed([952, 953]);
+      const welcomes: { tournament?: boolean; ranked?: boolean; brief?: unknown }[] = [];
+      const bags: [SeatBag, SeatBag] = [{ views: [], errors: [] }, { views: [], errors: [] }];
+      const c0 = await colyseus.connectTo(room, asPlayer(952));
+      attach(c0, bags[0]);
+      c0.onMessage("welcome", (m: (typeof welcomes)[number]) => welcomes.push(m));
+      const c1 = await colyseus.connectTo(room, asPlayer(953));
+      attach(c1, bags[1]);
+      const specViews: unknown[] = [];
+      const spec = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(954), role: "spectator", preferredSeat: 0 });
+      spec.onMessage("view", (m: unknown) => specViews.push(m));
+      await syncSeat(c0, bags[0]);
+      await syncSeat(c1, bags[1]);
+      await waitUntil(() => welcomes.length > 0, 5000);
+      assert.equal(welcomes.at(-1)!.tournament, true);
+      assert.equal(welcomes.at(-1)!.ranked, false);
+      assert.equal(welcomes.at(-1)!.brief, undefined);
+      await roundTrip(spec);
+      specViews.length = 0;
+      c0.send("hand_order", { ids: bags[0].welcome!.you.hand.map((c) => c.id).reverse() });
+      await roundTrip(c0);
+      await roundTrip(spec);
+      assert.equal(specViews.length, 0);
+    });
+
+    it("undo is off and a request is refused", async () => {
+      const room = await ticketed([944, 945]);
+      const states: { enabled: boolean; blockedReason?: string }[] = [];
+      const bag: SeatBag = { views: [], errors: [] };
+      const c0 = await colyseus.connectTo(room, asPlayer(944));
+      attach(c0, bag);
+      c0.onMessage("undo_state", (m: { enabled: boolean; blockedReason?: string }) => states.push(m));
+      const c1 = await colyseus.connectTo(room, asPlayer(945));
+      attach(c1, { views: [], errors: [] });
+      await syncSeat(c0, bag);
+      await waitUntil(() => states.length > 0, 5000);
+      assert.equal(states.at(-1)!.enabled, false);
+      assert.match(states.at(-1)!.blockedReason!, /tournament/);
+      c0.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request", scope: "turn", force: true });
+      await waitUntil(() => bag.errors.some((e) => e.code === "unauthorized"), 5000);
+      assert.equal(room.undo.captureSnapshot(0, { type: "end_turn" }), null);
+    });
+
+    it("a deck ranked would turn away is turned away at join, and at create", async () => {
+      // P-064 has no verified card data.
+      const unverified = { leaderId: "OP01-001", deck: ["P-064"] };
+      const room = await ticketed([946, 947]);
+      const bad = await attempt(room, asPlayer(946, { deck: unverified }));
+      assert.deepEqual(bad.refusals.map((r) => r.code), ["unsupported_deck"]);
+      assert.equal(room.seats.filled(), 0);
+      await assert.rejects(
+        () => ticketed([946, 947], { players: [unverified, unverified] }),
+        /unsupported cards: P-064/,
+      );
+    });
+
+    it("its result and progress carry tournament:true, and a casual room's do not", async () => {
+      const finished = async (room: DuelRoom, uids: [number, number]) => {
+        const results: MatchResultPayload[] = [];
+        Object.assign(room, {
+          persistMatchResult: async (p: MatchResultPayload) => void results.push(p),
+          persistMatchProgress: async () => {},
+        });
+        const { bags, c0 } = await seatBoth(room, uids);
+        c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+        await waitUntil(() => bags[0].over !== undefined, 5000);
+        await waitUntil(() => results.length > 0, 5000);
+        return results[0]!;
+      };
+      await withRoomEnv({ outboxEnabled: true }, async () => {
+        const t = await finished(await ticketed([948, 949]), [948, 949]);
+        assert.equal(t.tournament, true);
+        assert.equal(t.ranked, false);
+        const casual = await finished(
+          await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 42, autoSkipMulligan: true }),
+          [950, 951],
+        );
+        assert.equal(casual.tournament, false);
+      });
+    });
+  });
+
   describe("a seated account cannot spectate its own match (#1344)", () => {
     async function seatedRoom(seatUids: [number, number], ownerUid?: number) {
       const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 42, autoSkipMulligan: true });
@@ -605,31 +787,6 @@ describe("DuelRoom", () => {
       await syncSeat(c1, bags[1]);
       return { room, bags };
     }
-    // The refusal is sent before a client can register a handler, so the room's rejectJoin is observed instead.
-    async function attempt(room: DuelRoom, options: Record<string, unknown>) {
-      const target = room as unknown as { rejectJoin(c: unknown, code: string, message: string): void };
-      const original = target.rejectJoin;
-      const refusals: { code: string; message: string }[] = [];
-      target.rejectJoin = function (this: unknown, c, code, message) {
-        refusals.push({ code, message });
-        return original.call(this, c, code, message);
-      };
-      const views: { revealedHands?: unknown }[] = [];
-      try {
-        const c = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, ...options });
-        c.onMessage("welcome", (m: { view: { revealedHands?: unknown } }) => views.push(m.view));
-        c.send("sync", { protocolVersion: PROTOCOL_VERSION });
-        await new Promise((r) => setTimeout(r, 250));
-      } catch {
-        // A refused join may close the socket before the SDK settles.
-      } finally {
-        target.rejectJoin = original;
-      }
-      return { refusals, views };
-    }
-    const spectate = (room: DuelRoom, uid: number) =>
-      attempt(room, { gameToken: gameToken(uid), role: "spectator", preferredSeat: 0 });
-
     it("a player's second connection as a spectator is refused in a casual room", async () => {
       const { room } = await seatedRoom([901, 902]);
       for (const uid of [901, 902]) {
@@ -1698,7 +1855,7 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bag);
     await waitUntil(() => states.length > 0, 5000);
     assert.equal(states.at(-1)!.enabled, false);
-    assert.equal((states.at(-1) as { blockedReason?: string }).blockedReason, "No undo in ranked");
+    assert.equal((states.at(-1) as { blockedReason?: string }).blockedReason, "No undo in ranked or tournament games");
     c0.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request", scope: "turn", force: true });
     await waitUntil(() => bag.errors.some((e) => e.code === "unauthorized"), 5000);
 

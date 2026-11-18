@@ -23,6 +23,7 @@ from app.core.rate_limit import RateLimiter
 from app.duel.server_urls import known_game_server_urls
 from app.social.presence import friendship, live_presence, room_server_url
 from app.duel.server_urls import normalize_server_url
+from app.duel.tournament_tickets import mint_tournament_ticket
 
 router = APIRouter(prefix="/tournaments", tags=["tournaments"])
 
@@ -142,6 +143,8 @@ class PlayOut(BaseModel):
     action: Literal["join", "host", "wait", "hosted"]
     room_id: str | None = None
     server_url: str | None = None
+    # Only a "host" answer carries one: the game server treats a room opened with it as this match's tournament room.
+    ticket: str | None = None
 
 
 def current_player(user: Annotated[User, Depends(get_current_user)]) -> User:
@@ -533,7 +536,10 @@ def play(
     m.server_url = None
     m.room_set_at = None
     db.commit()
-    return PlayOut(action="host")
+    ticket = mint_tournament_ticket(
+        match_id=m.id, seats=(m.player_a_id, m.player_b_id), settings=settings, now=int(now.timestamp())
+    )
+    return PlayOut(action="host", ticket=ticket)
 
 
 @router.post("/{code}/matches/{match_id}/award", response_model=TournamentOut)

@@ -45,6 +45,8 @@ class DuelMatchIngest(BaseModel):
     winner_seat: int = Field(ge=0, le=1)
     reason: str = Field(default="unknown", max_length=64)
     ranked: bool = True
+    # Set by the game server only for a room opened with a tournament ticket: no other result may decide a tournament match.
+    tournament: bool = False
     seat0_leader_id: str | None = Field(default=None, max_length=32)
     seat1_leader_id: str | None = Field(default=None, max_length=32)
     turns: int | None = Field(default=None, ge=0, le=10_000)
@@ -73,6 +75,7 @@ class DuelMatchProgressIngest(BaseModel):
     seat0_user_id: int
     seat1_user_id: int
     ranked: bool = False
+    tournament: bool = False
     seat0_leader_id: str | None = Field(default=None, max_length=32)
     seat1_leader_id: str | None = Field(default=None, max_length=32)
     turns: int | None = Field(default=None, ge=0, le=10_000)

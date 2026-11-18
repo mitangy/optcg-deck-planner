@@ -18,7 +18,7 @@ import { gameServerUrlFor, rememberedGameServerUrl, roomServerUrl } from "../../
 import type { ActiveMatch } from "../../net/activeMatches";
 import { clearMatchResume } from "../../net/matchResume";
 import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../../state/DuelSession";
-import { claimMatchRoom } from "../../tournaments/playLoop";
+import { claimMatchRoom, tournamentCreateOptions } from "../../tournaments/playLoop";
 import { playTournamentMatch } from "../../tournaments/tournamentApi";
 import type { useFriends } from "../../friends/FriendsPanel";
 import { readLobbyHandoff, useLobbyHandoffs, type TournamentPlay } from "./lobbyHandoff";
@@ -188,7 +188,7 @@ export function useMatchLaunchers(deps: {
         ...opts,
         preferredSeat: 0,
         deck: wire,
-        createOptions: { ranked: false, players: [wire, wire], timer: timerFromPreset(tp.timer) },
+        createOptions: tournamentCreateOptions(wire, timerFromPreset(tp.timer), claim.ticket),
       }, gen);
       if (client.roomId) {
         await playTournamentMatch(tp.code, tp.matchId, { room_id: client.roomId, server_url: client.serverUrl }).catch(() => undefined);
