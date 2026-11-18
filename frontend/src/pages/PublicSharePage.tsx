@@ -26,11 +26,13 @@ import { ThemeToggle } from "../ui/ThemeToggle";
 import { CardThumb } from "../ui/CardThumb";
 import { GridCard, MobileCard } from "../ui/PlannerCard";
 import { MarketPrice } from "../cards/MarketPrice";
-import { StillNeededCell, stillNeededText, totalOwned } from "./collection/OwnedCells";
+import { StillNeededCell, toBuyText, totalOwned } from "./collection/OwnedCells";
+import { UsedInCell } from "../ui/UsedInCell";
+import { needExplanation, usedInChips } from "./shopping/shoppingBuy";
 import { SortableTh, sortByColumn, useColumnSort } from "../ui/columnSort";
 import { ShoppingListSkeleton } from "../ui/Skeleton";
 import { isDonCardType } from "../cards/donCards";
-import { shoppingColumnValue, sharedUsedIn } from "./shopping/ShoppingItemsView";
+import { shoppingColumnValue } from "./shopping/ShoppingItemsView";
 import { formatShoppingListStats } from "./shopping/shoppingStats";
 import { COLSORT_SHARE_KEY, SHARE_ONLY_NEED_KEY } from "../storage/keys";
 import { qk } from "../cache/queryKeys";
@@ -180,8 +182,8 @@ export function PublicSharePage() {
                     imageSrc={item.image_url || undefined}
                     meta={
                       <>
-                        Owned {totalOwned(item.owned, item.alts_owned)} · {stillNeededText(item.still_need, item.need)}
-                        {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                        Own {totalOwned(item.owned, item.alts_owned)} · {toBuyText(item.still_need, item.need)}
+                        {item.still_need > 0 ? ` · To buy ${money(item.remaining_cost)}` : ""}
                       </>
                     }
                   >
@@ -203,10 +205,11 @@ export function PublicSharePage() {
                     <thead>
                       <tr>
                         <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
-                        <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
-                        <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="Own" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="Need" colKey="want" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="To buy" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
                         <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
-                        <SortableTh label="Remaining" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="To buy $" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
                         <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
                       </tr>
                     </thead>
@@ -228,15 +231,16 @@ export function PublicSharePage() {
                             </div>
                           </td>
                           <td>{totalOwned(item.owned, item.alts_owned)}</td>
+                          <td title={needExplanation(item) || undefined}>{item.need}</td>
                           <td>
-                            <StillNeededCell still={item.still_need} need={item.need} />
+                            <StillNeededCell still={item.still_need} />
                           </td>
                           <td>
                             <MarketPrice price={item.market_price} productId={item.product_id} />
                           </td>
                           <td>{money(item.remaining_cost)}</td>
                           <td className="used-in">
-                            {sharedUsedIn(item)}
+                            <UsedInCell decks={usedInChips(item)} />
                           </td>
                         </tr>
                       ))}
@@ -256,10 +260,10 @@ export function PublicSharePage() {
                       rarity={item.rarity}
                       meta={
                         <>
-                          {[`Owned ${totalOwned(item.owned, item.alts_owned)}`, stillNeededText(item.still_need, item.need)]
+                          {[`Own ${totalOwned(item.owned, item.alts_owned)}`, toBuyText(item.still_need, item.need)]
                             .filter(Boolean)
                             .join(" · ")}
-                          {item.still_need > 0 ? ` · Left ${money(item.remaining_cost)}` : ""}
+                          {item.still_need > 0 ? ` · To buy ${money(item.remaining_cost)}` : ""}
                         </>
                       }
                       info={
@@ -276,7 +280,7 @@ export function PublicSharePage() {
                         </div>
                       }
                     >
-                      {sharedUsedIn(item) && <p className="used-in mobile-used-in">{sharedUsedIn(item)}</p>}
+                      {usedInChips(item).length > 0 && <UsedInCell className="mobile-used-in" decks={usedInChips(item)} />}
                     </MobileCard>
                   ))}
                 </div>

@@ -31,12 +31,21 @@ export function CatalogAddDrawer({
   onScan,
   renderMeta,
   renderAction,
+  bare = false,
+  searchPlaceholder,
+  searchLabel,
+  searchIcon,
 }: {
   className?: string;
   summary: string;
   storageKey: string;
   defaultOpen: boolean;
   idleHint: string;
+  /** Render just the search and results, with no collapsible bar (for a panel that is already an overlay). */
+  bare?: boolean;
+  searchPlaceholder?: string;
+  searchLabel?: string;
+  searchIcon?: boolean | "search" | "filter";
   onScan?: () => void;
   renderMeta?: (card: CatalogCardResult) => ReactNode;
   renderAction: (card: CatalogCardResult) => ReactNode;
@@ -46,11 +55,10 @@ export function CatalogAddDrawer({
     typeKey: `${storageKey}_card_type`,
   });
 
-  return (
-    <div className={`deck-editor ${className ?? ""}`.trim()}>
-      <CollapsibleDrawer label="Add cards" summary={summary} storageKey={storageKey} defaultOpen={defaultOpen}>
+  const body = (
+    <>
         <div className="deck-editor-filters">
-          <CardSearchInput value={query} onChange={setQuery} />
+          <CardSearchInput value={query} onChange={setQuery} placeholder={searchPlaceholder} label={searchLabel} icon={searchIcon} />
           <div className="deck-editor-filter-row">
             <label className="deck-editor-select">
               <span className="sr-only">Color</span>
@@ -124,6 +132,14 @@ export function CatalogAddDrawer({
             })}
           </ul>
         )}
+    </>
+  );
+
+  if (bare) return <div className={`deck-editor ${className ?? ""}`.trim()}>{body}</div>;
+  return (
+    <div className={`deck-editor ${className ?? ""}`.trim()}>
+      <CollapsibleDrawer label="Add cards" summary={summary} storageKey={storageKey} defaultOpen={defaultOpen}>
+        {body}
       </CollapsibleDrawer>
     </div>
   );
