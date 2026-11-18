@@ -138,7 +138,15 @@ export type Trade = {
   other_applied: boolean;
 };
 export type TradesOut = { incoming: Trade[]; outgoing: Trade[]; active: Trade[]; history: Trade[] };
-export type TradesSummary = { incoming_pending: number; active: number };
+export type TradesSummary = {
+  incoming_pending: number;
+  /** Accepted trades awaiting a swap plus completed ones not yet applied. */
+  active: number;
+  /** Incoming friend requests awaiting an answer. */
+  friend_requests: number;
+  /** Completed trades this user has not applied yet. */
+  to_apply: number;
+};
 
 const json = (body: unknown) => JSON.stringify(body);
 

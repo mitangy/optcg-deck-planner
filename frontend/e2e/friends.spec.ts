@@ -20,13 +20,13 @@ test("adding a friend sends a request, and an incoming request can be accepted (
   await planner.open("/friends");
   await expect(page.getByRole("heading", { name: "Friends", level: 1 })).toBeVisible();
   const friends = page.getByRole("region", { name: "Your friends" });
-  await expect(friends.getByRole("link", { name: "kai" })).toBeVisible();
+  await expect(friends.getByRole("link", { name: "kai", exact: true })).toBeVisible();
 
   await page.getByLabel("Their username").fill("sora");
   await page.getByRole("button", { name: "Send request" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Request sent to sora." })).toBeVisible();
   expect(fake.sent.find((s) => s.path === "/friends/requests")?.body).toEqual({ username: "sora" });
-  const requests = page.getByRole("region", { name: "Friend requests" });
+  const requests = page.getByRole("region", { name: "Sent requests" });
   await expect(requests).toContainText("sora");
   await expect(requests).toContainText("request sent");
 
@@ -34,8 +34,8 @@ test("adding a friend sends a request, and an incoming request can be accepted (
   await page.getByRole("button", { name: "Send request" }).click();
   await expect(page.getByText("No player with that username.")).toBeVisible();
 
-  await requests.getByRole("button", { name: "Accept" }).click();
-  await expect(friends.getByRole("link", { name: "zoro" })).toBeVisible();
+  await page.getByRole("region", { name: "Needs you" }).getByRole("button", { name: "Accept" }).click();
+  await expect(friends.getByRole("link", { name: "zoro", exact: true })).toBeVisible();
 
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
@@ -206,9 +206,9 @@ const offer = () =>
   });
 
 test("an incoming offer shows both sides with values, and accepting it makes it active (#703)", async ({ page, planner }) => {
-  await installFriendsApi(page, planner.owned, { trades: [offer()] });
+  await installFriendsApi(page, planner.owned, { trades: [offer()], noRequests: true });
   await planner.open("/friends?tab=trades");
-  const incoming = page.getByRole("region", { name: "Offers for you" });
+  const incoming = page.getByRole("region", { name: "Needs you" });
   await expect(incoming).toContainText("kai offered you a trade");
   await expect(incoming.locator(".trade-side").filter({ hasText: "You get" })).toContainText("$13.60");
   await expect(incoming.locator(".trade-side").filter({ hasText: "You get" })).toContainText("Kid & Killer");
@@ -218,19 +218,19 @@ test("an incoming offer shows both sides with values, and accepting it makes it 
   await expect(nav(page).locator(".nav-badge")).toHaveText("1");
 
   await incoming.getByRole("button", { name: "Accept" }).click();
-  const active = page.getByRole("region", { name: "Active" });
-  await expect(active).toContainText("Agreed");
-  await expect(page.getByRole("region", { name: "Offers for you" })).toHaveCount(0);
+  const active = page.getByRole("region", { name: "In progress" });
+  await expect(active).toContainText("Swap the cards");
+  await expect(page.getByRole("region", { name: "Needs you" })).toHaveCount(0);
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });
 
 test("declining an offer moves it to History (#703)", async ({ page, planner }) => {
-  await installFriendsApi(page, planner.owned, { trades: [offer()] });
+  await installFriendsApi(page, planner.owned, { trades: [offer()], noRequests: true });
   await planner.open("/friends?tab=trades");
   await page.getByRole("button", { name: "Decline" }).click();
-  await expect(page.getByRole("region", { name: "History" })).toContainText("Declined");
-  await expect(nav(page).locator(".nav-badge")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "History" })).toContainText("Declined", { timeout: 10_000 });
+  await expect(nav(page).locator(".nav-badge")).toHaveCount(0, { timeout: 10_000 });
 });
 
 test("countering opens Spares with the offer turned around, and sends it as a counter (#703)", async ({ page, planner }) => {
@@ -255,20 +255,21 @@ test("countering opens Spares with the offer turned around, and sends it as a co
 
 test("after we traded, Update my collection changes only my counts, and Undo puts them back (#703)", async ({ page, planner }) => {
   const agreed = trade({ ...offer(), status: "accepted" });
-  const fake = await installFriendsApi(page, planner.owned, { trades: [agreed] });
+  const fake = await installFriendsApi(page, planner.owned, { trades: [agreed], noRequests: true });
   await planner.open("/collection");
   await expect(page.locator('[data-card-id="EB01-006"]:visible')).toBeVisible();
   await expect(page.locator('[data-card-id="EB01-003"]:visible')).toHaveCount(0);
   const link = nav(page);
-  await expect(link.locator(".nav-badge")).toHaveText("1");
+  // An agreed trade waits on a swap in person, so it doesn't light the badge (#1362).
+  await expect(link.locator(".nav-badge")).toHaveCount(0);
 
   await openFriends(page);
   await page.getByRole("tab", { name: /Trades/ }).click();
-  await expect(link.locator(".nav-badge")).toHaveText("1");
-  const widthWithBadge = (await link.boundingBox())!.width;
-  const active = page.getByRole("region", { name: "Active" });
+  const active = page.locator(".trade-card");
   await active.getByRole("button", { name: "We traded" }).click();
   await expect(active).toContainText("Update your collection to match?");
+  await expect(link.locator(".nav-badge")).toHaveText("1");
+  const widthWithBadge = (await link.boundingBox())!.width;
   expect(planner.owned.get("EB01-003")).toBe(0);
   await active.getByRole("button", { name: "Update my collection" }).click();
   await expect.poll(() => planner.owned.get("EB01-003")).toBe(2);

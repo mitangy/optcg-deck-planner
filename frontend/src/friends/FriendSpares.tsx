@@ -1,8 +1,8 @@
 import { Select } from "@optcg/ui/popups";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { money } from "../api";
 import type { SpareItem, TradeSide } from "./friendsApi";
-import { lineCap, lineQty, setLineQty, type TrayCard, type TrayLine } from "./tradeLogic";
+import { defaultProductId, lineCap, lineQty, setLineQty, type TrayCard, type TrayLine } from "./tradeLogic";
 import { CardRow, Empty, LoadError, QtyStepper } from "./ui";
 import { useFriendSpares } from "./useFriendSpares";
 
@@ -13,27 +13,40 @@ export function FriendSpares({
   username,
   lines,
   onLines,
+  othersOpen,
+  onOthersOpen,
+  scrollToken,
 }: {
   friendId: number;
   username: string;
   lines: TrayLine[];
   onLines: (next: TrayLine[]) => void;
+  othersOpen: boolean;
+  onOthersOpen: (open: boolean) => void;
+  scrollToken: number;
 }) {
-  const { data, isLoading, error, refetch, capOf } = useFriendSpares(friendId);
+  const { data, isLoading, error, refetch, capOf, otherMine } = useFriendSpares(friendId);
   const [printing, setPrinting] = useState<Record<string, number | null>>({});
+  const othersRef = useRef<HTMLElement>(null);
+  const scrolled = useRef(0);
+  useEffect(() => {
+    if (scrollToken === scrolled.current || !othersRef.current) return;
+    scrolled.current = scrollToken;
+    othersRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
+  });
 
   if (isLoading) return <p className="muted">Loading…</p>;
   if (error) return <LoadError error={error} onRetry={() => void refetch()} />;
   const needIds = new Set(data!.you_need.map((i) => i.card_id));
   const others = data!.their_spares.filter((i) => !needIds.has(i.card_id));
   const total = data!.you_need.length + others.length + data!.they_need.length;
-  if (total === 0) {
+  if (total === 0 && otherMine.length === 0) {
     return <Empty title="Nothing to trade yet">{username} has no spares, and none of yours are on their wish list.</Empty>;
   }
 
   const renderRow = (item: SpareItem, side: TradeSide) => {
     const rowKey = `${side}:${item.card_id}`;
-    const productId = rowKey in printing ? printing[rowKey] : item.base_owned > 0 ? null : (item.printings[0]?.product_id ?? null);
+    const productId = rowKey in printing ? printing[rowKey] : defaultProductId(item);
     const chosen = item.printings.find((p) => p.product_id === productId);
     const card: TrayCard = {
       side,
@@ -73,6 +86,7 @@ export function FriendSpares({
             ]}
           />
         )}
+        <span className="step-label">{side === "get" ? "Ask for" : "Give"}</span>
         <QtyStepper
           value={lineQty(lines, card)}
           max={lineCap(lines, card, cap)}
@@ -96,11 +110,30 @@ export function FriendSpares({
       </section>
     );
 
+  const othersSection =
+    otherMine.length === 0 ? null : (
+      <section className="spares-section" aria-label="Your other spares" ref={othersRef}>
+        <h2>
+          <button type="button" className="spares-disclosure" aria-expanded={othersOpen} onClick={() => onOthersOpen(!othersOpen)}>
+            <span aria-hidden>{othersOpen ? "▾" : "▸"}</span> Your other spares <span className="muted">{otherMine.length}</span>
+          </button>
+        </h2>
+        {othersOpen && (
+          <>
+            <p className="muted friend-lede">Your spares that {username} hasn't asked for. You can still offer them.</p>
+            <ul className="friend-card-list">{otherMine.map((i) => renderRow(i, "give"))}</ul>
+          </>
+        )}
+      </section>
+    );
+
   return (
     <div className="friend-spares">
+      <p className="muted friend-lede spares-hint">Pick cards with + to build an offer. Nothing is sent until you press Send offer.</p>
       {section("They have, you need", `Spares of ${username}'s that are on your Shopping list.`, data!.you_need, "get")}
       {section("Their spares", `Everything else ${username} can trade.`, others, "get")}
       {section("You have, they need", `Your spares that are on ${username}'s Shopping list.`, data!.they_need, "give")}
+      {othersSection}
     </div>
   );
 }
