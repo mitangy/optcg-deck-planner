@@ -276,24 +276,6 @@
   }
 }
 
-/* Below 340px the mark, wordmark and user buttons together overflow the row, which would wrap the wordmark out of sight. */
-@media (max-width: 340px) {
-  .topbar .brand a {
-    flex-wrap: nowrap;
-    gap: 0.3rem;
-  }
-
-  .topbar .brand-mark {
-    width: 26px;
-    height: 26px;
-  }
-
-  .topbar .brand-wordmark {
-    font-size: 1rem;
-    letter-spacing: 0.04em;
-  }
-}
-
 @media (max-width: 800px) {
   .topbar .user .btn {
     width: auto;
