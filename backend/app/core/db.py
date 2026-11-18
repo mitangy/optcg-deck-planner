@@ -33,6 +33,7 @@ engine = create_engine(
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
+# "optcg_s2": the old key's session lock got stranded on a pooled Neon backend.
 STARTUP_LOCK_KEY = 0x6F707463675F7332
 
 

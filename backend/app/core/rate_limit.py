@@ -83,6 +83,7 @@ def _from_vercel(request) -> bool:
 
 
 def client_ip(request) -> str:
+    # Vercel overwrites X-Forwarded-For but Render passes a caller-chosen one through, so there CF-Connecting-IP is the trusted source.
     if _from_vercel(request):
         forwarded = request.headers.get("x-forwarded-for")
         if forwarded:

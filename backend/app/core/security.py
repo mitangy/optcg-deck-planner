@@ -42,6 +42,7 @@ def require_catalog_token(
 def require_ops_token(
     settings: Annotated[Settings, Depends(get_settings)],
     x_ops_token: Annotated[str | None, Header()] = None,
+    # Legacy header and fallback secret stay accepted so existing curl calls keep working after the secret was split.
     x_catalog_token: Annotated[str | None, Header()] = None,
 ) -> None:
     expected = settings.ops_admin_token or settings.catalog_sync_token

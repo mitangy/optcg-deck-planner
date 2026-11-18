@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "description": "Playwright screen-capture scripts for the OPTCG Duel trailer (see ../README.md)",
+  "description": "Playwright screen-capture scripts for the OPTCG Duel trailer",
   "scripts": {
     "capture": "bash run.sh",
     "typecheck": "tsc -p ."

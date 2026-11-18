@@ -45,6 +45,7 @@ def scrub_names(log: str, my_name: str, opp_name: str | None) -> str:
     swaps.update({o: OPP_PLACEHOLDER for o in opps if o != me})
     if not swaps:
         return text
+    # Player and opponent names are never stored; longest first so a name containing another is not cut short.
     names = sorted(swaps, key=len, reverse=True)
     return re.sub("|".join(re.escape(n) for n in names), lambda m: swaps[m.group(0)], text)
 

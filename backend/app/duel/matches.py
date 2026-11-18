@@ -92,6 +92,7 @@ def _with_live_progress(
         seen = newest.get(row.match_id)
         if seen is None or as_utc(row.updated_at) > as_utc(seen.updated_at):
             newest[row.match_id] = row
+    # A live snapshot can land just after the result (no match lock on the Redis path).
     finished = set(db.scalars(select(DuelMatch.match_id).where(DuelMatch.match_id.in_(list(newest)))))
     return [row for match_id, row in newest.items() if match_id not in finished]
 

@@ -15,7 +15,7 @@ const st = (set: string, counts: [number, number][]) =>
 
 /*
  * Decks. TCGplayer's CDN serves a big "SAMPLE" watermark over most card images (or an "Image Coming Soon"
- * placeholder), so these lists are built only from cards whose art is clean (checked by eye, see README):
+ * placeholder), so these lists are built only from cards whose art is clean (checked by eye):
  * the original Straw Hat starter (ST01), Worst Generation (ST02) and the clean Wano / Straw Hat cards of OP01.
  */
 export const STRAW_HATS: DeckList = list("ST01-001", {

@@ -65,6 +65,7 @@ class DuelMatch(Base):
 
 
 class DuelMatchSeatLog(Base):
+    # Holds that seat's hidden cards, so only that player may see it.
     __tablename__ = "duel_match_seat_logs"
 
     match_id: Mapped[str] = mapped_column(

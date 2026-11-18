@@ -1,5 +1,5 @@
 /**
- * Log Pose eval: case, gold, grade and result types. See analyst/README.md ("Evals").
+ * Log Pose eval: case, gold, grade and result types.
  *
  * Rule: no Bandai text in the case files. A FAQ row is referenced by card id plus `qh`, the
  * shortHash of its question (the same hash that makes `ruling:general#<hash>` ids); the official

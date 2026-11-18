@@ -3,6 +3,7 @@ import { api } from "../api";
 import { setSignedInHint } from "../app/prerendered";
 import { qk } from "../cache/queryKeys";
 
+// Every reader must use this hook: the signed-in hint is written by its queryFn, so a reader with its own queryFn under the same key could skip it.
 export function useMe() {
   return useQuery({
     queryKey: qk.me(),

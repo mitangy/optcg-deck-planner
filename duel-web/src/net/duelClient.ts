@@ -107,6 +107,7 @@ export class DuelClient {
   private handlers: DuelClientHandlers = {};
   private reconnectionToken: string | null = null;
   private matchServerUrl: string | null = null;
+  // An older connect that finishes later must not take the client.
   private connectSeq = 0;
   private pendingReconnect: Promise<{ matchId: string; seat: Seat }> | null = null;
   private lastView: PlayerView | null = null;
@@ -640,6 +641,7 @@ export class DuelClient {
     });
 
     room.onReconnect(() => {
+      // An End turn lost with the old socket must not lock the turn.
       if (this.room === room) this.endTurnSentOn = null;
       // The server issues a fresh token on every reclaim and the old one is
       // dead, but the SDK fires onReconnect before it stores the new token.
@@ -651,6 +653,7 @@ export class DuelClient {
     });
 
     room.onLeave((code) => {
+      // A room we already detached from must not clobber a newer one.
       if (this.room !== room) return;
       if (code === TAKEN_OVER_CLOSE_CODE) this.markTakenOver(room);
       this.handlers.onDisconnect?.(code);

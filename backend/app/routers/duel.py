@@ -88,6 +88,7 @@ _ingest_rate = RateLimiter(max_calls=120, period_s=60, name="duel_ingest_rate")
 _presence_rate = RateLimiter(max_calls=120, period_s=60, name="duel_presence_rate")
 _progress_rate = RateLimiter(max_calls=1200, period_s=60, name="duel_progress_rate")
 _report_rate = RateLimiter(max_calls=10, period_s=600, name="duel_report_rate")
+# Reports are kept forever and the per-IP key can be spoofed via X-Forwarded-For, so cap the total too.
 _report_global_rate = RateLimiter(max_calls=60, period_s=3600, name="duel_report_global_rate")
 # Guest and dev ids are client-chosen, so a fresh id per request would create a
 # User + DuelRating row every time. New accounts are capped per IP and in total.
@@ -106,6 +107,7 @@ def _allow_new_account(request: Request) -> None:
 
 
 def _get_or_create_rating(db: Session, user_id: int) -> DuelRating:
+    # Token minting and the first result can race, so insert atomically without rolling back the match transaction.
     insert = sqlite_insert if db.get_bind().dialect.name == "sqlite" else pg_insert
     db.execute(
         insert(DuelRating)
@@ -240,6 +242,7 @@ def mint_guest_token(
             db.commit()
             db.refresh(user)
         except IntegrityError:
+            # Concurrent StrictMode / double-mount mints for the same guest id.
             db.rollback()
             user = None
             for _ in range(20):
@@ -415,6 +418,7 @@ def ingest_match_progress(
             redis_client.report_failure("progress write")
     lock_match(db, match_id)
     if has_result(db, match_id):
+        # A snapshot that lost the race to the result must not bring the game back.
         db.rollback()
         return
     _require_known_seats(db, body)

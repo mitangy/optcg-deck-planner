@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     analyst_free_spots: int = 50
     analyst_model_admin_emails: str = "optcgduel@gmail.com"
     admin_email: str = "optcgduel@gmail.com,gamefreakmichaeltang@gmail.com"
+    # Unset keeps trusting X-Forwarded-For.
     proxy_shared_secret: str = ""
     vercel_token: str = ""
     vercel_team_id: str = ""
