@@ -86,7 +86,7 @@ describe("Master Shopping deck filter with no decks (#1211)", () => {
     await flush();
     const f = btn(/^Filters/)!;
     await act(async () => f.click());
-    const clearAll = btn(/^Clear all$/);
+    const clearAll = [...document.querySelectorAll("button")].find((b) => /^Clear all$/.test(b.textContent ?? ""));
     expect(clearAll).toBeTruthy();
     await act(async () => clearAll!.click());
     await flush();
