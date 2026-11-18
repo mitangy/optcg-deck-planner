@@ -1,7 +1,17 @@
 const NO_FOOTER = ["/duel", "/hotseat", "/demo", "/replay", "/auth/complete"];
 
+const under = (pathname: string, p: string) => pathname === p || pathname.startsWith(`${p}/`);
+
 export function showsSiteFooter(pathname: string): boolean {
-  return !NO_FOOTER.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  return !NO_FOOTER.some((p) => under(pathname, p));
+}
+
+const FULL_FOOTER = ["/", "/watch", "/play-one-piece-tcg-online", "/optcg-sim-online", "/play-optcg-on-phone", "/leaders", "/terms", "/privacy", "/cookies", "/conduct"];
+
+/** The lobby and the public/SEO and legal pages carry every link; other app pages get one compact line (#1343). */
+export function compactSiteFooter(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  return !FULL_FOOTER.some((p) => path === p || (p !== "/" && under(path, p)));
 }
 
 export const FOOTER_LINKS = [

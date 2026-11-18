@@ -96,8 +96,7 @@ test("private room: the host moves to a third device while the guest plays on (#
   await seedDecks(page);
   const created = page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
   await page.goto("/");
-  await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
   await page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;
@@ -105,8 +104,7 @@ test("private room: the host moves to a third device while the guest plays on (#
 
   const rival = await newDevice(browser, info, RIVAL, page);
   await rival.page.goto("/");
-  await rival.page.getByRole("button", { name: "Play", exact: true }).click();
-  await rival.page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
+  await rival.page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
   await rival.page.getByRole("tab", { name: "Join" }).click();
   await rival.page.getByLabel("Room id").fill(roomId);
   await rival.page.getByRole("button", { name: "Join room" }).click();

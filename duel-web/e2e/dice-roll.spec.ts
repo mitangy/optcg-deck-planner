@@ -18,8 +18,7 @@ async function startBotGameWithDice(page: Page, seed: number) {
     localStorage.setItem("optcg-duel:settings", JSON.stringify({ gameHints: true }));
   }, decks);
   await page.goto("/");
-  await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: /^Play vs Bot/ }).click();
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Play vs Bot/ }).click();
   await page.getByRole("button", { name: "Start game" }).click();
 }
 

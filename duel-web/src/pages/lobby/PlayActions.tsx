@@ -1,9 +1,9 @@
 import { prefetchBoard } from "../../lazyRoutes";
-import { modeTiles, primaryAction } from "../../home/primaryAction";
 import type { LastMode } from "../../home/lastMode";
+import type { PrimaryAction } from "../../home/primaryAction";
 import { MODE_CARDS } from "./modes";
 
-export function PlayActions({ lastMode, disabled, onPlay }: { lastMode: LastMode | null; disabled: boolean; onPlay: (at: LastMode | null) => void }) {
+export function PlayActions({ primary, disabled, onPrimary, onPlay }: { primary: PrimaryAction; disabled: boolean; onPrimary: () => void; onPlay: (mode: LastMode | "spectate") => void }) {
   return (
     <div className="home-actions">
       <button
@@ -13,31 +13,29 @@ export function PlayActions({ lastMode, disabled, onPlay }: { lastMode: LastMode
         aria-describedby="play-subline"
         onPointerEnter={prefetchBoard}
         onFocus={prefetchBoard}
-        onClick={() => onPlay(lastMode)}
+        onClick={onPrimary}
       >
-        Play
+        {primary.title}
         <span id="play-subline" className="btn-play-sub" aria-hidden>
-          {primaryAction(lastMode).subline}
+          {primary.subline}
         </span>
       </button>
-      <div className={`mode-tiles mode-tiles-${modeTiles(lastMode).length}`}>
-        {modeTiles(lastMode).map((m) => {
-          const card = MODE_CARDS.find((c) => c.mode === m)!;
-          return (
-            <button
-              key={m}
-              type="button"
-              className="mode-tile"
-              disabled={disabled}
-              onPointerEnter={prefetchBoard}
-              onFocus={prefetchBoard}
-              onClick={() => onPlay(m)}
-            >
-              <span className="mode-tile-title">{card.title}</span>
-              <span className="mode-tile-blurb">{card.short}</span>
-            </button>
-          );
-        })}
+      <div className="mode-tiles mode-tiles-5">
+        {MODE_CARDS.map((card) => (
+          <button
+            key={card.mode}
+            type="button"
+            className="mode-tile"
+            aria-current={card.mode === primary.mode ? "true" : undefined}
+            disabled={disabled}
+            onPointerEnter={prefetchBoard}
+            onFocus={prefetchBoard}
+            onClick={() => onPlay(card.mode)}
+          >
+            <span className="mode-tile-title">{card.title}</span>
+            <span className="mode-tile-blurb">{card.short}</span>
+          </button>
+        ))}
       </div>
     </div>
   );
