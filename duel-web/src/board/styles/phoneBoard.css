@@ -453,16 +453,18 @@
     min-height: 44px;
   }
 
+  /* The two corner pills have the top bar above them and the opponent's count chips below, so they stop at 28px instead of taking those controls' taps. */
+  .battle-log.collapsed .battle-log-toggle,
+  .chat-panel.collapsed .chat-toggle {
+    min-height: 28px;
+  }
+
   .hand-rail-btn,
-  .battle-log-toggle,
-  .chat-toggle,
   .count-chip.openable {
     position: relative;
   }
 
   .hand-rail-btn::after,
-  .battle-log-toggle::after,
-  .chat-toggle::after,
   .count-chip.openable::after {
     content: "";
     position: absolute;

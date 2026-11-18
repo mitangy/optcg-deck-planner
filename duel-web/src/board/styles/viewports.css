@@ -303,18 +303,6 @@
     padding-left: 104px;
   }
 
-  /* As short as the Battle log pill beside it, so it sits inside the opponent-hand row and never reaches the mat below (the hit area stays 44px). */
-  .arena .chat-panel.collapsed .chat-toggle {
-    padding-block: 0.2rem;
-    line-height: 1.2;
-  }
-
-  .arena .chat-panel.collapsed .chat-count,
-  .arena .chat-panel.collapsed .chat-unread {
-    min-width: 1.2rem;
-    padding: 0 0.3rem;
-  }
-
   /* Dropping the text keeps 8 backs clear of the log pill. */
   .arena .arena-body:has(.chat-panel) .opp-hand-label {
     display: none;
