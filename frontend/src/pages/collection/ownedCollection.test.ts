@@ -106,7 +106,6 @@ describe("owned collection", () => {
   it("stepping an alt's Owned reprices the card at the alt's own price and moves the totals (#723)", () => {
     const alt = (product_id: number, price: number, owned: number): PrintingView =>
       ({ product_id, name: `alt ${product_id}`, market_price: price, owned }) as PrintingView;
-    // 2 base at $1 + 1 of alt 100 at $20; alt 101 ($5) is unowned.
     const a: OwnedCard = { ...card("A", 2, 1), alts_owned: 1, value: 22, alt_arts: [alt(100, 20, 1), alt(101, 5, 0)] };
     const old: OwnedCollectionResponse = {
       items: [a, card("B", 1, 10)],
@@ -121,7 +120,6 @@ describe("owned collection", () => {
     expect(next.items[1]).toBe(old.items[1]);
     expect(next.total_copies).toBe(6);
     expect(next.total_value).toBe(42);
-    // Back to 0 on every alt: the card stays listed (base copies remain) at its base value.
     const cleared = patchOwnedCollectionAlt(patchOwnedCollectionAlt(next, "A", 101, 0), "A", 100, 0);
     expect(cleared.items[0]).toMatchObject({ alts_owned: 0, value: 2 });
     expect(cleared.total_value).toBe(12);

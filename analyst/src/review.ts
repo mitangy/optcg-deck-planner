@@ -12,7 +12,6 @@ import { partialUsageOf } from "./rounds";
 import type { reviewBody } from "./schemas";
 import type { ChatDeps, ModelReply, SseEvent } from "./types";
 
-/** The post-game analysis of one of the player's games: one model call over the game from their seat, saved for next time. */
 export async function runReview(deps: ChatDeps, token: string, body: z.infer<typeof reviewBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
   const release = await claimStream(deps.api, token, "review");
   try {
@@ -22,13 +21,11 @@ export async function runReview(deps: ChatDeps, token: string, body: z.infer<typ
   }
 }
 
-/** Lines of a game a review reads: whole games, including the board lines each turn adds. */
 export const REVIEW_MAX_LINES = 1500;
 
 /** Output cap of a review; thinking tokens count against it, so it must leave room for the text after the model has thought (#831). */
 export const REVIEW_MAX_TOKENS = 32000;
 
-/** Every card of the game with its printed stats and text: both decks and leaders (the opponent's only once revealed) and each card seen in the log. */
 export function reviewCardReference(catalog: Catalog, game: ReviewGame): string {
   const g = game as { yourLeaderId: string; opponentLeaderId: string; yourDeck: { id: string }[]; opponentDeck?: { id: string }[]; cardsInGame: string[] };
   const ids = new Set<string>([g.yourLeaderId, g.opponentLeaderId, ...g.yourDeck.map((d) => d.id), ...(g.opponentDeck ?? []).map((d) => d.id), ...g.cardsInGame]);

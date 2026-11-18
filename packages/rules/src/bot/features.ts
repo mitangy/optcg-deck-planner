@@ -1,15 +1,9 @@
-/**
- * Position features for the learned value model (#635). Pure: reads a full MatchState, but only what `seat` could see
- * (the opponent's hand counts by size, never by content), so the same features work on a determinized copy.
- * The vector is fixed-length; `FEATURE_NAMES` names each slot and `valueWeights.json` is fitted against exactly this order.
- */
 import { getCardDef } from "../cards/definitions.js";
 import { hasPrintedKeyword } from "../cards/abilities.js";
 import { evaluate } from "./evaluate.js";
 import { keywordsOf, powerOf, withQueryCache } from "../engine/queries.js";
 import type { MatchState, PlayerState, Seat } from "../types.js";
 
-/** One side of the table, summarised. Hand contents are summarised only for the seat the features are built for. */
 interface Side {
   life: number;
   faceUpLife: number;
@@ -86,7 +80,6 @@ export const FEATURE_NAMES = [
 ] as const;
 export type FeatureName = (typeof FEATURE_NAMES)[number];
 
-/** The feature vector of `state` for `seat` (aligned with FEATURE_NAMES). Not meaningful once the game is over. */
 export function extractFeatures(state: MatchState, seat: Seat): number[] {
   return withQueryCache(state, () => {
     const oppSeat: Seat = seat === 0 ? 1 : 0;
@@ -113,16 +106,11 @@ function v1Vector(state: MatchState, seat: Seat, me: Side, op: Side): number[] {
   ];
 }
 
-// --- feature set v2 -----------------------------------------------------------------------------------------------
-
-/** Leader colours as they appear in the card data. */
 export const LEADER_COLORS = ["red", "green", "blue", "purple", "black", "yellow"] as const;
 
-/** v1 slots the "my leader colour x ..." interactions scale (same scaling as v1). */
 const COLOR_INTERACTIONS = ["life_diff", "hand_diff", "board_power_diff"] as const;
 const V1_INDEX: Record<string, number> = Object.fromEntries(FEATURE_NAMES.map((n, i) => [n, i]));
 
-/** Dense part of feature set v2: every v1 feature (same order), then the additions. The card bag is sparse and lives beside it. */
 export const FEATURE_NAMES_V2 = [
   ...FEATURE_NAMES,
   ...LEADER_COLORS.map((c) => `leader_me_${c}`),
@@ -131,18 +119,14 @@ export const FEATURE_NAMES_V2 = [
   "opp_don_next", "ready_attackers_me", "ready_power_me", "lethal_attackers_me", "ready_attackers_opp", "lethal_attackers_opp", "counter_per_attack_opp",
 ] as const;
 
-/** Sparse card-identity inputs: slot = 2 * vocabIndex + (0: my field count minus theirs, 1: copies in my hand). */
 export const BAG_SLOTS = 2;
 
 export interface FeaturesV2 {
-  /** Aligned with FEATURE_NAMES_V2. */
   dense: number[];
-  /** Nonzero bag slots (see BAG_SLOTS) and their values; parallel arrays, at most one entry per slot. */
   idx: number[];
   val: number[];
 }
 
-/** Units of `p` that can attack at the next opportunity (the Leader and unrested Characters not summoning-sick on their own turn), with the number that reach `against` power. */
 function attackers(state: MatchState, seat: Seat, against: number): { n: number; power: number; reach: number } {
   const p = state.players[seat];
   let n = 0;
@@ -160,10 +144,6 @@ function attackers(state: MatchState, seat: Seat, against: number): { n: number;
   return { n, power, reach };
 }
 
-/**
- * Card-identity bag of `seat`'s view: for every card `lookup` knows (returns an index, or -1 to skip), my field count minus
- * the opponent's (Characters and Stage) and the copies in MY hand. The opponent's hand is never read.
- */
 export function cardBag(state: MatchState, seat: Seat, lookup: (defId: string) => number): { idx: number[]; val: number[] } {
   const idx: number[] = [];
   const val: number[] = [];
@@ -195,7 +175,6 @@ function vocabLookup(vocab: readonly string[]): (defId: string) => number {
   return (defId) => map.get(defId) ?? -1;
 }
 
-/** The dense part of feature set v2 for `seat`. */
 export function denseFeaturesV2(state: MatchState, seat: Seat): number[] {
   return withQueryCache(state, () => {
     const oppSeat: Seat = seat === 0 ? 1 : 0;
@@ -213,14 +192,12 @@ export function denseFeaturesV2(state: MatchState, seat: Seat): number[] {
       Math.min(10, op.donField + 2) / 10,
       mine.n / 6, mine.power / 30000, mine.reach / 5,
       theirs.n / 6, theirs.reach / 5,
-      // Hand counter value (in 10k) per attack the opponent can make.
       me.counterPower / 10000 / Math.max(1, theirs.n),
     );
     return x;
   });
 }
 
-/** Feature set v2 of `state` for `seat`; the card bag is indexed by `vocab` (cards outside it are ignored, no vocab = no bag). */
 export function extractFeaturesV2(state: MatchState, seat: Seat, vocab?: readonly string[]): FeaturesV2 {
   const dense = denseFeaturesV2(state, seat);
   if (!vocab || vocab.length === 0) return { dense, idx: [], val: [] };

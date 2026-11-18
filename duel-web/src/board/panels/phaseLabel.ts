@@ -11,7 +11,6 @@ const LABELS: Record<string, string> = {
   game_over: "Match over",
 };
 
-/** The HUD's phase word: engine phases are snake_case ids, people read "Match over". */
 export function phaseLabel(phase: string): string {
   return LABELS[phase] ?? phase.replace(/_/g, " ").replace(/^./, (c) => c.toUpperCase());
 }

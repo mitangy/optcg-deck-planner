@@ -1,17 +1,12 @@
-/**
- * Mandatory On Play / Main / Counter / When Attacking / On K.O. effects, with a
- * row for the case where the printed condition or target filter does not hold.
- */
 import { runScenarios, mine, theirs, type CardScenario } from "../../testing/scenario.js";
 
-const KAROO = "ST01-003"; // vanilla 1-cost 3000
-const VIVI = "ST01-009"; // vanilla 2-cost 4000
-const ROBIN = "ST01-008"; // vanilla 3-cost 5000
-const BIG = "EB02-001"; // vanilla 5-cost 7000
-const CHOPPER = "ST01-006"; // 1-cost 1000 [Blocker]
+const KAROO = "ST01-003";
+const VIVI = "ST01-009";
+const ROBIN = "ST01-008";
+const BIG = "EB02-001";
+const CHOPPER = "ST01-006";
 
 const rows: CardScenario[] = [
-  // OP02-011 Vista: [On Play] K.O. up to 1 of your opponent's Characters with 3000 power or less.
   {
     card: "OP02-011", name: "K.O.s a Character with 3000 power or less and spares a 4000 one",
     me: { hand: ["OP02-011"], don: { active: 3 } },
@@ -28,7 +23,6 @@ const rows: CardScenario[] = [
     expect: { opp: { field: [VIVI] }, pending: "none" },
   },
 
-  // OP01-033 Izo: [On Play] Rest up to 1 of your opponent's Characters with a cost of 4 or less.
   {
     card: "OP01-033", name: "rests a Character with cost 4 or less",
     me: { hand: ["OP01-033"], don: { active: 3 } },
@@ -45,7 +39,6 @@ const rows: CardScenario[] = [
     expect: { opp: { rested: [] }, pending: "none" },
   },
 
-  // OP01-054 X.Drake: [On Play] K.O. up to 1 of your opponent's rested Characters with a cost of 4 or less.
   {
     card: "OP01-054", name: "K.O.s only a rested Character, leaving an active one",
     me: { hand: ["OP01-054"], don: { active: 5 } },
@@ -62,7 +55,6 @@ const rows: CardScenario[] = [
     expect: { opp: { field: [KAROO] }, pending: "none" },
   },
 
-  // OP01-027 Round Table: [Main] Give up to 1 of your opponent's Characters -10000 power during this turn.
   {
     card: "OP01-027", name: "gives the chosen Character -10000 power",
     me: { hand: ["OP01-027"], don: { active: 4 } },
@@ -78,7 +70,6 @@ const rows: CardScenario[] = [
     expect: { opp: { power: { [ROBIN]: 5000, [VIVI]: 4000 } } },
   },
 
-  // OP01-115 Elephant's Marchoo: [Main] K.O. up to 1 of your opponent's Characters with a cost of 2 or less, then add up to 1 DON!! card from your DON!! deck and set it as active.
   {
     card: "OP01-115", name: "K.O.s a cost 2 Character, then adds an active DON!!",
     me: { hand: ["OP01-115"], don: { active: 4 } },
@@ -94,7 +85,6 @@ const rows: CardScenario[] = [
     expect: { me: { don: { active: 1, deck: 5 } }, opp: { field: [ROBIN, BIG] }, pending: "none" },
   },
 
-  // OP01-029 Radical Beam!!: [Counter] +2000 power this battle; with 2 or less Life, an additional +2000.
   {
     card: "OP01-029", name: "gives +2000 with 3 Life",
     me: { hand: ["OP01-029"], don: { active: 1 }, life: [KAROO, KAROO, KAROO] },
@@ -110,8 +100,8 @@ const rows: CardScenario[] = [
     expect: { me: { power: { "ST01-001": 9000 } } },
   },
 
-  // ST32-002 Kouzuki Oden: [On Play] Draw 1 card and up to 1 of your opponent's Characters with a base cost of 6 or less cannot be rested until the end of your opponent's next End Phase.
-  // Official Q&A: a Character that "cannot be rested" cannot activate [Blocker], attack, or pay "You may rest this Character:" costs.
+  // Official Q&A: a Character that "cannot be rested" cannot activate [Blocker], attack, or pay "You may rest this
+  // Character:" costs.
   {
     card: "ST32-002", name: "Character that cannot be rested can't activate Blocker (Kouzuki Oden ST32-002) (#449)",
     me: { hand: ["ST32-002"], field: [ROBIN], don: { active: 5 } },
@@ -149,7 +139,6 @@ const rows: CardScenario[] = [
     expect: { opp: { rested: [] } },
   },
 
-  // ST01-002 Usopp: [DON!! x2] [When Attacking] Your opponent cannot activate a [Blocker] Character that has 5000 or more power during this battle.
   {
     card: "ST01-002", name: "stops a 5000-power Blocker but not a 1000-power one",
     me: { field: [{ card: "ST01-002", don: 2 }] },
@@ -165,7 +154,6 @@ const rows: CardScenario[] = [
     expect: { opp: { blockers: ["OP04-104", CHOPPER] } },
   },
 
-  // OP02-017 Masked Deuce: [DON!! x2] [When Attacking] K.O. up to 1 of your opponent's Characters with 2000 power or less.
   {
     card: "OP02-017", name: "K.O.s a 1000-power Character when attacking with 2 DON!!",
     me: { field: [{ card: "OP02-017", don: 2 }] },
@@ -189,7 +177,6 @@ const rows: CardScenario[] = [
     expect: { opp: { field: [KAROO] }, pending: "none" },
   },
 
-  // OP01-007 Caribou: [On K.O.] K.O. up to 1 of your opponent's Characters with 4000 power or less.
   {
     card: "OP01-007", name: "when K.O.'d in battle, K.O.s a 3000-power Character but not a 7000 one",
     me: { field: [{ card: "OP01-007", rested: true }] },
@@ -205,7 +192,6 @@ const rows: CardScenario[] = [
     expect: { me: { field: [], trash: ["OP01-007"] }, opp: { field: [ROBIN, BIG] }, pending: "none" },
   },
 
-  // OP16-109 Doc Q: [On K.O.] If your Leader has the {Blackbeard Pirates} type, draw 1 card and K.O. up to 2 of your opponent's Characters with a cost of 1 or less.
   {
     card: "OP16-109", name: "with a Blackbeard Pirates Leader, draws and K.O.s two cost-1 Characters",
     leaders: { me: "OP09-081" },
@@ -222,7 +208,6 @@ const rows: CardScenario[] = [
     expect: { me: { hand: [], deckDelta: 0 }, opp: { field: [VIVI, KAROO, CHOPPER, ROBIN] }, pending: "none" },
   },
 
-  // OP14-108 Silvers Rayleigh: [On Play] If your Leader is multicolored and your opponent has 3 or less Life cards, K.O. up to 1 of your opponent's Characters with 7000 base power or less.
   {
     card: "OP14-108", name: "with a multicolored Leader and opponent at 3 Life, K.O.s a 7000 base power Character",
     leaders: { me: "OP01-061" },
@@ -256,7 +241,6 @@ const rows: CardScenario[] = [
     expect: { opp: { field: ["EB01-041"] }, pending: "none" },
   },
 
-  // OP01-005 Uta: [On Play] Add up to 1 red Character card other than [Uta] with a cost of 3 or less from your trash to your hand.
   {
     card: "OP01-005", name: "returns a red Character with cost 3 or less from the trash",
     me: { hand: ["OP01-005"], don: { active: 4 }, trash: [VIVI, BIG, "OP02-060", "OP01-005"] },

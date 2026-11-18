@@ -1,7 +1,3 @@
-/**
- * For build questions: apply the answer's +N/-N lines to the deck that was asked about and check the
- * result with the same analysis the model calls (legal, exactly 50 cards, plus the ban list when given).
- */
 import { analyzeDeck } from "../../src/analysis";
 import type { Catalog } from "../../src/catalog";
 import { deckFromLines, parseDeckText, type Deck } from "../../src/decks";
@@ -11,7 +7,6 @@ export type EditCheck = { applied: number; legal: boolean; problems: string[] };
 export type Delta = { id: string; delta: number };
 type ExtraProblems = (cards: { id: string; copies: number }[], leaderId: string | null) => string[];
 
-/** Applies card-count changes to a deck (counts floor at 0) and checks the result: legal, 50 cards, plus the ban list when given. */
 export function applyDeltas(catalog: Catalog, deck: Deck, deltas: readonly Delta[], extraProblems: ExtraProblems = () => []): { edited: Deck; legal: boolean; problems: string[] } {
   const copies = new Map(deck.cards.map((c) => [c.id, c.copies]));
   for (const e of deltas) copies.set(e.id, Math.max(0, (copies.get(e.id) ?? 0) + e.delta));

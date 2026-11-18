@@ -1,16 +1,14 @@
 /**
- * A card negated before its queued trigger resolves cannot activate it. [When Attacking] and [On Your Opponent's
- * Attack] trigger together and the turn player's resolves first, so a [When Attacking] negate (EB05-021 Alvida,
- * P-100 Teach) stops OP18-046 Mr.0 & Ms. All Sunday's [On Your Opponent's Attack]. A negated OP18-041 Ms. All Sunday
- * Leader does not draw or make the opponent trash when a Baroque Works Character is K.O.'d (#1248).
+ * [When Attacking] and [On Your Opponent's Attack] trigger together and the turn player's resolves first, so a [When
+ * Attacking] negate stops the other.
  */
 import { runScenarios, mine, theirs, type CardScenario } from "../../testing/scenario.js";
 
-const MR0 = "OP18-046"; // [On Your Opponent's Attack] You may trash 1 card from your hand: your Baroque Works Leader's base power becomes 7000.
-const SUNDAY = "OP18-041"; // Leader: when your Baroque Works Character with 3000+ base power is K.O.'d, draw 1 and opponent trashes 1.
-const ALVIDA = "EB05-021"; // [When Attacking] Negate the effect of up to 1 of your opponent's Characters during this turn.
-const TEACH = "P-100"; // [When Attacking] Negate the effects of your opponent's Leader and all of their Characters during this turn.
-const KAROO = "ST01-003"; // vanilla 1-cost 3000
+const MR0 = "OP18-046";
+const SUNDAY = "OP18-041";
+const ALVIDA = "EB05-021";
+const TEACH = "P-100";
+const KAROO = "ST01-003";
 
 const alvidaAttacks = (negate: string[]): CardScenario["steps"] => [
   { endTurn: true },

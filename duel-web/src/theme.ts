@@ -1,9 +1,3 @@
-/**
- * Colour themes based on One Piece crews and places. The palettes live in
- * themes.css under [data-theme]; this module names them for the Settings
- * picker and applies the chosen one to the page.
- */
-
 export type ThemeId =
   | "nightSea"
   | "strawHat"
@@ -31,29 +25,21 @@ export const THEMES: readonly { id: ThemeId; name: string; blurb: string }[] = [
 
 export const THEME_IDS: readonly ThemeId[] = THEMES.map((t) => t.id);
 
-/**
- * Light or dark page chrome. Light keeps the playmat and other game surfaces
- * dark (card art reads best there); `system` follows the device setting.
- */
 export type ColorMode = "dark" | "light" | "system";
 
 export const COLOR_MODES: readonly ColorMode[] = ["dark", "light", "system"];
 
 export const LIGHT_QUERY = "(prefers-color-scheme: light)";
 
-/** The mode actually shown: `system` resolves to the device's preference. */
 export function resolveMode(mode: ColorMode, deviceLight: boolean): "dark" | "light" {
   if (mode === "system") return deviceLight ? "light" : "dark";
   return mode;
 }
 
-/** The bits of the page applyTheme touches, so tests can pass stand-ins. */
 export type ThemeTarget = {
   root: { dataset: DOMStringMap };
-  /** Whether the device prefers light (for `system` mode). */
   deviceLight(): boolean;
   themeColorMeta: { setAttribute(name: string, value: string): void } | null;
-  /** Resolved background colour (--arena-deep) once the theme is set. */
   background(): string;
 };
 

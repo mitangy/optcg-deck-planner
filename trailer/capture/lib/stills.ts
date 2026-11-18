@@ -1,7 +1,3 @@
-/**
- * Still-image sessions for the help infographics: the same local stack and in-browser fake API as the clips,
- * but nothing is recorded; a script walks the app to a state and `page.screenshot`s it at 2x or 3x.
- */
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
@@ -13,22 +9,17 @@ import { newWindow } from "./take";
 import { MIKO_STATS, friendsOfMiko } from "./world";
 import { sleep } from "./util";
 
-/** Where the compositions in trailer/video read their screenshots from (gitignored). */
 export const SHOT_DIR = join(TRAILER_DIR, "video/public/infographics/shots");
 
-/** Desktop pages are 1440x900 CSS px at 2x, phones 390x844 at 3x; each needs an Xvfb screen big enough for the window. */
 export const DESKTOP = { width: 1440, height: 900, scale: 2, display: process.env.TRAILER_STILL_DISPLAY ?? ":94" } as const;
-/** A smaller desktop window: the fanned hand and its buttons sit closer together, so a tight crop shows both. */
 export const COMPACT = { width: 1040, height: 700, scale: 2, display: process.env.TRAILER_STILL_DISPLAY ?? ":94" } as const;
 export const PHONE = { width: 390, height: 844, scale: 3, display: process.env.TRAILER_STILL_PHONE_DISPLAY ?? ":93", touch: true } as const;
 
-/** Where each shot's marked controls were, in CSS px of that shot: the compositions put their rings there. */
 export const BOXES_FILE = join(TRAILER_DIR, "video/src/infographics/boxes.json");
 
 export type Still = {
   page: Page;
   errors: string[];
-  /** Viewport screenshot; `marks` records the boxes (CSS px) of the named controls next to it (boxes.json). */
   shot(name: string, marks?: Record<string, Locator>): Promise<void>;
   close(): Promise<void>;
 };
@@ -38,7 +29,6 @@ export type StillOpts = {
   settings?: Record<string, unknown>;
   gameSeed?: number;
   signedIn?: boolean;
-  /** Extra fake-API handlers (return true when the call was answered). */
   extra?: (route: import("playwright").Route, path: string, method: string) => Promise<boolean> | boolean;
 };
 

@@ -1,10 +1,7 @@
-/** The owner-only Usage tab: what Log Pose has cost, per player and per kind and model (#446). */
-
 export type UsagePlayer = {
   userId: number;
   name: string;
   spentUsd: number;
-  /** This month's credit (null for an owner) and how much of it was used. */
   creditUsd: number | null;
   creditSpentUsd: number;
   threads: number;
@@ -17,7 +14,6 @@ export type UsageSummary = { todayUsd: number; monthUsd: number; totalUsd: numbe
 
 const n = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) ? v : 0);
 
-/** GET /analyst/usage/summary (owners only). */
 export async function fetchUsageSummary(apiBase: string, fetchImpl: typeof fetch = fetch): Promise<UsageSummary> {
   const res = await fetchImpl(`${apiBase}/analyst/usage/summary`, { credentials: "include" });
   if (!res.ok) throw new Error("Could not load usage.");

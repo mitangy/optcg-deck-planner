@@ -27,7 +27,6 @@ export function Shell({ user, children }: { user: User; children: ReactNode }) {
   const shortName = (user.name || user.email).split("@")[0];
   const navRef = useRef<HTMLElement>(null);
   const { pathname } = useLocation();
-  // On phones the nav row scrolls inside itself; keep the active link visible.
   useEffect(() => {
     const nav = navRef.current;
     const active = nav?.querySelector<HTMLElement>("a.active");

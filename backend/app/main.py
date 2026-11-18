@@ -19,10 +19,8 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    # Several workers start together; one at a time migrates and backfills.
     with startup_lock():
         init_db()
-        # Re-flag alt printings when SPECIAL_NAME_MARKERS expands (no TCGCSV wait).
         from app.planner.catalog_sync import refresh_special_flags
         from app.core.db import SessionLocal
 
@@ -88,7 +86,6 @@ if not settings.is_production:
             "http://127.0.0.1:8081",
         ]
     )
-# de-dupe while preserving order
 _seen: set[str] = set()
 _cors_unique: list[str] = []
 for o in _cors_origins:
@@ -97,7 +94,6 @@ for o in _cors_origins:
         _cors_unique.append(o)
 _cors_origins = _cors_unique
 
-# Inside CORS, so a 413 still carries the CORS headers the browser needs to read it.
 app.add_middleware(BodySizeLimitMiddleware)
 app.add_middleware(
     TieredCORSMiddleware,

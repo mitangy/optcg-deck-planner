@@ -1,6 +1,3 @@
-/**
- * Leaf effect actions: runs one op through the handler table in `./ops/`.
- */
 import type { Effect } from "../effects/types.js";
 import type { ResolutionFrame } from "../types.js";
 import { withActing, type Sim } from "./sim.js";

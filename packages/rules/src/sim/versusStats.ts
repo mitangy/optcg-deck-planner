@@ -1,8 +1,5 @@
-/** Statistics of a paired bot-vs-bot batch (versus.ts). Pure. */
-
 export interface PairRow { g: number; winner: "a" | "b" | null }
 
-/** 95% Wilson interval of k successes in n trials. */
 export function wilson(k: number, n: number): [number, number] {
   if (!n) return [0, 1];
   const z = 1.96;

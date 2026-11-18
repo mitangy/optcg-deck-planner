@@ -2,10 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { loadSettings, mergeRemoteSettings } from "./settings";
 import { applyTheme, type ThemeTarget } from "./theme";
 
-/**
- * A page stand-in whose background follows data-theme and data-mode, like
- * themes.css. Light backgrounds are keyed "<theme>/light".
- */
 function fakePage(backgrounds: Record<string, string>) {
   const meta = { content: "#0b1720", setAttribute: (_n: string, v: string) => (meta.content = v) };
   const root = { dataset: {} as DOMStringMap };

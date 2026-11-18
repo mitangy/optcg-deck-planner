@@ -1,5 +1,3 @@
-/** Runtime config for the duel-web Vite SPA. */
-
 export { PROTOCOL_VERSION } from "@optcg/duel-protocol";
 
 /**
@@ -8,7 +6,6 @@ export { PROTOCOL_VERSION } from "@optcg/duel-protocol";
  * try to reach the user's own machine and hotseat matchmake hangs until the
  * startup watchdog fires.
  */
-/** Exported for resume blobs that baked in localhost at save time. */
 export function rewriteLoopbackToPageHost(url: string): string {
   if (typeof window === "undefined") return url;
   const pageHost = window.location.hostname;
@@ -21,20 +18,12 @@ export function rewriteLoopbackToPageHost(url: string): string {
   );
 }
 
-/** Colyseus HTTP(S) endpoint; SDK derives WS/WSS. */
 export function getGameServerUrl(): string {
   const raw = import.meta.env.VITE_GAME_SERVER_URL ?? "http://localhost:2567";
   return rewriteLoopbackToPageHost(raw);
 }
 
-/**
- * FastAPI base. Production uses same-origin `/api` (Vercel rewrite → Render) so
- * the session cookie is first-party and Google login starts and ends on this
- * host; local dev talks to the API directly.
- */
 export function getApiBaseUrl(): string {
-  // Default host must match backend BACKEND_PUBLIC_URL (localhost, not 127.0.0.1)
-  // so OAuth nonce cookies survive the Google redirect round-trip.
   const raw = (import.meta.env.VITE_API_URL ?? "http://localhost:8000").replace(
     /\/$/,
     "",
@@ -47,7 +36,6 @@ export function getDevJoinSecret(): string | undefined {
   return s && s.length > 0 ? s : undefined;
 }
 
-/** Deck planner origin for the lobby's "Deck planner" link. */
 export function getPlannerUrl(): string {
   const raw = import.meta.env.VITE_PLANNER_URL?.trim() || "https://optcg-deck-planner.app";
   return raw.replace(/\/+$/, "");

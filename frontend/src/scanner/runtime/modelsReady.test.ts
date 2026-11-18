@@ -6,7 +6,6 @@ import { waitForModels } from "./modelsReady";
 const photo = { width: 10, height: 10, data: new Uint8ClampedArray(400) } as ImageData;
 const learnedCards = [{ quad: [], score: 0.9 }] as unknown as DetectedCard[];
 
-/** OpenCV stand-in that cannot detect anything: reaching it means the model was not used. */
 const brokenCv = {} as Cv;
 
 afterEach(() => {

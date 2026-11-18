@@ -1,7 +1,3 @@
-/**
- * The lightbox from a card's main picture sets its price alert on the art that picture shows (#896):
- * a card whose display art is an alt must not fall back to the base art. Runs at desktop-1200 and phone-375.
- */
 import { expect, test } from "./fixtures";
 
 test.afterEach(({ planner }) => {
@@ -11,7 +7,6 @@ test.afterEach(({ planner }) => {
 test("Collection: the enlarged main picture of a card showing an alt sets the alert on that alt (#896)", async ({ page, planner }) => {
   await planner.open("/collection");
   const izo = page.locator('[data-card-id="EB01-002"]:visible');
-  // Show the alt (product 201) as the card's picture, then open its main art.
   await izo.getByRole("button", { name: "Show Izo (Alternate Art) as the card's art" }).click();
   await expect(izo.locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);
   await izo.locator("img.thumb").first().click();

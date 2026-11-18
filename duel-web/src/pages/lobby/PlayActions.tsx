@@ -3,7 +3,6 @@ import { modeTiles, primaryAction } from "../../home/primaryAction";
 import type { LastMode } from "../../home/lastMode";
 import { MODE_CARDS } from "./modes";
 
-/** The big Play button (repeats the last mode) and the mode tiles under it. */
 export function PlayActions({ lastMode, disabled, onPlay }: { lastMode: LastMode | null; disabled: boolean; onPlay: (at: LastMode | null) => void }) {
   return (
     <div className="home-actions">

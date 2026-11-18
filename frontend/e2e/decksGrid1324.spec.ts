@@ -1,7 +1,3 @@
-/**
- * Decks page lays leader groups out side by side on wide screens (#1324): a leader with one deck takes one
- * column, a leader with three decks spans three, and a phone keeps one column.
- */
 import type { Page } from "@playwright/test";
 import type { DeckSummary } from "../src/api";
 import { expect, test } from "./fixtures";
@@ -89,8 +85,6 @@ test("Decks: leaders keep their sorted order on a wide screen instead of back-fi
   await page.setViewportSize({ width: 1440, height: 900 });
   await openDecks(page, planner);
 
-  // Pudding, Newgate and Lucy fill 3 of 4 columns; the 3-deck Luffy group doesn't fit the last one.
-  // Nico Robin comes after Luffy, so it must not be pulled up into that gap.
   const placed = await page.locator(".deck-leader-group").evaluateAll((els) =>
     els.map((el) => {
       const r = el.getBoundingClientRect();

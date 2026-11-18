@@ -1,4 +1,3 @@
-/* —— Tile overlays: power (base + modifier), counter, DON!!, statuses —— */
 .card-overlays {
   position: absolute;
   inset: 0;
@@ -6,11 +5,6 @@
   pointer-events: none;
   container-type: size;
 }
-/* A buffed power reads "base / ±delta" on two lines. On phone-size tiles that
-   plus a DON!! badge leaves no room for the status row under it, so show only
-   the current power there, tinted up / down (the breakdown stays in the
-   tooltip and card inspect). Narrow catches upright phone tiles; short
-   catches rested ones, whose overlay is landscape. */
 .power-now {
   display: none;
 }
@@ -32,7 +26,6 @@
     letter-spacing: -0.02em;
   }
 }
-/* "Show total power" (#534): same collapse as above, on any tile size. */
 .power-total .card-stat-stack .power-badge-buffed .power-base,
 .power-total .card-stat-stack .power-badge-buffed .power-mod {
   display: none;
@@ -40,8 +33,6 @@
 .power-total .card-stat-stack .power-badge-buffed .power-now {
   display: inline;
 }
-/* Narrowest tiles (phone landscape and 320px portrait): even the small
-   "DON×1" is wider than the tile, so the green badge keeps just "×1". */
 @container (max-width: 44px) {
   .card-stat-stack .don-badge-word {
     display: none;
@@ -98,13 +89,6 @@
   text-transform: uppercase;
 }
 
-/* Rested field cards turn sideways like the physical game. By default they
-   scale by the card aspect (--rest-k: 1 / 1.4) so the rotated footprint stays
-   inside the portrait cell. Zones with room (the arena character row, a leader
-   or stage beside an empty cell) set --rest-k: 1 to keep full size, and
-   --rest-shift to slide into that empty cell. Overlays counter-rotate into the
-   landscape footprint (1.4k × k of the card width) and undo the scale, so
-   badges stay upright at their normal size either way. */
 .side-field .card-tile {
   transition: transform 180ms ease;
 }
@@ -131,7 +115,6 @@
   }
 }
 
-/* Live status (hover preview + inspect) */
 .live-status {
   display: flex;
   flex-direction: column;
@@ -204,10 +187,6 @@
   font-size: 0.72rem;
   opacity: 0.7;
 }
-/* Bottom-right corner, just above the name caption, in one row: the first
-   status sits in the corner and the rest fill leftward. StatusRow swaps what
-   doesn't fit for a "+N" badge instead of wrapping, so the row never climbs
-   into the top-right power / DON!! stack or covers the name. */
 .status-chips {
   /* Badge size follows the tile's card width (so the window size) and the
      Text size setting, sublinearly so big tiles don't drown in icons. 13px
@@ -231,16 +210,12 @@
   pointer-events: none;
   z-index: var(--z-raise-2);
 }
-/* Smallest rested tiles: the power / DON!! stack fills the right side, so a
-   lone "+N" sits bottom-left, over the stack's edge rather than under it. */
 .status-chips-squeezed {
   left: 3px;
   right: auto;
   z-index: var(--z-raise-4);
 }
 .status-chip {
-  /* Text chips (statuses with no icon) can fill the row; StatusRow counts
-     whatever it pushes out into the "+N" badge. */
   flex: 0 0 auto;
   max-width: 100%;
   display: inline-block;
@@ -258,8 +233,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* Icon badge: fixed square (--status-icon-size on .status-chips) so a status
-   appearing never resizes or re-flows its neighbours. */
 .status-icon {
   flex: 0 0 auto;
   box-sizing: border-box;
@@ -295,10 +268,6 @@
   fill: currentColor;
   stroke-width: 1.5;
 }
-/* Status colour by kind (see StatusTone in board/panels/statusIcons.ts). Icons, text
-   chips, inspect chips and tooltips all read --st-fg / --st-bd, so one status
-   is the same colour everywhere. --st-ink is the darker variant for light
-   panels (light.css). */
 .status-tone-disable {
   --st-fg: #ff9d9d;
   --st-bd: rgba(255, 96, 96, 0.8);
@@ -343,7 +312,6 @@
   outline-offset: 1px;
 }
 
-/* Status tooltip: fixed overlay in a portal, never in flow (see StatusIcon.tsx). */
 .status-tip {
   position: fixed;
   z-index: var(--z-status-tip);

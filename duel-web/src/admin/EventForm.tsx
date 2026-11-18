@@ -17,13 +17,11 @@ type Props = {
   locked: ReadonlySet<EventLockKey>;
   lockReason: string | null;
   busy: boolean;
-  /** An error from the server for the last save. */
   error: string | null;
   onSave: (fields: EventFields) => void;
   onCancel: () => void;
 };
 
-/** Create or edit one event (#1019): dates, tourney style, prizing and the requirements to win. */
 export function EventForm({ title, initial, locked, lockReason, busy, error, onSave, onCancel }: Props) {
   const [f, setF] = useState(initial);
   const [problem, setProblem] = useState<string | null>(null);

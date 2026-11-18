@@ -1,18 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { artKind, bestTimeToBuy, estimateBand, buyableDay, buyTiming, expectedRatio, SEASON_PCT, seasonFactor, settledRatio, typicalCurve, type ArtKind, type PricePoint } from "./priceTiming";
 
-/** `today` minus `days`, as an ISO day. */
 function ago(today: string, days: number): string {
   return new Date(Date.parse(`${today}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
 }
 
-/** A flat daily series at `price` for the last `days` days up to `today`. */
 function flat(today: string, days: number, price: number): PricePoint[] {
   return Array.from({ length: days + 1 }, (_, i) => ({ date: ago(today, days - i), price }));
 }
 
 const RELEASED = "2026-01-01";
-/** `age` days after RELEASED. */
 const at = (age: number) => ago("2026-01-01", -age);
 
 /** A release in July, September and so on: the next 6 months of season then fall less than the release curve does, so the verdict is the curve's. RELEASED (January) rides the February peak, which makes the season part of every drop. */
@@ -95,7 +92,7 @@ describe("buyTiming verdicts (#946)", () => {
   });
 
   it("waits on an alt art 30 days after release, with the typical further drop", () => {
-    // The release curve alone says 24% to day 180 (#946); released in January the season adds a few points on top (#1311).
+    // The release curve alone says 24% to day 180; released in January the season adds a few points on top.
     const t = timing("alt", 30);
     expect(t.verdict).toBe("wait");
     expect(t.expectedFurtherDropPct).toBe(28);
@@ -119,7 +116,7 @@ describe("buyTiming verdicts (#946)", () => {
   });
 
   it("uses the all-singles curve for an unclassified art", () => {
-    // The all-singles curve falls less than an alt art's from day 30 (21% against 28% released in January) (#946).
+    // The all-singles curve falls less than an alt art's from day 30 (21% against 28% released in January).
     const t = timing("other", 30);
     expect(t.verdict).toBe("wait");
     expect(t.expectedFurtherDropPct).toBe(21);
@@ -245,7 +242,7 @@ describe("bestTimeToBuy (#952)", () => {
   });
 
   it("puts the window in the cheap months, with an estimate from the curve and the season, for a fresh alt art", () => {
-    // Released 1 Jul, 20 days old: buyable from 11 Aug on the curve, but the Aug-Oct lows and the November trough are cheaper still (#1311).
+    // Released 1 Jul, 20 days old: buyable from 11 Aug on the curve, but the Aug-Oct lows and the November trough are cheaper still.
     const b = best("alt", 20, { current: 50, released: "2026-07-01", today: "2026-07-21" })!;
     expect(b).toEqual({
       when: "window",

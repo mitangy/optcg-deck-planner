@@ -6,31 +6,25 @@ type Options = {
   spectating: boolean;
   over: boolean;
   wide: boolean;
-  /** Desktop rail layout: number / letter / arrow card keys are live. */
   cardKeys: boolean;
   onEscape: () => void;
   onStepHand: (dir: 1 | -1) => void;
   onToggleHand: () => void;
-  /** Keep hand open: H hides / shows the hand instead of pinning it. */
   handHides: boolean;
   onHideHand: () => void;
   onSortHand: () => void;
   onHelp: () => void;
-  /** Full screen is offered here (see canOfferFullscreen): F calls onToggleFullscreen. */
   fullscreenOffered: boolean;
   onToggleFullscreen: () => void;
-  /** M: mute or unmute this tab (#934). */
   onToggleTabMute: () => void;
 };
 
-/** An open Headless UI menu (match menu, Undo) is `[role="menu"]`: it owns the keys, so the board shortcuts stay quiet. */
+// An open Headless UI menu (match menu, Undo) is `[role="menu"]`: it owns the keys, so the board shortcuts stay quiet.
 const MODAL_SELECTOR =
   '[aria-modal="true"], [role="menu"], .sheet-backdrop, .card-inspect-backdrop, .trash-viewer-backdrop';
 
-/** Popovers that close themselves on Esc; the board must not also drop the selection. */
 const ESC_OWNER_SELECTOR = ".lp-overlay";
 
-/** Dialogs, prompts and sheets keep Tab for their own controls (a hidden prompt does not count). */
 const DIALOG_SELECTOR =
   '[role="dialog"]:not(.card-actions), [role="alertdialog"]';
 
@@ -40,12 +34,10 @@ function dialogOpen(): boolean {
   );
 }
 
-/** Your board cards (Leader, Characters, Stage), then opponent cards that are targets right now. */
 function shown(el: HTMLElement): boolean {
   return !(el as HTMLButtonElement).disabled && el.getClientRects().length > 0 && !el.closest("[inert]");
 }
 
-/** Board cards in Tab order: field cards, then the hand. */
 function boardCardButtons(): HTMLElement[] {
   const field = document.querySelectorAll<HTMLElement>(
     ".board-root .side-you button[data-instance-id], .board-root .side-opp button[data-instance-id]",
@@ -59,7 +51,6 @@ function boardCardButtons(): HTMLElement[] {
 const TABBABLE =
   "a[href], button, input:not([type=hidden]), select, textarea, [tabindex], summary, [contenteditable=true]";
 
-/** Everything Tab can reach, in page order. */
 function tabbables(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>(TABBABLE)).filter(
     (el) => el.tabIndex >= 0 && shown(el),
@@ -77,14 +68,9 @@ export function isTyping(el: Element | null): boolean {
   );
 }
 
-/** Board and hand tiles: Space belongs to the primary action there, Enter selects. */
 const CARD_FOCUS_SELECTOR =
   ".side-field .card-tile, .hand-fan .card-tile, .rail-hand .card-tile, .hand-row .card-tile";
 
-/**
- * Focus-visible buttons and links activate themselves on Space, except card
- * tiles: a focused card must not swallow the Space that ends the turn.
- */
 export function focusKind(el: Element | null): "none" | "card" | "control" {
   if (!el || !el.matches('button, a, [role="button"]')) return "none";
   if (el.matches(CARD_FOCUS_SELECTOR)) return "card";
@@ -95,13 +81,11 @@ export function focusKind(el: Element | null): "none" | "card" | "control" {
   }
 }
 
-/** Desktop shortcuts for the board; Space clicks the bar's primary button. */
 export function useBoardHotkeys(opts: Options) {
   const ref = useRef(opts);
   ref.current = opts;
 
   useEffect(() => {
-    // A handled Space must not also click a focused button when it is released.
     let swallowKeyup = false;
 
     function run(action: Exclude<HotkeyAction, null>) {
@@ -111,7 +95,6 @@ export function useBoardHotkeys(opts: Options) {
           action.kind === "slot"
             ? `[data-key-num="${action.n}"]`
             : `[data-key-letter="${action.letter}"]`;
-        // Card actions live in a popover on the card (a portal), the rest in the bar (phones) or the board dock (desktop).
         document
           .querySelector<HTMLButtonElement>(
             `.board-root .intent-row ${sel}:not(:disabled), .board-root .primary-dock ${sel}:not(:disabled), .card-actions ${sel}:not(:disabled)`,
@@ -190,10 +173,7 @@ export function useBoardHotkeys(opts: Options) {
   }, []);
 }
 
-/**
- * Y / Space answer Yes and N answers No on a Yes/No prompt. Runs in the capture
- * phase so the board's own Space (primary action) never sees the key.
- */
+// Capture phase, so the board's own Space (primary action) never sees the key.
 export function useConfirmKeys(enabled: boolean, optional: boolean, answer: (accept: boolean) => void) {
   const ref = useRef({ optional, answer });
   ref.current = { optional, answer };
@@ -230,7 +210,6 @@ export function useConfirmKeys(enabled: boolean, optional: boolean, answer: (acc
   }, [enabled]);
 }
 
-/** The Confirm / Done button of an open pick prompt (search, targets, order). */
 const CONFIRM_BUTTON = "button[data-confirm-key]";
 
 function shownConfirmButton(): HTMLButtonElement | null {
@@ -241,11 +220,6 @@ function shownConfirmButton(): HTMLButtonElement | null {
   );
 }
 
-/**
- * Y or Space presses the Confirm button of an open pick prompt, like Yes on a
- * Yes/No prompt (useConfirmKeys). A disabled Confirm still takes the key, so it
- * never falls through to End turn. Capture phase, ahead of the board's Space.
- */
 export function useConfirmButtonKey() {
   useEffect(() => {
     let swallowKeyup = false;

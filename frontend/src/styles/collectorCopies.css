@@ -1,5 +1,3 @@
-/* Collector copies (#1031): an alt art wanted on top of the decks. Plain card background, a gold elbow
-   joins the line to its card, and the ★ always comes with the word "Collector". */
 .collector-chip {
   display: inline-flex;
   align-items: center;
@@ -50,7 +48,6 @@
   gap: 0.2rem;
 }
 
-/* The minus stays put at 1; Remove is the deliberate way out. */
 .collector-remove {
   padding: 0.1rem 0.3rem;
   font-size: 0.85rem;
@@ -58,7 +55,6 @@
   text-underline-offset: 2px;
 }
 
-/* Desktop table row */
 .shopping-table tr.collector-row td {
   background: var(--card);
 }
@@ -116,7 +112,6 @@
   overflow-wrap: anywhere;
 }
 
-/* Elbow from the card above: down from the cell's top edge, then across to the thumb. */
 .collector-elbow {
   position: absolute;
   left: 1.15rem;
@@ -147,7 +142,6 @@
   color: var(--muted);
 }
 
-/* Grid view: a small card right after its parent */
 .grid-card-wrap.collector-wrap .grid-card {
   border-color: var(--gold);
 }
@@ -175,7 +169,6 @@
   gap: 0.2rem 0.5rem;
 }
 
-/* Popover picker */
 .collector-add {
   margin-top: 0.75rem;
   padding-top: 0.6rem;
@@ -274,7 +267,6 @@
   min-height: 2.75rem;
 }
 
-/* Alt tile marker */
 .alt-collector {
   justify-self: center;
   text-align: center;
@@ -285,7 +277,6 @@
   white-space: nowrap;
 }
 
-/* Collector toggle on alt tiles (#1035): same footprint pressed or not. */
 .alt-collector-btn {
   box-sizing: border-box;
   display: inline-flex;
@@ -331,7 +322,6 @@
 }
 
 
-/* Undo toast: fixed over the page so it never moves anything. Styled like the head popovers (card, gold edge). */
 .undo-toast {
   position: fixed;
   left: 50%;
@@ -386,7 +376,6 @@
 }
 
 @media (max-width: 800px) {
-  /* Phone list: a nested card, indented, gold outline, one row (art + name + chip left, stepper right). */
   .mobile-card.collector-card {
     margin-left: 1.25rem;
     width: auto;
@@ -458,7 +447,6 @@
     gap: var(--space-2);
   }
 
-  /* 36px visible buttons, padded to a 44px hit area; the 0.5rem gap keeps neighbours from overlapping. */
   .collector-step .owned-btn {
     position: relative;
     width: 2.25rem;
@@ -477,7 +465,6 @@
   }
 }
 
-/* Confirm before an extra copy of the deck's own art (#1165): floats in a portal under the button, so nothing moves. */
 .alt-extra-pop {
   display: contents;
 }

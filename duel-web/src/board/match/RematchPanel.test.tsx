@@ -41,7 +41,6 @@ afterEach(() => {
   onAction.mockClear();
 });
 
-/** Mounts the panel and opens the first deck picker. */
 function openPicker(mySeat: 0 | 1) {
   host = document.createElement("div");
   document.body.append(host);

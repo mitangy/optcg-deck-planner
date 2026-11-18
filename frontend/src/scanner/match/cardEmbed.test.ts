@@ -29,8 +29,6 @@ describe("embedderInput", () => {
   });
 
   it("averages the source box under each output pixel instead of sampling one (#701)", () => {
-    // Alternating black/white columns at twice the network width: any single
-    // sample reads 0 or 1, the area average reads 0.5.
     const w = EMBED_W * 2;
     const h = EMBED_H * 2;
     const data = new Uint8ClampedArray(w * h * 4);
@@ -42,8 +40,6 @@ describe("embedderInput", () => {
   });
 
   it("weights partial coverage when the scale is not an integer (#701)", () => {
-    // 1.5x: the left source column is black, the other two white; output pixel 0
-    // covers 1 black + 0.5 white column widths.
     const w = Math.round(EMBED_W * 1.5);
     const h = EMBED_H;
     const data = new Uint8ClampedArray(w * h * 4);
@@ -51,7 +47,6 @@ describe("embedderInput", () => {
       for (let x = 0; x < w; x += 1) data.set(x % 3 === 0 ? [0, 0, 0, 255] : [255, 255, 255, 255], (y * w + x) * 4);
     }
     const t = embedderInput({ width: w, height: h, data });
-    // output x=0 covers source [0,1.5): black for 1, white for 0.5.
     expect(t[0]).toBeCloseTo((1 / 3 - 0.485) / 0.229, 2);
   });
 

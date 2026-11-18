@@ -1,8 +1,3 @@
-"""Admin page API (#667): player and bot analytics, evals, hosting status, and account moderation.
-
-Auth: staff (admin or moderator) for /admin/me and the user list, ban and unban; admin only for
-analytics, roles, deletes and hosting; the analyst service secret for POST /admin/evals.
-"""
 
 from __future__ import annotations
 
@@ -77,7 +72,6 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 DB = Annotated[Session, Depends(get_db)]
 
 
-# The windows the admin charts offer (#691); anything else is a 422.
 RANGE_DAYS = (7, 14, 30, 90)
 
 
@@ -96,15 +90,11 @@ def _iso(dt: datetime | None) -> str | None:
     return dt.isoformat() if dt else None
 
 
-# ---------------------------------------------------------------- who am I
-
 @router.get("/me", response_model=AdminMe)
 def admin_me(user: Staff) -> dict:
     admin = is_admin(user)
     return {"role": user.role, "can": {"analytics": admin, "set_roles": admin, "ban": True, "delete": admin}}
 
-
-# ---------------------------------------------------------------- players
 
 @router.get("/overview", response_model=AdminOverview)
 def overview(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 30) -> dict:
@@ -156,8 +146,6 @@ def matches_on_day(_: Admin, db: DB, day: Annotated[date, Query()]) -> dict:
     }
 
 
-# ---------------------------------------------------------------- bots and evals
-
 def _eval_out(run: AnalystEvalRun) -> dict:
     try:
         groups = json.loads(run.groups or "{}")
@@ -169,7 +157,6 @@ def _eval_out(run: AnalystEvalRun) -> dict:
         "run_at": _iso(run.run_at),
         "label": run.label,
         "model": run.model,
-        # A run that only has a headline metric has no score.
         "correct": run.correct if scored else None,
         "total": run.total if scored else None,
         "metric_name": run.metric_name,
@@ -219,7 +206,6 @@ class EvalGroupIn(BaseModel):
     total: int = Field(ge=0, le=10_000)
 
 
-# The evals that post here (analyst/evals/shared/post.ts); each gets its own trend on the admin page (#679).
 EvalSuite = Literal["main", "review_facts", "puzzles", "deck_advice"]
 
 
@@ -228,10 +214,8 @@ class EvalRunIn(BaseModel):
     suite: EvalSuite = "main"
     label: str = Field(default="", max_length=120)
     model: str = Field(default="", max_length=64)
-    # A score in cases out of total, for suites that have one. Leave both out for a run that only has a metric.
     correct: float | None = Field(default=None, ge=0, le=10_000)
     total: int | None = Field(default=None, ge=1, le=10_000)
-    # The headline when the suite is not a score, e.g. "Wrong claims per review" 0.8 with lower_is_better.
     metric_name: str | None = Field(default=None, min_length=1, max_length=60)
     metric_value: float | None = Field(default=None, allow_inf_nan=False, ge=-1e9, le=1e9)
     lower_is_better: bool = False
@@ -280,8 +264,6 @@ def record_eval(
     db.refresh(run)
     return _eval_out(run)
 
-
-# ---------------------------------------------------------------- Log Pose feedback
 
 FEEDBACK_DAYS = 30
 
@@ -349,8 +331,6 @@ def feedback_export(
     return {"items": [{k: v for k, v in _feedback_out(f, None).items() if k not in ("user_id", "user_name")} for f in rows]}
 
 
-# ---------------------------------------------------------------- hosting
-
 @router.get("/hosting", response_model=HostingOut)
 def hosting(_: Admin, settings: Annotated[Settings, Depends(get_settings)], refresh: int = 0) -> dict:
     return admin_hosting.hosting(settings, refresh=bool(refresh))
@@ -362,10 +342,7 @@ def traffic(_: Admin, settings: Annotated[Settings, Depends(get_settings)], days
     return admin_traffic.traffic(settings, days, refresh=bool(refresh))
 
 
-# ---------------------------------------------------------------- users
-
 def _parse_signup_source(raw: str | None) -> dict | None:
-    """The stored first-touch source, or None when unknown (#905)."""
     if raw is None:
         return None
     try:
@@ -401,22 +378,12 @@ def _user_row(
 
 
 def _friend_pair_on(me, other):
-    """Join condition: ``me`` and ``other`` (user id columns) are an accepted Friendship pair."""
     low = case((me < other, me), else_=other)
     high = case((me < other, other), else_=me)
     return and_(Friendship.status == FriendshipStatus.ACCEPTED, Friendship.user_low_id == low, Friendship.user_high_id == high)
 
 
 def _game_counts(db: Session, users) -> dict[int, dict[str, tuple[int, int]]]:
-    """Games and wins per mode for each user: {user_id: {mode: (games, wins)}} (#988).
-
-    ranked = matchmaker games; friends = casual games against an accepted friend (as things stand
-    now); private = every other casual game; bot and practice come from duel_solo_games. Four
-    grouped queries however many users are asked for.
-
-    ``users`` is a list of ids or a ``select(User.id)`` subquery (so a big selection never becomes a big IN list).
-    Only users with at least one game appear in the result.
-    """
     out: dict[int, dict[str, tuple[int, int]]] = {}
     me, opp = DuelMatchSeat, aliased(DuelMatchSeat)
     is_friend = Friendship.id.is_not(None)
@@ -446,7 +413,6 @@ def _game_counts(db: Session, users) -> dict[int, dict[str, tuple[int, int]]]:
 
 
 def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[int, int]]]:
-    """Games and wins per mode for each listed user, zeros for users with none: {user_id: {mode: (games, wins)}} (#988)."""
     out = {uid: {m: (0, 0) for m in MODES} for uid in user_ids}
     if user_ids:
         out.update(_game_counts(db, user_ids))
@@ -454,10 +420,6 @@ def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[i
 
 
 def _counted_row(db: Session, u: User) -> dict:
-    """``_user_row`` with the same counts the list shows, for the action endpoints (#991).
-
-    The page merges an action's response over the row it holds, so zeros here would blank the counts.
-    """
     modes = mode_counts(db, [u.id])[u.id]
     matches, last = db.execute(
         select(func.count(), func.max(DuelMatchSeat.created_at)).where(DuelMatchSeat.user_id == u.id)
@@ -474,7 +436,6 @@ SortDir = Literal["asc", "desc"]
 
 
 def _source_label(raw: str | None) -> str | None:
-    """The text the Users tab shows for a source (adminLogic.formatSignupSource), lower-cased; None when unknown (#1323)."""
     src = _parse_signup_source(raw)
     if src is None:
         return None
@@ -483,17 +444,14 @@ def _source_label(raw: str | None) -> str | None:
 
 
 def _sorted_user_ids(db: Session, where: list, sort: str, direction: str) -> list[int]:
-    """Every matching user id ordered by a Python-computed key (source text or a game count), ties by id ascending."""
     desc = direction == "desc"
     if sort == "source":
         rows = sorted(db.execute(select(User.id, User.signup_source).where(*where)).all(), key=lambda r: r[0])
         known = [(uid, label) for uid, raw in rows if (label := _source_label(raw)) is not None]
         unknown = [uid for uid, raw in rows if _source_label(raw) is None]
-        # reverse=True keeps equal labels in id order, so the id tie-break holds in both directions.
         known.sort(key=lambda r: r[1], reverse=desc)
-        return [uid for uid, _ in known] + unknown  # an unknown source is last in either direction
+        return [uid for uid, _ in known] + unknown
     ids = sorted(db.scalars(select(User.id).where(*where)).all())
-    # The selection goes in as a subquery, so the SQL stays the same size however many accounts match (#1328).
     counts = _game_counts(db, select(User.id).where(*where))
     return sorted(ids, key=lambda uid: counts[uid][sort][0] if uid in counts else 0, reverse=desc)
 
@@ -564,7 +522,6 @@ def list_users(
 
 
 def _recent_matches(db: Session, user_id: int, limit: int = 25) -> list[dict]:
-    """The user's newest duel matches and solo games merged, newest first."""
     me, opp = DuelMatchSeat, aliased(DuelMatchSeat)
     duel = db.execute(
         select(me, opp.user_id, opp.leader_id, DuelMatch.reason)
@@ -758,7 +715,6 @@ def ban_user(user_id: int, actor: Staff, db: DB, body: BanIn | None = None) -> d
 
 
 def _apply_ban(db: Session, actor: User, target: User, reason: str) -> None:
-    """Ban ``target`` as ``actor`` (403 when the roles forbid it); shared with report handling."""
     refusal = can_ban(actor, target)
     if refusal:
         raise HTTPException(status_code=403, detail=refusal)
@@ -766,7 +722,6 @@ def _apply_ban(db: Session, actor: User, target: User, reason: str) -> None:
     target.banned_at = datetime.now(timezone.utc)
     target.ban_reason = reason or None
     target.banned_by = actor.id
-    # Signs them out everywhere: every cookie they hold carries the old version.
     target.session_version = int(target.session_version or 0) + 1
     db.commit()
     db.refresh(target)
@@ -792,7 +747,6 @@ def delete_user(user_id: int, actor: Admin, db: DB) -> Response:
     refusal = can_delete(actor, target)
     if refusal:
         raise HTTPException(status_code=403, detail=refusal)
-    # The ORM relationships (decks, owned, extras) cascade here; the DB cascades the rest on Postgres.
     db.delete(target)
     db.flush()
     # SQLite does not enforce foreign keys, so clear the other tables that point at the user by hand:
@@ -809,8 +763,6 @@ def delete_user(user_id: int, actor: Admin, db: DB) -> Response:
     return Response(status_code=204)
 
 
-# ---------------------------------------------------------------- player reports (#810)
-
 class ReportNoteIn(BaseModel):
     note: str | None = Field(default=None, max_length=300)
 
@@ -820,7 +772,6 @@ class ReportWarnIn(BaseModel):
 
 
 def _report_rows(db: Session, reports: list[PlayerReport]) -> list[dict]:
-    """ReportRows for these reports, with the per-player counts fetched in a few grouped queries."""
     if not reports:
         return []
     reported_ids = {r.reported_id for r in reports}
@@ -973,7 +924,6 @@ def remove_reported_image(report_id: int, actor: Staff, db: DB, body: ReportNote
         raise HTTPException(status_code=409, detail="There is no image to remove")
     take_down_cosmetic(db, cosmetic, actor.id, note or f"Report #{report.id}")
     _close_report(report, actor, ReportStatus.ACTIONED, "image_removed", note)
-    # Everyone else who reported the same image is answered by the same removal.
     siblings = db.scalars(
         select(PlayerReport).where(
             PlayerReport.id != report.id,
@@ -1013,14 +963,11 @@ def ban_reported_player(report_id: int, actor: Staff, db: DB, body: BanIn | None
     return _report_row(db, report)
 
 
-# ---------------------------------------------------------------- uploaded images (#812)
-
 class TakeDownIn(BaseModel):
     reason: str = Field(min_length=1, max_length=REASON_MAX)
 
 
 def _cosmetic_rows(db: Session, rows: list) -> list[dict]:
-    """UploadRows for these (DuelCosmetic columns without the bytes) rows, owners and counts in grouped queries."""
     if not rows:
         return []
     owner_ids = {r.user_id for r in rows}

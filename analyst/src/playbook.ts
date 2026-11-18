@@ -15,9 +15,7 @@ export type PlaybookNote = {
   status: string;
   source: string;
   confidence: string;
-  /** "## " sections, by heading. */
   sections: Record<string, string>;
-  /** "### vs <leader id> ..." subsections of "## Matchups", by opponent leader id. */
   matchups: Record<string, { heading: string; text: string }>;
 };
 
@@ -99,7 +97,6 @@ export function loadPlaybook(dir = DEFAULT_DIR): Playbook {
 
 const setNumber = (format: string) => Number(/^OP(\d+)/i.exec(format)?.[1] ?? NaN);
 
-/** The newest booster ("OP17") in the catalog; a set with only a few preview cards doesn't count yet. */
 export function newestFormat(cardIds: Iterable<string>, minCards = 50): string {
   const counts = new Map<number, number>();
   for (const id of cardIds) {

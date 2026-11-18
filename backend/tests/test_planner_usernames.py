@@ -1,4 +1,3 @@
-"""Planner shows another user's duel username when they have one (#903)."""
 
 from app.planner import share as share_svc
 from app.group_buy import service as group_buy
@@ -20,7 +19,6 @@ def test_group_buy_member_and_host_names_use_duel_username_903(db):
     detail = group_buy.public_group_buy_view(db, created.invite_token)
     names = _member_names(detail)
     assert names[host.id] == "mikoduel"
-    # No username: the account name, as before.
     assert names[plain.id] == "No Handle"
     assert detail.host_name == "mikoduel"
     assert group_buy.invite_preview(db, created.invite_token).host_name == "mikoduel"

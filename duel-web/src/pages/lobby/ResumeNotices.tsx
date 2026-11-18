@@ -2,10 +2,6 @@ import type { ActiveMatch } from "../../net/activeMatches";
 import { activeMatchModeLabel } from "../../net/activeMatches";
 import type { loadMatchResume } from "../../net/matchResume";
 
-/**
- * The notices above the Play button: a match saved in this tab, one running on another device, and the
- * ranked queue. Each shows only while it applies.
- */
 export function ResumeNotices({
   pendingResume,
   onResume,

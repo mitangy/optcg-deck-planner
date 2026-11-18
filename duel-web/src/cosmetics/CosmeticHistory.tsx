@@ -11,10 +11,6 @@ const DEFAULT_ART: Record<CosmeticKind, string | null> = {
   cardBack: "/cards/card-back.webp",
 };
 
-/**
- * Your earlier playmat / card back uploads (signed in only): tap one to use it
- * again, × to delete it. The first tile switches back to the default.
- */
 export function CosmeticHistory({ kind }: { kind: CosmeticKind }) {
   const { signedIn, items, active } = useAccountCosmetics();
   const [busy, setBusy] = useState(false);

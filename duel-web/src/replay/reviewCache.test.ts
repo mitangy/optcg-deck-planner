@@ -5,7 +5,6 @@ import { MAX_CACHED_CHARS, MAX_CACHED_REVIEWS, clearLegacyReviewCache, readCache
 import type { GameReview } from "./reviewModel";
 
 let n = 0;
-/** A fresh IndexedDB store per test (fake-indexeddb), so tests share nothing. */
 const freshStore = () => createStore(`review-cache-test-${n++}`, "reviews");
 function memStorage(initial: Record<string, string> = {}) {
   const m = new Map(Object.entries(initial));

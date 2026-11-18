@@ -1,8 +1,3 @@
-"""Player feedback on Log Pose answers: 👍, 👎 and "This is wrong" on a chat answer or a match review (#679).
-
-The panel posts with the player's session cookie (like deleting a thread). The server looks the answer up itself,
-so the stored excerpt is what Log Pose really said and a player can only rate their own threads and reviews.
-"""
 
 from __future__ import annotations
 
@@ -38,13 +33,11 @@ class FeedbackIn(BaseModel):
     kind: Literal["chat", "review"]
     rating: Literal["up", "down", "wrong"]
     note: str = Field(default="", max_length=NOTE_MAX)
-    # chat: the thread and which of its answers (0 = the first assistant answer shown in the panel)
     thread_id: int | None = Field(default=None, ge=1)
     message_index: int | None = Field(default=None, ge=0, le=MAX_ANSWER_INDEX)
     # The first characters of the answer the panel shows. When given, the stored answer at that index must begin with
     # them, so a panel whose list drifted from the thread (an answer that never saved) can't rate a different answer.
     starts_with: str = Field(default="", max_length=80)
-    # review: the game
     match_id: str | None = Field(default=None, min_length=1, max_length=64)
 
     @model_validator(mode="after")
@@ -81,12 +74,10 @@ def _enabled(db: Session, settings: Settings, user: User) -> None:
 
 
 def _squash(text: str) -> str:
-    """Whitespace runs as one space, trimmed: how the panel and the thread agree on where an answer starts."""
     return " ".join(text.split())
 
 
 def _thread_answer(db: Session, user: User, thread_id: int, index: int) -> tuple[str, str]:
-    """The answer (and the question it replied to) at `index` among the thread's assistant answers, as the panel shows them."""
     thread = db.get(AnalystThread, thread_id)
     if thread is None or thread.user_id != user.id:
         raise HTTPException(status_code=404, detail="Thread not found")

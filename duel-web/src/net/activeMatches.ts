@@ -1,25 +1,18 @@
-/** Live matches this account holds a seat in, for moving a match to another device (#451). */
 import type { MatchResumeBlob } from "./matchResume";
 import type { Seat } from "./protocol";
 
 export type ActiveMatch = {
   roomId: string;
   seats: Seat[];
-  /** Both seats are this account (hotseat practice). */
   practice: boolean;
   ranked: boolean;
   phase: "waiting" | "playing" | "finished";
 };
 
-/** The game server's HTTP origin (the Colyseus SDK derives ws(s) from http(s); this goes back). */
 export function gameServerHttpUrl(serverUrl: string): string {
   return serverUrl.replace(/^ws(s?):\/\//i, "http$1://").replace(/\/+$/, "");
 }
 
-/**
- * `GET /active-matches` with the account's game token. Resolves [] on any
- * failure: this only feeds an optional lobby card.
- */
 export async function fetchActiveMatches(
   serverUrl: string,
   gameToken: string,
@@ -53,10 +46,6 @@ export async function fetchActiveMatches(
   }
 }
 
-/**
- * The match to offer as "in progress on another device": the first one this
- * tab's own resume blob does not already cover (that has its own card).
- */
 export function pickOtherDeviceMatch(
   matches: ActiveMatch[],
   localResume: Pick<MatchResumeBlob, "roomId"> | null,

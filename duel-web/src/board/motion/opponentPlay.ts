@@ -4,11 +4,9 @@ export type OpponentPlay = {
   entryId: string;
   defId: string;
   turn: number;
-  /** Past-tense phrase for the preview caption ("played", "countered", …). */
   verb: string;
 };
 
-/** Log tones that mean "this player used a card" (attacks, KOs, draws… are not plays). */
 const VERB_BY_TONE: Partial<Record<LogTone, string>> = {
   play: "played",
   counter: "countered",
@@ -18,11 +16,6 @@ const VERB_BY_TONE: Partial<Record<LogTone, string>> = {
 
 export type CardUse = { defId: string; ownerSeat: 0 | 1; verb: string };
 
-/**
- * The card a log entry shows being used (played, countered, triggered,
- * activated), or null for anything else. `effect` lines also cover cards
- * bounced back to hand, so only "activates its effect" lines count there.
- */
 export function cardUseOf(e: BattleLogEntry): CardUse | null {
   const verb = VERB_BY_TONE[e.tone];
   if (!verb) return null;
@@ -32,7 +25,6 @@ export function cardUseOf(e: BattleLogEntry): CardUse | null {
   return { defId: seg.defId, ownerSeat: seg.ownerSeat, verb };
 }
 
-/** Newest log entry where the opponent used a card, for the idle preview panel. */
 export function latestOpponentPlay(
   entries: readonly BattleLogEntry[],
   oppSeat: 0 | 1,

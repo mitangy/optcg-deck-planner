@@ -1,15 +1,9 @@
-/**
- * Group buy detail (/group-buys/:id): the alt-art selector leads with the Base
- * tile, and the price under each card is the total across the arts the viewer
- * picked. Runs at desktop-1200 (grid) and phone-375 (grid and list).
- */
 import { expect, test } from "./fixtures";
 
 const GB = 7;
 const BASE_PRICE = 1;
 const MANGA_PRICE = 9;
 
-/** An open group buy with one card: base art $1.00, one Manga alt $9.00 that the viewer wants once. */
 function detail(myQty: number) {
   const baseCopies = Math.max(0, myQty - 1);
   const alts = Math.min(1, myQty);
@@ -42,7 +36,6 @@ function detail(myQty: number) {
         card_type: "Leader",
         cost: "5",
         total_qty: myQty,
-        // The host's checkout printing is the $50 alt: neither the Base tile nor the total may use it.
         market_price: 50,
         remaining_cost: remaining,
         product_id: 13,
@@ -94,7 +87,6 @@ test("Group buy shows the Base tile and prices the card as the total across pick
     const card = page.locator(layout === "Grid" ? ".grid-card" : ".mobile-card").filter({ hasText: "OP01-001" });
     const base = card.locator(".alt-art-base");
     await expect(base).toBeVisible();
-    // 3 copies bought, 1 of them the Manga: 2 on the base art, priced at the base printing ($1.00), not the host's $50 checkout printing.
     await expect(base).toContainText("Buy ×2");
     await expect(base).toContainText("$1.00");
     const total = card.getByTestId("gb-arts-total");
@@ -103,7 +95,6 @@ test("Group buy shows the Base tile and prices the card as the total across pick
     await expect(total).toHaveAttribute("title", "2 × Base $1.00 + 1 × Manga $9.00");
   }
 
-  // One more copy on Your buy: qty 4 (alt wants stay first), the extra lands on Base, total $12.00.
   const last = layouts[layouts.length - 1] === "Grid" ? ".grid-card" : ".mobile-card";
   const card = page.locator(last).filter({ hasText: "OP01-001" });
   await card.getByRole("button", { name: "Increase buy qty for OP01-001" }).click();

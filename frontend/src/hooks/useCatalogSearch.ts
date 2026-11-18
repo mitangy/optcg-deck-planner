@@ -7,14 +7,8 @@ import { qk } from "../cache/queryKeys";
 
 export const CATALOG_TYPE_FILTERS = ["", "Leader", "Character", "Event", "Stage", "DON!!"] as const;
 
-/** Wait this long after the last keystroke before searching the catalog. */
 export const CATALOG_SEARCH_DEBOUNCE_MS = 250;
 
-/**
- * The catalog search shared by the Collection / Shopping add drawer and the deck editor: a search box
- * (debounced), color and card-type filters remembered under `colorKey` / `typeKey`, and the query.
- * The search runs once there is text or a filter; alt-art rows follow the "Show alt arts" setting.
- */
 export function useCatalogSearch({ colorKey, typeKey }: { colorKey: string; typeKey: string }) {
   const [query, setQuery] = useState("");
   const debouncedQ = useDebouncedValue(query, CATALOG_SEARCH_DEBOUNCE_MS).trim();

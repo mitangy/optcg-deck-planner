@@ -14,7 +14,6 @@ function formatSaleDate(iso: string): string {
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** The panel body. It mounts only while the popover is open, so the sales are fetched on open and cached. */
 function RecentSales({ productId }: { productId: number }) {
   const salesQ = useQuery({
     queryKey: qk.recentSales(productId),
@@ -43,11 +42,6 @@ function RecentSales({ productId }: { productId: number }) {
   );
 }
 
-/**
- * A market price that opens its last three sales in a Headless UI Popover. The panel floats in a
- * portal under the price (flipping above it near the bottom of the screen), so opening it, or its
- * list loading, never moves or resizes the price button.
- */
 export function MarketPrice({
   price,
   productId,
@@ -87,7 +81,6 @@ export function MarketPrice({
   );
 }
 
-/** Base art shown as the small "Base" tile once an alt art is the main image. */
 export type BaseArt = {
   name: string;
   image_url?: string;
@@ -95,10 +88,6 @@ export type BaseArt = {
   product_id?: number | null;
 };
 
-/**
- * "+ Extra copy" on an art the deck's own copies already use (#1165): asks before saving, so a second
- * copy is never added by a slip. The panel floats in a portal under the button, so nothing moves.
- */
 function ExtraCopyConfirm({ name, disabled, onConfirm }: { name: string; disabled: boolean; onConfirm: () => void }) {
   return (
     <Popover as="div" className="alt-extra-pop">
@@ -192,12 +181,6 @@ export function AltStepper({
   );
 }
 
-/**
- * Alt-art tiles for a card. Planner pages edit how many copies of each alt the
- * user owns (`onOwnedChange`). Group buys keep their per-order wants
- * (`onWantChange`, capped by `cardNeeded`). `base` prepends a "Base" tile when
- * an owned alt has taken over as the main image.
- */
 export function AltArtsRow({
   alts,
   cardNeeded,
@@ -219,37 +202,21 @@ export function AltArtsRow({
   collectorBusyProductId = null,
 }: {
   alts: PrintingView[] | null | undefined;
-  /** Group buys only: the want cap. */
   cardNeeded?: number;
-  /** Group buys only: disable + on every alt (no Base copy left to move), with this tooltip. */
   blockWantInc?: boolean;
   blockWantIncTitle?: string;
   editable?: boolean;
   onOwnedChange?: (productId: number, qty: number) => void;
   onWantChange?: (productId: number, qty: number) => void;
-  /**
-   * Group buys (#1305): copies you buy as this art, shown as "Buy ×N · own M" above the Want stepper
-   * (owned copies count first, so Want 1 with 1 owned buys 0).
-   */
   altBuyQty?: (productId: number) => number;
-  /**
-   * Planner pages (#906): tag every alt tile whose copies the user picked to buy
-   * with a read-only "Buying ×N" label. Picking happens in the buy-split popover.
-   */
   showBuyPicks?: boolean;
   busyProductId?: number | null;
   base?: BaseArt | null;
-  /** Owned stepper for the base count, shown inside the Base tile. */
   baseOwnedControl?: ReactNode;
-  /** Falls back to the card's preview art when an alt (or the base) has none of its own. */
   cardId?: string | null;
-  /** Product id of the art currently shown as the card's picture (0/null = base). */
   shownProductId?: number | null;
-  /** Makes a tile the card's picture (0 = base). Adds a Show control to every tile. */
   onShow?: (productId: number) => void;
-  /** Extra content on its own full-width row at the bottom of every tile (0 = the Base tile), e.g. who wants it. */
   tileExtra?: (productId: number) => ReactNode;
-  /** Planner pages (#1035): turns each alt tile's read-only "★ Extra copy" label into a toggle (#1165). */
   onCollectorChange?: (productId: number, qty: number) => void;
   collectorBusyProductId?: number | null;
 }) {
@@ -275,8 +242,6 @@ export function AltArtsRow({
       )
     ) : null;
 
-  /* One footer on every tile (#1270): Extra copy, who-wants chips / Skipped badge, then Show, each across the
-     tile's full width so the buttons match and never spill past the tile edge (#1280). */
   const tileFoot = (productId: number, name: string, collector: ReactNode = null) => {
     const show = showControl(productId, name);
     if (!tileExtra && !show && !collector) return null;

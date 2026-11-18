@@ -1,4 +1,3 @@
-/** OPTCGSim decklist export (clipboard / .txt) helpers. */
 
 export type OptcgSimExportCard = {
   card_id: string;
@@ -8,11 +7,8 @@ export type OptcgSimExportCard = {
 };
 
 export type OptcgSimExport = {
-  /** Lines matching OPTCGSim “Copy Deck List to Clipboard” (`4xOP15-053`). */
   pasteText: string;
-  /** Non-DON lines with needed > 0. */
   lineCount: number;
-  /** Copies summed across exported lines. */
   copyCount: number;
 };
 
@@ -23,7 +19,6 @@ function isDonCard(card: OptcgSimExportCard): boolean {
   return (card.card_id || "").toUpperCase().startsWith("DON-");
 }
 
-/** Safe download basename from a deck name. */
 export function optcgSimFilename(deckName: string): string {
   const base = (deckName || "deck")
     .trim()
@@ -35,10 +30,6 @@ export function optcgSimFilename(deckName: string): string {
   return /\.(txt|deck)$/i.test(safe) ? safe : `${safe}.txt`;
 }
 
-/**
- * Build OPTCGSim-compatible deck text from deck cards.
- * Leader is listed first when known; DON!! lines are omitted (sim uses a separate DON deck).
- */
 export function buildOptcgSimExport(
   cards: OptcgSimExportCard[],
   opts?: { leaderCardId?: string | null },
@@ -67,7 +58,6 @@ export function buildOptcgSimExport(
   };
 }
 
-/** Trigger a browser download of decklist text. */
 export function downloadTextFile(contents: string, filename: string): void {
   const blob = new Blob([contents], { type: "text/plain;charset=utf-8" });
   const url = URL.createObjectURL(blob);

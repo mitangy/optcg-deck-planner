@@ -39,9 +39,6 @@ body {
   background-attachment: fixed;
 }
 
-/* With the legal footer below a page, the page fills the screen minus the
-   footer, so short pages put it at the bottom edge instead of below the fold. */
-/* Pre-rendered public pages are for visitors; a browser with a signed-in session sees the skeleton instead (#914). */
 html.signed-in-hint #root[data-prerendered] > * {
   visibility: hidden;
 }
@@ -102,7 +99,6 @@ h1 {
      the document content (nested 100svh shells were leaving empty scroll). */
   min-height: 100%;
   min-height: 100svh;
-  /* Safe-area only — avoid a fixed bottom pad that reads as empty space. */
   padding: 0 0 env(safe-area-inset-bottom, 0px);
   overflow-x: clip;
 }
@@ -114,7 +110,6 @@ h1 {
   padding: 1rem 1.25rem 2rem;
 }
 
-/* Group buy tables need more horizontal room (printing + alt arts columns). */
 .app-main:has(.group-buy-detail) {
   max-width: min(1600px, 100%);
 }

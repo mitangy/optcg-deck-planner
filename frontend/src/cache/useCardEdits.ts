@@ -6,13 +6,6 @@ import { busyKeyFor, busyProductFor } from "./busyKey";
 import { invalidateAltOwnedViews, invalidateAltWantViews, invalidateCollectorViews } from "./invalidate";
 import { applyAltBuyOptimistic, applyAltOwnedOptimistic, applyCollectorOptimistic } from "./optimistic";
 
-/**
- * Save alt-art owned counts, buy picks, collector wants (#1035) and the chosen display art from a page: optimistic patches to
- * every cached view, the save, then a refetch so values and totals come from the server. The
- * Collection keeps no other editing state; Shopping and the Deck page pass `saveAltBuy` because
- * only the buy-pick API call differs between them (`setCardPrinting` vs `setDeckCardPrinting`).
- * `saveAltBuy` runs after the optimistic patch and applies its own server answer.
- */
 export function useCardEdits({
   saveAltBuy,
 }: { saveAltBuy?: (cardId: string, productId: number, qty: number) => Promise<void> } = {}) {
@@ -72,9 +65,7 @@ export function useCardEdits({
       invalidateDisplayArtViews(qc);
     }
   };
-  /** The alt printing of `cardId` whose save is in flight, if any. */
   const busyProductId = (cardId: string) => busyProductFor(busyKey, cardId);
-  /** The alt printing of `cardId` whose collector save is in flight, if any. */
   const collectorBusyProductId = (cardId: string) => busyProductFor(collectorBusyKey, cardId);
   return {
     busyKey,

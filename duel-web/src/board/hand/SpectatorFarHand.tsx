@@ -6,12 +6,6 @@ import { spectatorHandGrid, type SpectatorFans } from "./handLayout";
 
 type HandCard = { id: string; defId: string; artCopy?: number };
 
-/**
- * The far player's hand for a spectator of an unranked room on a phone: a grid
- * of small upright cards, no overlap, tilt or drop: one scrolling row above
- * the top mat in portrait, a wrapping grid at the top of the right column in
- * landscape. (Desktop spectators get the match's `HandFan`, mirrored.)
- */
 export function SpectatorFarHand({
   cards,
   ownerSeat,
@@ -21,7 +15,6 @@ export function SpectatorFarHand({
   cards: readonly HandCard[];
   ownerSeat: Seat;
   mode: Exclude<SpectatorFans, "desktop">;
-  /** "Player 2": the label reads "Player 2 hand" */
   name: string;
 }) {
   const n = cards.length;

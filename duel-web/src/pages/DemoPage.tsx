@@ -20,21 +20,6 @@ import { DEMO_MATCH_ID } from "../board/audio/tabMute";
 import { motionDemoSteps } from "./motionDemo";
 import { buildDemoView, demoDiceNext, demoDiceStart, demoPickedBy } from "./demo/demoParams";
 
-/**
- * Layout QA flags: `?prompt=<kind>` choice prompts, `?turn0` opening-hand
- * state (`&first=1` makes the opponent go first, `&pickedby=coin|0|1` says how that was decided), `?practice` hotseat chrome
- * (shared playmat), `?oppart` the opponent's custom playmat and card back (`&spectate` for both seats), `?chat` match chat with sample lines, `?undo` private-room
- * undo (`?undo=ask` shows an incoming request, `?undo=force` one past a reveal,
- * `?undo=menu` the open choice menu, `?undo=blocked` / `?undo=limit` a blocked one with its reason), `?waiting` the invite screen, `?dice=call|roll|choose` the opening dice roll (`&diceroller=0` you roll, `&dicecall=low`, `&diceroll=N`; the buttons play it on, then the mulligan banner names the result),
- * `?oppturn` the opponent's turn, `?unaffordable` your main phase with 1 active DON!! (costlier hand cards gray out), `?blocked` your main phase after an effect stopped you playing Characters (Character hand cards say "Can't play"), `?clock` per-player clocks, `?away` a
- * disconnected opponent, `?over` the match-over screen (`&guest`: no saved match) with a rematch vote
- * (`&rematch=ask|wait|choose|left`, `&oppdeck`: the opponent picked a new deck), `?full` a full board, `?rest=N` / `?restlead` /
- * `?oppfull` rested cards (see withRestedField), `?green` a Green Leader and Character (attack-ready glow colour), `?statuses` stacked status
- * icons (see withManyStatuses), `?motion` a button that steps
- * through every card animation, `?box` the old pop-up instead of floating-card
- * searches and effect ordering (with `?prompt=look|satori|effects`), `?attack` / `?counter` (`=short`: counters still needed; `=newgate`: long names on both sides; `=haki`: the Haki's Yes/No above the hand; `=block`: the block step, to skip it with a Counter drag) drag QA (see
- * withBattleDrag; sent intents land in `window.__demoIntents`). Zone counts and `?hand=N` hand size: see applyDemoZoneParams.
- */
 function demoRematch(params: URLSearchParams): RematchState {
   const mode = params.get("rematch");
   return {
@@ -48,15 +33,12 @@ function demoRematch(params: URLSearchParams): RematchState {
 
 export function DemoPage() {
   const params = new URLSearchParams(window.location.search);
-  // `?dice=...`: the opening dice roll, played on locally; after the winner's pick the mulligan view shows the result.
   const [dice, setDice] = useState<DiceStateMessage | null>(() => demoDiceStart(params));
   const [diceResult, setDiceResult] = useState<{ result: DiceResult; firstSeat: Seat } | null>(null);
   const view = buildDemoView(
     diceResult ? new URLSearchParams([...params, ["turn0", ""], ["first", String(diceResult.firstSeat)]]) : params,
   );
-  // `?counter=haki`: after the event is played it waits on its optional DON!! rest.
   const [haki, setHaki] = useState<"hand" | "asking" | "done">("hand");
-  // `?counter=block`: the block step until No block (or a Counter drag) passes it.
   const [blockPassed, setBlockPassed] = useState(false);
   const live: PlayerView =
     haki !== "hand"
@@ -69,12 +51,10 @@ export function DemoPage() {
     : params.has("reveal")
       ? withHandReveals(live)
       : live;
-  // `?motion`: one state per click; Replay remounts the board to replay the deal.
   const motionSteps = useMemo(() => (params.has("motion") ? motionDemoSteps(view) : null), []);
   const [motionStep, setMotionStep] = useState(0);
   const [motionRun, setMotionRun] = useState(0);
   const nextMotion = motionSteps?.[motionStep + 1];
-  // Chat, battle log, undo and rematch go through the same match store (and reducer) a real match uses.
   const [store] = useState(() =>
     createMatchStore("demo", {
       seat: 0,
@@ -89,7 +69,6 @@ export function DemoPage() {
   const chat = useMatchStore(store, (m) => m.chat);
   const log = useMatchStore(store, (m) => m.battleLog);
   const rematch = useMatchStore(store, (m) => m.rematch)!;
-  // `?reveal`: the opponent reveals a card (then another) a moment after load.
   useEffect(() => {
     if (!params.has("reveal")) return;
     const t = window.setTimeout(() => {
@@ -99,7 +78,6 @@ export function DemoPage() {
     }, 1200);
     return () => window.clearTimeout(t);
   }, []);
-  // `?motion` steps carry the events the server would send: narrate them into the log.
   useEffect(() => {
     const events = motionSteps?.[motionStep]?.events;
     if (!events) return;

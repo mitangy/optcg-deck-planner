@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { SAVED_DECKS_CHANGED_EVENT } from "./storage";
 
-/** Bumps when account sync changes the saved decks, so a page that lists them re-reads. */
 export function useSavedDecksVersion(): number {
   const [version, setVersion] = useState(0);
   useEffect(() => {

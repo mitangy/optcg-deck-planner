@@ -15,17 +15,11 @@ import {
   WIDE_BOARD_QUERY,
 } from "./layout/useMediaQuery";
 
-/** What the board shows before the match's first view arrives. */
 export type BoardWaiting = {
-  /** "Searching for an opponent…", "Connecting…", "Starting practice…" */
   status: string;
-  /** Your deck's Leader, when known. Omitted = an empty Leader slot. */
   youLeaderId?: string | null;
-  /** The opponent's Leader (practice only). Omitted = an empty Leader slot. */
   oppLeaderId?: string | null;
-  /** Private room: show its invite card once the room exists. */
   invite?: { roomId: string | null; autoCopy: boolean } | null;
-  /** Invites friends sent you while you wait; Join leaves this room for theirs. */
   friendInvites?: {
     invites: FriendInvite[];
     onJoin: (invite: FriendInvite) => void;
@@ -35,7 +29,6 @@ export type BoardWaiting = {
 
 type Props = {
   waiting: BoardWaiting;
-  /** The opening dice roll (#1190): shown over the mat in place of the invite while it runs. */
   dice?: ReactNode;
   errorBanner: string | null;
   leaveLabel: string;
@@ -47,7 +40,6 @@ function leaderCard(id: string, defId: string | null | undefined): CardView {
   return stubCard({ id, defId: defId ?? "" });
 }
 
-/** Empty board sides: 50-card decks, 10 DON!!, nothing in play yet. */
 function emptySide(id: string, leaderId: string | null | undefined) {
   return {
     leader: leaderCard(id, leaderId),
@@ -63,11 +55,6 @@ function emptySide(id: string, leaderId: string | null | undefined) {
   };
 }
 
-/**
- * The playmat with both Leaders and empty zones, shown the moment a match is
- * requested so queueing / connecting happens on the board instead of on a
- * loading screen. Nothing here is interactive except Cancel.
- */
 export function PendingBoard({ waiting, dice, errorBanner, leaveLabel, onLeave, onClearError }: Props) {
   const prefs = useDuelSettings();
   const wide = useMediaQuery(WIDE_BOARD_QUERY);

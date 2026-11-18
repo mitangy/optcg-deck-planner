@@ -24,10 +24,7 @@ describe("game socket compression", () => {
   });
 });
 
-/**
- * Two real game-server processes sharing one Redis. Needs a Redis to talk to:
- * set REDIS_TEST_URL (CI runs a Redis service). Each run flushes that database.
- */
+// Needs a Redis: set REDIS_TEST_URL (CI runs a Redis service). Each run flushes that database.
 describe("game-server pool on Redis", function () {
   this.timeout(120_000);
   const redisUrl = process.env.REDIS_TEST_URL;
@@ -140,7 +137,6 @@ describe("per-account open-room cap across a pool", function () {
   it("counts an account's open rooms across processes, not per process (#682)", async () => {
     const options = deployed();
     try {
-      // Two processes are two stores on the same Redis; each starts with a count of zero of its own.
       const a = new RedisPresence(redisUrl!);
       const b = new RedisPresence(redisUrl!);
       stores.push(a, b);
@@ -148,7 +144,6 @@ describe("per-account open-room cap across a pool", function () {
       for (let i = 0; i < MAX_ROOMS_PER_CREATOR; i++) await claimCreatorRoom(options);
       useSharedRoomCounts(b);
       await assert.rejects(() => claimCreatorRoom(options), /Too many open rooms/);
-      // Releasing on the first process frees a slot for the second.
       useSharedRoomCounts(a);
       releaseCreatorRoom(682);
       await new Promise((r) => setTimeout(r, 100));

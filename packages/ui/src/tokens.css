@@ -1,23 +1,5 @@
-/*
- * Shared design tokens for the planner (frontend), duel-web and every @optcg/* package stylesheet:
- * the z-index scale, the border-radius scale and the gap scale. Each app imports this file first
- * (`import "@optcg/ui/tokens.css"` in main.tsx), so every later `var(--z-*)` resolves.
- *
- * Values are the literals the stylesheets used before the tokens existed (refactor 4.1a), so
- * switching a rule to a token changes nothing on screen. Two layers that differ only in order
- * keep two tokens (--z-dock 17, --z-motion 18 and --z-spotlight 19).
- *
- * Reading the z-index scale: a token is a layer, not a number. Rules in one stacking context
- * compare these values, so a new layer slots between two existing tokens by value; if the number
- * you need is not here, add a token in order rather than writing a literal. tools/ci/css-tokens.test.cjs
- * fails on a raw `z-index: <number>` outside this file.
- *
- * The apps and packages also override a few of these through their own hooks: --ui-z (packages/ui
- * pop-ups) and --lp-z-compass / --lp-z-panel (the Log Pose chat) are set by each app to one of the
- * tokens below.
- */
+/* A token is a layer: rules in one stacking context compare these values, so a new layer slots between two tokens by value. */
 :root {
-  /* ——— z-index: behind and local stacking inside one component (cards, rows, badges) ——— */
   --z-under: -1;
   --z-base: 0;
   --z-raise-1: 1;
@@ -28,7 +10,6 @@
   --z-raise-6: 6;
   --z-raise-8: 8;
 
-  /* ——— z-index: board panels and the hand/action docks (duel-web board) ——— */
   --z-log: 12; /* battle log, chat panel */
   --z-col-handle: 15; /* column resize handle, column cut */
   --z-hand: 16; /* hand dock and fan: under the action dock so End turn stays clickable */
@@ -53,7 +34,6 @@
   --z-copilot: 56;
   --z-preview: 58; /* card preview popup */
 
-  /* ——— z-index: menus, popovers and sheets ——— */
   --z-menu: 60; /* menus, drag ghost, filter panels */
   --z-deck-config: 65;
   --z-card-menu: 70;
@@ -75,7 +55,6 @@
   --z-moved: 1100; /* "moved to another device" and event overlays */
   --z-feedback: 2000; /* feedback dialog, above everything */
 
-  /* ——— border-radius ——— */
   --radius-2: 2px;
   --radius-3: 3px;
   --radius-4: 4px;
@@ -92,7 +71,6 @@
   --radius-pill: 999px;
   --radius-round: 50%;
 
-  /* ——— gap (flex and grid) ——— */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;

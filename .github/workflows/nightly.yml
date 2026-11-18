@@ -1,7 +1,5 @@
 name: Nightly regression
 
-# Slower checks than PR CI should carry. Any failing job opens (or comments on)
-# the "Nightly regression failure" issue; see the `report` job at the bottom.
 on:
   schedule:
     - cron: "0 6 * * *"
@@ -41,18 +39,10 @@ jobs:
           npm run fuzz -w @optcg/rules -- "$GAMES" "$SEED"
 
   stryker-rules:
-    # Report-only breadth mutation run over the rules engine. Survivors never
-    # fail the job (thresholds.break is null); only a tool error does.
-    # Weekly (Sunday) or on demand: all ~9,800 mutants take ~14h at concurrency
-    # 2, so the engine is split into five shards (each ~1-2h) that run in
-    # parallel, each with its own incremental file. Survivors are printed as
-    # SURVIVOR lines in each shard's job log and read by a weekly Claude routine
-    # that turns real ones into tests (see tools/mutation-check/README.md).
+    # Survivors never fail the job (thresholds.break is null); only a tool error does. All ~9,800 mutants take ~14h at concurrency 2, so the engine is split into five shards, each with its own incremental file.
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.schedule == '17 7 * * 0' }}
     runs-on: ubuntu-latest
-    # A shard that times out saves no incremental file, so it starts from
-    # scratch again the next week. The runtime modules together (~3,700 mutants) needs
-    # about 4h20m from scratch, so allow close to the 6 h hosted-runner cap.
+    # A shard that times out saves no incremental file, so it starts from scratch again the next week. The runtime modules together need about 4h20m from scratch, so allow close to the 6 h hosted-runner cap.
     timeout-minutes: 350
     strategy:
       fail-fast: false
@@ -130,10 +120,8 @@ jobs:
           if-no-files-found: ignore
 
   log-pose-eval-live:
-    # Re-checks the Log Pose eval's FAQ cases against Bandai's live FAQ. Free (no model calls).
     # Exit 1 (a case went stale or its answer changed) is reported in the summary only;
     # exit 2 (the official site was unreachable twice) fails the job.
-    # The Sunday 07:17 schedule is Stryker's; the nightly jobs skip it.
     if: ${{ github.event.schedule != '17 7 * * 0' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -148,7 +136,6 @@ jobs:
           if [ "$code" = "2" ]; then exit 2; fi
           exit 0
 
-  # --- Add later nightly jobs above this line, and list them in `report.needs`. ---
 
   report:
     needs: [fuzz, stryker-rules, log-pose-eval-live]

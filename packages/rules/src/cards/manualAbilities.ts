@@ -1,20 +1,3 @@
-/**
- * Reviewed, hand-authored ability definitions for printed text the offline
- * compiler cannot express. Two forms:
- *
- * - `{ abilities }` replaces the generated definition for the card entirely.
- * - `{ patch }` adds abilities to the generated definition. Each patch
- *   ability's `text` must be the start of one of the card's unsupported
- *   generated clauses; that clause is then treated as implemented. A patch that
- *   matches no unsupported clause fails registry validation, so patches go
- *   stale loudly when the grammar learns the clause.
- *
- * `drop` lists garbled fragments of bundled (non-Bandai) text that are covered
- * by a patch ability written from the full printed text.
- *
- * Every entry must stay plain JSON-compatible data; the helpers below only
- * build objects.
- */
 import type { Ability, CardAbilities, Effect, Filter } from "../effects/types.js";
 import {
   le, ge, eq, sel, oppChar, myChar, oppDon, oppCharOrDon, myLeaderOrChar, upTo, exactly, v, self, myLeader,
@@ -28,15 +11,10 @@ export type ManualEntry =
 
 type Draft = Omit<Ability, "id">;
 
-// ---------------------------------------------------------------------------
-// Card-specific compositions of the shared builders (../effects/builders.ts)
-// ---------------------------------------------------------------------------
-
 const giveDonChoice = (donState: "rested" | "any"): Effect => oneOf(
   ["Give your DON!! card to your Leader or Character", { do: "give_don", target: exactly(1, myLeaderOrChar()), count: 1, donState, player: "you" }],
   ["Give your opponent's DON!! card to their Leader or Character", { do: "give_don", target: exactly(1, sel("opponent", "leader_or_character")), count: 1, donState, player: "opponent" }],
 );
-/** "Choose a cost and reveal 1 card from the top of your opponent's deck. If the revealed card has the chosen cost, …" */
 const guessCost = (then: Effect): Effect => seq(
   { do: "choose_number", bind: "_n", max: 10, prompt: "choose a cost" },
   { do: "reveal_top", player: "opponent", bind: "_rev" },
@@ -49,10 +27,6 @@ const WB = "Whitebeard Pirates";
 function card(id: string, patch: Draft[], drop?: string[]): [string, ManualEntry] {
   return [id, { patch: patch.map((a, i) => ({ id: `${id.toLowerCase()}#m${i}`, ...a })), ...(drop ? { drop } : {}) }];
 }
-
-// ---------------------------------------------------------------------------
-// Entries
-// ---------------------------------------------------------------------------
 
 const VEGAPUNK_TO_LIFE: Effect = { do: "to_life", target: v("_s"), position: "top", faceUp: true };
 
@@ -632,12 +606,12 @@ const ENTRIES: [string, ManualEntry][] = [
       costs: [{ k: "life_face_up", count: 1, position: "top_or_bottom" }], effect: { do: "give_don", target: myLeader, count: 1, donState: "rested" } }]),
 ];
 
-// Full replacement (the generated record dropped "and reveals their hand"): the opponent's remaining hand stays face up this turn (#491).
+// The generated record dropped "and reveals their hand": the opponent's remaining hand stays face up this turn.
 ENTRIES.push(["OP07-090", { abilities: [{ id: "op07-090#0", trigger: "on_play", text: "[On Play] Your opponent trashes 1 card from their hand and reveals their hand. Then, your opponent draws 1 card.",
   effect: seq({ do: "discard", player: "opponent", count: 1, chooser: "opponent" }, { do: "reveal", target: { ref: "all", selector: sel("opponent", "hand") } }, { do: "draw", player: "opponent", count: 1 }) }] }]);
 
-// Full replacement (#524). EB01-029 Q&A: a revealed card with a cost of 3 or less "is returned face-down to the top of your
-// deck"; only the cost 4 or more branch returns a Character and then places the revealed card at the bottom.
+// EB01-029 Q&A: a revealed card with a cost of 3 or less "is returned face-down to the top of your deck"; only the
+// cost 4 or more branch returns a Character and then places the revealed card at the bottom.
 ENTRIES.push(["EB01-029", { abilities: [
   { id: "eb01-029#0", trigger: "counter", text: "[Counter] Reveal 1 card from the top of your deck. If the revealed card has a cost of 4 or more, return up to 1 of your Characters to the owner's hand. Then, place the revealed card at the bottom of your deck.",
     effect: seq(
@@ -648,8 +622,8 @@ ENTRIES.push(["EB01-029", { abilities: [
     effect: { do: "to_hand", target: upTo(1, sel("any", "character", { ...CHAR, cost: le(8) })) } },
 ] }]);
 
-// Full replacement (#567): [On Your Opponent's Attack] has no Once Per Turn, so it is only offered while the Leader's or this
-// Character's base power is not already 7000 (a second activation would change nothing).
+// [On Your Opponent's Attack] has no Once Per Turn, so it is only offered while it would still change something (a
+// second activation would do nothing).
 ENTRIES.push(["OP16-015", { abilities: [
   { id: "op16-015#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] You may trash 1 Character card with 8000 power from your hand: Your Leader and this Character's base power becomes 7000 during this turn.",
     conditions: [{ c: "or", conds: [
@@ -665,8 +639,8 @@ ENTRIES.push(["OP16-015", { abilities: [
     conditions: [exists(sel("you", "leader", { nameIncludes: ["Ace"] })), cmp(donField("you"), ">=", 6)], statics: [{ s: "play_cost", target: "self", amount: -2 }] },
 ] }]);
 
-// Full replacement (#607): [On Your Opponent's Attack] has no Once Per Turn, so it is only offered while the Leader's base power is
-// not already 7000 and the trash can reach 10 once the cost card is trashed (9 now). Both abilities are otherwise as generated.
+// [On Your Opponent's Attack] has no Once Per Turn, so it is only offered while it would still change something, and
+// only when the trash can reach 10 once the cost card is trashed.
 ENTRIES.push(["EB05-046", { abilities: [
   { id: "eb05-046#0", trigger: "static", text: "If your opponent has a Character with 8000 base power or more, this Character gains [Blocker] and +3000 power.",
     conditions: [exists(oppChar({ types: ["character"], basePower: ge(8000) }))],
@@ -681,8 +655,7 @@ ENTRIES.push(["EB05-046", { abilities: [
       { do: "base_power", target: { ref: "leader", player: "you" }, value: 7000, duration: "turn" }) },
 ] }]);
 
-// Full replacements (#607): these abilities have no Once Per Turn, so each is only offered while it would still change something.
-// OP04-059: not while this Character already has [Blocker].
+// These abilities have no Once Per Turn, so each is only offered while it would still change something.
 ENTRIES.push(["OP04-059", { abilities: [
   { id: "op04-059#0", trigger: "on_opp_attack", text: "[On Your Opponent's Attack] DON!! -1: If your Leader has the {Water Seven} type, this Character gains [Blocker] during this turn.",
     conditions: [{ c: "leader_trait", traits: ["Water Seven"] }, none(myChar({ onlySelf: true, keyword: "blocker" }))],

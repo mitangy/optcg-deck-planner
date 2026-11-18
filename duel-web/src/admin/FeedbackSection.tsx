@@ -44,7 +44,6 @@ function Row({ item }: { item: FeedbackItem }) {
   );
 }
 
-/** What players rated Log Pose answers: counts for the last 30 days and the newest ratings first. Admin only (the endpoint refuses anyone else). */
 export function FeedbackSection() {
   const [filter, setFilter] = useState<FeedbackRating | null>(null);
   const [data, setData] = useState<AdminFeedback | null>(null);

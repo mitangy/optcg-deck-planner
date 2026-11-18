@@ -1,8 +1,3 @@
-/**
- * Findings of `programLint.ts` that are accepted, keyed by ability id. Every entry needs a one-line reason why the
- * program is correct as written, or says "known bug, see report" for a real bug that is tracked elsewhere. An entry
- * only covers its own kind of finding, and the test fails when an entry stops matching anything.
- */
 import type { FindingKind, LintFinding } from "./programLint.js";
 
 export interface AllowEntry {
@@ -15,10 +10,8 @@ export const PROGRAM_LINT_ALLOWLIST: Readonly<Record<string, AllowEntry>> = {
 };
 
 export interface AllowlistResult {
-  /** Findings with no allowlist entry. */
   unexpected: LintFinding[];
   allowed: LintFinding[];
-  /** Allowlist keys that matched no finding: the program was fixed or changed, so the entry should go. */
   stale: string[];
 }
 

@@ -4,7 +4,6 @@ import type { Rng } from "../rng.js";
 import type { LeaderPlaybook } from "./playbooks/types.js";
 import type { BotLevel, BotView } from "./types.js";
 
-/** Keep a hand with a playable curve: at least two Characters costing 4 or less. Easy keeps unless the rng says otherwise. */
 export function chooseMulligan(view: BotView, level: BotLevel, rng: Rng, pb?: LeaderPlaybook): Intent {
   const legal = view.legalIntents;
   const mull = legal.find((i) => i.type === "mulligan" && i.doMulligan);
@@ -20,21 +19,11 @@ export function chooseMulligan(view: BotView, level: BotLevel, rng: Rng, pb?: Le
   return cheap >= 2 ? keep : mull;
 }
 
-// --- Hard: keep or mulligan by simulation (#635) ---------------------------------------------------------------------
-
-/** How many hypothetical redraws / futures each side of the comparison is averaged over. */
 export const MULLIGAN_SAMPLES = 80;
-/** Turns of the abstract goldfish. */
 const GOLDFISH_TURNS = 4;
 /** Mulligan only when the redraw is clearly better: a kept hand is known to be real, a redraw is a gamble. */
 export const MULLIGAN_MARGIN = 0.03;
 
-/**
- * How well a hand uses its DON!! over the first turns, 0..~1.2: each of turns 1-4 earns the share of that turn's DON!!
- * spent on cards from the hand (greedy, most expensive first, Characters, Stages and Events alike), plus a little for
- * the first Counters (they do not need DON!! but they hold the early Life). `draws` is the order of the cards drawn
- * after this hand. The first player skips its first draw and gets 1 DON!! on turn 1, then both get 2 per turn.
- */
 export function goldfishScore(hand: readonly string[], draws: readonly string[], first: boolean): number {
   const held = hand.map((id) => {
     const def = getCardDef(id);
@@ -61,7 +50,6 @@ export function goldfishScore(hand: readonly string[], draws: readonly string[],
   return score / GOLDFISH_TURNS + 0.06 * Math.min(2, counters);
 }
 
-/** Keep or mulligan: the hand against sampled redraws, scored by `goldfishScore` over sampled futures. Returns one of the legal mulligan intents. */
 export function chooseSimMulligan(state: MatchState, seat: Seat, view: BotView, rng: Rng, base: Intent, pb?: LeaderPlaybook): Intent {
   const mull = view.legalIntents.find((i) => i.type === "mulligan" && i.doMulligan);
   const keep = view.legalIntents.find((i) => i.type === "mulligan" && !i.doMulligan);

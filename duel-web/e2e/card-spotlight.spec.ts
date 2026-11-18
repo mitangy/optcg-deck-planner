@@ -1,8 +1,3 @@
-/**
- * Card spotlight (#339): a played or trashed card shows big over its owner's
- * half of the board, and the "Show played, trashed and drawn cards" switch hides it.
- * Driven by the `/demo?motion` steps, which send the events a server would.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -12,7 +7,6 @@ async function openMotionDemo(page: Page, settings: Record<string, unknown>) {
   await page.locator(".board-root").waitFor();
 }
 
-/** Click the demo's Next button until `label` is the step it just played. */
 async function stepTo(page: Page, label: string) {
   const btn = page.locator(".motion-demo-btn");
   for (let i = 0; i < 20; i++) {
@@ -30,11 +24,9 @@ test("the opponent's played card shows big over their half by default (#339)", a
   await expect(card).toBeVisible();
   await expect(card.locator(".card-spotlight-label")).toHaveText("Played");
   await expect(page.locator(".card-spotlight-group")).toHaveAttribute("data-side", "opp");
-  // Over the opponent's half, not yours.
   const spot = (await card.boundingBox())!;
   const opp = (await page.locator(".side-field.side-opp").boundingBox())!;
   expect(spot.y + spot.height / 2).toBeLessThan(opp.y + opp.height + 40);
-  // It leaves on its own.
   await expect(page.locator(".card-spotlight-card")).toHaveCount(0, { timeout: 4000 });
 });
 
@@ -65,7 +57,6 @@ test("your Draw Phase card shows big over your half, then flies into your hand (
   await expect(card).toBeVisible();
   await expect(card.locator(".card-spotlight-label")).toHaveText("Drew");
   await expect(page.locator(".card-spotlight-group")).toHaveAttribute("data-side", "you");
-  // Sample the card's centre until it leaves; it must end at least half way to the hand.
   const path = await page.evaluate(
     () =>
       new Promise<{ start: [number, number]; end: [number, number]; hand: [number, number] | null }>((resolve) => {

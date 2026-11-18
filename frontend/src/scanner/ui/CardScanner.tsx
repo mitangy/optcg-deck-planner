@@ -1,12 +1,3 @@
-/** Scan a card face to look it up in the catalog.
- *
- * Built for a vendor booth: point the phone at a card in someone else's
- * binder and get the market price plus how many you still need. Nothing is
- * uploaded and nothing is stored — the image never leaves the device.
- * The one exception is the multi-card photo scan: after the user adds the
- * cards, small crops of each added card (never the photo) are shared to
- * improve the scanner, unless they switched that off (`share_scans`).
- */
 
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -52,15 +43,11 @@ type Phase =
   | { kind: "miss"; message: string; candidate?: string };
 
 export type ScanMulti = {
-  /** Called after the scanned cards were added, so the page can refresh. */
   onAdded?: () => void;
-  /** Replaces the detector (tests). */
   matcher?: MatchAllCards;
-  /** Where the cards go: the collection (default) or the shopping list, marked as owned. */
   target?: ScanTarget;
 };
 
-/** Test-only: e2e sets this before load to stand in for the detector and the scan data. Dev server only, never read in a production build. */
 function testMatcher(): MatchAllCards | undefined {
   if (!import.meta.env.DEV) return undefined;
   return (window as unknown as { __optcgTestMatchAll?: MatchAllCards }).__optcgTestMatchAll;
@@ -68,7 +55,6 @@ function testMatcher(): MatchAllCards | undefined {
 
 type Tray = { rows: TrayRow[]; found: number; items: MultiScanItem[] };
 
-/** The catalog row whose card number is exactly `cardId`, or null. */
 async function lookupExact(cardId: string, limit = 5): Promise<CatalogCardResult | null> {
   const rows = await api.searchCatalog({ q: cardId, limit });
   return rows.find((r) => r.card_id.toUpperCase() === cardId.toUpperCase()) ?? null;
@@ -78,15 +64,6 @@ function formatMb(bytes: number): string {
   return `${(bytes / 1048576).toFixed(0)} MB`;
 }
 
-/**
- * Explains and gates the one-time descriptor download.
- *
- * Matching runs entirely on the device, which is the point — the wifi at a
- * card show is exactly what breaks price checks — but it means the reference
- * data has to be fetched once first. Asking plainly, with the size shown,
- * beats either surprising the user with a large download or discovering the
- * data is missing mid-scan at the booth.
- */
 function ScanDataGate({ state, onDownload }: { state: ScanDataState; onDownload: () => void }) {
   if (state.kind === "ready") return null;
   if (state.kind === "checking") return <p className="scan-note">Checking scan data…</p>;
@@ -129,16 +106,11 @@ export function CardScanner({
   renderHitAction,
   multi,
 }: {
-  /** Current shopping rows, used to answer "do I still need this?". */
   items: ShoppingItem[];
   onClose: () => void;
-  /** An image dropped on the page before the dialog opened. */
   initialImage?: Blob | null;
-  /** Show the shopping "still need" line for a hit (off on the Collection page). */
   showNeed?: boolean;
-  /** Extra control under a hit, e.g. the Collection page's Add / Owned stepper. */
   renderHitAction?: (card: CatalogCardResult) => ReactNode;
-  /** Collection page: scan every card in a photo and review them before adding. */
   multi?: ScanMulti;
 }) {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
@@ -148,7 +120,6 @@ export function CardScanner({
   const fileRef = useRef<HTMLInputElement>(null);
   const cameraRef = useRef<HTMLInputElement>(null);
   const liveRef = useRef(true);
-  // Computed once: getUserMedia support doesn't change mid-session.
   const [liveSupported] = useState(isLiveCaptureSupported);
   const scanData = useScanData(true);
   const [tray, setTray] = useState<Tray | null>(null);
@@ -232,8 +203,6 @@ export function CardScanner({
           setCards(known);
           const rows = dropUnknownCards(buildTrayRows(items), new Set(known.keys()));
           const only = rows.length === 1 && rows[0].cardId ? known.get(rows[0].cardId) : undefined;
-          // Shopping: one copy of one card is a "do I need this?" check, so show the
-          // card itself with its Add to shopping list control (#842) rather than a tray.
           if (multi.target === "shopping" && only && rows[0].qty === 1) {
             setPhase({
               kind: "hit",
@@ -285,8 +254,6 @@ export function CardScanner({
           });
           return;
         }
-        // A real match scores far above everything else, so a thin margin is
-        // worth surfacing rather than presenting as certain.
         const thin = match.inliers - match.runnerUp < 5;
         setPhase({
           kind: "hit",
@@ -309,8 +276,6 @@ export function CardScanner({
     if (file) void runScan(file);
   };
 
-  // Every failure says something: silence made a failed drop indistinguishable
-  // from a broken feature.
   const rejectDrop = useCallback((reason: "empty" | "not-image" | "remote-blocked") => {
     setPhase({
       kind: "miss",
@@ -330,7 +295,6 @@ export function CardScanner({
     onDragStateChange: setDragging,
   });
 
-  // Scan an image that was dropped on the page before this dialog existed.
   const initialRef = useRef<Blob | null>(null);
   useEffect(() => {
     if (!initialImage || initialRef.current === initialImage) return;
@@ -366,7 +330,6 @@ export function CardScanner({
     setAddError(null);
     try {
       await api.addOwned(payload);
-      // Fire-and-forget; skipped unless the user's sharing switch is on (#852).
       if (qc.getQueryData<User | null>(qk.me())?.share_scans === true) {
         void uploadScanSamples(traySamples(tray.rows, tray.items)).then(() =>
           qc.invalidateQueries({ queryKey: qk.scanSamples.all() }),

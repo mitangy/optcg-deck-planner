@@ -4,13 +4,10 @@ import { takeCard } from "../engine/zones.js";
 import { Harness, FILLER } from "../testing/harness.js";
 import type { CardInstance } from "../types.js";
 
-// Cards an effect reveals from a hand stay face up for the rest of the turn (#491).
-
 const EVENT_A = "ST01-014";
 const EVENT_B = "ST01-016";
 const EVENT_C = "ST02-015";
 
-/** Seat 0 reveals two of their three Events (and a filler stays hidden) with Kouzuki Oden. */
 function revealed() {
   const h = new Harness();
   h.clearHands();
@@ -57,7 +54,6 @@ describe("hand reveals (#491)", () => {
 
   it("A mulligan clears earlier reveals (#491)", () => {
     const { h } = revealed();
-    // The mulligan path discards the old hand; the cleared list must not outlive it.
     h.state.players[0].revealedHandIds = ["gone"];
     h.state.phase = "mulligan";
     h.state.players[0].mulliganDone = false;
@@ -75,7 +71,6 @@ describe("hand reveals (#491)", () => {
     h.deckTop(1, FILLER);
     h.play(0, "OP07-090");
     h.pick(x!.id);
-    // x was trashed, so only y stays face up; the freshly drawn card is hidden.
     expect(getPlayerView(h.state, 0).handReveals![1].map((c) => c.id)).toEqual([y!.id]);
   });
 });

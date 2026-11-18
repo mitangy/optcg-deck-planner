@@ -41,13 +41,11 @@ describe("card data", () => {
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["EB05-025", "op01-016_p1"] }])).not.toThrow();
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["OP99-999"] }])).toThrow("Unknown card def");
     expect(() => ensureDefsForPlayers([{ leaderId: "OP99-001", deck: [] }])).toThrow("Unknown or invalid leader");
-    // A real card that is not a Leader cannot lead a deck.
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-003", deck: [] }])).toThrow("Unknown or invalid leader");
     expect(getDefsHealthSnapshot().defsCount).toBe(before);
   });
 
   it("rejects a Leader card in the main deck (#266)", () => {
-    // ST01-001 is a real Leader; ST01-003 is a real Character. Parallel art must not slip a Leader through.
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["ST01-003", "ST01-001"] }])).toThrow("Leader ST01-001 cannot be used in the main deck");
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["st01-001_p1"] }])).toThrow("cannot be used in the main deck");
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["ST01-003"] }])).not.toThrow();
@@ -101,9 +99,7 @@ describe("support manifest and ranked gate", () => {
     expect(manifest["ST01-003"]).toBe("none");
     expect(manifest["ST01-006"]).toBe("keywords");
     expect(manifest["OP01-016"]).toBe("ok");
-    // Every catalog card's printed text is implemented (generated or reviewed manual definitions).
     expect(Object.values(manifest).filter((s) => s === "unsupported" || s === "partial")).toEqual([]);
-    // Unknown ids still play as unverified stubs and are blocked from ranked decks.
     expect(unsupportedCardsForDeck({ leaderId: "ST01-001", deck: ["ST01-003", "OP99-999"] })).toEqual([{ cardId: "OP99-999", support: "unverified" }]);
     expect(unsupportedCardsForDeck({ leaderId: "ST01-001", deck: ["ST01-003", "OP01-016"] })).toEqual([]);
   });

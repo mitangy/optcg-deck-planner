@@ -15,7 +15,6 @@ function cssFiles(dir: string): string[] {
   });
 }
 
-/** Brace depth after the file, ignoring comments and strings; -1 if it ever closes more than it opened. */
 function braceDepth(css: string): number {
   const text = css.replace(/\/\*[\s\S]*?\*\//g, "").replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'/g, '""');
   let depth = 0;

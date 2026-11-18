@@ -1,5 +1,3 @@
-/* ——— Credit meter, limit notices, saved-chats line, owner tabs, usage (#446) ——— */
-
 /* A fixed-height strip under the header, so the figure loading in or changing moves nothing. */
 .lp-credit {
   flex: none;
@@ -89,7 +87,6 @@
   white-space: normal;
 }
 
-/* Short windows (a phone on its side): keep the notice compact so the chat above it stays readable. */
 @media (max-height: 480px) {
   .lp-limit {
     gap: 6px;

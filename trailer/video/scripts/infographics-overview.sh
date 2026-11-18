@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Contact sheet of every portrait infographic: ../out/infographics/overview.png
 set -euo pipefail
 cd "$(dirname "$0")/../../out/infographics"
 ls *-portrait.png >/dev/null

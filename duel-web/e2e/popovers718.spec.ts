@@ -1,9 +1,3 @@
-/**
- * The lobby's deck switcher on the shared Headless UI Listbox, and Log Pose's source popover on the shared Popover
- * (#718): each opens fully on screen next to its trigger at every phone and desktop size without moving it or the
- * page, keys work inside (arrows, Enter, type-ahead, Escape with focus back), and a tap outside closes it.
- * The viewports are set here, so each spec runs once (in the desktop project).
- */
 import { readFileSync } from "node:fs";
 import { test, expect, FAKE_API, RED_VANILLA, type Page } from "./fixtures";
 
@@ -47,7 +41,6 @@ async function openLobby(page: Page, size: (typeof SIZES)[number]) {
   }, decks);
   await page.goto("/");
   await expect(page.locator(".home-deck")).toBeVisible();
-  // The lobby settles (art, intro strip) in a few frames.
   await page.waitForTimeout(400);
 }
 
@@ -66,13 +59,11 @@ for (const size of SIZES) {
     expect(await box(page, ".home-deck")).toEqual(before.trigger);
     expect(await box(page, ".home-deck-edit")).toEqual(before.edit);
     expect(await scrollHeight(page), "the page grew").toBe(before.height);
-    // Not over its own trigger, and as wide as the trigger.
     const l = (await list.boundingBox())!;
     const t = before.trigger;
     expect(l.y >= t.y + t.height - 1 || l.y + l.height <= t.y + 1, "the list covers its trigger").toBe(true);
     expect(Math.abs(l.width - t.width)).toBeLessThanOrEqual(2);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
-    // The footer buttons are on screen too (the list scrolls, they do not).
     await expect(page.getByRole("option", { name: "+ New deck" })).toBeInViewport({ ratio: 1 });
 
     await page.keyboard.press("Escape");
@@ -99,11 +90,9 @@ test("arrow keys, Enter and type-ahead pick a deck in the list and Escape hands 
   await page.keyboard.press("Enter");
   await expect(list).toHaveCount(0);
   await expect(trigger).toBeFocused();
-  // Opened and closed with the keyboard, the trigger shows its focus ring.
   await expect(trigger).not.toHaveCSS("box-shadow", "none");
   await expect(page.locator(".home-deck-name")).toHaveText("Charlie deck");
 
-  // Typing the start of a name jumps to it.
   await page.keyboard.press("Enter");
   await expect(list).toBeVisible();
   await page.keyboard.type("bra");
@@ -111,7 +100,6 @@ test("arrow keys, Enter and type-ahead pick a deck in the list and Escape hands 
   await page.keyboard.press("Enter");
   await expect(page.locator(".home-deck-name")).toHaveText("Bravo deck");
 
-  // Escape leaves the choice alone.
   await page.keyboard.press("Enter");
   await page.keyboard.press("ArrowDown");
   await page.keyboard.press("Escape");
@@ -119,7 +107,6 @@ test("arrow keys, Enter and type-ahead pick a deck in the list and Escape hands 
   await expect(trigger).toBeFocused();
   await expect(page.locator(".home-deck-name")).toHaveText("Bravo deck");
 
-  // A deck's Edit button takes a tap; Enter on the footer's New deck goes to the editor.
   await page.keyboard.press("Enter");
   await page.keyboard.press("End");
   await page.keyboard.press("ArrowUp");
@@ -139,8 +126,6 @@ test("a tap outside closes the deck list, and Edit on a row opens that deck (#71
   await page.getByRole("button", { name: "Edit Bravo deck" }).click();
   await expect(page).toHaveURL(/\/decks\/e2e-b\/configure$/);
 });
-
-// ——— Log Pose source popover ———
 
 const ANALYST = "http://127.0.0.1:8766";
 const PAGE_ORIGIN = process.env.E2E_PAGE_ORIGIN ?? "http://127.0.0.1:5174";
@@ -207,15 +192,12 @@ for (const size of SIZES) {
     expect(await marker.boundingBox()).toEqual(before.marker);
     await expect(pop).toContainText("-2000 power");
 
-    // Escape puts away the popover, not the panel behind it, and focus goes back to the marker.
     await page.keyboard.press("Escape");
     await expect(pop).toHaveCount(0);
     await expect(panel).toBeVisible();
     await expect(marker).toBeFocused();
-    // Closed with the keyboard, the marker shows its focus ring.
     await expect(marker).toHaveCSS("outline-style", "solid");
 
-    // A tap on the panel's title closes it too; the close button also works.
     await marker.click();
     await expect(pop).toBeVisible();
     await panel.locator("#lp-title").click();

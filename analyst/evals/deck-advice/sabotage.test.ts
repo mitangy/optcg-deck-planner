@@ -30,7 +30,6 @@ describe("sabotaging a meta deck", () => {
         expect(total(s.removed)).toBe(s.k);
         expect(total(s.cards)).toBe(50);
         expect(analyzeDeck(catalog, deckFromLines(catalog, s.cards, d.leaderId)).legal).toBe(true);
-        // The sabotaged deck is the original, minus what was removed, plus what was planted.
         const copies = new Map(original.map((c) => [c.id, c.copies]));
         for (const r of s.removed) copies.set(r.id, copies.get(r.id)! - r.copies);
         for (const p of s.planted) copies.set(p.id, (copies.get(p.id) ?? 0) + p.copies);

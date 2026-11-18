@@ -1,7 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-/** Renders the − / + pair with these sizes stored on this device (settings are read once per module load). */
 async function render(popupSize: number, setting?: "popupSize" | "previewPopupSize", previewPopupSize?: number): Promise<string> {
   vi.resetModules();
   vi.stubGlobal("localStorage", { getItem: () => JSON.stringify({ popupSize, previewPopupSize }), setItem: () => {}, removeItem: () => {} });

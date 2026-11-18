@@ -8,10 +8,6 @@ type ReviewState =
   | { kind: "ready"; text: string; citations: PlacedCitation[] }
   | { kind: "error"; text: string; citations: PlacedCitation[]; message: string };
 
-/**
- * "Log Pose analysis" above the turn log: the saved post-game review, generated (and streamed
- * in) the first time the page opens when none is saved. Nothing at all while chat is off.
- */
 export function LogPoseReview({ matchId, finished }: { matchId: string; finished: boolean | undefined }) {
   const { enabled, apiBase, session, available, openLogPose } = useLogPose();
   const mode = reviewMode(enabled, finished);
@@ -43,7 +39,6 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
               text += delta;
               setState((s) => (s.kind === "streaming" ? { ...s, text } : s));
             },
-            // A citation follows the text streamed so far.
             onCite: (cites) => {
               citations = [...citations, ...placeAt(cites, text.length)];
               setState((s) => (s.kind === "streaming" ? { ...s, citations } : s));
@@ -107,7 +102,6 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
           <button type="button" className="btn btn-secondary btn-sm" onClick={() => void generate(true)} disabled={busy}>
             {state.kind === "error" ? "Try again" : "Regenerate"}
           </button>
-          {/* Always in the row (invisible until the review is ready) so the header never changes height. */}
           <button
             type="button"
             className="btn btn-secondary btn-sm"
@@ -140,7 +134,6 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
           </p>
         ) : null}
       </div>
-      {/* The page's chat is this match's, so the panel opens on the game's own conversation. */}
       <div className="lp-review-chat">
         <button type="button" className="btn btn-secondary btn-sm" disabled={!available} onClick={() => openLogPose()}>
           Chat about this game

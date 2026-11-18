@@ -1,8 +1,3 @@
-/**
- * Group buy detail (/group-buys/:id): + on an alt art moves one copy from the
- * Base art. Your buy stays the shopping number, Base is read-only, and + is
- * disabled once Base has no copy left to move (#870).
- */
 import { expect, test } from "./fixtures";
 
 const GB = 8;
@@ -104,7 +99,6 @@ test("Plus on an alt moves a copy from Base and never changes Your buy (#870)", 
   const base = card.locator(".alt-art-base");
   const plus = card.getByRole("button", { name: "Increase want for Manga" });
   await expect(base).toContainText("Buy ×3");
-  // Base is read-only: it has no stepper of its own.
   await expect(card.getByRole("button", { name: /for Roronoa Zoro base art/ })).toHaveCount(0);
   await shot("2-grid-start");
 
@@ -129,7 +123,6 @@ test("Plus on an alt moves a copy from Base and never changes Your buy (#870)", 
   await expect(plus).toHaveAttribute("title", /raise Your buy/);
   await shot("4-grid-base-empty");
 
-  // Your buy was never written by the alt buttons.
   expect(qtyPuts).toEqual([]);
 });
 

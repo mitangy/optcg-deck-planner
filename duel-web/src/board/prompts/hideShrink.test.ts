@@ -7,9 +7,7 @@ describe("shrinkTransform", () => {
   it("fits a wide pop-up into a short pill by the tighter side and centres it on the pill (#587)", () => {
     const pill = { left: 560, top: 12, width: 230, height: 36 };
     const { x, y, scale } = shrinkTransform(popup, pill);
-    // Height decides (36 / 300), not width (230 / 460).
     expect(scale).toBeCloseTo(0.12, 5);
-    // The scaled box (55.2 x 36) sits in the pill's middle.
     expect(x).toBeCloseTo(560 + (230 - 55.2) / 2 - 400, 5);
     expect(y).toBeCloseTo(12 - 250, 5);
   });

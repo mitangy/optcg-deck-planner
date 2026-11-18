@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Intent, MatchState, Seat } from "../types.js";
 import type { PositionOption } from "../bot/analysis.js";
 
-/** Win chances (0..1) the stubbed analysis returns for the n-th ranked decision: the played move's and the others'. */
 let plan: (n: number, others: number) => { played: number; others: number[] } | "unmatched";
 let calls: { step: number; seat: Seat }[] = [];
 let winOf: (state: MatchState, seat: Seat) => number = () => 0.5;
@@ -49,7 +48,6 @@ function golden(maxIntents: number): MatchReplay {
   };
 }
 
-/** Independent walk: the steps whose seat had more than one legal intent. */
 function multiOptionSteps(replay: MatchReplay): number[] {
   const out: number[] = [];
   let s = replayStart(replay);
@@ -67,7 +65,6 @@ function use(replay: MatchReplay) {
   Object.defineProperty(globalThis, "__steps", { value: steps, configurable: true });
   return steps;
 }
-// currentStep follows the n-th decision.
 const stepFor = (steps: number[]) => (n: number) => steps[n]!;
 
 beforeEach(() => {
@@ -81,7 +78,6 @@ beforeEach(() => {
 function run(replay: MatchReplay, opts = {}) {
   const steps = use(replay);
   const pick = stepFor(steps);
-  // Keep currentStep in step with the stub's call counter.
   const origPush = calls.push.bind(calls);
   calls.push = (...a) => { const r = origPush(...a); currentStep = pick(calls.length); return r; };
   currentStep = pick(0);
@@ -152,7 +148,6 @@ describe("game review (#967)", () => {
   });
 
   it("a turn is good when the seat's win probability rises 8 points by the next turn start and nothing was an Inaccuracy (#967)", () => {
-    // Seat 0 gains 10 points per turn, seat 1 loses them.
     winOf = (s, seat) => (seat === 0 ? 0.3 + 0.01 * s.turnNumber * 10 : 0.7 - 0.1 * s.turnNumber);
     const clean = run(replay).review;
     // The next point is the seat's own next turn start, two turn numbers on: +-20 points.

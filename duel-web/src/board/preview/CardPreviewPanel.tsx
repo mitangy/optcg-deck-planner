@@ -12,7 +12,6 @@ import { useDuelSettings } from "../../settings";
 import { parsePreviewText } from "./previewText";
 import { PreviewBadges } from "./PreviewBadges";
 
-/** Effect text with its [On Play] / [Counter] / [DON!! x1] tags drawn as chips. */
 function EffectText({ text }: { text: string }) {
   return (
     <>
@@ -29,7 +28,6 @@ function EffectText({ text }: { text: string }) {
   );
 }
 
-/** Large art + ability text for the last hovered card (wide layouts only). */
 export function CardPreviewPanel() {
   const preview = usePreviewCard();
   if (!preview) {
@@ -43,11 +41,6 @@ export function CardPreviewPanel() {
   return <CardPreviewContent preview={preview} />;
 }
 
-/**
- * The card's art and text, shared by the side panel and the floating pop-up
- * (`popup`: the pop-up's header already names the card, so the name is left out
- * and the art stacks above the text instead of sitting beside it).
- */
 export function CardPreviewContent({ preview, popup = false }: { preview: PreviewCard; popup?: boolean }) {
   const big = useDuelSettings().previewBigCard;
   const [inspectOpen, setInspectOpen] = useState(false);

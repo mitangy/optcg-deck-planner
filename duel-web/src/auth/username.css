@@ -1,17 +1,13 @@
-/* —— Usernames: setup page, settings form, HUD nameplates —— */
-
 .username-form .field-inline input {
   min-width: 0;
 }
 
 .username-submit {
   flex: 0 0 auto;
-  /* Stable width so "Saving…" doesn't resize the trigger. */
   min-width: 6.5rem;
 }
 
 .username-message {
-  /* Always reserve one line so validation text never shifts the layout. */
   min-height: 1.4em;
 }
 
@@ -24,7 +20,6 @@
 }
 
 .username-loading {
-  /* Roughly the form's height so the swap-in doesn't jump the panel. */
   min-height: 5.25rem;
   display: flex;
   align-items: center;

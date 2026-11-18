@@ -39,7 +39,6 @@ describe("historySummary", () => {
       entry({ created_at: "2026-10-01T10:00:00Z", rating_after: 1000 }),
       entry({ created_at: "2026-10-03T10:00:00Z", rating_after: 1042 }),
       entry({ created_at: "2026-10-02T10:00:00Z", rating_after: 1020 }),
-      // A later unranked game leaves the Bounty as it was.
       entry({ created_at: "2026-10-04T10:00:00Z", ranked: false, rating_after: 5 }),
     ]);
     expect(s?.rating).toBe(1042);

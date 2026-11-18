@@ -1,11 +1,7 @@
-/**
- * DON!! pseudo-locations (cost area / attached DON!!) addressable like cards.
- */
 import type { MatchState, Seat } from "../types.js";
 import { type Located, fieldCards } from "./zones.js";
 import { nameOf } from "./sim.js";
 
-/** A DON!! card (cost area, or attached to a card) as a pseudo-location (zone "don"). */
 export function locateDon(state: MatchState, id: string): Located | null {
   for (const seat of [0, 1] as Seat[]) {
     const p = state.players[seat];

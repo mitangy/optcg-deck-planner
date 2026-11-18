@@ -1,4 +1,3 @@
-/** Per-viewer projections. Hidden cards and private choice options never reach other viewers. */
 import { getCardDef } from "../cards/definitions.js";
 import type { CardInstance, GameEvent, Intent, MatchState, PendingChoice, Seat } from "../types.js";
 import { visibleArtCopies } from "./artCopies.js";
@@ -10,13 +9,11 @@ const KEYWORD_LABELS: Record<string, string> = { blocker: "Blocker", rush: "Rush
 
 type ArtCopies = ReadonlyMap<string, number>;
 
-/** `{ artCopy }` for a copy of an any-number card, nothing otherwise (the key stays absent for ordinary cards). */
 function copyOf(copies: ArtCopies, id: string): { artCopy?: number } {
   const n = copies.get(id);
   return n === undefined ? {} : { artCopy: n };
 }
 
-/** Per trash card, its copy rank (null for ordinary cards); undefined when the trash has no any-number card. */
 function trashCopies(p: MatchState["players"][Seat], copies: ArtCopies): { trashCopies?: (number | null)[] } {
   if (!copies.size) return {};
   const ranks = p.zoneInstanceIds.trash.map((id) => copies.get(id) ?? null);
@@ -75,9 +72,8 @@ export function projectPendingChoice(choice: PendingChoice, viewerSeat: Seat | n
     if (projected.request && projected.request.type === "look") {
       projected.request = { ...projected.request, groups: projected.request.groups.map((g) => ({ label: g.label, max: g.max, eligibleIds: [] })) };
     }
-    // A private select's options are the hidden cards that matched its filter, so their
-    // number (options, min/max, optionCount, the "choose up to N" prompt) is itself hidden.
-    // Looks and Life ordering are left as is: their counts are public.
+    // A private select's options are the hidden cards that matched its filter, so their number is itself hidden. Looks
+    // and Life ordering are left as is: their counts are public.
     if (projected.request && projected.request.type === "select") {
       projected.request = { type: "select", min: 0, max: 0, options: [] };
       delete projected.optionCount;
@@ -98,7 +94,6 @@ export function projectPendingChoice(choice: PendingChoice, viewerSeat: Seat | n
 
 type HandCard = { id: string; defId: string; artCopy?: number };
 
-/** Each seat's hand cards an effect revealed this turn, in hand order, indexed by seat. Public information (#491). */
 function handReveals(state: MatchState, copies: [ArtCopies, ArtCopies]): { handReveals: [HandCard[], HandCard[]] } | null {
   const of = (seat: Seat): HandCard[] => {
     const ids = state.players[seat].revealedHandIds;
@@ -109,8 +104,8 @@ function handReveals(state: MatchState, copies: [ArtCopies, ArtCopies]): { handR
 }
 
 /**
- * What `seat` may see of `state`. Static-ability results are memoized for the
- * duration of the call (the state is only read), which is most of its cost.
+ * Static-ability results are memoized for the duration of the call (the state is only read), which is most of its
+ * cost.
  */
 export function getPlayerView(state: MatchState, seat: Seat, spectator?: { revealHands: boolean }) {
   return withQueryCache(state, () => buildPlayerView(state, seat, spectator));
@@ -138,12 +133,10 @@ function buildPlayerView(state: MatchState, seat: Seat, spectator?: { revealHand
         const row: { id: string; defId: string; artCopy?: number; playCost?: number; counter?: number; blocked?: "characters" | "events" | "from_hand" } = { id: c.id, defId: c.defId, ...copyOf(youCopies, c.id) };
         if (state.phase === "main" && state.activeSeat === seat && def.type !== "leader") {
           row.playCost = playCostOf(state, seat, c);
-          // Why an effect stops you playing it this turn (mirrors characterPlayable in intents.ts).
           if (playerRestricted(state, seat, "cannot_play_cards_from_hand", c)) row.blocked = "from_hand";
           else if (def.type === "character" && playerRestricted(state, seat, "cannot_play_characters", c)) row.blocked = "characters";
           else if (def.type === "event" && playerRestricted(state, seat, "cannot_play_events")) row.blocked = "events";
         }
-        // Live Counter (printed + "+N Counter" statics) while you answer an attack. Own hand only.
         if (defending && def.type === "character") row.counter = counterOf(state, seat, c);
         return row;
       }),
@@ -177,7 +170,6 @@ function buildPlayerView(state: MatchState, seat: Seat, spectator?: { revealHand
       mulliganDone: opp.mulliganDone,
     },
     activeSeat: state.activeSeat,
-    /** Seat that takes turn 1 (skips its first draw, starts with 1 DON!!). */
     firstSeat: state.firstSeat,
     phase: state.phase,
     turnNumber: state.turnNumber,
@@ -188,10 +180,8 @@ function buildPlayerView(state: MatchState, seat: Seat, spectator?: { revealHand
     winner: state.winner,
     winReason: state.winReason,
     legalIntents: listLegalIntents(state, seat),
-    // Hand cards revealed by an effect stay face up for the rest of the turn; both seats ride along for everyone (#491).
     ...handReveals(state, copiesBySeat),
-    // Once the match is over nothing is left to protect (#482): both hands and every Life card
-    // ride along, indexed by seat. Absent entirely while the game is live.
+    // Once the match is over nothing is left to protect: both hands and every Life card ride along, indexed by seat.
     ...(state.winner !== null
       ? {
           revealedHands: [0, 1].map((s) => state.players[s as Seat].hand.map((c): HandCard => ({ id: c.id, defId: c.defId, ...copyOf(copiesBySeat[s as Seat], c.id) }))) as [HandCard[], HandCard[]],
@@ -201,25 +191,14 @@ function buildPlayerView(state: MatchState, seat: Seat, spectator?: { revealHand
   };
 }
 
-/**
- * What a client receives as `view` on the wire: a player's view, or the spectator variant of it
- * (`getSpectatorView` adds `spectator`, `cameraSeat` and `you.handCount`). Derived from the builders so the
- * wire type cannot drift from what the engine emits.
- */
+/** Derived from the builders so the wire type cannot drift from what the engine emits. */
 export type PlayerView = ReturnType<typeof getPlayerView> & {
   spectator?: boolean;
   cameraSeat?: Seat;
   you: { handCount?: number };
 };
 
-/**
- * Spectator view from `cameraSeat`. `you.hand` stays empty and the opponent has
- * no `hand`, so clients that guard against hand leaks keep working. With
- * `revealHands` (unranked rooms) both hands ride along as `revealedHands`,
- * indexed by seat. After the game ends (`winner` set) every view, ranked or not,
- * carries `revealedHands` and `revealedLife` (#482). Like player views, it carries
- * `handReveals` (cards revealed from hand this turn) when any exist (#491).
- */
+/** `you.hand` stays empty and the opponent has no `hand`, so clients that guard against hand leaks keep working. */
 export function getSpectatorView(state: MatchState, cameraSeat: Seat = 0, opts: { revealHands?: boolean } = {}) {
   const base = getPlayerView(state, cameraSeat, { revealHands: Boolean(opts.revealHands) });
   const copies = [visibleArtCopies(state, null, 0, opts.revealHands), visibleArtCopies(state, null, 1, opts.revealHands)] as const;
@@ -236,7 +215,6 @@ export function getSpectatorView(state: MatchState, cameraSeat: Seat = 0, opts: 
   };
 }
 
-/** Viewer-specific event projection for hidden zones and private choices. */
 export function projectGameEvents(events: readonly GameEvent[], viewerSeat: Seat | null): GameEvent[] {
   return events.map((event) => {
     if (event.type === "life_added" && !event.faceUp) return { ...event, defId: "HIDDEN" };

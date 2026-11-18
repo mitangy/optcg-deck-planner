@@ -18,13 +18,11 @@ import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_PUBLIC_KEY } from "../../storage/keys";
 import { qk } from "../../cache/queryKeys";
 
-/** /group-buy/view/:token is the older read-only link; it now shows the invite page (#880). */
 export function PublicGroupBuyPage() {
   const { token = "" } = useParams();
   return <Navigate to={`/group-buy/join/${encodeURIComponent(token)}`} replace />;
 }
 
-/** Invite link: a read-only view of the whole group buy, with Join / Sign in on top (#880). */
 export function GroupBuyJoinPage() {
   const { token = "" } = useParams();
   const navigate = useNavigate();

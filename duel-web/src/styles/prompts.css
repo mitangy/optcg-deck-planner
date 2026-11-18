@@ -1,8 +1,6 @@
-/* —— Leader ability prompt —— */
 .ability-prompt {
   position: absolute;
   left: 50%;
-  /* Also read by the max-height limits (board.css, popupScale.css) so a tall pop-up stops under the top bar (#660). */
   --prompt-base-bottom: 7.5rem;
   bottom: var(--prompt-base-bottom);
   transform: translateX(-50%);
@@ -78,8 +76,6 @@
 
 .search-order-list {
   display: grid;
-  /* One shrinkable column: a long nowrap card name must ellipsize, not widen
-     the list past the prompt and push the row buttons off-screen. */
   grid-template-columns: minmax(0, 1fr);
   gap: 0.38rem;
   margin: 0;
@@ -122,7 +118,6 @@
 }
 
 
-/* —— Simultaneous effect order prompt —— */
 .effect-order-list {
   list-style: none;
   margin: 0;
@@ -164,10 +159,8 @@
   cursor: not-allowed;
 }
 
-/* —— Generic choice prompt (protocol 5) —— */
 .choice-prompt {
   width: min(560px, calc(100vw - 1.5rem));
-  /* Stay below the top bar and above the hand rail at any viewport height. */
   max-height: min(640px, calc(100dvh - 12rem));
   background: rgb(12, 18, 28);
   overflow-y: auto;
@@ -223,7 +216,6 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
-/* DON!! option: fixed-size slot so a rested (sideways) DON!! never shifts the row. */
 .choice-don-card {
   display: grid;
   place-items: center;
@@ -305,7 +297,6 @@
   border-top-left-radius: 0 !important;
   border-bottom-left-radius: 0 !important;
 }
-/* One Top/Bottom switch for a whole "top or bottom" put-back. */
 .choice-side-row {
   display: flex;
   flex-wrap: wrap;
@@ -326,8 +317,6 @@
   color: var(--chrome-bright) !important;
   font-weight: 700;
 }
-/* Put-back order lists: caps name each end of the pile, a dashed row marks
-   the untouched rest of it, rows drag to reorder. */
 .order-cap {
   display: flex;
   align-items: center;
@@ -367,8 +356,6 @@
 .order-list .order-row {
   flex-wrap: wrap;
 }
-/* The name keeps at least ~6rem; below that the buttons wrap under it and
-   a long name gets two lines before it ellipsizes. */
 .order-list .order-row .choice-order-name {
   flex: 1 1 6rem;
   display: -webkit-box;

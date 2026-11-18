@@ -1,4 +1,3 @@
-/** Contribution settings for the group buy Filters panel (#1177). */
 
 export type ContributionFlags = {
   include_singles: boolean;
@@ -9,10 +8,6 @@ export type ContributionUpdate = ContributionFlags & {
   deck_ids: number[] | null;
 };
 
-/**
- * Request body for one change. The server always applies `deck_ids` (null = all decks), so a flag
- * toggle re-sends the current deck pick and a deck toggle re-sends the current flags.
- */
 export function contributionUpdate(
   current: { deck_ids: number[] | null } & Partial<ContributionFlags>,
   patch: Partial<ContributionUpdate>,
@@ -24,7 +19,6 @@ export function contributionUpdate(
   };
 }
 
-/** Filter-summary chips for the non-default parts of the contribution. */
 export function contributionSummary(opts: {
   deckCount: number;
   selectedDeckCount: number;

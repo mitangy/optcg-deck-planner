@@ -1,10 +1,3 @@
-/**
- * Life check (#495): the pop-up is just the Life card, big, floating over the
- * board with its buttons under it. At desktop, portrait-phone and
- * landscape-phone sizes the card and buttons sit fully on screen and the
- * buttons never cover the card. SHOTS=1 also saves screenshots to
- * /mnt/project-files/trigger-card/.
- */
 import { mkdirSync } from "node:fs";
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
@@ -36,7 +29,6 @@ for (const demo of ["trigger", "notrigger"] as const) {
       await page.waitForTimeout(500);
 
       const card = (await tile.boundingBox())!;
-      // Portrait phones: the buttons ride in the bottom bar (#663); elsewhere they sit under the card.
       const portrait = size.width <= 640 && size.height >= 500;
       const buttons = portrait ? page.locator(".intent-prompt-slot .btn") : prompt.locator(".ability-prompt-actions .btn");
       await expect(buttons).toHaveCount(demo === "trigger" ? 2 : 1);
@@ -51,9 +43,7 @@ for (const demo of ["trigger", "notrigger"] as const) {
         const box = (await b.boundingBox())!;
         expect(box.y).toBeGreaterThanOrEqual(card.y + card.height - 1);
       }
-      // Phones pin pop-ups to both edges; the card is centred between them, not left-aligned.
       if (size.width <= 640) expect(Math.abs(card.x + card.width / 2 - size.width / 2)).toBeLessThanOrEqual(2);
-      // Hide sits above the card, off its art.
       const hide = (await prompt.locator(".prompt-hide").boundingBox())!;
       expect(hide.y + hide.height).toBeLessThanOrEqual(card.y + 1);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
@@ -79,7 +69,6 @@ test("Activate Trigger and Add to hand answer the Life check (#495)", async ({ p
 
 test("No Trigger always declines (#495)", async ({ page }) => {
   await page.goto("/demo?prompt=notrigger");
-  // The board loads on demand, so wait for the Life check before pressing the key.
   await expect(page.locator(".life-trigger-card")).toBeVisible();
   await page.keyboard.press("y");
   await expect.poll(() => sent(page)).toEqual([{ type: "resolve_pending_choice", accept: false }]);

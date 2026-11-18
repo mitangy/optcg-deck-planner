@@ -18,7 +18,6 @@ afterEach(() => {
   host = null;
 });
 
-/** Keeps the view the way LogPosePanel does. */
 function Harness({ start, waiting }: { start: OwnerView; waiting: number }) {
   const [view, setView] = useState<OwnerView>(start);
   return (

@@ -5,7 +5,6 @@ import { motionCues, type MotionCue } from "../motion/motionCues";
 import { audioContext, playNotes, type Note } from "./turnAlert";
 import { isTabSilenced } from "./tabMute";
 
-/** Game sound effects. The Life-loss, incoming-attack and opponent-tick cues live in turnAlert / soundCues. */
 export type SfxId =
   | "draw"
   | "play"
@@ -17,26 +16,17 @@ export type SfxId =
   | "trigger"
   | "win"
   | "lose"
-  /** Your hand: a card dropped on a new spot, and Sort shuffling it. */
   | "tuck"
   | "riffle";
 
-/** Loudest first: when one update earns many cues only the top few play. */
 const PRIORITY: readonly SfxId[] = ["win", "lose", "ko", "trigger", "counter", "block", "attack", "play", "don", "draw", "riffle", "tuck"];
-/** More than this at once is noise. */
 const MAX_AT_ONCE = 3;
 
-/** Unique cues, most important first, capped. */
 export function mergeSfx(ids: readonly SfxId[]): SfxId[] {
   const set = new Set(ids);
   return PRIORITY.filter((id) => set.has(id)).slice(0, MAX_AT_ONCE);
 }
 
-/**
- * Log lines added since `prevId` (the newest line seen last time). undefined =
- * first look (mount: nothing is new); a vanished id = the log was replaced
- * (resync / undo), which is not new either; null = the log was empty before.
- */
 export function newLogEntries(
   prevId: string | null | undefined,
   entries: readonly BattleLogEntry[],
@@ -49,11 +39,6 @@ export function newLogEntries(
 
 const ATTACH_DON = /^(You|Opponent|Seat \d) attach(es)? DON!! to /;
 
-/**
- * Cues earned by log lines. Opponent plays / counters / triggers already get
- * the soft tick from `useSoundCues`, and an attack on you has the incoming
- * cue, so players only hear their own for those. Spectators hear everything.
- */
 export function logSfx(entries: readonly BattleLogEntry[], spectating: boolean): SfxId[] {
   const out: SfxId[] = [];
   for (const e of entries) {
@@ -69,7 +54,6 @@ export function logSfx(entries: readonly BattleLogEntry[], spectating: boolean):
   return out;
 }
 
-/** Cues earned by a view change: any draw, any DON!! added. */
 export function viewSfx(cues: readonly MotionCue[]): SfxId[] {
   const out: SfxId[] = [];
   if (cues.some((c) => c.kind === "draw")) out.push("draw");
@@ -77,7 +61,6 @@ export function viewSfx(cues: readonly MotionCue[]): SfxId[] {
   return out;
 }
 
-/** Win / lose the moment the match gets a winner; spectators have no side. */
 export function resultSfx(
   prevWinner: number | null | undefined,
   winner: number | null,
@@ -131,7 +114,6 @@ function playOne(id: SfxId, at: number): void {
   if (id === "draw") return noiseBurst(at, 0.09, 0.09, 3200, "bandpass");
   if (id === "tuck") return noiseBurst(at, 0.05, 0.08, 1400, "lowpass");
   if (id === "riffle") {
-    // A quick run of card flicks.
     for (let i = 0; i < 7; i++) noiseBurst(at + i * 0.032, 0.03, 0.05 + i * 0.004, 3800, "bandpass");
     return;
   }
@@ -146,7 +128,6 @@ function playOne(id: SfxId, at: number): void {
 const STAGGER = 0.11;
 const lastPlayed = new Map<SfxId, number>();
 
-/** Play merged cues one after another; the same cue never repeats inside 150ms. */
 export function playSfx(ids: readonly SfxId[], now = Date.now()): void {
   let slot = 0;
   for (const id of mergeSfx(ids)) {
@@ -156,17 +137,10 @@ export function playSfx(ids: readonly SfxId[], now = Date.now()): void {
   }
 }
 
-/** Whether game sound effects are held back: a quiet moment (hotseat hand-over, auto-pass, replay) or a spectator who turned "Sound while watching" off. */
 export function gameSfxMuted(o: { quiet: boolean; spectating: boolean; spectatorSound: boolean }): boolean {
   return o.quiet || (o.spectating && !o.spectatorSound);
 }
 
-/**
- * Sound effects for draws, plays, attacks, blocks, counters, K.O.s, DON!!,
- * triggers and the result. `sound` = the master Sounds setting; `muted` =
- * hotseat hand-over / auto-pass. State is tracked while off so turning
- * sound on never replays the past.
- */
 export function useGameSfx(
   view: PlayerView | null,
   battleLog: readonly BattleLogEntry[],

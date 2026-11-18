@@ -1,5 +1,3 @@
-/* —— Match chat (floats top-left on narrow; lives in the rail on wide) —— */
-
 .chat-panel {
   position: absolute;
   top: 3.75rem;
@@ -156,7 +154,7 @@
   cursor: not-allowed;
 }
 
-/* `/ff` result floats over the bottom of the chat log so the input never moves. */
+/* Floats over the bottom of the chat log so the input never moves. */
 .chat-form-wrap {
   position: relative;
 }
@@ -213,9 +211,7 @@
   color: var(--on-chrome);
 }
 
-/* Narrow: chat and battle log float from the top of the play area (not the
-   board root) so a wrapped HUD can never cover them. Phone blocks below
-   refine the battle-log pill. */
+/* Float from the top of the play area (not the board root) so a wrapped HUD can never cover them. */
 @media not ((min-width: 900px) and (min-height: 500px) and (not ((orientation: landscape) and (pointer: coarse) and (max-width: 1099px)))) {
   .arena .arena-body {
     position: relative;

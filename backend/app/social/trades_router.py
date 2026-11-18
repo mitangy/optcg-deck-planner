@@ -1,4 +1,3 @@
-"""Trade offers between friends (#703)."""
 
 from __future__ import annotations
 

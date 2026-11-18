@@ -1,10 +1,3 @@
-/**
- * The Log Pose panel's corners, its pop out of the compass and docking it to a side (#432). The two Log Pose
- * services are faked in the browser (the planner API's chat session and the analyst's brief stream); the panel,
- * the compass, the page and the practice board are the real ones.
- *
- * LP_DOCK_SHOTS=<dir> also saves screenshots of each state there.
- */
 import { test, expect, type Page } from "./fixtures";
 import { FAKE_API } from "./fixtures";
 
@@ -36,7 +29,6 @@ async function fakeLogPose(page: Page) {
   });
 }
 
-/** A fresh browser profile on the first load only, so a reload keeps what the page remembered. */
 async function freshProfile(page: Page) {
   await page.addInitScript(() => {
     if (sessionStorage.getItem("e2e-fresh")) return;
@@ -51,11 +43,9 @@ const compass = (page: Page) => page.locator(".lp-compass");
 async function openFromCompass(page: Page) {
   await compass(page).click();
   await expect(panel(page)).toBeVisible();
-  // The grow has played out.
   await expect.poll(() => panel(page).evaluate((el) => el.getAnimations().length)).toBe(0);
 }
 
-/** Drags the panel's header from its title to (x, y), holding the button down at the end when `release` is false. */
 async function dragHeader(page: Page, to: { x: number; y: number }, release = true) {
   const title = (await panel(page).locator("#lp-title").boundingBox())!;
   const from = { x: title.x + Math.min(title.width, 40) / 2, y: title.y + title.height / 2 };
@@ -68,7 +58,6 @@ async function dragHeader(page: Page, to: { x: number; y: number }, release = tr
 
 const room = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
 
-// `duel` is asked for here so its catch-all fake API is set up before the Log Pose routes (the later route wins).
 test.beforeEach(async ({ page, duel }, info) => {
   void duel;
   test.skip(info.project.name !== "desktop-1280", "the desktop project drives these; the phone and landscape runs set their own viewport");
@@ -79,7 +68,6 @@ test("a window that was moved has a border and rounded corners on all four sides
   await freshProfile(page);
   await page.goto("/decks");
   await openFromCompass(page);
-  // The default drawer is flush to the right edge: square.
   expect(await panel(page).evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).toBe("0px");
 
   await dragHeader(page, { x: 500, y: 320 });
@@ -133,7 +121,6 @@ test("a floating window resizes from its right edge, bottom edge and bottom-righ
   };
   const within = (a: number, b: number, why: string) => expect(Math.abs(a - b), `${why}: ${a} vs ${b}`).toBeLessThanOrEqual(1);
 
-  // The window starts about as tall as the screen: shorten it from the top and lift it, so there is room to grow downward.
   await pull("top", 0, 200);
   const title = (await panel(page).locator("#lp-title").boundingBox())!;
   await dragHeader(page, { x: 500, y: title.y + title.height / 2 - 150 });
@@ -144,7 +131,6 @@ test("a floating window resizes from its right edge, bottom edge and bottom-righ
   await shot(page, "21-resize-corner-hovered");
   await page.mouse.down();
   await page.mouse.move(corner.x + 80, corner.y + 60, { steps: 6 });
-  // While the button is still down the left and top edges are already holding still.
   const live = (await panel(page).boundingBox())!;
   within(live.x, start.x, "left edge stays mid-drag");
   within(live.y, start.y, "top edge stays mid-drag");
@@ -168,7 +154,6 @@ test("a floating window resizes from its right edge, bottom edge and bottom-righ
   within(narrower.height - shorter.height, 40, "bottom edge shortens");
   within(shorter.y, narrower.y, "top edge stays on a bottom-edge drag");
 
-  // No handle sits over a button: the header's Close and the composer's Send keep every corner of their hit area.
   for (const name of ["Close Log Pose", /^Send/]) {
     const b = (await panel(page).getByRole("button", { name }).first().boundingBox())!;
     for (const [x, y] of [[b.x + 1, b.y + 1], [b.x + b.width - 2, b.y + 1], [b.x + 1, b.y + b.height - 2], [b.x + b.width - 2, b.y + b.height - 2]]) {
@@ -187,7 +172,6 @@ test("the panel grows out of the compass, and closing shrinks it back before the
   await page.goto("/decks");
   await expect(compass(page)).toBeVisible();
 
-  // Opening: the click leaves the panel growing from the compass's centre (1238, 678), measured from the panel's corner.
   const opening = await page.evaluate(async () => {
     (document.querySelector(".lp-compass") as HTMLElement).click();
     await new Promise<void>((r) => queueMicrotask(() => queueMicrotask(r)));
@@ -204,7 +188,6 @@ test("the panel grows out of the compass, and closing shrinks it back before the
   await expect(panel(page).locator(".lp-head")).toBeVisible();
   await shot(page, "02-open");
 
-  // Closing: still on screen, no longer taking clicks, and the compass has not come back yet.
   const closing = await page.evaluate(async () => {
     (document.querySelector('.lp-panel button[aria-label="Close Log Pose"]') as HTMLElement).click();
     await new Promise<void>((r) => queueMicrotask(() => queueMicrotask(r)));
@@ -215,7 +198,6 @@ test("the panel grows out of the compass, and closing shrinks it back before the
   await expect(panel(page)).toHaveCount(0);
   await expect(compass(page)).toBeVisible();
 
-  // Esc closes the same way.
   await compass(page).click();
   await expect(panel(page)).toBeVisible();
   await page.keyboard.press("Escape");
@@ -268,7 +250,6 @@ test("dragging the header to the right edge docks a full-height panel, the page 
   await openFromCompass(page);
   const head = panel(page).locator(".lp-head");
 
-  // Mid-drag: a preview of the strip it would take, and the panel has not docked yet.
   await dragHeader(page, { x: 1276, y: 300 }, false);
   const preview = page.locator(".lp-dock-preview");
   await expect(preview).toBeVisible();
@@ -285,17 +266,14 @@ test("dragging the header to the right edge docks a full-height panel, the page 
   expect(box.y).toBeCloseTo(0, 0);
   expect(box.height).toBeCloseTo(720, 0);
   expect(box.width).toBeCloseTo(380, 0);
-  // The page keeps out from under it, and nothing scrolls sideways.
   expect(await page.evaluate(() => document.documentElement.dataset.lpDock)).toBe("right");
   expect(await page.evaluate(() => parseFloat(getComputedStyle(document.body).paddingRight))).toBeCloseTo(box.width, 0);
-  // Content that sat on the right (the New deck button) moved left of the strip instead of hiding under it.
   const newDeck = (await page.getByRole("button", { name: "New deck" }).boundingBox())!;
   expect(newDeck.x + newDeck.width).toBeLessThanOrEqual(box.x);
   expect(await room(page)).toBeLessThanOrEqual(0);
   expect(await page.evaluate(() => localStorage.getItem("optcg-logpose:dock"))).toBe("right");
   await shot(page, "04-docked-right-outside-a-game");
 
-  // It stays docked after a reload, and closing gives the room back.
   await page.reload();
   await compass(page).click();
   await expect(panel(page)).toHaveAttribute("data-dock", "right");
@@ -306,7 +284,6 @@ test("dragging the header to the right edge docks a full-height panel, the page 
   await compass(page).click();
   await expect(panel(page)).toHaveAttribute("data-dock", "right");
 
-  // Dragging a docked header less than ~32px keeps it docked; pulling it further lets go under the pointer.
   const h = (await head.boundingBox())!;
   await page.mouse.move(h.x + 70, h.y + 20);
   await page.mouse.down();
@@ -338,7 +315,6 @@ test("dragging the header to the left edge docks to the left (#432)", async ({ p
   expect(await room(page)).toBeLessThanOrEqual(0);
   await shot(page, "05-docked-left-outside-a-game");
 
-  // Its inner edge sets the width, which is remembered.
   const handle = page.locator(".lp-resize-dock");
   const edge = (await handle.boundingBox())!;
   await page.mouse.move(edge.x + edge.width / 2, 300);
@@ -357,7 +333,6 @@ test("the move grip docks with an arrow key toward the edge and undocks with one
   await openFromCompass(page);
   const grip = panel(page).getByRole("button", { name: "Move Log Pose" });
 
-  // The default drawer touches the right edge, so Right docks there; Left lets it go.
   await grip.focus();
   await page.keyboard.press("ArrowLeft");
   await expect(panel(page)).not.toHaveAttribute("data-dock", /.+/);
@@ -372,7 +347,6 @@ test("the move grip docks with an arrow key toward the edge and undocks with one
   await expect(panel(page)).not.toHaveAttribute("data-dock", /.+/);
   expect(await page.evaluate(() => document.documentElement.dataset.lpDock)).toBeUndefined();
 
-  // Dock again, then double-click the header: back to the default corner.
   await grip.focus();
   await page.keyboard.press("ArrowRight");
   await page.keyboard.press("ArrowRight");
@@ -385,7 +359,6 @@ test("the move grip docks with an arrow key toward the edge and undocks with one
   expect(box.height).toBeCloseTo(720, 0);
 });
 
-/** The practice board, with Log Pose's panel opened by itself for the mulligan (a wide screen). */
 async function practiceBoard(page: Page, duel: { startPractice: (o: { seed: number }) => Promise<void> }) {
   await duel.startPractice({ seed: 11 });
   await expect(panel(page)).toBeVisible();
@@ -413,14 +386,12 @@ test("on a board, docking puts the panel in that side's column in place of an em
   expect(inner.x).toBeGreaterThanOrEqual(host.x - 1);
   expect(inner.x + inner.width).toBeLessThanOrEqual(host.x + host.width + 1);
   expect(inner.y + inner.height).toBeLessThanOrEqual(host.y + host.height + 1);
-  // It is a panel of the column: the rest of the column is still there, below it and not overlapping.
   const col2 = (await right.boundingBox())!;
   expect(host.y).toBeGreaterThanOrEqual(col2.y - 1);
   expect(host.y + host.height).toBeLessThanOrEqual(col2.y + col2.height + 1);
   const others = await right.locator(":scope > .board-panel:not([data-panel='logpose'])").evaluateAll((els) => els.map((e) => ({ top: e.getBoundingClientRect().top, bottom: e.getBoundingClientRect().bottom })));
   expect(others.length).toBeGreaterThan(0);
   for (const o of others) expect(o.top).toBeGreaterThanOrEqual(host.y + host.height - 1);
-  // The opponent's hand fan hangs from the panel under the host: its cards are all below the host, none peeking behind it.
   const fan = await right.locator(".opp-hand-fan .opp-fan-card").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top));
   expect(fan.length).toBeGreaterThan(0);
   for (const top of fan) expect(top).toBeGreaterThanOrEqual(host.y + host.height - 1);
@@ -428,11 +399,9 @@ test("on a board, docking puts the panel in that side's column in place of an em
   expect(await room(page)).toBeLessThanOrEqual(0);
   await shot(page, "06-docked-into-game-right-column");
 
-  // Dragged over the left column it moves there.
   await dragHeader(page, { x: 200, y: 400 });
   await expect(left.locator(".lp-dock-host .lp-panel")).toBeVisible();
   await expect(right.locator(".lp-dock-host")).toHaveCount(0);
-  // The left column is narrower than the panel's minimum by default: it widens while the panel is docked in it.
   expect((await left.boundingBox())!.width).toBeGreaterThanOrEqual(320);
   const leftHost = (await left.locator(".lp-dock-host").boundingBox())!;
   const below = await left.locator(":scope > .board-panel:not([data-panel='logpose'])").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().top));
@@ -442,29 +411,22 @@ test("on a board, docking puts the panel in that side's column in place of an em
   expect(headRows).toBe(1);
   await shot(page, "07-docked-into-game-left-column");
 
-  // Closing leaves no empty slot; the Brief button opens it again where it was docked.
   await page.getByRole("button", { name: "Close Log Pose" }).click();
   await expect(panel(page)).toHaveCount(0);
   await expect(page.locator(".lp-dock-host")).toHaveCount(0);
   expect((await left.boundingBox())!.width).toBeLessThan(320);
   await page.getByRole("button", { name: "Log Pose", exact: true }).click();
   await expect(left.locator(".lp-dock-host .lp-panel")).toBeVisible();
-  // The matchup brief stays pinned at the top of the chat.
   await expect(left.locator(".lp-dock-host .lp-pinned .match-brief-pinned")).toBeVisible();
 
-  // Pulled out by the header it floats again.
   await dragHeader(page, { x: 700, y: 300 });
   await expect(panel(page)).toHaveAttribute("data-sized", "true");
   await expect(page.locator(".lp-dock-host")).toHaveCount(0);
 });
 
-/** The panels of a desktop column, top to bottom, by id. */
 const columnOrder = (page: Page, col: "left" | "right") =>
   page.$$eval(`[data-panel-col="${col}"] > [data-panel]`, (els) => els.map((e) => (e as HTMLElement).dataset.panel));
 
-/**
- * Drags a side panel's grip so the pointer ends at `to` and lets go; the drop line must show on the way.
- */
 async function dragPanelGrip(page: Page, id: string, to: { x: number; y: number }) {
   const wrapper = page.locator(`[data-panel="${id}"]`);
   await expect(wrapper.locator("> .panel-grip")).toBeAttached();
@@ -482,13 +444,11 @@ test("a docked Log Pose is dragged by its grip below another panel, and stays th
   const right = page.locator('[data-panel-col="right"]');
   await dragHeader(page, { x: 1276, y: 300 });
   await expect(right.locator(".lp-dock-host .lp-panel")).toBeVisible();
-  // Docked, it is the first panel of the column and has a grip like the others.
   const before = (await columnOrder(page, "right")).filter((id) => id !== "actions" && id !== "defend");
   expect(before[0]).toBe("logpose");
   await expect(right.locator('[data-panel="logpose"] > .panel-grip')).toBeAttached();
   await shot(page, "40-log-pose-docked-at-top");
 
-  // Drop it just under the Turn and clocks panel.
   const turn = (await right.locator('[data-panel="turn"]').boundingBox())!;
   await dragPanelGrip(page, "logpose", { x: turn.x + turn.width / 2, y: turn.y + turn.height - 1 });
   await expect.poll(() => columnOrder(page, "right").then((o) => o.indexOf("logpose") > o.indexOf("turn"))).toBe(true);
@@ -504,7 +464,6 @@ test("a docked Log Pose is dragged by its grip below another panel, and stays th
   expect(await room(page)).toBeLessThanOrEqual(0);
   await shot(page, "41-log-pose-moved-below-turn");
 
-  // Closing and reopening keeps the slot.
   await page.getByRole("button", { name: "Close Log Pose" }).click();
   await expect(panel(page)).toHaveCount(0);
   await expect(page.locator('[data-panel="logpose"]')).toHaveCount(0);
@@ -522,7 +481,6 @@ test("dragging a docked Log Pose's grip into the other column moves the dock the
   await dragHeader(page, { x: 1276, y: 300 });
   await expect(right.locator(".lp-dock-host .lp-panel")).toBeVisible();
 
-  // Drop it under the first panel of the left column.
   const first = (await columnOrder(page, "left"))[0]!;
   const box = (await left.locator(`[data-panel="${first}"]`).boundingBox())!;
   await dragPanelGrip(page, "logpose", { x: box.x + box.width / 2, y: box.y + box.height - 1 });
@@ -535,7 +493,6 @@ test("dragging a docked Log Pose's grip into the other column moves the dock the
   expect((await left.boundingBox())!.width).toBeGreaterThanOrEqual(320);
   await shot(page, "42-log-pose-moved-to-left-column");
 
-  // Closing and reopening keeps it in that slot of the left column.
   await page.getByRole("button", { name: "Close Log Pose" }).click();
   await expect(panel(page)).toHaveCount(0);
   await page.getByRole("button", { name: "Log Pose", exact: true }).click();
@@ -543,14 +500,12 @@ test("dragging a docked Log Pose's grip into the other column moves the dock the
   const again = await columnOrder(page, "left");
   expect(again.indexOf("logpose")).toBe(again.indexOf(first) + 1);
 
-  // Docking it to the right with its header puts it at the top of that column (a docked side decides the column).
   await dragHeader(page, { x: 1276, y: 300 });
   await expect(right.locator(".lp-dock-host .lp-panel")).toBeVisible();
   expect((await columnOrder(page, "right")).filter((id) => id !== "actions" && id !== "defend")[0]).toBe("logpose");
 });
 
 test.describe("one side column (#554)", () => {
-  /** The Side columns setting and the remembered dock side, written before the board loads. */
   const stored = (sideColumns: string, dock?: string) => ({
     "optcg-duel:settings": JSON.stringify({ sideColumns, previewPopup: false }),
     ...(dock ? { "optcg-logpose:dock": dock } : {}),
@@ -571,7 +526,6 @@ test.describe("one side column (#554)", () => {
     expect(await page.evaluate(() => localStorage.getItem("optcg-logpose:dock"))).toBeNull();
     await shot(page, "30-one-column-left-edge-does-not-dock");
 
-    // The right edge still docks it into the column that is shown.
     await dragHeader(page, { x: 1276, y: 300 });
     await expect(page.locator('[data-panel-col="right"] .lp-dock-host .lp-panel')).toBeVisible();
     expect(await page.evaluate(() => localStorage.getItem("optcg-logpose:dock"))).toBe("right");
@@ -582,7 +536,6 @@ test.describe("one side column (#554)", () => {
     await expect(panel(page)).toBeVisible();
     await expect(page.locator('[data-panel-col="right"] .lp-dock-host .lp-panel')).toBeVisible();
     await expect(page.locator('[data-panel-col="left"] .lp-dock-host')).toHaveCount(0);
-    // The remembered side is not rewritten: the left column gets it back when both columns return.
     expect(await page.evaluate(() => localStorage.getItem("optcg-logpose:dock"))).toBe("left");
     await shot(page, "31-left-dock-shown-in-right-column");
   });
@@ -599,7 +552,6 @@ test.describe("phones", () => {
     await expect(panel(page).locator(".lp-move")).toHaveCount(0);
     expect(await panel(page).locator(".lp-resize").evaluateAll((els) => els.filter((e) => getComputedStyle(e).display !== "none").length)).toBe(0);
     await expect(panel(page)).not.toHaveAttribute("data-dock", /.+/);
-    // Even with a side remembered from a desktop session, the sheet is a sheet.
     await page.evaluate(() => localStorage.setItem("optcg-logpose:dock", "right"));
     await page.reload();
     await openFromCompass(page);

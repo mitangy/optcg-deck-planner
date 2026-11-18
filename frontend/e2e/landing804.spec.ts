@@ -1,7 +1,3 @@
-/**
- * The home page at / (#804): visitors who are not signed in see the public landing page
- * instead of a redirect to /login; signed-in players still get the shopping list.
- */
 import { expect, formatIssues, test } from "./fixtures";
 
 test.afterEach(({ planner }) => {

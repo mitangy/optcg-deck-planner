@@ -1,8 +1,3 @@
-/**
- * A shortened side column frees a corner for the fanned hand (#633): drag the bar on a column's bottom edge up, and
- * the hand sits in that corner, fully shown, never rising over the board. A column setting (panelSizes `LC` / `RC`),
- * desktop only: phones keep their layout whatever is saved.
- */
 import { test, expect, formatIssues, type Page } from "./fixtures";
 import { isKnown } from "./known-issues";
 
@@ -55,7 +50,6 @@ test.describe("desktop", () => {
         const cards = await cardBoxes(page);
         expect(cards.length).toBeGreaterThan(0);
 
-        // The column ends where the corner starts, 28% of the window up from the bottom.
         expect(Math.abs(rail.bottom - h * 0.72), "column bottom").toBeLessThan(3);
         expect(fan.top, "corner top is at or below the column's bottom edge").toBeGreaterThanOrEqual(rail.bottom - 1);
         for (const c of cards) {
@@ -117,7 +111,6 @@ test.describe("desktop", () => {
   });
 
   test("a cut on a column that is folded away, or a hand that is not a fan, changes nothing (#633)", async ({ page }) => {
-    // One right column: the left cut has no column to shorten.
     await open(page, { sideColumns: "right", panelSizes: "LC=0.3" });
     await expect(page.locator(".hand-fan.hand-fan-center")).toHaveCount(1);
     await expect(page.locator(".hand-fan-corner")).toHaveCount(0);
@@ -161,7 +154,6 @@ test.describe("desktop", () => {
     const rail = await box(page, ".arena-rail");
     expect(Math.abs(rail.bottom - 720 * (1 - cut))).toBeLessThan(3);
 
-    // The bar now sits on the column's bottom edge; dragging it back to the bottom removes the cut.
     b = (await bar.boundingBox())!;
     expect(Math.abs(b.y + b.height / 2 - rail.bottom)).toBeLessThan(3);
     await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2);

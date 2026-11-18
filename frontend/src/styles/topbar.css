@@ -1,4 +1,3 @@
-/* Night-sea masthead with a scalloped wave edge. */
 .topbar {
   position: relative;
   width: 100%;
@@ -24,7 +23,6 @@
   pointer-events: none;
 }
 
-/* One masthead width on every page so the logo/nav never jumps between routes. */
 .topbar-inner {
   max-width: min(1760px, 100%);
   margin: 0 auto;
@@ -49,7 +47,6 @@
 }
 
 .brand-wordmark {
-  /* Our own text mark (replaces the card game logo image); line-height keeps the bar as tall as it was with the image. */
   display: block;
   flex: 0 0 auto;
   font-family: var(--font-display);
@@ -105,8 +102,6 @@
   background: var(--gold);
 }
 
-/* Tablet widths: brand and account on the first row, the nav on its own row below, so nothing is pushed off the right edge
-   (eight links plus the account buttons and alerts bell need about 1330px in one row, more with wider system fonts). */
 @media (min-width: 761px) and (max-width: 1439px) {
   .topbar-inner {
     flex-wrap: wrap;

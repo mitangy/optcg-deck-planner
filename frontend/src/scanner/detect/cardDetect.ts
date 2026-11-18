@@ -1,29 +1,13 @@
-/** Find every card in a photo.
- *
- * Several binary maps (Canny edges, adaptive threshold, Otsu both ways) are
- * contoured with OpenCV; each contour that fits a card-shaped quad becomes a
- * candidate. Pure-JS helpers below turn the candidates into the final list:
- * drop duplicates and a card's inner art box, drop a whole binder page that
- * merely contains the cards, fill pockets the contours missed, and sort into
- * reading order. Those helpers need no OpenCV, so they are unit-testable.
- */
 import { CARD_ASPECT, findCardQuad, orderCorners, quadArea, type Pt, type Quad } from "../geometry/cardRectify";
 import type { Cv } from "../match/cardMatch";
 
 export type DetectOptions = {
-  /** Long side of the working image. */
   workEdge?: number;
-  /** Smallest card, as a fraction of the frame. */
   minAreaFraction?: number;
-  /** Largest card, as a fraction of the frame. */
   maxAreaFraction?: number;
-  /** Allowed relative deviation of the short/long side ratio from a card's. */
   aspectTolerance?: number;
-  /** Infer binder pockets the contours missed. */
   fillGrid?: boolean;
-  /** When nothing is found, try `findCardQuad` and then the whole frame. */
   fallback?: boolean;
-  /** Diagnostics: candidates found by each binary map, before suppression. */
   onCandidates?: (map: string, quads: Quad[]) => void;
 };
 
@@ -36,23 +20,16 @@ const DEFAULTS = {
   fallback: true,
 };
 
-// ---------------------------------------------------------------- geometry
-
 const dist = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
 
 export function centroid(q: Quad): Pt {
   return { x: (q[0].x + q[1].x + q[2].x + q[3].x) / 4, y: (q[0].y + q[1].y + q[2].y + q[3].y) / 4 };
 }
 
-/** Mean lengths of the two side pairs: [across (TL-TR, BL-BR), down (TL-BL, TR-BR)]. */
 export function quadSides(q: Quad): [number, number] {
   return [(dist(q[0], q[1]) + dist(q[3], q[2])) / 2, (dist(q[0], q[3]) + dist(q[1], q[2])) / 2];
 }
 
-/**
- * Is this quad card-shaped, in either orientation? Perspective squeezes the
- * ratio a little, so the band is generous; opposite sides must also agree.
- */
 export function isCardShaped(q: Quad, tolerance = DEFAULTS.aspectTolerance): boolean {
   const [across, down] = quadSides(q);
   if (!across || !down) return false;
@@ -64,17 +41,12 @@ export function isCardShaped(q: Quad, tolerance = DEFAULTS.aspectTolerance): boo
   );
 }
 
-/** Largest cards per side that a touching block is tried against. */
 const MAX_BLOCK = 4;
 const SEAM_SAMPLES = 60;
-/** Pixels either side of the line that still count as on it. */
 const SEAM_REACH = 1;
-/** Share of samples along a seam that must sit on an edge pixel. */
 const SEAM_HIT = 0.95;
-/** Lines beside a seam must fall short of this, or the art is just busy. */
 const SEAM_CONTROL_MAX = 0.9;
 
-/** A binary edge map (255 = edge), as the detector's Canny output. */
 export type EdgeMap = { data: ArrayLike<number>; width: number; height: number };
 
 const lerpQuad = (q: Quad, u: number, v: number): Pt => ({
@@ -82,7 +54,6 @@ const lerpQuad = (q: Quad, u: number, v: number): Pt => ({
   y: (1 - v) * ((1 - u) * q[0].y + u * q[1].y) + v * ((1 - u) * q[3].y + u * q[2].y),
 });
 
-/** Share of points along a segment (inner 80%) with an edge pixel within one pixel. */
 export function seamStrength(edges: EdgeMap, a: Pt, b: Pt): number {
   let hits = 0;
   for (let i = 0; i < SEAM_SAMPLES; i += 1) {
@@ -105,7 +76,6 @@ export function seamStrength(edges: EdgeMap, a: Pt, b: Pt): number {
   return hits / SEAM_SAMPLES;
 }
 
-/** Grids (n across, m down) whose cells would each be card-shaped, most cells first. */
 function blockFits(across: number, down: number, tolerance: number): { n: number; m: number }[] {
   const fits: { n: number; m: number }[] = [];
   for (let n = 1; n <= MAX_BLOCK; n += 1) {
@@ -119,7 +89,6 @@ function blockFits(across: number, down: number, tolerance: number): { n: number
   return fits.sort((a, b) => b.n * b.m - a.n * a.m);
 }
 
-/** Could this quad be a block of touching cards? */
 export function isBlockShaped(q: Quad, tolerance = 0.15): boolean {
   const [across, down] = quadSides(q);
   return across > 0 && down > 0 && blockFits(across, down, tolerance).length > 0;
@@ -137,7 +106,6 @@ export function isBlockShaped(q: Quad, tolerance = 0.15): boolean {
 export function splitBlock(edges: EdgeMap, q: Quad, tolerance = 0.15): Quad[] | null {
   const [across, down] = quadSides(q);
   if (!across || !down) return null;
-  // Try the most cells first, then fewer, until every interior line is a seam.
   const fits = blockFits(across, down, tolerance);
   for (const { n, m } of fits) {
     let ok = true;
@@ -173,23 +141,19 @@ function isSeam(
     axis === "across" ? [lerpQuad(q, f, 0), lerpQuad(q, f, 1)] : [lerpQuad(q, 0, f), lerpQuad(q, 1, f)];
   const on = seamStrength(edges, ...line(at));
   if (on < SEAM_HIT) return false;
-  // Lines either side must be clearly weaker, or this is just busy artwork.
   return (
     seamStrength(edges, ...line(at - control)) <= SEAM_CONTROL_MAX &&
     seamStrength(edges, ...line(at + control)) <= SEAM_CONTROL_MAX
   );
 }
 
-/** Rotate the corner order so the long side runs top-to-bottom (cards are portrait). */
 export function uprightQuad(q: Quad): Quad {
   const [across, down] = quadSides(q);
   return across > down ? [q[3], q[0], q[1], q[2]] : q;
 }
 
-/** Sutherland-Hodgman clip of one convex polygon by another. */
 function clip(subject: Pt[], clipper: Pt[]): Pt[] {
   let out = subject;
-  // Orientation of the clipper decides which side is "inside".
   const sign = polygonArea(clipper) >= 0 ? 1 : -1;
   for (let i = 0; i < clipper.length && out.length; i += 1) {
     const a = clipper[i];
@@ -222,7 +186,6 @@ function polygonArea(p: Pt[]): number {
   return s / 2;
 }
 
-/** Area of the overlap of two convex quads. */
 export function intersectionArea(a: Quad, b: Quad): number {
   return Math.abs(polygonArea(clip([...a], [...b])));
 }
@@ -233,21 +196,12 @@ export function quadIoU(a: Quad, b: Quad): number {
   return union > 0 ? inter / union : 0;
 }
 
-/**
- * Reduce candidate quads to the cards.
- *
- * - Near-duplicates (IoU > 0.5) keep the larger one.
- * - A quad mostly inside another is a card's inner box, so the outer wins...
- * - ...unless the outer holds two or more separate cards, in which case it
- *   is a binder page or a merged blob and is dropped instead.
- */
 export function suppressNested(quads: Quad[], groupChildMin = 0.04): Quad[] {
   const sorted = [...quads].sort((a, b) => quadArea(b) - quadArea(a));
   const areas = sorted.map(quadArea);
   const inside = (child: number, parent: number) =>
     intersectionArea(sorted[child], sorted[parent]) > 0.8 * areas[child];
 
-  // Children of each quad: smaller quads mostly inside it.
   const children = sorted.map((_, p) => {
     const out: number[] = [];
     for (let c = p + 1; c < sorted.length; c += 1) if (areas[c] < areas[p] * 0.95 && inside(c, p)) out.push(c);
@@ -255,10 +209,8 @@ export function suppressNested(quads: Quad[], groupChildMin = 0.04): Quad[] {
   });
 
   const dropped = new Set<number>();
-  // Containers that hold several separate cards go first.
   for (let p = 0; p < sorted.length; p += 1) {
     const big = children[p].filter((c) => areas[c] >= areas[p] * groupChildMin);
-    // Two descendants that are not nested in one another are two cards.
     const separate = big.some((c) => big.some((o) => o > c && !inside(c, o) && !inside(o, c)));
     if (separate) dropped.add(p);
   }
@@ -269,14 +221,12 @@ export function suppressNested(quads: Quad[], groupChildMin = 0.04): Quad[] {
   const kept: number[] = [];
   for (let i = 0; i < sorted.length; i += 1) {
     if (dropped.has(i)) continue;
-    // Duplicates of something already kept (larger comes first).
     if (kept.some((k) => quadIoU(sorted[k], sorted[i]) > 0.5)) continue;
     kept.push(i);
   }
   return kept.map((i) => sorted[i]);
 }
 
-/** Top-to-bottom rows, left-to-right within a row. */
 export function sortReadingOrder(quads: Quad[]): Quad[] {
   if (quads.length < 2) return [...quads];
   const heights = quads.map((q) => Math.max(...quadSides(q))).sort((a, b) => a - b);
@@ -297,7 +247,6 @@ export function sortReadingOrder(quads: Quad[]): Quad[] {
   return rows.flatMap((r) => r.sort((a, b) => a.c.x - b.c.x).map((r2) => r2.q));
 }
 
-/** Split sorted values into clusters wherever the gap exceeds `gap`. */
 function cluster1d(values: number[], gap: number): number[][] {
   const sorted = [...values].sort((a, b) => a - b);
   const out: number[][] = [];
@@ -312,15 +261,6 @@ function cluster1d(values: number[], gap: number): number[][] {
 const mean = (v: number[]) => v.reduce((s, x) => s + x, 0) / v.length;
 const median = (v: number[]) => [...v].sort((a, b) => a - b)[Math.floor(v.length / 2)];
 
-/**
- * Cells of a regular grid that no detected quad covers.
- *
- * Needs four or more quads of similar size. Rows and columns are the clusters
- * of their centres; every row x column crossing without a quad is a missing
- * pocket, drawn as the median card shape moved to that crossing. Gives up
- * (returns []) when the quads do not sit on a grid: a loose table spread, a
- * tilted page where rows are not level, or under 60% of crossings occupied.
- */
 export function inferGridCells(quads: Quad[]): Quad[] {
   if (quads.length < 4) return [];
   const areas = quads.map(quadArea);
@@ -339,16 +279,13 @@ export function inferGridCells(quads: Quad[]): Quad[] {
   const rowY = rows.map(mean);
   const colX = cols.map(mean);
 
-  // Each quad must sit close to its lattice crossing, else this is not a grid.
   const nearest = (xs: number[], v: number) => xs.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b));
   for (const c of centres) {
     if (Math.abs(nearest(colX, c.x) - c.x) > w * 0.15 || Math.abs(nearest(rowY, c.y) - c.y) > h * 0.15) return [];
   }
 
-  // Most crossings must hold a card, or the quads are just scattered.
   if (regular.length < 0.6 * rowY.length * colX.length) return [];
 
-  // Median shape: corner offsets from the centre, over the regular quads.
   const proto = ([0, 1, 2, 3] as const).map((i) => ({
     x: median(regular.map((q, k) => q[i].x - centres[k].x)),
     y: median(regular.map((q, k) => q[i].y - centres[k].y)),
@@ -363,7 +300,6 @@ export function inferGridCells(quads: Quad[]): Quad[] {
       });
       if (covered) continue;
       const cell = proto.map((p) => ({ x: x + p.x, y: y + p.y })) as Quad;
-      // A cell that runs into a real card is not a pocket.
       if (quads.some((q) => intersectionArea(q, cell) > 0.1 * quadArea(cell))) continue;
       out.push(cell);
     }
@@ -371,16 +307,11 @@ export function inferGridCells(quads: Quad[]): Quad[] {
   return out;
 }
 
-/**
- * Does this quad hold anything, or just the sheet/pocket showing through?
- * A flat region has almost no luminance spread across its inner area.
- */
 export function isBlankQuad(img: ImageData, q: Quad, minStd = 14): boolean {
   const samples: number[] = [];
   const n = 12;
   for (let i = 0; i < n; i += 1) {
     for (let j = 0; j < n; j += 1) {
-      // Bilinear point inside the quad, kept off the edges.
       const u = 0.15 + (0.7 * (i + 0.5)) / n;
       const v = 0.15 + (0.7 * (j + 0.5)) / n;
       const x = (1 - v) * ((1 - u) * q[0].x + u * q[1].x) + v * ((1 - u) * q[3].x + u * q[2].x);
@@ -397,9 +328,6 @@ export function isBlankQuad(img: ImageData, q: Quad, minStd = 14): boolean {
   return sd < minStd;
 }
 
-// ------------------------------------------------------------------ OpenCV
-
-/** Candidate card quads (working-image pixels) from one binary map. */
 function quadsFromBinary(cv: Cv, bin: Cv, minArea: number, maxArea: number, tol: number, mats: Cv[]): Quad[] {
   const contours = new cv.MatVector();
   const hierarchy = new cv.Mat();
@@ -430,7 +358,6 @@ function quadsFromBinary(cv: Cv, bin: Cv, minArea: number, maxArea: number, tol:
         }
         let quad = pts ? orderCorners(pts) : null;
         if (!quad || quadArea(quad) / hullArea < 0.88) {
-          // Near-rectangular blob with no clean corners: use its tightest rectangle.
           const rect = cv.minAreaRect(hull);
           const box = cv.RotatedRect.points(rect) as Pt[];
           const boxQuad = orderCorners(box.map((p) => ({ x: p.x, y: p.y })));
@@ -451,7 +378,6 @@ function quadsFromBinary(cv: Cv, bin: Cv, minArea: number, maxArea: number, tol:
   return out;
 }
 
-/** Canny thresholds from the image's own median, so dark and bright shots both work. */
 function medianOf(gray: Cv): number {
   const hist = new Array(256).fill(0);
   const d = gray.data as Uint8Array;
@@ -508,7 +434,6 @@ function candidateQuads(
       run(name, closed);
     }
 
-    // Edges in colour: a yellow border on a pink table has little luminance step.
     const channels = track(new cv.MatVector());
     cv.split(rgba, channels);
     const colourEdges = track(new cv.Mat());
@@ -527,14 +452,12 @@ function candidateQuads(
     cv.morphologyEx(colourEdges, colourClosed, cv.MORPH_CLOSE, kernel, new cv.Point(-1, -1), 2);
     run("canny-colour", colourClosed);
 
-    // Local contrast threshold: finds cards whose edges Canny breaks up.
     const adaptive = track(new cv.Mat());
     cv.adaptiveThreshold(blur, adaptive, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY_INV, 31, 8);
     const adaptiveClosed = track(new cv.Mat());
     cv.morphologyEx(adaptive, adaptiveClosed, cv.MORPH_CLOSE, kernel, new cv.Point(-1, -1), 2);
     run("adaptive", adaptiveClosed);
 
-    // Global split, both polarities: a card on a plain table.
     for (const type of [cv.THRESH_BINARY, cv.THRESH_BINARY_INV]) {
       const otsu = track(new cv.Mat());
       cv.threshold(blur, otsu, 0, 255, type | cv.THRESH_OTSU);
@@ -542,8 +465,6 @@ function candidateQuads(
       cv.morphologyEx(otsu, opened, cv.MORPH_OPEN, kernel, new cv.Point(-1, -1), 2);
       run(type === cv.THRESH_BINARY ? "otsu" : "otsu-inv", opened);
     }
-    // Touching cards: split blocks along their seams; a block that does not
-    // split stays only if it is itself card-shaped.
     const out: Quad[] = [];
     for (const q of found) {
       const cells = seamEdges ? splitBlock(seamEdges, q) : null;
@@ -565,7 +486,6 @@ function downscale(img: ImageData, longSide: number): { work: ImageData; scale: 
   const scale = longSide / longest;
   const w = Math.max(1, Math.round(img.width * scale));
   const h = Math.max(1, Math.round(img.height * scale));
-  // Box average: cheap, and good enough for outlines.
   const out = new Uint8ClampedArray(w * h * 4);
   const sx = img.width / w;
   const sy = img.height / h;
@@ -600,25 +520,14 @@ function downscale(img: ImageData, longSide: number): { work: ImageData; scale: 
 
 export type DetectedCard = {
   quad: Quad;
-  /**
-   * Set when this card was cut out of a block of touching cards: the block's
-   * own outline (the same object for every cell). A block that is also
-   * card-shaped might be one sideways card with a straight line through it,
-   * so the caller can fall back to it if the cells identify as nothing.
-   */
   whole?: Quad;
 };
 
-/**
- * Every card in the photo, in source-pixel coordinates and reading order.
- * Each quad is TL, TR, BR, BL with the long side running top to bottom.
- */
 export function detectCards(cv: Cv, image: ImageData, opts: DetectOptions = {}): DetectedCard[] {
   const o = { ...DEFAULTS, ...opts };
   const { work, scale } = downscale(image, o.workEdge);
 
   const wholeOf = new Map<Quad, Quad>();
-  // A flat interior is an empty pocket or a patch of table, not a card.
   const kept = suppressNested(candidateQuads(cv, work, o, wholeOf)).filter((q) => !isBlankQuad(work, q));
   const cards: DetectedCard[] = kept.map((q) => ({ quad: uprightQuad(q), whole: wholeOf.get(q) }));
   if (o.fillGrid) {
@@ -657,40 +566,23 @@ export function detectCards(cv: Cv, image: ImageData, opts: DetectOptions = {}):
   return out;
 }
 
-/**
- * Every card outline in the photo, in source-pixel coordinates.
- *
- * Each quad is TL, TR, BR, BL with the long side running top-to-bottom, and
- * the list is in reading order. With `fallback` (the default) a photo with no
- * detectable card yields the single-card guess, then the whole frame, so a
- * lone close-up still behaves as it did before multi-card scanning.
- */
 export function findCardQuads(cv: Cv, image: ImageData, opts: DetectOptions = {}): Quad[] {
   return detectCards(cv, image, opts).map((c) => c.quad);
 }
 
-/** A learned detector (see `cardDetectModel.ts`): null result = could not run. */
 export type CardModelDetector = (image: ImageData, opts?: DetectOptions) => Promise<DetectedCard[] | null>;
 
 let modelDetector: CardModelDetector | null = null;
 
-/** Registered by `cardDetectModel.ts` once the model is loaded; null unregisters. */
 export function setCardModelDetector(fn: CardModelDetector | null): void {
   modelDetector = fn;
 }
 
-/**
- * `detectCards` with the learned detector first. The model sees only the
- * card face (not its sleeve or case) and copes with piles and glare; when it is
- * not loaded, fails, or finds nothing, the OpenCV detector runs as before,
- * including its single-card and whole-frame fallbacks.
- */
 export async function detectCardsAsync(cv: Cv, image: ImageData, opts: DetectOptions = {}): Promise<DetectedCard[]> {
   const learned = modelDetector ? await modelDetector(image, opts) : null;
   return preferLearned(learned, () => detectCards(cv, image, opts));
 }
 
-/** The learned detector's cards when it found any, otherwise the classical detector's. */
 export function preferLearned(learned: DetectedCard[] | null, classical: () => DetectedCard[]): DetectedCard[] {
   return learned && learned.length > 0 ? learned : classical();
 }

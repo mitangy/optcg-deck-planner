@@ -1,12 +1,6 @@
 import type { ReactNode } from "react";
 import { Menu, MenuButton, MenuList, Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 
-/**
- * Compact page-head action that opens a panel under its trigger: a Headless UI Popover, so Escape
- * (focus back on the button), an outside click and tabbing out close it, while clicks and Tab inside
- * keep it open. The panel floats in a portal, kept on screen, so opening it never shifts the header
- * or the list below — see CLAUDE.md "No layout shift on expand/toggle".
- */
 export function HeadPopover({
   label,
   badge,
@@ -17,12 +11,9 @@ export function HeadPopover({
   children,
 }: {
   label: ReactNode;
-  /** Small status text inside the trigger, e.g. "On". */
   badge?: string;
-  /** Decorative glyph shown instead of the text label on very narrow screens (the label stays as the accessible name). */
   icon?: ReactNode;
   className?: string;
-  /** Accessible name for the dialog panel. */
   panelLabel: string;
   width?: number;
   children: ReactNode | ((close: () => void) => ReactNode);
@@ -58,12 +49,6 @@ export function HeadPopover({
   );
 }
 
-/**
- * A page-head action that opens a list of choices (the deck's "More"): a Headless UI Menu, so arrow
- * keys, Home / End, type-ahead and Escape (focus back on the button) come with it. The list floats
- * under the trigger in a portal, kept on screen, so opening it never shifts the header or the list
- * below (CLAUDE.md "No layout shift on expand/toggle"). Fill it with `MenuItem`s.
- */
 export function HeadMenu({
   label,
   icon,
@@ -72,7 +57,6 @@ export function HeadMenu({
   children,
 }: {
   label: string;
-  /** Decorative glyph shown instead of the text label on very narrow screens (the label stays as the accessible name). */
   icon?: ReactNode;
   className?: string;
   width?: number;

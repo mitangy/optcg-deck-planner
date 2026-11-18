@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Unit tests for the pure parts of sync_preview_art (#575)."""
 
 from __future__ import annotations
 
@@ -81,8 +80,6 @@ def _variants(*paths: str) -> list[dict]:
 
 
 class AltPreviewMatchTests(unittest.TestCase):
-    """Alt previews for image-less printings (#581)."""
-
     def test_variant_buttons_are_read_from_data_full(self) -> None:
         html = (
             '<img src="/Cards/EB05/EB05-001 Jewelry Bonney_small.webp">'
@@ -258,8 +255,6 @@ class TopDecksAltTests(unittest.TestCase):
 
 
 class AltUpgradeSyncTests(unittest.TestCase):
-    """sync_alt_previews end to end with the network stubbed out (#615)."""
-
     def _run(self, files: dict[int, bytes], scan: bytes) -> dict[int, bytes]:
         catalog = {f"EB05-0{pid}": {"altArts": [{"productId": pid}]} for pid in files}
         with tempfile.TemporaryDirectory() as tmp:

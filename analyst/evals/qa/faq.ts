@@ -8,7 +8,6 @@ export type Row = { question: string; answer: string };
 export type Polarity = "yes" | "no" | "other";
 export type Resolved = { source: string; polarity: Polarity };
 
-/** The official answer's first word: "Yes..." or "No...", anything else (including "Not if...") is other. */
 export function polarity(answer: string): Polarity {
   const m = /^(Yes|No)\b/.exec(answer.trim());
   return m ? (m[1] === "Yes" ? "yes" : "no") : "other";
@@ -43,7 +42,6 @@ export function resolveErrata(errata: readonly { date: string | null }[], card: 
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-/** Ways an answer may write a date such as "December 8, 2023" (ISO, month day year, day month year, short month). */
 export function dateForms(date: string): string[] {
   const t = Date.parse(`${date} UTC`);
   if (Number.isNaN(t)) return [date];

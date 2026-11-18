@@ -1,12 +1,3 @@
-"""Fine-tune a MobileNetV3 into a card-art embedder (run with a torch-enabled python).
-
-Contrastive (InfoNCE) between a heavily degraded view and a light view of the
-same printing, over in-batch negatives: the model learns that a hazy, glared,
-blurred photo of a card is the same thing as its clean scan, and that other
-printings are not. Reference images come from fetch-reference-images.mjs.
-
-  python scripts/train-embedder/train.py --refs .scan-build/refs-full --out .scan-build/models/embedder
-"""
 import argparse, json, os, sys, time
 import cv2, numpy as np, torch, torch.nn as nn, torch.nn.functional as F, torchvision
 sys.path.insert(0, os.path.dirname(__file__))
@@ -68,7 +59,6 @@ def load_refs(refs, base=(200, 280)):
 
 
 def load_user_crops(crops_dir, ids, split="train"):
-    """Real user crops of `split` whose card has a reference: [(RGB uint8 crop, [ref indices])]."""
     by_card = {}
     for j, cid in enumerate(ids):
         by_card.setdefault(cid, []).append(j)
@@ -160,7 +150,6 @@ if __name__ == "__main__":
             torch.save(model.state_dict(), a.out + ".pt")
             if (time.time() - t0) / 60 > a.max_minutes: break
             continue
-        # monitor on a gallery of 2000 refs plus the true cards of the real queries
         rng = np.random.default_rng(0)
         sub = set(rng.choice(len(imgs), 2000, replace=False).tolist())
         for it, _ in qs:

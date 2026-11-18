@@ -3,10 +3,8 @@ import type { Seat } from "../../net/protocol";
 import { diceSlot, diceStatus, rollSide, type DiceView } from "./diceModel";
 
 const names: Record<Seat, string> = { 0: "Luffy", 1: "Zoro" };
-/** The viewer is "You"; a spectator (me null) sees both names. */
 const nameFor = (me: Seat | null) => (seat: Seat) => (me === seat ? "You" : names[seat]);
 
-/** Seat 1 rolls, seat 0 calls. */
 const base: DiceView = { roller: 1, caller: 0, step: "call", call: null, roll: null, winner: null, me: 0, tumbling: false };
 const view = (over: Partial<DiceView>): DiceView => ({ ...base, ...over });
 

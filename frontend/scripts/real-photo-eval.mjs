@@ -1,15 +1,4 @@
 #!/usr/bin/env node
-/** Identification accuracy on real phone photos with hand-labelled card quads.
- *
- * Isolates *identification* from detection: each labelled quad (the printed
- * card edge, from .scan-build/real-photos/quads.json) is rectified and handed
- * to matchRectified against the full descriptor bundle. Photos and quads are
- * the owner's and gitignored.
- *
- *   cd frontend
- *   DESC=.scan-build/full-desc npx tsx scripts/real-photo-eval.mjs
- *   PHOTOS=photo3,photo4 JITTER=1 ... (optional: jitter quads 1.5% to mimic a detector)
- */
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import jpeg from "jpeg-js";

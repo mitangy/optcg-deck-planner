@@ -1,29 +1,11 @@
-/** Learned card-art embedding: a hint for which candidates to verify first (#701).
- *
- * A small MobileNetV3 trained (scripts/train-embedder) so that a hazy,
- * glared, blurred photo of a card lands near the clean scan of the same
- * printing. Every printing's embedding is precomputed and shipped as int8; at
- * scan time one embedding of the rectified crop is compared with all of them.
- *
- * It only ORDERS candidates (fused with the order hash, see `fuseOrder`); ORB
- * verification still decides. A wrong embedding costs time, never a wrong
- * answer, and without a model the scanner behaves exactly as before.
- *
- * Everything except `loadEmbedder` is pure and shared by the browser and the
- * Node scripts that precompute the reference embeddings, so both sides
- * preprocess identically by construction.
- */
 
-/** Network input. Must match scripts/train-embedder/train.py (IN_W, IN_H). */
 export const EMBED_W = 160;
 export const EMBED_H = 224;
 const MEAN = [0.485, 0.456, 0.406];
 const STD = [0.229, 0.224, 0.225];
 
-/** int8 quantisation of a unit vector: 127/200 leaves headroom up to |x| = 0.63, far above a dim-128 component. */
 export const EMBED_SCALE = 200;
 
-/** Reciprocal-rank-fusion constant. Small: the top few of either list should be verified before the middle of both. */
 export const FUSE_K = 10;
 
 export type PixelData = {
@@ -32,13 +14,6 @@ export type PixelData = {
   data: Uint8ClampedArray | Uint8Array;
 };
 
-/**
- * RGBA image -> NCHW float tensor [1,3,EMBED_H,EMBED_W], ImageNet-normalised.
- *
- * Area-weighted resampling (each output pixel averages the fractional source
- * box under it), which is what the training augmentations used: nearest or
- * bilinear sampling of a 560 px crop down to 224 px aliases the fine print.
- */
 export function embedderInput(image: PixelData): Float32Array {
   const { width: sw, height: sh, data } = image;
   const plane = EMBED_W * EMBED_H;
@@ -76,7 +51,6 @@ export function embedderInput(image: PixelData): Float32Array {
   return out;
 }
 
-/** Unit vector -> int8 row, as shipped. */
 export function quantizeEmbedding(v: ArrayLike<number>): Int8Array {
   const out = new Int8Array(v.length);
   for (let i = 0; i < v.length; i += 1) {
@@ -85,7 +59,6 @@ export function quantizeEmbedding(v: ArrayLike<number>): Int8Array {
   return out;
 }
 
-/** Cosine similarity of a unit query with each (unit, int8) row; `null` rows score -1. */
 export function embeddingScores(query: ArrayLike<number>, rows: ReadonlyArray<Int8Array | null | undefined>): Float32Array {
   const out = new Float32Array(rows.length);
   const n = query.length;
@@ -102,7 +75,6 @@ export function embeddingScores(query: ArrayLike<number>, rows: ReadonlyArray<In
   return out;
 }
 
-/** Indices sorted by descending score; equal scores keep their index order. */
 export function rankIndices(scores: ArrayLike<number>): number[] {
   return Array.from({ length: scores.length }, (_, i) => i).sort((a, b) => scores[b] - scores[a] || a - b);
 }
@@ -128,29 +100,24 @@ export function fuseOrder(hashOrder: readonly number[], scores: ArrayLike<number
     .map((x) => x.idx);
 }
 
-// ------------------------------------------------------------- the session
-
 type OrtSession = {
   inputNames: readonly string[];
   outputNames: readonly string[];
   run(feeds: Record<string, unknown>): Promise<Record<string, { data: Float32Array | number[] }>>;
   release?(): Promise<void>;
 };
-/** The slice of onnxruntime-web used here, so Node scripts can pass their own. */
 export type OrtLike = {
   InferenceSession: { create(model: Uint8Array, options?: unknown): Promise<OrtSession> };
   Tensor: new (type: "float32", data: Float32Array, dims: number[]) => unknown;
 };
 
 export type Embedder = {
-  /** Unit-length embedding of a rectified card. */
   embed(image: PixelData): Promise<Float32Array>;
   release(): Promise<void>;
 };
 
 let active: Embedder | null = null;
 
-/** The embedder `matchRectified` consults, if one is loaded. */
 export function getScanEmbedder(): Embedder | null {
   return active;
 }
@@ -167,7 +134,6 @@ async function loadBrowserOrt(): Promise<OrtLike> {
   return ort as unknown as OrtLike;
 }
 
-/** Create an embedder from model bytes. Rejects if the runtime or model cannot load. */
 export async function createEmbedder(model: Uint8Array, ort?: OrtLike): Promise<Embedder> {
   const rt = ort ?? (await loadBrowserOrt());
   const s = await rt.InferenceSession.create(model, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
@@ -185,13 +151,6 @@ export async function createEmbedder(model: Uint8Array, ort?: OrtLike): Promise<
   };
 }
 
-// --------------------------------------------------------- shipped embeddings
-
-/**
- * `embeddings-<hash>.bin`: u32 count, u16 dim, then per printing
- * `u16 labelLen, label utf8` and finally count * dim int8 values in the same
- * order. Labels are the descriptor records' labels (`OP01-001__12345`).
- */
 export function encodeEmbeddings(labels: string[], rows: Int8Array[], dim: number): Uint8Array {
   const enc = new TextEncoder();
   const encoded = labels.map((l) => enc.encode(l));

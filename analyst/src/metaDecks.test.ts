@@ -41,7 +41,6 @@ describe("meta decks for self-play (#635)", () => {
     expect(out[0]!.name).toContain("Cup OP01-001");
     expect(urls[0]).toBe("https://api.test/meta/leaders?days=14");
     expect(new URL(urls[1]!).searchParams.get("days")).toBe("14");
-    // A leader whose best list is incomplete is skipped, not counted toward the limit.
     const all = await fetchSelfPlayDecks("https://api.test", { leaders: 4, fetchImpl });
     expect(all.map((d) => d.leaderId)).toEqual(["OP01-001", "OP03-001", "OP02-001"]);
   });

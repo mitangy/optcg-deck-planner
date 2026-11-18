@@ -32,7 +32,6 @@ def test_split_shipping_by_copies_rounds_to_total():
         mode="by_copies",
     )
     assert round(sum(shares.values()), 2) == 1.0
-    # 0.33/0.33/0.34 style
     assert all(v in (0.33, 0.34) for v in shares.values())
 
 
@@ -66,10 +65,9 @@ def test_tax_always_splits_by_card_cost():
         tax_cost=3.0,
     )
     by_id = {r.user_id: r for r in rows}
-    # Shipping equal among buyers; tax by cost 2:1
     assert by_id[1].shipping_share == 1.5
     assert by_id[2].shipping_share == 1.5
     assert by_id[1].tax_share == 2.0
     assert by_id[2].tax_share == 1.0
-    assert by_id[1].total_owed == 23.5  # 20 + 1.5 + 2
-    assert by_id[2].total_owed == 12.5  # 10 + 1.5 + 1
+    assert by_id[1].total_owed == 23.5
+    assert by_id[2].total_owed == 12.5

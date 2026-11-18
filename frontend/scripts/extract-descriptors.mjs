@@ -1,33 +1,10 @@
 #!/usr/bin/env node
-/** Extract ORB descriptors for reference card images, offline.
- *
- * This is the offline half of scan matching: reference descriptors never
- * change, so they are computed once here and shipped to the client, which
- * then only pays for its own query extraction (~70 ms) plus matching
- * (~1.2 ms per candidate).
- *
- * Note the decoder difference: Node decodes JPEG with `jpeg-js` while the
- * browser uses its own built-in decoder, so descriptors extracted here are
- * *not* byte-identical to browser-extracted ones. That is fine and is not
- * the property that matters — the reference and the phone photo are
- * different images regardless, and ORB matching tolerates far larger
- * differences than a decoder's rounding. What matters is that matching still
- * works, which is what the harness verifies.
- *
- * Output is a single binary bundle plus a JSON index, so the client can
- * fetch and cache it without parsing JSON for megabytes of binary payload.
- */
 import { createHash } from "node:crypto";
 import { readFileSync, writeFileSync, readdirSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import jpeg from "jpeg-js";
-// Static import here, unlike the browser side which loads OpenCV lazily:
-// this script does nothing else, so there is no bundle to keep small.
 import cvModule from "@techstark/opencv-js";
 
-// Imported, not reimplemented: the client sorts candidates by comparing its
-// own hash to these, so both sides must use the same algorithm. Run via tsx
-// so this .mjs can import the TypeScript source directly.
 import { computeOrderHash } from "../src/scanner/geometry/cardOrder.ts";
 
 const N_FEATURES = 250;
@@ -42,7 +19,6 @@ async function getCv() {
   return mod;
 }
 
-/** One record: label, order hash, dimensions, keypoints (uint16 pairs), descriptors (32B each). */
 function encodeRecord(label, orderHash, width, height, kp, desc) {
   const labelBytes = new TextEncoder().encode(label);
   const hashBytes = new TextEncoder().encode(orderHash);
@@ -63,10 +39,6 @@ function encodeRecord(label, orderHash, width, height, kp, desc) {
   return buf;
 }
 
-/** Records per chunk. A single multi-megabyte response is not resumable and
- *  times out on flaky connections, which is exactly the network this feature
- *  exists for; chunks let the client download incrementally and keep what it
- *  already has. */
 const CHUNK_RECORDS = 250;
 
 async function main() {
@@ -139,8 +111,6 @@ async function main() {
   let total = 0;
   for (const set of [...bySet.keys()].sort()) {
     const group = bySet.get(set);
-    // Split oversized sets so no single chunk is unwieldy; a change then
-    // touches one part rather than the whole set.
     for (let start = 0; start < group.length; start += CHUNK_RECORDS) {
       const slice = group.slice(start, start + CHUNK_RECORDS);
       const size = slice.reduce((s, x) => s + x.rec.length, 0);
@@ -175,8 +145,6 @@ async function main() {
     }),
   );
 
-  // Drop chunk files no longer referenced, so regenerating does not leave the
-  // output directory growing without bound.
   const live = new Set(chunks.map((c) => c.file));
   let pruned = 0;
   for (const f of readdirSync(outDir)) {

@@ -8,19 +8,15 @@ import type { describeMatchResult } from "./matchResult";
 import { winnerHeadline } from "./playerNames";
 import { RematchPanel, type RematchDecks } from "./RematchPanel";
 
-/** The match result is not dismissed by Escape or an outside click; its buttons leave it. */
 const noop = () => {};
 
-/** Rematch vote on the match-over screen (unranked rooms). */
 export type BoardRematch = {
   state: RematchState | null;
   onAction: (action: RematchAction, decks?: RematchDecks) => void;
   autoAccept?: boolean;
-  /** Saved decks to switch to for the next game. */
   deckOptions?: readonly RematchDeckOption[];
 };
 
-/** The match-over card, or (once "View board" tucked it away) the pill that brings it back. */
 export function MatchResultView({
   over,
   resultHidden,
@@ -77,7 +73,6 @@ export function MatchResultView({
       ) : null}
 
       {over && !resultHidden ? (
-        // Blocking: Escape and an outside click do nothing; "View board" tucks the result away.
         <Dialog
           open
           onClose={noop}
@@ -87,7 +82,6 @@ export function MatchResultView({
           <p className="match-result-kicker">Match over</p>
           <DialogTitle as="h2">
             {(() => {
-              // Spectators / hotseat: name the winning player instead of "Seat N".
               const winner = (matchOver?.winner ?? view.winner) as Seat | null;
               return (spectating || isReplay) && players && (winner === 0 || winner === 1)
                 ? winnerHeadline(players, winner, null, true)

@@ -1,7 +1,3 @@
-/**
- * Registry of leader playbooks (#1173). `playbooks` in BotOptions picks which ones a bot uses: true = every registered
- * playbook (default), false = none, a list = only those leader ids. Easy never uses playbooks.
- */
 import type { BotView } from "../types.js";
 import { buggyPlaybook } from "./buggy.js";
 import { enelPlaybook } from "./enel.js";
@@ -24,7 +20,6 @@ export const PLAYBOOKS: Record<string, LeaderPlaybook> = Object.fromEntries(
   [rosinantePlaybook, kaidoPlaybook, saboPlaybook, rocksPlaybook, buggyPlaybook, luffy13Playbook, hancockPlaybook, enelPlaybook, luffy79Playbook, luffyAcePlaybook].map((p) => [p.leaderId, p]),
 );
 
-/** The playbook the setting enables for the seat's own Leader, if any. */
 export function playbookFor(view: BotView, setting: PlaybookSetting = true): LeaderPlaybook | undefined {
   if (setting === false) return undefined;
   const id = view.you.leader.defId;

@@ -44,7 +44,6 @@ describe("matchResume", () => {
         savedAt: joinedAt,
       }),
     );
-    // Heartbeat while connected: the tab was alive a moment ago.
     touchMatchResume();
     const loaded = loadMatchResume();
     expect(loaded).toMatchObject({ roomId: "long", seat: 1 });
@@ -73,7 +72,6 @@ describe("matchResume", () => {
 
   it("clears stale blobs past reconnect grace (+ buffer)", () => {
     stubSessionStorage();
-    // Write directly so savedAt is not refreshed by saveMatchResume.
     mem.set(
       "optcg.duel.matchResume.v1",
       JSON.stringify({
@@ -82,7 +80,6 @@ describe("matchResume", () => {
         roomId: "old",
         reconnectionToken: "tok",
         seat: 1,
-        // Past 120s grace + 15s buffer.
         savedAt: Date.now() - 150 * 1000,
       }),
     );

@@ -1,7 +1,3 @@
-/**
- * Group buy cards show which of the viewer's own selected decks use them (#1266),
- * as the same deck chips Master Shopping uses. A card none of their decks use shows none.
- */
 import { expect, test } from "./fixtures";
 
 const GB = 13;

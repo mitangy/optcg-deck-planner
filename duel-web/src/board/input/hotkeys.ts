@@ -1,20 +1,15 @@
 export type HotkeyAction =
   | "primary"
   | "toggle_hand"
-  /** Keep hand open is on: tuck the hand fully away, or bring it back. */
   | "hide_hand"
   | "sort_hand"
   | "help"
   | "escape"
   | "hand_prev"
   | "hand_next"
-  /** F: toggle full screen (only when the browser offers it). */
   | "fullscreen"
-  /** M: mute or unmute this tab (#934). Spectators too. */
   | "mute_tab"
-  /** 1-9: the Nth secondary action button. */
   | { kind: "slot"; n: number }
-  /** A/E/P/D: the button for this mnemonic letter (lowercase). */
   | { kind: "letter"; letter: string }
   | null;
 
@@ -28,30 +23,18 @@ export type HotkeyInput = {
 };
 
 export type HotkeyContext = {
-  /** Focus is in a text field (input, textarea, select, contenteditable), e.g. chat. */
   typing: boolean;
-  /**
-   * What holds keyboard focus. A "card" (board or hand tile) hands Space to the
-   * primary action (Enter still selects it); another focus-visible button or
-   * link ("control") keeps Space for itself.
-   */
   focus: "none" | "card" | "control";
-  /** A modal, dialog or sheet is open (card inspect, settings, trash viewer, prompts). */
   modalOpen: boolean;
   spectating: boolean;
   over: boolean;
   wide: boolean;
-  /** Desktop rail layout (wide, not a landscape phone): card-action keys are live. */
   cardKeys: boolean;
-  /** A popover that closes itself on Esc (match menu, landscape panel) is open. */
   escOwned: boolean;
-  /** Keep hand open is on: H hides / shows the hand instead of pinning it. */
   handHides: boolean;
-  /** The browser offers full screen (not installed as an app, not iPhone): F toggles it. */
   fullscreenOffered: boolean;
 };
 
-/** Maps a keydown to a desktop shortcut; the DOM facts arrive in `ctx` so this stays pure. */
 export function hotkeyAction(e: HotkeyInput, ctx: HotkeyContext): HotkeyAction {
   if (ctx.typing || ctx.over) return null;
   if (e.ctrlKey || e.metaKey || e.altKey) return null;
@@ -63,13 +46,11 @@ export function hotkeyAction(e: HotkeyInput, ctx: HotkeyContext): HotkeyAction {
     if (ctx.focus === "control" || ctx.spectating || e.repeat) return null;
     return "primary";
   }
-  // Spectators get it too: watching on a big screen is the main use.
   if (e.key.toLowerCase() === "f") {
     // A held key would otherwise flip in and out of full screen.
     if (!ctx.fullscreenOffered || e.repeat) return null;
     return "fullscreen";
   }
-  // A watch tab is the one that needs it (#934).
   if (e.key.toLowerCase() === "m") return e.repeat ? null : "mute_tab";
   if (ctx.spectating) return null;
   if (e.key === "Escape") return ctx.escOwned ? null : "escape";
@@ -90,7 +71,6 @@ export function hotkeyAction(e: HotkeyInput, ctx: HotkeyContext): HotkeyAction {
   return null;
 }
 
-/** Intent type to mnemonic letter for the selected card's action buttons. */
 const MNEMONIC_BY_TYPE: Record<string, string> = {
   declare_attack: "a",
   activate_ability: "e",
@@ -101,15 +81,11 @@ const MNEMONIC_BY_TYPE: Record<string, string> = {
 const MNEMONIC_LETTERS = new Set(Object.values(MNEMONIC_BY_TYPE));
 
 export type ActionKeyTag = {
-  /** Number key (1-9) that presses this button; null past the ninth. */
   num: number | null;
-  /** Mnemonic letter, only on the first button of its kind. */
   letter: string | null;
-  /** What the corner badge shows: the letter when there is one, else the number. */
   tag: string;
 };
 
-/** Key tags for the visible secondary buttons, in display order. */
 export function actionKeyTags(intents: { type: string }[], offset = 0): ActionKeyTag[] {
   const taken = new Set<string>();
   return intents.map((intent, i) => {
@@ -121,10 +97,6 @@ export function actionKeyTags(intents: { type: string }[], offset = 0): ActionKe
   });
 }
 
-/**
- * Next hand slot for the arrow keys. `order` is the hand's display order (hand
- * indexes); with nothing selected (or a stale index) it starts at the first card.
- */
 export function stepHandSelection(order: number[], current: number | null, dir: 1 | -1): number | null {
   if (order.length === 0) return null;
   const at = current == null ? -1 : order.indexOf(current);
@@ -133,20 +105,12 @@ export function stepHandSelection(order: number[], current: number | null, dir: 
 }
 
 export type ConfirmKeyContext = {
-  /** Focus is in a text field (chat). */
   typing: boolean;
-  /** Same as HotkeyContext.focus: a keyboard-focused button keeps Space for itself. */
   focus: "none" | "card" | "control";
-  /** A sheet or card inspect is open over the prompt. */
   modalOpen: boolean;
-  /** The prompt has a No (optional effect, or Trigger vs Add to hand). */
   optional: boolean;
 };
 
-/**
- * Yes/No prompt keys: Y or Space answers Yes, N answers No. Null leaves the key
- * alone. A held key never answers (it would also answer the next prompt).
- */
 export function confirmKeyAnswer(e: HotkeyInput, ctx: ConfirmKeyContext): boolean | null {
   if (ctx.typing || ctx.modalOpen) return null;
   if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return null;

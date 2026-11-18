@@ -1,4 +1,3 @@
-// Player-facing patch notes shared by the planner and duel-web. Styles: ./whatsNew.css.
 // The notes load on demand (./loadNotes); a static import of ./notes would put them back in the entry bundle.
 export { loadPatchNotes, usePatchNotes } from "./loadNotes";
 export type { PatchApp, PatchNote } from "./types";

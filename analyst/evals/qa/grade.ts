@@ -1,4 +1,3 @@
-/** One answer through every grader: correct (by group), cited, grounded and, for D, the rubric. */
 import type { Catalog } from "../../src/catalog";
 import { citationCheck } from "../grade/citations";
 import { checkEdits } from "../grade/edits";
@@ -14,11 +13,9 @@ export type GradeResult = {
   grade: Grade;
   explanation: Record<string, string>;
   judged: JudgeMeta[];
-  /** The judge's item scores for a D answer, kept in the trace for Miko's grading. */
   rubric?: Rubric;
 };
 
-/** A rubric score at or above this, with every programmatic check passing, is a correct D answer. */
 export const RUBRIC_PASS = 0.8;
 
 const UNCLEAR: Verdict = { verdict: "unclear", legal: "unclear", says_no_official_ruling: false, can: [], cannot: [] };

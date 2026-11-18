@@ -1,4 +1,3 @@
-/** report.md for the deck-advice eval (#678), and for a side-by-side comparison. */
 import type { EvalRunPost } from "../shared/post";
 import { mean } from "../qa/stats";
 import { lostSignificantly } from "./sim";
@@ -16,15 +15,10 @@ export type Totals = {
   sabotaged: number;
   withEdits: number;
   legal: number;
-  /** Mean share of planted copies removed over the sabotaged cases (an answer with no edits counts 0). */
   meanRecall: number | null;
-  /** Mean share of removed copies that were planted, over the sabotaged cases that removed anything. */
   meanPrecision: number | null;
-  /** Cases whose edited deck was played (legal edits, simulation on). */
   simulated: number;
-  /** Of those, the edit did not lose win rate significantly (the interval does not lie entirely below zero). */
   notLost: number;
-  /** Of the simulated cases, those whose edit significantly raised win rate. */
   gained: number;
   meanChange: number | null;
 };
@@ -48,10 +42,6 @@ export function totals(rows: readonly AnswerRow[]): Totals {
   };
 }
 
-/**
- * The run as POST /admin/evals takes it (#679): mean sabotage recall (as a percent, higher is better) is the headline; the score is
- * the simulated cases whose edit did not lose win rate significantly out of the simulated cases, so it is left out with --no-sim.
- */
 export function deckAdviceRunPayload(i: { variant: string; model: string; rows: readonly AnswerRow[]; notes?: string }): EvalRunPost {
   const t = totals(i.rows);
   const groups: NonNullable<EvalRunPost["groups"]> = {};
@@ -83,7 +73,6 @@ export type ReportInput = {
   errors: readonly { id: string; message: string }[];
   stoppedAtCap: boolean;
   maxUsd: number;
-  /** Simulation settings, or null when --no-sim. */
   sim: { gamesPerOpponent: number; opponents: number; levels: string } | null;
   banListChecked: boolean;
   seconds?: number;

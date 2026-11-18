@@ -1,8 +1,6 @@
-/** Runtime config for the Expo duel client. */
 
 export const PROTOCOL_VERSION = 5 as const;
 
-/** Colyseus HTTP endpoint; SDK derives the WebSocket URL. */
 export function getGameServerUrl(): string {
   return process.env.EXPO_PUBLIC_GAME_SERVER_URL ?? "http://localhost:2567";
 }
@@ -19,10 +17,6 @@ export function getDevJoinSecret(): string | undefined {
   return s && s.length > 0 ? s : undefined;
 }
 
-/**
- * Floating-card searches and effect ordering in live matches (on by default,
- * like duel-web). `EXPO_PUBLIC_FLOATING_PROMPTS=false` brings back the inline prompts.
- */
 export function floatingPromptsEnabled(): boolean {
   return process.env.EXPO_PUBLIC_FLOATING_PROMPTS !== "false";
 }

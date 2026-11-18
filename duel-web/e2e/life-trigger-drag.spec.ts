@@ -1,8 +1,3 @@
-/**
- * The Life check pop-up (only the Life card and its buttons) drags by the thin
- * row above the card, like other pop-ups drag by their header (#565).
- * SHOTS=1 also saves screenshots to /mnt/project-files/life-trigger-drag/.
- */
 import { mkdirSync } from "node:fs";
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
@@ -19,7 +14,6 @@ async function open(page: Page) {
   return (await page.locator(".life-trigger-card .card-tile").boundingBox())!;
 }
 
-/** Drag the row above the card by (dx, dy): mouse on desktop, a finger on phones. */
 async function dragRow(page: Page, dx: number, dy: number) {
   const g = (await page.locator(GRIP).boundingBox())!;
   const start = { x: g.x + 12, y: g.y + g.height / 2 };
@@ -46,7 +40,6 @@ test("dragging the Life check's top row moves it, and the next one opens there (
   const after = await tile(page);
   expect(after.y).toBeCloseTo(before.y - 150, 0);
   if (!touch()) expect(after.x).toBeCloseTo(before.x - 40, 0);
-  // The demo keeps one prompt up, so a reload (a fresh prompt, settings kept) stands in for the next.
   await page.reload();
   await expect(page.locator(PROMPT)).toBeVisible();
   await expect.poll(async () => (await tile(page)).y).toBeCloseTo(after.y, 0);
@@ -54,7 +47,6 @@ test("dragging the Life check's top row moves it, and the next one opens there (
     mkdirSync(SHOTS, { recursive: true });
     await page.screenshot({ path: `${SHOTS}/dragged-${page.viewportSize()!.width}x${page.viewportSize()!.height}.png` });
   }
-  // Its buttons still answer after a drag.
   await page.getByRole("button", { name: "Activate Trigger" }).click();
   await expect.poll(() => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents)).toEqual([{ type: "resolve_pending_choice", accept: true }]);
 });

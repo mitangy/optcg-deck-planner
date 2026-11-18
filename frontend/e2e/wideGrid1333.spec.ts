@@ -1,8 +1,3 @@
-/**
- * Wide Grid (#1333): from 1600px a card with alt arts spans 2 grid columns (3 with 5+ alt tiles) and lays out side by
- * side, with its alt tiles in the List's tray on the right. Cards without alts, narrower screens and hidden alts
- * stay as they were, and the cards keep their sort order.
- */
 import type { Page } from "@playwright/test";
 import { expect, test, DECK_ID } from "./fixtures";
 
@@ -12,7 +7,6 @@ test.afterEach(({ planner }) => {
   expect(planner.errors).toEqual([]);
 });
 
-// `two` gets one alt (2 tiles with Base: spans 2); `plain` has none. Collection only lists cards you own.
 const PAGES = [
   { name: "Shopping", path: "/shopping", two: "EB01-003", plain: "EB01-009" },
   { name: "deck page", path: `/decks/${DECK_ID}`, two: "EB01-003", plain: "EB01-009" },
@@ -52,7 +46,6 @@ for (const { name, path, two, plain } of PAGES) {
     expect(tiles.length).toBe(6);
     expect(tiles[1].top).toBeCloseTo(tiles[0].top, 0);
     expect(tiles[1].left).toBeGreaterThan(tiles[0].right);
-    // The tray is right of the card art, not under it.
     const art = (await izo.locator(".grid-card-media, .collection-tile-art").first().boundingBox())!;
     expect(tiles[0].left).toBeGreaterThan(art.x + art.width);
     const label = await izo.locator(".alt-tray-label").innerText();
@@ -76,7 +69,6 @@ for (const { name, path, two, plain } of PAGES) {
     planner.manyAlts(two, 1);
     await openGrid(page, planner, path, plain, 1920);
     const toggle = page.getByRole("checkbox", { name: "Show alt arts" });
-    // Collection keeps its filters in a drawer.
     if (!(await toggle.isVisible())) await page.getByRole("button", { name: /Filters/ }).click();
     await toggle.uncheck();
     await expect(page.locator(".alt-art")).toHaveCount(0);
@@ -88,14 +80,12 @@ for (const { name, path, two, plain } of PAGES) {
   test(`${name} Grid: no sideways scroll at 1600px and 2560px, and the cards keep their sort order (#1333)`, async ({ page, planner }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1200", "viewport is set by the test");
     planner.manyAlts(IZO, 4);
-    // Two 3-column cards in a row leave a gap the plain card after them could fill if the grid packed densely.
     planner.manyAlts(two, 4);
     await openGrid(page, planner, path, plain, 1600);
     for (const w of [1600, 1700, 1800, 1920, 2200, 2560]) {
       await page.setViewportSize({ width: w, height: 1080 });
       await expect(card(page, IZO)).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-      // Every span fits inside the grid.
       const fits = await page.locator(".card-grid").evaluate((grid) => {
         const g = grid.getBoundingClientRect();
         return Array.from(grid.children).every((c) => {
@@ -104,7 +94,6 @@ for (const { name, path, two, plain } of PAGES) {
         });
       });
       expect(fits, `cards inside the grid at ${w}px`).toBe(true);
-      // Reading order (row by row, left to right) is the sort order: no card jumps back to fill a gap.
       const boxes = await page.locator(".card-grid .grid-card").evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
       for (let i = 1; i < boxes.length; i++) {
         const a = boxes[i - 1];
@@ -122,7 +111,6 @@ for (const { name, path, two, plain } of PAGES) {
     planner.manyAlts(two, 1);
     await openGrid(page, planner, path, plain, 2560);
     const grid = page.locator(".card-grid");
-    // 1 / 2 / 3+ columns' worth of room (rem, at the 2560px root size).
     for (const [rem, maxSpan] of [[20, 1], [35, 2], [60, 3]] as const) {
       await grid.evaluate((g, r) => (g.style.width = `${r}rem`), rem);
       const one = await width(page, plain);

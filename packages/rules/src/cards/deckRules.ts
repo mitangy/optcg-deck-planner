@@ -1,7 +1,3 @@
-/**
- * Deck-construction rules printed on Leaders ("Under the rules of this game,
- * you cannot include …"). Encoded as `deck_rule` statics on the Leader.
- */
 import { abilitiesFor } from "./abilities.js";
 import { getCardDef, normalizeCardDefId } from "./definitions.js";
 
@@ -9,7 +5,6 @@ function leaderRules(leaderId: string): string[] {
   return abilitiesFor(normalizeCardDefId(leaderId)).flatMap((a) => (a.statics ?? []).flatMap((s) => (s.s === "deck_rule" ? [s.rule] : [])));
 }
 
-/** Violations of the Leader's deck-construction rules (empty when legal). */
 export function deckConstructionErrors(leaderId: string, deck: readonly string[]): string[] {
   const errors: string[] = [];
   const leader = getCardDef(normalizeCardDefId(leaderId));

@@ -39,11 +39,8 @@ describe("replay timeline", () => {
     straight.forEach((expected, i) => {
       expect(timelineStateAt(t, i + 1)).toEqual(expected);
     });
-    // The reseed took effect: states after it run on the new seed.
     expect(timelineStateAt(t, 8).rng.seed).toBe(424242);
     expect(timelineStateAt(t, 7).rng.seed).toBe(replay.seed);
-    // A state the caller already holds shortens the seek but never changes the answer,
-    // and one ahead of the target is ignored.
     for (const step of [3, 9, 13, 23]) {
       const expected = straight[step - 1]!;
       const behind = { step: step - 2, state: straight[step - 3]! };
@@ -88,7 +85,6 @@ describe("replay timeline", () => {
       const view = getReplayView(state, { cameraSeat, viewerSeat: viewer, revealAll: false });
       const json = JSON.stringify(view);
       for (const id of opp) expect(json).not.toContain(`"${id}"`);
-      // The hand keeps its size, face down.
       expect(view.revealedHands[1]).toHaveLength(opp.length);
       expect(view.revealedHands[1].every((c) => c.defId === "HIDDEN")).toBe(true);
       expect(view.revealedHands[0].map((c) => c.id)).toEqual(handIds(state, 0));
@@ -122,7 +118,6 @@ describe("replay timeline", () => {
     const drewOf = (revealAll: boolean) => projectReplayEvents(step!.events, viewer, revealAll).find((e) => e.type === "drew" && e.seat !== viewer);
     expect(drewOf(false)).not.toHaveProperty("defIds");
     expect(drewOf(true)).toHaveProperty("defIds");
-    // Your own draws are named either way.
     const own = t.steps.find((s) => s.events.some((e) => e.type === "drew" && e.seat === viewer && e.defIds?.length));
     expect(projectReplayEvents(own!.events, viewer, false).find((e) => e.type === "drew" && e.seat === viewer)).toHaveProperty("defIds");
   });

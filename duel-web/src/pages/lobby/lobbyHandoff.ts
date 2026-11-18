@@ -5,20 +5,12 @@ import type { TimerPreset } from "../../home/timerPreset";
 
 export type TournamentPlay = { code: string; matchId: number; opponent: string; timer: TimerPreset };
 
-/**
- * What other pages leave in the lobby's `location.state`: DuelPage sends back a failed match request
- * (`matchError`) or a Join tapped on the waiting board (`joinInvite`), TournamentPage a Play tap (`tournamentPlay`).
- */
 export type LobbyHandoff = { matchError?: string; joinInvite?: FriendInvite; tournamentPlay?: TournamentPlay };
 
 export function readLobbyHandoff(state: unknown): LobbyHandoff {
   return state && typeof state === "object" ? (state as LobbyHandoff) : {};
 }
 
-/**
- * Join tapped on the waiting board, or Play tapped on a tournament page: wait for sign-in and the deck, then
- * run it once. The state is cleared first, so Back from the match never lands here and starts it again.
- */
 export function useLobbyHandoffs(
   ready: boolean,
   actions: { joinInvite: (invite: FriendInvite) => void; launchTournamentMatch: (tp: TournamentPlay) => void },

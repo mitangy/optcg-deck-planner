@@ -80,7 +80,6 @@ describe("PlayersTab drill-down and leaders table (#691)", () => {
     expect(panel.textContent).toContain("annie");
     expect(panel.textContent).toContain("Unknown leader");
     expect(panel.textContent).toContain("Unknown player");
-    // Seat 1 won: only its side says so.
     expect(panel.querySelector('.adm-match-seat[data-seat="1"] .adm-match-win')).not.toBeNull();
     expect(panel.querySelector('.adm-match-seat[data-seat="0"] .adm-match-win')).toBeNull();
     expect(panel.querySelector("a.adm-match-link")!.getAttribute("href")).toBe("/replay/m-abc");
@@ -107,7 +106,6 @@ describe("PlayersTab drill-down and leaders table (#691)", () => {
     click(th("Games").querySelector("button")!);
     expect(th("Games").getAttribute("aria-sort")).toBe("ascending");
     expect(th("Leader").getAttribute("aria-sort")).toBe("none");
-    // Ascending over all twelve, but only ten are shown: the ten smallest.
     expect(gamesCol()[0]).toBe(100 - 11 * 7);
     click([...el.querySelectorAll("button")].find((b) => b.textContent === "Show all 12")!);
     expect(rows().length).toBe(12);

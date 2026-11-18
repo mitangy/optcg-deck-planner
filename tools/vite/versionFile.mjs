@@ -1,8 +1,5 @@
-// Vite plugin and helper shared by frontend/vite.config.ts and duel-web/vite.config.ts: which commit
-// a deploy was built from. The running app polls /version.json (packages/ui/src/appShell/appVersion.ts).
 import { execSync } from "node:child_process";
 
-/** Short SHA for the build tag in the SPA chrome. */
 export function resolveGitSha() {
   const fromEnv =
     process.env.VITE_GIT_SHA?.trim() ||
@@ -20,11 +17,9 @@ export function resolveGitSha() {
 }
 
 /**
- * Emits `/version.json` next to the bundle. The running app fetches it
- * uncached to tell whether a newer deploy is live.
- * @param {string} name plugin name, e.g. "planner-version-file"
+ * @param {string} name
  * @param {string} sha
- * @param {string} builtAt ISO time of this build
+ * @param {string} builtAt
  * @returns {import("vite").Plugin}
  */
 export function versionFile(name, sha, builtAt) {

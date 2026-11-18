@@ -3,7 +3,6 @@ import { fileURLToPath } from "node:url";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-// Card art reads saved art prefs; server rendering has no storage.
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 vi.mock("@colyseus/sdk", () => ({ Client: class {} }));
 
@@ -17,8 +16,6 @@ const { floatLookAnswer } = await import("../board/prompts/floatOrder");
 const { splitPrimaryIntent } = await import("../board/prompts/primaryIntent");
 import type { ChoiceRequestView, Intent, PendingChoiceView, PlayerView } from "./protocol";
 
-// Golden fixtures generated from the engine (packages/rules/protocol-fixtures);
-// game-server and mobile run their own contract tests against the same files.
 const dir = fileURLToPath(new URL("../../../packages/rules/protocol-fixtures/", import.meta.url));
 const load = <T,>(file: string): T => JSON.parse(readFileSync(`${dir}${file}`, "utf8")) as T;
 
@@ -88,9 +85,7 @@ describe("protocol contract (golden fixtures)", () => {
         return;
       }
       const html = renderToStaticMarkup(<ChoicePrompt choice={choice} mySeat={f.viewerSeat} onSend={() => {}} view={f.body.view} />);
-      // A life trigger is a yes/no question; every other kind is named by its request.
       const type = f.choice === "life_trigger" ? "confirm" : request!.type;
-      // Field-only select choices are answered on the board: a bar, not a pop-up.
       const onBoardBar = type === "select" && html.includes('class="field-bar"');
       if (onBoardBar) {
         expect(html).toContain(escapeHtml(choice.prompt));
@@ -105,7 +100,6 @@ describe("protocol contract (golden fixtures)", () => {
       } else if (request!.type === "order") {
         expect(count(html, /choice-order-name/g)).toBe(request!.options.length);
       } else {
-        // select / look: one card (or chip) per option.
         expect(count(html, /class="choice-option(?: selected| disabled)*"|ability-chip choice-chip/g)).toBe((request as { options: unknown[] }).options.length);
       }
     });

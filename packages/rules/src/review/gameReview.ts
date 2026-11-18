@@ -1,11 +1,3 @@
-/**
- * Chess.com-style game review of a recorded match (#967): at each decision with more than one legal intent the
- * bot analysis ranks the options, and the move that was played is graded against the best one.
- *
- * Meant to be imported on its own path (`@optcg/rules/review/gameReview`) by the app's lazy replay chunk or a Web Worker:
- * it imports the engine and the bot analysis only, never the simulator or test helpers.
- * The reviewer is incremental (`advance`) so a worker can post progress between slices.
- */
 import { getPlayerView } from "../engine.js";
 import { describeIntent } from "../bot/labels.js";
 import { rankOptions, winProbability } from "../bot/analysis.js";
@@ -19,66 +11,49 @@ export type { MatchReplay } from "../replay/matchReplay.js";
 export type { Intent, Seat } from "../types.js";
 
 export interface ReviewOptions {
-  /** Wall-clock budget per ranked decision (default 300). */
   budgetMs?: number;
-  /** Determinized games per option (default 6). */
   samples?: number;
-  /** Seats to review (default both). */
   seats?: Seat[];
 }
 
 export const REVIEW_DEFAULTS = { budgetMs: 300, samples: 6 } as const;
 
 export interface ReviewedMove {
-  /** The state before intent `step` is the position that was judged. */
   step: number;
   seat: Seat;
   turn: number;
   played: { intent: Intent; label: string };
   best: { intent: Intent; label: string };
-  /** Win chances in percentage points (0..100). `played` is null when the played intent was not among the ranked options. */
   playedWin: number | null;
   bestWin: number;
-  /** Best minus played, in points; null when the played move was not ranked. */
   loss: number | null;
-  /** Null when the played move was not ranked. */
   cls: MoveClass | null;
-  /** Accuracy score 0..100 (null when unranked). */
   score: number | null;
-  /** How many options were ranked. */
   options: number;
 }
 
-/** Win probability of each seat (points, 0..100) at the start of a turn (and once more at the end of the game). */
 export interface EvalPoint {
   step: number;
   turn: number;
   activeSeat: Seat;
   win: [number, number];
-  /** The end of the replayable game rather than a turn start. */
   final?: boolean;
 }
 
 export interface TurnSummary {
   turn: number;
   seat: Seat;
-  /** The seat was the active player this turn. */
   active: boolean;
   worstClass: MoveClass | null;
-  /** Reviewed decisions by this seat during the turn (defensive ones included). */
   decisions: number;
-  /** Win probability gain for the seat from this turn's start to the start of its next own turn (the end of the game for the last turn), in points. Null without a next point or when the seat was not active. */
   gain: number | null;
   goodTurn: boolean;
 }
 
 export interface SeatSummary {
   counts: Record<MoveClass, number>;
-  /** Decisions that were ranked and graded. */
   graded: number;
-  /** Decisions whose played move was not among the ranked options. */
   unranked: number;
-  /** Mean of the decision scores, 0..100; null when nothing was graded. */
   accuracy: number | null;
 }
 
@@ -87,9 +62,7 @@ export interface GameReview {
   evals: EvalPoint[];
   turns: TurnSummary[];
   seats: [SeatSummary, SeatSummary];
-  /** Decisions with a single legal intent, not reviewed. */
   forced: number;
-  /** Set when the engine refused a recorded intent; the review covers what came before. */
   diverged?: { atIntent: number; message: string };
 }
 
@@ -115,7 +88,6 @@ export function createGameReviewer(replay: MatchReplay, opts: ReviewOptions = {}
   let next = 0;
   let done = replay.intents.length === 0;
   let diverged: GameReview["diverged"];
-  // Seat that made decisions in each turn, to build summaries.
   const turnDecisions = new Map<string, { worst: MoveClass | null; n: number }>();
 
   const pushEval = (final = false) =>
@@ -161,7 +133,6 @@ export function createGameReviewer(replay: MatchReplay, opts: ReviewOptions = {}
   }
 
   return {
-    /** Review up to `maxDecisions` more ranked decisions (forced and unreviewed-seat intents are free). True once finished. */
     advance(maxDecisions: number): boolean {
       let analyzed = 0;
       while (!done && analyzed < maxDecisions) {
@@ -183,7 +154,6 @@ export function createGameReviewer(replay: MatchReplay, opts: ReviewOptions = {}
       if (done && !evals.some((e) => e.final)) pushEval(true);
       return done;
     },
-    /** 0 to 1. */
     progress(): number {
       if (done) return 1;
       return replay.intents.length === 0 ? 1 : next / replay.intents.length;
@@ -230,7 +200,6 @@ export function createGameReviewer(replay: MatchReplay, opts: ReviewOptions = {}
   };
 }
 
-/** Review the whole game at once (tests, tools). */
 export function reviewGame(replay: MatchReplay, opts: ReviewOptions = {}): GameReview {
   const r = createGameReviewer(replay, opts);
   r.advance(Number.MAX_SAFE_INTEGER);

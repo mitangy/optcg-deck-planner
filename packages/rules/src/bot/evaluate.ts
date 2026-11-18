@@ -1,19 +1,11 @@
-/**
- * Position evaluation for the hard bot's lookahead (#631). Pure; reads a full MatchState (a determinized one in
- * practice) and returns a score from `seat`'s point of view in "cards": +1 is about one extra card in hand.
- *
- * Every weight lives in EVAL_WEIGHTS so the whole model can be read, tuned and tested in one place.
- */
 import { getCardDef } from "../cards/definitions.js";
 import { hasPrintedKeyword } from "../cards/abilities.js";
 import { keywordsOf, withQueryCache } from "../engine/queries.js";
 import type { CardInstance, MatchState, PlayerState, Seat } from "../types.js";
 
 export const EVAL_WEIGHTS = {
-  /** A finished game dwarfs every other term; earlier wins score slightly higher. */
   win: 1000,
   winPerSpareTurn: 2,
-  /** Marginal worth of the 1st (last), 2nd, 3rd ... Life card to its owner. The last Life card is worth the most. */
   life: [3.2, 2.3, 1.7, 1.3, 1.1],
   lifeBeyond: 1.0,
   /** Opponent Life is worth a little less than ours (we do not control when it falls). */
@@ -22,17 +14,14 @@ export const EVAL_WEIGHTS = {
   faceDownLife: 0.15,
   /** DON!! on the field (cost area + attached). Ramp has value until both players would reach 10 anyway. */
   don: 0.6,
-  /** The DON!! term fades by this much per turn the owner has started, down to `donFloor` of its value. */
   donFadePerTurn: 0.12,
   donFloor: 0.2,
-  /** A card in hand: base, plus Counter value per 1000, plus a Counter Event bonus. */
   hand: 1.0,
   handPerCounter1000: 0.2,
   handCounterEvent: 0.3,
   handPerCost: 0.03,
-  /** Opponent hand cards are worth slightly less to the opponent than ours are to us. */
   opponentHandFactor: 0.9,
-  /** Character on board: base + per cost + per 1000 power; Blockers more when untapped (a rested Blocker cannot block). */
+  /** Blockers count more when untapped: a rested Blocker cannot block. */
   character: 0.7,
   characterPerCost: 0.28,
   characterPerPower1000: 0.08,
@@ -40,7 +29,6 @@ export const EVAL_WEIGHTS = {
   blockerRested: 0.2,
   stage: 0.5,
   stagePerCost: 0.3,
-  /** Deck-out risk: below this many cards in the deck, every missing card costs `deckOutPerCard`. */
   deckOutBelow: 4,
   deckOutPerCard: 3,
 } as const;
@@ -69,7 +57,6 @@ function characterValue(state: MatchState, seat: Seat, c: CardInstance): number 
   return v;
 }
 
-/** What one player's side of the table is worth to that player. */
 function sideValue(state: MatchState, seat: Seat, p: PlayerState, handFactor: number, lifeFactor: number): number {
   let v = 0;
   const lifeCount = p.life.length;
@@ -84,7 +71,6 @@ function sideValue(state: MatchState, seat: Seat, p: PlayerState, handFactor: nu
   return v;
 }
 
-/** Score of `state` for `seat`: own side minus the opponent's, or a large win/loss once the game is over. */
 export function evaluate(state: MatchState, seat: Seat, startTurn = state.turnNumber): number {
   if (state.winner !== null) {
     const spare = Math.max(0, 40 - (state.turnNumber - startTurn)) * W.winPerSpareTurn;

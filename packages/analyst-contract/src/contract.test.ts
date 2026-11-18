@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CHAT_MODEL_IDS, LIMIT_CODES, REFUSAL_CODES, SCOPE_PATTERN, SCOPE_PATTERN_SOURCE } from "./index";
 
-/** The values the API keeps; backend/tests/test_analyst_contract.py asserts the Python side against the same file. */
 const backend = JSON.parse(readFileSync(new URL("../fixtures/backend-values.json", import.meta.url), "utf8")) as {
   scopePattern: string;
   chatModels: string[];

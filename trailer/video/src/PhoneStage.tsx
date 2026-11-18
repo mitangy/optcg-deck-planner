@@ -10,7 +10,6 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 const ease = (v: number) => Easing.inOut(Easing.cubic)(clamp01(v));
 const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
 
-/** 0 = browser frame shown, 1 = phone shown: the 0.5s hand-off at both ends of the phone section (frame units). */
 export const phoneHandoff = (frame: number, fps: number, PHONE: PhoneCfg): number => {
   const hf = Math.round(PHONE.handoff * fps);
   const a = ease((frame - PHONE.start * fps) / hf);
@@ -34,7 +33,6 @@ const ICONS: Record<'home' | 'train' | 'plane', React.ReactNode> = {
   plane: <path d="M21 15.5v-2l-8-5V4a1.5 1.5 0 0 0-3 0v4.5l-8 5v2l8-2.5V18l-2.5 1.75V21L11 20l3.5 1v-1.25L12 18v-4.5z" transform="translate(1 0)" />,
 };
 
-/** A floating info chip (icon + two lines) beside the phone. `anchor` 'right' pins its right edge at x. */
 const InfoChip: React.FC<{
   x: number; y: number; frame: number; fps: number; from: number; to: number; label: string; sub: string;
   icon: keyof typeof ICONS; anchor?: 'left' | 'right' | 'center'; scale?: number;
@@ -66,10 +64,6 @@ const InfoChip: React.FC<{
   );
 };
 
-/**
- * The big phone: rises in as the browser frame gives way, plays the portrait take, then turns 90 degrees
- * (spring) while the footage crossfades to the landscape take, then lowers away as the browser frame returns.
- */
 export const PhoneStage: React.FC<{layout: Layout; phone: PhoneCfg}> = ({layout: L, phone: PHONE}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
@@ -138,7 +132,6 @@ export const PhoneStage: React.FC<{layout: Layout; phone: PhoneCfg}> = ({layout:
         anchor={L.phone.chips ? 'center' : 'left'} scale={L.phone.chips?.scale} frame={frame} fps={fps} icon="home" {...PHONE.homeScreen}
       />
       {PHONE.travel.map((t) => {
-        // either side of the turned (landscape) phone
         const half = ((sh + 2 * pad) * L.phone.landscapeScale) / 2;
         const gap = 36;
         if (L.phone.chips) {

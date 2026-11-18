@@ -140,7 +140,6 @@ describe("narrateEvents emphasis + card segments", () => {
     expect(own[0]!.tone).toBe("search");
     expect(own[0]!.important).toBe(true);
     expect(own[0]!.segments.some((s) => s.kind === "card" && s.defId === "ST01-006")).toBe(true);
-    // Projected for the opponent the server sends "HIDDEN".
     const opp = narrate([{ type: "card_moved", seat: 0, defId: "HIDDEN", from: "deck", to: "hand", hidden: true }], 1);
     expect(opp[0]!.text).toBe("Opponent adds a card from deck to hand");
     expect(opp[0]!.segments.every((s) => s.kind === "text")).toBe(true);
@@ -220,7 +219,6 @@ describe("narrateEvents emphasis + card segments", () => {
   });
 
   it("does not tell the opponent a Life card has a Trigger (#352)", () => {
-    // Old stored logs carry trigger_available (projected to HIDDEN for the opponent).
     expect(narrate([{ type: "trigger_available", seat: 1, defId: "HIDDEN" }], 0)).toEqual([]);
     const [own] = narrate([{ type: "trigger_available", seat: 0, defId: "ST01-003" }], 0);
     expect(own!.text).toContain("Trigger");

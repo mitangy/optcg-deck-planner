@@ -12,7 +12,6 @@ const gold = (cost: number) => ({
   remaining_cost: cost,
 });
 
-// Deck card $100 left, a card added directly $40 left (deck_need 0), $25 of Extra copies on the deck card.
 const data = {
   remaining_market: 165,
   items: [

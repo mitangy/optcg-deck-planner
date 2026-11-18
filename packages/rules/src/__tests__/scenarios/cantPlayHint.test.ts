@@ -8,7 +8,6 @@ const ALVIDA = "EB05-021";
 const MIHAWK = "OP09-048";
 const EVENT = "ST01-014";
 
-/** Buggy leader trashes Robin, plays Alvida, Alvida plays Mihawk: Borsalino is -3 cost but no Character may be played. */
 function alvidaChain(extraHand: string[] = []) {
   const h = new Harness({ leaders: ["OP09-042", "ST01-001"] });
   h.clearHands();

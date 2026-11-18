@@ -25,7 +25,6 @@ afterEach(() => {
 
 const wait = () => new Promise((r) => setTimeout(r, 40));
 
-/** A page with an opener button; `submit` stays pending until the test calls `finishSend`. */
 function Page() {
   const [open, setOpen] = useState(false);
   return (

@@ -1,16 +1,12 @@
 /**
- * OP13-004 Sabo (#1173). [DON!! x1] If I have a Character with cost 8+, my Leader and all my Characters get +1000 power. The
- * generic give logic only attaches DON!! to reach the opposing Leader's power, so the Leader often stays at 0 attached DON!!
- * and the whole team misses its +1000. With a cost-8+ Character out (the cost the view shows, `fieldCost`, includes cost
- * buffs) and something able to attack, one DON!! goes on the Leader first.
- * Hint 4 (#1204, optcgwebsim.com/learn/sabo-eb05-guide): hold back ST01-011, and OP17-095 / OP17-086 once 4+ DON!! are active.
+ * The generic give logic only attaches DON!! to reach the opposing Leader's power, so the Leader often stays at 0
+ * attached DON!! and the whole team misses its +1000.
  */
 import type { Intent } from "../../types.js";
 import type { BotView } from "../types.js";
 import type { LeaderPlaybook } from "./types.js";
 
 const BIG_COST = 8;
-/** Hint 4: play penalty for ST01-011, and for OP17-095 / OP17-086 with at least `SABO_HOLD_DON` active DON!!. */
 export const SABO_HOLD_PENALTY = 3;
 export const SABO_HOLD_PENALTY_LATE = 2;
 export const SABO_HOLD_DON = 4;

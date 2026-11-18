@@ -1,7 +1,3 @@
-/**
- * Deck input for the analyst: pasted lists (OPTCGSim `4xOP01-006`, Limitless `4 OP01-006`,
- * most "qty + card number" variants), planner share links, or a structured list.
- */
 import { normalizeCardId } from "@optcg/card-core";
 import type { DeckStatsCard } from "@optcg/deck-analytics";
 import type { Catalog } from "./catalog";
@@ -10,9 +6,7 @@ import { plannerApiUrlFrom } from "./config";
 export type Deck = {
   name?: string;
   leaderId: string | null;
-  /** Main deck, leader excluded, merged by card number. */
   cards: DeckStatsCard[];
-  /** Card numbers that are not in the catalog (left out of `cards`). */
   unknown: string[];
   warnings: string[];
 };
@@ -24,12 +18,10 @@ export type DeckInput = {
   cards?: DeckStatsCard[];
 };
 
-/** Most copies one line may add. A legal deck has 4; anything far past it is a typo or an attack. */
 export const MAX_LINE_COPIES = 50;
 
 const CARD_ID = /\b(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})(?:_[PR]\d+)?\b/i;
 
-/** Quantity and card number from one line, or null when the line names no card. */
 export function parseDeckLine(raw: string): { id: string; copies: number } | null {
   // OPTCGSim glues the count to the number ("4xOP01-006"); split it so the id starts on a word boundary.
   const line = raw.replace(/^(\s*\d+)x(?=[A-Z])/i, "$1x ");
@@ -44,7 +36,6 @@ export function parseDeckLine(raw: string): { id: string; copies: number } | nul
   return { id, copies };
 }
 
-/** Builds a deck from card lines. The first leader seen is the leader; the rest is the main deck. */
 export function deckFromLines(catalog: Catalog, entries: readonly { id: string; copies: number }[], leaderHint?: string | null): Deck {
   const warnings: string[] = [];
   const unknown = new Set<string>();
@@ -93,7 +84,6 @@ export function parseDeckText(catalog: Catalog, text: string, leaderHint?: strin
   return deckFromLines(catalog, entries, leaderHint);
 }
 
-/** Share token from a planner share URL (…/share/<token>) or a bare token. */
 export function shareToken(link: string): string | null {
   const m = /\/share\/([A-Za-z0-9_-]+)/.exec(link) ?? /^([A-Za-z0-9_-]{8,})$/.exec(link.trim());
   return m?.[1] ?? null;
@@ -115,7 +105,6 @@ export async function fetchSharedDeck(catalog: Catalog, link: string, fetchImpl:
   if (!res.ok) throw new Error(`The deck planner returned ${res.status} for that share link.`);
   const body = (await res.json()) as PublicShare;
   if (body.kind !== "deck") throw new Error("That link shares a shopping list, not a single deck. Share the deck itself from its deck page.");
-  // DON!! cards are tracked in the planner but are not part of the main deck.
   const isDon = (i: { card_id: string; name?: string; card_type?: string }) =>
     /^DON-/i.test(i.card_id) || /DON!!/i.test(i.name ?? "") || /\bDON\b/i.test(i.card_type ?? "");
   const items = (body.items ?? []).filter((i) => !isDon(i));
@@ -131,7 +120,6 @@ export async function resolveDeck(catalog: Catalog, input: DeckInput, fetchImpl?
   throw new Error("Give a deck as text, a planner share link, or a card list.");
 }
 
-/** Deck list text in OPTCGSim's import format (leader first) or Limitless's (`4 OP01-006`). */
 export function exportDeck(deck: Deck, format: "optcgsim" | "limitless"): string {
   const line = (n: number, id: string) => (format === "optcgsim" ? `${n}x${id}` : `${n} ${id}`);
   const lines = deck.leaderId ? [line(1, deck.leaderId)] : [];

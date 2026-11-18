@@ -9,7 +9,6 @@ vi.mock("@optcg/ui/appShell", async (importOriginal) => ({
   startUpdateChecks: () => undefined,
 }));
 
-// What #root looked like when main.tsx handed it to React, before React's first commit.
 const seen: { marked?: boolean; landing?: boolean } = {};
 vi.mock("react-dom/client", () => ({
   createRoot: (el: HTMLElement) => {

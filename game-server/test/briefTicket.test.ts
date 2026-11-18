@@ -45,9 +45,7 @@ describe("matchup brief ticket", () => {
     const ticket = mintBriefTicket(claims)!;
     assert.ok(ticket.startsWith("mb1."));
     const [, body, sig] = ticket.split(".");
-    // As a game token (body.sig) it does not verify.
     assert.equal(verifyGameToken(`${body}.${sig}`), null);
-    // Signed with the bare secret it would differ.
     const bare = b64url(createHmac("sha256", getGameTokenSecret()).update(body!).digest());
     assert.notEqual(sig, bare);
     const salted = b64url(createHmac("sha256", "match-brief:" + getGameTokenSecret()).update(body!).digest());

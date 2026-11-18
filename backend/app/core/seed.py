@@ -1,10 +1,3 @@
-"""Reference data written at startup, after the schema is at head.
-
-Schema changes belong to Alembic migrations; this is data the app expects to
-find: the admin accounts, the two historic eval runs and the first event.
-Every step is idempotent, so running it on each boot (in each worker, under
-``app.core.db.startup_lock``) changes nothing on a seeded database.
-"""
 
 from __future__ import annotations
 
@@ -19,7 +12,6 @@ from app.core.config import get_settings
 
 
 def sync_admin_role(bind: Engine) -> None:
-    """Admins are exactly settings.admin_email's accounts. Any other admin row goes back to user (#667, #1209)."""
     admins = sorted(get_settings().admin_email_set)
     with bind.begin() as conn:
         conn.execute(
@@ -36,7 +28,6 @@ def sync_admin_role(bind: Engine) -> None:
         )
 
 
-# The eval runs from before the admin page, so the accuracy chart starts with history (#667).
 _HISTORIC_EVAL_RUNS = (
     {
         "run_at": datetime(2026, 10, 8, 0, 45, tzinfo=timezone.utc),
@@ -62,7 +53,6 @@ _HISTORIC_EVAL_RUNS = (
 
 
 def seed_eval_runs(bind: Engine) -> None:
-    """Insert the two historic eval runs when the table is empty."""
     with Session(bind) as session:
         if session.scalar(select(func.count()).select_from(AnalystEvalRun)):
             return
@@ -72,7 +62,6 @@ def seed_eval_runs(bind: Engine) -> None:
 
 
 def seed_default_event(bind: Engine) -> None:
-    """Stress Test Sunday as the first admin-managed event (#1019)."""
     from app.duel import events as ev
 
     with Session(bind) as session:
@@ -80,9 +69,7 @@ def seed_default_event(bind: Engine) -> None:
 
 
 def seed_reference_data(bind: Engine, *, new_database: bool) -> None:
-    """Run every seed step. ``new_database``: the schema was just created from nothing."""
     sync_admin_role(bind)
     seed_eval_runs(bind)
-    # Only the startup that creates duel_events seeds it, so deleting every event stays deleted.
     if new_database:
         seed_default_event(bind)

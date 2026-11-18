@@ -33,8 +33,8 @@ describe("eval judge", () => {
   });
 
   it("prices a judge call by the model that answered it (#414)", () => {
-    expect(judgeCostUsd(usage, JUDGE_MODEL)).toBeCloseTo(3, 6); // 1M in at $2 + 0.1M out at $10
-    expect(judgeCostUsd(usage, RUBRIC_MODEL)).toBeCloseTo(6, 6); // 1M in at $4 + 0.1M out at $20
+    expect(judgeCostUsd(usage, JUDGE_MODEL)).toBeCloseTo(3, 6);
+    expect(judgeCostUsd(usage, RUBRIC_MODEL)).toBeCloseTo(6, 6);
     expect(judgeCostUsd(usage)).toBeCloseTo(3, 6);
   });
 });

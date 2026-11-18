@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 
-/** Deck names as small chips (one per deck), then an optional note and action. */
 export function UsedInCell({
   decks,
   note = "",

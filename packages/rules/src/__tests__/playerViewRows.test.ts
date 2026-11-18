@@ -1,13 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { Harness } from "../testing/harness.js";
 
-// Player view rows: hand rows and static results read through the query cache.
-
-const KAROO = "ST01-003"; // vanilla 1-cost {Animal}/{Alabasta}
+const KAROO = "ST01-003";
 
 describe("hand rows in the player view", () => {
-  const SHANKS = "OP13-028"; // 10-cost. [On Play] Set all of your DON!! cards as active. Then, you cannot play cards from your hand during this turn.
-  const GUARD_POINT = "ST01-014"; // 1-cost Event
+  const SHANKS = "OP13-028";
+  const GUARD_POINT = "ST01-014";
 
   function afterShanks() {
     const h = new Harness();
@@ -38,9 +36,9 @@ describe("hand rows in the player view", () => {
 });
 
 describe("static results read through the query cache", () => {
-  const INAZUMA = "OP05-003"; // 3-cost: [Rush] if you have another Character with 7000 power or more. Its check looks at every Character of yours, Yamato included.
-  const YAMATO = "EB05-046"; // 4-cost 5000: if your opponent has a Character with 8000 base power or more, this Character gains [Blocker] and +3000 power.
-  const LOKI = "OP17-119"; // 8000 base power
+  const INAZUMA = "OP05-003"; // Its check looks at every Character of yours, Yamato included.
+  const YAMATO = "EB05-046";
+  const LOKI = "OP17-119";
 
   it("a Character keeps its own static bonuses in the view after another card's condition has looked at it (#753)", () => {
     const h = new Harness();

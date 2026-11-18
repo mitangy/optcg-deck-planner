@@ -1,8 +1,3 @@
-/**
- * One puzzle through the production chat (#677): the puzzle is the player's message, `runChat` runs with the same system
- * prompt and tools as the app, and the reply's last JSON block is graded against the engine's answer. The model is injected,
- * so tests and `--model-api scripted` cost nothing.
- */
 import { createHash } from "node:crypto";
 import type { Catalog } from "../../src/catalog";
 import { costUsd, MAX_TOOL_ROUNDS, runChat, type CallModel, type Usage } from "../../src/chat";
@@ -23,13 +18,11 @@ export type PuzzleRow = {
   newSet: boolean;
   status: "ok" | "truncated";
   correct: boolean;
-  /** The reply ended with a JSON block that parsed. */
   parsed: boolean;
   given: string;
   gold: string;
   reason?: string;
   question: string;
-  /** The model's final text, cut to 3000 characters. */
   answer: string;
   answer_sha256: string;
   tool_calls: number;
@@ -48,7 +41,6 @@ export type AskDeps = {
   library?: OfficialLibrary;
   knowledge: Pick<Knowledge, "playbook">;
   planner: PlannerOptions;
-  /** The model for one puzzle. */
   callModel: (puzzle: Puzzle) => CallModel;
   /** Every call must be served by this model. */
   model: string;
@@ -81,7 +73,6 @@ export async function askPuzzle(deps: AskDeps, puzzle: Puzzle): Promise<PuzzleRo
   const chatDeps = { api, catalog: deps.catalog, knowledge: { library: deps.library, playbook: deps.knowledge.playbook, stats: api }, callModel };
   let ranOut = false;
   try {
-    // One "user" per puzzle: the chat allows 2 simultaneous streams per user, and the eval runs more than that at once.
     await runChat(chatDeps, `chat.eval-${puzzle.id}`, { message: puzzle.message }, () => undefined, ceiling);
   } catch (err) {
     if (err instanceof ModelMismatch) return { id: puzzle.id, failure: "model_mismatch", message: err.message, retries };
@@ -121,7 +112,6 @@ export async function askPuzzle(deps: AskDeps, puzzle: Puzzle): Promise<PuzzleRo
 
 export type RunOptions = { concurrency: number; maxUsd: number; onRow?: (row: PuzzleRow | PuzzleError, spent: number) => void };
 
-/** Asks every puzzle, `concurrency` at a time, and stops dispatching once the measured spend passes `maxUsd`. */
 export async function askAll(deps: AskDeps, puzzles: readonly Puzzle[], opts: RunOptions): Promise<{ rows: PuzzleRow[]; errors: PuzzleError[]; stoppedAtCap: boolean; spent: number }> {
   const rows: PuzzleRow[] = [];
   const errors: PuzzleError[] = [];
@@ -154,10 +144,6 @@ export async function askAll(deps: AskDeps, puzzles: readonly Puzzle[], opts: Ru
 /** FNV-1a over the id, so the dry run's mistakes are the same on every run. */
 const hash = (s: string) => [...s].reduce((h, ch) => Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0, 2166136261);
 
-/**
- * The dry run's reply: right for most puzzles (lists reordered, some with card names), wrong for about one in five,
- * with no JSON block at all for one in twenty and an early wrong block before the right last one for another. Not a model.
- */
 export function scriptedReply(puzzle: Puzzle, catalog: Catalog): string {
   const bucket = hash(puzzle.id) % 20;
   const { gold } = puzzle;
@@ -169,7 +155,6 @@ export function scriptedReply(puzzle: Puzzle, catalog: Catalog): string {
     return bucket % 2 ? ids.map((id) => `${nameOf(catalog, id)} (${id})`) : ids;
   };
   const wrong = (g: Gold): unknown => {
-    // A chain is wrong in its first part only: the other parts stay right.
     if (g.mode === "all") return Object.fromEntries(g.parts.map((p, i) => [p.key, i === 0 ? wrong(p) : right(p)]));
     if (g.mode === "number") return g.value + (bucket % 2 ? 1000 : -1000);
     return g.value.length ? g.value.slice(0, -1) : ["OP01-001"];

@@ -1,4 +1,3 @@
-/** Print a deterministic random sample of supported cards for manual review: `npx tsx src/tools/cardText/sample.ts [n] [seed]`. */
 import { abilitiesFor, cardAbilities } from "../../cards/abilities.js";
 import { cardDataFor, listCardDataIds } from "../../cards/cardData.js";
 import { createSeededRng } from "../../rng.js";

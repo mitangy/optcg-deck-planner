@@ -1,6 +1,5 @@
 import { useEffect } from "react";
 
-/** The slice of WakeLockSentinel the controller needs. */
 export type WakeLockHandle = {
   release(): Promise<void>;
   addEventListener(type: "release", listener: () => void): void;
@@ -8,19 +7,13 @@ export type WakeLockHandle = {
 };
 
 export type WakeLockDeps = {
-  /** null when the browser has no Screen Wake Lock API: the controller is then a no-op. */
   request: (() => Promise<WakeLockHandle>) | null;
   isVisible: () => boolean;
-  /** Subscribe to visibility changes; returns the unsubscribe function. */
   addVisibilityListener: (listener: () => void) => () => void;
 };
 
 export type WakeLockController = { start(): void; stop(): void };
 
-/**
- * Holds a screen wake lock while started. Browsers drop the lock whenever the
- * tab is hidden, so it is requested again when the page becomes visible.
- */
 export function createWakeLockController(deps: WakeLockDeps): WakeLockController {
   const { request, isVisible, addVisibilityListener } = deps;
   let started = false;
@@ -29,7 +22,6 @@ export function createWakeLockController(deps: WakeLockDeps): WakeLockController
   let unsubscribe: (() => void) | null = null;
 
   function onReleased() {
-    // The browser released it (tab hidden, battery saver). Come back when we can.
     handle = null;
     acquire();
   }
@@ -41,7 +33,6 @@ export function createWakeLockController(deps: WakeLockDeps): WakeLockController
       (sentinel) => {
         requesting = false;
         if (!started) {
-          // stop() ran while the request was in flight: do not keep the lock.
           void sentinel.release().catch(() => {});
           return;
         }
@@ -49,7 +40,6 @@ export function createWakeLockController(deps: WakeLockDeps): WakeLockController
         sentinel.addEventListener("release", onReleased);
       },
       (err) => {
-        // Denied (battery saver, permissions policy). Playing without it is fine.
         requesting = false;
         console.debug("Screen wake lock unavailable", err);
       },
@@ -77,7 +67,6 @@ export function createWakeLockController(deps: WakeLockDeps): WakeLockController
   };
 }
 
-/** Keeps the phone from dimming / locking while `active` (e.g. during the opponent's long turn). */
 export function useScreenWakeLock(active: boolean): void {
   useEffect(() => {
     if (!active || typeof navigator === "undefined") return;

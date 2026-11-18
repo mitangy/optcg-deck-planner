@@ -9,7 +9,6 @@ vi.mock("../net/prefsApi", () => api);
 import { currentSettings, updateSettings } from "../settings";
 import { stopSettingsSync, syncSettings } from "./settingsSync";
 
-/** An account settings load that settles when the test says so (a cold API). */
 function slowLoad() {
   let resolve!: (v: { settings: Record<string, unknown> | null }) => void;
   api.fetchAccountSettings.mockReturnValueOnce(new Promise((r) => (resolve = r)));
@@ -42,7 +41,6 @@ describe("settings sync while the account settings load", () => {
     await sync;
 
     expect(currentSettings().endTurnConfirm).toBe("never");
-    // Settings not touched here still follow the account.
     expect(currentSettings().turnSplash).toBe(false);
     expect(api.putAccountSettings).toHaveBeenCalledWith(
       expect.objectContaining({ endTurnConfirm: "never", turnSplash: false }),
@@ -83,11 +81,9 @@ describe("settings sync while the account settings load", () => {
       expect.objectContaining({ endTurnConfirm: "never" }),
       { keepalive: true },
     );
-    // The debounce timer was cancelled: nothing is sent a second time.
     vi.advanceTimersByTime(5000);
     expect(api.putAccountSettings).toHaveBeenCalledTimes(1);
 
-    // Hiding the tab flushes too, but a visibility change that is not "hidden" does not.
     updateSettings({ endTurnConfirm: "actions" });
     doc.dispatchEvent(new Event("visibilitychange"));
     expect(api.putAccountSettings).toHaveBeenCalledTimes(1);

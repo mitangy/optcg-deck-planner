@@ -13,7 +13,6 @@ import type { AdviceCase } from "./cases";
 import { applyAdvice } from "./edits";
 import { seedOf } from "./sabotage";
 
-/** The edits the fake model suggests, all legal for the case's deck. */
 export function scriptedDeltas(catalog: Catalog, c: AdviceCase, freq: ReadonlyMap<string, number>): Delta[] {
   const legal = (deltas: Delta[]) => applyAdvice(catalog, c.leaderId, c.cards, { source: "text", deltas }).legal;
   const have = new Map(c.cards.map((x) => [x.id, x.copies]));
@@ -30,7 +29,6 @@ export function scriptedDeltas(catalog: Catalog, c: AdviceCase, freq: ReadonlyMa
       back -= n;
     }
   }
-  // One swap that is not about the sabotage: the least played card for the most played one of the leader's colors.
   const leader = catalog.cards.get(c.leaderId);
   const plantedIds = new Set(c.planted.map((p) => p.id));
   const out = [...c.cards].filter((x) => !plantedIds.has(x.id) && x.copies >= 2 && !deltas.some((d) => d.id === x.id)).sort((a, b) => (freq.get(a.id) ?? 0) - (freq.get(b.id) ?? 0) || a.id.localeCompare(b.id))[0];
@@ -58,7 +56,6 @@ export function scriptedAdviceModel(catalog: Catalog, c: AdviceCase, freq: Reado
   const style = scriptedStyle(c);
   return scriptedModel(({ call }) => {
     if (!deltas.length) return textReply("This list looks well tuned for the current meta; I would not change it. This is my read.", model);
-    // After the app's check (#686) a text-style model keeps its answer and does not repeat the lines.
     if (style === "text" && call > 0) return textReply("Those are the changes I would make.", model);
     if (style === "text") return textReply(`This is my read of the list. Here are the changes I would make:\n${lines(catalog, deltas).join("\n")}`, model);
     if (call === 0) {

@@ -1,4 +1,3 @@
-/** Believable (and entirely made-up) players, matches and leaderboard rows for the faked backend. */
 import { type FakeBoardEntry, type FakeFriend, type FakeMatch } from "./fakeApi";
 import { CHOPPER, MIKO, NAMI, ROBIN, SANJI, USOPP, ZORO } from "./data";
 

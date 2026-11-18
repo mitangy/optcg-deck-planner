@@ -1,6 +1,3 @@
-/* —— Board refresh: DON!! scale, leader scale, table felt, actions ——
-   Kept at the end so it layers over the base arena rules above. */
-
 .side-field {
   border-color: var(--line);
   border-radius: var(--radius-14);
@@ -28,8 +25,6 @@
   background: rgba(0, 0, 0, 0.16);
 }
 
-/* DON!! chips scale with the viewport (roughly a third of a character card on
-   desktop) instead of the old fixed 28px thumbnails. */
 .don-strip {
   --don-w: clamp(30px, 4.6vw, 70px);
   border-color: var(--line);
@@ -39,7 +34,6 @@
 }
 
 .don-strip-rail {
-  /* Clear space between separate DON!! piles (#381); never overlapped. */
   --don-pile-gap: calc(var(--don-w) * 0.5);
   container-type: inline-size;
   flex-wrap: nowrap;
@@ -75,9 +69,6 @@
   );
 }
 
-/* Separate DON!! piles (#381): a fixed gap between piles; the overlap above
-   only applies between chips inside one pile (the first chip of a pile has no
-   chip sibling before it), and the gaps are taken off the room it shares out. */
 .don-pile {
   display: flex;
   align-items: center;
@@ -125,7 +116,6 @@
   background: rgb(var(--deep-rgb) / 0.92);
 }
 
-/* Actions read as calm secondary buttons; End turn is the gold primary. */
 .intent-btn {
   background: var(--arena-raised);
   color: var(--ink);
@@ -161,7 +151,6 @@
   border-radius: var(--radius-8);
 }
 
-/* Deck editor: Import and Add cards start folded behind their headings. */
 details.deck-collapsible {
   display: block;
 }
@@ -220,14 +209,12 @@ details.deck-config-section.deck-collapsible {
   gap: var(--space-3);
 }
 
-/* Decks page: the status line under the header and the section holding the deck cards. */
 .deck-sync-note {
   margin: 0;
   min-height: 1.3em;
   overflow-wrap: anywhere;
 }
 
-/* The signed-in note wraps to two lines on a phone: reserve them so the decks below do not jump. */
 @media (max-width: 640px) {
   .deck-sync-note {
     min-height: 2.6em;
@@ -253,11 +240,6 @@ details.deck-config-section.deck-collapsible {
   min-height: 0;
 }
 
-/*
- * Decks page + deck editor on desktop (DESKTOP_DECKS_QUERY in useMediaQuery.ts).
- * Below 1024px the wrappers are `display: contents`, so phones get the same
- * single column as before.
- */
 .deck-editor-layout,
 .deck-editor-side,
 .deck-editor-main {
@@ -265,7 +247,6 @@ details.deck-config-section.deck-collapsible {
 }
 
 @media (min-width: 1024px) {
-  /* A flex item with auto margins shrinks to its content; fill up to the cap instead. */
   .deck-config-wide {
     width: 100%;
     max-width: 1480px;
@@ -275,7 +256,6 @@ details.deck-config-section.deck-collapsible {
     max-width: 1240px;
   }
 
-  /* Deck on the left, card search in a sticky column on the right. */
   .deck-editor-layout {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
@@ -311,12 +291,10 @@ details.deck-config-section.deck-collapsible {
     background: var(--arena-deep);
   }
 
-  /* The panel frames the column, so its first divider would double the border. */
   .deck-editor-side > :first-child {
     border-top: none;
   }
 
-  /* Search box stays in view while the results scroll under it. */
   .deck-editor-side .deck-search-query {
     position: sticky;
     top: 0;
@@ -325,7 +303,6 @@ details.deck-config-section.deck-collapsible {
     background: var(--arena-deep);
   }
 
-  /* One scroll for the whole column instead of a list scrolling inside it. */
   .deck-editor-side .deck-search-results {
     max-height: none;
     overflow: visible;
@@ -336,7 +313,6 @@ details.deck-config-section.deck-collapsible {
   }
 }
 
-/* Wide windows: the leader gets its own column so it does not take a whole row. */
 @media (min-width: 1440px) {
   .deck-editor-main {
     display: grid;
@@ -350,12 +326,6 @@ details.deck-config-section.deck-collapsible {
   }
 }
 
-/*
- * Deck stats in the deck editor (packages/deck-analytics panels). The shared CSS reads its own
- * --da-* tokens; map them onto the duel theme here so every crew theme follows. The ones the
- * panels can take straight from the global palette are mapped at :root (the hint popover is
- * portalled out of .duel-deck-stats), the rest on the wrapper.
- */
 :root {
   --da-ink: var(--ink);
   --da-muted: var(--muted);
@@ -400,7 +370,6 @@ details.deck-config-section.deck-collapsible {
   visibility: hidden;
 }
 
-/* Host primitives the shared panels expect (planner class names). */
 .duel-deck-stats .muted {
   color: var(--muted);
 }
@@ -465,7 +434,6 @@ details.deck-config-section.deck-collapsible {
   accent-color: var(--chrome);
 }
 
-/* The side column is ~370px: two tiles per row, and the tray sits flush with the panel. */
 .duel-deck-stats .ds-tiles {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }

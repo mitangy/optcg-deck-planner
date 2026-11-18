@@ -1,4 +1,3 @@
-/** Static (continuous) text grammar → `Static` + enabling conditions. */
 import type { Cond, Static, StaticTarget } from "../../../effects/types.js";
 import { eq, ge, sel } from "../../../effects/builders.js";
 import { nameList, num, parseCardPhrase, parseCountPhrase, quote, traitList, type Ctx } from "../phrases.js";
@@ -309,7 +308,6 @@ export function parseStaticSentence(sentence: string, ctx: Ctx): { statics: (Sta
     const b = a && parseStaticSentence(shared[1] + " " + shared[3], ctx);
     if (a && b && !a.conditions.length && !b.conditions.length) return { statics: [...a.statics, ...b.statics], conditions: [] };
   }
-  // "A, and B" / "A and B" static conjunctions ("this Character gains +1000 power, and all of your ... gain +2 cost")
   const parts = s.split(/,? and (?=all |this |your )/i);
   if (parts.length > 1) {
     const out: (Static & { when?: Cond[] })[] = [];

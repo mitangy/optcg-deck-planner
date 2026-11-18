@@ -9,10 +9,6 @@ const when = (iso: string): string => {
   return Number.isNaN(t) ? "" : new Date(t).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 };
 
-/**
- * The Chats button under the panel header and the list it opens: this page's chats first, then recent ones by
- * kind. The list is an overlay (nothing under it moves) and is fetched each time it opens.
- */
 export function ChatsMenu({
   apiBase,
   active,
@@ -21,9 +17,7 @@ export function ChatsMenu({
   onPick,
 }: {
   apiBase: string;
-  /** The page's chat: its own chats come first. */
   active: LogPoseScope;
-  /** The chat on show. */
   threadId: number | null;
   /** An answer is streaming: it must land in its own chat, so picking another waits. */
   busy: boolean;
@@ -48,7 +42,6 @@ export function ChatsMenu({
     };
   }, [open, apiBase, active.key]);
 
-  // Esc closes the list (not the panel), and so does a press outside it.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: globalThis.KeyboardEvent) => {

@@ -9,12 +9,10 @@ type Props = {
   className: string;
   label: string;
   ariaLabel?: string;
-  /** Start with the menu open (demo screenshots). */
   defaultOpen?: boolean;
   onAction: (action: UndoAction, opts?: UndoRequestOptions) => void;
 };
 
-/** The rows of the menu: items of the surrounding Headless UI `Menu`, so render it inside a `MenuList`. */
 export function UndoMenuRows({ model, onPick }: { model: UndoMenuModel; onPick: (request: UndoRequestOptions) => void }) {
   return (
     <>
@@ -40,16 +38,8 @@ export function UndoMenuRows({ model, onPick }: { model: UndoMenuModel; onPick: 
   );
 }
 
-/**
- * The Undo button and its choice menu (#536): last action or whole turn, with
- * the reason a choice is blocked and a Force option past a reveal. The button
- * is never `disabled` (a disabled button shows no hover title and cannot be
- * tapped on a phone): blocked, it dims, its title says why, and the menu
- * repeats the reason. A Headless UI Menu (#715): the list floats in a portal,
- * flipped above the button when there is no room below, so opening it never
- * moves the button or its neighbours; arrow keys, Escape and outside click
- * come with it.
- */
+// Never `disabled`: a disabled button shows no hover title and cannot be tapped on a phone.
+// The menu floats in a portal so opening it never moves the button or its neighbours.
 export function UndoControl({ state, autoAccept, className, label, ariaLabel, defaultOpen = false, onAction }: Props) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const closeRef = useRef<() => void>(() => {});

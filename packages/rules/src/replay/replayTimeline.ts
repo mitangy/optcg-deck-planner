@@ -1,12 +1,8 @@
 /**
- * A recorded game as a timeline a viewer can scrub: the replay re-run once,
- * keeping a checkpoint state every few steps plus small per-step metadata
- * (not every state, which would cost tens of MB on a phone). Any step is then
- * at most `every - 1` intents away from a checkpoint.
- *
- * This file is meant to be imported on its own path (`@optcg/rules/replay/replayTimeline`)
- * by the app's lazy replay chunk, so it imports only the engine, never the
- * simulator or test helpers.
+ * Keeps a checkpoint state every few steps plus small per-step metadata, not every state, which would cost tens of MB
+ * on a phone.
+ * Imported on its own path by the app's lazy replay chunk, so it imports only the engine, never the simulator or test
+ * helpers.
  */
 import { getSpectatorView, projectGameEvents, projectPendingChoice } from "../engine.js";
 import { replayApply, replayStart, type MatchReplay } from "./matchReplay.js";
@@ -18,10 +14,8 @@ export { MATCH_REPLAY_SCHEMA, type MatchReplay } from "./matchReplay.js";
 export type { GameEvent, InstanceId, Intent, MatchState, Seat } from "../types.js";
 
 export interface TimelineStep {
-  /** Who sent the intent. */
   seat: Seat;
   intentType: Intent["type"];
-  /** State after this step. */
   turnNumber: number;
   activeSeat: Seat;
   phase: MatchState["phase"];
@@ -30,20 +24,14 @@ export interface TimelineStep {
 
 export interface ReplayTimeline {
   replay: MatchReplay;
-  /** The match as dealt: step 0. */
   start: MatchState;
   /** `steps[i]` is the result of intent `i`, so the state after it is step `i + 1`. */
   steps: TimelineStep[];
   every: number;
-  /** `checkpoints[k]` is the state at step `k * every`. */
   checkpoints: MatchState[];
-  /** The first step of each turn (the step whose result is that turn's main phase). */
   turnStarts: { turn: number; step: number }[];
-  /** State after the last step that could be replayed. */
   final: MatchState;
-  /** Set when the engine refused a recorded intent; steps before it are still here. */
   diverged?: { atIntent: number; intentType: string; message: string };
-  /** Leaders, Characters and Stages that were ever on the board, to name attackers and blockers in the log. */
   boardCards: Map<InstanceId, { defId: CardDefId; seat: Seat }>;
 }
 
@@ -64,7 +52,6 @@ export function indexBoardCards(state: MatchState, into: Map<InstanceId, { defId
 /** Builds the timeline a few intents at a time so a page can stay responsive and show progress. */
 export function createTimelineBuilder(replay: MatchReplay, opts: { every?: number } = {}) {
   const every = Math.max(1, Math.floor(opts.every ?? DEFAULT_CHECKPOINT_EVERY));
-  // Throws if the match cannot even be dealt (for example an unknown card id).
   const start = replayStart(replay);
   const steps: TimelineStep[] = [];
   const checkpoints: MatchState[] = [start];
@@ -76,7 +63,6 @@ export function createTimelineBuilder(replay: MatchReplay, opts: { every?: numbe
   let done = replay.intents.length === 0;
 
   return {
-    /** Replay up to `maxIntents` more intents. Returns true once the whole recording (or its replayable part) is built. */
     advance(maxIntents: number): boolean {
       for (let n = 0; n < maxIntents && !done; n++) {
         const i = steps.length;
@@ -98,7 +84,6 @@ export function createTimelineBuilder(replay: MatchReplay, opts: { every?: numbe
       }
       return done;
     },
-    /** 0 to 1. */
     progress(): number {
       if (done) return 1;
       return replay.intents.length === 0 ? 1 : steps.length / replay.intents.length;
@@ -109,17 +94,13 @@ export function createTimelineBuilder(replay: MatchReplay, opts: { every?: numbe
   };
 }
 
-/** Build the whole timeline at once (tests, tools). */
 export function buildReplayTimeline(replay: MatchReplay, opts: { every?: number } = {}): ReplayTimeline {
   const builder = createTimelineBuilder(replay, opts);
   builder.advance(Number.MAX_SAFE_INTEGER);
   return builder.result();
 }
 
-/**
- * The state after `step` intents. Starts from the nearest checkpoint at or before it, or from `near`
- * (a state the caller already holds) when that is closer, and re-applies intents forward.
- */
+/** Starts from the nearest checkpoint, or from `near` (a state the caller already holds) when that is closer. */
 export function timelineStateAt(t: ReplayTimeline, step: number, near?: { step: number; state: MatchState }): MatchState {
   const target = Math.min(Math.max(0, Math.floor(step)), t.steps.length);
   const k = Math.floor(target / t.every);
@@ -134,15 +115,14 @@ export function timelineStateAt(t: ReplayTimeline, step: number, near?: { step: 
 }
 
 /**
- * Spectator board for one step. `cameraSeat` only decides which side is drawn at the bottom;
- * what is shown is decided by `viewerSeat` and `revealAll`, so flipping the camera never leaks a hand.
- * Deck order and face-down Life are never in the spectator view, only counts.
+ * `cameraSeat` only decides which side is drawn at the bottom; what is shown is decided by `viewerSeat` and
+ * `revealAll`, so flipping the camera never leaks a hand.
  */
 export function getReplayView(state: MatchState, o: { cameraSeat: Seat; viewerSeat: Seat; revealAll: boolean }) {
   const base = getSpectatorView(state, o.cameraSeat, { revealHands: true });
   const hands = base.revealedHands!;
-  // Once the game is over both hands are public (#482), as they were for anyone watching live.
-  // A hand the viewer may not see keeps its size (the count is public) but not its cards or instance ids.
+  // Once the game is over both hands are public, as they were for anyone watching live. A hand the viewer may not see
+  // keeps its size (the count is public) but not its cards or instance ids.
   const mask = (seat: Seat) =>
     o.revealAll || seat === o.viewerSeat || state.winner !== null ? hands[seat] : hands[seat].map((_, i) => ({ id: `hidden-${seat}-${i}`, defId: HIDDEN_CARD }));
   return {
@@ -153,11 +133,6 @@ export function getReplayView(state: MatchState, o: { cameraSeat: Seat; viewerSe
   };
 }
 
-/**
- * Events as the viewer should read them. "What I saw" hides what the viewer could not see.
- * "Reveal all" shows each event as its own seat saw it (an opponent's draw is named), but
- * a face-down Life card stays hidden from everyone.
- */
 export function projectReplayEvents(events: GameEvent[], viewerSeat: Seat, revealAll: boolean): GameEvent[] {
   if (!revealAll) return projectGameEvents(events, viewerSeat);
   return events.flatMap((e) => projectGameEvents([e], "seat" in e && typeof e.seat === "number" ? e.seat : null));

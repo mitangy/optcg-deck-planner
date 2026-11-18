@@ -1,40 +1,23 @@
-/* —— Fanned hand (desktop): held like real cards, peeks until hovered ——
-
-   .hand-fan-center (the default spot) sits under the board column, which
-   keeps a strip free for the tucked cards (so they never cover your DON!!,
-   deck or trash). Dragged by its grip it becomes .hand-fan-free: on the
-   bottom edge (.hand-fan-docked) it still tucks, anywhere else
-   (.hand-fan-float) it stays fully shown (handFanPos.ts). Hovering, keyboard
-   focus, pinning (H) or selecting a card raises the fan and spreads it out
-   over the board; dragging a card out tucks it again so the whole board is a
-   drop target. Only :focus-visible raises it, not :focus-within: a clicked
-   card, Sort or Hand button keeps focus, and the fan would stay up over your
-   DON!! row after the pointer leaves. Hovering the cards (not the handle row)
-   raises it (.is-hover-up, set by DuelBoard): the buttons must not jump up
-   under the cursor (#780). Once up it stays up until the pointer leaves the
-   whole fan. The container ignores the pointer, so only the cards and the handle
-   catch clicks. Per-card tilt and drop come from handFan.ts (--rot, --drop). */
+/*
+ * Only :focus-visible raises it, not :focus-within: a clicked card, Sort or Hand button keeps focus, and the fan would stay up over your DON!! row after the pointer leaves.
+ * Hovering the cards (not the handle row) raises it (.is-hover-up, set by DuelBoard) so the buttons don't jump up under the cursor. The container ignores the pointer, so only the cards and the handle catch clicks.
+ */
 
 .arena.arena-fan-center .playmat {
   padding-bottom: calc(var(--fan-ch) * var(--fan-peek-center) + var(--safe-b) + 4px);
 }
 
-/* A spectator's two fans: both strips, also in the bigger playing area (whose
-   own padding would otherwise win). */
+/* The bigger playing area's own padding would otherwise win. */
 .arena.arena-spec-fans.arena-fan-center .playmat {
   padding-bottom: calc(var(--fan-ch) * var(--fan-peek-center) + var(--safe-b) + 4px);
 }
 
-/* Keep hand open: the fan stays raised, so the board makes room for the whole
-   raised fan (its height, the raise, the selected card's lift) instead of only
-   the tucked strip. Follows the setting, not H / Hide, so toggling never moves
-   the board. Extra specificity beats the bigger playing area's own padding. */
+/* Follows the setting, not H / Hide, so toggling never moves the board. Extra specificity beats the bigger playing area's own padding. */
 .arena.arena-fan-center.arena-fan-kept:not(.arena-spec-fans) .playmat {
   padding-bottom: calc(var(--fan-ch) * 1.06 + 0.5rem + 18px + var(--safe-b) + 4px);
 }
 
-/* Sideways tablets and foldables (#1262): the landscape layout's own mat padding
-   (and the bigger playing area's) would win, so the strip is reserved again. */
+/* The landscape layout's own mat padding (and the bigger playing area's) would win, so the strip is reserved again. */
 .arena.arena-lp.arena-fan-center .playmat,
 .arena.arena-big.arena-lp.arena-fan-center .playmat {
   padding-bottom: calc(var(--fan-ch) * var(--fan-peek-center) + var(--safe-b) + 4px);
@@ -52,7 +35,6 @@
 .hand-fan {
   --fan-gap: 0.5rem;
   --fan-peek: 0.42;
-  /* Raised: clear the arc drop of the outer cards and the screen edge. */
   --fan-raise: calc(-0.5rem - var(--fan-ch) * 0.06);
   position: fixed;
   bottom: 0;
@@ -149,7 +131,6 @@
   box-shadow: -4px 0 10px rgba(0, 0, 0, 0.35);
 }
 
-/* Overlap cards when they don't fit (always true while tucked). */
 .arena .hand-fan-cards > * + * {
   margin-left: min(var(--fan-gap), calc((100% - var(--n) * var(--fan-cw)) / (var(--n) - 1)));
 }
@@ -166,20 +147,15 @@
   transform: translateY(calc(var(--drop, 0) * var(--fan-ch) - 18px)) rotate(var(--rot, 0deg));
 }
 
-/* Centre: spans the board column; the handle sits beside the cards so the
-   tucked strip is only as tall as the card tops. */
 .hand-fan-center {
   --fan-peek: var(--fan-peek-center);
   left: var(--left-w);
   right: var(--rail-w);
-  /* Cards centred on the column, handle to their left. The handle's column
-     never shrinks below the handle, so on a narrow board (150 % zoom) the
-     cards shift right instead of the handle spilling over the left column. */
+  /* The handle's column never shrinks below the handle, so on a narrow board (150 % zoom) the cards shift right instead of the handle spilling over the left column. */
   display: grid;
   grid-template-columns: minmax(max-content, 1fr) auto minmax(0, 1fr);
   align-items: start;
   column-gap: calc(0.6rem + var(--fan-cw) * 0.15);
-  /* Room for the tilted outer cards' corners inside the column. */
   padding-inline: calc(var(--fan-cw) * 0.35);
 }
 
@@ -189,11 +165,7 @@
   justify-self: end;
 }
 
-/* The default spot stacks the handle's controls (menu, Hand, Sort) one under
-   another at the far left of the fan (#449). A column is taller than the
-   tucked strip, so it is lifted until its bottom sits on the strip's bottom
-   edge: nothing is clipped by the window. Held in the free space left of the
-   mat, so it never covers the mat's DON!! deck or the cards. */
+/* A column is taller than the tucked strip, so it is lifted until its bottom sits on the strip's bottom edge: nothing is clipped. Held in the free space left of the mat, so it never covers the mat's DON!! deck or the cards. */
 .hand-fan-center .hand-fan-head {
   justify-self: start;
   flex-direction: column;
@@ -206,11 +178,7 @@
   grid-row: 1;
 }
 
-/* The player's fan (#1244): the buttons sit right beside the cards (not at
-   the far left). The middle column is as wide as the spread cards, so the
-   buttons stay put when the fan rises. Tucked (Keep hand open off) they are
-   one row at the top of the strip, which is shorter than the row only by the
-   card tops; a column wouldn't fit without covering the mat. */
+/* Tucked, the buttons are one row at the top of the strip; a column wouldn't fit without covering the mat. */
 .arena:not(.arena-spec-fans) .hand-fan-center:not(.hand-fan-top) {
   grid-template-columns:
     minmax(max-content, 1fr)
@@ -223,21 +191,15 @@
   flex-direction: row;
   align-items: center;
   transform: none;
-  /* Clear of the first card's tilted corner. */
   margin: 0.15rem 0.5rem 0 0;
 }
 
-/* Keep hand open (#1283): the board leaves room for the whole raised fan, so
-   the buttons stack in a column on the cards' left instead of sticking out
-   in a row. The one grid row is exactly the card height and the column hangs
-   from its bottom (it may overflow upwards), so it doesn't make the fan taller. */
+/* The one grid row is exactly the card height and the column hangs from its bottom (it may overflow upwards), so it doesn't make the fan taller. */
 .arena.arena-fan-kept .hand-fan-center:not(.hand-fan-top) {
   grid-template-rows: var(--fan-ch);
 }
 
-/* The column stands 4px above the window's bottom edge in every state: its
-   offset is always minus the fan's own offset (same timing), so the buttons
-   stay still while the cards rise, tuck, drag or hide under them. */
+/* Its offset is always minus the fan's own offset (same timing), so the buttons stay still while the cards rise, tuck, drag or hide under them. */
 .arena.arena-fan-kept .hand-fan-center:not(.hand-fan-top) .hand-fan-head {
   align-self: end;
   flex-direction: column;
@@ -278,13 +240,11 @@
 }
 
 .arena:not(.arena-spec-fans) .hand-fan-center:not(.hand-fan-top) .hand-fan-cards {
-  /* Left edge fixed next to the buttons: the cards grow rightwards when raised. */
+  /* The cards grow rightwards when raised. */
   justify-self: start;
 }
 
 .hand-fan-center .hand-fan-cards {
-  /* Tucked: cards overlap by half. Open: spread with a gap. useFanFit caps
-     both at the mat's width (--fan-tuck-w / --fan-open-w), overlapping more. */
   width: var(--fan-tuck-w, calc(var(--fan-cw) * (0.5 * var(--n) + 0.5)));
   transition: width 200ms ease 140ms;
 }
@@ -306,8 +266,6 @@
   width: var(--fan-tuck-w, calc(var(--fan-cw) * (0.5 * var(--n) + 0.5)));
 }
 
-/* Moved fan: centred on --fan-x (share of the window), as wide as the spread
-   cards, kept on screen. The handle row sits above the cards. */
 .hand-fan-free {
   --fan-w: calc(var(--fan-open-w, calc(var(--fan-cw) * (0.8 * var(--n) + 0.2))) + var(--fan-cw) * 0.7);
   left: clamp(0px, calc(var(--fan-x) * 100vw - var(--fan-w) / 2), calc(100vw - var(--fan-w)));
@@ -322,13 +280,11 @@
   width: 100%;
 }
 
-/* A moved fan stacks above the action dock (17) so its grip can always be grabbed again (#1004); the attack arrow/motion layer (18, later in the DOM), prompts, HUD and modals stay above. */
+/* Above the action dock (17) so its grip can always be grabbed again; the attack arrow/motion layer (18, later in the DOM), prompts, HUD and modals stay above. */
 .hand-fan.hand-fan-free {
   z-index: var(--z-motion);
 }
 
-/* Docked on the bottom edge: tucked cards overlap by half like the default
-   fan, and spread out when it rises. */
 .hand-fan.hand-fan-docked {
   --fan-w: calc(var(--fan-tuck-w, calc(var(--fan-cw) * (0.5 * var(--n) + 0.5))) + var(--fan-cw) * 0.7);
   transition:
@@ -354,8 +310,7 @@
   --fan-w: calc(var(--fan-tuck-w, calc(var(--fan-cw) * (0.5 * var(--n) + 0.5))) + var(--fan-cw) * 0.7);
 }
 
-/* Floating: bottom edge at --fan-y, fully shown (never tucks), on screen and
-   below the top bar (about 3.75rem), so its grip can always be reached. */
+/* Below the top bar (about 3.75rem), so its grip can always be reached. */
 .hand-fan.hand-fan-float {
   bottom: clamp(
     0px,
@@ -370,8 +325,7 @@
   transform: none;
 }
 
-/* While a card is dragged out, the floating fan steps aside so the board
-   under it stays a drop target. */
+/* So the board under it stays a drop target. */
 .hand-fan.hand-fan-float.is-dragging {
   opacity: 0.35;
 }
@@ -380,13 +334,12 @@
   pointer-events: none;
 }
 
-/* Following the pointer: no easing, so it never lags behind. */
+/* No easing, so it never lags behind the pointer. */
 .hand-fan.is-moving {
   z-index: var(--z-fan-moving);
   transition: none;
 }
 
-/* The fan's grip: a small handle at the left of its handle row (Drag handles on). */
 .hand-fan-grip {
   display: flex;
   align-items: center;
@@ -432,8 +385,7 @@
   box-shadow: var(--focus);
 }
 
-/* Just tucked by its own button or H, pointer still on it: stay tucked until
-   the pointer leaves once, or the click looks like it did nothing. */
+/* Just tucked by its own button or H, pointer still on it: stay tucked until the pointer leaves once, or the click looks like it did nothing. */
 @media (hover: hover) {
   .hand-fan.is-tucking:hover:not(:has(:focus-visible)) {
     transform: translateY(calc(var(--fan-ch) * (1 - var(--fan-peek))));
@@ -448,9 +400,7 @@
   }
 }
 
-/* Floating and tucked ("Let the hand tuck away"): only the handle row shows,
-   and the cards come back while you hover it. The short delay lets the
-   pointer cross from the handle to the cards. */
+/* The short delay lets the pointer cross from the handle to the cards. */
 .hand-fan.hand-fan-float:not(.is-open, .is-hidden, .is-moving, :has(:focus-visible)) .hand-fan-cards {
   visibility: hidden;
   transition: visibility 0s linear 160ms;
@@ -463,11 +413,7 @@
   }
 }
 
-/* Hidden (Keep hand open + H / Hide): only the handle row stays, at the
-   bottom edge. These rules come after the hover / focus-visible ones of the
-   same specificity, so hovering or focusing the handle doesn't raise it. The
-   fan is fixed, so nothing on the board moves (the centre column keeps its
-   tucked strip). */
+/* After the hover / focus-visible rules of the same specificity, so hovering or focusing the handle doesn't raise it. */
 .hand-fan.is-hidden {
   transform: translateY(calc(100% - 1.75rem - 4px - var(--safe-b)));
   transition-delay: 0s;
@@ -483,15 +429,6 @@
 .hand-fan-center.is-hidden .hand-fan-cards {
   width: calc(var(--fan-cw) * (0.5 * var(--n) + 0.5));
 }
-
-/* —— The far hand's fan (spectators): the same fan, mirrored ——
-   .hand-fan-top hangs from the top of the board column (--board-top, set by
-   useHudHeight) instead of standing on the bottom edge. Tucked, it is pushed up
-   so only the card bottoms peek below the top edge; raised, it moves down onto
-   the board. Cards hang from their top corners, outer cards lean out and sit
-   higher, and the hover lift goes down. The board keeps a strip free under the
-   tucked cards (.arena-fan-top). Dragged by its grip it floats like a match fan,
-   fully shown, with the cards still hanging. */
 
 .hand-fan-center.hand-fan-top {
   --fan-lower: calc(0.5rem + var(--fan-ch) * 0.06);
@@ -515,7 +452,6 @@
   }
 }
 
-/* The handle starts where the visible strip starts, beside the cards. */
 .hand-fan-center.hand-fan-top .hand-fan-head {
   transform: translateY(calc(var(--fan-ch) * (1 - var(--fan-peek)) + 4px));
 }
@@ -535,7 +471,6 @@
   transform: translateY(calc(var(--drop, 0) * var(--fan-ch) * -1 + 12px)) rotate(calc(var(--rot, 0deg) * -1));
 }
 
-/* Floating: room above the cards for the outer ones, which sit higher. */
 .hand-fan-top.hand-fan-float .hand-fan-cards {
   margin-top: calc(var(--fan-ch) * 0.11);
 }

@@ -1,10 +1,3 @@
-/** Scan every card in one photo.
- *
- * detect card outlines -> rectify each -> identify each with the single-card
- * matcher (`matchCard`). Detection lives in `cardDetect.ts`.
- *
- * CONTRACT (shared by the detector and the review tray; keep these types stable).
- */
 
 import type { Quad } from "../geometry/cardRectify";
 import { quadArea, rectifyToImageData, RECTIFIED_HEIGHT, RECTIFIED_WIDTH } from "../geometry/cardRectify";
@@ -16,52 +9,29 @@ import { scanLog } from "../runtime/scanLog";
 export type MultiScanConfidence = "sure" | "check" | "none";
 
 export type MultiScanItem = {
-  /** Outline of this card in the source photo's pixel space (TL, TR, BR, BL). */
   quad: Quad;
-  /** Small upright crop of the card for the review tray (JPEG/PNG data URL). */
   thumbUrl: string;
-  /**
-   * 200x280 upright JPEG data URL of the card, rectified from the full-res photo.
-   * Uploaded (with the user's final label) only when they share scan crops; "" when it could not be cut.
-   */
   sampleUrl: string;
-  /** Matched card number, e.g. "OP01-120", or null when nothing verified. */
   cardId: string | null;
   inliers: number;
   runnerUp: number;
-  /** "sure": confident match; "check": weak or close call; "none": no match. */
   confidence: MultiScanConfidence;
-  /** Rank of the matched card by art-embedding similarity, when an embedder ran (diagnostics). */
   embedRank?: number;
 };
 
 export type MultiScanProgress = {
-  /** 0-based index of the card being identified, of `total` detected. */
   index: number;
   total: number;
 };
 
-/**
- * Detect and identify every card in `photo`. Implemented in this module by
- * the detector work; the tray only depends on this signature.
- */
 export type MatchAllCards = (
   photo: ImageData,
   candidates: ScanCandidate[],
   onProgress?: (p: MultiScanProgress) => void,
 ) => Promise<MultiScanItem[]>;
 
-/** A match needs a clear lead over the next-best card to be trusted unseen. */
 const SURE_MARGIN = SURE_LEAD;
 
-/**
- * With an embedder, "sure" also needs the art embedding to place the matched
- * card this high. ORB inliers alone are a geometric coincidence test; a wrong
- * card that scored 17-35 inliers (a reprint sharing an illustration, a
- * template-heavy card) was always far down the embedding's list, while every
- * correct read was in its top few. A card that fails this is "check", so the
- * tray never offers it as ready to add.
- */
 export const SURE_EMBED_RANK = 10;
 
 export function classifyMatch(
@@ -75,7 +45,6 @@ export function classifyMatch(
   return "check";
 }
 
-/** Share of a card's own area that another detected card must cover for it to count as overlapped. */
 export const COVERED_OVERLAP = 0.15;
 
 /**
@@ -99,7 +68,6 @@ export function capOverlappedConfidence<T extends Pick<MultiScanItem, "quad" | "
   });
 }
 
-/** Share of an unnamed detection's own area that another detection must cover for it to be dropped. */
 export const HIDDEN_UNNAMED_OVERLAP = 0.4;
 
 /**
@@ -147,14 +115,11 @@ export const SAMPLE_HEIGHT = 280;
 const sampleUrl = (photo: ImageData, quad: Quad) => cropUrl(photo, quad, SAMPLE_WIDTH, SAMPLE_HEIGHT, 0.85);
 
 export type MultiScanHooks = {
-  /** Replace the browser thumbnail (Node has no canvas). */
   thumbnail?: (photo: ImageData, quad: Quad) => string;
-  /** Replace the upload-sized crop (same reason). */
   sample?: (photo: ImageData, quad: Quad) => string;
   detect?: DetectOptions;
 };
 
-/** `matchAllCards` with its browser-only pieces swappable, for the Node harness. */
 export async function matchAllCardsWith(
   hooks: MultiScanHooks,
   photo: ImageData,
@@ -168,7 +133,6 @@ export async function matchAllCardsWith(
   const sample = hooks.sample ?? sampleUrl;
 
   const identify = async (quad: Quad): Promise<MultiScanItem> => {
-    // Rectify from the full-resolution photo, not the detection copy.
     const pixels = rectifyToImageData(photo, quad);
     const match = pixels ? await matchRectified(pixels, candidates) : null;
     return {
@@ -184,14 +148,11 @@ export async function matchAllCardsWith(
   };
 
   const items: MultiScanItem[] = [];
-  // Cells cut from one block of touching cards, until the block is settled.
   let block: { whole: Quad; items: MultiScanItem[] } | null = null;
   const settleBlock = async () => {
     if (!block) return;
     const { whole, items: cells } = block;
     block = null;
-    // Nothing matched in any cell: perhaps the "block" is one card with a
-    // straight line through it. Try it whole and keep that if it identifies.
     if (isCardShaped(whole) && cells.every((c) => c.confidence === "none")) {
       const single = await identify(whole);
       if (single.confidence !== "none") {
@@ -205,7 +166,6 @@ export async function matchAllCardsWith(
     const { quad, whole } = cards[index];
     if (block && block.whole !== whole) await settleBlock();
     onProgress?.({ index, total: cards.length });
-    // Let the UI repaint between cards; matching is synchronous-heavy.
     await new Promise((resolve) => setTimeout(resolve, 1));
     const item = await identify(quad);
     items.push(item);

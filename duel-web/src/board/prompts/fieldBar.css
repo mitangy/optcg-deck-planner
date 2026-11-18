@@ -1,11 +1,9 @@
-/* Field-target bar (FieldTargetBar.tsx): picks are made on the board itself. */
 .field-bar {
   position: fixed;
   z-index: var(--z-prompt);
   left: max(0.5rem, var(--safe-l));
   right: max(0.5rem, var(--safe-r));
-  /* Over the hand and the action footer, which can't be used mid-pick,
-     rather than over your DON!! row and Trash. */
+  /* Over the hand and the action footer, which can't be used mid-pick. */
   bottom: calc(0.4rem + var(--safe-b));
   box-sizing: border-box;
   display: flex;
@@ -88,7 +86,6 @@
   width: min(560px, calc(100vw - var(--left-w) - var(--rail-w) - 1.5rem));
 }
 
-/* Landscape phones: the screen is short, so the bar is one line. */
 @media (orientation: landscape) and (max-height: 499px) {
   .field-bar {
     bottom: calc(0.4rem + var(--safe-b));
@@ -103,7 +100,6 @@
   }
 }
 
-/* Desktop: one line centred in the gap between the mats (useMidlineAnchor). */
 .arena .field-bar.field-bar-mid {
   left: 0;
   right: auto;
@@ -123,13 +119,11 @@
   white-space: nowrap;
 }
 .field-bar-mid .field-bar-title {
-  /* Gives way to the instruction first when the gap is narrow. */
   flex: 0 6 auto;
   min-width: 2.5rem;
   max-width: 35%;
 }
 .field-bar-mid .field-bar-prompt {
-  /* Two short lines fit the gap, so long instructions aren't cut to "…". */
   flex: 1 1 auto;
   min-width: 0;
   font-size: 0.76rem;
@@ -146,22 +140,17 @@
   visibility: hidden;
 }
 
-/* A phone's replay controls sit in the action footer and stay usable at every step,
-   so the bar rides above them rather than over them (--replay-room, #1095). Desktop
-   and landscape phones keep the controls in the rail, clear of the bar. */
+/* A phone's replay controls sit in the action footer and stay usable at every step, so the bar rides above them rather than over them. */
 .arena:not(.arena-wide) .field-bar:not(.field-bar-mid):not(.field-bar-top) {
   bottom: calc(max(var(--replay-room, 0px), var(--safe-b)) + 0.4rem);
 }
 
-/* Picks in the hand: dock at the top so the hand stays tappable (after the
-   landscape-phone and wide rules, which would put it back at the bottom). */
+/* After the landscape-phone and wide rules, which would put it back at the bottom. */
 .arena .field-bar.field-bar-top {
   bottom: auto;
   top: calc(0.4rem + var(--safe-t));
 }
 
-/* Portrait phones, picks in the hand: the buttons sit bottom right in the
-   action footer, where End turn usually is (PromptSlotContext), at its size. */
 .intent-bar:has(.intent-prompt-slot:not(:empty)) {
   display: flex;
   align-items: center;
@@ -184,8 +173,6 @@
   font-size: 0.95rem;
 }
 
-/* Pop-up buttons (floating cards, Life trigger) fill the bar: the idle text steps
-   aside and the row never wraps (#663). */
 .intent-bar:has(.intent-prompt-slot .prompt-slot-row) .intent-empty {
   display: none;
 }

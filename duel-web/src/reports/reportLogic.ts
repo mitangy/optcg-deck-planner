@@ -1,4 +1,3 @@
-/** Report player: what the dialog collects and the request it becomes. Pure, so the rules are testable. */
 export type ReportReason = "conduct" | "toxic" | "image";
 export type ReportSource = "match" | "spectate" | "postmatch" | "history" | "friends";
 export type ImageKind = "playmat" | "cardBack";
@@ -16,19 +15,15 @@ export const IMAGE_KINDS: readonly { id: ImageKind; label: string }[] = [
   { id: "cardBack", label: "Card back" },
 ];
 
-/** What the reporter currently sees for a player; null = the default art. Absent when the screen does not know. */
 export type ReportImages = { playmat: string | null; cardBack: string | null };
 
 export type ReportPlayer = {
   name: string;
-  /** In a match: the seat of the reported player. */
   seat?: 0 | 1;
-  /** From the friends list. */
   userId?: number;
   images?: ReportImages;
 };
 
-/** Where a report starts: the players it can be about (two when spectating) and the match it came from. */
 export type ReportTarget = {
   source: ReportSource;
   matchId?: string;
@@ -53,7 +48,6 @@ export type ReportRequest = {
   note?: string;
 };
 
-/** The reason a draft cannot be sent yet, or null. */
 export function draftProblem(d: ReportDraft): string | null {
   if (!d.player) return "Choose who you are reporting.";
   if (!d.reason) return "Choose why you are reporting.";
@@ -62,7 +56,6 @@ export function draftProblem(d: ReportDraft): string | null {
   return null;
 }
 
-/** The POST /duel/reports body. A match report names the opponent by seat, never by the reporter's own. */
 export function buildReportRequest(target: ReportTarget, d: ReportDraft): ReportRequest {
   const problem = draftProblem(d);
   if (problem || !d.player || !d.reason) throw new Error(problem ?? "Incomplete report");
@@ -82,12 +75,10 @@ export function buildReportRequest(target: ReportTarget, d: ReportDraft): Report
   return body;
 }
 
-/** Whether the player's playmat / card back is the default (known only when the screen passed the images). */
 export function isDefaultImage(player: ReportPlayer, kind: ImageKind): boolean {
   return player.images !== undefined && !player.images[kind];
 }
 
-/** The image reason needs something to report: unavailable when we know both pieces of art are the defaults. */
 export function imageReasonAvailable(player: ReportPlayer | null): boolean {
   if (!player) return true;
   return !(isDefaultImage(player, "playmat") && isDefaultImage(player, "cardBack"));

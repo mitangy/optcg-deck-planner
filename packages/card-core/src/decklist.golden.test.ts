@@ -7,7 +7,6 @@ const golden = JSON.parse(readFileSync(new URL("../fixtures/decklists.json", imp
   cases: Case[];
 };
 
-// The backend runs the same file in backend/tests/test_decklist_golden.py.
 describe("parseDecklist golden cases shared with backend parse_decklist", () => {
   it.each(golden.cases)("$name", ({ input, cards, error }) => {
     if (error) {

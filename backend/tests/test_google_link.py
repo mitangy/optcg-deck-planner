@@ -18,7 +18,6 @@ def test_resolve_creates_new_user(db):
 
 def test_resolve_links_email_without_google_sub(db):
     existing = make_user(db, email="link@example.com", name="Link", sub="placeholder")
-    # Simulate a local/dev row that will be claimed by Google later:
     existing.google_sub = ""
     db.commit()
     user = resolve_google_user(

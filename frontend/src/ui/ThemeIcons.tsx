@@ -1,4 +1,3 @@
-/** Line-art compass rose for empty states; inherits `color`. */
 export function CompassIcon() {
   return (
     <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
@@ -10,7 +9,6 @@ export function CompassIcon() {
   );
 }
 
-/** Small sailing ship for the group-buy ("crew order") empty state. */
 export function ShipIcon() {
   return (
     <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true">

@@ -1,10 +1,3 @@
-"""Pulls tournament results from Limitless TCG (play.limitlesstcg.com) for Log Pose.
-
-Only leaders, decklists, records and who beat which leader are kept. Player names and
-handles are read from the API to join pairings to decks in memory and are never stored.
-The public API allows 50 requests per 5 minutes, so every request is throttled and a 429
-is waited out.
-"""
 
 from __future__ import annotations
 
@@ -28,7 +21,6 @@ log = logging.getLogger("uvicorn.error")
 
 API = "https://play.limitlesstcg.com/api"
 MIN_PLAYERS = 8
-# Events younger than this may still be running, so they are pulled again.
 RECENT_DAYS = 2
 REQUEST_INTERVAL = 7.0
 SYNC_INTERVAL = 6 * 60 * 60
@@ -44,8 +36,6 @@ class RateLimited(Exception):
 
 
 class LimitlessClient:
-    """GETs from the Limitless API at most once per `interval` seconds, backing off on 429."""
-
     def __init__(
         self,
         http: httpx.Client | None = None,
@@ -95,7 +85,6 @@ def _parse_date(raw: str) -> datetime:
 
 
 def set_label(name: str) -> str | None:
-    """The set an event was played for, from a name prefix like "[OP17.5] Cup"."""
     m = _SET_LABEL.search(name or "")
     return m.group(1).upper() if m else None
 
@@ -106,7 +95,6 @@ def card_id(card: dict) -> str | None:
 
 
 def parse_decklist(decklist: dict | None) -> dict[str, int]:
-    """The main deck (characters, events, stages) as {card id: copies}; the leader is kept apart."""
     counts: Counter[str] = Counter()
     if not isinstance(decklist, dict):
         return {}
@@ -129,12 +117,10 @@ def _leader_of(entry: dict) -> str | None:
     return value if isinstance(value, str) and value else None
 
 
-# Limitless marks a tie as winner 0 and a double loss as -1: neither side won.
 _TIE = {0, "0", -1, "-1", "tie", "draw"}
 
 
 def _winner_side(pairing: dict) -> str | None:
-    """A, B or tie; None while the pairing has no result."""
     w = pairing.get("winner")
     if w == pairing.get("player1"):
         return "A"
@@ -144,7 +130,6 @@ def _winner_side(pairing: dict) -> str | None:
 
 
 def parse_event(standings: list, pairings: list) -> tuple[list[dict], list[dict]]:
-    """Deck rows and game rows for one event. Handles join pairings to leaders here and go no further."""
     decks: list[dict] = []
     leader_by_handle: dict[str, str] = {}
     for entry in standings if isinstance(standings, list) else []:
@@ -172,7 +157,6 @@ def parse_event(standings: list, pairings: list) -> tuple[list[dict], list[dict]
     for p in pairings if isinstance(pairings, list) else []:
         if not isinstance(p, dict):
             continue
-        # A bye has no player2, a pairing with no result no winner: neither finds a leader or a side.
         a, b = leader_by_handle.get(p.get("player1")), leader_by_handle.get(p.get("player2"))
         winner = _winner_side(p)
         if a is None or b is None or winner is None:
@@ -182,7 +166,6 @@ def parse_event(standings: list, pairings: list) -> tuple[list[dict], list[dict]
 
 
 def _is_complete(row: Tournament | None, date: datetime) -> bool:
-    """Already synced after the event was old enough that nothing more can change."""
     return row is not None and as_utc(row.synced_at) >= date + timedelta(days=RECENT_DAYS)
 
 
@@ -219,7 +202,6 @@ def store_event(db: Session, meta: dict, details: dict, decks: list[dict], games
 
 
 def list_events(client: LimitlessClient, since: datetime, min_players: int) -> list[dict]:
-    """Events newer than `since` with enough players, newest first (the listing is newest first)."""
     out: list[dict] = []
     for page in range(1, MAX_PAGES + 1):
         batch = client.get("/tournaments", {"game": "OP", "limit": PAGE_SIZE, "page": page})
@@ -247,7 +229,6 @@ def sync_tournaments(
     min_players: int = MIN_PLAYERS,
     now: datetime | None = None,
 ) -> dict:
-    """One sync run. Returns its summary; a failing event is counted and skipped, not raised."""
     now = now or datetime.now(timezone.utc)
     started = time.monotonic()
     summary = {"at": now.isoformat(), "days": days, "listed": 0, "synced": 0, "skipped": 0, "ineligible": 0, "failed": 0, "games": 0, "rate_limited": False}
@@ -272,7 +253,7 @@ def sync_tournaments(
                 summary["games"] += len(games)
             except RateLimited:
                 raise
-            except Exception as exc:  # one broken event must not stop the rest
+            except Exception as exc:
                 db.rollback()
                 summary["failed"] += 1
                 log.warning("tournament sync: event %s failed: %s", ev.get("id"), exc)
@@ -302,7 +283,6 @@ def sync_status(db: Session) -> dict:
 
 
 def run_once(days: int) -> dict | None:
-    """One sync run, or None when another API worker is already running one."""
     from app.core.db import SessionLocal, TOURNAMENT_SYNC_LOCK_KEY, try_advisory_lock
 
     lock = try_advisory_lock(TOURNAMENT_SYNC_LOCK_KEY)
@@ -323,7 +303,6 @@ async def sync_loop(
     first_delay: float = FIRST_RUN_DELAY,
     interval: float = SYNC_INTERVAL,
 ) -> None:
-    """Run `run` shortly after startup and then every `interval` seconds. Nothing it raises ends the loop."""
     await asyncio.sleep(first_delay)
     while True:
         try:
@@ -334,7 +313,6 @@ async def sync_loop(
 
 
 def start_background(settings) -> asyncio.Task | None:
-    """The sync task when TOURNAMENT_SYNC is on (default in production only), else None."""
     if not settings.tournament_sync_enabled:
         return None
     days = settings.tournament_sync_days

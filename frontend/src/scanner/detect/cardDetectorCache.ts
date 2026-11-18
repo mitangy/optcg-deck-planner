@@ -1,17 +1,3 @@
-/** Offline store for the learned card detector's ONNX model (#701).
- *
- * The model (~5 MB) is a build artifact like the descriptors: not committed,
- * served from the same `scan-data/` store, and kept in IndexedDB so scanning
- * works offline after the one-time download. It has its own tiny database so
- * it cannot disturb the descriptor cache's versioning.
- *
- * A pointer file, `card-detector.json`, names the current model by content
- * hash (`card-detector-<hash>.onnx`, immutable), so a retrained model is
- * picked up without touching the descriptor manifest.
- *
- * Every function resolves rather than throws: the detector is an upgrade, and
- * the OpenCV detector covers its absence.
- */
 import { loadCardDetector } from "./cardDetectModel";
 
 const DB_NAME = "optcg-scan-detector";
@@ -19,7 +5,6 @@ const STORE = "model";
 const KEY = "current";
 
 export type DetectorPointer = {
-  /** Content-addressed file name, relative to the scan-data base. */
   file: string;
   hash: string;
   bytes: number;
@@ -62,16 +47,10 @@ async function writeStored(value: Stored): Promise<void> {
   db.close();
 }
 
-/** Does the stored model already match what the pointer names? */
 export function isCurrent(stored: Stored | null, pointer: DetectorPointer): boolean {
   return !!stored && stored.pointer.file === pointer.file && stored.data.byteLength === pointer.bytes;
 }
 
-/**
- * Make sure the model the server points at is stored, downloading it if not.
- * Offline or unpublished: keeps whatever is already stored. True when a usable
- * model is stored afterwards.
- */
 export async function ensureCardDetector(baseUrl: string): Promise<boolean> {
   const stored = await readStored();
   try {
@@ -90,7 +69,6 @@ export async function ensureCardDetector(baseUrl: string): Promise<boolean> {
   }
 }
 
-/** Load the stored model into the detector registry. False when there is none. */
 export async function activateCardDetector(): Promise<boolean> {
   const stored = await readStored();
   if (!stored) return false;

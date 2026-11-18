@@ -1,10 +1,3 @@
-/**
- * Step 5 load smoke: create a duel, join second player, attach many spectators.
- * Usage: node game-server/scripts/loadSpectators.mjs
- *
- * Colyseus may deliver `welcome` before onMessage is registered, so we always
- * follow up with `sync` (same pattern as duelRoom spectator tests).
- */
 import { Client } from "@colyseus/sdk";
 
 const GS_URL = process.env.GS_URL ?? "http://127.0.0.1:2567";

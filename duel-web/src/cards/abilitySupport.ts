@@ -1,9 +1,3 @@
-/**
- * Client-side ability-support heuristics for CardInspect.
- * Does not import @optcg/rules — curated atlas may already carry abilitySupport
- * from export-atlas; cosmetics-only ids use printed-text heuristics.
- */
-
 export type AbilitySupport =
   | "none"
   | "keywords"
@@ -17,7 +11,6 @@ export type AbilitySupportInput = {
   blocker?: boolean;
   rush?: boolean;
   hasTrigger?: boolean;
-  /** Prefers export-atlas / EFFECT_CATALOG aggregate when present. */
   abilitySupport?: AbilitySupport;
 };
 
@@ -37,10 +30,6 @@ function meaningfulRemainder(text: string): string {
     .trim();
 }
 
-/**
- * Infer whether printed text has clauses beyond simple Blocker/Rush/Trigger
- * keywords. Prefer `abilitySupport` from curated atlas when set.
- */
 export function resolveAbilitySupport(entry: AbilitySupportInput): AbilitySupport {
   if (entry.abilitySupport) return entry.abilitySupport;
 
@@ -78,7 +67,6 @@ export function resolveAbilitySupport(entry: AbilitySupportInput): AbilitySuppor
   return "unsupported";
 }
 
-/** Non-alarmist note for Inspect when duel does not resolve the printed text. */
 export function abilitySupportNote(support: AbilitySupport): string | null {
   if (support === "unverified") {
     return "Card data has not been verified for duel play yet.";

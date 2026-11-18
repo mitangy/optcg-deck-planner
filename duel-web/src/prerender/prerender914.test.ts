@@ -29,7 +29,6 @@ const SNAPSHOT: MetaSnapshot = {
   decks: Object.fromEntries(leaders.map((l) => [l.leader_id, decksFixture.decks as MetaDeck[]])),
 };
 
-/** The markup inside #root, without React's text-node separators. */
 const rootOf = (html: string) => html.slice(html.indexOf('<div id="root"'), html.indexOf("</div><script")).replace(/<!-- -->/g, "");
 const canonicalOf = (html: string) => /<link rel="canonical" href="([^"]+)"/.exec(html)?.[1];
 

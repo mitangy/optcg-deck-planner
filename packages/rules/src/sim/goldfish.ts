@@ -1,13 +1,4 @@
-/**
- * Goldfish runs (#402): a scripted pilot plays a deck through the real engine against a dummy that never
- * plays, attaches, attacks, blocks or counters. Answers "how fast can this deck win", "does it curve out"
- * and "when does card X come down", not "how often does it beat a real opponent".
- *
- * Everything is deterministic: a seed decides the shuffle, the pilot is a script, and every intent goes
- * through `applyIntent`, so the engine validates each move.
- *
- * Usage: npx tsx src/sim/goldfish.ts [runs]
- */
+/** Measures speed against a dummy, not how often the deck beats a real opponent. */
 import { abilityById } from "../cards/abilities.js";
 import { getCardDef, hasCardDef } from "../cards/definitions.js";
 import { abilitySupportForCard, type AbilitySupport } from "../cards/effectCatalog.js";
@@ -26,35 +17,27 @@ export type GoldfishLine = "auto" | "develop" | "aggro";
 
 export interface GoldfishSetup {
   leaderId: string;
-  /** 50 expanded ids. */
   deck: string[];
   goingFirst: boolean;
-  /** Play through your turn `turns` (1-10). */
   turns: number;
-  /** 0-8. */
   opponentLife: number;
-  /** 1000-15000. */
   opponentPower: number;
   mulligan: "auto" | "never";
   keepCards: string[];
   line: GoldfishLine;
   track: string[];
   supportOf?: (id: string) => AbilitySupport;
-  /** Intent cap per run (default 1500); a run that reaches it ends with the error "stuck". */
   maxIntents?: number;
 }
 
 export interface GoldfishTurn {
   turn: number;
   line: "develop" | "aggro";
-  /** Active DON!! at the start of the main phase. */
   don: number;
-  /** Sum of `costPaid` over cards played. */
   spent: number;
   played: string[];
   donGiven: number;
   attacks: number;
-  /** Life cards the dummy lost. */
   hits: number;
   characters: number;
   opponentLife: number;
@@ -63,14 +46,12 @@ export interface GoldfishTurn {
 export interface GoldfishRun {
   seed: number;
   mulliganed: boolean;
-  /** The kept opening hand. */
   openingHand: string[];
   winTurn: number | null;
   turns: GoldfishTurn[];
   firstPlayed: Record<string, number>;
   touchedFlagged: boolean;
   pilotLifeLost: number;
-  /** Intents applied, including the lookahead the pilot threw away. */
   intents: number;
   error?: string;
 }
@@ -92,10 +73,6 @@ export interface GoldfishSummary {
   example: GoldfishRun | null;
 }
 
-// ---------------------------------------------------------------------------
-// Pure helpers
-// ---------------------------------------------------------------------------
-
 export interface DeployCandidate { idx: number; cost: number; power: number }
 interface Subset { count: number; power: number; idx: number[] }
 
@@ -105,13 +82,10 @@ function lexLess(a: number[], b: number[]): boolean {
 }
 
 function better(a: Subset, b: Subset | undefined): boolean {
-  return !b || a.count > b.count || (a.count === b.count && (a.power > b.power || (a.power === b.power && lexLess(a.idx, b.idx))));   // better()
+  return !b || a.count > b.count || (a.count === b.count && (a.power > b.power || (a.power === b.power && lexLess(a.idx, b.idx))));
 }
 
-/**
- * The hand cards to play with `don` active DON!!: the subset that spends the most DON!! (0/1 knapsack).
- * Ties go to more cards, then more power, then earlier hand slots.
- */
+/** Ties go to more cards, then more power, then earlier hand slots. */
 export function bestDeploy(cands: DeployCandidate[], don: number): DeployCandidate[] {
   const best: (Subset | undefined)[] = Array(Math.max(0, don) + 1).fill(undefined);
   best[0] = { count: 0, power: 0, idx: [] };
@@ -131,14 +105,12 @@ export function bestDeploy(cands: DeployCandidate[], don: number): DeployCandida
   return [];
 }
 
-/** Whether the pilot sends this opening hand back. */
 export function shouldMulligan(hand: string[], rule: { mulligan: "auto" | "never"; keepCards: string[] }): boolean {
   if (rule.mulligan === "never") return false;
   if (rule.keepCards.length) return !hand.some((id) => rule.keepCards.includes(id));
   return !hand.some((id) => { const d = getCardDef(id); return d.type === "character" && d.cost <= 3; });
 }
 
-/** 95% Wilson score interval for k of n, in percent with one decimal. */
 export function wilsonPercent(k: number, n: number): [number, number] {
   if (n <= 0) return [0, 0];
   const z = 1.96;
@@ -152,7 +124,6 @@ export function wilsonPercent(k: number, n: number): [number, number] {
 
 const FLAGGED_SUPPORT = new Set<AbilitySupport>(["partial", "unsupported", "unverified"]);
 
-/** Cards in the leader plus the deck the engine doesn't fully support, one row per distinct id. */
 export function flaggedCards(setup: Pick<GoldfishSetup, "leaderId" | "deck" | "supportOf">): { id: string; support: AbilitySupport }[] {
   const supportOf = setup.supportOf ?? abilitySupportForCard;
   return [...new Set([setup.leaderId, ...setup.deck])]
@@ -163,7 +134,6 @@ export function flaggedCards(setup: Pick<GoldfishSetup, "leaderId" | "deck" | "s
     });
 }
 
-/** Trims or fills the dummy's Life to `n` by moving cards between its Life and its deck. */
 export function setDummyLife(state: MatchState, n: number): void {
   const p = state.players[1];
   while (p.life.length > n) {
@@ -177,10 +147,6 @@ export function setDummyLife(state: MatchState, n: number): void {
     p.faceUpLife.push(false);
   }
 }
-
-// ---------------------------------------------------------------------------
-// Engine plumbing
-// ---------------------------------------------------------------------------
 
 class GoldfishError extends Error {}
 
@@ -200,10 +166,9 @@ function apply(cur: Cursor, ctx: Ctx, intent: Intent, seat: 0 | 1): boolean {
 
 const isAnswer = (i: Intent): i is Extract<Intent, { type: "resolve_pending_choice" }> => i.type === "resolve_pending_choice";
 
-/** The dummy takes the first thing that ends its turn or passes a defense, and declines every optional choice. */
 function dummyIntent(legal: Intent[], front: PendingChoice | undefined): Intent {
   if (front) return legal.find((i) => isAnswer(i) && !i.accept) ?? legal[0]!;
-  return legal.find((i) => i.type === "pass_block" || i.type === "pass_counter" || i.type === "end_turn") ?? legal[0]!;   // dummyIntent, no pending choice
+  return legal.find((i) => i.type === "pass_block" || i.type === "pass_counter" || i.type === "end_turn") ?? legal[0]!;
 }
 
 const HARMFUL_PURPOSE = /K\.O\.|trash|^rest|return|place at the (top|bottom) of the deck|^-|−/i;
@@ -216,7 +181,6 @@ function readyToAttack(p: PlayerState, state: MatchState, c: PlayerState["leader
   return !c.summoningSick || hasKeyword(state, 0, c, "rush");
 }
 
-/** How much the pilot wants this one of its own cards picked by a beneficial effect; harmful picks go the other way. */
 function goodness(state: MatchState, o: { defId?: string; instanceId?: string }): number {
   const p = state.players[0];
   const field = o.instanceId ? [p.leader, ...p.characters, ...(p.stage ? [p.stage] : [])].find((c) => c.id === o.instanceId) : undefined;
@@ -224,7 +188,6 @@ function goodness(state: MatchState, o: { defId?: string; instanceId?: string })
   return costOfId(o.defId);
 }
 
-/** The pilot's answer to the front pending choice (seat 0). */
 function pilotAnswer(state: MatchState, choice: PendingChoice, legal: Intent[]): Intent {
   const accept = () => legal.find((i) => isAnswer(i) && i.accept) ?? legal[0]!;
   if (choice.kind === "order_effects" || choice.unpayable) return legal[0]!;
@@ -273,7 +236,6 @@ function pilotAnswer(state: MatchState, choice: PendingChoice, legal: Intent[]):
   }
 }
 
-/** Answers prompts and plays the dummy's turns until seat 0 is idle in its own main phase or the game is over. */
 function settle(cur: Cursor, ctx: Ctx): void {
   for (;;) {
     const s = cur.state;
@@ -299,10 +261,6 @@ function settle(cur: Cursor, ctx: Ctx): void {
     throw new GoldfishError(`the pilot has nothing to do in phase ${s.phase}`);
   }
 }
-
-// ---------------------------------------------------------------------------
-// The pilot's turn
-// ---------------------------------------------------------------------------
 
 const SELF_COSTS = new Set(["rest_self", "trash_self", "self_to_hand", "self_to_deck_bottom"]);
 const MAX_ACTIVATIONS = 10;
@@ -430,7 +388,6 @@ function turnRecord(events: GameEvent[], before: MatchState, after: MatchState):
 
 interface TurnResult { state: MatchState; events: GameEvent[]; line: "develop" | "aggro"; record: GoldfishTurn }
 
-/** Plays seat 0's turn in one line and (unless the game or the run is over) hands the dummy its turn. */
 function playTurn(state: MatchState, line: "develop" | "aggro", ctx: Ctx): TurnResult {
   const cur: Cursor = { state, events: [] };
   const tried = new Set<string>();
@@ -466,10 +423,6 @@ function chooseTurn(state: MatchState, line: GoldfishLine, ctx: Ctx): TurnResult
   const aggro = playTurn(state, "aggro", ctx);
   return aggro.state.winner === 0 ? aggro : develop;
 }
-
-// ---------------------------------------------------------------------------
-// One game
-// ---------------------------------------------------------------------------
 
 export function goldfishRun(setup: GoldfishSetup, seed: number): GoldfishRun {
   const run: GoldfishRun = { seed, mulliganed: false, openingHand: [], winTurn: null, turns: [], firstPlayed: {}, touchedFlagged: false, pilotLifeLost: 0, intents: 0 };
@@ -529,10 +482,6 @@ export function goldfishRun(setup: GoldfishSetup, seed: number): GoldfishRun {
   return run;
 }
 
-// ---------------------------------------------------------------------------
-// Summary
-// ---------------------------------------------------------------------------
-
 const round = (x: number, d = 1) => Math.round(x * 10 ** d) / 10 ** d;
 const mean = (xs: number[]) => (xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0);
 
@@ -578,10 +527,6 @@ export function summarizeGoldfish(setup: GoldfishSetup, runs: GoldfishRun[]): Go
     example,
   };
 }
-
-// ---------------------------------------------------------------------------
-// Bench: npx tsx src/sim/goldfish.ts [runs]
-// ---------------------------------------------------------------------------
 
 if (process.argv[1] && /goldfish\.ts$/.test(process.argv[1])) {
   const n = Number(process.argv[2] ?? 100);

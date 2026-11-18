@@ -121,74 +121,38 @@ type Props = {
   matchId: string | null;
   errorBanner: string | null;
   matchOver: MatchOverMessage["result"] | null;
-  /** Seat-indexed display names (usernames) from the server welcome. */
   players?: SeatPlayers | null;
   timer?: TimerMessage | null;
   spectator?: boolean;
   battleLog?: BattleLogEntry[];
-  /** Hotseat: compact pass-device control in the HUD (replaces the old top banner). */
   hotseatPass?: { otherSeat: Seat; onPass: () => void };
-  /** The opponent is a person on another device (online play): automatic passes wait like a person would. */
   vsHuman?: boolean;
-  /** Online play against another person: "Report player" is offered (not for bots, practice, hotseat or replays). */
   canReport?: boolean;
-  /** Online match chat. Omit (e.g. practice) to hide the chat panel. */
   chat?: { lines: readonly ChatLine[]; onSend: (text: string) => void };
-  /** Online players: concede sits next to Leave in the HUD. */
   onConcede?: () => void;
-  /**
-   * Online players: told the order of your hand (instance ids, left to right)
-   * whenever it changes, so spectators' fans follow it. Omit for hotseat.
-   */
   onHandOrder?: (ids: string[]) => void;
-  /**
-   * Turn undo (private rooms / practice). `autoAccept` = the other seat is
-   * also this player (practice), so no request / answer UI is shown.
-   */
   undo?: BoardUndo;
-  /**
-   * Online ranked / casual matches: loads the saved match (History's entry) so the
-   * match-over card can show the rating change and link the match log.
-   */
   loadMatchRecord?: LoadMatchRecord;
-  /** Rematch vote on the match-over screen (unranked rooms). */
   rematch?: BoardRematch;
-  /** Opponent dropped: epoch ms until which they may reconnect before forfeiting. */
   opponentAwayUntil?: number | null;
-  /** Online: each seat's shared custom playmat / card back (shown for the opponent only). */
   seatSkins?: readonly [SeatSkin | null, SeatSkin | null];
   leaveLabel?: string;
-  /**
-   * Replay viewer: the board is a read-only spectator view of a recorded game. `controls` takes the action bar's
-   * place, `quiet` mutes sounds and card spotlights while jumping around, and the room and concede links are gone.
-   */
   replay?: { controls: ReactNode; quiet: boolean };
-  /**
-   * Log Pose matchup brief for casual and practice games: the game server's ticket and whether the room is
-   * ranked. The board shows a Brief button and card only when the pair says unranked, a player and a ticket.
-   */
   matchBrief?: {
     brief: BriefTicketWire | null;
     ranked: boolean | null;
-    /** The seat the ticket is for (hotseat: seat 0, the player's). Online it is the board's own `seat`. The Log Pose copilot is offered on that seat's turns only. */
     ticketSeat?: Seat;
   };
-  /** How the turn order was decided (the welcome's firstSeatPickedBy): null = coin flip, a seat = who chose; undefined = unknown. */
   firstSeatPickedBy?: Seat | null;
-  /** The dice roll that decided this game's order (#1190), for the mulligan banner. */
   firstSeatDice?: DiceResult | null;
-  /** The opening dice roll in progress (no game yet): shown over the waiting board. */
   dicePhase?: { state: DiceStateMessage; onAction: (action: DiceAction) => void };
-  /** Searches and effect ordering float cards over the board instead of a pop-up (always in matches; `/demo?box` shows the pop-up fallback). */
   floatingPrompts?: boolean;
-  /** Before the first view: what the empty board says (queueing, connecting, starting). */
   waiting?: BoardWaiting;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
   onClearError: () => void;
 };
 
-/** Your own Leader / Character / Stage by instance id (what the card popover anchors to). */
 function findOwnCard(view: PlayerView, id: string): { id: string; defId: string } | null {
   if (view.you.leader.id === id) return view.you.leader;
   if (view.you.stage?.id === id) return view.you.stage;
@@ -231,29 +195,23 @@ export function DuelBoard({
   const [handFilter, setHandFilter] = useState<number | null>(null);
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
   const [dragPayload, setDragPayload] = useState<DragPayload | null>(null);
-  /** Card last used from the hand and where it sat, for a Yes/No it asks next. */
   const [handUse, setHandUse] = useState<HandUse | null>(null);
-  /** Set once useDefendFlow exists below; a hand-sent answer marks the defend step answered (#1140). */
   const noteAnsweredRef = useRef<((intent: Intent) => void) | null>(null);
   function onSendIntent(intent: Intent) {
     noteAnsweredRef.current?.(intent);
-    // Blocking after all: a skip-block Counter must not follow onto the Blocker.
     if (intent.type === "declare_block") setQueuedCounter(null);
     if (view && handIndexOf(intent) !== undefined) {
       setHandUse(handUseFromIntent(intent, view.you.hand, measureHandCard));
     }
     sendIntent(intent);
   }
-  /** Sending, or opening a prompt, drops the hand filter and the board selection. */
   const clearSelection = () => {
     setHandFilter(null);
     setSelectedBoardId(null);
   };
   const [logCollapsed, setLogCollapsed] = useState(true);
   const [handCollapsed, setHandCollapsed] = useState(false);
-  /** Wide layout: hand dock pinned open (click / tap on its handle). */
   const prefs = useDuelSettings();
-  /** Seats whose custom art this viewer hid; lives and dies with the board, never saved (#812). */
   const [hiddenArtSeats, setHiddenArtSeats] = useState<ReadonlySet<Seat>>(() => new Set());
   const toggleHiddenArt = (seat: Seat) =>
     setHiddenArtSeats((prev) => {
@@ -273,12 +231,7 @@ export function DuelBoard({
     hoverUp: fanHoverUp,
     setHoverUp: setFanHoverUp,
   } = useFanState(prefs.keepHandOpen);
-  /**
-   * Keep hand open: the player tucked the hand fully away (H or its Hide
-   * button). For this visit only, not saved: a reload brings the hand back.
-   */
   const [handHiddenRaw, setHandHidden] = useState(false);
-  /** An effect asks me to pick cards from my hand: they are tapped in the hand, so it stays in view. */
   const handPick = !spectator && !view?.spectator && isHandPick(view?.pendingChoices?.[0], seat ?? view?.seat ?? null);
   const handHidden = handHiddenRaw && prefs.keepHandOpen && !handPick;
   const { wide, compactHud, portraitMat, simpleOwnBoard, lp, lpFan, railHandTall, handLayout, tilted } = useBoardLayout(prefs, isReplay);
@@ -291,22 +244,10 @@ export function DuelBoard({
   const phoneResize = usePhoneResize(prefs.panelSizesPhone, (next) => updateSettings({ panelSizesPhone: next }));
   const [promptSlot, setPromptSlot] = useState<HTMLElement | null>(null);
   const promptSlotValue = useMemo(() => ({ slot: promptSlot, setSlot: setPromptSlot }), [promptSlot]);
-  /**
-   * Spectators of unranked rooms see both hands face up: fanned on desktop,
-   * compact grids on phones. Their Hand setting (saved, untouched) only
-   * matters for hands they have to play.
-   */
   const specFans = spectatorFans(Boolean((spectator || view?.spectator) && view?.revealedHands), wide, lp);
-  /** Phones: both hands are grids of small upright cards, so the mats get the height the fans took. */
   const specGrid = spectatorHandGrid(specFans);
-  /**
-   * Desktop: the hand fans off the bottom edge of the board (centre) or the rail (right). Sideways tablets and
-   * foldables too when Fan is picked (spectators there keep the right column's grids).
-   */
   const fanHand = usesWideFan(wide, lp, lpFan, specFans, handLayout);
-  /** Desktop fan: where the player dragged it (null = bottom centre of the board). */
   const fanPos = useMemo(() => parseFanPos(prefs.handFanPos), [prefs.handFanPos]);
-  /** Desktop spectators: where each of the two fans was dragged (null = its default spot). */
   const specNearPos = useMemo(() => parseFanPos(prefs.spectatorNearFanPos), [prefs.spectatorNearFanPos]);
   const specFarPos = useMemo(() => parseFanPos(prefs.spectatorFarFanPos), [prefs.spectatorFarFanPos]);
   const fanRef = useRef<HTMLDivElement | null>(null);
@@ -315,7 +256,6 @@ export function DuelBoard({
     const r = playmatRef.current?.getBoundingClientRect();
     return r ? r.left + r.width / 2 : window.innerWidth / 2;
   };
-  // The one near fan is the player's hand, or a spectator's near hand (a spot of its own).
   const fanMove = useFanMove(
     fanRef,
     specFans ? specNearPos : fanPos,
@@ -324,7 +264,6 @@ export function DuelBoard({
         specFans ? { spectatorNearFanPos: serializeFanPos(next) } : { handFanPos: serializeFanPos(next) },
       ),
     boardCentreX,
-    // A spectator's near fan goes home on the bottom edge, at any x; it is measured by its cards while docked.
     specFans ? (centreX, bottom, _h, vp) => spectatorNearFanPosForDrop(centreX, bottom, vp) : undefined,
     specFans ? { bodySelector: ".hand-fan-cards", anchorGrip: true } : undefined,
   );
@@ -340,13 +279,9 @@ export function DuelBoard({
     { bodySelector: ".hand-fan-cards", anchorGrip: true },
   );
   const shownFanPos = fanMove.livePos ?? (specFans ? specNearPos : fanPos);
-  /** The far fan is off its strip along the top of the board, floating where it was dragged. */
   const shownFarPos = specFans === "desktop" ? (farMove.livePos ?? specFarPos) : null;
-  /** Off the bottom edge: fully shown unless tucked to its handle ("Let the hand tuck away"). */
   const fanFloating = fanHand && shownFanPos != null && (fanMove.livePos != null || !fanDocked(shownFanPos));
-  /** Raised by the player (pin), as the hand button shows it. */
   const handUp = fanFloating ? !floatTucked : handPinned;
-  // A spectator's far fan: the same states as the near one, of its own.
   const {
     pinned: farPinned,
     setPinned: setFarPinned,
@@ -358,13 +293,9 @@ export function DuelBoard({
     setHoverUp: setFarHoverUp,
   } = useFanState(false);
   const farUp = shownFarPos ? !farFloatTucked : farPinned;
-  /** Default spot of the far fan: the board keeps a strip free along its top for the tucked cards. */
   const farTop = shownFarPos == null;
-  /** Default spot: the board keeps a strip free under it for the tucked cards. */
   const fanCenter = fanHand && shownFanPos == null;
-  // Landscape phones keep the hand in the right column (a scrolling grid), never over the field.
   const railHand = usesRailHand(wide, lp, railHandTall, fanHand);
-  /** Portrait phones: the hand strip overlaps its cards in a fan instead of scrolling (spectators: a grid row). */
   const phoneFan = usesPhoneFan(wide, specGrid ? "grid" : specFans ? "fan" : handLayout);
   const {
     handSorted,
@@ -385,13 +316,11 @@ export function DuelBoard({
   const playmatDim = prefs.playmatDim;
   const playmatOpacity = prefs.playmatOpacity;
 
-  // Changing a setting mid-match applies it straight away.
   useEffect(() => {
     setHandPinned(prefs.keepHandOpen);
     setHandHidden(false);
   }, [prefs.keepHandOpen, setHandPinned]);
 
-  // Trackpad / mouse wheel → horizontal hand scroll when the row overflows.
   useEffect(() => {
     const el = handRowRef.current;
     if (!el) return;
@@ -408,7 +337,6 @@ export function DuelBoard({
   const previewOppSeat = useOppPlayPreview({ battleLog, seat, view, wide, lp });
 
   const over = matchOver != null || view?.winner != null;
-  // The strip shows the short question; the full server text stays in the tooltip.
   const midlineText = view
     ? view.pendingChoices?.length
       ? promptShortLine(view.pendingChoices[0])
@@ -417,26 +345,17 @@ export function DuelBoard({
         : null
     : null;
   const midlineBattle = !!view?.battle && !view?.pendingChoices?.length;
-  // On phones every pending prompt already shows its sentence (sheet, field bar or floating
-  // card), so the midline would repeat it. It still blocks other hints from using the strip.
+  // Every pending prompt on phones already shows its sentence, so the midline would repeat it; it still blocks other hints from using the strip.
   const midlineShown = !wide && view?.pendingChoices?.length ? null : midlineText;
   const midlineTitle = view?.pendingChoices?.length ? view.pendingChoices[0].prompt : midlineShown;
-  // Screen stays on through the opponent's long turns; released when the match ends.
   useScreenWakeLock(!over);
-  /** "View board" on the match-over card: the card steps aside so the final board shows. */
-  // A replay opens on the result pill rather than the modal, so the last move can be looked at.
   const [resultHidden, setResultHidden] = useState(isReplay);
   useEffect(() => {
     if (!over) setResultHidden(isReplay);
   }, [over, isReplay]);
   const mySeat = seat ?? view?.seat ?? null;
-  /**
-   * "Buttons beside the board" (#556, #564): on a computer the dock rides in a narrow gutter against the
-   * right edge of the two mats, its primary button centred on the line where they meet, so the mats touch
-   * and nothing is a strip between them. The gutter is reserved for the whole game (not tied to `over`), so
-   * the board never moves or resizes when the buttons change. The tilted board leans the mats in
-   * perspective, so it keeps the floating dock in the strip.
-   */
+  // The gutter is reserved for the whole game (not tied to `over`) so the board never resizes when the buttons change.
+  // The tilted board leans the mats in perspective, so the floating dock is kept in the strip.
   const sideActions = prefs.actionsBeside && wide && !lp && !spectating && !tilted;
   // The playmat only exists once the match view has arrived, so the placement effect re-runs then.
   useSideDockPlacement(playmatRef, sideActions && view != null);
@@ -462,15 +381,12 @@ export function DuelBoard({
   const logPoseEntry = matchLogPoseEntry({ briefShown: brief.shown, copilotShown: copilot.shown });
   const lpAnalyst = useLogPose();
   const logPoseOpen = logPoseEntry === "button" && lpAnalyst.panelOpen;
-  // One Log Pose button for the brief and the copilot alike (#993).
   const logPoseButton =
     logPoseEntry === "button" ? <LogPoseMatchButton layout={lp ? "landscape" : wide ? "desktop" : "portrait"} over={over} busy={brief.busy || copilot.running} /> : null;
   const result = describeMatchResult({
     winner: matchOver?.winner ?? view?.winner,
-    // The room's reason (concede / clock) beats the engine's view.winReason.
     reason: matchOver?.reason ?? view?.winReason,
     youSeat: spectating || isReplay ? null : mySeat,
-    // Hotseat: one device plays both seats — name seats, not "You".
     neutral: Boolean(hotseatPass),
   });
   const mulliganPhase = view?.phase === "mulligan";
@@ -536,17 +452,12 @@ export function DuelBoard({
     hotseat: Boolean(hotseatPass),
   });
 
-  // Small haptic tap when a drag lifts a card / DON!!.
   const dragging = dragPayload != null;
   useEffect(() => {
     if (dragging) buzz("pickup");
   }, [dragging]);
 
   const dndEnabled = yourTurn && !spectating && !over && !mulliganPhase;
-  /**
-   * Counter step: a Counter card can be dragged from hand onto the defender.
-   * Block step too: the drop skips the block, then plays the Counter.
-   */
   const counterDragEnabled = defend != null;
   const earlyCounterIds = useMemo(
     () => new Set(defend?.earlyCounters.map((c) => c.id) ?? []),
@@ -583,37 +494,27 @@ export function DuelBoard({
     clearSelection,
   });
 
-  /** Keep hand open: tuck the whole hand away (only its handle stays), or bring it back. */
   function toggleHandHidden() {
     setHandHidden((v) => !v);
     setHandFilter(null);
   }
 
-  /**
-   * A mouse click leaves focus on the hand's card or button, and the next key
-   * press (S, Space, …) makes it :focus-visible, which holds the hand up after
-   * "Let the hand tuck away". Keyboard clicks (detail 0) keep their focus.
-   */
   function dropHandClickFocus(e: ReactMouseEvent<HTMLElement>) {
     if (e.detail === 0) return;
     const active = document.activeElement;
     if (active instanceof HTMLElement && e.currentTarget.contains(active)) active.blur();
   }
 
-  /** The hand button and H: keep the hand up, or let it tuck away. */
   function toggleHandUp() {
     if (fanFloating) setFloatTucked(handUp);
     else setHandPinned(!handUp);
     if (handUp) {
       setFanHoverUp(false);
       setHandFilter(null);
-      // Only with the pointer on the hand (H works from anywhere): away from
-      // it, the next hover raises the hand again.
       setTuckUnderPointer(document.querySelector(".hand-fan:hover, .hand-dock:hover") != null);
     }
   }
 
-  /** The far fan's hand button: keep it up, or let it tuck away (it stays down until the pointer leaves). */
   function toggleFarUp() {
     if (shownFarPos) setFarFloatTucked(farUp);
     else setFarPinned(!farUp);
@@ -623,13 +524,11 @@ export function DuelBoard({
     }
   }
 
-  /** Portrait phones: fold the hand away under its title row, or open it again. */
   function toggleHandCollapsed() {
     setHandCollapsed((v) => !v);
     setHandFilter(null);
   }
 
-  /** Under the handle: Hide / Show, only with Keep hand open (H does the same). */
   const hideHandBtn = prefs.keepHandOpen ? (
     <button
       type="button"
@@ -642,7 +541,6 @@ export function DuelBoard({
     </button>
   ) : null;
 
-  /** Sort by cost on / off; the S tag (desktop key tags) is the same toggle's key. */
   const sortHandBtn = (
     <button
       type="button"
@@ -660,12 +558,10 @@ export function DuelBoard({
   useBoardHotkeys({
     spectating,
     over,
-    // H only toggles the fan / corner dock; the rail hand is always open.
     wide: wide && !railHand,
     cardKeys: wide && !lp,
     handHides: prefs.keepHandOpen,
     onEscape: () => {
-      // One layer per press: DON!! selection first, then the selected card.
       if (selectedDonIds.size > 0 || pendingAttach != null) clearDonSelection();
       else {
         setHandFilter(null);
@@ -678,7 +574,6 @@ export function DuelBoard({
       if (next == null) return;
       setSelectedBoardId(null);
       setHandFilter(next);
-      // Picking a hand card from the keyboard brings a hidden hand back.
       setHandHidden(false);
     },
     onToggleHand: toggleHandUp,
@@ -715,12 +610,9 @@ export function DuelBoard({
     return ids;
   }, [view, intents]);
 
-  // Over the hand, a dragged hand card is being reordered: the hand stays up
-  // instead of tucking away for a drop on the board.
   const reorderInHand = handReorder.reorder?.inZone === true;
   const handTucked = dragPayload != null && !reorderInHand;
 
-  // Attack drag: your Leader / Characters with a legal declare_attack.
   const draggableAttackerIds = useMemo(() => {
     if (!dndEnabled || !view) return EMPTY_IDS;
     const ids = new Set<string>();
@@ -730,10 +622,8 @@ export function DuelBoard({
     return ids;
   }, [dndEnabled, view, intents]);
 
-  // Attack-ready glow (#412): your Leader / Characters with a legal declare_attack.
   const attackReadyIds = prefs.attackGlow ? draggableAttackerIds : EMPTY_IDS;
 
-  // Targets for the attacker being dragged, else for the tapped attacker.
   const attackerId = dragPayload?.type === "attack" ? dragPayload.attackerId : selectedBoardId;
   const attackTargetIds = useMemo(() => {
     if (!dndEnabled || !attackerId || !view) return EMPTY_IDS;
@@ -742,8 +632,6 @@ export function DuelBoard({
 
   function commitDrop(payload: DragPayload, clientX: number, clientY: number) {
     const drop = findDropTargetAtPoint(clientX, clientY);
-    // Sequential client-side intents (no batch protocol) — one give_don per
-    // selected donId that has a legal intent to this target.
     const toSend = resolveDropIntents(payload, drop, intents, {
       opponentLeaderId: view?.opponent.leader.id,
       defenderId: counterDefenderId,
@@ -755,7 +643,6 @@ export function DuelBoard({
       drop?.kind !== "play_trash" &&
       playNeedsReplace(intents, payload.handIndex)
     ) {
-      // Dropped on a full board without picking a Character: ask which one.
       openReplace(payload.handIndex);
       return;
     }
@@ -764,10 +651,8 @@ export function DuelBoard({
       setHandFilter(null);
       setSelectedBoardId(null);
       if (payload.type === "counter") {
-        // A dropped card is played now, so it is no longer staged in the tray.
         const cardId = view?.you.hand[payload.handIndex]?.id;
         setStagedCounterIds((cur) => cur.filter((id) => id !== cardId));
-        // Block step: only the pass goes now; the Counter follows it.
         if (cardId && toSend[0]?.type === "pass_block") {
           setStagedBlockerId(null);
           setQueuedCounter({ cardId, mode: "send" });
@@ -778,7 +663,6 @@ export function DuelBoard({
     }
   }
 
-  /** The card-action pop-up's buttons for a selection, as the render below computes them (pending choices own their answers). */
   function popoverIntentsFor(selection: { handIndex: number | null; boardId: string | null }, dropGiveDonTo?: string): Intent[] {
     if (!view || spectating || defendPrimary) return [];
     const front = view.pendingChoices?.[0];
@@ -810,7 +694,6 @@ export function DuelBoard({
         return;
       }
     }
-    // One-tap: a pop-up with a single button does it straight away (hand pop-ups have no DON!! row).
     if (prefs.oneTapActions && handFilter !== idx && !dragPayload && !replaceOpen && !donSelectActive) {
       const sole = soleCardButton(popoverIntentsFor({ handIndex: idx, boardId: null }), []);
       if (sole?.kind === "action") {
@@ -824,10 +707,8 @@ export function DuelBoard({
 
   function selectBoardCard(id: string) {
     if (selectedDonIds.size > 0) {
-      // DON!! selected → tapping a legal Leader/Character asks to attach.
       const pending = beginAttach(intents, selectedDonIds, id);
       if (pending) {
-        // One-tap: the tap itself is the confirmation.
         if (prefs.oneTapActions) confirmAttach(pending);
         else setPendingAttach(pending);
         return;
@@ -843,8 +724,6 @@ export function DuelBoard({
         return;
       }
     }
-    // One-tap: a pop-up with a single action does it straight away. A tap never gives DON!!, so a card whose
-    // pop-up is only the +1 / +2 row (like one you just played) still opens it.
     if (prefs.oneTapActions && view && selectedBoardId !== id && !dragPayload && !replaceOpen && !donSelectActive) {
       const quickRow =
         dndEnabled && (view.you.leader.id === id || view.you.characters.some((c) => c.id === id))
@@ -863,8 +742,6 @@ export function DuelBoard({
     setSelectedBoardId((prev) => (prev === id ? null : id));
   }
 
-  // Drop a stale selection when the selected card leaves your board (KO'd, trashed, etc.)
-  // or the turn changes, so the intent bar never lingers on a dead selection.
   useEffect(() => {
     if (!selectedBoardId || !view) return;
     const stillOnBoard =
@@ -874,8 +751,6 @@ export function DuelBoard({
     if (!stillOnBoard) setSelectedBoardId(null);
   }, [selectedBoardId, view]);
 
-  // "Can't attack" feedback: dragging a card that has no legal attack, or
-  // tapping an opposing card with such a card selected (a plain tap only selects).
   const [attackWarn, setAttackWarn] = useState<AttackWarn | null>(null);
   useAttackAttempt({
     enabled: dndEnabled,
@@ -910,7 +785,6 @@ export function DuelBoard({
     fanHand && view != null,
     shownFanPos == null ? "centre" : fanMove.livePos || !fanDocked(shownFanPos) ? "float" : "docked",
   );
-  // The far fan (spectators) is fitted to the opponent's mat the same way.
   const farHandCount = specFans === "desktop" && view ? (view.revealedHands?.[(mySeat ?? view.seat) === 0 ? 1 : 0]?.length ?? 0) : 0;
   useFanFit(
     farRef,
@@ -926,7 +800,6 @@ export function DuelBoard({
         waiting={
           waiting ?? {
             status: "Waiting for opponent…",
-            // Seat 0 created the room: copy its id straight away.
             invite: { roomId: matchId, autoCopy: seat === 0 && !spectating },
           }
         }
@@ -941,11 +814,9 @@ export function DuelBoard({
 
   const you = view.you;
   const opp = view.opponent;
-  // A Yes/No from the card just used from the hand sits on that card, not in a pop-up.
   const handConfirm = spectating
     ? null
     : handConfirmAnchor(view.pendingChoices?.[0], mySeat, handUse, you);
-  // Wide boards: mid-battle, the centred prompt keeps off the card being hit.
   const promptBattle = (() => {
     const ends = wide && !lp ? battleEndpoints(view) : null;
     return ends ? { defenderId: ends.targetId, attackerId: ends.attackerId } : null;
@@ -953,7 +824,7 @@ export function DuelBoard({
 
   const ghostPayload: GhostPayload | null =
     reorderInHand || liftedHandId != null
-    ? // A hand card is carried by its own lifted copy (useHandLift).
+    ?
       null
     : dragPayload?.type === "give_don"
       ? { type: "give_don", count: dragPayload.donIds.length }
@@ -965,7 +836,7 @@ export function DuelBoard({
             artCopy: you.hand[dragPayload.handIndex]!.artCopy,
             ownerSeat: mySeat ?? view.seat,
           }
-        : // An attack drag shows the aim arrow instead of a carried card.
+        :
           null;
 
   const pendingAttachName = (() => {
@@ -978,25 +849,17 @@ export function DuelBoard({
   })();
   const boardSeat: Seat = mySeat ?? view.seat;
   const oppSeat: Seat = boardSeat === 0 ? 1 : 0;
-  // Unranked rooms send spectators both hands face up.
   const nearHand = spectating ? view.revealedHands?.[boardSeat] : undefined;
   const farHand = spectating ? view.revealedHands?.[oppSeat] : undefined;
-  /** Desktop: the opponent hand pinned above the playmat instead of its side panel. */
   const oppHandOnMat = wide && !lp && !farHand && prefs.oppHandSpot ? prefs.oppHandSpot : null;
-  /** Phones: "Opponent hand, top right" moves its row to the right of the opponent's half. */
   const oppHandRight = prefs.oppHandSpot === "right" && !farHand;
-  // Match over (#482): the hand flips face up in place. Layout keeps keying off `farHand`
-  // (spectators only) so nothing moves at game over.
   const myRevealed = revealedIdSet(spectating ? undefined : view.handReveals?.[boardSeat]);
-  // While live, cards an effect revealed from their hand stay face up among the backs (#491).
-  // A replay is played from both seats (#966): the hand across the table is face up, unless the view leaves it out ("What I saw").
   const shownFarHand =
     farHand ?? (over || isReplay ? view.revealedHands?.[oppSeat] : farHandWithReveals(opp.handCount, view.handReveals?.[oppSeat]));
   const revealLife = over ? view.revealedLife : undefined;
   const lifeFaceUp = (seat: Seat, fallback: typeof opp.faceUpLife) =>
     revealLife ? revealLife[seat].map((defId, index) => ({ index, defId })) : fallback;
   const viewingSeat: Seat | undefined = spectating ? undefined : boardSeat;
-  // Older servers omit firstSeat; they always started seat 0.
   const firstSeat: Seat = view.firstSeat ?? 0;
   const youFirst = boardSeat === firstSeat;
   const orderLabel = spectating || isReplay
@@ -1011,8 +874,6 @@ export function DuelBoard({
   const seatClocks = seatClockLabels(timer ?? null, now, boardSeat, oppSeat);
   const awayLeft = opponentAwayUntil != null && !over ? formatCountdown(opponentAwayUntil, now) : null;
   const handCount = spectating ? (you.handCount ?? 0) : you.hand.length;
-  // Hearthstone-style dock: peeks until hovered; stays open while you pick
-  // your opening hand or have a hand card selected.
   const drawer = handDrawer({
     pinned: handUp,
     hidden: handHidden && specFans == null,
@@ -1053,7 +914,6 @@ export function DuelBoard({
   const undoUi = deriveUndoUi(undo, boardSeat);
   const { undoState, undoPendingTheirs, undoNothingYet } = undoUi;
 
-  /** Card showing where a hand card dragged over the hand would land, if it moves. */
   function reorderMarker(ids: readonly string[]): { id: string; cls: string } | null {
     const r = handReorder.reorder;
     if (handSorted || !r || r.slot == null) return null;
@@ -1064,7 +924,6 @@ export function DuelBoard({
       : { id: others[others.length - 1]!, cls: "hand-drop-after" };
   }
 
-  /** A spectator's desktop fan grip (the same handle as the player's fan), when Drag handles are on. */
   function specGrip(which: "near" | "far") {
     if (specFans !== "desktop" || !prefs.layoutGrips) return undefined;
     const move = which === "near" ? fanMove : farMove;
@@ -1082,7 +941,6 @@ export function DuelBoard({
     );
   }
 
-  /** A spectator's hand button: the match's Hand pill, titled with the seat's name; raises or tucks that fan. */
   function specHandToggle(which: "near" | "far", count: number) {
     const near = which === "near";
     const up = near ? handUp : farUp;
@@ -1103,7 +961,6 @@ export function DuelBoard({
     );
   }
 
-  /** `fanned`: each card gets its tilt and arc drop (see handFan.ts). */
   function renderHandCards(fanned = false) {
     const pose = (i: number, n: number): CSSProperties | undefined => (fanned ? fanPoseStyle(i, n) : undefined);
     if (spectating && nearHand) {
@@ -1130,7 +987,6 @@ export function DuelBoard({
       ));
     }
     const order = handDisplayIndices ?? you.hand.map((_, i) => i);
-    // Unsorted, any hand card can be dragged to a new spot in the hand.
     const reorderable = !handSorted;
     const marker = reorderMarker(order.map((i) => you.hand[i]!.id));
     return order.map((idx, pos) => {
@@ -1142,7 +998,6 @@ export function DuelBoard({
         (defend?.phase === "block" ? earlyCounterIds.has(c.id) : canDragCounter(intents, idx));
       const boardDrag = playable || counterable;
       const cost = c.playCost ?? lookupCard(c.defId).cost;
-      // Main phase, no legal play for it, and not enough active DON!!: show it as out of reach.
       const unaffordable = handCardOutOfReach({
         dimSetting: prefs.dimUnplayable,
         mainPhase: yourTurn && view?.phase === "main",
@@ -1176,7 +1031,6 @@ export function DuelBoard({
           }}
           onDragEnd={(x, y) => {
             setLiftedHandId(null);
-            // Dropped back on the hand: a new spot in the hand (or no move when sorted), never a play.
             if (handReorder.end(x, y, reorderable)) setDragPayload(null);
             else if (boardDrag) commitDrop(payload, x, y);
           }}
@@ -1223,7 +1077,6 @@ export function DuelBoard({
           const intent = defend.events[i]?.intent;
           if (intent) onSendIntent(intent);
         }}
-        // The rail has no Confirm step (the dock only passes), so it plays the Counter.
         onSkipBlockCounter={(id) => skipBlockToCounter(id, prefs.oneTapActions || railDefend ? "send" : "stage")}
         counterDrag={
           defend.phase === "counter" || defend.earlyCounters.length > 0
@@ -1246,18 +1099,15 @@ export function DuelBoard({
 
   const barIntents = (() => {
     const front = view.pendingChoices?.[0];
-    // ChoicePrompt / EffectOrderPrompt own every pending-choice answer.
     if (front) {
       return view.legalIntents.filter(
         (i) => i.type !== "resolve_pending_choice" && i.type !== "order_pending_effects",
       );
     }
-    // The quick row replaces the row of identical "Give DON" buttons.
     return quickCounts.length > 0
       ? view.legalIntents.filter((i) => !(i.type === "give_don" && i.targetId === selectedBoardId))
       : view.legalIntents;
   })();
-  // The selected card's own actions live on the card (a popover), not in the bar.
   const cardIntents =
     spectating || defendPrimary
       ? []
@@ -1285,9 +1135,6 @@ export function DuelBoard({
     onPress: () => pressCardAction(intent),
   }));
 
-  // Desktop: the primary action (and any other phase-wide one: Keep / Mulligan,
-  // Resolve trigger) floats at the board's midline; there is no Actions panel.
-  // Phones keep the bottom IntentBar.
   const oppWait =
     spectating || over || hotseatPass ? null : waitingOnOpponent(view, mySeat);
   const sendPrimary = (intent: Intent) => {
@@ -1301,10 +1148,8 @@ export function DuelBoard({
     selectedHandCard && yourTurn && view.phase === "main" && cardIntents.length === 0
       ? needsDonHint(selectedHandCard.playCost ?? lookupCard(selectedHandCard.defId).cost, you.activeDonCount, selectedHandCard.blocked) ?? undefined
       : undefined;
-  // The replay controls ride where the action bar does (phones); on desktop they dock in the right rail.
   const replayBar = replay ? (
     <div className="intent-bar replay-bar">
-      {/* The result lives in the controls' own slim row here, so it never covers the board. */}
       {isValidElement(replay.controls)
         ? cloneElement(replay.controls as React.ReactElement<{ resultSlot?: ReactNode }>, {
             resultSlot:
@@ -1320,7 +1165,6 @@ export function DuelBoard({
         : replay.controls}
     </div>
   ) : null;
-  // Desktop has no Actions panel: only the defend tray stays in the rail.
   const intentPanel = railDefend && defendTray ? (
     defendTray
   ) : wide && !lp ? null : !spectating ? (
@@ -1346,7 +1190,6 @@ export function DuelBoard({
   ) : replayBar ? (
     replayBar
   ) : !wide || lp ? null : (
-    // Phones: the HUD's SPECTATOR chip says it already, and the bar's height goes to the mats.
     <div className="intent-bar">
       <p className="intent-empty">
         {nearHand ? "Spectating — both hands shown; intents disabled" : "Spectating — both hands hidden; intents disabled"}
@@ -1373,7 +1216,6 @@ export function DuelBoard({
     showOthersArt: prefs.showOthersArt,
     hiddenSeats: hiddenArtSeats,
   });
-  // One row per other seat that has custom art to hide (both seats when spectating); none in practice.
   const artToggles: ArtToggle[] = hotseatPass || !prefs.showOthersArt
     ? []
     : (spectating ? [boardSeat, oppSeat] : [oppSeat])
@@ -1383,14 +1225,10 @@ export function DuelBoard({
   const oppCardBackUrl = skins.far.cardBack;
   const nearDonUrl = donArtUrl(skins.near.donArt);
   const farDonUrl = donArtUrl(skins.far.donArt);
-  /** DON!! face for a seat's half; no seat (or your own) is the near half. */
   const donArtForSeat = (s?: Seat) => (s != null && s === oppSeat && s !== boardSeat ? farDonUrl : nearDonUrl);
 
-  /** Desktop: the card preview floats as a draggable pop-up instead of sitting in a side column (#529). */
   const previewPopup = prefs.previewPopup && prefs.showCardPreview && wide && !lp;
-  /** Desktop side panels, by id; null when a panel has nothing to show right now. */
   const sidePanels: Record<PanelId, React.ReactNode> = {
-    // Hidden panels are null: they keep their place in panelLayout and come back in it.
     preview: prefs.showCardPreview && !previewPopup ? <CardPreviewPanel /> : null,
     log: (
       <BattleLogPanel
@@ -1444,40 +1282,24 @@ export function DuelBoard({
       </section>
     ) : null,
     chat: chatPanel,
-    // The host the docked Log Pose panel renders into; the panel wrapper gives it the grip and dividers.
     logpose: logPoseSide ? (
       <div ref={logPoseSide === "left" ? setLogPoseHostL : setLogPoseHostR} className="lp-dock-host" data-panel-host="logpose" />
     ) : null,
   };
-  /** Panels with something to show, top to bottom, in each column (the rest keep their places). */
   const shownPanels: Record<PanelColumn, PanelId[]> = {
     left: panelLayout.left.filter((id) => sidePanels[id] != null),
     right: panelLayout.right.filter((id) => sidePanels[id] != null),
   };
-  /** Bigger playing area: columns take their minimum width, so a dragged width is set aside (not lost). */
   const bigBoard = prefs.bigBoard || (spectating && lp);
-  /**
-   * A desktop column with nothing in it (every panel hidden or moved away)
-   * collapses so the board gets its width; while a panel is being dragged both
-   * stay open as drop targets.
-   */
-  /** The column the defend tray rides in. */
   const defendCol: PanelColumn = singleSide ?? "right";
   const collapsed = collapsedColumns(shownPanels, panelDrag.draggingId != null && !singleSide, {
     [defendCol]: railDefend && defendTray != null,
   });
-  /**
-   * Bigger playing area on a computer: no top bar. Its buttons ride in a row at the top of the right column, or
-   * of the left one when the right has nothing in it. The side follows what is on screen when nothing is being
-   * dragged, so the row stays put while a panel is carried over the columns; with both columns empty the right
-   * one stays open for the row (it is the only way to the match menu).
-   */
   const noTopBar = bigBoard && wide && !lp && !compactHud;
   const idleCollapsed = collapsedColumns(shownPanels, false, { [defendCol]: railDefend && defendTray != null });
   const actionsSide: PanelColumn | null = !noTopBar ? null : idleCollapsed.right && !idleCollapsed.left ? "left" : "right";
   const noLeftCol = wide && !lp && collapsed.left && actionsSide !== "left";
   const noRightCol = wide && !lp && collapsed.right && actionsSide !== "right";
-  /** Columns on screen on a desktop board: only these can be shortened from their bottom edge (#633). */
   const cutColumns: Record<PanelColumn, boolean> = {
     left: wide && !lp && !noLeftCol && singleSide !== "right",
     right: wide && !lp && !noRightCol && singleSide !== "left",
@@ -1486,7 +1308,6 @@ export function DuelBoard({
     left: cutColumns.left ? panelResize.shown.cuts.left : undefined,
     right: cutColumns.right ? panelResize.shown.cuts.right : undefined,
   };
-  /** A shortened column and the fan in its default spot: the hand sits in the corner below the column, never over the board. */
   const fanCorner = fanCornerFor({
     fan: fanHand,
     spectatorFan: specFans != null,
@@ -1497,7 +1318,6 @@ export function DuelBoard({
     wide && !lp
       ? ({
           ...panelResize.arenaStyle(shownPanels, cutColumns),
-          // The one column holds the Turn panel too, so on the left it opens as wide as the right one does.
           ...(singleSide === "left" && panelResize.shown.widths.left == null
             ? { "--left-w": bigBoard ? "clamp(250px, 17vw, 330px)" : "clamp(260px, 22vw, 400px)" }
             : null),
@@ -1542,7 +1362,6 @@ export function DuelBoard({
       renderSidePanel(id, i > 0 ? ids[i - 1]! : null, i === ids.length - 1, sized),
     );
     const after = ids.indexOf("turn") + 1;
-    // Answering an attack: the defend tray rides under Turn and clocks (not movable).
     if (column === defendCol && railDefend && defendTray) {
       panels.splice(
         after,
@@ -1575,7 +1394,6 @@ export function DuelBoard({
     );
   }
 
-
   const reportProblem = () => openFeedback("Report a problem");
   const reportTargetFor = (source: "match" | "spectate" | "postmatch") =>
     canReport && !isReplay && !hotseatPass
@@ -1594,7 +1412,6 @@ export function DuelBoard({
         over,
         hotseat: Boolean(hotseatPass),
         fullscreenOffered,
-        // The computer's action row carries its own Full screen button; phones keep it in the menu.
         fullscreenInBar: placement === "anchor",
         muteInBar: placement === "anchor",
         canConcede: Boolean(onConcede),
@@ -1663,7 +1480,6 @@ export function DuelBoard({
     leaveLabel,
     onLeave,
   };
-  /** The no-top-bar action row: same buttons as the phone bar, a fixed height so nothing moves when one comes or goes. */
   const columnActions = <BoardHud variant="column" {...hudProps} />;
 
   return (
@@ -1678,7 +1494,6 @@ export function DuelBoard({
       }${specGrid ? " arena-spec-grid" : ""}${
         tilted ? " arena-tilt" : ""
       }${singleSide ? " arena-single-col" : ""}${bigBoard ? " arena-big" : ""}${noTopBar ? " arena-no-hud" : ""}${noLeftCol ? " arena-no-left" : ""}${noRightCol ? " arena-no-right" : ""}${prefs.donUpright ? " don-upright" : ""}${prefs.totalPower ? " power-total" : ""}`}
-      // Read by the e2e click-through tests (duel-web/e2e) to follow the game.
       data-phase={view.phase}
       data-turn={view.turnNumber}
       data-seat={boardSeat}
@@ -1741,7 +1556,6 @@ export function DuelBoard({
         ) : null}
 
         <div className="playmat" ref={playmatRef} data-mat-drop={wide && !lp ? "" : undefined}>
-          {/* Floats over the top of the board, so it never pushes the mats down. */}
           {mulliganBody && !sideActions ? (
             <div
               className={`mulligan-banner${view.you.mulliganDone ? "" : " mulligan-banner-explainer"}`}
@@ -1888,8 +1702,6 @@ export function DuelBoard({
                           : EMPTY_IDS,
                       selectedDonIds,
                       onDonDragStart: (donId) => {
-                        // Dragging a selected chip carries the whole selection;
-                        // dragging an unselected chip selects just that one.
                         const donIds =
                           selectedDonIds.size > 0 && selectedDonIds.has(donId)
                             ? Array.from(selectedDonIds)
@@ -1949,11 +1761,9 @@ export function DuelBoard({
             {prefs.layoutGrips ? (
               <div className="col-resize col-resize-right" {...panelResize.columnHandleProps("right")} />
             ) : null}
-            {/* Reserves the strip the collapsed hand dock peeks into. */}
             {railHand || fanHand ? null : <div className="rail-dock-spacer" aria-hidden />}
           </div>
         ) : wide ? (
-          // Landscape phones keep a fixed right column (no movable panels).
           <div className="arena-rail board-col">
             {hotseatPass || (undo && undoState?.enabled && !spectating && !over) ? (
               <div className="lp-actions">
@@ -1978,7 +1788,6 @@ export function DuelBoard({
                 ownerSeat={oppSeat}
               />
             )}
-            {/* Answering an attack: the tray gets the whole column (the turn card repeats it). */}
             {defendTray ? null : (
               <TurnStatusPanel
                 view={view}
@@ -1992,7 +1801,6 @@ export function DuelBoard({
                 compact
               />
             )}
-            {/* With the hand fanned off the board, a filler keeps the actions at the column's bottom. */}
             {defendTray ?? sidePanels.hand ?? (fanHand ? <div className="lp-rail-fill" aria-hidden /> : null)}
             {intentPanel}
             {prefs.layoutGrips ? <div className="phone-resize phone-resize-rail" {...phoneResize.handleProps("rail")} /> : null}
@@ -2012,8 +1820,6 @@ export function DuelBoard({
                           <span className="hand-rail-count">{handCount}</span>
                         </>
                       ) : (
-                        // The whole title row is a Hide / Show target too (#445): it stays
-                        // put and the same size while the hand folds, unlike the small button.
                         <button
                           type="button"
                           className="hand-rail-toggle"
@@ -2197,7 +2003,6 @@ export function DuelBoard({
         />
       ) : null}
 
-      {/* Fixed overlays (portals) — never participate in board layout. */}
       <TurnSplash message={splash} />
       <AttackWarning warn={prefs.cantAttackWarning ? attackWarn : null} />
       <RevealOverlay

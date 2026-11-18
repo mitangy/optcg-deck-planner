@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { creditLeft, limitText, lowCreditText, meterFill, meterText, requestTopup, type Credit } from "./credit";
 import type { OwnClaude } from "./types";
 
-/** The thin credit bar under the header: "$3.40 of $5.00 left this month". Its height is fixed so loading it moves nothing. */
+// Fixed height so loading it moves nothing.
 export function CreditMeter({ credit }: { credit: Credit | null }) {
   const text = credit ? meterText(credit) : null;
   if (credit && credit.creditUsd === null) return null;
@@ -24,7 +24,6 @@ export function CreditMeter({ credit }: { credit: Credit | null }) {
   );
 }
 
-/** Replaces the input when a limit stops the player: out of credit (with ways forward), today's cap, or the monthly cap. */
 export function LimitCard({ apiBase, credit, ownClaude, onAsked }: { apiBase: string; credit: Credit; ownClaude?: OwnClaude; onAsked: () => void }) {
   const [busy, setBusy] = useState(false);
   const [asked, setAsked] = useState(credit.topupRequested);
@@ -75,7 +74,7 @@ export function LimitCard({ apiBase, credit, ownClaude, onAsked }: { apiBase: st
   );
 }
 
-/** One line under the input: chats are kept, and the player can delete this one. The confirmation takes the line's place so nothing moves. */
+// The confirmation takes the line's place so nothing moves.
 export function ChatNotice({ threadId, busy, onDelete }: { threadId: number | null; busy: boolean; onDelete: (id: number) => Promise<void> }) {
   const [asking, setAsking] = useState(false);
   const [working, setWorking] = useState(false);

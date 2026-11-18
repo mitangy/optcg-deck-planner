@@ -13,7 +13,6 @@
 const DB_NAME = "optcg-scan";
 const DB_VERSION = 1;
 const STORE = "descriptor-chunks";
-/** Records which manifest version the stored chunks belong to. */
 const META_STORE = "meta";
 
 export type DescriptorRecordMeta = {
@@ -24,7 +23,6 @@ export type DescriptorRecordMeta = {
 };
 
 export type DescriptorChunkMeta = {
-  /** Content-addressed: the filename contains the hash of the bytes. */
   file: string;
   hash: string;
   bytes: number;
@@ -32,7 +30,6 @@ export type DescriptorChunkMeta = {
 };
 
 export type DescriptorManifest = {
-  /** Changes only on a format change; content changes are per-chunk. */
   formatVersion: string;
   features: number;
   totalRecords: number;
@@ -40,7 +37,6 @@ export type DescriptorManifest = {
   chunks: DescriptorChunkMeta[];
 };
 
-/** One card's features, as stored: descriptors plus flat x,y pairs. */
 export type DescriptorRecord = {
   label: string;
   cardId: string;
@@ -117,14 +113,6 @@ function idbKeys(db: IDBDatabase, store: string): Promise<string[]> {
   });
 }
 
-/**
- * Ask the browser to keep this data through storage pressure.
- *
- * Without it IndexedDB is "best effort" and can be evicted, which for a
- * multi-megabyte descriptor set means a silent re-download — the exact cost
- * caching exists to avoid. Returns whether persistence is granted; browsers
- * may refuse, so this is a request rather than a guarantee.
- */
 export async function requestPersistentStorage(): Promise<boolean> {
   if (!navigator.storage?.persist) return false;
   if (await navigator.storage.persisted?.()) return true;
@@ -135,11 +123,6 @@ export async function requestPersistentStorage(): Promise<boolean> {
   }
 }
 
-/**
- * Ensure every chunk in `manifest` is present locally, fetching only what is
- * missing. Safe to call repeatedly — an interrupted download resumes rather
- * than restarting, which is the point of chunking.
- */
 export async function ensureDescriptors(
   manifest: DescriptorManifest,
   baseUrl: string,
@@ -190,11 +173,6 @@ export async function ensureDescriptors(
   db.close();
 }
 
-/** Decode one record from a chunk's bytes at `offset`. */
-/**
- * Which files to upload as descriptor chunks: exactly the manifest's, never
- * "every .bin in the folder" (the art embedder's embeddings .bin sits there too).
- */
 export function descriptorChunkFiles(
   manifest: DescriptorManifest,
   present: readonly string[],
@@ -222,8 +200,6 @@ export function decodeRecord(buf: ArrayBuffer, offset: number, cardId: string): 
   o += 2;
   const n = view.getUint16(o, true);
   o += 2;
-  // Copy rather than subarray-view: the points are read per candidate during
-  // matching, and a copy keeps that independent of the chunk buffer's life.
   const points = new Uint16Array(n * 2);
   for (let i = 0; i < n * 2; i += 1) {
     points[i] = view.getUint16(o, true);
@@ -233,7 +209,6 @@ export function decodeRecord(buf: ArrayBuffer, offset: number, cardId: string): 
   return { label, cardId, orderHash, width, height, points, descriptors };
 }
 
-/** Read every cached record. Throws if a chunk is missing — call `ensureDescriptors` first. */
 export async function loadAllRecords(manifest: DescriptorManifest): Promise<DescriptorRecord[]> {
   const db = await openDb();
   const out: DescriptorRecord[] = [];
@@ -249,7 +224,6 @@ export async function loadAllRecords(manifest: DescriptorManifest): Promise<Desc
   return out;
 }
 
-/** Bytes currently held, for a "downloaded / not downloaded" indicator. */
 export async function cachedBytes(manifest: DescriptorManifest): Promise<number> {
   const db = await openDb();
   const storedFormat = await idbGet<string>(db, META_STORE, "formatVersion");

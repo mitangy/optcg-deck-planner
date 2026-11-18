@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""Backfill productId on cardCatalog.json primaries + altArts from imageUrl.
-
-Parses `product/(\\d+)_` from existing TCGPlayer CDN URLs — no TCGCSV re-fetch.
-"""
 
 from __future__ import annotations
 
@@ -21,7 +17,6 @@ DEFAULT_CATALOG = ROOT / "duel-web" / "src" / "assets" / "cardCatalog.json"
 
 
 def backfill_entry(entry: dict) -> tuple[bool, bool]:
-    """Mutate entry in place. Returns (primary_changed, alts_changed)."""
     primary_changed = False
     alts_changed = False
     pid = product_id_from_image_url(entry.get("imageUrl"))

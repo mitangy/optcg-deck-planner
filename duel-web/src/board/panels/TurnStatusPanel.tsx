@@ -8,7 +8,6 @@ import { HIDDEN_HAND_DEF } from "../hand/handReveal";
 import { respondSubline } from "../prompts/promptLine";
 import { donTotal } from "../don/donTotals";
 
-/** Formatted per-player (chess) clocks; `running` is whose is ticking. */
 export type SeatClocks = {
   you: string;
   opp: string;
@@ -84,19 +83,12 @@ type Props = {
   firstSeat: Seat;
   players: SeatPlayers | null;
   spectating: boolean;
-  /** Timers already formatted ("0:25"), or null when off. */
   turnClock: string | null;
   matchClock: string | null;
   seatClocks?: SeatClocks | null;
-  /** Landscape phones: just the whose-turn banner and the clocks. */
   compact?: boolean;
 };
 
-/**
- * Right-rail game state: a turn card (a big whose-turn heading for spectators only), then both players with
- * turn order, Life, hand, deck and DON!!. Opponent on top, you below — the
- * same order as the mats.
- */
 export function TurnStatusPanel({
   view,
   boardSeat,
@@ -154,8 +146,7 @@ export function TurnStatusPanel({
     sub = `${oppName} · ${view.phase} phase`;
   }
 
-  // Players see whose turn it is on the action button (End turn, the "Opponent's turn" pill, Counter, Keep), so the
-  // card does not repeat it as a big heading (#1247). Spectators have no button, and a finished match has no turn.
+  // Players see whose turn it is on the action button, so the card does not repeat it as a heading. Spectators have no button, and a finished match has no turn.
   const showTitle = spectating || over;
 
   const you = view.you;
@@ -235,7 +226,6 @@ export function TurnStatusPanel({
 
 type HandCard = { id: string; defId: string; artCopy?: number };
 
-/** Opponent's hand size as a number, so nobody has to count the backs. */
 export function OppHandCount({ count }: { count: number }) {
   return (
     <span className="opp-hand-count" aria-hidden="true">
@@ -244,7 +234,6 @@ export function OppHandCount({ count }: { count: number }) {
   );
 }
 
-/** Narrow layouts: a row of small backs (capped at 8) above the opponent's mat. */
 export function OppHandHint({
   count,
   cardBackUrl,
@@ -253,7 +242,6 @@ export function OppHandHint({
 }: {
   count: number;
   cardBackUrl: string | null;
-  /** Spectators of unranked rooms: the far player's hand, face up. */
   cards?: readonly HandCard[];
   ownerSeat?: Seat;
 }) {
@@ -304,13 +292,6 @@ export function OppHandHint({
   );
 }
 
-/**
- * Opponent's hand pinned to a spot (the `oppHandSpot` setting). `mat`
- * (desktop): bigger backs on the same arc as your own hand, hanging from the
- * top of the playmat, with the count beside them. `row` (phones, "Opponent
- * hand, top right"): a right-aligned overlapping strip in the opponent hint
- * row, or at the top of the landscape rail.
- */
 export function OppHandCorner({
   count,
   cardBackUrl,
@@ -321,7 +302,7 @@ export function OppHandCorner({
   count: number;
   cardBackUrl: string | null;
   variant: "row" | "mat";
-  /** After the match ends: the hand, face up (#482). Same boxes as the backs, so nothing shifts. */
+  // Same boxes as the backs, so nothing shifts.
   cards?: readonly HandCard[];
   ownerSeat?: Seat;
 }) {
@@ -368,7 +349,6 @@ export function OppHandCorner({
   );
 }
 
-/** Opponent's hand as fanned backs hanging from the top of the rail. */
 export function OppHandFan({
   count,
   cardBackUrl,
@@ -378,9 +358,7 @@ export function OppHandFan({
 }: {
   count: number;
   cardBackUrl: string | null;
-  /** Landscape phones: a one-line count, no fan. */
   compact?: boolean;
-  /** Spectators of unranked rooms: the far player's hand, face up. */
   cards?: readonly HandCard[];
   ownerSeat?: Seat;
 }) {

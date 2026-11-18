@@ -12,7 +12,6 @@ import { usedInSortValue } from "../shopping/ShoppingItemsView";
 import { OwnedInput } from "../OwnedInputs";
 import { COLSORT_COLLECTION_KEY } from "../../storage/keys";
 
-// Value columns in the wide layout: Owned, Market, Value, Cost, Used in.
 const STRIP_COLS = 5;
 
 function collectionColumnValue(item: OwnedCard, key: string) {
@@ -49,12 +48,10 @@ export function CollectionItemsView({
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_COLLECTION_KEY);
   const tableItems = useMemo(() => sortByColumn(items, sort, collectionColumnValue), [items, sort]);
-  // Wide screens (#1329): no Alt arts column; each card's alt tiles sit in a strip row under its numbers.
   const wide = useWideListRows();
   const altCol = showAltArts && !wide;
   if (items.length === 0) return null;
   const hasAltRow = (item: OwnedCard) => showAltArts && (item.alt_arts?.length ?? 0) > 0;
-  // Collection alt tiles are always editable, so they own the per-art counts (base under the Base tile).
   const ownedCell = (item: OwnedCard) => (
     <OwnedCell
       isTotal={ownedCellIsTotal(showAltArts, item.alt_arts?.length ?? 0, true)}

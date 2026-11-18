@@ -1,10 +1,4 @@
 #!/usr/bin/env python3
-"""Pull OPTCG printings from TCGCSV and emit a cosmetics catalog for duel-web.
-
-Curated playable defs stay in packages/rules. This catalog fills Deck Configure
-search / art for every English OPTCG card number TCGCSV knows about. Gameplay
-still auto-stubs unknown defs via ensureCardDef.
-"""
 
 from __future__ import annotations
 
@@ -69,7 +63,6 @@ def normalize_colors(raw: str | None) -> list[str]:
     for part in re.split(r"[;/,&]", raw):
         c = part.strip().lower()
         if c:
-            # Keep lowercase to match curated atlas / filters.
             out.append("don" if c in {"don", "don!!"} else c)
     return out
 
@@ -77,7 +70,6 @@ def normalize_colors(raw: str | None) -> list[str]:
 def normalize_attribute(raw: str | None) -> str | None:
     if not raw:
         return None
-    # Map TCGCSV labels toward deck-configure filters when possible.
     mapping = {
         "strike": "Strike",
         "slash": "Slash",
@@ -121,7 +113,6 @@ def main() -> None:
     groups = get_json(f"{BASE}/groups")["results"]
     print(f"groups={len(groups)}")
 
-    # card_id -> list of candidate printings (prefer non-special, then lowest productId)
     candidates: dict[str, list[dict]] = defaultdict(list)
 
     for i, group in enumerate(groups):
@@ -139,7 +130,6 @@ def main() -> None:
             if not number or not CARD_ID_RE.match(number):
                 continue
             name = (product.get("name") or number).strip()
-            # Drop sealed product lines that slipped through with a number.
             if "display" in name.lower() and "card" not in (ed.get("CardType") or "").lower():
                 if not ed.get("CardType"):
                     continue
@@ -152,7 +142,6 @@ def main() -> None:
             attribute = normalize_attribute(ed.get("Attribute"))
             effect = ed.get("Description") or ed.get("Effect") or ""
             image = product.get("imageUrl") or ""
-            # Prefer 400w-style CDN when possible (TCGPlayer product art).
             product_id = product.get("productId")
             if product_id:
                 image = f"https://tcgplayer-cdn.tcgplayer.com/product/{product_id}_400w.jpg"
@@ -188,7 +177,6 @@ def main() -> None:
         primary_pid = int(best.pop("_productId", 0) or 0)
         if primary_pid > 0:
             best["productId"] = primary_pid
-        # Special / parallel printings become selectable alt arts in Deck Configure.
         alt_arts: list[dict] = []
         seen_urls: set[str] = set()
         primary_url = best.get("imageUrl") or ""
@@ -212,14 +200,12 @@ def main() -> None:
             alt_arts.append(alt)
         if alt_arts:
             best["altArts"] = alt_arts
-        # Drop nullish optional fields to keep JSON smaller.
         catalog[card_id] = {k: v for k, v in best.items() if v is not None and v != []}
 
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(catalog, ensure_ascii=False, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"wrote {len(catalog)} cards → {out} ({out.stat().st_size // 1024} KiB)")
 
-    # Slim gameplay metadata for @optcg/rules auto-stubs (cost/type/name).
     rules_meta: dict[str, dict] = {}
     for card_id, row in catalog.items():
         meta: dict = {
@@ -239,7 +225,6 @@ def main() -> None:
             meta["blocker"] = True
         if row.get("rush"):
             meta["rush"] = True
-        # Printed ability text for auto-stubs / inspect (not rules authority).
         effect_text = row.get("effectText")
         if isinstance(effect_text, str) and effect_text.strip() and effect_text.strip() not in ("—", "-"):
             meta["effectText"] = effect_text.strip()

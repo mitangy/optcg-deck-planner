@@ -1,14 +1,6 @@
 /**
- * Hard bot (#631): determinized lookahead over the generic engine, no per-card scripts.
- *
- * At a decision with two or more meaningful options the bot builds K determinized copies of the match (hidden cards
- * resampled, see determinize.ts), applies each candidate intent to each copy with the real `applyIntent`, plays the rest
- * of the turn out with the "normal" policy for both seats, scores the result (evaluate.ts) and keeps the candidate with
- * the best average score. The normal policy's own pick is always candidate 0 and wins ties and near-ties, so a noisy
- * or out-of-time search degrades to normal rather than to something worse.
- *
- * Anytime: candidates are evaluated in priority order on the first copy, the best few are re-checked on the other
- * copies, and the search stops as soon as the time budget is spent.
+ * The normal policy's own pick is candidate 0 and wins ties and near-ties, so a noisy or out-of-time search degrades
+ * to normal rather than to something worse.
  */
 import { applyIntent, getPlayerView } from "../engine.js";
 import { createSeededRng, type Rng } from "../rng.js";
@@ -28,42 +20,31 @@ import type { BotOptions, BotView } from "./types.js";
 import { boardValue, defValue, findBoardCard } from "./value.js";
 
 export const HARD_DEFAULTS = {
-  /** Wall-clock budget for one decision. */
   budgetMs: 200,
-  /** Determinized copies of the hidden information. */
   samples: 3,
-  /** A candidate must beat the normal policy's pick by this many "cards" (see evaluate.ts) to replace it. */
   margin: 0.2,
-  /** The same, in log odds, when the learned score is used (#635). */
   marginLearned: 0.1,
   /**
-   * Defaults of the #635 options (see BotOptions). The learned score is the default since the v2 MLP (feature set v2 dense features, one
-   * 32-unit hidden layer, no card bag; held-out log-loss 0.445 / accuracy 78.1% on 4200 games against 0.580 / 67.0% for the linear v1 model):
-   * in paired self-play (equal evaluations per decision, 1000 games) Hard with the learned score won 54.6% (95% CI 52-58%) against Hard with the
-   * hand-tuned score, confirmed at 54.7% (52-58%) on fresh deals. The earlier linear v1 model only reached 48.1% (45-51%), so the score stayed
-   * hand-tuned until then (#1095). The same model produces the win probabilities of position analysis.
+   * The learned score is the default since the v2 MLP: in paired self-play (1000 games) Hard with it won 54.6% (95% CI
+   * 52-58%) against the hand-tuned score, confirmed at 54.7% (52-58%) on fresh deals. The earlier linear v1 model only
+   * reached 48.1% (45-51%).
    */
   evalMode: "learned" as "learned" | "hand",
   opponentModel: "normal" as "normal" | "greedy",
   mulligan: "sim" as "sim" | "rule",
-  /** How many candidates are re-checked on the other copies. */
   finalists: 3,
-  /** Candidate caps per kind, so a wide board does not turn into dozens of rollouts. */
+  /** Caps per kind so a wide board does not turn into dozens of rollouts. */
   maxPlays: 6,
   maxAttacks: 6,
   maxGives: 2,
   maxCounters: 8,
-  /** Extra answers tried on a select / look prompt (every legal target, best-ranked first), not counting normal's pick and the engine's default (#1171). */
   maxChoiceTargets: 8,
-  /** A rollout that has not finished after this many intents is cut where it stands. */
   maxRolloutSteps: 200,
 } as const;
 
 type Candidate = Intent;
 const keyOf = (i: Intent): string => JSON.stringify(i);
 const now = (): number => performance.now();
-
-// --- candidates ----------------------------------------------------------------------------------------------
 
 function uniq(base: Intent, rest: Intent[]): Candidate[] {
   const seen = new Set([keyOf(base)]);
@@ -147,14 +128,12 @@ export function choiceCandidates(view: BotView, base: Intent): Candidate[] {
   const pick = (ids: string[]): Intent => ({ type: "resolve_pending_choice", accept: true, selectedOptionIds: ids });
   const extra: Intent[] = [];
   if (r.type === "select") {
-    // Every legal target alone (an attack redirect, a K.O. or bounce target), the empty pick, and one-swap variants of a bigger pick (#1171).
     const ranked = rankedEligible(view, r.options);
     if (r.min <= 1 && 1 <= r.max) extra.push(...ranked.map((o) => pick([o.id])));
     if (r.min === 0) extra.push(pick([]));
     const picked = base.type === "resolve_pending_choice" && base.selectedOptionIds && base.selectedOptionIds.length > 1 ? base.selectedOptionIds : null;
     if (picked) for (const o of ranked) if (!picked.includes(o.id)) for (const out of picked) extra.push(pick(picked.map((id) => (id === out ? o.id : id))));
   } else if (r.type === "look" && base.type === "resolve_pending_choice" && base.selectedOptionIds) {
-    // A search: each card that fits a group, taken alone, with the bot's order for the rest kept.
     const order = [...base.selectedOptionIds, ...(base.orderedOptionIds ?? [])];
     const fits = new Set(r.groups.flatMap((g) => g.eligibleIds));
     const ranked = rankedEligible(view, r.options).filter((o) => fits.has(o.id));
@@ -165,12 +144,9 @@ export function choiceCandidates(view: BotView, base: Intent): Candidate[] {
     if (r.minSelect <= 1 && 1 <= r.maxSelect) extra.push(...ranked.map((o) => variant([o.id])));
     if (r.minSelect === 0) extra.push(variant([]));
   }
-  // The bot's own answer, the engine's default, then the extra answers (capped).
   const have = new Set([base, ...legal.slice(0, 1)].map(keyOf));
   return uniq(base, [...legal.slice(0, 1), ...uniq(base, extra).filter((i) => !have.has(keyOf(i))).slice(0, HARD_DEFAULTS.maxChoiceTargets)]);
 }
-
-// --- rollout ---------------------------------------------------------------------------------------------------
 
 interface Knobs {
   evalMode: "learned" | "hand";
@@ -181,16 +157,11 @@ interface Knobs {
   playbooks: PlaybookSetting;
 }
 
-/** The learned score of a position for `seat`, as a win probability (a finished game is exactly 0 or 1). */
 function winProb(state: MatchState, seat: Seat, w: ValueModel): number {
   if (state.winner !== null) return state.winner === seat ? 1 : 0;
   return 1 / (1 + Math.exp(-evaluateLearned(state, seat, state.turnNumber, w)));
 }
 
-/**
- * The opponent in a rollout when it is modelled as "greedy": normal's main-phase candidates are tried one move ahead and
- * scored with the learned model from the opponent's own side; normal's pick is kept unless another beats it by a margin.
- */
 function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng, w: ValueModel, playbooks: PlaybookSetting): Intent | null {
   const memory = memoryFor(rng, view);
   const base = peekNormalIntent(view, rng, playbooks);
@@ -216,7 +187,6 @@ function greedyMainIntent(s: MatchState, actor: Seat, view: BotView, rng: Rng, w
   return pick;
 }
 
-/** Play `state` forward until the turn counter reaches `endTurn`, someone wins, or the step cap. I play normal; the opponent plays normal or greedy. */
 function rollout(state: MatchState, me: Seat, endTurn: number, seed: number, memory: TurnMemory | null, opponentModel: "normal" | "greedy", weights: ValueModel = VALUE_WEIGHTS, playbooks: PlaybookSetting = true): MatchState {
   const rngs = [createSeededRng(seed), createSeededRng(seed + 1)] as const;
   let s = state;
@@ -225,7 +195,6 @@ function rollout(state: MatchState, me: Seat, endTurn: number, seed: number, mem
     const actor = actingSeat(s);
     const view = getPlayerView(s, actor);
     if (!view.legalIntents.length) break;
-    // The real turn's record (abilities already used, intents so far) carries on into the rollout.
     if (!seeded && actor === me && view.phase === "main" && view.pendingChoices.length === 0) { seedTurnMemory(rngs[me], view, memory!); seeded = true; }
     const greedy = opponentModel === "greedy" && actor !== me && view.phase === "main" && view.pendingChoices.length === 0;
     const intent = greedy ? greedyMainIntent(s, actor, view, rngs[actor], weights, playbooks) : chooseBotIntent(view, { level: "normal", rng: rngs[actor], playbooks });
@@ -253,18 +222,11 @@ function scoreCandidate(det: MatchState, seat: Seat, cand: Candidate, endTurn: n
   }
 }
 
-// --- the search --------------------------------------------------------------------------------------------------
-
-/** Everything a finished search knows, for the bot's pick, tracing and position analysis. */
 export interface SearchResult {
   candidates: Candidate[];
-  /** scores[c][k] on the knobs' scale, null when not evaluated or rejected by the engine. */
   scores: (number | null)[][];
-  /** probs[c][k]: win probability of the rollout's end position. */
   probs: (number | null)[][];
-  /** Samples every candidate in `pool` was completed on. */
   rounds: number;
-  /** Candidates that finished `rounds` samples. */
   pool: number[];
   chosen: number;
   evals: number;
@@ -282,7 +244,6 @@ function knobsFrom(opts: BotOptions): Knobs {
   };
 }
 
-/** The candidates the search looks at for this view, normal's pick first. `all` also searches a lone give_don and ignores the per-turn cap (position analysis). */
 export function candidatesFor(view: BotView, base: Intent, rng: Rng, all = false): Candidate[] {
   const inMain = view.pendingChoices.length === 0 && view.phase === "main";
   if (view.pendingChoices.length > 0) return choiceCandidates(view, base);
@@ -295,10 +256,6 @@ export function candidatesFor(view: BotView, base: Intent, rng: Rng, all = false
   return [base];
 }
 
-/**
- * Score every candidate of the decision on determinized copies of `state`, anytime within the budget. Returns null when
- * there is nothing to compare (fewer than two candidates). Does not record anything in the turn memory.
- */
 export function searchCandidates(state: MatchState, seat: Seat, view: BotView, base: Intent, candidates: Candidate[], rng: Rng, opts: BotOptions, exhaustive = false): SearchResult | null {
   if (candidates.length < 2) return null;
   const knobs = knobsFrom(opts);
@@ -330,7 +287,6 @@ export function searchCandidates(state: MatchState, seat: Seat, view: BotView, b
   let pool: number[] = [];
   let rounds = 1;
   if (!outOfTime()) {
-    // Round 0: every candidate on the first copy, in priority order (normal's pick first).
     const evaluated: number[] = [];
     for (let c = 0; c < candidates.length; c += 1) {
       if (c > 0 && outOfTime()) break;
@@ -340,7 +296,6 @@ export function searchCandidates(state: MatchState, seat: Seat, view: BotView, b
     const ok = evaluated.filter((c) => scores[c]![0] != null);
     pool = ok;
 
-    // Later rounds: only the best few (and always normal's pick) on the remaining copies; a round counts only when complete.
     if (samples > 1 && ok.length > 1) {
       const top = [...ok].sort((a, b) => scores[b]![0]! - scores[a]![0]!).slice(0, exhaustive ? ok.length : D.finalists);
       const finalists = exhaustive || top.includes(0) || scores[0]![0] == null ? top : [0, ...top.slice(0, D.finalists - 1)];
@@ -369,10 +324,6 @@ export function searchCandidates(state: MatchState, seat: Seat, view: BotView, b
   return { candidates, scores, probs, rounds, pool, chosen, evals };
 }
 
-/**
- * The intent the hard bot sends for `seat`, or null when it is not that seat's move. Never reads `state` outside what
- * `getPlayerView(state, seat)` shows, except through `determinize`, which resamples every hidden card.
- */
 export function chooseHardIntent(state: MatchState, seat: Seat, opts: BotOptions = {}): Intent | null {
   const view = getPlayerView(state, seat);
   if (!view.legalIntents.length) return null;

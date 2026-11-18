@@ -5,7 +5,6 @@ import { getPlannerUrl } from "../../config";
 import { NavMenu } from "../../nav/NavMenu";
 import { googleLoginUrl } from "../../net/api";
 
-/** The home page's own top bar (the other pages use `PageShell`): menu, wordmark, sign-in, account chip, shortcuts. */
 export function LobbyTopbar({ authMode, accountName, bounty }: { authMode: "guest" | "google" | "dev"; accountName: string; bounty: number | null }) {
   return (
     <header className="topbar">

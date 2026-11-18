@@ -2,7 +2,6 @@ import { MetaPage } from "./MetaPage";
 import { PublicTopbar } from "../ui/PublicTopbar";
 import { UpdateNotice } from "../app/UpdateNotice";
 
-/** `/meta` for a visitor who is not signed in: the slim public header around the meta browser. */
 export function PublicMetaScreen() {
   return (
     <div className="app public-app">

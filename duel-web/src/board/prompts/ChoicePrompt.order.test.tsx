@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { PendingChoiceView } from "../../net/protocol";
 import { ChoicePrompt } from "./ChoicePrompt";
 
-// Card art reads saved art prefs; server rendering has no storage.
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 
 function lookChoice(rest: "deck_top" | "deck_bottom" | "top_or_bottom"): PendingChoiceView {
@@ -28,7 +27,6 @@ function lookChoice(rest: "deck_top" | "deck_bottom" | "top_or_bottom"): Pending
   } as unknown as PendingChoiceView;
 }
 
-/** Rows of the put-back list, top of deck first. */
 function render(rest: "deck_top" | "deck_bottom" | "top_or_bottom"): string {
   return renderToStaticMarkup(<ChoicePrompt choice={lookChoice(rest)} mySeat={0} onSend={() => {}} />);
 }

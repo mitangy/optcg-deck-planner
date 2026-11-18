@@ -1,9 +1,7 @@
-/** Reading the model's JSON answer and grading it exactly against the gold (#677). */
 import type { Gold, ParsedAnswer } from "./types";
 
 const FENCE = /```[ \t]*(?:json|JSON)?[ \t]*\r?\n?([\s\S]*?)```/g;
 
-/** Top-level `{...}` spans in plain text, for an answer that came without a fence. */
 function braceSpans(text: string): string[] {
   const spans: string[] = [];
   let depth = 0;
@@ -26,7 +24,6 @@ function braceSpans(text: string): string[] {
   return spans;
 }
 
-/** The last fenced JSON block of the reply (or, with no fence, its last `{...}` object), parsed. Unparseable is not ok. */
 export function parseAnswer(text: string): ParsedAnswer {
   const fenced = [...text.matchAll(FENCE)].map((m) => m[1]!.trim()).filter(Boolean);
   const candidates = fenced.length ? fenced : braceSpans(text);
@@ -42,7 +39,6 @@ export function parseAnswer(text: string): ParsedAnswer {
 const CARD_ID = /\b(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})\b/i;
 const plain = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-/** A card number the way the gold writes it: an id inside the string, else the one card of the puzzle with that name, else the text itself. */
 export function normalizeCard(item: string, known: readonly { id: string; name: string }[] = []): string {
   const id = item.match(CARD_ID)?.[1];
   if (id) return id.toUpperCase();
@@ -58,7 +54,6 @@ const numberOf = (v: unknown): number | undefined => {
   return undefined;
 };
 
-/** The field the gold names; a bare value or a one-field object is read as that field (unless `strict`, for one part of several). */
 function fieldOf(value: unknown, key: string, strict = false): unknown {
   if (value && typeof value === "object" && !Array.isArray(value)) {
     const o = value as Record<string, unknown>;
@@ -69,7 +64,6 @@ function fieldOf(value: unknown, key: string, strict = false): unknown {
   return strict ? undefined : value;
 }
 
-/** An "all" gold: every part is graded on its own field of the answer object, and the reason names the parts that failed. */
 function gradeAll(gold: Extract<Gold, { mode: "all" }>, value: unknown, known: readonly { id: string; name: string }[]): Graded {
   const results = gold.parts.map((part) => ({ part, graded: gradeField(part, fieldOf(value, part.key, true), known) }));
   const failed = results.filter((r) => !r.graded.correct).map((r) => r.part.key);
@@ -83,7 +77,6 @@ export function gradeAnswer(gold: Gold, parsed: ParsedAnswer, known: readonly { 
   return gold.mode === "all" ? gradeAll(gold, parsed.value, known) : gradeField(gold, fieldOf(parsed.value, gold.key), known);
 }
 
-/** One gold against the value found in its field. */
 function gradeField(gold: Gold, field: unknown, known: readonly { id: string; name: string }[]): Graded {
   if (gold.mode === "all") return gradeAll(gold, field, known);
   if (gold.mode === "number") {

@@ -3,8 +3,6 @@ import { getPlayerView, getSpectatorView } from "../engine.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { CardInstance } from "../types.js";
 
-// Weekly Stryker survivors 2026-11-16.
-
 const SPANDAM_LEADER = "OP18-079"; // [Spandam] Leader (Buster Call needs it)
 const VIVI_LEADER = "OP04-001"; // [Nefeltari Vivi] Leader (Stop Fighting!!! needs it)
 const CP_LEADER = "OP03-076"; // Rob Lucci, {CP9} Leader (OP18-105's Trigger needs a "CP" type)
@@ -38,7 +36,6 @@ describe("Buster Call plays from deck or trash (H1)", () => {
 });
 
 describe("\"all of your Life\" costs (R1)", () => {
-  /** Seat 1 holds OP18-020 [Counter] with a [Nefeltari Vivi] Leader: the cost is "add all of your Life cards to your hand". */
   function stopFighting(life: string[]) {
     const h = new Harness({ leaders: ["ST01-001", VIVI_LEADER] });
     h.life(1, ...life);
@@ -106,10 +103,9 @@ describe("\"all of your Life\" costs (R1)", () => {
 });
 
 describe("OP18-105 Spandam activates the [Trigger] of a revealed card (R2)", () => {
-  const SIX_KING = "OP03-096"; // {CP9} Event, [Trigger] Draw 2 cards
-  const FUKUROU = "OP03-088"; // {CP9} Character with no [Trigger]
+  const SIX_KING = "OP03-096";
+  const FUKUROU = "OP03-088";
 
-  /** Seat 1 (CP9 Leader) has OP18-105 as its top Life card and takes a hit; its [Trigger] is activated. */
   function spandamTrigger(hand: string[]) {
     const h = new Harness({ leaders: ["ST01-001", CP_LEADER] });
     h.life(1, SPANDAM_STAGE_CHAR, FILLER);
@@ -143,12 +139,12 @@ describe("OP18-105 Spandam activates the [Trigger] of a revealed card (R2)", () 
 });
 
 describe("a `not` condition is the opposite of its inner condition (R3)", () => {
-  const LAW = "EB04-005"; // cannot attack unless the opponent has 2+ Characters with 5000+ base power
-  const EMET = "EB04-051"; // cannot attack unless there is a Character with 12000+ base power
-  const JINBE = "ST01-005"; // 5000 base power
-  const ROBIN = "ST01-008"; // 5000 base power
-  const SANJI = "ST01-004"; // 4000 base power
-  const KAIDO = "OP01-094"; // 12000 base power
+  const LAW = "EB04-005";
+  const EMET = "EB04-051";
+  const JINBE = "ST01-005";
+  const ROBIN = "ST01-008";
+  const SANJI = "ST01-004";
+  const KAIDO = "OP01-094";
 
   it("EB04-005 Law attacks only once the opponent has two Characters with 5000+ base power (#1320)", () => {
     const attackable = (opp: string[]) => {
@@ -194,7 +190,7 @@ describe("effects that choose a Stage find it on the field (R4)", () => {
 
   it("OP02-118 Yasakani Sacred Jewel's [Trigger] K.O.s the attacker's Stage with a cost of 3 or less (#1320)", () => {
     const h = new Harness();
-    h.stage(0, "OP15-057"); // cost 1
+    h.stage(0, "OP15-057");
     h.life(1, "OP02-118", FILLER);
     attackLeader(h);
     h.act(1, { type: "pass_block" });
@@ -207,7 +203,7 @@ describe("effects that choose a Stage find it on the field (R4)", () => {
 });
 
 describe("trash rows carry art-copy ranks (V1)", () => {
-  const SLEEPTIDS = "OP18-093"; // any number of copies allowed in a deck
+  const SLEEPTIDS = "OP18-093";
 
   it("a trash mixing an any-number card and an ordinary card still reports ranks, null for the ordinary one (#1320)", () => {
     const h = new Harness();

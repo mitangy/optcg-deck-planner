@@ -1,4 +1,3 @@
-/** Duel settings saved to a signed-in player's account (device-only fields stay local). */
 import {
   applyRemoteSettings,
   currentSettings,
@@ -10,7 +9,6 @@ import { fetchAccountSettings, putAccountSettings } from "../net/prefsApi";
 const PUSH_DELAY_MS = 600;
 
 let stop: (() => void) | null = null;
-/** Bumped by every start / stop: a load that settles under an older value was cancelled. */
 let syncGen = 0;
 
 export async function syncSettings(): Promise<void> {
@@ -64,7 +62,6 @@ export async function syncSettings(): Promise<void> {
       await putAccountSettings(syncedSettings(currentSettings())).catch(() => undefined);
     }
   }
-  // First sign-in: the account starts from this browser's settings.
   else await putAccountSettings(local).catch(() => undefined);
 }
 

@@ -1,4 +1,3 @@
-/** 08-ranked (5s): a ranked match with its seat clock, then the leaderboard with your highlighted row. */
 import { sleep } from "../lib/util";
 import { finishTake, newWindow, startTake } from "../lib/take";
 import { MIKO, ZORO, profileDecks } from "../lib/data";
@@ -25,7 +24,6 @@ export async function run(): Promise<void> {
     await Promise.all([t.goto("/"), z.win.page.goto("http://127.0.0.1:5274/")]);
     await p.locator(".friend-row").first().waitFor();
     await sleep(2000);
-    // Off camera: both players queue for Ranked and the server pairs them.
     await p.getByRole("button", { name: /^Ranked/ }).first().click();
     await sleep(500);
     await z.win.page.getByRole("button", { name: /^Ranked/ }).first().click();
@@ -43,7 +41,6 @@ export async function run(): Promise<void> {
     await t.pointer.hover({ x: 1500, y: 700 }, { ms: 900 });
     await sleep(1100);
     await shot("1");
-    // Then the ladder: your row, highlighted.
     t.rec.cut();
     await t.goto("/leaderboard");
     await p.locator(".bounty-row, .leaderboard-row, tr").first().waitFor();

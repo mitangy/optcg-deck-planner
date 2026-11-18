@@ -1,4 +1,3 @@
-"""Price alerts and the in-app notification inbox (#855)."""
 
 from __future__ import annotations
 
@@ -29,7 +28,6 @@ from app.planner.schemas import (
 router = APIRouter(tags=["price-alerts"])
 
 MAX_ALERTS_PER_USER = 200
-# Per signed-in user; writes only (reads are cheap).
 _write_limiter = RateLimiter(max_calls=60, period_s=60, name="price_alert_write_limiter")
 
 CurrentUser = Annotated[User, Depends(get_current_user)]

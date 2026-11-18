@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-"""Export trained weights to a compact ONNX for onnxruntime-web (#701).
-
-    python export_onnx.py /tmp/det-runs/round3.pt out/card-detector.onnx
-
-- dynamic H/W (the browser runs at the photo's own aspect, long side 640)
-- no NMS in the graph (cardDetectModel.ts decodes and suppresses on quads)
-- float32 *weights are stored as float16* with a Cast back to float32 in the
-  graph; onnxruntime folds the Cast at load, so inference is plain float32 but
-  the file is half the size (~5 MB).
-
-Prints the sha256 prefix used for the served file name.
-"""
 import hashlib, os, shutil, sys
 import numpy as np
 import onnx
@@ -49,7 +37,6 @@ def main():
     onnx.save(model, out)
     data = open(out, "rb").read()
     print(f"{out}: {len(data) / 1e6:.2f} MB, sha256 {hashlib.sha256(data).hexdigest()[:16]}")
-    # sanity: fp32 export and halved model agree
     import onnxruntime as ort
     x = np.random.RandomState(0).rand(1, 3, 480, 288).astype(np.float32)
     a = ort.InferenceSession(path).run(None, {"images": x})[0]

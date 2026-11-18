@@ -1,7 +1,3 @@
-/**
- * Meta page (#443): leaders from the faked /meta API, a leader's decklists, the
- * Top 8 filter, expanding a list, and Create deck. Runs at desktop-1200 and phone-375.
- */
 import { expect, formatIssues, test, DECK_ID } from "./fixtures";
 import { expectStationary } from "./audit";
 

@@ -57,7 +57,6 @@ describe("game review on a real recording (#967)", () => {
         expect(got, `step ${i} ${intent.type}`).toBeDefined();
         expect(got!.samples).toBeGreaterThan(0);
         expect(withIt.length).toBe(base.length + 1);
-        // An intent the bot already considers is not added twice.
         expect(rankOptions(state, seat, { budgetMs: 30, samples: 2, rng: rng(), include: [base[0]!.intent] })).toHaveLength(base.length);
         checked++;
       }

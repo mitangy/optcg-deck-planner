@@ -83,7 +83,6 @@ def test_picked_deck_alt_owned_only_via_collector_is_still_bought_1031(db):
 
     item = shopping_svc.shopping_list(db, user).items[0]
 
-    # The owned gold belongs to the collector want, so the deck's gold pick is still bought.
     assert item.still_need == 2
     assert item.remaining_cost == 30.0 + 1.0
 
@@ -96,7 +95,7 @@ def test_totals_include_collector_still_needed_and_cost_1031(db):
     res = shopping_svc.shopping_list(db, user)
     item = res.items[0]
 
-    assert item.need == 4  # collector copies never raise a deck's need
+    assert item.need == 4
     assert item.still_need == 4
     line = item.collector_wants[0]
     assert (line.label, line.market_price, line.still_need, line.remaining_cost) == (
@@ -153,7 +152,7 @@ def test_printing_views_carry_collector_and_true_owned_1031(db):
     assert (gold.owned, gold.collector) == (2, 1)
     assert (shop_gold.owned, shop_gold.collector) == (2, 1)
     assert card.collector_want == 1
-    assert card.still_need == 2  # 4 - 1 base - 1 gold left for decks
+    assert card.still_need == 2
 
 
 def test_collector_endpoint_sets_rejects_base_and_zero_deletes_1031(db):
@@ -177,7 +176,6 @@ def test_collector_endpoint_sets_rejects_base_and_zero_deletes_1031(db):
 
 def test_collector_copies_are_not_tradeable_spares_for_friends_1032(db):
     user = _seed(db)
-    # Own 2 gold, collector want 1, no deck: one is claimed by the collector want, one is spare.
     owned_svc.set_alt_owned(db, user, NAMI, GOLD, 2)
     owned_svc.set_collector_want(db, user, NAMI, GOLD, 1)
 
@@ -187,7 +185,6 @@ def test_collector_copies_are_not_tradeable_spares_for_friends_1032(db):
     assert held[NAMI].reserved == 1
     assert held[NAMI].spare == 1
 
-    # Own 1 gold and want 1: the only copy fills the collector want, nothing is spare.
     owned_svc.set_alt_owned(db, user, NAMI, GOLD, 1)
     held, _ = friend_view.holdings(db, user)
 
@@ -195,7 +192,6 @@ def test_collector_copies_are_not_tradeable_spares_for_friends_1032(db):
 
 
 def _seed_two_decks(db):
-    """Deck A holds Nami, deck B holds Zoro; each card has a gold collector want."""
     user = _seed(db)
     add_catalog(db, ZORO, name="Zoro", product_id=2, market=2.0)
     add_catalog(db, ZORO, name="Zoro Gold", product_id=ZORO_GOLD, market=50.0, special=True)
@@ -213,7 +209,7 @@ def test_deck_filter_still_lists_extra_copies_of_cards_not_in_the_selected_decks
 
     zoro = next(i for i in res.items if i.card_id == ZORO)
     assert sorted(i.card_id for i in res.items) == [NAMI, ZORO]
-    assert (zoro.need, zoro.still_need) == (0, 0)  # Zoro's deck is not ticked: only his gold is listed
+    assert (zoro.need, zoro.still_need) == (0, 0)
     assert [(w.product_id, w.still_need) for w in zoro.collector_wants] == [(ZORO_GOLD, 2)]
     assert res.collector_copies == 3
     assert res.remaining_market == 4 * 1.0 + 30.0 + 2 * 50.0
@@ -227,7 +223,7 @@ def test_deck_filter_counts_extra_copies_of_selected_and_unselected_decks_alike_
     zoro = next(i for i in res.items if i.card_id == ZORO)
     assert [i.card_id for i in res.items] == [NAMI, ZORO]
     assert [(w.product_id, w.still_need) for w in zoro.collector_wants] == [(ZORO_GOLD, 2)]
-    assert res.remaining_market == 3 * 2.0 + 100.0 + 30.0  # Nami's deck is off, her gold is not
+    assert res.remaining_market == 3 * 2.0 + 100.0 + 30.0
 
 
 def test_unfiltered_list_counts_every_extra_copy_1182(db):
@@ -250,9 +246,9 @@ def test_hiding_added_cards_still_lists_collector_only_cards_1208(db):
 
     sanji = next(i for i in hidden.items if i.card_id == "OP01-001")
     assert sorted(i.card_id for i in hidden.items) == ["OP01-001", NAMI, ZORO]
-    assert (sanji.need, sanji.still_need, sanji.extra_qty) == (0, 0, 0)  # the added Sanji is hidden
+    assert (sanji.need, sanji.still_need, sanji.extra_qty) == (0, 0, 0)
     assert [w.product_id for w in sanji.collector_wants] == [300]
-    assert hidden.remaining_market == 4 * 1.0 + 30.0 + 3 * 2.0 + 100.0 + 40.0  # his gold, not the $5 single
+    assert hidden.remaining_market == 4 * 1.0 + 30.0 + 3 * 2.0 + 100.0 + 40.0
 
 
 def test_extra_copies_are_the_only_switch_for_collector_only_cards_1208(db):
@@ -324,11 +320,11 @@ def test_extra_copies_off_drops_the_line_and_its_cost_but_keeps_the_owned_reserv
 
     item = off.items[0]
     assert item.collector_wants == []
-    assert (item.alts_owned, item.still_need) == (0, 4)  # the owned gold stays held back
+    assert (item.alts_owned, item.still_need) == (0, 4)
     assert (item.alts_owned, item.still_need) == (on.items[0].alts_owned, on.items[0].still_need)
     assert off.collector_copies == 0
     assert off.cards_still_needed == 4
-    assert off.remaining_market == 4 * 1.0  # no alt cost, no gold cost
+    assert off.remaining_market == 4 * 1.0
     assert on.remaining_market == 4 * 1.0 + 2 * 20.0
 
 

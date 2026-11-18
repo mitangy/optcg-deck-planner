@@ -1,7 +1,3 @@
-/**
- * Everything the replay page needs from a recording: the timeline built in the background,
- * where you are in it, and the board view and battle log for that moment.
- */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createTimelineBuilder,
@@ -23,10 +19,8 @@ import { createReplayCursor, nextTurnStep, playDelay, prevTurnStep, turnAtStep, 
 import { replayStatus, type ReplayStatus } from "./replayStatus";
 import { backToGameStep, currentState, openBranch, playMove, undoMove, type Branch, type MoveApplier, type RecordedMove } from "./replayBranch";
 
-/** A line the viewer is playing that the recording did not (#966); see replayBranch.ts. */
 export type ReplayBranch = Branch<MatchState, Intent, GameEvent>;
 
-/** Intents rebuilt per slice, so the page stays responsive and can show progress. */
 const BUILD_SLICE = 40;
 
 export type ReplayControlsState = {
@@ -38,10 +32,8 @@ export type ReplayControlsState = {
   speed: PlaySpeed;
   revealAll: boolean;
   cameraSeat: Seat;
-  /** The viewer's own seat: whose side "What I saw" follows. */
   yourSeat: Seat;
   playerNames: [string, string];
-  /** Set while the viewer plays a line of their own: the turn it left the recording on and how many moves it holds. */
   branch: { turn: number; moves: number } | null;
 };
 
@@ -54,14 +46,8 @@ export type ReplayControlsActions = {
   goTurn(turn: number): void;
   setSpeed(speed: PlaySpeed): void;
   setRevealAll(on: boolean): void;
-  /** Take back the last move of the viewer's line; the last one back returns to the recording. */
   undoMove(): void;
-  /** Leave the viewer's line and return to the step it started from on the recording. */
   backToGame(): void;
-  /**
-   * Open a line at main-line `step` with `moves` already played (for example the best move, #967). Pauses playback.
-   * Returns an error message when the engine refuses one of the moves (nothing is opened then), otherwise null.
-   */
   startBranch(step: number, moves: readonly RecordedMove<Intent>[]): string | null;
 };
 
@@ -74,11 +60,8 @@ export type Replay =
       timeline: ReplayTimeline;
       view: PlayerView;
       battleLog: BattleLogEntry[];
-      /** True for any move other than one step forward or playback: no sounds or card spotlights. A move the viewer makes is not quiet. */
       quiet: boolean;
-      /** The board is live: send the viewer's move here. */
       sendIntent(intent: WireIntent): void;
-      /** Why the last move was refused, until the next move or step. */
       error: string | null;
       clearError(): void;
       atEnd: boolean;
@@ -88,7 +71,6 @@ export type Replay =
 
 type Build = { phase: "building"; progress: number } | { phase: "failed" } | { phase: "done"; timeline: ReplayTimeline };
 
-/** The engine as the viewer's own moves meet it: the recording's seed, no reseeds (those belong to recorded intents). */
 function applier(timeline: ReplayTimeline): MoveApplier<MatchState, Intent, GameEvent> {
   return (state, seat, intent) => applyBranchIntent(state, timeline.replay, seat, intent);
 }
@@ -150,7 +132,6 @@ export function useReplay(payload: ReplayPayload): Replay {
 
   const cursor = useMemo(() => (timeline ? createReplayCursor(timeline) : null), [timeline]);
 
-  // Playback: one step per tick; a new turn lingers a little.
   useEffect(() => {
     if (!playing || !timeline) return;
     if (step >= total) {
@@ -169,7 +150,6 @@ export function useReplay(payload: ReplayPayload): Replay {
   stepRef.current = step;
   const branchRef = useRef(branch);
   branchRef.current = branch;
-  // Any main-line control leaves the viewer's line.
   const goTo = useCallback(
     (next: number, opts: { quiet?: boolean } = {}) => {
       const clamped = Math.min(Math.max(0, Math.round(next)), total);
@@ -188,7 +168,6 @@ export function useReplay(payload: ReplayPayload): Replay {
         setError(null);
         setPlaying((on) => {
           if (on) return false;
-          // Play from the end starts over.
           if (stepRef.current >= total) {
             setQuiet(true);
             setStep(0);
@@ -252,7 +231,6 @@ export function useReplay(payload: ReplayPayload): Replay {
   const mainState = useMemo(() => (cursor ? cursor.stateAt(step) : null), [cursor, step]);
   const state = useMemo(() => (mainState ? currentState(mainState, branch) : null), [mainState, branch]);
 
-  // The board is live: the view is the player view of the seat that has to act, like hotseat without the hand-off.
   const live = useMemo(() => {
     if (!state) return null;
     const [v0, v1] = getLiveReplayViews(state);
@@ -282,7 +260,7 @@ export function useReplay(payload: ReplayPayload): Replay {
       setPlaying(false);
       setQuiet(false);
       // A handler can send several moves in one go (one give_don per DON, one counter per card) before React
-      // re-renders, so the next send must already see this one: move the refs now, not on the next render (#971).
+      // re-renders, so the next send must already see this one: move the refs now, not on the next render.
       if (outcome.kind === "advance") {
         stepRef.current = outcome.step;
         setStep(outcome.step);
@@ -294,7 +272,6 @@ export function useReplay(payload: ReplayPayload): Replay {
     [timeline, cursor],
   );
 
-  // Narrate every step once per mode (log ids are random), then show the lines up to the current step.
   const narration = useMemo(() => {
     if (!timeline) return null;
     const lines: BattleLogEntry[] = [];
@@ -312,7 +289,6 @@ export function useReplay(payload: ReplayPayload): Replay {
     return { lines, upTo };
   }, [timeline, yourSeat, revealAll]);
   const mainLog = useMemo(() => (narration ? narration.lines.slice(0, narration.upTo[step] ?? 0) : []), [narration, step]);
-  // On a line of the viewer's own, the log is the recording up to where it left, then what the line has done.
   const battleLog = useMemo(() => {
     if (!branch || !timeline) return mainLog;
     const instances = new Map<InstanceId, { defId: string; seat: Seat }>(timeline.boardCards);

@@ -20,7 +20,6 @@ export function botGame(seed: number, level: "easy" | "normal" = "easy"): BotGam
   return playBotGame({ seed, players: [randomDeck(rng), randomDeck(rng)], levels: [level, level] });
 }
 
-/** The first finished game with at least `minTurns` turns, searching upward from `from`. */
 export function finishedGame(minTurns: number, from = 1): { replay: MatchReplay; result: BotGameResult } {
   for (let seed = from; seed < from + 60; seed += 1) {
     const result = botGame(seed);
@@ -29,7 +28,6 @@ export function finishedGame(minTurns: number, from = 1): { replay: MatchReplay;
   throw new Error(`no finished game with ${minTurns} turns`);
 }
 
-/** Play legal moves until a Life card is taken as damage. */
 export function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameEvent, { type: "life_taken" }> } {
   const players: MatchReplay["players"] = [
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
@@ -58,5 +56,4 @@ export function gameWithLifeTaken(): { replay: MatchReplay; taken: Extract<GameE
 }
 
 let lifeGame: ReturnType<typeof gameWithLifeTaken> | undefined;
-/** The same game for every caller in one test file: the replay and the Life card it takes. */
 export const lifeTakenGame = () => (lifeGame ??= gameWithLifeTaken());

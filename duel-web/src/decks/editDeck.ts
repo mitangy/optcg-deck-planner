@@ -8,10 +8,8 @@ export type DeckEditResult =
   | { ok: true; deck: SavedDeck }
   | { ok: false; error: string };
 
-/** Result of an edit on a bare card list (the deck editor's unsaved draft). */
 export type CardsEditResult = { ok: true; cards: string[] } | { ok: false; error: string };
 
-/** The part of a deck the editor changes before Save. */
 export type DeckDraft = { name: string; leaderId: string; cards: string[] };
 
 export const BLANK_DECK_NAME_ERROR = "Enter a deck name.";
@@ -21,7 +19,6 @@ function countInDeck(cards: readonly string[], defId: string): number {
   return cards.reduce((n, id) => (id === defId ? n + 1 : n), 0);
 }
 
-/** Add one copy of `defId` to a main-deck list (not the leader slot). */
 export function addCard(cards: readonly string[], defId: string): CardsEditResult {
   const entry = lookupCard(defId);
   if (entry.type === "leader") {
@@ -41,7 +38,6 @@ export function addCard(cards: readonly string[], defId: string): CardsEditResul
   return { ok: true, cards: [...cards, defId] };
 }
 
-/** Remove one copy of `defId` from a main-deck list. */
 export function removeCard(cards: readonly string[], defId: string): CardsEditResult {
   const idx = cards.lastIndexOf(defId);
   if (idx < 0) return { ok: false, error: `${defId} is not in this deck` };
@@ -51,7 +47,6 @@ export function removeCard(cards: readonly string[], defId: string): CardsEditRe
   return { ok: true, cards: next };
 }
 
-/** Remove every copy of `defId` from a main-deck list. */
 export function removeAllCopies(cards: readonly string[], defId: string): CardsEditResult {
   if (!cards.includes(defId)) {
     return { ok: false, error: `${defId} is not in this deck` };
@@ -62,13 +57,8 @@ export function removeAllCopies(cards: readonly string[], defId: string): CardsE
   };
 }
 
-/** One card's change from Log Pose's Apply card: `before` copies now, `after` copies wanted. */
 export type DeckOp = { id: string; before: number; after: number };
 
-/**
- * Apply Log Pose's suggested changes to a card list (#400). Refuses, and changes nothing, when a card is not at the
- * count the suggestion was made for (the deck moved since) or when it names a leader.
- */
 export function applyOps(cards: readonly string[], ops: DeckOp[]): CardsEditResult {
   for (const op of ops) {
     if (lookupCard(op.id).type === "leader") return { ok: false, error: "Leaders cannot be added to the main deck" };
@@ -85,7 +75,6 @@ export function applyOps(cards: readonly string[], ops: DeckOp[]): CardsEditResu
   return { ok: true, cards: next };
 }
 
-/** Whether the draft differs from the saved deck: another name, another leader, or other cards (order does not matter) (#481, #526). */
 export function isDeckDirty(saved: DeckDraft, draft: DeckDraft): boolean {
   if (saved.name.trim() !== draft.name.trim()) return true;
   if (saved.leaderId !== draft.leaderId) return true;
@@ -104,7 +93,6 @@ function persist(deck: SavedDeck, cards: string[]): SavedDeck {
   });
 }
 
-/** Run a card-list edit on a stored deck and save the result straight away. */
 function editStored(deckId: string, edit: (cards: readonly string[]) => CardsEditResult): DeckEditResult {
   const deck = getSavedDeck(deckId);
   if (!deck) return { ok: false, error: "Deck not found" };
@@ -113,22 +101,18 @@ function editStored(deckId: string, edit: (cards: readonly string[]) => CardsEdi
   return { ok: true, deck: persist(deck, result.cards) };
 }
 
-/** Add one copy of `defId` to a stored deck's main deck and save. */
 export function addCardToDeck(deckId: string, defId: string): DeckEditResult {
   return editStored(deckId, (cards) => addCard(cards, defId));
 }
 
-/** Remove one copy of `defId` from a stored deck and save. */
 export function removeCardFromDeck(deckId: string, defId: string): DeckEditResult {
   return editStored(deckId, (cards) => removeCard(cards, defId));
 }
 
-/** Remove every copy of `defId` from a stored deck and save. */
 export function removeAllCopiesFromDeck(deckId: string, defId: string): DeckEditResult {
   return editStored(deckId, (cards) => removeAllCopies(cards, defId));
 }
 
-/** Apply Log Pose's suggested changes to a stored deck as one save (#400). */
 export function applyDeckOps(deckId: string, ops: DeckOp[]): DeckEditResult {
   return editStored(deckId, (cards) => applyOps(cards, ops));
 }
@@ -137,10 +121,6 @@ export function countCardInDeck(deck: Pick<SavedDeck, "cards">, defId: string): 
   return countInDeck(deck.cards, defId);
 }
 
-/**
- * Save the editor's draft as the deck (#481). Keeps art prefs only for cards still in the deck. A blank name is
- * refused (#526). A planner-linked deck needs nothing more: the account sync carries the edit to the planner.
- */
 export function saveDeckDraft(deckId: string, draft: DeckDraft): DeckEditResult {
   const deck = getSavedDeck(deckId);
   if (!deck) return { ok: false, error: "Deck not found" };

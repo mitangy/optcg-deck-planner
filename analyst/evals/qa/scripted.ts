@@ -1,9 +1,3 @@
-/**
- * A scripted stand-in for the Claude API, for the harness tests and the dry run (`--model-api scripted`).
- * `scriptedModel` plays replies from a function; `oracleScript` is a fake model that looks up what each case
- * needs, then answers with the gold's facts and cites the sources the gold wants. It proves the plumbing
- * and the graders, not Log Pose.
- */
 import type { CallModel, ModelReply, Usage } from "../../src/chat";
 import { streamReply } from "../../src/testkit";
 import type { Catalog } from "../../src/catalog";
@@ -43,7 +37,6 @@ export const toolReply = (calls: { name: string; input: unknown }[], model: stri
   model,
 });
 
-/** Every search result the tools returned so far in this conversation, by source id. */
 function sourcesIn(params: ScriptContext["params"]): Map<string, { title: string; text: string }> {
   const out = new Map<string, { title: string; text: string }>();
   for (const m of (params.messages ?? []) as { role: string; content: unknown }[]) {
@@ -58,13 +51,11 @@ function sourcesIn(params: ScriptContext["params"]): Map<string, { title: string
   return out;
 }
 
-/** The tool calls an ideal model would make for a case, read from what the gold expects it to cite. */
 export function toolCallsFor(c: EvalCase, gold: Gold): { name: string; input: unknown }[] {
   const calls: { name: string; input: unknown }[] = [];
   if (c.group === "C") {
     calls.push({ name: c.tool, input: c.args });
     if (gold.cites.all.some((g) => g.some((r) => r.startsWith("deck:"))) && c.tool !== "analyze_deck") calls.push({ name: "analyze_deck", input: { text: c.deck } });
-    // An ideal model looks up the card it names as the problem.
     if (gold.offending?.length) calls.push({ name: "get_cards", input: { ids: gold.offending } });
     return calls;
   }
@@ -128,7 +119,6 @@ function answerFor(c: EvalCase, gold: Gold, catalog: Catalog, sources: Map<strin
   return out.join("\n");
 }
 
-/** A fake model that answers a case right: it makes the lookups the gold implies, then answers with the gold's facts and cites what the gold wants. */
 export function oracleScript(c: EvalCase, gold: Gold, catalog: Catalog, model: string): Script {
   return ({ params, call }) => {
     if (call === 0) return toolReply(toolCallsFor(c, gold), model);

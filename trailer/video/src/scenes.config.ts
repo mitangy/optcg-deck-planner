@@ -1,24 +1,3 @@
-/**
- * SINGLE TUNING FILE for the trailer edit.
- *
- *  - CLIPS      clip manifest: id -> file, default trim start, nominal duration.
- *               (the real duration is probed by `npm run prerender`; if a real
- *               clip is shorter than a scene needs, its last frame is held)
- *  - SCENES     the timeline: when each clip is on screen, how it is trimmed /
- *               sped up, how it cuts in, and the camera "focus" keyframes.
- *  - CAPTIONS   the on-screen lines (kinetic type) and when they live.
- *  - END_CARD   what the final desktop + phone frames show.
- *
- * All times are SECONDS. The edit is on a 120 BPM grid: keep `start` and
- * `dur` multiples of 0.5 so cuts land on the beat (a warning prints in the
- * console if one is off-grid).
- *
- * FOCUS: a rect in normalised clip coordinates (0..1), x/y = top-left,
- * w/h = size. The camera zooms/pans so that rect fills the frame (zoom is
- * limited to what keeps the view inside the footage). `at` is seconds from the
- * scene start; the camera springs to each rect when its `at` is reached.
- * `r(x, y, w)` is shorthand for a 16:9-shaped rect (h = w).
- */
 import type {ClipId, ClipDef, FocusKey, SceneDef, CaptionDef, Rect, Edit} from './types';
 
 export const r = (x: number, y: number, w: number): Rect => ({x, y, w, h: w});
@@ -43,30 +22,22 @@ export const CLIPS: Record<ClipId, ClipDef> = {
 
 export const TOTAL_SECONDS = 68.5;
 
-/**
- * Transitions INTO a scene (all land on the beat, run ~0.27s):
- *  cut | fade | zoom (push-in) | wipe-right / wipe-left (diagonal gold-edged wipe)
- */
 export const SCENES: SceneDef[] = [
   {
     id: 'landing', clip: '01-landing', start: 0, dur: 5, transition: 'cut',
-    // 1.2s of logo reveal plays before the footage; the 5s clip is sped up so it fits.
     clipDelay: 1.2, rate: 1.3,
     focus: [f(0, FULL), f(1.8, r(0.18, 0.02, 0.64)), f(3.6, r(0.22, 0.06, 0.56))],
   },
-  // 02: hand -> play Sanji -> DON!! attach -> attack arrow -> opponent reveals a life card. 1.3x from clip 1.3s.
   {
     id: 'turn', clip: '02-turn', start: 5, dur: 8.5, trimStart: 1.3, rate: 1.3, transition: 'zoom',
     eyebrow: 'Drag. Attach. Attack.',
     focus: [f(0, r(0.0, 0.1, 0.9)), f(2.6, r(0.0, 0.2, 0.8)), f(5.0, FULL), f(7.3, r(0.05, 0.0, 0.92))],
   },
-  // "Make it yours." just two crew themes (pink, then blue), then straight into the playmat upload.
   {
     id: 'themes', clip: '03-themes', start: 24, dur: 2, trimStart: 2.9, transition: 'cut',
     eyebrow: 'Crew colour themes',
     focus: [f(0, FULL)],
   },
-  // 04: playmat upload + crop, card back, DON!! art, then the board wearing them (dead scrolling cut out).
   {
     id: 'art-mat', clip: '04-custom-art', start: 26, dur: 3, trimStart: 0.5, rate: 1.2, transition: 'wipe-left',
     eyebrow: 'Your playmat',
@@ -134,7 +105,6 @@ export const SCENES: SceneDef[] = [
   },
 ];
 
-/** On-screen lines. `em: true` words get the gold/bold treatment. Times in seconds. */
 export const CAPTIONS: CaptionDef[] = [
   {start: 1.5, end: 5, words: [{t: 'Play OPTCG'}, {t: 'online, free.', em: true}]},
   {start: 5, end: 13.5, words: [{t: 'Built to feel like'}, {t: 'the table.', em: true}]},
@@ -146,17 +116,10 @@ export const CAPTIONS: CaptionDef[] = [
   {start: 57, end: 64.5, words: [{t: 'Get better'}, {t: 'every game.', em: true}]},
 ];
 
-/**
- * The phone section: the browser frame gives way to a phone (0.5s hand-off), the portrait take plays,
- * the phone turns on its side with a spring and crossfades to the landscape take, then the browser frame returns.
- * Times in seconds on the timeline; the clips' own times are `trimStart` / `rate` (speed).
- */
 export const PHONE = {
   start: 13.5,
-  /** the phone leaves and the browser frame returns over [end, end + HANDOFF]; the next scene starts at `end` */
   end: 24,
   handoff: 0.5,
-  /** the device turns and the footage crossfades over [turnAt, turnAt + 0.5] */
   turnAt: 20,
   portrait: {
     clip: '12-phone-portrait' as ClipId, trimStart: 0.3, rate: 1.65, eyebrow: 'Built for one thumb',
@@ -167,9 +130,7 @@ export const PHONE = {
     clip: '13-phone-landscape' as ClipId, trimStart: 0, rate: 1.4, eyebrow: 'Portrait or landscape',
     focus: [f(0, FULL)],
   },
-  /** small "install it" chip beside the portrait phone */
   homeScreen: {from: 15.5, to: 19.8, label: 'Add to Home Screen', sub: 'It installs like an app'},
-  /** "on the go" chips either side of the landscape phone */
   travel: [
     {icon: 'train' as const, side: 'left' as const, from: 20.9, to: 23.8, label: 'On your commute', sub: 'A game between stops'},
     {icon: 'plane' as const, side: 'right' as const, from: 21.4, to: 23.8, label: 'On a flight', sub: 'Pass the time in the air'},
@@ -186,5 +147,4 @@ export const END_CARD = {
   phone: {clip: '11-phone' as ClipId, trimStart: 0, focus: FULL},
 };
 
-/** The full 68.5s trailer as an edit (the default of TrailerComp). The ad cutdowns in ads.config.ts reuse its pieces. */
 export const FULL_EDIT: Edit = {id: 'full', scenes: SCENES, captions: CAPTIONS, phone: PHONE, endCard: END_CARD, total: TOTAL_SECONDS, intro: true, frameIn: 36};

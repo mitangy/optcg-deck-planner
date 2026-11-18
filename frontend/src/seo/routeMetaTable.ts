@@ -1,14 +1,11 @@
 import { matchPath } from "react-router-dom";
 
-/** Where the planner is served; canonical and sitemap URLs are built from it. */
 export const SITE_ORIGIN = "https://optcg-deck-planner.app";
 
 export type RouteMetaEntry = {
-  /** A React Router path pattern. */
   pattern: string;
   title: string;
   description?: string;
-  /** Private or per-player pages: crawlable (so the tag is seen) but never listed. */
   noindex?: boolean;
 };
 
@@ -17,7 +14,6 @@ const NAME = "OPTCG Deck Planner";
 const HOME_DESCRIPTION =
   "Plan One Piece TCG decks, track the cards you own and see what you still need to buy, with live TCGPlayer prices. An unofficial fan-made tool, free with a Google account.";
 
-/** First match wins. */
 export const ROUTE_META: readonly RouteMetaEntry[] = [
   {
     pattern: "/",
@@ -67,7 +63,6 @@ export function routeMetaFor(pathname: string, signedIn = false): RouteMetaEntry
   return { ...entry, title, noindex, description: entry.description ?? HOME_DESCRIPTION };
 }
 
-/** Pages with a fixed URL that belong in sitemap.xml. */
 export function sitemapPaths(): string[] {
   return ROUTE_META.filter((e) => !e.noindex && !e.pattern.includes(":")).map((e) => e.pattern);
 }

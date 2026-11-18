@@ -40,19 +40,12 @@ from app.planner.catalog_repo import catalog_map
 
 log = logging.getLogger(__name__)
 
-# Deleting a linked deck on one side deletes the other side too. False only unlinks: the
-# surviving copy stays, and the next reconcile gives it a fresh counterpart on the side that
-# was deleted (there is no "stay independent" state while decks sync at all times).
 DELETE_PROPAGATES = True
 
 SEED_PREFIX = "test-"
-# Longest main deck a duel row can hold (DuelDeckBody.cards).
 MAX_DUEL_CARDS = 60
-# Main-deck size (without the leader and DON!!) an unlinked planner deck needs to get a duel copy.
 COMPLETE_MAIN = 50
 
-
-# --- duel row helpers -------------------------------------------------------
 
 
 def _now_ms() -> int:
@@ -108,8 +101,6 @@ def _store(row: DuelSavedDeck, body: dict, *, at: int) -> None:
     row.updated_at_ms = at
 
 
-# --- planner deck helpers ---------------------------------------------------
-
 
 def _owned_deck(db: Session, user_id: int, planner_id: object) -> Deck | None:
     if not isinstance(planner_id, int) or isinstance(planner_id, bool):
@@ -122,7 +113,6 @@ def _catalog(db: Session, ids: set[str]):
 
 
 def _main_counts(cards: list[tuple[str, int]], leader: str | None, catalog) -> Counter:
-    """Main-deck copies of a planner deck: no leader, no DON!!."""
     out: Counter = Counter()
     for card_id, needed in cards:
         if needed <= 0 or card_id == leader or is_don_card(catalog.get(card_id)):
@@ -132,7 +122,6 @@ def _main_counts(cards: list[tuple[str, int]], leader: str | None, catalog) -> C
 
 
 def _planner_main(db: Session, deck: Deck) -> Counter:
-    """Fresh from the database: the caller may have pending, unflushed card rows."""
     db.flush()
     rows = db.execute(
         select(DeckCard.card_id, DeckCard.needed).where(DeckCard.deck_id == deck.id)
@@ -196,7 +185,6 @@ def _new_planner_deck(db: Session, user_id: int, body: dict) -> Deck | None:
 
 
 def _apply_duel_to_planner(db: Session, user_id: int, deck: Deck, body: dict) -> None:
-    """Make the planner deck's name, leader and non-DON card rows match the duel deck."""
     from app.planner.printings import (
         _apply_alt_want_clamp_to_rows,
         _clear_deck_card_printings,
@@ -222,7 +210,7 @@ def _apply_duel_to_planner(db: Session, user_id: int, deck: Deck, body: dict) ->
     seen: set[str] = set()
     for row in rows:
         if is_don_card(catalog.get(row.card_id)):
-            continue  # the duel deck has no DON!! rows: leave the planner's alone
+            continue
         seen.add(row.card_id)
         want = wanted.get(row.card_id, 0)
         if want <= 0:
@@ -248,17 +236,13 @@ def _apply_duel_to_planner(db: Session, user_id: int, deck: Deck, body: dict) ->
     db.flush()
 
 
-# --- duel -> planner --------------------------------------------------------
-
 
 def after_duel_upsert(db: Session, user_id: int, row: DuelSavedDeck) -> None:
-    """A duel deck write was accepted: create or update its planner deck and link them."""
     body = _body(row)
     if body is None or _is_seed(row) or not body.get("leaderId"):
         return
     deck = _owned_deck(db, user_id, row.planner_deck_id)
     if deck is None:
-        # A client-supplied link counts only for an existing deck nothing else is linked to.
         claim = _owned_deck(db, user_id, body.get("plannerDeckId"))
         if claim is not None and not any(r.id != row.id for r in _linked_rows(db, user_id, claim.id)):
             deck = claim
@@ -275,8 +259,6 @@ def after_duel_upsert(db: Session, user_id: int, row: DuelSavedDeck) -> None:
 def find_duplicate_survivor(
     db: Session, user_id: int, deck_id: str, body: dict
 ) -> DuelSavedDeck | None:
-    """A live, linked duel row of the user with the same leader and main deck as a brand-new
-    unlinked incoming deck (a guest deck uploaded on sign-in), or None."""
     if deck_id.startswith(SEED_PREFIX) or body.get("plannerDeckId") is not None:
         return None
     leader = str(body.get("leaderId") or "").strip().upper()
@@ -299,7 +281,6 @@ def find_duplicate_survivor(
 
 
 def merge_into_survivor(survivor: DuelSavedDeck, body: dict) -> None:
-    """Carry the duplicate's art picks over to the surviving row (only cards it has no pick for)."""
     survivor_body = _body(survivor)
     extra = body.get("artPrefs") or {}
     if survivor_body is None or not extra:
@@ -313,7 +294,6 @@ def merge_into_survivor(survivor: DuelSavedDeck, body: dict) -> None:
 
 
 def _finish_link(row: DuelSavedDeck, body: dict, deck: Deck) -> None:
-    """Record the link in the row; the client adopts the change through its newer updatedAt."""
     linked = {k: v for k, v in body.items() if k != "editedLocally"}
     linked["plannerDeckId"] = deck.id
     row.planner_deck_id = deck.id
@@ -321,11 +301,8 @@ def _finish_link(row: DuelSavedDeck, body: dict, deck: Deck) -> None:
         _store(row, linked, at=row.updated_at_ms + 1)
 
 
-# --- planner -> duel --------------------------------------------------------
-
 
 def _planner_mirrorable(db: Session, deck: Deck) -> bool:
-    """Whether the duel copy can hold this planner deck: it has a leader and fits the main deck cap."""
     return bool(deck.leader_card_id) and len(_expand(_planner_main(db, deck))) <= MAX_DUEL_CARDS
 
 
@@ -370,7 +347,6 @@ def _new_duel_row(db: Session, user_id: int, deck: Deck, body: dict) -> DuelSave
 
 
 def mirror_planner_deck(db: Session, user_id: int, deck: Deck) -> None:
-    """A planner deck changed: write its duel copy (created when there is none yet and the deck has 50 cards)."""
     rows = _linked_rows(db, user_id, deck.id)
     if rows:
         _write_from_planner(db, rows[0], deck)
@@ -380,11 +356,8 @@ def mirror_planner_deck(db: Session, user_id: int, deck: Deck) -> None:
         _new_duel_row(db, user_id, deck, body)
 
 
-# --- deletes ----------------------------------------------------------------
-
 
 def on_planner_deleted(db: Session, user_id: int, planner_id: int) -> None:
-    """A planner deck is being deleted: delete (or just unlink) its duel copy."""
     for row in _linked_rows(db, user_id, planner_id):
         at = max(_now_ms(), row.updated_at_ms + 1)
         if DELETE_PROPAGATES:
@@ -399,7 +372,6 @@ def on_planner_deleted(db: Session, user_id: int, planner_id: int) -> None:
 
 
 def on_duel_deleted(db: Session, user: User, row: DuelSavedDeck, planner_id: int | None) -> None:
-    """A duel deck was deleted by the player: delete (or just unlink) its planner deck."""
     row.planner_deck_id = None
     if planner_id is None or not DELETE_PROPAGATES:
         return
@@ -408,10 +380,8 @@ def on_duel_deleted(db: Session, user: User, row: DuelSavedDeck, planner_id: int
     try:
         delete_deck(db, user, planner_id, mirror=False)
     except LookupError:
-        pass  # already gone
+        pass
 
-
-# --- merge of everything not linked yet -------------------------------------
 
 
 def _needs_reconcile(db: Session, user_id: int) -> bool:

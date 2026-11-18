@@ -10,7 +10,6 @@ class FakeSentinel implements WakeLockHandle {
   removeEventListener(_type: "release", l: () => void) {
     this.listeners.delete(l);
   }
-  // Like the real API, releasing (by us or the browser) dispatches "release".
   async release() {
     this.dispatchRelease();
   }
@@ -63,7 +62,6 @@ function setup(opts: { supported?: boolean; visible?: boolean } = {}) {
     resolvePending: () => pending.shift()!.resolve(null as never),
     setVisible(v: boolean) {
       visible = v;
-      // Real pages fire visibilitychange in both directions.
       visListener?.();
     },
     hasVisListener: () => visListener !== null,
@@ -95,7 +93,6 @@ describe("createWakeLockController", () => {
     const t = setup();
     t.controller.start();
     await flush();
-    // Tab hidden: the browser releases the lock on its own.
     t.setVisible(false);
     t.sentinels[0].dispatchRelease();
     await flush();

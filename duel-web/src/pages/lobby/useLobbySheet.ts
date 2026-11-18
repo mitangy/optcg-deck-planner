@@ -3,16 +3,13 @@ import { DEFAULT_BOT_LEVEL, type BotLevel } from "../../home/botGame";
 import type { TimerPreset } from "../../home/timerPreset";
 import type { PlayMode } from "./modes";
 
-/** The Play sheet: closed, choosing a mode, or configuring one, plus the values its forms hold. */
 export function useLobbySheet() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [mode, setMode] = useState<PlayMode | null>(null);
   const [timerPreset, setTimerPreset] = useState<TimerPreset>("off");
   const [error, setError] = useState<string | null>(null);
   const [roomId, setRoomId] = useState("");
-  /** Play vs Bot: how strong the bot is. */
   const [botLevel, setBotLevel] = useState<BotLevel>(DEFAULT_BOT_LEVEL);
-  /** Play vs Bot only: "Your deck" is Random, resolved when the game starts. Not saved as the selected deck. */
   const [yourRandom, setYourRandom] = useState(false);
 
   function pickMode(next: PlayMode) {
@@ -21,7 +18,6 @@ export function useLobbySheet() {
     if (next === "create") setTimerPreset("off");
   }
 
-  /** The sheet at the mode chooser, or straight at one mode. */
   function openSheet(at: PlayMode | null = null) {
     setError(null);
     setMode(null);

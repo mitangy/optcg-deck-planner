@@ -1,6 +1,3 @@
-/**
- * Evaluation context shared by selectors, values and conditions, plus card-name aliases.
- */
 import { abilitiesFor } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { BindingValue, InstanceId, Seat } from "../types.js";
@@ -20,10 +17,6 @@ export function ctxFor(seat: Seat, source: { id: InstanceId; defId: string }, va
 
 export const relSeat = (ctx: { seat: Seat }, rel: "you" | "opponent"): Seat => (rel === "you" ? ctx.seat : otherSeat(ctx.seat));
 export const seatsFor = (ctx: { seat: Seat }, rel: "you" | "opponent" | "any"): Seat[] => (rel === "any" ? [ctx.seat, otherSeat(ctx.seat)] : [relSeat(ctx, rel)]);
-
-// ---------------------------------------------------------------------------
-// Names
-// ---------------------------------------------------------------------------
 
 const aliasCache = new Map<string, string[]>();
 export function namesOfDef(defId: string): string[] {

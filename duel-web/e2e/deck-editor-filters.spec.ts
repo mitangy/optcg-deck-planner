@@ -1,8 +1,3 @@
-/**
- * The deck editor's Add cards filters (#755): the Decks page search box styles (`.deck-search input`) once leaked
- * into every input in the editor, turning the Color / Type / Attribute checkboxes into big empty boxes.
- * CSS does not load in vitest, so this is checked in a real browser. The API is not needed (it 404s to signed-out).
- */
 import type { Page } from "@playwright/test";
 import { test, expect, FAKE_API, RED_VANILLA } from "./fixtures";
 
@@ -42,7 +37,6 @@ test("the deck editor's Add cards filter checkboxes stay small checkboxes that t
     await expect(box).not.toBeChecked();
   }
 
-  // The Search box keeps its normal padding, not the Decks page's icon gutter.
   const pad = await section.locator(".deck-search-query input").evaluate((el) => parseFloat(getComputedStyle(el).paddingLeft));
   expect(pad).toBeLessThan(30);
 });

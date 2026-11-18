@@ -2,32 +2,20 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fanPosForDrop, nudgeFanPos, type FanPos } from "./handFanPos";
 
 type Move = {
-  /** Pointer offset from the fan's bottom-centre point when the drag began. */
   dx: number;
   dy: number;
-  /** Live spot while dragging (share of the window). */
   pos: FanPos;
-  /** Pointer offset from the grip's centre when grabbed (anchored drags). */
   grab?: { x: number; y: number };
 };
 
-/**
- * Drag the desktop fanned hand by its grip. The fan follows the pointer and
- * floats fully shown while you drag; on drop the spot is saved (snapping onto
- * the bottom edge, or back to the default spot near it). Esc cancels.
- * `defaultCentreX` gives the default spot's centre (the board column's middle).
- */
 export function useFanMove(
   fanRef: React.RefObject<HTMLElement | null>,
   pos: FanPos | null,
   onChange: (next: FanPos | null) => void,
   defaultCentreX: () => number,
-  /** Where a drop lands (viewport px: centre x, bottom, the fan's height); the player's fan snaps to the bottom edge by default. */
   dropTo?: (centreX: number, bottom: number, height: number, vp: { width: number; height: number }) => FanPos | null,
   opts: {
-    /** While docked (no saved spot), measure from this child (the cards): the docked spectator strip is wider than the fan. */
     bodySelector?: string;
-    /** Keep the grip under the pointer: its spot differs between the docked strip and the floating fan. */
     anchorGrip?: boolean;
   } = {},
 ) {
@@ -45,7 +33,6 @@ export function useFanMove(
   }, [fanRef, bodySelector, pos]);
 
   const moving = move != null;
-  // Would letting go now put the fan back at its default spot?
   let willDock = false;
   if (move) {
     const w = window.innerWidth;
@@ -66,7 +53,6 @@ export function useFanMove(
       const { width, height } = vp();
       return { x: (e.clientX - m.dx) / width, y: (e.clientY - m.dy) / height };
     };
-    // Anchored: move the fan by however far the grip is from where the pointer holds it.
     const place = (e: PointerEvent): FanPos => {
       const m = moveRef.current!;
       const fan = fanRef.current;

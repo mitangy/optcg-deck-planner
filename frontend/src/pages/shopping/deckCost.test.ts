@@ -23,12 +23,10 @@ describe("remainingCostForCard with picked alt arts (#906)", () => {
   ];
 
   it("prices picked alt copies at the alt price and the rest at standard", () => {
-    // 1 x 10 + 2 x 20 + 1 standard x 1.5
     expect(remainingCostForCard({ still_need: 4, market_price: 1.5, alt_arts: alts })).toBe(51.5);
   });
 
   it("caps picks at what is still needed, in list order", () => {
-    // 1 x 10 + 1 x 20, nothing left for standard
     expect(remainingCostForCard({ still_need: 2, market_price: 1.5, alt_arts: alts })).toBe(30);
     expect(splitStillNeed({ still_need: 2, market_price: 1.5, alt_arts: alts })).toMatchObject({
       altCopies: 2,
@@ -45,7 +43,6 @@ describe("remainingCostForCard with picked alt arts (#906)", () => {
 
 describe("remainingCostForCard with owned picked alt arts (#908)", () => {
   it("does not buy or price an owned picked alt copy again", () => {
-    // Need 4, 2 of the alt owned: still_need 2. The pick of 2 is fully covered by what is owned.
     const owned = [{ product_id: 100, wanted: 2, owned: 2, market_price: 10 }];
     expect(remainingCostForCard({ still_need: 2, market_price: 1, alt_arts: owned })).toBe(2);
     expect(splitStillNeed({ still_need: 2, market_price: 1, alt_arts: owned })).toMatchObject({
@@ -55,7 +52,6 @@ describe("remainingCostForCard with owned picked alt arts (#908)", () => {
   });
 
   it("still buys the picked copies that are not owned as the alt", () => {
-    // Need 4, pick 2, own 1: still_need 3 = 1 alt at 10 + 2 base at 1.
     const alts = [{ product_id: 100, wanted: 2, owned: 1, market_price: 10 }];
     expect(remainingCostForCard({ still_need: 3, market_price: 1, alt_arts: alts })).toBe(12);
   });
@@ -76,9 +72,7 @@ describe("deckRemainingMarket", () => {
 describe("shoppingShownPrice", () => {
   it("shoppingShownPrice prices picked alt arts and falls back to market price when nothing is needed (#926)", () => {
     const alts = [{ wanted: 1, market_price: 10 }];
-    // 1 alt x 10 + 1 base x 1
     expect(shoppingShownPrice({ still_need: 2, market_price: 1, alt_arts: alts })).toBe(11);
-    // Nothing left to buy: the standard market price, not the alt pick.
     expect(shoppingShownPrice({ still_need: 0, market_price: 1, alt_arts: alts })).toBe(1);
     expect(shoppingShownPrice({ still_need: 0, market_price: null, alt_arts: alts })).toBeNull();
   });
@@ -86,9 +80,7 @@ describe("shoppingShownPrice", () => {
   it("shoppingShownPrice uses the shown alt art's price when nothing is needed (#928)", () => {
     const alts = [{ product_id: 201, owned: 0, wanted: 0, market_price: 14.99 }];
     expect(shoppingShownPrice({ still_need: 0, market_price: 1.25, alt_arts: alts, display_art: 201 })).toBe(14.99);
-    // Base chosen: the base price.
     expect(shoppingShownPrice({ still_need: 0, market_price: 1.25, alt_arts: alts, display_art: 0 })).toBe(1.25);
-    // Still needed copies keep the buy split, whatever art is shown.
     expect(shoppingShownPrice({ still_need: 1, market_price: 1.25, alt_arts: alts, display_art: 201 })).toBe(1.25);
   });
 });

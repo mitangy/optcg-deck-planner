@@ -1,9 +1,3 @@
-"""Log Pose tournament stats: aggregates over Limitless TCG events kept by tournament_sync.
-
-Kept apart from analyst_stats (optcgduel.app duels). Games are pairings between two leaders;
-ties are counted separately and are not wins or games for a win rate. Reuses the duel stats'
-Wilson interval and too-few-games rule.
-"""
 
 from __future__ import annotations
 
@@ -18,7 +12,6 @@ from app.analyst.stats import MIN_GAMES, _record
 from app.analyst.models import Tournament, TournamentDeck, TournamentGame
 
 SOURCE = "Limitless TCG tournaments"
-# A leader needs this many decisive games before it can be ranked by win rate.
 RANK_MIN_GAMES = 20
 TOP_PLACINGS = 5
 TOP_CARDS = 40
@@ -26,7 +19,6 @@ TOP_LEADERS = 10
 
 
 def _tally(results: list[str]) -> dict:
-    """A record from per-game results ('win', 'loss', 'tie'): decisive games only, ties on the side."""
     wins = results.count("win")
     games = wins + results.count("loss")
     return {**_record(games, wins), "ties": results.count("tie")}
@@ -39,7 +31,6 @@ def _events(db: Session, days: int, min_players: int) -> list[Tournament]:
 
 
 def _outcomes(games: list[TournamentGame]) -> list[tuple[str, str, str, TournamentGame]]:
-    """(leader, opponent, result for that leader, game) once per side of every game."""
     out = []
     for g in games:
         a_res = {"A": "win", "B": "loss", "tie": "tie"}[g.winner]
@@ -105,7 +96,6 @@ def tournament_stats(db: Session, leader: str | None, opponent: str | None, days
         used = {o[3].tournament_id for o in vs}
         base = {**window, "leader": leader, "opponent": opponent, "events": [event_out(e) for e in events if e.id in used]}
         if opponent == leader:
-            # A mirror is a win and a loss for the same leader, so it has no win rate.
             return {**base, "mirror": True, "games": len(vs)}
         return {**base, **_tally([r for _l, _o, r, _g in vs])}
 

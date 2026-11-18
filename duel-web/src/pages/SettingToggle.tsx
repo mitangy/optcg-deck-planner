@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-/** A checkbox switch with its explanation under it (`.gameplay-toggle`), as the Settings sections use it. */
 export function SettingToggle({
   checked,
   onChange,

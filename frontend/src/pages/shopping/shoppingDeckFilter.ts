@@ -4,8 +4,6 @@ import { api } from "../../api";
 import { SHOPPING_DECKS_KEY } from "../../storage/keys";
 import { qk } from "../../cache/queryKeys";
 
-// A deliberate empty pick is stored as this marker, so a bare [] (written by older builds
-// while there were no decks to pick) reads as all decks (#1211).
 const NO_DECKS = "none";
 
 export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
@@ -13,7 +11,6 @@ export function loadShoppingDeckFilter(allIds: number[]): number[] | null {
     const raw = readStored(SHOPPING_DECKS_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as unknown;
-    // An empty pick is kept: no decks ticked, only the Other chips (#1208).
     if (parsed === NO_DECKS) return [];
     if (!Array.isArray(parsed)) return null;
     const allowed = new Set(allIds);
@@ -29,11 +26,6 @@ export function saveShoppingDeckFilter(ids: number[]): void {
   writeStored(SHOPPING_DECKS_KEY, JSON.stringify(ids.length ? ids : NO_DECKS));
 }
 
-/**
- * The decks ticked under Master Shopping's "Include decks", for views that count the same decks
- * (deck pages, Buying hints). undefined means all decks, so those requests stay unfiltered. An
- * empty selection (#1208) also reads as all decks there: a deck page is never counted against zero decks.
- */
 export function savedShoppingDeckIds(allIds: number[]): number[] | undefined {
   const saved = loadShoppingDeckFilter(allIds);
   return saved && saved.length > 0 && saved.length < allIds.length ? [...saved].sort((a, b) => a - b) : undefined;

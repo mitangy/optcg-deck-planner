@@ -86,7 +86,6 @@ describe("motionCues", () => {
     const next = edit(prev, (y) => ({
       hand: y.hand.filter((c) => c.id !== "h1"),
       characters: [...y.characters, card("h1", "ST01-006")],
-      // An older copy of the same card already in the trash must not read as a discard.
       trash: ["ST01-006"],
     }));
     expect(motionCues(prev, next)).toEqual([{ kind: "play", side: "you", id: "h1", fromHand: true }]);

@@ -1,10 +1,5 @@
 name: Log Pose puzzles
 
-# Manual only: the paid rules-puzzle eval (analyst/evals/puzzles, #677; the defend, lethal and scenario_chain types are #685).
-# Roughly $0.05-0.10 per puzzle, so the default 25 per type (200 puzzles) can reach the $5 cap (see analyst/README.md). Never scheduled. Positions come from bot self-play (current meta decks) and Harness boards, the
-# gold answer comes from the duel engine, and Log Pose answers through the production chat path with its tools.
-# Needs the ANTHROPIC_API_KEY secret; the meta decks come from the public backend (ANALYST_API_URL), and without it
-# self-play uses random decks.
 on:
   workflow_dispatch:
     inputs:
@@ -42,7 +37,6 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       META_API_URL: ${{ vars.META_API_URL || vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
-      # For --post: the same URL and secret the main Log Pose eval and the bot self-play job use.
       ANALYST_API_URL: ${{ vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
       ANALYST_SERVICE_SECRET: ${{ secrets.ANALYST_SERVICE_SECRET }}
     steps:

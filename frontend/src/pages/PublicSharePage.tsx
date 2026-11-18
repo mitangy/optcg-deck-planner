@@ -40,14 +40,12 @@ export function PublicSharePage() {
   const [onlyNeed, setOnlyNeed] = usePersistedOpen(SHARE_ONLY_NEED_KEY, true);
   const [search, setSearch] = useState("");
   const [layout, setLayout] = useCardLayout();
-  // A share link carries no per-deck or per-member order, so those two sorts are off.
   const unavailableSorts = useMemo(() => ["deck", "user"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(onlyNeed, unavailableSorts);
   const meQ = useMe();
   const me = meQ.data ?? null;
   const qc = useQueryClient();
   const navigate = useNavigate();
-  // Owned counts on a deck link come from whoever is viewing, so the viewer is part of the key.
   const { data, isLoading, error } = useQuery({
     queryKey: qk.share.public(token, me?.id ?? null),
     queryFn: () => api.publicShare(token),

@@ -1,7 +1,3 @@
-/**
- * What's new (#450): the public /whats-new page and the once-per-update card on
- * the signed-in pages. Runs at desktop-1200 and phone-375.
- */
 import type { Page } from "@playwright/test";
 import { expect, formatIssues, test } from "./fixtures";
 import { PATCH_NOTES } from "../../packages/patch-notes/src/notes";
@@ -22,7 +18,6 @@ async function seedLastSeen(page: Page, day: string | null) {
 
 const card = (page: Page) => page.getByRole("region", { name: "What's new" });
 
-/** The newest note the planner shows; the card lists the newest few, so an older title drops out as notes are added. */
 const newestPlannerNote = PATCH_NOTES.find((n) => n.app !== "duel")!.title;
 
 test("the card shows after an update, overlays the page, and Got it keeps it away after a reload (#450)", async ({ page, planner }) => {

@@ -1,6 +1,6 @@
 /**
- * A Double Attack's 2 damage is one hit (#458): effects that care about taking or dealing
- * damage see it once, the same way Gloriosa EB05-052's damage replacement does.
+ * A Double Attack's 2 damage is one hit: effects that care about taking or dealing damage see it once, the same way
+ * Gloriosa EB05-052's damage replacement does.
  */
 import { describe, expect, it } from "vitest";
 import { FILLER, Harness } from "../../testing/harness.js";
@@ -9,7 +9,7 @@ describe("Double Attack is one hit for damage effects (#458)", () => {
   function doubleAttackWith(watcher: string) {
     const h = new Harness();
     h.field(0, watcher);
-    const [ace] = h.field(0, "P-028"); // [Double Attack]
+    const [ace] = h.field(0, "P-028");
     h.life(1, FILLER, FILLER, FILLER);
     h.attack(ace!, "leader").passBattle({ resolveLifeChecks: false });
     return h;

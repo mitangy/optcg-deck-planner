@@ -6,15 +6,10 @@ import type { Intent, PendingChoiceView } from "../../net/protocol";
 type Props = {
   choice: PendingChoiceView;
   onSend: (intent: Intent) => void;
-  /** Tucks the pop-up away so the hand and board can be read first. */
   onHide?: () => void;
 };
 
-/**
- * Lets the controlling player reorder simultaneous effects.
- * `legalIntents` only exposes a default (wrapper) sequence for sims/bots —
- * this UI is the real player-facing ordering path.
- */
+// `legalIntents` only exposes a default sequence for sims/bots; this is the player's ordering path.
 export function EffectOrderPrompt({ choice, onSend, onHide }: Props) {
   const initial = choice.unorderedChoices ?? [];
   const [order, setOrder] = useState<PendingChoiceView[]>(() => [...initial]);

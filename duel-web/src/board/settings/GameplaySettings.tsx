@@ -38,11 +38,9 @@ import {
 } from "../layout/useMediaQuery";
 
 type Toggle = {
-  /** Boolean settings, plus the phone switch for oppHandSpot "right". */
   key: ToggleKey;
   label: string;
   hint: string;
-  /** The switch shows the opposite of the stored boolean (on = setting false). */
   invert?: boolean;
 };
 
@@ -182,7 +180,6 @@ const TOGGLES: Toggle[] = [
 
 type ShowToggle = { key: ShowKey; label: string; hint: string };
 
-/** Non-core elements that can be hidden. The Battle log stays on screen, so it has no switch. */
 const SHOW_TOGGLES: ShowToggle[] = [
   {
     key: "showCardPreview",
@@ -238,10 +235,7 @@ const ANIMATION_OPTIONS: { value: AnimationSpeed; label: string }[] = [
   { value: "off", label: "Off" },
 ];
 
-/**
- * Scrolls a settings group under the sticky chip row. In the in-match sheet the chips can wrap to two
- * rows on narrow windows, so the margin that clears them is measured from the row itself (#937).
- */
+// Chips can wrap to two rows on narrow windows, so the margin that clears them is measured from the row itself.
 function jumpToGroup(id: GroupId) {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const group = document.getElementById(`gp-${id}`);
@@ -251,19 +245,14 @@ function jumpToGroup(id: GroupId) {
   group.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
 }
 
-/** Gameplay preferences; saved in this browser and applied live. */
 export function GameplaySettingsFields({ spectating = false }: { spectating?: boolean } = {}) {
   const settings = useDuelSettings();
   const lockNote = useLockNote(settings.screenOrientation);
   // Phones and tall windows keep the flat board, so the switch would do nothing there.
   const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
-  // Phones keep their fixed layout, so only desktop windows offer the panel reset.
   const desktop = useMediaQuery(DESKTOP_BOARD_QUERY);
-  // Orientation lock and vibration are for phones and tablets, not a mouse and keyboard.
   const finePointer = useMediaQuery(FINE_POINTER_QUERY);
-  // Upright phone: some rows do nothing in one orientation, so they are disabled with a note.
   const portrait = useMediaQuery(PORTRAIT_MAT_QUERY);
-  // Sideways tablets and foldables can fan the hand; shorter phones keep it in the right column.
   const sidewaysFan = useMediaQuery(SIDEWAYS_FAN_QUERY);
   const device: FieldDevice = { desktop, tiltFits, finePointer, portrait, sidewaysFan };
   const noteFor = (key: RowKey) => rowDisabledNote(key, device, settings);
@@ -300,7 +289,6 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
                   return;
                 }
                 updateSettings({ [t.key]: t.invert ? !e.target.checked : e.target.checked });
-                // Preview (and unlock audio on mobile with this tap).
                 if (t.key === "turnSound" && e.target.checked) playTurnChime();
               }}
             />
@@ -620,7 +608,6 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
   );
 }
 
-/** In-match sheet so settings change without leaving the game. */
 export function GameplaySettingsSheet({ onClose, spectating = false }: { onClose: () => void; spectating?: boolean }) {
   return (
     <Dialog open onClose={onClose} className="sheet-backdrop" panelClassName="sheet" label="Gameplay settings">

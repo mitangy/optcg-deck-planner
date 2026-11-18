@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { CardThumb } from "../ui/CardThumb";
 
-/** One card in a compact row: art, id + name, a meta line, and a controls slot that wraps under the text on narrow screens. */
 export function CardRow({
   cardId,
   name,
@@ -32,7 +31,6 @@ export function CardRow({
   );
 }
 
-/** − qty + with a stable hit target. `max` caps the plus button. */
 export function QtyStepper({
   value,
   max,

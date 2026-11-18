@@ -1,13 +1,11 @@
-/**
- * Using an Event's [Main] effect from the trash is not "activating an Event" (#594, EB03-031 Reiju / OP15-119 Luffy Q&A).
- */
+/** Using an Event's [Main] effect from the trash is not "activating an Event" (EB03-031 Reiju / OP15-119 Luffy Q&A). */
 import { runScenarios, type CardScenario } from "../../testing/scenario.js";
 
-const REIJU = "EB03-031"; // [Your Turn] [On Play] DON!! -1: If your Leader is [Sanji], activate the [Main] effect of up to 1 Event in your trash.
+const REIJU = "EB03-031";
 const SANJI = "OP02-026";
-const PILAF = "OP03-056"; // [Main] Draw 2 cards.
-const LUFFY = "OP15-119"; // When your opponent activates an Event or [Blocker], reveal a Life card: +1000 power per cost.
-const ROBIN = "ST01-008"; // 3-cost
+const PILAF = "OP03-056";
+const LUFFY = "OP15-119";
+const ROBIN = "ST01-008";
 
 const rows: CardScenario[] = [
   {

@@ -3,13 +3,10 @@ import type { MatchHistoryEntry } from "./historyApi";
 export type HistorySummary = {
   wins: number;
   losses: number;
-  /** Bounty after your latest ranked game; null when you have none yet. */
   rating: number | null;
 };
 
-/** Win-loss record over the games listed, and the Bounty from the newest ranked one. */
 export function historySummary(matches: readonly MatchHistoryEntry[]): HistorySummary | null {
-  // A game that never finished is neither a win nor a loss.
   const finished = matches.filter((m) => m.finished !== false);
   if (finished.length === 0) return null;
   const wins = finished.filter((m) => m.won).length;

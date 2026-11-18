@@ -1,10 +1,7 @@
 /**
- * OPTCGSim combat-log reader (issue #1030, step 1). Pure: no I/O, never throws on odd lines.
- *
- * The log has two interleaved tracks: human text lines and the machine track (`RZ1|...`).
- * Zone moves from the machine track rebuild both boards exactly; every `RZ1|CHK` line is
- * compared with the rebuilt zone counts. Text lines supply events (attacks, blocks, effects)
- * and the few state changes the machine track does not log (rest from attacking, refresh).
+ * The log has two interleaved tracks: human text lines and the machine track (`RZ1|...`). Zone moves from the machine
+ * track rebuild both boards exactly; text lines supply events and the few state changes the machine track does not log
+ * (rest from attacking, refresh).
  */
 import type {
   SimBoardSnapshot,
@@ -25,7 +22,6 @@ export const normalizeSimName = (s: string | null | undefined): string => (s ?? 
 
 const other = (s: SimSide): SimSide => (s === "me" ? "opp" : "me");
 
-/** `"4xOP17-040"` -> `{ id: "OP17-040", count: 4 }`; a bare id counts once. */
 export function parseCardCounts(list: readonly string[] | undefined | null): SimCardCount[] {
   const out: SimCardCount[] = [];
   for (const raw of list ?? []) {
@@ -36,7 +32,6 @@ export function parseCardCounts(list: readonly string[] | undefined | null): Sim
   return out;
 }
 
-/** Turn `<mark><link="ID">ID</link></mark>` into `ID` (brackets stay) and drop other tags. */
 export function cleanSimText(line: string): string {
   return line
     .replace(/<mark><link="([^"]*)">[^<]*<\/link><\/mark>/g, "$1")
@@ -44,8 +39,6 @@ export function cleanSimText(line: string): string {
     .replace(ZW, "")
     .trim();
 }
-
-// ---------------------------------------------------------------- board model
 
 interface Char {
   id: string;
@@ -66,7 +59,7 @@ interface Board {
   chars: Char[];
   stage: string[];
   trash: string[];
-  donField: boolean[]; // rested flag per DON!! in the cost area
+  donField: boolean[];
   leaderAttached: number;
   /** DON!! still attached to a character that already left; returned by a later 9>5 move. */
   orphanAttached: Map<number, number>;
@@ -222,8 +215,6 @@ function addDon(b: Board, zone: number, slot: number, rested: boolean): void {
   }
 }
 
-// ---------------------------------------------------------------- text patterns
-
 /** Longest text line parsed; the longest line in the fixtures is under 200 characters. */
 const MAX_TEXT_LINE = 2000;
 
@@ -287,11 +278,9 @@ const RESULTS: [RegExp, Extract<SimEvent, { kind: "result" }>["what"]][] = [
   [/^The game ended due to a turn timeout!$/, "timeout"],
 ];
 
-// ---------------------------------------------------------------- parser
-
 interface TurnBuild {
   turn: SimTurn;
-  pending: boolean; // snapshot not taken yet
+  pending: boolean;
 }
 
 const ZONE_NAME: Record<number, "hand" | "character" | "stage" | "life" | "deck" | "other"> = {
@@ -307,7 +296,6 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
   const log = typeof match.combatLog === "string" ? match.combatLog : "";
   const lines = log.split(/\r?\n/);
 
-  // Pre-scan: header, PLY lines, order choice.
   const plyByOwner = new Map<number, { name: string; leader: string }>();
   let simVersion: string | null = null;
   let chose: { name: string; first: boolean } | null = null;
@@ -407,7 +395,6 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
     turns.push(cur);
     active = side;
   };
-  /** Gameplay is underway: make sure turn 1 exists and its snapshot is taken. */
   const startPlay = (): void => {
     if (!cur) openTurn(firstPlayer);
   };
@@ -452,7 +439,7 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
       if (oz === 2 || oz === 7) {
         const ch = removeCard(b, oz, os, id);
         addCard(b, oz, ns, id, rested, power, true, ch);
-        if (oz === 2) b.orphanAttached.delete(os); // attachments stayed with the card
+        if (oz === 2) b.orphanAttached.delete(os);
       }
       return;
     }
@@ -526,7 +513,7 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
       }
     }
     if (META.some((r) => r.test(body))) return;
-    const sd = side ?? active; // side for unprefixed lines: the active player
+    const sd = side ?? active;
 
     let m: RegExpExecArray | null;
     if ((m = RE.leader.exec(body))) {
@@ -680,7 +667,6 @@ export function parseSimGame(match: SimMatchRecord): SimGame {
   };
 }
 
-/** Parse every game that has a combat log; games without one are skipped. */
 export function parseSimExport(matches: readonly SimMatchRecord[]): { games: SimGame[]; report: SimParseReport } {
   const games: SimGame[] = [];
   let skipped = 0;
@@ -694,7 +680,6 @@ export function parseSimExport(matches: readonly SimMatchRecord[]): { games: Sim
   return { games, report: buildParseReport(games, matches.length, skipped) };
 }
 
-/** Collapse a line into a pattern: card ids, names before ids, player prefixes and digits are blanked. */
 export function unknownLinePattern(line: string): string {
   return line
     .replace(/^\[[^\]]*\]/, "[P]")

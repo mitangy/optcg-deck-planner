@@ -1,7 +1,3 @@
-/**
- * Wire types for protocolVersion 5 — mirrored from game-server/src/protocol.ts.
- * Do not import @optcg/rules into the app.
- */
 
 import { lookupCard } from "../cards/atlas";
 
@@ -26,7 +22,6 @@ export type DuelCreateOptions = {
   players?: [{ leaderId: string; deck: string[] }, { leaderId: string; deck: string[] }];
 };
 
-/** Prefer sending objects from view.legalIntents unchanged. */
 export type Intent = Record<string, unknown> & { type: string };
 
 export type ErrorCode =
@@ -84,10 +79,8 @@ export type CardView = {
   statusLabels?: string[];
 };
 
-/** Mirrors @optcg/rules PendingChoiceKind. */
 export type PendingChoiceKind = "life_trigger" | "effect" | "order_effects";
 
-/** Mirrors @optcg/rules ChoiceOption. Hidden cards arrive as defId "HIDDEN". */
 export type ChoiceOptionView = {
   id: string;
   defId?: string;
@@ -99,10 +92,8 @@ export type ChoiceOptionView = {
   rested?: boolean;
 };
 
-/** Mirrors @optcg/rules ChoiceRequest. */
 export type ChoiceRequestView =
   | { type: "confirm" }
-  /** `distinctNames`: no two picks may share a card name. */
   | { type: "select"; min: number; max: number; options: ChoiceOptionView[]; distinctNames?: true }
   | { type: "mode"; options: ChoiceOptionView[] }
   | { type: "order"; options: ChoiceOptionView[]; destination: string; allowTopOrBottom?: boolean }
@@ -128,7 +119,6 @@ export type PendingChoiceView = {
   privateToSeat?: Seat;
   hideCardDefFromOthers?: boolean;
   optionCount?: number;
-  /** Present when kind is order_effects — controller must permute via order_pending_effects. */
   unorderedChoices?: PendingChoiceView[];
 };
 
@@ -198,7 +188,6 @@ export function assertNoOpponentHand(view: PlayerView): void {
   }
 }
 
-/** Spectators must not receive either seat's hand contents. */
 export function assertSpectatorPrivacy(view: PlayerView): void {
   assertNoOpponentHand(view);
   if (view.you.hand.length > 0) {
@@ -313,8 +302,6 @@ export function intentLabel(intent: Intent, view?: PlayerView): string {
     case "mulligan":
       return intent.doMulligan ? "Mulligan (shuffle & redraw 5)" : "Keep opening hand";
     case "play_card":
-      // Full board: one legal play per Character that could be trashed, so
-      // name the one this button replaces.
       return intent.trashCharacterId != null
         ? `Play ${handName(view, intent.handIndex)}, replacing ${findBoardName(view, intent.trashCharacterId)}`
         : `Play ${handName(view, intent.handIndex)}`;

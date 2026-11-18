@@ -113,7 +113,6 @@ describe("counter data", () => {
     expect(derivePlannerCard(row({ cost: 10 }), [self]).hc).toBe(2000);
     const grant = ab("static", { statics: [{ s: "counter", filter: { types: ["character"], traits: ["Land of Wano"] }, mode: "set", value: 1000, onlyWithoutCounter: true }] });
     expect(derivePlannerCard(row({ type: "leader", cost: undefined, life: 4 }), [grant]).gc).toEqual([{ v: 1000, t: ["character"], tr: ["Land of Wano"], nc: 1 }]);
-    // Kaido OP17-063 grants it only while he is on the field.
     expect(derivePlannerCard(row(), [grant]).gc).toBeUndefined();
   });
 });

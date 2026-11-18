@@ -1,5 +1,3 @@
-/** Official card errata (text changes), parsed from Bandai's errata page. */
-
 export type Erratum = { cardId: string; name: string; date: string | null; before: string; after: string };
 
 import { plain } from "./html";
@@ -12,7 +10,6 @@ export function parseErrata(html: string): Erratum[] {
       date = plain(m[1]);
       continue;
     }
-    // Older entries put the date in the card heading: "February 17, 2023<br>OP01-016 Nami".
     const lines = plain(m[2]!).split("\n");
     const id = lines.map((l) => /^(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})\s*(.*)$/.exec(l)).find(Boolean);
     if (!id) continue;
@@ -22,7 +19,6 @@ export function parseErrata(html: string): Erratum[] {
       fields.set(plain(f[1]!).replace(/:$/, "").toLowerCase(), plain(f[2]!));
     }
     const after = fields.get("after");
-    // Alt-art printings repeat the same erratum.
     if (!after || out.some((e) => e.cardId === id[1] && e.after === after)) continue;
     out.push({ cardId: id[1]!, name: id[2]!, date: ownDate ?? date, before: fields.get("before") ?? "", after });
   }

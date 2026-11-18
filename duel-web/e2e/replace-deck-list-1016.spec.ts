@@ -1,7 +1,3 @@
-/**
- * Duel deck editor (#1016): the folded panel is labelled "Replace with deck list" and overwrites the open deck's
- * leader and cards; the deck keeps its name and Save keeps the change. Set SHOTS_DIR to save screenshots.
- */
 import type { Page } from "@playwright/test";
 import { test, expect, RED_VANILLA } from "./fixtures";
 

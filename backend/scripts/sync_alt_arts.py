@@ -68,13 +68,9 @@ UA = "Mozilla/5.0"
 TCGCSV = "https://tcgcsv.com/tcgplayer/68"
 CDN = "https://tcgplayer-cdn.tcgplayer.com/product"
 
-HASH_SIDE = 16  # 16x16 = 256 bits
-# Measured on El Thor: same art (foils, stamps, release events) <= 41 bits,
-# different art >= 109. 75 sits in the middle of the gap.
+HASH_SIDE = 16
 HASH_THRESHOLD = 75
 
-# Image-less products can only be judged by name: they are alts only when it
-# carries one of these. Products with a picture are judged by the hash alone.
 DISTINCT_ART_MARKERS = (
     "alternate art",
     "alt art",
@@ -92,8 +88,6 @@ PID_IN_URL = re.compile(r"product/(\d+)_")
 ALT_NUM = re.compile(r"^p(\d+)$")
 
 
-# --- pure logic (unit-testable) ---------------------------------------------
-
 
 def pid_from_url(url: str | None) -> int | None:
     m = PID_IN_URL.search(url or "")
@@ -101,12 +95,10 @@ def pid_from_url(url: str | None) -> int | None:
 
 
 def hamming(a: str, b: str) -> int:
-    """Differing bits between two hex hashes."""
     return bin(int(a, 16) ^ int(b, 16)).count("1")
 
 
 def is_new_art(h: str, refs: list[str]) -> bool:
-    """True when `h` is more than HASH_THRESHOLD bits from every reference."""
     return all(hamming(h, r) > HASH_THRESHOLD for r in refs)
 
 
@@ -120,7 +112,6 @@ PCC_SUFFIX_MAX = 28
 
 
 def label_for(name: str) -> str:
-    """Picker label: `alt_label`, with the volume/edition for Premium Card Collection."""
     if "premium card collection" in name.lower():
         m = PCC_SUFFIX.search(name.rstrip(") ").rstrip("-").rstrip() + "-")
         suffix = m.group(1).strip(" -)") if m else ""
@@ -131,16 +122,14 @@ def label_for(name: str) -> str:
 
 
 LABEL_MAX = 28
-TRAILING_BRACKET = re.compile(r"\s*\[[^\]]*\]\s*$")  # "[Participant]", "[Serial Number]"
+TRAILING_BRACKET = re.compile(r"\s*\[[^\]]*\]\s*$")
 SUFFIX = re.compile(r"\(([^()]*)\)\s*$")
-# "(OP12-020)", "(001)", "(Store)": not a printing name.
 NOT_A_NAME = re.compile(r"^(?:(?:[A-Z]{1,3}\d{0,2}-)?\d{1,3}|store|reprint)$", re.I)
 ANNIVERSARY = re.compile(
     r"(?:(english|japanese)(?: version)?\s+)?(\d)(st|nd|rd|th) anniversary set$|"
     r"^one piece japanese version (\d)(st|nd|rd|th) anniversary set$",
     re.I,
 )
-# Tried in order until the label fits LABEL_MAX.
 TRIM_STEPS = (
     (re.compile(r"\bOne Piece Card Game\b ?", re.I), ""),
     (re.compile(r"\bOne Piece\b ?", re.I), ""),
@@ -161,7 +150,6 @@ TRIM_STEPS = (
 
 
 def suffix_label(name: str) -> str:
-    """Label from the last parenthesised part of a TCGPlayer name, else "Promo"."""
     m = SUFFIX.search(TRAILING_BRACKET.sub("", name).strip())
     s = re.sub(r"\s+", " ", m.group(1)).strip(" -") if m else ""
     if not s or NOT_A_NAME.match(s):
@@ -183,13 +171,11 @@ def suffix_label(name: str) -> str:
 
 
 def next_alt_number(taken_ids: set[str]) -> int:
-    """The number after the highest `pN` in use (gaps are never reused)."""
     nums = [int(m.group(1)) for i in taken_ids if (m := ALT_NUM.match(i))]
     return max(nums, default=0) + 1
 
 
 def unique_label(label: str, taken: list[str]) -> str:
-    """`label`, or `label 2`, `label 3`... when the card already has it."""
     if label not in taken:
         return label
     n = 2
@@ -208,12 +194,6 @@ def plan_card(
     products: list[dict],
     hashes: dict[int, str | None],
 ) -> tuple[list[dict], dict[str, int]]:
-    """New alts for one card, in order, plus skip counts.
-
-    `products`: tcgcsv rows (productId, name, imageCount) sharing the card's
-    Number. `hashes`: productId -> hex hash (None when the picture is missing).
-    `ref_pids`: primary and existing alts, the art new alts must differ from.
-    """
     stats = {"same_art": 0, "no_marker": 0, "no_primary_art": 0}
     refs = [hashes[p] for p in ref_pids if hashes.get(p)]
     primary_has_art = bool(primary_pid and hashes.get(primary_pid))
@@ -227,7 +207,7 @@ def plan_card(
         marked = has_distinct_marker(prod["name"])
         h = hashes.get(pid) if int(prod.get("imageCount") or 0) > 0 else None
         if not h and not marked:
-            stats["no_marker"] += 1  # nothing to hash and no name marker
+            stats["no_marker"] += 1
             continue
         if h and not marked and not primary_has_art:
             stats["no_primary_art"] += 1
@@ -254,16 +234,13 @@ def plan_card(
     return out, stats
 
 
-# --- hashing ----------------------------------------------------------------
-
 
 def dhash(data: bytes) -> str | None:
-    """256-bit difference hash as 64 hex chars; None for a landscape placeholder."""
-    from PIL import Image  # lazy: only hashing needs Pillow
+    from PIL import Image
 
     img = Image.open(io.BytesIO(data))
     if img.width >= img.height:
-        return None  # TCGPlayer's "Image Coming Soon" picture
+        return None
     g = img.convert("L").resize((HASH_SIDE + 1, HASH_SIDE), Image.LANCZOS)
     px = list(g.get_flattened_data() if hasattr(g, "get_flattened_data") else g.getdata())
     bits = 0
@@ -303,15 +280,12 @@ def save_hashes(cache: dict[str, str]) -> None:
     )
 
 
-# --- data -------------------------------------------------------------------
-
 
 def load_json(path: Path):
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def products_by_number() -> dict[str, list[dict]]:
-    """Card Number -> every TCGPlayer product with it, across all groups."""
     by: dict[str, list[dict]] = {}
     groups = fetch_json(f"{TCGCSV}/groups")["results"]
     for g in groups:
@@ -337,7 +311,6 @@ def products_by_number() -> dict[str, list[dict]]:
 
 
 def existing_alt_info(card_id: str, catalog: dict, atlas: dict, tcg: dict):
-    """(alt pids, taken ids, taken labels) across catalog, atlas and tcgProducts."""
     alts = list(catalog[card_id].get("altArts") or [])
     alts += atlas.get(card_id, {}).get("altArts") or []
     alts += tcg.get(card_id, {}).get("alts") or []
@@ -346,7 +319,6 @@ def existing_alt_info(card_id: str, catalog: dict, atlas: dict, tcg: dict):
 
 
 def alt_product_ids(catalog: dict, atlas: dict, tcg: dict) -> list[int]:
-    """Sorted unique productIds of every alt art in catalog, atlas and tcgProducts."""
     pids: set[int] = set()
     for card_id in catalog:
         found, _, _ = existing_alt_info(card_id, catalog, atlas, tcg)
@@ -435,7 +407,7 @@ def main() -> int:
         )
     if not args.dry_run:
         save_backend_alt_list(alt_product_ids(catalog, atlas, tcg))
-    save_hashes(cache)  # a cache only: kept on --dry-run so a second run is cheap
+    save_hashes(cache)
 
     by_label = Counter(a["label"] for _, a in added)
     tag = " (dry run, nothing written)" if args.dry_run else ""

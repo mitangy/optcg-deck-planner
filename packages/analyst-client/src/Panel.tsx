@@ -26,18 +26,12 @@ import type { LogPoseGame, LogPosePage, OwnClaude } from "./types";
 
 type Request = LogPoseAsk & { nonce: number };
 
-/** Where the panel sits: docked to a side or floating, and the room it has (see LogPoseProvider). */
 export type PanelDockState = {
-  /** Docked to this side (desktop only), or floating. */
   dock: Dock;
-  /** Docking is possible on this page (a game board without side columns can't). */
   canDock: boolean;
   inGame: boolean;
-  /** On a game board, which sides have a column shown. */
   sides?: DockSides;
-  /** The board element a docked panel renders into; null while it has none (the panel waits). */
   embedded: HTMLElement | null;
-  /** A modal's element the panel renders into while there is one (and no board column). */
   layer: HTMLElement | null;
   dockW: number;
   onDockW: (w: number) => void;
@@ -45,12 +39,9 @@ export type PanelDockState = {
   onDock: (dock: Dock) => void;
 };
 
-/** How the panel opens and closes: it grows out of the compass and shrinks back into it. */
 export type PanelMotionState = {
-  /** Closed, and shrinking into the compass: `onExited` unmounts the panel once that is done. */
   closing: boolean;
   onExited: () => void;
-  /** Where the compass is (or would be): the panel grows out of it and shrinks back into it. */
   origin: () => Rect;
 };
 
@@ -74,7 +65,6 @@ export function LogPosePanel({
   onRequestHandled,
 }: {
   page: LogPosePage | null;
-  /** The chat the page belongs to (see LogPoseProvider). */
   active: LogPoseScope;
   editor: DeckEditor | null;
   game: LogPoseGame | null;
@@ -88,7 +78,6 @@ export function LogPosePanel({
   onClose: () => void;
   motion: PanelMotionState;
   dockState: PanelDockState;
-  /** Opened by the page, not the player: don't take the keyboard. */
   quiet: boolean;
   request: Request | null;
   onRequestHandled: () => void;
@@ -105,7 +94,6 @@ export function LogPosePanel({
   // A short window (a phone on its side) has no room for a second header row: the chat's name moves into the header.
   const short = useMediaQuery(SHORT_QUERY);
   const [draft, setDraft] = useState("");
-  /** Context for the next message only: the hint a Why? was about. */
   const [extra, setExtra] = useState<LogPoseAsk["context"] | null>(null);
   const handled = useRef(0);
   const [dropped, setDropped] = useState(false);
@@ -120,15 +108,12 @@ export function LogPosePanel({
   const pending = !phone && dock !== null && inGame && !embedded;
   const edge = !phone && dock !== null && !inGame;
 
-  // Pops out of the compass when it opens and shrinks back into it when it closes (see usePanelMotion).
   usePanelMotion(panelRef, { closing, pending, embedded, edge, dock, origin, onExited });
   const { sync } = chat;
 
-  // A different page brings its chip back.
   const pageKey = page ? JSON.stringify([page.label, page.deck, page.matchId, game?.label]) : (game?.label ?? "");
   useEffect(() => setDropped(false), [pageKey]);
 
-  // Opening the panel (or moving to a page on another scope) puts the page's chat on show.
   useEffect(() => {
     if (chatOn) void sync();
   }, [chatOn, sync, active.key, chat.busy]);
@@ -169,7 +154,6 @@ export function LogPosePanel({
     return () => window.removeEventListener("keydown", onKey, inLayer);
   }, [phone, onClose, inLayer, closing]);
 
-  // Beside a modal on desktop: tell the page which side the panel is on and how wide, so the modal makes room.
   useLayerRoom(panelRef, { inLayer, phone, closing, dock });
 
   // Desktop: focus the composer. Phones wait for a tap so the keyboard doesn't jump up.
@@ -177,10 +161,8 @@ export function LogPosePanel({
     if (!phone && showChat && !quiet) inputRef.current?.focus({ preventScroll: true });
   }, [phone, showChat, quiet]);
 
-  // Phones: the page behind must not scroll, and the sheet follows the on-screen keyboard.
   usePhoneViewport(panelRef, phone);
 
-  // Keep the newest text in view while it streams, unless the reader scrolled up.
   useLayoutEffect(() => {
     const el = listRef.current;
     if (el && showChat && stick.current) el.scrollTop = el.scrollHeight;
@@ -236,7 +218,6 @@ export function LogPosePanel({
   const showChip = Boolean(chipLabel) && !dropped;
   const aboutHint = extra?.hint;
 
-  // The chat on show: the page's own while it is, or the one picked from the Chats list.
   const shown = chat.scope.key === active.key ? active : chat.scope;
   const floating = !phone && dock === null;
   const chatsMenu = <ChatsMenu apiBase={apiBase} active={active} threadId={chat.threadId} busy={chat.busy} onPick={chat.openThread} />;

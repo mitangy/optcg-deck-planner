@@ -4,7 +4,6 @@ const sdkReconnect = vi.fn((_token: string) => new Promise<never>(() => {}));
 const sdkJoinOrCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
 const sdkCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
 const sdkJoinById = vi.fn((_id: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
-/** URL each SDK Client was built with (which game server it dials). */
 const sdkClientUrls: string[] = [];
 vi.mock("@colyseus/sdk", () => ({
   Client: class {
@@ -32,7 +31,6 @@ import { PROTOCOL_VERSION } from "./protocol";
 
 type Listener = (...args: unknown[]) => void;
 
-/** Just enough of a Colyseus Room for DuelClient's wiring and liveness check. */
 function fakeRoom(opts: { answersPing: boolean }) {
   const listeners: Record<string, Listener[]> = {};
   const on = (name: string) => (cb: Listener) => {
@@ -60,7 +58,6 @@ function fakeRoom(opts: { answersPing: boolean }) {
   return room;
 }
 
-/** Attach a fake room the way connect() does after a successful join. */
 function attach(client: DuelClient, room: ReturnType<typeof fakeRoom>) {
   const internals = client as unknown as {
     room: unknown;
@@ -170,9 +167,7 @@ describe("DuelClient ranked queue", () => {
     queued.catch(() => {});
     await vi.advanceTimersByTimeAsync(0);
     expect(sdkJoinOrCreate).toHaveBeenCalledWith("ranked_queue", expect.anything());
-    // e.g. the game server restarted for a deploy while we were in the queue.
     queueRoom.emit("leave", 1006);
-    // Without the fix only the 2 minute queue timeout would end the wait.
     await vi.advanceTimersByTimeAsync(120_000);
     await expect(queued).rejects.toThrow(/Lost the ranked queue/);
   });
@@ -216,7 +211,6 @@ describe("game server pools", () => {
     await client.connect({ serverUrl: "https://pool-a.example", preferredSeat: 0 });
     expect(client.serverUrl).toBe("https://pool-a.example");
 
-    // A token minted later (another tab, a rematch lobby) is assigned pool B.
     rememberAssignedGameServer({ game_server_url: "https://pool-b.example" });
     sdkClientUrls.length = 0;
     void client.reconnect();
@@ -254,7 +248,6 @@ describe("DuelClient turn guard", () => {
     t.client.sendIntent({ type: "end_turn" });
     t.client.sendIntent({ type: "play_card", handIndex: 0 });
     expect(t.sent()).toEqual(["end_turn"]);
-    // Opponent's turn, then yours again: actions go through.
     t.view(4, 1);
     t.view(5, 0);
     t.client.sendIntent({ type: "play_card", handIndex: 0 });
@@ -264,20 +257,16 @@ describe("DuelClient turn guard", () => {
   it("sends one Pass block when a tap races the automatic pass, and passes again on the next step (#445)", () => {
     const t = wired();
     t.view(3, 1);
-    // The tap and the automatic pass both answer the block step before its result arrives: the second is dropped.
     t.client.sendIntent({ type: "pass_block" });
     t.client.sendIntent({ type: "pass_block" });
     expect(t.sent()).toEqual(["pass_block"]);
-    // The counter step's view: its own pass goes out once too.
     t.view(3, 1);
     t.client.sendIntent({ type: "pass_counter" });
     t.client.sendIntent({ type: "pass_counter" });
     expect(t.sent()).toEqual(["pass_block", "pass_counter"]);
-    // The next attack's counter step is a new view: it is answered too.
     t.view(3, 1);
     t.client.sendIntent({ type: "pass_counter" });
     expect(t.sent()).toEqual(["pass_block", "pass_counter", "pass_counter"]);
-    // A refused pass can be tried again.
     t.error("illegal_intent", "Counter step: use a Counter or pass");
     t.client.sendIntent({ type: "pass_counter" });
     expect(t.sent()).toEqual(["pass_block", "pass_counter", "pass_counter", "pass_counter"]);
@@ -346,7 +335,6 @@ describe("DuelClient takeover (#451)", () => {
     expect(t.room.reconnection.enabled).toBe(false);
     expect(t.onTakenOver).toHaveBeenCalledTimes(1);
     expect(t.client.takenOver).toBe(true);
-    // The old reconnection token is dead: nothing may try to reclaim with it.
     expect(t.client.getReconnectionToken()).toBeNull();
   });
 

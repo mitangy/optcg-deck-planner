@@ -6,11 +6,6 @@ import { BannedError, MissingTicketError, signInErrorMessage } from "../auth/sig
 import { useDuelSession } from "../state/DuelSession";
 import { needsUsername } from "@optcg/ui/username";
 
-/**
- * OAuth return landing for duel-web only.
- * Claims the one-time ticket from the URL fragment, then mints a game token.
- * Accounts without a username continue to /welcome/username.
- */
 export function AuthCompletePage() {
   const navigate = useNavigate();
   const { setRating } = useDuelSession();
@@ -28,12 +23,10 @@ export function AuthCompletePage() {
         const user = await claimLoginTicket(ticket);
         // Strip ticket from the URL so refreshes cannot reuse it.
         window.history.replaceState(null, "", "/auth/complete");
-        // The account sync watching the store starts for this user.
         setAuthUser(user);
         const minted = await mintSessionGameToken();
         if (cancelled) return;
         setRating(minted.rating);
-        // First sign-in (or never picked one): choose a public username.
         navigate(needsUsername(user) ? "/welcome/username" : "/", { replace: true });
       } catch (e) {
         if (!cancelled) {

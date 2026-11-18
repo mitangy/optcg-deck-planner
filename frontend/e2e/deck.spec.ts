@@ -1,14 +1,7 @@
-/**
- * The deck page: open it, toggle List/Grid, expand a market price, open the
- * filters and the sort menu, edit owned counts. Every flow ends with the UI
- * audit, and every toggle checks its trigger does not move (CLAUDE.md UI-polish
- * rules 1 and 6). Runs at desktop-1200 and phone-375.
- */
 import type { Locator } from "@playwright/test";
 import { expect, formatIssues, test, DECK_ID } from "./fixtures";
 import { expectStationary } from "./audit";
 
-/** Still needed: the table shows "2" over "of 4"; the phone list says "Still need 2 of 4". */
 async function expectStill(row: Locator, still: number, need: number) {
   const num = row.locator(".still-need-num");
   if (await num.count()) {
@@ -32,10 +25,8 @@ test.afterEach(({ planner }) => {
 test("opens the deck and passes the UI audit", async ({ page, planner }) => {
   await expect(page.getByRole("heading", { name: "Oden Red/Green", level: 1 })).toBeVisible();
   await expect(page.locator(IZO)).toBeVisible();
-  // The default "Still need only" filter hides the fully owned Chopper.
   await expect(page.locator('[data-card-id="EB01-006"]:visible')).toHaveCount(0);
 
-  // Header region: title, Main badge, size counters, leader line, actions.
   await expect(page.locator(".deck-detail-head")).toMatchAriaSnapshot(`
     - img "Kouzuki Oden"
     - paragraph:
@@ -49,7 +40,6 @@ test("opens the deck and passes the UI audit", async ({ page, planner }) => {
     - button "Share"
     - button "More"
   `);
-  // Toolbar region: search, layout toggle, collapsed filters.
   await expect(page.locator(".deck-toolbar")).toMatchAriaSnapshot(`
     - searchbox "Search cards"
     - group "Card layout":
@@ -67,7 +57,6 @@ test("each card row names the card, how many are still needed and its price", as
   await expect(page.locator(IZO)).toContainText("Izo");
   await expectStill(page.locator(IZO), 2, 4);
   await expect(page.locator(IZO).locator("button:not(.alt-arts button)").filter({ hasText: /\$1\.25/ })).toBeVisible();
-  // Izo has alt arts on screen, so its Owned cell is the read-only total.
   await expect(page.locator(IZO).locator(".owned-total-num")).toHaveText("2");
   await expect(page.locator(IZO).getByRole("textbox")).toHaveCount(0);
 });
@@ -99,11 +88,8 @@ test("expanding a market price shows the last sales without moving the price", a
   const panel = page.getByRole("region", { name: "Last 3 sold prices" });
   await expect(panel.getByRole("listitem")).toHaveCount(3);
   await expect(panel.getByRole("listitem").first()).toContainText("$1.30");
-  // Dates come from the fixed clock, not today's date.
   await expect(panel.getByRole("listitem").first()).toContainText("Jan 10");
   await expect(panel).toBeInViewport({ ratio: 1 });
-  // The audit scrolls the whole page and the open panel follows its price off
-  // the top edge; its on-screen fit is the toBeInViewport check above.
   const issues = await planner.audit({ offscreenOk: [".market-sales"] });
   expect(issues, formatIssues(issues)).toEqual([]);
 
@@ -118,7 +104,6 @@ test("opening the filters and the sort menu moves nothing", async ({ page, plann
   await expect(filters).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByLabel("Still need only")).toBeChecked();
 
-  // The control row under the drawer shifts down (the toolbar grows); the sort trigger itself must hold still once open.
   const sort = page.getByRole("button", { name: /^Sort:/ });
   await expectStationary(sort, () => sort.click(), "Sort menu");
   const sortPanel = page.getByRole("dialog", { name: "Sort order" });
@@ -128,7 +113,6 @@ test("opening the filters and the sort menu moves nothing", async ({ page, plann
   await page.keyboard.press("Escape");
   await expect(sortPanel).toHaveCount(0);
 
-  // Unticking "Still need only" brings back the fully owned card.
   await page.getByLabel("Still need only").uncheck();
   await expect(page.locator('[data-card-id="EB01-006"]:visible')).toBeVisible();
   issues = await planner.audit();
@@ -140,7 +124,6 @@ test("owned stepper saves each click and updates still needed (#652)", async ({ 
   const total = row.locator(".owned-total-num");
   await expect(total).toHaveText("2");
 
-  // With alt tiles on screen the base count is edited under the Base tile.
   const inc = row.getByRole("button", { name: "Increase owned for Izo base art", exact: true });
   const dec = row.getByRole("button", { name: "Decrease owned for Izo base art", exact: true });
   await inc.click();
@@ -155,7 +138,6 @@ test("owned stepper saves each click and updates still needed (#652)", async ({ 
   await expectStill(row, 3, 4);
   expect(planner.owned.get("EB01-002")).toBe(1);
 
-  // Hide alt arts: the Owned cell is the typeable stepper again, and typing a number saves it too.
   await page.getByRole("button", { name: /^Filters/ }).click();
   await page.getByLabel("Show alt arts").uncheck();
   const owned = row.getByRole("textbox");
@@ -177,7 +159,6 @@ test("cannot take owned below zero", async ({ page, planner }) => {
 });
 
 test("edit mode opens the card editor and in-deck steppers without breaking layout", async ({ page, planner }) => {
-  // The label flips to "Done editing", so find the toggle by its class rather than its name.
   const edit = page.locator(".deck-edit-toggle");
   await expect(edit).toHaveText("Edit deck");
   await expectStationary(edit, () => edit.click(), "Edit deck");
@@ -212,7 +193,6 @@ test("DON!! browser shows big card tiles and searches the DON!! catalog (#435)",
   expect(issues, formatIssues(issues)).toEqual([]);
 });
 
-/** Opens the deck's stats where they live: the sticky dock at 1200, the sheet behind the Stats pill on a phone. */
 async function openStats(page: import("@playwright/test").Page) {
   if (page.viewportSize()!.width >= 1000) return;
   await page.getByRole("button", { name: /^Stats/ }).click();
@@ -252,30 +232,23 @@ test("no Why? on a hint while Log Pose is off (#399)", async ({ page }) => {
 });
 
 test("an owned alt art lowers $ left, becomes the main art, and leaves a Base tile (#625)", async ({ page, planner }) => {
-  // Still needed: Izo 2 x $1.25, Kid & Killer 4 x $6.80, EB01-009 2 x $3.50, EB01-011 1 x $0.10 = $36.80.
   const left = page.locator(".deck-progress-meta");
   await expect(left).toHaveText("$36.80 left");
 
-  // Alt arts are shown by default.
   const inc = page.locator(IZO).getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true });
   const qty = page.locator(IZO).locator(".alt-art:not(.alt-art-base) .alt-want-qty");
-  // The Base tile and the alt tile each have an Owned stepper.
   await expect(page.locator(IZO).locator(".alt-want-caption")).toHaveText(["Owned", "Owned"]);
   await expect(page.locator(IZO).locator(".alt-art-base")).toContainText("Base");
 
-  // One owned alt copy covers one Izo: 36.80 - 1.25.
   await inc.click();
   await expect(qty).toHaveText("1");
   await expect(left).toHaveText("$35.55 left");
   expect(planner.altOwned.get("EB01-002:201")).toBe(1);
-  // Owned is the total (2 base + 1 alt) and Still needed is what is left of 4.
   await expect(page.locator(IZO).locator(".owned-total-num")).toHaveText("3");
   await expect(page.locator(IZO).locator(".owned-total-split")).toHaveText("2 base + 1 alt");
   await expectStill(page.locator(IZO), 1, 4);
-  // The alt is now the main image and the base art sits in a Base tile.
   await expect(page.locator(IZO).locator(".alt-art-base")).toContainText("Base");
   await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);
-  // Both still-needed copies covered: 36.80 - 2.50, and Izo leaves the "still need" list.
   await inc.click();
   await expect(left).toHaveText("$34.30 left");
   await expect(page.locator(IZO)).toHaveCount(0);
@@ -287,7 +260,6 @@ test("Show picks the card's art, an unowned alt or the base over an owned alt, w
   const mainArt = page.locator(IZO).locator("img.thumb").first();
   await expect(mainArt).toHaveAttribute("src", /101_400w/);
 
-  // Show the alt nobody owns: it becomes the card's picture and the counts stay put.
   await page.locator(IZO).getByRole("button", { name: "Show Izo (Alternate Art) as the card's art" }).click();
   await expect(mainArt).toHaveAttribute("src", /201_400w/);
   await expect(page.locator(IZO).locator(".alt-art:not(.alt-art-base) .alt-shown-chip")).toHaveText("Shown");
@@ -295,13 +267,11 @@ test("Show picks the card's art, an unowned alt or the base over an owned alt, w
   expect(planner.altOwned.get("EB01-002:201")).toBeUndefined();
   await expect(left).toHaveText("$36.80 left");
 
-  // Own a copy of the alt, then choose the base art anyway: the base stays the picture.
   await page.locator(IZO).getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true }).click();
   await expect(left).toHaveText("$35.55 left");
   await page.locator(IZO).getByRole("button", { name: "Show Izo base art as the card's art" }).click();
   await expect(mainArt).toHaveAttribute("src", /101_400w/);
   expect(planner.displayArt.get("EB01-002")).toBe(0);
-  // The choice is saved: a reload keeps the base art.
   await page.reload();
   await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /101_400w/);
 });
@@ -332,7 +302,6 @@ test("alt arts sit in the list's own last column and the table still fits beside
     expect(g.izo.tilesInAltCell).toBeGreaterThan(0);
     expect(g.izo.tilesInCardCell).toBe(0);
     expect(g.izo.altLeft).toBeGreaterThanOrEqual(g.izo.cardRight);
-    // A card without alts keeps the cell, so the column lines up.
     expect(g.kid.lastIsAlt).toBe(true);
     expect(g.kid.tilesInAltCell).toBe(0);
     expect(g.kid.altLeft).toBe(g.izo.altLeft);

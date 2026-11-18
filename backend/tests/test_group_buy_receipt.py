@@ -1,4 +1,3 @@
-"""Group-buy receipt match + apply (stage bought copies)."""
 
 from __future__ import annotations
 
@@ -62,15 +61,14 @@ def test_receipt_partial_apply_leaves_remainder(db):
     friend = make_user(db, email="friend@example.com", name="Friend", sub="sub-friend")
     add_deck_with_cards(db, host, "Host Deck", {"OP01-001": 4, "OP01-002": 2})
     add_deck_with_cards(db, friend, "Friend Deck", {"OP01-001": 3, "OP01-002": 4})
-    set_owned(db, host, "OP01-001", 1)  # still 3
-    set_owned(db, friend, "OP01-002", 1)  # still 3 of 002, 3 of 001
+    set_owned(db, host, "OP01-001", 1)
+    set_owned(db, friend, "OP01-002", 1)
 
     created = group_buy.create_group_buy(db, host, "Partial")
     group_buy.join_group_buy(db, friend, created.invite_token)
     group_buy.lock_group_buy(db, host, created.id)
     group_buy.mark_ordered(db, host, created.id, None)
 
-    # Only enough Luffy for part of the pool (need 6); full Zoro (need 5)
     receipt = """
 2	One Piece Card Game - Test Set - Luffy - Near Mint
 5	One Piece Card Game - Test Set - Zoro - Near Mint Foil
@@ -90,13 +88,12 @@ def test_receipt_partial_apply_leaves_remainder(db):
         created.id,
         GroupBuyReceiptApplyRequest(receipt_text=receipt, allow_partial=True),
     )
-    assert updated.status == "ordered"  # remainder still open
-    # 2 Luffy applied across members; 5 Zoro applied fully
+    assert updated.status == "ordered"
     assert _owned(db, host.id, "OP01-001") + _owned(db, friend.id, "OP01-001") == 1 + 2
     assert _owned(db, host.id, "OP01-002") + _owned(db, friend.id, "OP01-002") == 1 + 5
 
     remaining = {l.card_id: l.total_qty for l in updated.lines}
-    assert remaining.get("OP01-001") == 4  # 6 - 2
+    assert remaining.get("OP01-001") == 4
     assert "OP01-002" not in remaining or remaining.get("OP01-002", 0) == 0
 
 
@@ -114,7 +111,6 @@ def test_receipt_stage_selected_cards_only(db):
 2	One Piece Card Game - Test Set - Zoro - Near Mint
 """.strip()
 
-    # Apply from locked (auto-marks ordered); only stage Luffy
     updated = group_buy.apply_receipt_to_group_buy(
         db,
         host,
@@ -236,7 +232,6 @@ def test_undo_partial_then_second_apply_lifo(db):
     assert _owned(db, host.id, "OP01-001") == 4
     assert _owned(db, host.id, "OP01-002") == 2
 
-    # Undo latest (B) first — back to post-A state
     undo_b = group_buy.undo_last_receipt_apply(db, host, created.id)
     assert undo_b.status == "ordered"
     assert undo_b.can_undo_purchase is True
@@ -246,7 +241,6 @@ def test_undo_partial_then_second_apply_lifo(db):
     assert remaining.get("OP01-001") == 2
     assert remaining.get("OP01-002") == 2
 
-    # Undo A — full pool restored
     undo_a = group_buy.undo_last_receipt_apply(db, host, created.id)
     assert undo_a.status == "ordered"
     assert undo_a.can_undo_purchase is False
@@ -307,7 +301,6 @@ def test_undo_clamps_owned_when_user_already_spent_copies(db):
         GroupBuyReceiptApplyRequest(receipt_text=receipt, allow_partial=True),
     )
     assert _owned(db, host.id, "OP01-001") == 3
-    # Simulate user removing inventory after purchase
     set_owned(db, host, "OP01-001", 1)
 
     undone = group_buy.undo_last_receipt_apply(db, host, created.id)
@@ -317,7 +310,6 @@ def test_undo_clamps_owned_when_user_already_spent_copies(db):
 
 
 def test_parse_user_receipt_smoke():
-    """Sanity: the user's pasted receipt shape parses without error."""
     text = """
 Qty	Description
 2	One Piece Card Game - 500 Years in the Future - Perfume Femur - Near Mint Foil

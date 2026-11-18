@@ -3,7 +3,6 @@ import { TournamentRow } from "./TournamentRow";
 import { useTournaments } from "./hooks";
 import "./tournaments.css";
 
-/** Lobby card: your open and running tournaments, with a nudge when your match is ready. */
 export function TournamentsCard({ signedIn }: { signedIn: boolean }) {
   const { list } = useTournaments(signedIn);
   if (!signedIn) return null;

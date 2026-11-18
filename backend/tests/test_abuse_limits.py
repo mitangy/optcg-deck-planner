@@ -1,4 +1,3 @@
-"""Limits that keep one client (signed in or not) from exhausting the API or its database."""
 
 from __future__ import annotations
 
@@ -77,7 +76,6 @@ def test_streamed_oversized_body_without_length_is_cut_off_318(client):
         yield b"}"
 
     res = c.post("/duel/guest-token", content=chunks(), headers={"Content-Type": "application/json"})
-    # FastAPI reports a failed body read as 400; either way the body never parses.
     assert res.status_code in (400, 413), res.text
 
 

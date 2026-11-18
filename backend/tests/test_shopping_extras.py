@@ -76,7 +76,6 @@ def test_extra_is_max_not_a_leader_when_summing_across_leaders_525(db):
     shopping_svc.set_shopping_extra(db, user, "OP01-001", 4)
 
     luffy = _item(shopping_svc.shopping_list(db, user), "OP01-001")
-    # Leaders sum to 5; the extra target 4 is not a third leader (would be 9).
     assert luffy.deck_need == 5
     assert luffy.need == 5
     assert luffy.need_by_leader and len(luffy.need_by_leader) == 2
@@ -93,7 +92,6 @@ def test_extra_qty_zero_removes_the_row_525(db):
     assert shopping_svc.set_shopping_extra(db, user, "OP01-002", 0) == 0
 
     assert shopping_svc.shopping_list(db, user).items == []
-    # Setting again after removal re-adds it (the row was really deleted).
     shopping_svc.set_shopping_extra(db, user, "OP01-002", 1)
     assert _item(shopping_svc.shopping_list(db, user), "OP01-002").extra_qty == 1
 
@@ -235,8 +233,6 @@ def test_share_http_extras_off_hides_them_on_the_public_page_527(client):
     items = c.get(f"/public/share/{shared['token']}").json()["items"]
     assert [i["card_id"] for i in items] == ["OP01-002"]
 
-
-# ---- Alt picks on Master Shopping cards (#872) ----
 
 
 def _alt_setup(db, email="alt872@example.com"):

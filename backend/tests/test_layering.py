@@ -1,10 +1,3 @@
-"""Import layering (refactor 3.9b, D-02): routers sit on top, nothing imports a router.
-
-A router module is a file under app/routers or any module that builds an APIRouter. Shared
-helpers belong in services, app/core, app/analyst, app/duel, app/social or app/planner, so a
-route module never has to reach into a sibling (which is how `_private` imports and
-function-local cycle breakers crept in).
-"""
 
 from __future__ import annotations
 
@@ -12,7 +5,6 @@ import ast
 from pathlib import Path
 
 APP = Path(__file__).resolve().parents[1] / "app"
-# The app factory wires every router in; that is its job.
 WIRING = {"app.main"}
 
 
@@ -43,7 +35,6 @@ def _router_modules(mods: dict[str, ast.Module]) -> set[str]:
 
 
 def _imported(name: str, tree: ast.Module) -> set[str]:
-    """Every module an import in this file could name, function-local imports included."""
     package = name.rsplit(".", 1)[0] if "." in name else name
     out: set[str] = set()
     for node in ast.walk(tree):

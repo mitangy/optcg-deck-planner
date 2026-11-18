@@ -1,21 +1,16 @@
 /**
- * ST30-001 Luffy & Ace. The Leader gets -2000 while I have a Character with 7000+ base power, and my Luffy/Ace cards get +3000
- * on the opponent's turn. So a big Character shrinks the attacking Leader: while the Leader can still attack this turn, a
- * hand Character with 7000+ base power is played later (penalty on its play score). Mulligan: the plan is a cost 4-5 Monkey.D.Luffy
- * Character plus a cost-1 searcher to find the rest; keep with both, redraw with neither, else the generic rule.
+ * A big Character shrinks the attacking Leader (-2000), so while the Leader can still attack this turn a hand
+ * Character with 7000+ base power is played later.
  */
 import { getCardDef } from "../../cards/definitions.js";
 import { namesOfDef } from "../../engine/evalCtx.js";
 import type { BotView } from "../types.js";
 import type { LeaderPlaybook } from "./types.js";
 
-/** Play-score penalty for a hand Character with base power >= `LUFFY_ACE_BIG_POWER` while the Leader can still attack. */
 export const LUFFY_ACE_BIG_PENALTY = 2;
 export const LUFFY_ACE_BIG_POWER = 7000;
-/** Cost range of the Monkey.D.Luffy Character the mulligan looks for. */
 export const LUFFY_ACE_LUFFY_MIN_COST = 4;
 export const LUFFY_ACE_LUFFY_MAX_COST = 5;
-/** Cost-1 searchers: Nami (EB02-017, OP01-016), Jewelry Bonney, Thousand Sunny. */
 export const LUFFY_ACE_SEARCHERS: readonly string[] = ["EB02-017", "OP01-016", "EB04-002", "ST31-005"];
 
 export const luffyAcePlaybook: LeaderPlaybook = {

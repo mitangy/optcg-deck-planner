@@ -179,7 +179,6 @@ describe("deck sync (#619)", () => {
     const ids = listSavedDecks().map((d) => d.id).sort();
     expect(ids).toEqual(["test-op16-black", "test-op17-red"]);
     expect(getSelectedDeckId()).not.toBe("theirs");
-    // A different player signing in next does not inherit or upload anything of the first.
     api.fetchAccountDecks.mockResolvedValue({ decks: [] });
     api.putAccountDecks.mockClear();
     await syncDecks(8);
@@ -191,7 +190,6 @@ describe("deck sync (#619)", () => {
     api.fetchAccountDecks.mockResolvedValue({ decks: [wire("x", Date.now() - 5000)] });
     await syncDecks(7);
     stopDeckSync();
-    // /auth/me is slow or failed: no sync is running when the player deletes the deck.
     deleteDeck("x");
     await syncDecks(7);
     await vi.advanceTimersByTimeAsync(700);
@@ -218,7 +216,6 @@ describe("deck sync (#619)", () => {
     clearAccountDecks();
     api.fetchAccountDecks.mockResolvedValue({ decks: [] });
     await syncDecks(8);
-    // The kept deck is a guest deck now: it is offered to the next account like any guest deck.
     expect(api.putAccountDecks.mock.calls[0][0].map((d: { id: string }) => d.id)).toContain("rejected");
   });
 

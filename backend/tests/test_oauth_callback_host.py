@@ -22,7 +22,6 @@ DUEL = "https://duel.example"
 @pytest.fixture()
 def client(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("SESSION_SECRET", "test-session-secret")
-    # https:// BACKEND_PUBLIC_URL marks settings as production; satisfy its checks.
     monkeypatch.setenv("CATALOG_SYNC_TOKEN", "test-sync-token")
     monkeypatch.setenv("DUEL_INGEST_SECRET", "test-ingest")
     monkeypatch.setenv("ENABLE_DEV_LOGIN", "false")

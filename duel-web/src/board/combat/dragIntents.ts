@@ -2,15 +2,10 @@ import type { Intent } from "../../net/protocol";
 import type { PlayCardIntent } from "../prompts/intentFields";
 import { findAttackIntent } from "../prompts/intentFilter";
 
-/** Active pointer-drag payload for legal give_don / play_card / attack /
- * counter intents. `donIds` carries the full multi-select (or a lone id when
- * nothing is selected) so one gesture can attach several DON!! in sequence. */
 export type DragPayload =
   | { type: "give_don"; donIds: string[] }
   | { type: "play_card"; handIndex: number }
-  /** Your Leader / Character dragged onto an opposing card to declare an attack. */
   | { type: "attack"; attackerId: string }
-  /** A hand card dragged onto your defending card (counter step, or block step to skip the block). */
   | { type: "counter"; handIndex: number };
 
 export type DropTarget =
@@ -20,11 +15,8 @@ export type DropTarget =
   | { kind: "attack_target"; targetId: string }
   | { kind: "counter_target"; targetId: string };
 
-/** Board facts a drop needs that the intents alone do not carry. */
 export type DropContext = {
-  /** Attack intents name the Leader as `{ kind: "leader" }`, not by id. */
   opponentLeaderId?: string;
-  /** The card taking the current attack (after any block): the only counter drop. */
   defenderId?: string | null;
 };
 
@@ -48,12 +40,10 @@ function isPlayCard(
   return intent.type === "play_card" && typeof intent.handIndex === "number";
 }
 
-/** True when any legal give_don uses this cost-area DON!! id. */
 export function canDragDon(intents: Intent[], donId: string): boolean {
   return intents.some((i) => isGiveDon(i) && i.donId === donId);
 }
 
-/** Target instance ids for give_don with this donId. */
 export function giveDonTargetIds(intents: Intent[], donId: string): string[] {
   const ids = new Set<string>();
   for (const i of intents) {
@@ -72,11 +62,6 @@ export function matchGiveDon(
   );
 }
 
-/**
- * Targets legal for EVERY donId in the set — the intersection used to
- * highlight drop zones during a multi-DON drag so a drop always fully
- * succeeds (every selected DON has a legal give_don there).
- */
 export function giveDonTargetIdsForAll(intents: Intent[], donIds: string[]): string[] {
   if (donIds.length === 0) return [];
   let result: Set<string> | null = null;
@@ -93,11 +78,6 @@ export function giveDonTargetIdsForAll(intents: Intent[], donIds: string[]): str
   return result ? [...result] : [];
 }
 
-/**
- * Legal give_don intents for each donId that has one landing on targetId,
- * in donIds order. Callers send these sequentially (client-side, no batch
- * protocol) — donIds without a legal intent to this target are skipped.
- */
 export function matchGiveDonMulti(
   intents: Intent[],
   donIds: string[],
@@ -111,19 +91,16 @@ export function matchGiveDonMulti(
   return out;
 }
 
-/** True when any legal play_card uses this hand index. */
 export function canDragHandCard(intents: Intent[], handIndex: number): boolean {
   return intents.some((i) => isPlayCard(i) && i.handIndex === handIndex);
 }
 
-/** play_card without trashCharacterId — drop on stage/character area. */
 export function canDropPlayOnField(intents: Intent[], handIndex: number): boolean {
   return intents.some(
     (i) => isPlayCard(i) && i.handIndex === handIndex && i.trashCharacterId == null,
   );
 }
 
-/** Character ids that may be trashed when playing this hand card onto a full board. */
 export function playCardTrashTargetIds(intents: Intent[], handIndex: number): string[] {
   const ids = new Set<string>();
   for (const i of intents) {
@@ -138,17 +115,11 @@ export function playCardTrashTargetIds(intents: Intent[], handIndex: number): st
   return [...ids];
 }
 
-/** A full-board play: its owner must pick which Character to trash first. */
 export function playNeedsReplace(intents: Intent[], handIndex: number): boolean {
   return playCardTrashTargetIds(intents, handIndex).length > 0;
 }
 
-/**
- * The engine lists one full-board play per Character that could be trashed.
- * Keep one entry per hand card so the action bar shows a single "Play" that
- * opens the replace prompt, instead of several look-alike buttons that each
- * silently trash a different Character.
- */
+// The engine lists one play per Character that could be trashed; keep one per hand card so the bar shows a single Play that opens the replace prompt.
 export function collapseReplacePlays(intents: Intent[]): Intent[] {
   const seen = new Set<number>();
   return intents.filter((i) => {
@@ -186,15 +157,10 @@ export function matchPlayCardTrash(
   );
 }
 
-/** True when this board card has at least one legal declare_attack. */
 export function canDragAttacker(intents: Intent[], attackerId: string): boolean {
   return intents.some((i) => i.type === "declare_attack" && i.attackerId === attackerId);
 }
 
-/**
- * The counter intent for this hand slot: a Counter card (`counter_from_hand`)
- * or a Counter Event (`counter_event`). Null when the card cannot counter now.
- */
 export function matchCounter(intents: Intent[], handIndex: number): Intent | null {
   return (
     intents.find(
@@ -205,19 +171,10 @@ export function matchCounter(intents: Intent[], handIndex: number): Intent | nul
   );
 }
 
-/** True when this hand slot can be dragged onto the defender right now. */
 export function canDragCounter(intents: Intent[], handIndex: number): boolean {
   return matchCounter(intents, handIndex) != null;
 }
 
-/**
- * Map a drag payload + drop target to the legal intent(s) to send, in send
- * order. give_don with multiple donIds resolves to one intent per don that
- * has a legal give_don to this target (client sends them sequentially).
- * A hand card dragged to play (play_card) is played wherever it is dropped
- * (an empty spot, any zone), except on a Character to trash, which picks that
- * Character. Dropping back on the hand is the caller's job (it never gets here).
- */
 export function resolveDropIntents(
   payload: DragPayload | null,
   drop: DropTarget | null,
@@ -245,12 +202,9 @@ export function resolveDropIntents(
     return intent ? [intent] : [];
   }
   if (payload.type === "counter" && drop.kind === "counter_target") {
-    // Only the card actually taking the hit accepts a counter.
     if (!ctx.defenderId || drop.targetId !== ctx.defenderId) return [];
     const intent = matchCounter(intents, payload.handIndex);
     if (intent) return [intent];
-    // Block step: the drop skips the block; the counter follows once the
-    // counter step is up (see followUpCounter).
     const pass = intents.find((i) => i.type === "pass_block");
     return pass ? [pass] : [];
   }
@@ -260,7 +214,6 @@ export function resolveDropIntents(
   return [];
 }
 
-/** Parse data-dnd-drop attribute from an element under the pointer. */
 export function parseDropAttr(value: string | null | undefined): DropTarget | null {
   if (!value) return null;
   if (value === "play_field") return { kind: "play_field" };

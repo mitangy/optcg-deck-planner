@@ -136,7 +136,6 @@ describe("sources in a Log Pose answer (#390)", () => {
       ["2", "Rules §6-5-3 Blocker", "2"],
       ["1", "Zoro (OP01-001)", "1"],
     ]);
-    // Each marker is the button of its own popover (#718): a wrapper span around it and a hidden focus guard after it.
     const marker = (n: number) => `<span[^>]*><button[^>]*>${n}</button></span><span hidden[^>]*></span>`;
     expect(html).toMatch(new RegExp(`Zoro costs 3\\.${marker(1)} Blockers rest`));
     expect(html).toMatch(new RegExp(`Blockers rest\\.${marker(2)}${marker(1)} He wins`));
@@ -189,10 +188,8 @@ describe("Log Pose on boards with a matchup brief (#401)", () => {
   it("Log Pose stays hidden on a board unless a brief is up, and never shows its compass there (#401)", () => {
     for (const path of ["/duel", "/hotseat", "/demo"]) {
       expect(logPoseChromeFor(path, false), path).toEqual({ hidden: true, launcher: false });
-      // With a brief up the panel may open (from "Ask Log Pose"), but the compass is not drawn on a board.
       expect(logPoseChromeFor(path, true), path).toEqual({ hidden: false, launcher: false });
     }
-    // Everywhere else Log Pose is as before.
     for (const path of ["/", "/decks", "/history"]) {
       expect(logPoseChromeFor(path, false), path).toEqual({ hidden: false, launcher: true });
     }
@@ -206,7 +203,6 @@ describe("Log Pose on boards with the copilot (#416)", () => {
     expect(boardOpensLogPose()).toBe(true);
     setBoardBrief(true);
     setBoardCopilot(false);
-    // The brief unmounting must not take the copilot's permission with it, nor the reverse.
     expect(boardOpensLogPose()).toBe(true);
     setBoardCopilot(true);
     setBoardBrief(false);

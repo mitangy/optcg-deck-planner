@@ -6,7 +6,6 @@ function reload() {
   window.location.reload();
 }
 
-/** Bottom-right card shown while a newer deploy is live. Fixed, so it never moves the page. */
 export function UpdateNotice() {
   const pending = usePendingUpdate();
   if (!pending) return null;
@@ -26,13 +25,11 @@ export function UpdateNotice() {
   );
 }
 
-/** Both cards sit in the same corner, so the What’s new card waits while the update card is up. */
 export function CornerNotices() {
   const pending = usePendingUpdate();
   return pending ? <UpdateNotice /> : <WhatsNewCard app="planner" Link={Link} />;
 }
 
-/** "Version abc1234 · Up to date", with Check now / Reload. */
 export function VersionStatus() {
   const status = useUpdateStatus();
   const label =

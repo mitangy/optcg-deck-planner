@@ -9,7 +9,6 @@ const catalog = loadCatalog();
 const TODAY = "2026-11-04";
 const ago = (days: number, from = TODAY) => new Date(Date.parse(`${from}T00:00:00Z`) - days * 86_400_000).toISOString().slice(0, 10);
 
-/** A 152-day history of an alternate art: 10 on day 0, a presale peak of 60 on day 3, then 40, 30, 25 and finally 20. */
 const AGE = 151;
 const RELEASED = ago(AGE);
 const series: [string, number][] = Array.from({ length: AGE + 1 }, (_, i) => [ago(AGE - i), i === 0 ? 10 : i === 3 ? 60 : i < 60 ? 40 : i <= AGE - 90 ? 30 : i <= AGE - 30 ? 25 : 20]);
@@ -68,10 +67,8 @@ describe("price_history tool (#946)", () => {
   it("adds the buyTiming read from @optcg/price-timing", async () => {
     const out = await priceHistory(planner(ALT).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
     expect(out.buy_timing.verdict).toBe("good");
-    // The same card 30 days in is still well above where its kind settles.
     const early = await priceHistory(planner({ ...ALT, released: ago(30) }).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
     expect(early.buy_timing.verdict).toBe("wait");
-    // The curve alone says 24% to 6 months; bought in the November low the season gives some of it back (#1311).
     expect(early.buy_timing.expectedFurtherDropPct).toBe(17);
   });
 
@@ -97,7 +94,6 @@ describe("price_history tool (#946)", () => {
   it("adds the season it reads prices through, and passes the card's reprints to the timing (#1311)", async () => {
     const out = await priceHistory(planner(ALT).api, { card_id: "OP05-119", product_id: 555 }, TODAY);
     expect(out.season.pct_vs_yearly_average_by_month).toEqual({ Jan: 4, Feb: 7, Mar: 6, Apr: 4, May: 3, Jun: 2, Jul: 0, Aug: -3, Sep: -4, Oct: -6, Nov: -8, Dec: -4 });
-    // 4 Nov is 11 of 31 days from mid-October (-6) towards mid-November (-8).
     expect(out.season.factor_now).toBe(0.93);
     expect(out.season.basis).toMatch(/two winters/);
     expect(out.reprints).toEqual([]);
@@ -159,7 +155,6 @@ describe("weekly sample (#946)", () => {
       { date: ago(3), price: 8 },
       { date: TODAY, price: 9 },
     ];
-    // 14 and 7 days back both fall in the gap and take the day-20 price, which is listed once; day 3 is not a weekly mark.
     expect(weeklySample(gappy)).toEqual([
       [ago(20), 5],
       [TODAY, 9],

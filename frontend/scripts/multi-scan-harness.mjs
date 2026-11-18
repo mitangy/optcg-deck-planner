@@ -1,21 +1,4 @@
 #!/usr/bin/env node
-/** Synthetic harness for "scan every card in a photo".
- *
- * Builds scenes from reference card art (binder pages, table spreads with
- * rotation, perspective, touching cards, JPEG, blur), runs the real
- * detect -> rectify -> match pipeline in Node, and prints per-scene detection
- * recall/precision (IoU against the ground-truth quads) and identification
- * accuracy.
- *
- *   cd frontend
- *   LIMIT=240 node scripts/fetch-reference-images.mjs .scan-build/refs
- *   npx tsx scripts/extract-descriptors.mjs .scan-build/refs .scan-build/desc
- *   npx tsx scripts/multi-scan-harness.mjs            # all scenes
- *   SCENES=6 SEED=3 npx tsx scripts/multi-scan-harness.mjs
- *   DETECT_ONLY=1 npx tsx scripts/multi-scan-harness.mjs   # detection numbers only, fast
- *
- * Scenes and detection overlays are written to .scan-build/scenes/ (gitignored).
- */
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import jpeg from "jpeg-js";
@@ -42,8 +25,6 @@ function rng(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-// ------------------------------------------------------------- scene drawing
 
 class Scene {
   constructor(w, h) {
@@ -77,7 +58,6 @@ function polyMask(cv, w, h, quad) {
   return m;
 }
 
-/** Paint a flat-coloured polygon (sheet, pocket) onto the scene. */
 function paintPoly(cv, scene, quad, color) {
   const m = polyMask(cv, scene.w, scene.h, quad);
   for (let i = 0; i < m.data.length; i += 1) {
@@ -90,7 +70,6 @@ function paintPoly(cv, scene, quad, color) {
   m.delete();
 }
 
-/** Round the corners of a card image by clearing its alpha there. */
 function roundedAlpha(img) {
   const r = Math.round(img.width * 0.045);
   const { width: w, height: h, data } = img;
@@ -108,7 +87,6 @@ function roundedAlpha(img) {
   return { width: w, height: h, data: out };
 }
 
-/** Draw a card (RGBA with alpha) into the scene at `quad`, with an optional soft shadow. */
 function placeCard(cv, scene, card, quad, { shadow = true, gloss = 0 } = {}) {
   const { w, h } = scene;
   const src = cv.matFromArray(card.height, card.width, cv.CV_8UC4, card.data);
@@ -182,7 +160,6 @@ function background(scene, kind, r) {
   const { w, h } = scene;
   if (kind === "noise") {
     const base = [100 + r() * 80, 90 + r() * 80, 80 + r() * 80];
-    // Blotchy low-frequency texture plus per-pixel grain.
     const gx = 16;
     const grid = Array.from({ length: gx * gx }, () => (r() - 0.5) * 60);
     scene.fill((x, y) => {
@@ -204,8 +181,6 @@ function background(scene, kind, r) {
   }
 }
 
-// ---------------------------------------------------------------- scene kinds
-
 function binderScene(cv, cards, cols, rows, r, bgKind, sheetColor) {
   const pocketW = 400;
   const pocketH = Math.round(pocketW * 88 / 63);
@@ -220,7 +195,6 @@ function binderScene(cv, cards, cols, rows, r, bgKind, sheetColor) {
     { x: margin, y: margin }, { x: margin + pageW, y: margin },
     { x: margin + pageW, y: margin + pageH }, { x: margin, y: margin + pageH },
   ], sheetColor);
-  // A pocket is a slightly lighter plastic sleeve, a touch bigger than the card.
   const lighter = sheetColor.map((v) => Math.min(255, v + 22));
   const empty = Math.floor(r() * 2); // 0-1 empty pockets
   const skip = new Set();
@@ -261,7 +235,6 @@ function tableScene(cv, cards, count, r, bgKind, { touching = 0 } = {}) {
   const place = (q, card) => {
     placed.push({ quad: q, card });
   };
-  // Touching pairs first: second card flush against the first.
   for (let t = 0; t < touching; t += 1) {
     for (let a = 0; a < 200; a += 1) {
       const cx = 350 + r() * (w - 700);
@@ -298,7 +271,6 @@ function overlap(a, b, pad) {
   const [a0, a1, a2, a3] = bb(a);
   const [b0, b1, b2, b3] = bb(b);
   if (a2 < b0 || b2 < a0 || a3 < b1 || b3 < a1) return false;
-  // Bounding boxes of rotated cards overlap a lot; use the real polygons.
   return quadIoU(a, b) > 0 || polysTouch(a, b, pad);
 }
 function polysTouch(a, b, pad) {
@@ -317,7 +289,6 @@ function polysTouch(a, b, pad) {
   return a.some((p) => inside(p, b)) || b.some((p) => inside(p, a));
 }
 
-/** Global camera: rotation, mild perspective, then blur / brightness / JPEG. */
 function photograph(cv, scene, r, { rotate = 0, perspective = 0.04, blur = 0, bright = 1, jpegQ = 85 } = {}) {
   const { w, h } = scene;
   const src = cv.matFromArray(h, w, cv.CV_8UC4, scene.px);
@@ -333,7 +304,6 @@ function photograph(cv, scene, r, { rotate = 0, perspective = 0.04, blur = 0, br
     const q = rot(p);
     return { x: q.x + jitter() * w, y: q.y + jitter() * h };
   });
-  // Keep the output frame the same; the scene shrinks a touch so edges stay in view.
   const shrink = 0.9;
   const dstQ = moved.map((p) => ({ x: c.x + (p.x - c.x) * shrink, y: c.y + (p.y - c.y) * shrink }));
   const from = cv.matFromArray(4, 1, cv.CV_32FC2, corners.flatMap((p) => [p.x, p.y]));
@@ -359,8 +329,6 @@ function photograph(cv, scene, r, { rotate = 0, perspective = 0.04, blur = 0, br
   const dec = jpeg.decode(enc.data, { useTArray: true });
   return { image: { data: new Uint8ClampedArray(dec.data), width: w, height: h }, jpegBytes: enc.data, gt };
 }
-
-// ---------------------------------------------------------------- evaluation
 
 function drawLine(img, a, b, color) {
   const n = Math.ceil(Math.hypot(b.x - a.x, b.y - a.y));
@@ -406,15 +374,12 @@ function assign(gt, det) {
   return out;
 }
 
-// ---------------------------------------------------------------------- main
-
 async function loadCandidates() {
   return loadMatchAssets(DESC);
 }
 
 function loadCards(r) {
   const index = JSON.parse(readFileSync(join(REFS, "index.json"), "utf8"));
-  // One printing per card number so ground truth is unambiguous.
   const seen = new Set();
   const cards = [];
   for (const e of index) {
@@ -476,12 +441,10 @@ async function main() {
     const detMs = Date.now() - td;
 
     const t1 = Date.now();
-    // DETECT_ONLY=1 skips identification, for quick detector tuning.
     const det = process.env.DETECT_ONLY
       ? findCardQuads(cv, shot.image).map((quad) => ({ quad, cardId: null, confidence: "none" }))
       : await matchAllCardsWith({ thumbnail: () => "" }, shot.image, candidates);
     const ms = Date.now() - t1;
-    // Detection ran with the fallback here; for precision count only real detections.
     const pairs = assign(gt, det);
     let idOk = 0, sure = 0, check = 0, none = 0, sureWrong = 0, iouSum = 0;
     for (const p of pairs) {

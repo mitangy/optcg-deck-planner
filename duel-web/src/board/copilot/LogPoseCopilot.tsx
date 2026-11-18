@@ -39,15 +39,10 @@ export type CopilotLayout = "desktop" | "portrait" | "landscape";
 
 export const COPILOT_STARTERS = ["What's my best play this turn?", "Plan my turn", "Should I block or counter?"];
 
-// ——— The plan being played, shared between the board (the executor) and the panel (the cards) ———
-
 type CopilotSnap = {
   view: PlayerView | null;
-  /** The one plan that is running now (or the last one to finish, for the pill to drop). */
   run: PlanRun | null;
-  /** Runs that finished, by plan id, so their cards keep saying how it went. */
   finished: Record<string, PlanRun>;
-  /** Log Pose is playing the turn: waiting for the board, or asking Log Pose what to do next. Null when it is not. */
   auto: "waiting" | "asking" | null;
 };
 
@@ -58,7 +53,6 @@ function createCopilotStore() {
     set(patch: Partial<CopilotSnap>) {
       base.set((prev) => {
         let snap = { ...prev, ...patch };
-        // A run that ended is remembered under its plan, whatever ended it.
         const run = snap.run;
         if (run && (run.state === "done" || run.state === "stopped") && snap.finished[run.plan.id] !== run) snap = { ...snap, finished: { ...snap.finished, [run.plan.id]: run } };
         return snap;
@@ -71,7 +65,6 @@ type Store = ReturnType<typeof createCopilotStore>;
 
 type Actions = { play: (plan: TurnPlan) => void; stop: () => void; skip: () => void };
 
-/** The Turn plan card: every step the plan will play, and the only way to start it. Nothing is sent until Play this turn. */
 export function TurnPlanCard({
   plan,
   mode,
@@ -83,7 +76,6 @@ export function TurnPlanCard({
 }: {
   plan: TurnPlan;
   mode: PlanCardMode;
-  /** Log Pose is answering: Re-plan waits. */
   busy: boolean;
   onPlay: () => void;
   onStop: () => void;
@@ -160,7 +152,6 @@ export function TurnPlanCard({
   );
 }
 
-/** Subscribes one card to the shared run, so it follows the plan without the panel re-registering anything. */
 function PlanCardConnector({ plan, store, actions, gameKey, ctx }: { plan: TurnPlan; store: Store; actions: Actions; gameKey: string | null; ctx: { busy: boolean; ask: (text: string) => void } }) {
   const snap = useSyncExternalStore(store.subscribe, store.get, store.get);
   const own = snap.run?.plan.id === plan.id ? snap.run : (snap.finished[plan.id] ?? null);
@@ -181,7 +172,6 @@ function PlanCardConnector({ plan, store, actions, gameKey, ctx }: { plan: TurnP
   );
 }
 
-/** Under the top bar (or the top edge when there is none): where the pill sits. */
 function useBarBottom(on: boolean): number {
   const [top, setTop] = useState(0);
   useLayoutEffect(() => {
@@ -217,11 +207,6 @@ function CopilotPill({ run, auto, onStop }: { run: PlanRun | null; auto: Copilot
   return typeof document === "undefined" ? null : createPortal(el, document.body);
 }
 
-/**
- * The Log Pose copilot for a casual or practice game: a Log Pose button for the top bar (or the landscape rail), the
- * live game as Log Pose's context, Turn plan cards under its answers, and the executor that plays an approved plan one
- * legal intent at a time with a Stop pill on the board. Nothing renders, registers or sends unless `copilotShown`.
- */
 export function useLogPoseCopilot(o: {
   source: { brief: BriefTicketWire | null; ranked: boolean | null } | null | undefined;
   role: "player" | "spectator";
@@ -230,9 +215,7 @@ export function useLogPoseCopilot(o: {
   onSendIntent: (intent: Intent) => void;
   over: boolean;
   layout: CopilotLayout;
-  /** The seat the ticket was minted for: your own seat online, seat 0 in hotseat. */
   ticketSeat: Seat | null | undefined;
-  /** The board's error banner: a refused move stops the plan. */
   errorBanner?: string | null;
 }): { shown: boolean; running: boolean; pill: ReactNode } {
   const { enabled, openPanel, askGame, stopGameAsk } = useLogPose();
@@ -247,9 +230,7 @@ export function useLogPoseCopilot(o: {
     setting: settings.logPoseCopilot,
     ticketSeat: o.ticketSeat,
   };
-  // Offered: the plan, its card and the panel stay. Shown: the button too, on the ticket's own seat's view only.
   const offered = copilotAvailable(gate);
-  // Attached: the live game is Log Pose's context, also when only the matchup brief opened its panel (no copilot setting).
   const attached = gameAttached({ ...gate, briefSetting: settings.matchBrief });
   const shown = copilotShown({ ...gate, viewSeat: view?.seat });
 
@@ -257,7 +238,6 @@ export function useLogPoseCopilot(o: {
   const ticketRef = useRef<string | null>(null);
   ticketRef.current = brief?.ticket ?? null;
   const gameKeyNow = () => (ticketRef.current ? ticketGameKey(ticketRef.current) : null);
-  // The match's own chat. The ticket is new on every reconnect but names the same match, so only the key and title count.
   const scopeNow = brief ? liveMatchScope(brief.ticket, lookupCard(brief.leaderId).name || brief.leaderId, lookupCard(brief.opponentId).name || brief.opponentId) : undefined;
   const scopeKey = scopeNow?.key;
   const scopeTitle = scopeNow?.title;
@@ -277,11 +257,6 @@ export function useLogPoseCopilot(o: {
   const stopAskRef = useRef(stopGameAsk);
   stopAskRef.current = stopGameAsk;
 
-  /**
-   * Log Pose playing the turn (#725). One session per turn: it starts when a live autoplay plan arrives, answers the
-   * run's pending choices and plans on when the run ends early, makes at most AUTO_ASK_CAP requests, and ends the moment the
-   * player stops it, the turn or game ends, or Log Pose cannot decide. Nothing here runs for a plan read back from a saved chat.
-   */
   const auto = useMemo(() => {
     type Session = { turn: number; asks: number; fired: Set<string>; answered: Set<string>; ctrl: AbortController; inFlight: boolean };
     let session: Session | null = null;
@@ -290,7 +265,6 @@ export function useLogPoseCopilot(o: {
       store.set({ run: r.run });
       if (r.send) sendRef.current(r.send);
     };
-    /** Ends the session; `reason` is shown on the run's card (also when it had already finished all its steps). */
     const end = (reason?: string) => {
       const s = session;
       session = null;
@@ -322,16 +296,11 @@ export function useLogPoseCopilot(o: {
         else if (!res.sent || res.error || (!res.plan && !res.choice)) end(AUTO_UNDECIDED_REASON);
         else {
           store.set({ auto: "waiting" });
-          // The board may have moved on while Log Pose answered (no new view is coming to ask about it).
           const v = viewRef.current;
           if (v && v.seat === ticketSeatRef.current) drive(v);
         }
       });
     };
-    /**
-     * A fresh view. The session ends with the turn or the game, whichever seat the device shows; on the ticket's own
-     * seat's view it also asks Log Pose what comes next, if anything does.
-     */
     const drive = (v: PlayerView, mine = true) => {
       const s = session;
       if (!s) return;
@@ -347,12 +316,10 @@ export function useLogPoseCopilot(o: {
       get active() {
         return session !== null;
       },
-      /** A plan Log Pose proposed to play now has just streamed in. */
       onLivePlan(plan: TurnPlan) {
         if (!plan.autoplay || !planningRef.current) return;
         const cur = viewRef.current;
         if (!cur || cur.seat !== ticketSeatRef.current) return;
-        // A step that was blocked is replaced by the plan Log Pose just made for the rest of the turn.
         const run = store.get().run;
         if (session && runActive(run) && run.auto && run.state === "blocked") store.set({ run: stopRun(run, run.reason) });
         const why = playBlockReason(plan, cur, store.get().run, gameKeyNow());
@@ -364,13 +331,11 @@ export function useLogPoseCopilot(o: {
         store.set({ auto: session.inFlight ? "asking" : "waiting" });
         apply(startRun(plan, true), cur);
       },
-      /** Log Pose has answered a pending choice: carried out only if it names the choice on the table now. */
       onLiveChoice(answer: ChoiceAnswer) {
         const s = session;
         const v = viewRef.current;
         if (!s || !v || (answer.gameKey && answer.gameKey !== gameKeyNow())) return;
         const front = v.pendingChoices?.[0];
-        // Already answered, or the player answered it themselves while Log Pose was deciding: nothing to apply.
         if (s.answered.has(answer.choiceId) || !front) return;
         const intent = v.seat === ticketSeatRef.current ? choiceAnswerIntent(front, answer, v.seat, (defId) => lookupCard(defId).name) : null;
         if (!intent) return end("Log Pose's answer didn't fit the prompt. It's your call.");
@@ -417,7 +382,6 @@ export function useLogPoseCopilot(o: {
       context: (): GameChatContext | null => {
         const v = viewRef.current;
         const ticket = ticketRef.current;
-        // The ticket is one seat's: a view from the other seat (hotseat) is never sent with it.
         if (!v || !ticket || v.seat !== ticketSeatRef.current) return null;
         const battle = v.battle ? describeBattle(v, (defId) => lookupCard(defId).name, true) : null;
         const log = recentLog(logRef.current);
@@ -431,13 +395,11 @@ export function useLogPoseCopilot(o: {
   );
   useLogPoseGame(attached ? game : null);
 
-  // Log Pose may open over the board while the copilot is on.
   useEffect(() => {
     setBoardCopilot(offered);
     return () => setBoardCopilot(false);
   }, [offered]);
 
-  // The executor: every fresh view moves the approved plan on by at most one intent.
   const { over } = o;
   useEffect(() => {
     if (!view) return;
@@ -447,7 +409,6 @@ export function useLogPoseCopilot(o: {
     if (runActive(run)) {
       if (!offered) store.set({ run: stopRun(run, "Log Pose left the board.") });
       else if (over) store.set({ run: stopRun(run, "The game is over.") });
-      // Hotseat: the device shows the other seat (the defender answering the attack). The plan waits for its seat.
       else if (!mine) store.set({ run: stepRunOtherSeat(run, view) });
       else {
         const r = stepRun(run, view);
@@ -455,13 +416,11 @@ export function useLogPoseCopilot(o: {
         if (r.send) sendRef.current(r.send);
       }
     }
-    // Log Pose playing the turn: it ends with the board, and otherwise asks what comes next from the player's own seat.
     if (!auto.active) return;
     if (!offered || over) auto.end();
     else auto.drive(view, mine);
   }, [view, offered, over, store, auto]);
 
-  // Leaving the board ends it: no request goes out after.
   useEffect(
     () => () => {
       if (auto.active) auto.end();
@@ -469,7 +428,6 @@ export function useLogPoseCopilot(o: {
     [auto],
   );
 
-  // A refused move ends the plan: it was built on a board that is no longer the one on screen.
   const banner = o.errorBanner ?? null;
   useEffect(() => {
     if (!banner) return;
@@ -478,7 +436,6 @@ export function useLogPoseCopilot(o: {
     if (runActive(run)) store.set({ run: stopRun(run, `The game refused a move (${banner}).`) });
   }, [banner, store, auto]);
 
-  // Only the running plan matters here, so a fresh view alone never re-renders the board a second time.
   const activeRun = useSyncExternalStore(
     store.subscribe,
     () => {
@@ -493,11 +450,7 @@ export function useLogPoseCopilot(o: {
     () => null,
   );
   const running = offered && (activeRun !== null || autoState !== null);
-  // The pill stays up while the device shows the other seat (hotseat: the defender answers), so Stop is always there.
-  // While Log Pose plays the turn it stays up between plans too, so there is always a Stop.
   const pill = running ? <CopilotPill run={activeRun} auto={autoState} onStop={actions.stop} /> : null;
 
-  // The one Log Pose button lives in DuelBoard (LogPoseMatchButton): this only says whether it is needed and busy.
-  // The pill stays up while the device shows the other seat (the button does not), so it is not tied to `shown`.
   return { shown, running, pill };
 }

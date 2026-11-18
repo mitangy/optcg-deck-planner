@@ -4,7 +4,6 @@ import type { Worker } from "node:worker_threads";
 import { BotPool, type BotJobInput } from "../src/botPool.js";
 import type { BotJob } from "../src/botWorker.js";
 
-/** A worker that answers jobs when the test says so. */
 class FakeWorker extends EventEmitter {
   jobs: BotJob[] = [];
   terminated = false;

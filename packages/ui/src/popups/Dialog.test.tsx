@@ -49,7 +49,6 @@ async function open() {
   trigger().focus();
   await act(async () => {
     trigger().click();
-    // Headless UI moves focus in after paint.
     await new Promise((r) => setTimeout(r, 30));
   });
 }
@@ -57,7 +56,6 @@ async function open() {
 async function press(key: string) {
   await act(async () => {
     document.activeElement?.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
-    // Focus goes back to the trigger after the dialog has unmounted.
     await new Promise((r) => setTimeout(r, 30));
   });
 }

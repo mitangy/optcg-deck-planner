@@ -1,8 +1,3 @@
-/**
- * Group buy detail (/group-buys/:id): the Sort menu's Price orders cards by the
- * price shown under each card (your total across picked arts), not the base
- * card price (#876).
- */
 import { expect, test } from "./fixtures";
 
 const GB = 9;
@@ -39,8 +34,6 @@ function line(s: Spec, n: number) {
   };
 }
 
-// OP01-001 has the higher base price ($4) but the lower total ($4); OP01-002 has the
-// lower base price ($1) but the higher picked-arts total (2 x $1 + 1 x $9 = $11).
 const CHEAP_BASE_HIGH_TOTAL: Spec = { id: "OP01-002", name: "Usopp", base: 1, qty: 3, manga: 1 };
 const HIGH_BASE_LOW_TOTAL: Spec = { id: "OP01-001", name: "Zoro", base: 4, qty: 1, manga: 0 };
 
@@ -89,7 +82,6 @@ test("Price sort orders group buy cards by the total shown under each card (#876
   await page.getByRole("group", { name: "Card layout" }).getByRole("button", { name: "Grid", exact: true }).click();
   const cards = page.locator(".grid-card");
   await expect(cards).toHaveCount(2);
-  // The price under each card is the total across the picked arts, or the unit price when none are bought.
   await expect(cards.filter({ hasText: "OP01-002" }).getByTestId("gb-arts-total")).toContainText("$11.00");
   await expect(cards.filter({ hasText: "OP01-001" }).getByTestId("gb-arts-total")).toContainText("$4.00");
 
@@ -103,7 +95,6 @@ test("Price sort orders group buy cards by the total shown under each card (#876
   await page.getByRole("button", { name: /^Sort:/ }).click();
   await expect(panel).toHaveCount(0);
 
-  // Highest first: OP01-002 ($11 picked total, $1 base) ahead of OP01-001 ($4 total, $4 base).
   await expect(cards.first()).toContainText("OP01-002");
   await expect(cards.nth(1)).toContainText("OP01-001");
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-price-sort-total.png`, fullPage: true });

@@ -35,7 +35,6 @@ type PlayerView = {
 
 type SeatBag = {
   welcome?: PlayerView;
-  /** The latest welcome's firstSeatPickedBy (null = coin flip). */
   pickedBy?: 0 | 1 | null;
   players?: { name: string | null }[];
   views: PlayerView[];
@@ -84,10 +83,7 @@ async function waitUntil(pred: () => boolean, timeoutMs: number): Promise<void> 
 }
 
 let pingSeq = 0;
-/**
- * Resolves once everything the server sent this client before now has arrived: a client's messages are
- * handled in order and its socket delivers in order, so the pong comes after every earlier send.
- */
+// A client's messages are handled in order and its socket delivers in order, so the pong comes after every earlier send.
 function roundTrip(client: ClientRoom): Promise<void> {
   const t = (pingSeq += 1);
   return new Promise((resolve) => {
@@ -105,7 +101,6 @@ async function syncSeat(client: ClientRoom, bag: SeatBag) {
   await waitUntil(() => bag.welcome != null && bag.views.length > 0, 8000);
 }
 
-/** Signed game token for a real account id (mirror of backend mint_game_token). */
 function gameToken(uid: number): string {
   const b64url = (buf: Buffer) =>
     buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
@@ -115,7 +110,6 @@ function gameToken(uid: number): string {
   return `${body}.${b64url(createHmac("sha256", getGameTokenSecret()).update(body).digest())}`;
 }
 
-/** Runs `fn` with REQUIRE_GAME_TOKEN=true, as on the deployed server. */
 async function withTokensRequired<T>(fn: () => Promise<T> | T): Promise<T> {
   const prev = process.env.REQUIRE_GAME_TOKEN;
   process.env.REQUIRE_GAME_TOKEN = "true";
@@ -134,7 +128,6 @@ function presenceFor(roomId: string): PresenceEntry[] {
     .sort((a, b) => a.user_id - b.user_id);
 }
 
-/** The room's live game and clocks, as the replay and clock tests read (and sometimes set) them. */
 function internals(room: DuelRoom) {
   return {
     get match(): MatchState {
@@ -161,7 +154,6 @@ function internals(room: DuelRoom) {
   };
 }
 
-/** Send `steps` legal intents from whichever seat can act, ending the turn now and then. */
 async function playSome(clients: [ClientRoom, ClientRoom], bags: [SeatBag, SeatBag], steps: number) {
   const actingSeat = () => ([0, 1] as const).find((s) => bags[s].views.at(-1)!.winner == null && bags[s].views.at(-1)!.legalIntents.length > 0);
   const over = () => bags.some((b) => b.views.at(-1)!.winner != null);
@@ -182,7 +174,6 @@ async function playSome(clients: [ClientRoom, ClientRoom], bags: [SeatBag, SeatB
   }
 }
 
-/** The recorded replay, re-run through the engine, lands on the room's exact state. */
 function assertReplayRebuilds(room: DuelRoom) {
   const { match, replay } = internals(room);
   assert.ok(replay, "room has a replay");
@@ -233,7 +224,6 @@ describe("DuelRoom", () => {
     assert.equal("hand" in bags[0].welcome!.opponent, false);
     assert.equal("hand" in bags[1].welcome!.opponent, false);
 
-    // Both seats see seat-indexed public names (dev ids here; usernames via tokens).
     assert.deepEqual(bags[0].players, [{ name: "alice" }, { name: "bob" }]);
     assert.deepEqual(bags[1].players, [{ name: "alice" }, { name: "bob" }]);
 
@@ -355,7 +345,6 @@ describe("DuelRoom", () => {
         5000,
       );
       if (bags[active].errors.length > errBefore) {
-        // Resync and continue (should be rare with legal picks)
         bags[active].errors.length = errBefore;
         await syncSeat(client, bags[active]);
       }
@@ -404,7 +393,6 @@ describe("DuelRoom", () => {
     assert.deepEqual(bag.errors.map((e) => e.code), ["bad_protocol", "bad_protocol", "bad_protocol", "bad_protocol"]);
     bag.errors.length = 0;
 
-    // A state the engine cannot clone-and-run makes applyIntent throw; the sender still gets the normal error.
     // Called directly (not over the socket) so an escaped throw fails this assertion instead of crashing the runner.
     const internals = room as unknown as { game: { match: { rng: unknown } }; handleIntent(client: unknown, message: unknown): void };
     const goodRng = internals.game.match.rng;
@@ -534,7 +522,6 @@ describe("DuelRoom", () => {
     };
   };
 
-  /** Seat two players, then join a spectator on seat 0's camera. */
   async function watchRoom(createOpts: Record<string, unknown>) {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -619,7 +606,6 @@ describe("DuelRoom", () => {
   });
   const luffyDeck = { leaderId: "ST01-001", deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]) };
 
-  /** Two seats with different leaders and decks (one card apart), plus a spectator, keeping each raw welcome. */
   async function briefRoom(createOpts: Record<string, unknown>, decks: boolean) {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -701,9 +687,7 @@ describe("DuelRoom", () => {
     const opponentViews = bags[1].views.length;
     c0.send("hand_order", { ids: reversed });
     await waitUntil(() => handIds(specViews.at(-1)?.revealedHands?.[0]).join() === reversed.join(), 5000);
-    // The other hand is untouched, and a new spectator joining later sees the order too.
     assert.deepEqual(handIds(specViews.at(-1)?.revealedHands?.[1]), seatOneBefore);
-    // Nothing about it reaches the other player.
     await roundTrip(c1);
     assert.equal(bags[1].views.length, opponentViews);
     assert.deepEqual(bags[1].views.at(-1)!.you.hand.map((c) => c.id), seatOneBefore);
@@ -713,7 +697,6 @@ describe("DuelRoom", () => {
     const { welcome, bags, c0, c1, specViews } = await watchRoom({});
     const engine = handIds(welcome.view.revealedHands?.[0]);
     const theirs = handIds(welcome.view.revealedHands?.[1]);
-    // Seat 0 names one of seat 1's cards and an invented id, plus only two of its own cards.
     c0.send("hand_order", { ids: [theirs[0]!, "no-such-card", engine[3]!, engine[1]!] });
     await waitUntil(() => specViews.length > 0, 5000);
     const shown = handIds(specViews.at(-1)!.revealedHands?.[0]);
@@ -744,7 +727,6 @@ describe("DuelRoom", () => {
     c0.send("hand_order", { ids: reversed });
     await waitUntil(() => specViews.length === 1, 5000);
     c0.send("hand_order", { ids: reversed });
-    // c0's second order has been handled once its pong is back, and the spectator's pong follows any view sent to it.
     await roundTrip(c0);
     await roundTrip(spec);
     assert.equal(specViews.length, 1);
@@ -894,7 +876,6 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bags[0]);
     await syncSeat(c1, bags[1]);
 
-    // A leader is public from the start; the other card sits unseen in seat 0's deck or hand.
     const hidden = "ST01-006";
     assert.ok(!internals(room).match.players[0].trash.includes(hidden));
     c0.send("cosmetics", {
@@ -905,7 +886,6 @@ describe("DuelRoom", () => {
     assert.deepEqual(cosmetics[0].find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt", [hidden]: "p1" });
     assert.deepEqual(cosmetics[1].find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt" });
 
-    // A spectator joining later gets the same filtered map.
     const specCos: Cos[] = [];
     const spec = await colyseus.connectTo(room, {
       protocolVersion: PROTOCOL_VERSION,
@@ -919,7 +899,6 @@ describe("DuelRoom", () => {
     await waitUntil(() => specCos.some((m) => m.seat === 0), 5000);
     assert.deepEqual(specCos.find((m) => m.seat === 0)!.artPrefs, { "ST01-001": "leaderAlt" });
 
-    // Once the card is played face-up, everyone gets the entry.
     room.spectators.broadcastViews([
       { type: "card_played", seat: 0, defId: hidden, instanceId: "x", costPaid: 0 },
     ]);
@@ -984,7 +963,6 @@ describe("DuelRoom", () => {
     await waitUntil(() => skins.some((m) => m.seat === 0) && skins.some((m) => m.seat === 1), 5000);
     skins.length = 0;
 
-    // Card back 99 is not what seat 0 shows; playmat 77 is. Seat 1 shows the same playmat link but is another user.
     presence.deliverTakedowns([
       { user_id: 801, kind: "cardBack", cosmetic_id: 99 },
       { user_id: 801, kind: "playmat", cosmetic_id: 77 },
@@ -995,7 +973,6 @@ describe("DuelRoom", () => {
       { protocolVersion: PROTOCOL_VERSION, seat: 0, skin: { playmat: null, cardBack: link(78), donArt: null } },
     ]);
 
-    // An inline image has no id to compare, so any takedown of that kind for its owner removes it.
     skins.length = 0;
     presence.deliverTakedowns([{ user_id: 802, kind: "cardBack", cosmetic_id: 5 }]);
     await waitUntil(() => skins.length > 0, 5000);
@@ -1020,7 +997,6 @@ describe("DuelRoom", () => {
     const c0 = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(811), preferredSeat: 0 });
     const c1 = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(812), preferredSeat: 1 });
     c1.onMessage("skin", (m: SkinMsg) => skins.push(m));
-    // Heard before the seat sent anything, so there is no seat skin to blank yet.
     presence.deliverTakedowns([
       { user_id: 811, kind: "playmat", cosmetic_id: 91 },
       { user_id: 811, kind: "cardBack", cosmetic_id: 92 },
@@ -1061,7 +1037,6 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bags[0]);
     await syncSeat(c1, bags[1]);
 
-    // The duel client sends both images in one message, each up to its cap.
     const prefix = "data:image/jpeg;base64,";
     const mat = prefix + "A".repeat(SKIN_MAX_PLAYMAT_CHARS - prefix.length);
     const back = prefix + "B".repeat(SKIN_MAX_CARD_BACK_CHARS - prefix.length);
@@ -1106,12 +1081,10 @@ describe("DuelRoom", () => {
     assert.equal(chat[1][0]!.seat, 0);
     assert.equal(chat[1][0]!.text, "good luck");
 
-    // Whitespace-only lines are rejected, not relayed.
     c1.send("chat", { protocolVersion: PROTOCOL_VERSION, text: "   " });
     await waitUntil(() => bags[1].errors.some((e) => e.code === "bad_protocol"), 5000);
     assert.equal(chat[0].length, 1);
 
-    // Reconnect-style sync replays the conversation.
     c1.send("sync", { protocolVersion: PROTOCOL_VERSION });
     await waitUntil(() => history.some((h) => h.some((l) => l.text === "good luck")), 5000);
 
@@ -1131,7 +1104,6 @@ describe("DuelRoom", () => {
     const heard = (type: string) => seen.some((m) => m.type === type);
     await waitUntil(() => heard("welcome"), 5000);
     c0.send("sync", { protocolVersion: PROTOCOL_VERSION });
-    // To one client: a refused chat line. To everyone: a relayed chat line, then the match ending.
     c0.send("chat", { protocolVersion: PROTOCOL_VERSION, text: "   " });
     c0.send("chat", { protocolVersion: PROTOCOL_VERSION, text: "hi" });
     c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
@@ -1179,7 +1151,6 @@ describe("DuelRoom", () => {
 
     await waitUntil(() => undo[0].length > 0, 5000);
     assert.equal(undo[0].at(-1)!.enabled, true);
-    // Nothing has happened yet: nothing to undo.
     assert.equal(undo[0].at(-1)!.targetTurn, null);
     assert.equal(undo[0].at(-1)!.action, null);
 
@@ -1193,11 +1164,9 @@ describe("DuelRoom", () => {
       () => (bags[0].views.at(-1) as unknown as { turnNumber: number }).turnNumber === startTurn + 1,
       5000,
     );
-    // The last action was ending the turn: that is what an undo takes back.
     await waitUntil(() => undo[1].at(-1)?.targetTurn === startTurn, 5000);
     assert.deepEqual(undo[1].at(-1)!.action, { seat: active, label: "end turn" });
 
-    // The requester cannot accept their own request.
     other.send("undo", { protocolVersion: PROTOCOL_VERSION, action: "request" });
     await waitUntil(() => undo[0].at(-1)?.pending != null, 5000);
     assert.deepEqual(undo[0].at(-1)!.pending!.action, { seat: active, label: "end turn" });
@@ -1258,7 +1227,6 @@ describe("DuelRoom", () => {
     };
 
     const atStart = JSON.stringify(internals(room).match);
-    // Action 1: give DON!! (reveals nothing). Action 2: end the turn.
     const give = bags[active].views.at(-1)!.legalIntents.find((x) => x.type === "give_don")!;
     assert.ok(give, "the opening player can give DON!!");
     clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: give });
@@ -1272,11 +1240,9 @@ describe("DuelRoom", () => {
     await waitUntil(() => steps.includes(2), 5000);
     assert.ok(steps.includes(1));
 
-    // The opponent of the player who acts asks, and the last action by either seat is the one undone.
     await undoOnce();
     assert.equal(applied.at(-1)!.action.label, "end turn");
     assert.equal(applied.at(-1)!.toStep, 1);
-    // Back to right after the first action: DON!! is still given, the turn is not rewound to its start.
     assert.equal(JSON.stringify(internals(room).match), afterGive);
     assert.equal(internals(room).replay!.intents.length, 1);
 
@@ -1289,7 +1255,6 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  /** Two seated players, unranked, with an undo listener per seat; `active` is the seat to move. */
   async function undoRoom(seed: number) {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -1334,7 +1299,6 @@ describe("DuelRoom", () => {
       await roundTrip(c1);
     };
     const give = (seat: 0 | 1) => bags[seat].views.at(-1)!.legalIntents.find((x) => x.type === "give_don")!;
-    /** Swap the first hand card for Nami (looks at the deck: a reveal) and make sure there is a DON!! to pay with. */
     const playRevealer = async (seat: 0 | 1) => {
       const m = internals(room).match as unknown as {
         players: { hand: { defId: string }[]; costArea: { rested: boolean }[]; donDeck: { rested: boolean }[] }[];
@@ -1357,7 +1321,6 @@ describe("DuelRoom", () => {
 
   it("whole-turn undo rewinds every action of the turn to its start (#536)", async () => {
     const t = await undoRoom(21);
-    // Turn 1 by the opening seat: give DON!!, then end the turn. Turn 2 by the other seat: give DON!! twice.
     await t.act(t.active, t.give(t.active));
     await t.act(t.active, { type: "end_turn" });
     const turnTwoStart = JSON.stringify(internals(t.room).match);
@@ -1381,7 +1344,6 @@ describe("DuelRoom", () => {
     t.accept(t.active);
     await waitUntil(() => t.applied.length === 1, 5000);
     assert.deepEqual({ scope: t.applied[0]!.scope, steps: t.applied[0]!.steps, toStep: t.applied[0]!.toStep }, { scope: "turn", steps: 2, toStep: stepsAtStart });
-    // The match is exactly the state before the turn's first action, and only that turn went.
     assert.equal(JSON.stringify(internals(t.room).match), turnTwoStart);
     assert.equal(t.steps(), stepsAtStart);
     await waitUntil(() => t.last(t.other).options?.action.steps === 1 && t.last(t.other).action?.label === "end turn", 5000);
@@ -1401,12 +1363,10 @@ describe("DuelRoom", () => {
     t.request(t.other, { scope: "action" });
     await waitUntil(() => t.last(t.active).pending?.scope === "action", 5000);
     const seen = t.last(t.active).pending!;
-    // The requester widens to the whole turn just before the answer arrives.
     t.request(t.other, { scope: "turn" });
     await waitUntil(() => t.last(t.active).pending?.scope === "turn", 5000);
     assert.notEqual(t.last(t.active).pending!.id, seen.id);
 
-    // The stale answer is refused and the dialog is refreshed to the current request.
     const states = t.undo[t.active]!.length;
     t.accept(t.active, seen.id);
     await waitUntil(() => t.bags[t.active].errors.some((e) => e.code === "illegal_intent"), 5000);
@@ -1415,7 +1375,6 @@ describe("DuelRoom", () => {
     assert.equal(t.steps(), stepsBefore);
     assert.equal(t.last(t.active).pending!.scope, "turn");
 
-    // Answering the current request applies exactly it.
     t.accept(t.active, t.last(t.active).pending!.id);
     await waitUntil(() => t.applied.length === 1, 5000);
     assert.deepEqual({ scope: t.applied[0]!.scope, steps: t.applied[0]!.steps }, { scope: "turn", steps: 2 });
@@ -1470,19 +1429,16 @@ describe("DuelRoom", () => {
     await waitUntil(() => t.applied.length === 1, 5000);
     assert.equal(t.steps(), 1);
     assert.match(t.applied[0]!.action.label, /^play /);
-    // Back to the plain give-DON!! as the last action (the hand swap above was made on the live match).
     assert.equal(t.last(t.other).action?.label.startsWith("give DON!!"), true);
     await t.close();
   });
 
   it("force is only taken when a reveal is the blocker (#536)", async () => {
     const t = await undoRoom(21);
-    // Nothing to undo yet: force does not change that.
     t.request(t.other, { force: true });
     await waitUntil(() => t.bags[t.other].errors.length > 0, 5000);
     assert.equal(t.bags[t.other].errors.at(-1)!.message, "Nothing to undo yet");
     assert.equal(t.last(t.other).blockedReason, "Nothing to undo yet");
-    // A plain action: force adds nothing, the request is not marked forced.
     await t.act(t.active, t.give(t.active));
     t.request(t.other, { force: true });
     await waitUntil(() => t.last(t.active).pending != null, 5000);
@@ -1496,7 +1452,6 @@ describe("DuelRoom", () => {
     const atStart = JSON.stringify(internals(t.room).match);
     await t.act(t.active, t.give(t.active));
     await t.playRevealer(t.active);
-    // Nami's look leaves a choice to answer before the turn can end.
     for (let i = 0; i < 4 && !t.bags[t.active].views.at(-1)!.legalIntents.some((x) => x.type === "end_turn"); i += 1) {
       await waitUntil(() => t.bags[t.active].views.at(-1)!.legalIntents.some((x) => x.type === "resolve_pending_choice"), 5000);
       await t.act(t.active, t.bags[t.active].views.at(-1)!.legalIntents.find((x) => x.type === "resolve_pending_choice")!);
@@ -1505,7 +1460,6 @@ describe("DuelRoom", () => {
     const turnSteps = t.steps();
     await waitUntil(() => t.last(t.other).action?.label === "end turn", 5000);
     const o = t.last(t.other).options!;
-    // The last action alone is fine; the turn as a whole crosses the reveal.
     assert.equal(o.action.available, true);
     assert.equal(o.turn.available, false);
     assert.equal(o.turn.forceable, true);
@@ -1535,7 +1489,6 @@ describe("DuelRoom", () => {
     const t = await undoRoom(21);
     await t.act(t.active, t.give(t.active));
     await t.act(t.active, { type: "end_turn" });
-    // Pad the history to the limit with turn-2 snapshots, then take two more turn-2 actions: the oldest one falls off.
     const stack = t.room.undo.stack;
     const template = stack.at(-1)!;
     stack.length = 0;
@@ -1561,7 +1514,6 @@ describe("DuelRoom", () => {
       seed: 22,
       autoSkipMulligan: true,
     });
-    // Force the ranked flag the matchmaker would attest.
     room.game.ranked = true;
     const bag: SeatBag = { views: [], errors: [] };
     const states: { enabled: boolean }[] = [];
@@ -1644,7 +1596,6 @@ describe("DuelRoom", () => {
     assert.equal(running.seatSeconds, 1);
     const active = bags[0].views.at(-1)!.activeSeat;
     assert.equal(running.clockSeat, active);
-    // Nobody acts: the active seat's 1s bank runs out.
     await time.advance(1000);
     await waitUntil(() => bags[0].over != null, 5000);
     assert.equal(bags[0].over!.result.winner, active === 0 ? 1 : 0);
@@ -1687,7 +1638,6 @@ describe("DuelRoom", () => {
     assert.equal(internals(room).replay!.intents.length, played + 1);
     assert.deepEqual(internals(room).replay!.intents.at(-1), { seat: active, intent: { type: "end_turn" } });
     assertReplayRebuilds(room);
-    // Both seats are told: a new view, and a turn clock that restarts from the moment the move was made.
     await roundTrip(c0);
     await roundTrip(c1);
     assert.equal(bags[0].views.at(-1)!.activeSeat, 1 - active);
@@ -1767,11 +1717,9 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bags[0]);
     await syncSeat(c1, bags[1]);
 
-    // Seat 0 concedes: seat 0 lost and will pick the turn order.
     c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
     await waitUntil(() => rematch.some((r) => r.available), 8000);
 
-    // Only the loser may choose, and only after both agree.
     c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
     await waitUntil(() => rematch.at(-1)!.requested[0], 5000);
     assert.equal(rematch.at(-1)!.chooser, null);
@@ -1788,7 +1736,6 @@ describe("DuelRoom", () => {
     assert.equal(fresh.winner, null);
     assert.equal(fresh.firstSeat, 1);
     assert.equal(fresh.you.lifeCount > 0, true);
-    // The mulligan banner credits the loser (seat 0) with the choice (#549).
     assert.equal(bags[0].pickedBy, 0);
     assert.equal(bags[1].pickedBy, 0);
 
@@ -1796,7 +1743,6 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
-  /** Two default-deck seats at match over (seat 0 conceded), ready to trade rematch requests. */
   async function rematchRoom(seed: number) {
     type Rematch = { available: boolean; requested: [boolean, boolean]; newDeck: [boolean, boolean]; chooser: 0 | 1 | null };
     const room = await colyseus.createRoom<DuelRoom>("duel", {
@@ -1963,7 +1909,6 @@ describe("DuelRoom", () => {
     await playSome([c0, c1], bags, 12);
     const played = internals(room).replay!.intents.length;
     assert.ok(played >= 8, `recorded ${played} intents`);
-    // The turn clock running out makes a move for the seat that must act.
     const turnBefore = internals(room).match.turnNumber;
     internals(room).expireTurnClock();
     assert.equal(internals(room).replay!.intents.length, played + 1);
@@ -1998,7 +1943,6 @@ describe("DuelRoom", () => {
     clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
     await waitUntil(() => internals(room).match.activeSeat !== active, 5000);
     const atTurnStart = internals(room).replay!.intents.length;
-    // The next player acts, then asks to take it back.
     const next = (1 - active) as 0 | 1;
     await waitUntil(() => bags[next].views.at(-1)!.activeSeat === next, 5000);
     clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
@@ -2042,7 +1986,6 @@ describe("DuelRoom", () => {
     const next = (1 - active) as 0 | 1;
     await waitUntil(() => bags[next].views.at(-1)!.activeSeat === next, 5000);
     const turnStart = JSON.stringify(internals(room).match);
-    // The next player ends their turn: the following turn's draw happens here.
     clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
     await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
     const afterFirst = JSON.stringify(internals(room).match);
@@ -2051,10 +1994,8 @@ describe("DuelRoom", () => {
     clients[next].send("undo", { protocolVersion: PROTOCOL_VERSION, action: "accept" });
     await waitUntil(() => applied.length === 1, 5000);
 
-    // Rewound exactly: same rng, same deck order, nothing recorded as a re-seed.
     assert.equal(JSON.stringify(internals(room).match), turnStart);
         assert.equal(internals(room).replay!.reseeds?.length ?? 0, 0);
-    // Playing the same move again draws the same cards as before the undo.
     clients[next].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } });
     await waitUntil(() => internals(room).replay!.intents.length > atTurnStart, 5000);
     assert.equal(JSON.stringify(internals(room).match), afterFirst);
@@ -2071,7 +2012,6 @@ describe("DuelRoom", () => {
       autoSkipMulligan: true,
     });
     const sent: { matchId: string; payload: MatchProgressPayload }[] = [];
-    // Real accounts, with the API calls captured instead of sent.
     Object.assign(room, {
       ingestSeats: () => [101, 102],
       persistMatchProgress: async (matchId: string, payload: MatchProgressPayload) => {
@@ -2090,7 +2030,6 @@ describe("DuelRoom", () => {
     await syncSeat(c0, bags[0]);
     await syncSeat(c1, bags[1]);
     await playSome([c0, c1], bags, 12);
-    // Act once more without ending the turn, so the closing snapshot has something new.
     const actor = ([0, 1] as const).find((s) => bags[s].views.at(-1)!.legalIntents.some((x) => x.type !== "end_turn"))!;
     const move = bags[actor].views.at(-1)!.legalIntents.find((x) => x.type !== "end_turn")!;
     const before = internals(room).replay!.intents.length;
@@ -2099,7 +2038,6 @@ describe("DuelRoom", () => {
     const { match, replay } = internals(room);
     assert.ok(match.turnNumber > 2, "several turns were played");
 
-    // One snapshot per turn, each with both seats' logs up to that turn.
     const turns = sent.map((s) => s.payload.turns);
     assert.deepEqual(turns, [...new Set(turns)].sort((a, b) => a! - b!));
     assert.equal(turns.at(-1), match.turnNumber);
@@ -2109,7 +2047,6 @@ describe("DuelRoom", () => {
     assert.equal(last.seat_logs![1].turns.at(-1)!.turn, match.turnNumber);
     assert.equal(sent.at(-1)!.matchId, room.roomId);
 
-    // Both players leave mid-turn: no result, but the log keeps every action.
     const intents = replay!.intents.length;
     assert.ok(last.replay!.intents.length < intents, "this turn has actions the turn-start snapshot lacks");
     await c0.leave(true);
@@ -2198,7 +2135,6 @@ describe("DuelRoom", () => {
       assert.equal(payload.closed, undefined, "a live snapshot is not closed (#476)");
     }
 
-    // The hand count stays in a live snapshot, so the page can still show it.
     assert.ok(sent.at(-1)!.seat_logs![0].turns.some((t) => t.opponentHandCount != null));
 
     const result = internals(room).resultPayload(11, 12, 0, "concede");
@@ -2207,7 +2143,6 @@ describe("DuelRoom", () => {
       assert.ok(log.turns.some((t) => t.opponentHand && t.opponentHand.length > 0));
     }
 
-    // Both players leave: the room closes without a result and its last snapshot reveals the hands.
     const live = sent.length;
     await c0.leave(true);
     await c1.leave(true);
@@ -2227,7 +2162,6 @@ describe("DuelRoom", () => {
       { views: [], errors: [] },
       { views: [], errors: [] },
     ];
-    // Seat 0 brings OP01-001; seat 1 gets the default ST01-001, so swapped seats show.
     const zoroDeck = { leaderId: "OP01-001", deck: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "ST01-014"].flatMap((id) => [id, id, id, id]) };
     const c0 = await colyseus.connectTo(room, { ...joinOpts("alice", 0), deck: zoroDeck });
     attach(c0, bags[0]);
@@ -2249,9 +2183,7 @@ describe("DuelRoom", () => {
     assert.deepEqual(payload.replay!.end, { winner: 0, reason: "concede" });
     assert.equal(payload.replay!.seed, 53);
     assert.deepEqual(payload.replay!.intents, replay!.intents);
-    // The engine never saw the concession: replaying the intents alone leaves the game running.
     assert.equal(replayMatch(payload.replay!).winner, null);
-    // Each seat gets its own log of the same game, numbered like the room's turns.
     assert.deepEqual(payload.seat_logs!.map((l) => l.seat), [0, 1]);
     assert.equal(payload.seat_logs![0].turns.at(-1)!.turn, match.turnNumber);
 
@@ -2278,7 +2210,6 @@ describe("DuelRoom", () => {
     await syncSeat(c1, bags[1]);
     assert.equal(bags[0].welcome!.phase, "mulligan");
 
-    // The active seat keeps; the other seat stalls on its mulligan.
     const active = internals(room).match.activeSeat;
     const clients = [c0, c1] as const;
     clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "mulligan", doMulligan: false } });
@@ -2312,18 +2243,15 @@ describe("DuelRoom", () => {
     await syncSeat(c1, bags[1]);
     assert.equal(bags[0].welcome!.phase, "mulligan");
 
-    // Nobody has answered: the clock runs for the first player.
     const active = internals(room).match.activeSeat as 0 | 1;
     const other = (1 - active) as 0 | 1;
     assert.equal(internals(room).clockSeat, active);
 
-    // The active seat keeps; the clock moves to the seat that has yet to answer.
     const clients = [c0, c1] as const;
     clients[active].send("intent", { protocolVersion: PROTOCOL_VERSION, intent: { type: "mulligan", doMulligan: false } });
     await waitUntil(() => internals(room).match.players[active].mulliganDone, 5000);
     assert.equal(internals(room).clockSeat, other);
 
-    // The staller's bank empties while the answered seat's bank is untouched.
     internals(room).seatRemainingMs[other] = 1;
     await time.advance(250);
     await waitUntil(() => bags[0].over != null, 5000);
@@ -2333,7 +2261,6 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   }));
 
-  /** Seat 1 brings an Imu leader (mandatory start-of-game Stage prompt); seat 0 is the first player. */
   async function imuSecondRoom(timer: Record<string, number>) {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,
@@ -2366,7 +2293,6 @@ describe("DuelRoom", () => {
     const { room, c0, c1, bags } = await imuSecondRoom({ seatSeconds: 900 });
     assert.equal(internals(room).clockSeat, 1);
 
-    // Seat 0 cannot mulligan yet, so its bank must hold while seat 1's runs out.
     internals(room).seatRemainingMs[0] = 1;
     await time.advance(500);
     assert.equal(internals(room).match.winner, null);
@@ -2412,7 +2338,6 @@ describe("DuelRoom", () => {
     await syncSeat(c1, bags[1]);
     const clients = [c0, c1] as const;
 
-    // Pass turns (answering any prompt) until the active seat can attack, then attack the leader.
     for (let i = 0; i < 40; i++) {
       const m = internals(room).match;
       if (m.phase === "block" || m.phase === "counter") break;
@@ -2433,7 +2358,6 @@ describe("DuelRoom", () => {
     const attacker = m.activeSeat;
     assert.equal(m.battle!.attackerSeat, attacker);
 
-    // The defender never passes the block step.
     internals(room).matchEndsAt = Date.now() - 1;
     await waitUntil(() => bags[0].over != null, 5000);
     assert.deepEqual(bags[0].over!.result, { winner: attacker, reason: "match_timeout" });
@@ -2469,7 +2393,6 @@ describe("DuelRoom", () => {
       for (let i = 0; i < MAX_ROOMS_PER_CREATOR; i++) made.push(await colyseus.sdk.create("duel", opts));
       await assert.rejects(() => colyseus.sdk.create("duel", opts), /Too many open rooms/);
       assert.equal((await matchMaker.query({ name: "duel" })).length, MAX_ROOMS_PER_CREATOR);
-      // Another account is not affected.
       made.push(await colyseus.sdk.create("duel", { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(602) }));
       return made;
     });
@@ -2481,7 +2404,6 @@ describe("DuelRoom", () => {
     const opts = { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(611) };
     const room = await withTokensRequired(async () => {
       for (let i = 0; i < MAX_ROOMS_PER_CREATOR; i++) {
-        // Each create is turned away by onCreate ("Deck rejected: Unknown or invalid leader").
         await assert.rejects(() => colyseus.sdk.create("duel", { ...opts, players: [badDeck, badDeck] }));
       }
       assert.equal((await matchMaker.query({ name: "duel" })).length, 0);
@@ -2498,7 +2420,6 @@ describe("DuelRoom", () => {
     });
     for (let i = 0; i < 100; i++) room.send("ping", { t: i });
     await new Promise((r) => setTimeout(r, 1000));
-    // The server stops answering once the client passes the per-second cap and is cut off.
     assert.ok(pongs < 100, `answered ${pongs} of 100 pings`);
     assert.equal(colyseus.getRoomById(room.roomId)?.clients.length ?? 0, 0);
   });

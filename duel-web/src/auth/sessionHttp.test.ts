@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureAuth, getAuth, refreshAuth, resetAuthForTests } from "./session";
 
-// The real fetchAuthMe runs here; only the network is stubbed.
 const fetchMock = vi.fn();
 const json = (status: number, body: unknown = null) => new Response(JSON.stringify(body), { status });
 const miko = { id: 7, email: "miko@e2e.test", name: "Miko", username: "Miko" };

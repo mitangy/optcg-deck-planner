@@ -1,8 +1,3 @@
-/**
- * Rearranging your hand animates (#338): Sort riffles the cards into their
- * new order, and a card dropped on a new spot lands with a settle while the
- * cards it pushed slide over. "Card animations: Off" keeps the hand still.
- */
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 
@@ -19,7 +14,6 @@ const CARDS = [
 
 type Anim = { id: string; kf: string };
 
-/** Log every Web Animation started on a hand card (id + keyframes). */
 async function recordHandAnims(page: Page, settings: Record<string, unknown>) {
   await page.addInitScript(
     ([s, hand]) => {
@@ -50,7 +44,6 @@ const clearAnims = (page: Page) =>
 async function openDemo(page: Page) {
   await page.goto("/demo");
   await page.locator(".board-root").waitFor();
-  // Let the opening draw animations finish, then start a clean log.
   await page.waitForTimeout(800);
   await clearAnims(page);
 }
@@ -88,7 +81,6 @@ function handTests(where: string, landscape = false) {
         .filter((a) => a.kf.includes("rotate"))
         .map((a) => a.id);
       expect(riffled.length).toBeGreaterThan(0);
-      // Every card that changed place hops; none that stayed put.
       expect(new Set(riffled)).toEqual(new Set(moved));
     });
 
@@ -123,7 +115,6 @@ function handTests(where: string, landscape = false) {
           type: "touchStart",
           touchPoints: [start],
         });
-        // Lift the card a little first, across the row's scroll: the landscape rail scrolls up and down.
         const lift = landscape ? { x: start.x - 16, y: start.y } : { x: start.x, y: start.y - 16 };
         for (const p of [lift, { x: end.x, y: lift.y }, end]) {
           await cdp.send("Input.dispatchTouchEvent", {
@@ -147,7 +138,6 @@ function handTests(where: string, landscape = false) {
         .poll(async () => (await order(page)).slice(0, 3))
         .toEqual([h2, h3, h1]);
       const log = await anims(page);
-      // The dropped card lands with a settle (scale); the two it passed slide back.
       expect(
         log.filter((a) => a.id === h1 && a.kf.includes("scale")),
       ).toHaveLength(1);
@@ -190,11 +180,9 @@ function handTests(where: string, landscape = false) {
         await page.mouse.move(start.x, start.y);
         await page.mouse.down();
       }
-      // Lift the card a little first, across the row's scroll.
       await move(landscape ? { x: start.x - 16, y: start.y } : { x: start.x, y: start.y - 16 });
       await move(overHand);
 
-      // Over the hand: the card rides under the pointer at full size and its slot is empty.
       const lift = page.locator(".hand-lift");
       await expect(lift).toHaveCount(1);
       const held = (await lift.boundingBox())!;
@@ -203,16 +191,13 @@ function handTests(where: string, landscape = false) {
       expect(held.width).toBeGreaterThan(cardWidth * 1.04);
       expect(await cards.nth(0).evaluate((el) => getComputedStyle(el).opacity)).toBe("0");
 
-      // Over the board it shrinks so the board stays visible, and still follows.
       await move(overBoard);
       await page.waitForTimeout(200);
       const carried = (await lift.boundingBox())!;
-      // Carried size is a 64px card; phone hand cards are close to that already.
       expect(carried.width).toBeLessThan(held.width);
       expect(carried.width).toBeLessThan(66);
       expect(Math.abs(carried.y + carried.height / 2 - overBoard.y)).toBeLessThan(carried.height);
 
-      // Back over the hand and let go: the copy is gone and the card is back in the hand.
       await move(overHand);
       if (cdp) await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
       else await page.mouse.up();
@@ -224,7 +209,6 @@ function handTests(where: string, landscape = false) {
 
 handTests("", false);
 
-// Landscape phones keep the hand in the corner dock.
 handTests(" on a landscape phone", true);
 
 test("Card animations Off keeps the hand still when sorting (#338)", async ({

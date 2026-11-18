@@ -1,13 +1,11 @@
 /**
- * Fuzz-only invariants layered on top of `assertInvariants`: they need a
- * baseline from the start of the game or a second engine run, so they live
- * with the fuzzer rather than in the engine.
+ * They need a baseline from the start of the game or a second engine run, so they live with the fuzzer rather than in
+ * the engine.
  */
 import { applyIntent } from "../engine.js";
 import { deserializeMatch, serializeMatch } from "../engine/snapshot.js";
 import type { Intent, MatchState, PlayerState, Seat } from "../types.js";
 
-/** Cards a seat owns across every zone (Leader included, attached DON!! excluded). */
 export function countCards(p: PlayerState): number {
   return 1 + p.characters.length + (p.stage ? 1 : 0) + p.hand.length + p.resolving.length + p.deck.length + p.trash.length + p.life.length;
 }
@@ -16,11 +14,6 @@ export function cardCounts(state: MatchState): [number, number] {
   return [countCards(state.players[0]), countCards(state.players[1])];
 }
 
-/**
- * Card instances stay in exactly one zone and nowhere else, per-seat totals
- * never change, and DON!! stays within 0..10 per zone with every attachment
- * pointing at a card that lists it.
- */
 export function assertConservation(state: MatchState, baseline: [number, number]): void {
   const seenIds = new Set<string>();
   for (const seat of [0, 1] as Seat[]) {
@@ -46,10 +39,6 @@ export function assertConservation(state: MatchState, baseline: [number, number]
   }
 }
 
-/**
- * Serializing and restoring the state mid-game must not change what happens
- * next: the same intent yields the same verdict, state and events.
- */
 export function assertSnapshotContinues(state: MatchState, intent: Intent, seat: Seat): void {
   const restored = deserializeMatch(serializeMatch(state));
   const direct = applyIntent(state, intent, { seat });

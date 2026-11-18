@@ -9,7 +9,6 @@ import { type Actor, RoleControl, UserButtons, useUserActions, userLabel } from 
 const PAGE = 50;
 const SORT_KEY = "optcg-duel:admin-users-sort";
 
-/** The sortable columns in header order: `label` names the sort for screen readers and the stacked "Sort by" list, `short` is the header text. */
 const COLUMNS: readonly { key: UserSortKey; label: string; short: string; title?: string; num?: boolean }[] = [
   { key: "user", label: "User", short: "User" },
   { key: "role", label: "Role", short: "Role" },
@@ -18,7 +17,6 @@ const COLUMNS: readonly { key: UserSortKey; label: string; short: string; title?
   { key: "joined", label: "Joined", short: "Joined" },
 ];
 
-/** Two small carets, the one for the other direction faded; same 6x9 icon as the planner's column sort. */
 function SortCaret({ dir }: { dir: "asc" | "desc" | null }) {
   return (
     <svg width="6" height="9" viewBox="0 0 7 10" focusable="false" aria-hidden="true">
@@ -51,7 +49,6 @@ export function UsersTab({ actor }: { actor: Actor }) {
       .catch((e: Error) => mine === seq.current && setState({ status: "error", message: e.message }));
   }, []);
 
-  // Typing waits a beat so each keystroke is not a request.
   useEffect(() => {
     const t = setTimeout(() => load(q, guests, sort), q ? 300 : 0);
     return () => clearTimeout(t);
@@ -94,7 +91,6 @@ export function UsersTab({ actor }: { actor: Actor }) {
           <input type="checkbox" checked={guests} onChange={(e) => setGuests(e.target.checked)} />
           Show guests
         </label>
-        {/* Only the stacked layout shows this: its column headers are hidden, so the sort lives here. */}
         <div className="adm-sortby">
           <span className="adm-sortby-label">Sort by</span>
           <Select<string>

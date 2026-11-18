@@ -11,18 +11,13 @@ export type ClipDef = {file: string; duration: number; orientation: 'landscape' 
 export type SceneDef = {
   id: string;
   clip: ClipId;
-  /** seconds on the timeline */
   start: number;
   dur: number;
-  /** seconds into the clip where this scene begins */
   trimStart?: number;
-  /** playback speed of the footage */
   rate?: number;
-  /** seconds to hold the clip's first frame before it starts playing */
   clipDelay?: number;
   transition: Transition;
   focus: FocusKey[];
-  /** small caps line above the headline while this scene is on */
   eyebrow?: string;
 };
 
@@ -42,11 +37,8 @@ export type EndCfg = {
   desktop: {clip: ClipId; trimStart: number; focus: Rect};
   phone: {clip: ClipId; trimStart: number; focus: Rect};
 };
-/** One edit of the footage: the full trailer, or an ad cutdown. Times in seconds on the 0.5s beat grid. */
 export type Edit = {
   id: string; scenes: SceneDef[]; captions: CaptionDef[]; phone: PhoneCfg; endCard: EndCfg; total: number;
-  /** logo reveal over the bare gradient before the footage (full trailer only) */
   intro: boolean;
-  /** frame at which the browser frame rises in; 0 = on screen from the first frame */
   frameIn: number;
 };

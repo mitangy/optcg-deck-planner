@@ -24,14 +24,12 @@ import { OwnedInput, WantInput } from "../OwnedInputs";
 import { busyProductFor } from "../../cache/busyKey";
 import { COLSORT_SHOPPING_KEY } from "../../storage/keys";
 
-// Value columns in the wide layout (no Card, checkbox or Alt arts): Owned, Want, Still needed, Market, Remaining, Cost, Used in.
 const STRIP_COLS = 7;
 
 function stopCardSelectBubble(e: { stopPropagation(): void }) {
   e.stopPropagation();
 }
 
-/** Used-in text on the public list: decks, the leader breakdown, and cards added without a deck. */
 export function sharedUsedIn(item: ShoppingItem): string {
   return [
     item.used_in.join(", "),
@@ -67,21 +65,15 @@ export function shoppingColumnValue(item: ShoppingItem, key: string) {
   }
 }
 
-/** Master Shopping Market cell: the price (and recent sales) of the art the card shows (#928). */
 function ShownMarketPrice({ item }: { item: ShoppingItem }) {
   const { price, productId } = shownMarket(item);
   return <MarketPrice price={price} productId={productId} />;
 }
 
-/** Collector-copy wiring for Master Shopping (#1031). */
 export type CollectorControls = {
-  /** Sets a printing's collector want (also used by the popover's art picker). */
   onChange: (cardId: string, productId: number, qty: number) => void;
-  /** Removes a line (qty 0) and offers Undo. */
   onRemove: (cardId: string, line: CollectorLine) => void;
-  /** `${cardId}:${productId}` while a collector save is in flight. */
   busyKey: string | null;
-  /** The "Still need" filter: lines already covered are hidden. */
   onlyNeed: boolean;
 };
 
@@ -112,24 +104,19 @@ export function ShoppingItemsView({
   onToggleSelectVisible: () => void;
   showAltArts: boolean;
   altRow: (item: ShoppingItem) => ReactNode;
-  /** Owner pages: saves how many still-needed copies are bought as one alt art (#906). */
   onBuyPick?: (cardId: string, productId: number, qty: number) => void;
-  /** `${cardId}:${productId}` while a buy pick is saving. */
   buyBusyKey?: string | null;
   usedInNote: (item: ShoppingItem) => string;
   onOwnedSaved: () => void;
   onRemoveExtra: (cardId: string) => void;
   removingExtraId: string | null;
-  /** Owner pages: collector copy lines under their card (#1031). */
   collector?: CollectorControls;
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_SHOPPING_KEY);
   const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
-  // Wide screens (#1329): no Alt arts column; each card's alt tiles sit in a strip row under its numbers.
   const wide = useWideListRows();
   const altCol = showAltArts && !wide;
   if (items.length === 0) return null;
-  // Master Shopping's alt tiles are always editable, so they own the per-art counts.
   const ownedCell = (item: ShoppingItem) => (
     <OwnedCell
       isTotal={ownedCellIsTotal(showAltArts, item.alt_arts?.length ?? 0, true)}

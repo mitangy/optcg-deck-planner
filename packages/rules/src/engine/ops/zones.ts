@@ -1,6 +1,3 @@
-/**
- * Zone-moving and removal ops: draw, K.O., rest/activate, return to hand/deck/trash/Life, play, Event activation, mill, shuffle.
- */
 import { abilitiesFor } from "../../cards/abilities.js";
 import { getCardDef } from "../../cards/definitions.js";
 import { evalValue, playerRestricted } from "../queries.js";
@@ -78,7 +75,7 @@ export const zonesOps: OpTable<"draw" | "ko" | "rest" | "to_hand" | "to_deck" | 
       return "wait";
     }
     const lifePosition: "top" | "bottom" = effect.position === "top_or_bottom" ? (frame.bindings[B.end] === 0 ? "top" : "bottom") : effect.position;
-    // Same path as to_hand / to_deck / to_trash, so "cannot be removed by effects" and removal replacements apply (#656).
+    // Same path as to_hand / to_deck / to_trash, so "cannot be removed by effects" and removal replacements apply.
     return forEachTarget(sim, frame, targetsOf(effect.target), "remove", (loc) => {
       if (loc.zone === "leader" || loc.zone === "life") return;
       removedByEffect(state, frame, loc);
@@ -105,7 +102,6 @@ export const zonesOps: OpTable<"draw" | "ko" | "rest" | "to_hand" | "to_deck" | 
     return "next";
   },
   activate(effect, { state, frame, targetsOf }) {
-    // Like `play`: "set X as active. If you do, ..." gates on the cards this step actually set active.
     frame.bindings[V.affected] = [];
     for (const loc of targetsOf(effect.target)) {
       if (loc.zone === "don") {

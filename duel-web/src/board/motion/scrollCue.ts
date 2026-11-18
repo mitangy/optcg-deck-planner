@@ -1,18 +1,12 @@
 import { useCallback, useLayoutEffect, useState, type RefObject } from "react";
 
-/** Pixels of slack: sub-pixel rounding must not show a cue for text that fits. */
+// Sub-pixel rounding must not show a cue for text that fits.
 const SLACK_PX = 2;
 
-/** Whether a scroll box has more content below its visible part. */
 export function moreBelow(box: { scrollTop: number; clientHeight: number; scrollHeight: number }): boolean {
   return box.scrollHeight - box.scrollTop - box.clientHeight > SLACK_PX;
 }
 
-/**
- * True while the scroll box in `ref` has text below the fold, for a fade and a
- * "more" hint that tell the player it scrolls. Re-checks when `deps` change
- * (a new card), on scroll and when the box is resized.
- */
 export function useMoreBelow(
   ref: RefObject<HTMLElement | null>,
   deps: readonly unknown[],

@@ -14,7 +14,6 @@ import {
 } from "./cardActions";
 import { stubIntent } from "../fixtures/stubCard";
 
-// DEMO_VIEW hand: 0 ST01-003, 1 ST01-006, 2 ST01-008, 3 ST01-009, 4 ST01-014 (+2000 Counter).
 const view: PlayerView = {
   ...DEMO_VIEW,
   you: {
@@ -142,7 +141,6 @@ describe("counter step primary label (#255)", () => {
     expect(counterPrimaryLabel({ remaining: 1000, stagedIds: ["y-h5"] }, true)).toBe(
       "Counter anyway (still lose)",
     );
-    // An unreadable staged value can't be called short.
     expect(
       counterPrimaryLabel({ remaining: 1000, stagedIds: ["y-h5"], stagedUnknown: true }, true),
     ).toBe("Confirm counter");
@@ -160,7 +158,6 @@ describe("popoverPlacement (#255, #449)", () => {
 
   it("flips below the card when its height does not fit above (#255, #449)", () => {
     expect(popoverPlacement({ ...box, top: 40 }, size, vp)).toEqual({ left: 650, top: 170, above: false });
-    // 100 px of headroom was enough for the old fixed 72 px rule, but not for a 150 px popover.
     expect(popoverPlacement({ ...box, top: 100 }, size, vp)).toEqual({ left: 650, top: 230, above: false });
   });
 
@@ -170,7 +167,6 @@ describe("popoverPlacement (#255, #449)", () => {
   });
 
   it("slides back on screen when neither side has room (#449)", () => {
-    // 375 px tall landscape window, card in the middle: 150 px does not fit above or below.
     const short = { width: 812, height: 375 };
     const mid = { left: 300, top: 120, width: 60, height: 84 };
     const tall = { width: 160, height: 180 };
@@ -178,7 +174,6 @@ describe("popoverPlacement (#255, #449)", () => {
     expect(p.above).toBe(false);
     expect(p.top).toBeGreaterThanOrEqual(8);
     expect(p.top + tall.height).toBeLessThanOrEqual(short.height - 8);
-    // Taller than the window: pinned to the top edge.
     expect(popoverPlacement(mid, { width: 160, height: 500 }, short).top).toBe(8);
   });
 

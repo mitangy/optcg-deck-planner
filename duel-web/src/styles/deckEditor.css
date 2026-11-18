@@ -1,4 +1,3 @@
-/* Deck name: an input that reads as the h1 (#526). Same box as plain title text, so editing shifts nothing. */
 .deck-config-title.deck-name-heading {
   display: block;
   min-width: 0;
@@ -103,7 +102,6 @@
   text-align: center;
 }
 
-/* Keeps a built-in deck's row the same height as one with a Delete button. */
 .deck-list-builtin {
   color: var(--muted);
   font-size: 0.75rem;
@@ -124,7 +122,6 @@
   vertical-align: middle;
 }
 
-/* In the page header, the planner actions sit at the end of the row beside the title. */
 .deck-header-actions {
   margin-left: auto;
   min-height: 0;
@@ -159,7 +156,6 @@
   gap: 0.65rem;
 }
 
-/* Shown when Log Pose filled in the form (#726). */
 .deck-new-note {
   margin: 0;
   padding: 0.5rem 0.7rem;
@@ -246,8 +242,6 @@
   border-radius: var(--radius-4);
 }
 
-/* Stack look comes from @optcg/ui/cardStack; these are the deck editor's tokens. The leader (one copy)
-   reserves nothing. */
 .card-stack.deck-stack-pile {
   --card-stack-radius: var(--radius-6);
   --card-stack-bg: var(--arena-mid);
@@ -351,7 +345,6 @@
   margin-top: 0.25rem;
 }
 
-/* − count + never splits across lines; only Remove wraps under it. */
 .deck-stack-stepper {
   display: inline-flex;
   flex: 0 0 auto;

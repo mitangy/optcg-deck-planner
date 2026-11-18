@@ -1,8 +1,3 @@
-/**
- * The lobby: the FastAPI backend is faked in the browser, like e2e/fixtures.ts.
- * As a guest it needs only /health and /auth/me (401 = signed out); signed in it
- * also reads the Bounty, the leaderboard, your last games and your friends.
- */
 import { test as base, expect, type Page } from "@playwright/test";
 import { FAKE_API, RED_VANILLA } from "./fixtures";
 

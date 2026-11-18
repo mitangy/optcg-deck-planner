@@ -39,7 +39,6 @@ export function DeckConfigurePage() {
   const notice = (location.state as { importNotice?: string } | null)?.importNotice ?? null;
 
   const navigate = useNavigate();
-  /** Unsaved edits to the open deck; null while the editor shows the saved deck as is (#481). */
   const [edits, setEdits] = useState<(DeckDraft & { deckId: string }) | null>(null);
   const [saveMsg, setSaveMsg] = useState("");
   const [saveErr, setSaveErr] = useState<string | null>(null);
@@ -49,7 +48,6 @@ export function DeckConfigurePage() {
     return deckId ? getSavedDeck(deckId) : undefined;
   }, [deckId, tick, syncedDecks]);
   const draft: DeckDraft | null = saved ? (edits && edits.deckId === saved.id ? edits : saved) : null;
-  /** The saved deck with the draft's name, leader and cards: what the editor, stats and Log Pose see. */
   const deck: SavedDeck | undefined =
     saved && draft ? { ...saved, name: draft.name, leaderId: draft.leaderId, cards: draft.cards } : undefined;
   const dirty = Boolean(saved && draft && isDeckDirty(saved, draft));
@@ -58,7 +56,6 @@ export function DeckConfigurePage() {
   const draftRef = useRef(draft);
   draftRef.current = draft;
 
-  /** Write the draft to the deck. Returns false (and says why) when storage refuses. */
   function commit(next: DeckDraft): boolean {
     setSaveErr(null);
     try {
@@ -83,7 +80,6 @@ export function DeckConfigurePage() {
     deck ? { page: "deck-editor", label: deck.name || "This deck", deck: deckContext(deck), scope: deckEditorScope(deck), starters: DECK_EDITOR_STARTERS } : null,
   );
 
-  // Log Pose's Apply card changes the draft and saves it at once: Apply is an explicit commit.
   const editor = useMemo<LogPoseDeckEditor | null>(
     () =>
       deck
@@ -111,7 +107,6 @@ export function DeckConfigurePage() {
     setTick((n) => n + 1);
   }
 
-  /** A picked alt art also becomes the art the planner shows for that card (best effort, #1017). */
   function onArtChanged() {
     refresh();
     if (!saved!.plannerDeckId) return;
@@ -149,7 +144,6 @@ export function DeckConfigurePage() {
       setImportErr(v.errors.join(" · ") || "Import failed");
       return;
     }
-    // Replaces the draft only; Save keeps it.
     onChangeDraft({ name: draft!.name, leaderId: v.leaderId, cards: v.cards });
     setImportText("");
     setImportMsg(
@@ -174,7 +168,6 @@ export function DeckConfigurePage() {
                   onCommit={(name) => onChangeDraft({ ...draft, name })}
                 />
               </h1>
-              {/* The blank-name message takes the meta line's place, so nothing below shifts. */}
               <p className={blankName ? "meta error-text" : "meta"} role={blankName ? "alert" : undefined}>
                 {blankName
                   ? BLANK_DECK_NAME_ERROR
@@ -203,7 +196,6 @@ export function DeckConfigurePage() {
           </div>
         </DeckConfigHeader>
 
-        {/* Announced to screen readers; the Save button already shows the state, so nothing shifts. */}
         <p className="visually-hidden" role="status">
           {saveMsg}
         </p>
@@ -257,10 +249,6 @@ export function DeckConfigurePage() {
   );
 }
 
-/**
- * The deck name as an h1-looking text field (#526). Typing edits the page's draft straight away, so Save lights up
- * while the field still has focus; Enter leaves the field, Escape puts back the name it had on focus.
- */
 function DeckNameField({
   value,
   invalid,

@@ -9,7 +9,6 @@ const STATUS_TEXT: Record<TournamentSummary["status"], string> = {
   cancelled: "Cancelled",
 };
 
-/** One tournament as a link row: name, format, and what needs you. */
 export function TournamentRow({ t }: { t: TournamentSummary }) {
   const ready = t.my_match_ready && t.status === "running";
   return (

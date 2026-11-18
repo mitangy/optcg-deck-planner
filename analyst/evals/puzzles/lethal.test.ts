@@ -8,15 +8,11 @@ import { listLegalIntents, type MatchState, type Seat } from "@optcg/rules";
 import { Harness } from "@optcg/rules/src/testing/harness";
 
 const catalog = loadCatalog();
-const ATTACK_LEADER = "OP17-079"; // 5000, static text only
-const DEFENDER_LEADER = "ST09-001"; // 5000, static text only
-const BLOCKER = "ST01-006"; // [Blocker], 1000
+const ATTACK_LEADER = "OP17-079";
+const DEFENDER_LEADER = "ST09-001";
+const BLOCKER = "ST01-006";
 const FILLER = lethalPool(catalog).lifeFiller;
 
-/**
- * Seat 0 attacks with its 5000 Leader and `chars` against a 5000 Leader with `life` Life cards, `field` Characters and a face-up
- * `hand` of Counter cards. Every Character is active and able to attack.
- */
 function board(o: { chars?: string[]; don?: number; life?: number; lifeCards?: string[]; field?: string[]; hand?: string[]; mine?: string[]; rested?: number[] }) {
   const h = new Harness({ leaders: [ATTACK_LEADER, DEFENDER_LEADER], deckSize: 20 });
   h.don(0, o.don ?? 0);
@@ -35,19 +31,16 @@ function board(o: { chars?: string[]; don?: number; life?: number; lifeCards?: s
 describe("lethal gold is the engine's exact minimax", () => {
   it("is lower than the sum of the attacks when a Blocker can take one of them (#685)", () => {
     const found = lethalValue(board({ chars: [BIG], field: [BLOCKER] }))!;
-    // Two attackers, one Life: undefended the first hit takes the Life and the second wins (1 + 1); a Blocker stops one of them.
     expect(found).toMatchObject({ value: 1, undefended: 2, ceiling: 2 });
     expect(lethalValue(board({ chars: [BIG] }))).toMatchObject({ value: 2, undefended: 2 });
   });
 
   it("is lower than the sum of the attacks when a Counter card can stop one of them (#685)", () => {
-    // 1000 Counter: not enough for the 7000 Character against the 5000 Leader, so it is kept for the Leader's own 5000 attack.
     expect(lethalValue(board({ chars: [BIG], hand: [KAROO] }))).toMatchObject({ value: 1, undefended: 2 });
     expect(lethalValue(board({ chars: [BIG], hand: [] }))).toMatchObject({ value: 2 });
   });
 
   it("gives the DON!! to the Character that needs it before it attacks (#685)", () => {
-    // The Leader's 5000 ties the 5000 Leader; Vivi's 4000 needs one DON!!.
     const chars = [VIVI];
     expect(lethalValue(board({ chars, life: 2, don: 1 }))).toMatchObject({ value: 2, ceiling: 3 });
     expect(lethalValue(board({ chars, life: 2, don: 0 }))).toMatchObject({ value: 1 });
@@ -59,7 +52,6 @@ describe("lethal gold is the engine's exact minimax", () => {
   });
 
   it("makes no puzzle when a Life card has a [Trigger], or the attacker has a card to play (#685)", () => {
-    // A Life card with a [Trigger] opens a choice when it is taken; Karoo in the attacker's hand could be played.
     expect(lethalValue(board({ lifeCards: ["ST01-014"] }))).toBeNull();
     expect(lethalValue(board({ mine: [KAROO], don: 1 }))).toBeNull();
     expect(lethalValue(board({}))).not.toBeNull();
@@ -77,10 +69,6 @@ describe("lethal gold is the engine's exact minimax", () => {
   });
 });
 
-/**
- * The plain search the solver started as: every DON!! count for every attack, every block, every Counter card in every order,
- * the battle played out by the engine, with no memory of positions and nothing skipped.
- */
 function plainValue(start: MatchState, undefended: boolean): number {
   const attacker = start.activeSeat;
   const defender = (1 - attacker) as Seat;
@@ -120,9 +108,9 @@ function plainValue(start: MatchState, undefended: boolean): number {
 
 describe("the pruned search gives the plain search's answer (#697)", () => {
   const pool = lethalPool(catalog);
-  const DOUBLE = "P-028"; // [Double Attack], 6000
-  const BLOCKER_7000 = "EB03-019"; // [Blocker], 7000, Counter 1000
-  const EVENT = "ST01-014"; // Counter Event
+  const DOUBLE = "P-028";
+  const BLOCKER_7000 = "EB03-019";
+  const EVENT = "ST01-014";
   const mine = [BIG, VIVI, KAROO, DOUBLE, BIG, VIVI];
   const theirs = [BLOCKER, BLOCKER_7000, BLOCKER, VIVI];
   const hands = [KAROO, BIG, KAROO, EVENT, BLOCKER_7000];
@@ -137,8 +125,7 @@ describe("the pruned search gives the plain search's answer (#697)", () => {
     return state;
   };
 
-  const COUNTER_2000 = "OP18-106"; // [Double Attack], 7000, Counter 2000
-  // Boards that single out one pruning rule each: a Blocker stronger than the attacked Leader, two kinds of Blocker, two kinds of Counter card.
+  const COUNTER_2000 = "OP18-106";
   const fixed: Record<string, Parameters<typeof board>[0]> = {
     strongBlocker: { chars: [DOUBLE], don: 2, life: 2, field: [BLOCKER_7000] },
     twoBlockers: { chars: [DOUBLE, VIVI], don: 1, life: 2, field: [BLOCKER, BLOCKER_7000] },
@@ -192,7 +179,6 @@ describe("the lethal puzzle", () => {
   });
 
   it("mostly turns down boards where nothing can be dealt, since a defender holds it all (#685)", () => {
-    // The Leader's only attack is taken by the Blocker: 0 damage, where an undefended turn deals 1.
     const state = board({ field: [BLOCKER] });
     expect(lethalValue(state)).toMatchObject({ value: 0, undefended: 1 });
     const made = Array.from({ length: 30 }, (_, i) => lethalPuzzle(state, catalog, rng(i + 1))).filter(Boolean);

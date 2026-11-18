@@ -27,13 +27,11 @@ export type SearchResultBlock = {
 export type TextBlock = { type: "text"; text: string };
 export type ToolContent = SearchResultBlock | TextBlock;
 
-/** More than this many sources in one tool answer are cut, with a note. */
 const MAX_RESULTS = 60;
 const MAX_FACT = 700;
 
 type Fact = string | null | undefined | false;
 
-/** A search result from facts; null when no fact has any text (the API refuses empty text blocks). */
 export function searchResult(source: string, title: string, facts: Fact[]): SearchResultBlock | null {
   const content = facts
     .filter((f): f is string => typeof f === "string")
@@ -56,7 +54,6 @@ export function splitFacts(text: string, long = 200): string[] {
   return out;
 }
 
-/** A short stable hash (FNV-1a, 32 bits, hex) for ids made from a body of text. */
 export function shortHash(text: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < text.length; i++) {
@@ -68,8 +65,6 @@ export function shortHash(text: string): string {
 
 const pct = (x: unknown) => (typeof x === "number" ? `${(x * 100).toFixed(1)}%` : "?");
 const joined = (xs: unknown) => (Array.isArray(xs) && xs.length ? xs.join(", ") : "");
-
-// ——— cards ———
 
 function cardFacts(c: Rec): Fact[] {
   const stats = [
@@ -169,9 +164,6 @@ export function cardRulingsAdapter(v: Rec): ToolContent[] {
   return [...out.filter((b): b is SearchResultBlock => b !== null), ...(notes.length ? [{ type: "text" as const, text: notes.join(" ") }] : [])];
 }
 
-// ——— win rates ———
-
-/** One win record as a sentence; the app reads games and the interval back out of it (see statsDetail in the client). */
 export function recordSentence(label: string, r: Rec | null | undefined): string | null {
   if (!r || typeof r.games !== "number") return null;
   if (r.too_few_games) return `${label}: too few games (${r.games}) for a win rate.`;
@@ -224,15 +216,12 @@ export function statsAdapter(v: Rec): ToolContent[] {
   return out.filter((b): b is SearchResultBlock => b !== null);
 }
 
-// ——— tournaments (Limitless TCG) ———
-
 const ordinal = (n: number) => {
   const tens = n % 100;
   const suffix = tens >= 11 && tens <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
   return `${n}${suffix}`;
 };
 
-/** "4xOP01-006, 3xOP01-016": the list as OPTCGSim-style entries, most copies first. */
 function decklistText(list: unknown): string {
   if (!list || typeof list !== "object") return "";
   return Object.entries(list as Record<string, number>)
@@ -311,8 +300,6 @@ export function tournamentAdapter(v: Rec): ToolContent[] {
   return out.filter((b): b is SearchResultBlock => b !== null);
 }
 
-// ——— playbook ———
-
 function playbookTitle(m: Rec | null | undefined, fallback: string, vs?: string): string {
   const status = m?.status === "draft" || !m?.status ? "Draft" : "Reviewed";
   return `${m?.name ?? fallback}${vs ? ` vs ${vs}` : ""} playbook (${status}, ${m?.format || "unknown set"}${m?.stale ? ", stale" : ""})`;
@@ -344,7 +331,6 @@ function playbookAdapter(v: Rec): ToolContent[] {
   return [...results, ...(notes.length ? [{ type: "text" as const, text: notes.join(" ") }] : [])];
 }
 
-/** The playbook index (no leader): the notes list is plain text beside the general principles. */
 export function playbookIndexAdapter(v: Rec): ToolContent[] {
   if (v.card || v.mentionedIn || v.sections || v.opponent !== undefined || v.fromLeaderSide !== undefined) return playbookAdapter(v);
   if (!Array.isArray(v.notes) || !v.notes.every((n: unknown) => n && typeof n === "object")) return playbookAdapter(v);
@@ -352,8 +338,6 @@ export function playbookIndexAdapter(v: Rec): ToolContent[] {
   const general = v.general ? searchResult("playbook:general", "General playbook principles", Object.entries(v.general as Record<string, string>).flatMap(([h, t]) => noteFacts(h, t))) : null;
   return [...(general ? [general] : []), { type: "text", text: `Leaders with playbook notes (${v.currentFormat} is the newest set): ${index}` }];
 }
-
-// ——— lessons ———
 
 export function lessonsAdapter(v: Rec): ToolContent[] {
   const lessons: Rec[] = v.lessons ?? [];
@@ -369,11 +353,8 @@ export function lessonsAdapter(v: Rec): ToolContent[] {
   return results;
 }
 
-// ——— games ———
-
 const TURN_HEADER = /^--- Turn (\d+) \((.*)\) ---$/;
 
-/** A game log cut into its turns: lines before the first turn header (if any) are turn 0. */
 export function groupTurns(log: string[]): { turn: number; who: string; lines: string[] }[] {
   const groups: { turn: number; who: string; lines: string[] }[] = [];
   for (const line of log) {
@@ -389,10 +370,8 @@ export function groupTurns(log: string[]): { turn: number; who: string; lines: s
 
 const listCards = (cards: unknown) => (Array.isArray(cards) ? cards.map((c) => c ?? "a hidden card").join(", ") : "");
 
-/** A deck list as "4x Name (ID), ...", or "" when the game carries none. */
 const listDeck = (deck: unknown) => (Array.isArray(deck) ? deck.map((d: Rec) => `${d.copies}x ${d.name ?? d.id} (${d.id})`).join(", ") : "");
 
-/** A narrated game as search results: one overview and one per turn, `<prefix>:<id>` and `<prefix>:<id>#t<n>`. */
 export function gameResults(prefix: "match" | "game" | "botgame", id: string, game: Rec): SearchResultBlock[] {
   const mine = prefix === "match";
   const versus = mine ? `${game.yourLeader} vs ${game.opponentLeader}` : `${game.leaders?.A} vs ${game.leaders?.B}`;
@@ -472,8 +451,6 @@ export function searchMatchesAdapter(v: Rec): ToolContent[] {
   ];
 }
 
-// ——— bot simulation stats ———
-
 /** Bot-simulation stats as sources of their own (botsim:), never stats: or tourney:, so they stay apart from people's and tournament numbers. */
 export function simStatsAdapter(v: Rec): ToolContent[] {
   const name = (id: string, n?: string | null) => (n ? `${n} (${id})` : id);
@@ -527,8 +504,6 @@ export function simStatsAdapter(v: Rec): ToolContent[] {
   return out.filter((b): b is SearchResultBlock => b !== null);
 }
 
-// ——— position analysis ———
-
 export function positionAdapter(v: Rec): ToolContent[] {
   if (typeof v.sourceId !== "string" || !Array.isArray(v.options)) return [];
   const g: Rec = v.game ?? {};
@@ -547,8 +522,6 @@ export function positionAdapter(v: Rec): ToolContent[] {
   const r = searchResult(v.sourceId, `Position check: turn ${v.turn} (${who})`, facts);
   return r ? [r, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])] : [];
 }
-
-// ——— deck check and odds ———
 
 const nameCounts = (xs: unknown, top = 8) => (Array.isArray(xs) ? xs.slice(0, top).map((x: Rec) => `${x.name} ${x.count}`).join(", ") : "");
 
@@ -604,7 +577,6 @@ export function proposalAdapter(v: Rec): ToolContent[] {
   return result ? [result] : [];
 }
 
-/** A new deck Log Pose built as one source: the app opens its create-deck page with the list filled in. */
 export function newDeckAdapter(v: Rec): ToolContent[] {
   const cards: Rec[] = Array.isArray(v.cards) ? v.cards : [];
   const legality: Rec = v.legality ?? {};
@@ -631,11 +603,8 @@ export function oddsAdapter(v: Rec): ToolContent[] {
   return result ? [result, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])] : [];
 }
 
-// ——— goldfish simulation ———
-
 const pct1 = (x: unknown) => (typeof x === "number" ? x.toFixed(1) : "?");
 
-/** The engine-support facts of a simulation, kept next to every speed number in its main source. */
 function simSupportFacts(v: Rec): Fact[] {
   const s = v.support ?? {};
   const runs = v.setup?.runs;
@@ -701,8 +670,6 @@ export function simulateAdapter(v: Rec): ToolContent[] {
   return [...results, ...(v.notes?.length ? [{ type: "text" as const, text: v.notes.join(" ") }] : [])];
 }
 
-// ——— price history ———
-
 const usd = (x: unknown) => (typeof x === "number" ? `$${x.toFixed(2)}` : "?");
 const signed = (x: unknown) => (typeof x === "number" ? `${x > 0 ? "+" : ""}${x}%` : null);
 
@@ -728,13 +695,8 @@ export function priceHistoryAdapter(v: Rec): ToolContent[] {
   return result ? [result] : [];
 }
 
-/** Turns one tool's answer value into citable content (see `adaptValue`). */
 export type SourceAdapter = (v: Rec) => ToolContent[];
 
-/**
- * One tool's answer value as tool_result content with citable search results, or null to keep the plain
- * text (no adapter, not an object, or nothing citable in it). `tool` only names the note source.
- */
 export function adaptValue(adapter: SourceAdapter | undefined, tool: string, value: unknown): ToolContent[] | null {
   if (!adapter) return null;
   if (!value || typeof value !== "object") return null;
@@ -748,7 +710,6 @@ export function adaptValue(adapter: SourceAdapter | undefined, tool: string, val
     const note = notes.length ? searchResult(`note:${tool}`, "Lookup notes", notes) : null;
     return [...results.slice(0, MAX_RESULTS), ...(note ? [note] : [])];
   } catch (err) {
-    // The model still gets the plain text, so nothing changes for the player; the log says which adapter broke.
     console.warn(JSON.stringify({ event: "citation_adapter_error", tool, message: err instanceof Error ? err.message : String(err) }));
     return null;
   }

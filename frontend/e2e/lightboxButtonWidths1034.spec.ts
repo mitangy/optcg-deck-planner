@@ -1,7 +1,3 @@
-/**
- * The four controls under the enlarged card (Card page, shopping list, Price alert, Price history)
- * are one width (#1034). Runs at desktop-1200 and phone-375.
- */
 import { expect, test } from "./fixtures";
 
 test.afterEach(({ planner }) => {

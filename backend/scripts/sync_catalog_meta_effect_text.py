@@ -1,12 +1,4 @@
 #!/usr/bin/env python3
-"""Merge printed effectText from duel-web cosmetics catalog into rules catalogMeta.
-
-Reads existing JSON only (no TCGCSV network). Used when cardCatalog.json already
-has effect text but catalogMeta.json was generated without it.
-
-Usage:
-  python3 backend/scripts/sync_catalog_meta_effect_text.py
-"""
 
 from __future__ import annotations
 

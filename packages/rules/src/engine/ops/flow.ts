@@ -1,6 +1,3 @@
-/**
- * Ops that change game flow rather than a zone or modifier: win, extra turn, invoke, redirect the attack, no-op.
- */
 import { abilitiesFor } from "../../cards/abilities.js";
 import { abilityGateOpen, startAbility } from "../triggers.js";
 import { alloc } from "../zones.js";

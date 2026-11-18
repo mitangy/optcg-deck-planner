@@ -1,4 +1,3 @@
-/** Pure helpers behind the price history chart (#946). Dates are ISO "YYYY-MM-DD" strings, read as UTC. */
 import { artKind } from "@optcg/price-timing";
 
 export type PricePoint = { date: string; price: number };
@@ -31,7 +30,6 @@ export function formatDay(iso: string): string {
   return `${MONTHS[m - 1]} ${d}, ${y}`;
 }
 
-/** `iso` minus whole calendar months, with the day clamped to the target month's length (Mar 31 - 1 month = Feb 28). */
 export function minusMonths(iso: string, months: number): string {
   const [y, m, d] = iso.split("-").map(Number);
   const index = y * 12 + (m - 1) - months;
@@ -41,14 +39,12 @@ export function minusMonths(iso: string, months: number): string {
   return `${String(year).padStart(4, "0")}-${String(month + 1).padStart(2, "0")}-${String(Math.min(d, last)).padStart(2, "0")}`;
 }
 
-/** The points inside a range, counted back from the latest point. A point exactly on the cut-off day is kept. */
 export function pointsInRange(points: PricePoint[], range: HistoryRange): PricePoint[] {
   if (range.months == null || points.length === 0) return points;
   const cutoff = minusMonths(points[points.length - 1].date, range.months);
   return points.filter((p) => p.date >= cutoff);
 }
 
-/** Percent change first to last point; null when there are fewer than two points or the start was 0. */
 export function rangeChangePct(points: PricePoint[]): number | null {
   if (points.length < 2) return null;
   const first = points[0].price;
@@ -59,13 +55,10 @@ export function rangeChangePct(points: PricePoint[]): number | null {
 export type HistoryStats = {
   now: number | null;
   peak: PricePoint | null;
-  /** Lowest price from the peak day on, today's price included. */
   lowSincePeak: number | null;
-  /** Today's price against the peak, percent (negative when below it). */
   changeFromPeakPct: number | null;
 };
 
-/** Stats over the whole history. `current` is the price now; without it the last point stands in. */
 export function historyStats(points: PricePoint[], current: number | null): HistoryStats {
   const now = current ?? (points.length ? points[points.length - 1].price : null);
   if (points.length === 0) return { now, peak: null, lowSincePeak: null, changeFromPeakPct: null };
@@ -84,7 +77,6 @@ export function historyStats(points: PricePoint[], current: number | null): Hist
   };
 }
 
-/** "12 days ago", "5 months ago": days up to two months, then whole months. */
 export function releasedAgo(released: string, today: string): string {
   const days = dayNumber(today) - dayNumber(released);
   if (days < 0) return "upcoming";
@@ -100,7 +92,6 @@ export function todayIso(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);
 }
 
-/** "Round" axis ticks covering [min, max]: 3 to 4 values, evenly spaced on 1/2/5 steps. */
 export function niceTicks(min: number, max: number, target = 4): number[] {
   if (!(max > min)) {
     const v = Number.isFinite(min) ? min : 0;
@@ -115,7 +106,6 @@ export function niceTicks(min: number, max: number, target = 4): number[] {
   return ticks;
 }
 
-/** Index of the point whose date is closest to day number `x` (points are oldest first). */
 export function nearestIndex(points: PricePoint[], x: number): number {
   let best = 0;
   let bestDist = Infinity;
@@ -129,23 +119,19 @@ export function nearestIndex(points: PricePoint[], x: number): number {
   return best;
 }
 
-/** The card's name without its art marks: "Monkey.D.Luffy (Alternate Art)" gives "Monkey.D.Luffy". */
 export function baseCardName(productName: string): string {
   return productName.replace(/\s*\([^)]*\)/g, "").replace(/\s+/g, " ").trim() || productName;
 }
 
-/** The art marks of a TCGPlayer product name ("Alternate Art", "Manga"), or "base art" when it has none. */
 export function artLabel(productName: string): string {
   const marks = [...productName.matchAll(/\(([^)]*)\)/g)].map((m) => m[1].trim()).filter(Boolean);
   return marks.length ? marks.join(", ") : "base art";
 }
 
-/** The question the "Ask Log Pose" button sends. The art and product id let Log Pose price the exact art. */
 export function buyQuestion(productName: string, cardId: string, productId: number): string {
   return `When is the best time to buy ${baseCardName(productName)} (${artLabel(productName)}, ${cardId}${productId ? `, product ${productId}` : ""})? Use its price history and how much it's being played.`;
 }
 
-/** What the When to buy read is computed from. The card's rarity picks the base SR / SEC / Leader curve; alt and chase names win first. */
 export function buyTimingInput(
   data: { name: string; rarity?: string | null; released: string | null; current: number | null; reprints?: string[] | null },
   points: PricePoint[],

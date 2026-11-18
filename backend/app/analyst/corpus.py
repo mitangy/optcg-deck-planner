@@ -1,9 +1,3 @@
-"""Log Pose's game corpus: every recorded duel, anonymized, for the analyst to search and replay.
-
-Games of players who turned sharing off are left out. Results never carry names, user ids,
-match ids or exact ratings: each game gets an opaque game id, the two sides are "A" and "B",
-and ratings are shown as 200-point bands. There is deliberately no filter by player.
-"""
 
 from __future__ import annotations
 
@@ -29,7 +23,6 @@ def rating_band(rating: int | None) -> str | None:
 
 
 def _game_ids(db: Session, match_ids: list[str]) -> dict[str, str]:
-    """Opaque game ids for these matches, made on first use."""
     have = {r.match_id: r.game_id for r in db.scalars(select(AnalystCorpusId).where(AnalystCorpusId.match_id.in_(match_ids)))}
     for mid in match_ids:
         if mid not in have:
@@ -63,9 +56,6 @@ def search_games(
     limit: int = 20,
     offset: int = 0,
 ) -> dict:
-    """Shared games matching the filters, newest first. With a leader (or only an opponent),
-    side A is that leader's side; result, went_first and card then apply to side A.
-    Without either, A is the first seat and card matches either deck."""
     since = datetime.now(timezone.utc) - timedelta(days=days)
     q = (
         select(DuelMatchSeat, DuelMatch)
@@ -132,8 +122,6 @@ def search_games(
 
 
 def game_replay(db: Session, game_id: str) -> dict | None:
-    """The full replay of one corpus game with its sides as A (first seat) and B, or None when it
-    isn't in the corpus (unknown id, no replay kept, or a player has since turned sharing off)."""
     row = db.scalar(select(AnalystCorpusId).where(AnalystCorpusId.game_id == game_id))
     if row is None:
         return None
@@ -157,13 +145,6 @@ HUMAN_BOT_MAX_LIMIT = 200
 
 
 def human_bot_games(db: Session, after_id: int, limit: int) -> dict:
-    """Play vs Bot games with a saved replay, oldest first after ``after_id`` (#1202), for training the bots.
-
-    Only bot games ever store a replay, so "has a replay" is also "is a bot game".
-
-    Games of players who turned sharing off are left out (same switch as the corpus above). No user id,
-    game id or name is returned: a row is its own id, the bot's level and the replay.
-    """
     opted_out = select(AnalystPrefs.user_id).where(AnalystPrefs.share_matches.is_(False))
     rows = db.scalars(
         select(DuelSoloGame)

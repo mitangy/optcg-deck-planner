@@ -2,12 +2,7 @@ import type { BattleLogEntry } from "../match/battleLog";
 
 export type OpponentReveal = { entryId: string; defId: string; turn: number };
 
-/**
- * Log entries added since `prevLastId` (the newest entry id seen last time):
- * undefined before the first look (mount: none), null when the log was
- * empty. A previous id that is gone from the log means the log was replaced
- * (resync / undo), which is not news either.
- */
+// A previous id gone from the log means the log was replaced (resync / undo), not news.
 export function entriesSince(
   prevLastId: string | null | undefined,
   entries: readonly BattleLogEntry[],
@@ -22,7 +17,6 @@ export function entriesSince(
   return entries.slice(from);
 }
 
-/** Opponent reveals among the log entries added since `prevLastId` (see `entriesSince`). */
 export function newOpponentReveals(
   prevLastId: string | null | undefined,
   entries: readonly BattleLogEntry[],

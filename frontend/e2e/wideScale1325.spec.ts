@@ -1,7 +1,3 @@
-/**
- * Big monitors (#1325): from 1600px wide the whole planner scales up (root font size grows from 16px,
- * so text, card art and tiles follow); below 1600px nothing changes. Wider must not mean sideways scroll.
- */
 import { expect, test, DECK_ID } from "./fixtures";
 
 test.afterEach(({ planner }) => {
@@ -17,8 +13,6 @@ async function listThumbWidth(page: import("@playwright/test").Page) {
   return (await thumb.boundingBox())!.width;
 }
 
-// Compared with 1600px, where the wide layout starts: below it the art fills its column (up to 220px),
-// and from 1600px the #1212 list cap shrinks it, so 1440px is not a like-for-like width.
 test("a 2560px screen scales the planner and its card art up from a 1600px screen (#1325)", async ({ page, planner }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-1200", "viewport is set by the test");
   await page.setViewportSize({ width: 1600, height: 900 });
@@ -52,8 +46,6 @@ for (const width of [1920, 2560]) {
   }
 }
 
-// Grid column minimums are rem so they grow with the root; px columns left the scaled card art and its
-// Want controls wider than the tile.
 for (const path of ["/shopping", "/collection", `/decks/${DECK_ID}`]) {
   test(`${path} Grid at 2560px: no card content overflows its tile (#1329)`, async ({ page, planner }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1200", "viewport is set by the test");
@@ -66,7 +58,6 @@ for (const path of ["/shopping", "/collection", `/decks/${DECK_ID}`]) {
       els.flatMap((el) => {
         const e = el as HTMLElement;
         const tile = e.getBoundingClientRect();
-        // The copies badge deliberately pokes out of the art corner, so absolutely positioned bits are skipped.
         const wide = Array.from(e.querySelectorAll<HTMLElement>("*")).filter(
           (c) =>
             getComputedStyle(c).position !== "absolute" &&

@@ -1,12 +1,10 @@
 import type { BattleLogEntry } from "../match/battleLog";
 import { cardUseOf } from "../motion/opponentPlay";
 
-/** "all" shows every line; "plays" only cards played, countered, triggered or activated. */
 export type BattleLogFilter = "all" | "plays";
 
 export const BATTLE_LOG_FILTER_KEY = "duel.battleLogFilter";
 
-/** The entries a filter keeps, in their original order. */
 export function filterBattleLog(entries: readonly BattleLogEntry[], filter: BattleLogFilter): readonly BattleLogEntry[] {
   return filter === "plays" ? entries.filter((e) => cardUseOf(e) != null) : entries;
 }

@@ -2,13 +2,10 @@ import { describe, expect, it } from "vitest";
 import { Harness } from "../testing/harness.js";
 import type { GameEvent } from "../types.js";
 
-// "Reveal up to 1 X from your deck / hand and add it to ..." shows the card to the opponent (#524).
+const SMILE = "OP01-116";
+const URUGE = "OP10-101";
+const COST_5 = "EB01-018";
 
-const SMILE = "OP01-116"; // Artificial Devil Fruit SMILE
-const URUGE = "OP10-101"; // {Supernovas} vanilla Character
-const COST_5 = "EB01-018"; // vanilla 5-cost
-
-/** Answer the front select with the option for `defId` and return the events that answer produced. */
 function pickEvents(h: Harness, defId: string): GameEvent[] {
   const choice = h.choice!;
   const request = choice.request;

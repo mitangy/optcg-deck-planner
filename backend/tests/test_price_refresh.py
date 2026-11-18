@@ -1,4 +1,3 @@
-"""Hourly prices for new and upcoming sets (#840)."""
 
 from __future__ import annotations
 
@@ -30,8 +29,6 @@ def _product(pid: int, market: float | None, low: float | None) -> dict:
 
 
 def _client(groups: list[dict], products: dict[int, list[dict]], failing: set[int] = frozenset(), calls=None):
-    """A TCGCSV groups endpoint plus a TCGPlayer search endpoint, both faked."""
-
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method == "GET":
             assert request.url.path.endswith("/groups")
@@ -66,8 +63,8 @@ def test_new_release_window_keeps_recent_and_upcoming_sets_840():
         _group(1, "2026-10-21T00:00:00"),
         _group(2, "2026-12-05T00:00:00"),
         _group(3, "2026-09-01T00:00:00"),
-        _group(4, "2026-10-01T12:00:00"),  # exactly 30 days before NOW
-        _group(5, "2026-10-01T11:59:59"),  # a second too old
+        _group(4, "2026-10-01T12:00:00"),
+        _group(5, "2026-10-01T11:59:59"),
         {"groupId": 6, "name": "no date"},
         _group(7, "soon"),
     ]
@@ -110,7 +107,6 @@ def test_new_prices_repick_the_cards_preferred_printing_840(db):
         ]
     )
     db.commit()
-    # Product 1 gets dearer than product 2, and the alt stays far cheaper than any standard.
     prices = {1: (8.0, 7.5), 2: (6.0, 5.5), 3: (1.0, 0.5), 4: (12.0, 11.0), 5: (4.0, 3.0)}
     result = price_refresh.apply_prices(db, prices, NOW)
     assert result["printings_updated"] == 5
@@ -149,7 +145,7 @@ def test_only_new_sets_are_fetched_and_older_printings_stay_put_840(db):
     assert db.get(CatalogCard, "EB05-001").market_price == 1.5
     assert db.get(CatalogCard, "OP01-001").market_price == 7.0
     assert db.query(CatalogPrinting).filter_by(product_id=20).one().market_price == 2.0
-    assert db.query(CatalogPrinting).count() == 2  # product 999 is not in the catalog: no new row
+    assert db.query(CatalogPrinting).count() == 2
 
 
 def test_one_set_failing_does_not_stop_the_others_840(db):

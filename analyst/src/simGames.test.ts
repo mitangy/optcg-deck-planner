@@ -9,7 +9,6 @@ import { parseSimGame } from "@optcg/rules/src/sim/optcgsim";
 const FIXTURES = "../packages/rules/src/sim/optcgsim/__fixtures__";
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(`${FIXTURES}/${name}`, `file://${process.cwd()}/`), "utf8")) as Record<string, any>;
 
-/** The row the planner would hold for a fixture game: names swapped for the placeholders it stores. */
 function storedRow(name: string, id = "g1"): SimGameDetail {
   const raw = fixture(name);
   const clean = (s: string) => s.replace(/​/g, "").replaceAll("PlayerA#1", "Me#1").replaceAll("PlayerB#2", "Opp#2");
@@ -83,12 +82,10 @@ describe("imported OPTCGSim games (#1030)", () => {
   it("names none of the opponent's face-down hand and only counts it (#1030)", async () => {
     const { api } = serve({ "/analyst/sim-games/g1": storedRow("game-me-first-won.json") });
     const review = await reviewSimGame(api, "tok", "g1");
-    // Turn 1: five cards in the opponent's hand, none of them seen (their starting hand is in the raw log).
     expect(review.log[2]).toBe("Opponent's hand: 5 cards; known to you: none (the rest were drawn face down).");
     for (const line of review.log.filter((l) => l.startsWith("Opponent's hand: "))) {
       expect(line).toMatch(/^Opponent's hand: \d+ cards; known to you: .+ \(the rest were drawn face down\)\.$/);
     }
-    // The opening hands are not in the review at all.
     expect(review).not.toHaveProperty("opponentOpeningHand");
     expect(review).not.toHaveProperty("yourOpeningHand");
   });

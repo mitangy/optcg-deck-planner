@@ -1,8 +1,4 @@
-/* —— Floating-card prompts (FloatingPrompt.tsx; /demo?box shows the old pop-up) ——
-   The cards an effect works with float over the board in one row instead of a
-   pop-up panel. The layer covers only the board column on wide layouts, so the
-   log, rail and hand stay put. Nothing dims the mat (#542): the header, note and
-   buttons carry their own small backing instead of a full-board scrim. */
+/* Nothing dims the mat: the header, note and buttons carry their own small backing instead of a full-board scrim. */
 
 .float-layer {
   position: fixed;
@@ -27,14 +23,12 @@
   right: var(--rail-w);
 }
 
-/* Portrait: stay under the top bar so Undo and the menu stay in reach (--hud-h, #660). */
+/* Portrait: stay under the top bar so Undo and the menu stay in reach. */
 .arena:not(.arena-wide) .float-layer {
   padding-top: max(0.75rem, var(--safe-t), var(--hud-h, 0px) + 0.5rem);
-  /* ...and above the hand (--hand-room, #663): the buttons ride in the bottom bar. */
   padding-bottom: max(0.75rem, var(--safe-b), var(--hand-room, 0px) + 0.5rem);
 }
 
-/* Portrait: the hint sits under the title in the header's own backing (#663). */
 .float-layer .float-head .float-note {
   padding: 0;
   background: none;
@@ -91,7 +85,6 @@
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--gap);
-  /* Room for a picked (lifted) card and its badge under the row above. */
   row-gap: calc(var(--gap) + 1rem);
 }
 
@@ -142,7 +135,6 @@
   filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.55));
 }
 
-/* Takeable cards glow; the rest of the look sits a little darker. */
 .float-card.is-eligible .card-tile {
   border-color: rgb(var(--chrome-bright-rgb) / 0.7);
   box-shadow: 0 0 0 1px rgb(var(--chrome-bright-rgb) / 0.35), 0 0 16px rgb(var(--chrome-bright-rgb) / 0.3), 0 10px 24px rgba(0, 0, 0, 0.6);
@@ -194,14 +186,13 @@
   font-size: 0.9rem;
 }
 
-/* Not tapped yet: the number it would resolve at, quieter. */
 .float-order-num.is-auto {
   background: rgb(var(--deep-rgb) / 0.85);
   color: var(--muted);
   border: 1px solid var(--line-strong);
 }
 
-/* Step buttons + slot number; fixed height so a picked card never shifts the row. */
+/* Fixed height so a picked card never shifts the row. */
 .float-nudge {
   display: inline-flex;
   align-items: center;
@@ -313,7 +304,6 @@
   min-width: 10rem;
 }
 
-/* "Hide": the cards tuck away behind one pill until you come back. */
 .float-layer-peek {
   align-items: flex-start;
   padding-top: calc(var(--safe-t) + 4.5rem);
@@ -331,19 +321,17 @@
   cursor: pointer;
 }
 
-/* Desktop: slimmer, to sit inside the top bar. */
 .arena.arena-wide:not(.arena-lp) .float-return {
   padding-block: 0.4rem;
 }
 
-/* Phones (portrait): two rows of three read better than five tiny cards. The budget is the room between the top bar and the hand (--hand-room) minus the header (hint included) and axis (H0), a row of nudge / effect text under each card row (R) and the gap between rows (#660, #663). Short screens keep one row of up to five, which makes bigger cards than two squeezed rows. */
+/* Two rows of three read better than five tiny cards. Short screens keep one row of up to five, which makes bigger cards than two squeezed rows. */
 @media (max-width: 560px) and (orientation: portrait) {
   .float-layer {
     --per-row: min(var(--n), 3);
     --rows: var(--rows3, 1);
     --card-max: min(150px, calc(((100dvh - var(--hud-h, 0px) - var(--hand-room, 0px)) / var(--popup-scale, 1) - 8.5rem - var(--rows, 1) * 3rem - (var(--rows, 1) - 1) * 1.6rem) / var(--rows, 1) * 0.714));
   }
-  /* Size − / + sit beside the title, not on a row of their own. */
   .float-head-title {
     display: flex;
     align-items: center;
@@ -360,7 +348,7 @@
     --per-row: min(var(--n), 5);
     --rows: var(--rows5, 1);
   }
-  /* Five cards across: slimmer step buttons so they stay under their card. */
+  /* Slimmer step buttons so they stay under their card. */
   .float-nudge {
     gap: 0.05rem;
     padding: 0 0.1rem;
@@ -373,7 +361,6 @@
   }
 }
 
-/* Landscape phones: one row, sized from the short height. */
 @media (orientation: landscape) and (max-height: 499px) {
   .float-layer {
     --gap: 0.4rem;
@@ -395,7 +382,6 @@
   }
 }
 
-/* "Hide" on the regular choice / effect-order pop-ups: same pill brings them back. */
 .prompt-hide {
   position: absolute;
   top: 0.75rem;
@@ -417,7 +403,6 @@
   color: var(--chrome-bright);
 }
 
-/* Header text stays clear of the Hide button. */
 .ability-prompt:has(> .prompt-hide) > h3 {
   display: flex;
   align-items: center;
@@ -425,7 +410,6 @@
   padding-right: 4.5rem;
 }
 
-/* Pop-up size − / + beside Hide (and the dock buttons on desktop). */
 .prompt-size-tools {
   position: absolute;
   top: 0.75rem;
@@ -504,8 +488,7 @@
   }
 }
 
-/* Drag a centred prompt by its header (usePromptDrag); the offset rides on
-   `translate`, so the prompt's own placement and transforms stay as they are. */
+/* The offset rides on `translate`, so the prompt's own placement and transforms stay as they are. */
 .prompt-hide-wrap .ability-prompt {
   translate: var(--prompt-dx, 0px) var(--prompt-dy, 0px);
 }
@@ -529,10 +512,7 @@
   cursor: grabbing;
 }
 
-/* No scrim (#449, #542): only the header, cards and buttons catch the pointer, so the
-   board (and the battle arrow) behind the empty parts stays in reach and a stray click
-   there never reaches the prompt. Effect ordering's header also drags the stage
-   (usePromptDrag; the offset rides on `translate`). */
+/* No scrim: only the header, cards and buttons catch the pointer, so the board behind the empty parts stays in reach and a stray click there never reaches the prompt. */
 .float-layer .float-row,
 .float-layer .float-axis,
 .float-layer .float-stage {
@@ -546,7 +526,7 @@
   pointer-events: auto;
 }
 
-/* Over the live board the header needs its own backing (there is no scrim to read against). */
+/* There is no scrim to read against, so the header needs its own backing. */
 .float-head {
   padding: 0.25rem 0.9rem;
   border-radius: 0.9rem;
@@ -585,9 +565,7 @@
   background: rgb(var(--deep-rgb) / 0.82);
 }
 
-/* Dock the pop-up into a side column (#449). The pop-up stays a fixed overlay
-   (so docking never remounts it); usePromptDockHost puts a block of its height
-   first in the column and sets --dock-l / --dock-t / --dock-w to that block. */
+/* The pop-up stays a fixed overlay so docking never remounts it; usePromptDockHost puts a block of its height first in the column. */
 .prompt-dock-tools {
   position: absolute;
   top: 0.75rem;
@@ -644,7 +622,6 @@
   grid-template-columns: var(--left-w) minmax(0, 1fr) max(var(--rail-w), 320px);
 }
 
-/* Drop hint while the header is dragged over a column. */
 .arena.arena-wide .board-col[data-prompt-drop] {
   position: relative;
 }
@@ -667,7 +644,6 @@
   pointer-events: none;
 }
 
-/* Narrow windows: smaller − / + so a big pop-up size still leaves the title room. */
 @media (max-width: 640px) {
   .prompt-size-tools {
     right: 4.4rem;

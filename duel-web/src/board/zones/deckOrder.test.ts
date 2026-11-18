@@ -3,7 +3,6 @@ import { arrangementAnswer, groupAnswer, mergeArrangement, moveToRow, nudge, set
 
 describe("deck put-back arrangement", () => {
   it("dragging a top card below the rest-of-deck row puts it on the bottom", () => {
-    // Rows: a, b, [rest], c → drop a after the divider (index 2 among b, rest, c).
     expect(moveToRow({ top: ["a", "b"], bottom: ["c"] }, "a", 2)).toEqual({ top: ["b"], bottom: ["a", "c"] });
   });
 

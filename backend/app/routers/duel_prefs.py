@@ -1,9 +1,3 @@
-"""Duel-web settings and uploaded playmats / card backs, stored per account.
-
-Settings and the chosen playmat / card back follow a signed-in player to every
-device. Every upload is kept (up to ``MAX_PER_KIND`` per kind) so the player
-can switch back to an older image; guests keep using browser storage only.
-"""
 
 from __future__ import annotations
 
@@ -34,8 +28,6 @@ from app.duel.schemas import (
 router = APIRouter(prefix="/duel", tags=["duel"])
 
 KINDS = ("playmat", "cardBack")
-# The client re-encodes before upload (playmat 2400px JPEG, card back 630px
-# WebP); these leave headroom without letting one row grow unbounded.
 MAX_BYTES = {"playmat": 4 * 1024 * 1024, "cardBack": 1024 * 1024}
 MAX_PER_KIND = 12
 # All accounts' images together. Images live in the Postgres database, whose
@@ -43,13 +35,10 @@ MAX_PER_KIND = 12
 # whole database filling up (any Google account can sign in and upload).
 MAX_TOTAL_COSMETIC_BYTES = 256 * 1024 * 1024
 MAX_SETTINGS_CHARS = 4096
-# Per-device connection fields never leave the browser (the join secret is a secret).
 DEVICE_ONLY_KEYS = frozenset({"serverUrl", "joinSecret", "useDevKey", "devUserKey"})
 
 
 _upload_rate = RateLimiter(max_calls=20, period_s=60, name="duel_prefs_upload_rate")
-# The image is cached for a year, so a viewer loads it once; this is generous
-# enough for a venue behind one address and still stops a scraper hammering the database.
 _public_image_rate = RateLimiter(max_calls=600, period_s=60, name="duel_prefs_public_image_rate")
 
 
@@ -70,7 +59,6 @@ def _check_kind(kind: str) -> str:
 
 def _own_cosmetic(db: Session, user: User, cosmetic_id: int) -> DuelCosmetic:
     row = db.get(DuelCosmetic, cosmetic_id)
-    # A taken-down image (#810) is evidence: the owner can neither use nor delete it.
     if row is None or row.user_id != user.id or row.taken_down_at is not None:
         raise HTTPException(status_code=404, detail="Image not found")
     return row
@@ -180,7 +168,6 @@ async def upload_cosmetic(
     if activate:
         setattr(prefs, active_attr(kind), row.id)
 
-    # Keep the newest MAX_PER_KIND; never drop the image in use.
     active_id = getattr(prefs, active_attr(kind))
     ids = db.scalars(
         select(DuelCosmetic.id)
@@ -275,7 +262,6 @@ def cosmetic_image(
         content=row.data,
         media_type=row.mime,
         headers={
-            # Ids are never reused for different bytes.
             "Cache-Control": "private, max-age=31536000, immutable",
             "X-Content-Type-Options": "nosniff",
         },

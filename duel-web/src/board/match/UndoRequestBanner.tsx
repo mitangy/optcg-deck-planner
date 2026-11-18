@@ -2,7 +2,6 @@ import type { SeatPlayers } from "../../net/protocol";
 import { seatName } from "./playerNames";
 import type { UndoUi } from "./undoHud";
 
-/** The opponent asked to undo: what they want to take back, and Allow / Decline. */
 export function UndoRequestBanner({ ui, players }: { ui: UndoUi; players: SeatPlayers | null }) {
   const { undo, undoState, undoPendingTheirs, undoReqText } = ui;
   if (!(undoPendingTheirs && undoState?.pending)) return null;

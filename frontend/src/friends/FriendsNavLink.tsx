@@ -4,7 +4,6 @@ import { friendsApi } from "./friendsApi";
 import { badgeLabel, navBadgeCount } from "./tradeLogic";
 import { qk } from "../cache/queryKeys";
 
-/** Nav link with a count of offers waiting plus trades in progress. The badge floats over the link's corner, so it never resizes the link. */
 export function FriendsNavLink() {
   const { data } = useQuery({
     queryKey: qk.tradesSummary(),

@@ -13,7 +13,6 @@ import { DeckCardSearchHit, findDecksWithCard } from "./deckCardSearch";
 
 const MAX_MATCHES_PER_TILE = 4;
 
-/** The cards of a deck that match the "Find a card" search, shown on its tile (#1315). */
 function DeckCardMatches({ hit }: { hit: DeckCardSearchHit }) {
   const rows: string[] = [];
   if (hit.leaderMatches) {
@@ -73,7 +72,6 @@ function groupDecksByLeader(
   return groups;
 }
 
-/** Compact owned-copies bar for a deck tile; hidden when the API omits the count. */
 function DeckOwnedMeter({ owned, total }: { owned: number | undefined; total: number }) {
   if (owned == null || total <= 0) return null;
   const pct = Math.min(100, Math.round((owned / total) * 100));
@@ -108,7 +106,6 @@ export function DecksPage() {
     () => (data ?? []).some((d) => Boolean(d.leader_card_id) && !d.leader_image_url),
     [data],
   );
-  // Prod API may lag behind the SPA (Render deploy). Fall back to shopping catalog art.
   const leaderArtQ = useQuery({
     queryKey: qk.shopping.leaderArtFallback(),
     queryFn: () => api.shopping(),
@@ -156,11 +153,9 @@ export function DecksPage() {
     mutationFn: api.setDeckAsMain,
     onSuccess: (detail) => {
       void qc.invalidateQueries({ queryKey: qk.decks() });
-      // Cached with the unfiltered response only when Include decks is not narrowed.
       if (!savedShoppingDeckIds(qc.getQueryData<DeckSummary[]>(qk.decks())?.map((d) => d.id) ?? [])) {
         qc.setQueryData(qk.deck.byId(detail.id), detail);
       }
-      // Other same-leader decks change which cards are Additional.
       void qc.invalidateQueries({ queryKey: qk.deck.all() });
     },
   });

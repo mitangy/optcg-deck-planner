@@ -1,4 +1,3 @@
-"""Group-buy request/response models."""
 
 from __future__ import annotations
 
@@ -14,7 +13,6 @@ class GroupBuyCreate(BaseModel):
 
 class GroupBuyContributionUpdate(BaseModel):
     deck_ids: list[int] | None = None
-    # None = leave the member's current setting unchanged (older clients send only deck_ids).
     include_singles: bool | None = None
     include_extra_copies: bool | None = None
 
@@ -44,11 +42,8 @@ class GroupBuyMemberOut(BaseModel):
     display_name: str
     role: str
     deck_ids: list[int] | None = None
-    # Contribution settings (#1177); only meaningful while the group is open.
     include_singles: bool = True
     include_extra_copies: bool = False
-    # Member's shopping "Copies needed" mode (True = separate per leader).
-    # None once quantities are frozen, since the live setting no longer applies.
     sum_across_leaders: bool | None = None
     cards_still_needed: int = 0
     remaining_market: float = 0.0
@@ -91,32 +86,22 @@ class GroupBuyLineOut(BaseModel):
     market_price: float | None = None
     remaining_cost: float | None = None
     product_id: int | None = None
-    # Catalog preferred (usually standard) printing — always available to reset checkout to.
     preferred_product_id: int | None = None
     preferred_market_price: float | None = None
     tcgplayer_url: str = ""
     image_url: str = ""
-    # Art of the preferred (standard) printing, even when checkout is overridden to an alt.
     base_image_url: str = ""
     members: list[GroupBuyMemberQtyOut]
     alt_arts: list[PrintingView] = []
-    # Every member's qty split across arts (alts first, rest on the preferred printing).
     art_wants: list[GroupBuyArtWantOut] = []
-    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
     display_art: int | None = None
-    # Viewer (current user) contribution on this line — for qty editors.
     my_qty: int = 0
     my_suggested_qty: int = 0
     my_is_custom: bool = False
-    # True when the viewer opted out (custom qty 0 / Exclude).
     my_excluded: bool = False
-    # Viewer's play Need for this card (max across their contribution decks) — alt want cap.
     my_need: int = 0
-    # Viewer's own selected decks that use the card (never other members' decks, #1266).
     my_used_in: list[str] = []
-    # Viewer's deck/single still-need part of my_suggested_qty (#1269).
     my_deck_qty: int = 0
-    # Viewer's Extra copies on this card, with the copies skipped in this group buy.
     my_extras: list[GroupBuyMyExtraOut] = []
 
 
@@ -131,7 +116,6 @@ class GroupBuySummary(BaseModel):
     member_count: int
     is_host: bool
     is_public: bool = False
-    # Present when is_public — unauthenticated read-only view path.
     public_path: str | None = None
     unique_cards: int
     cards_still_needed: int
@@ -151,12 +135,9 @@ class GroupBuyDetail(GroupBuySummary):
     tax_cost: float = 0.0
     cards_subtotal: float = 0.0
     grand_total: float = 0.0
-    # Saved TCGPlayer receipt paste (empty when none). Host uses this to rematch after refresh.
     receipt_text: str = ""
     has_receipt: bool = False
-    # Host can undo the latest Mark purchased when a receipt-apply ledger exists.
     can_undo_purchase: bool = False
-    # True for unauthenticated public viewers — UI must stay read-only.
     read_only: bool = False
 
 
@@ -186,9 +167,7 @@ class GroupBuyReceiptMatchRequest(BaseModel):
 
 class GroupBuyReceiptApplyRequest(BaseModel):
     receipt_text: str = Field(min_length=1, max_length=200_000)
-    # When set, only these card_ids are applied (staging selection). None = all matched pool cards.
     card_ids: list[str] | None = None
-    # Apply even when some pool lines are short / missing from the receipt.
     allow_partial: bool = True
 
 
@@ -205,7 +184,6 @@ class GroupBuyReceiptLineOut(BaseModel):
     group_name: str = ""
     needed_qty: int
     receipt_qty: int
-    # exact | surplus | short | extra | missing
     status: str
     confidence: str = ""
     product_id: int | None = None

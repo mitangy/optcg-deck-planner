@@ -10,51 +10,39 @@ import { defenseStatus, stagedCounterTotal } from "./defendTrayModel";
 export type DefendPhase = "block" | "counter";
 
 export type DefendStaging = {
-  /** Hand card ids staged for `counter_from_hand`. */
   counterIds: readonly string[];
-  /** Blocker selected but not yet declared. */
   blockerId: string | null;
 };
 
 export type BlockerChip = { id: string; defId: string; artCopy?: number; name: string; power: number | null };
 export type CounterChip = { id: string; defId: string; artCopy?: number; name: string; value: number | null };
-/** Block step: a hand card that skips the block and counters (drag, or tap). */
 export type EarlyCounterChip = { id: string; defId: string; artCopy?: number; name: string; label: string };
 export type EventChip = {
   id: string;
   defId: string;
-  /** Copy rank of an any-number card, so the chip shows the art picked for this copy (#1292). */
   artCopy?: number;
   name: string;
   cost: number;
-  /** "+2000", "+2000 / +4000", or "Counter" when the event only has effects. */
   valueLabel: string;
   intent: Intent;
 };
 
-/** Everything the defend tray and its primary button show for one battle. */
 export type DefendModel = {
   phase: DefendPhase;
   attackerName: string;
   attackerPower: number | null;
   defenderName: string;
   defenderPower: number | null;
-  /** A Blocker has taken the hit (or is about to, in the block step). */
   blocking: boolean;
-  /** The blocker is only selected, not declared yet. */
   preview: boolean;
-  /** Extra power to survive / what is left after the staged counters; null without powers. */
   gap: number | null;
   remaining: number | null;
   blockers: BlockerChip[];
   counters: CounterChip[];
   events: EventChip[];
-  /** Block step only: Counter cards / Events the counter step will take. */
   earlyCounters: EarlyCounterChip[];
-  /** Staged counters that are still legal, in tap order. */
   stagedIds: string[];
   stagedTotal: number;
-  /** A staged card has no known Counter value, so the total is a floor. */
   stagedUnknown: boolean;
   stagedBlockerId: string | null;
 };
@@ -63,10 +51,6 @@ function nameOf(defId: string): string {
   return lookupCard(defId).name;
 }
 
-/**
- * The defend tray's data, or null when you are not the one answering an
- * attack (only Pass block / Pass counter make you the defender).
- */
 export function deriveDefend(
   view: PlayerView,
   intents: readonly Intent[],
@@ -119,7 +103,6 @@ export function deriveDefend(
           defId: card.defId,
           ...(card.artCopy !== undefined ? { artCopy: card.artCopy } : {}),
           name: entry.name,
-          // The engine's live Counter (statics like "+2000 Counter") beats the printed one.
           value: card.counter ?? counterValueFor(entry)?.base ?? null,
         });
       } else if (i.type === "counter_event") {

@@ -1,7 +1,3 @@
-/**
- * Group buy who-wants colour rail runs the full height of the card / table row, and each
- * member segment is outlined so neighbouring colours stay distinct (#898).
- */
 import { expect, test } from "./fixtures";
 
 const GB = 11;
@@ -87,7 +83,6 @@ async function railFillsContainer(page: import("@playwright/test").Page, contain
   const c = await container.boundingBox();
   const r = await rail.boundingBox();
   expect(c && r).toBeTruthy();
-  // Within the border: the rail spans the container's whole height.
   expect(Math.abs(r!.y - c!.y)).toBeLessThanOrEqual(3);
   expect(Math.abs(r!.height - c!.height)).toBeLessThanOrEqual(3);
   const segs = rail.locator("> span");

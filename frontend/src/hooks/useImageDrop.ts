@@ -51,7 +51,6 @@ export function useImageDrop({
     const onDragOver = (e: DragEvent) => {
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-      // Fires continuously; one sample is enough to show the negotiated effect.
       if (!overLogged) {
         overLogged = true;
         scanLog("dragover", describeDataTransfer(e.dataTransfer));

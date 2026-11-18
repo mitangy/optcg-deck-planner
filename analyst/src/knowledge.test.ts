@@ -14,7 +14,6 @@ import { newestFormat, parseNote, queryPlaybook, type Playbook } from "./playboo
 const catalog = loadCatalog();
 
 describe("comprehensive rules", () => {
-  // Made-up rules text in the PDF's shape: numbered lines, wrapped lines, a contents page and page numbers.
   const lines = [
     "Sample Card Game Comprehensive Rules",
     "Version 9.9",
@@ -77,7 +76,6 @@ describe("comprehensive rules", () => {
       "1-4. A card and a player may meet.",
       "1-5. The Wizard acts.",
     ]);
-    // Two common words (card, player) match 1-1 to 1-4; the one rare word still wins.
     expect(ids(doc, "card player wizard")[0]).toBe("1-5");
   });
 
@@ -105,7 +103,6 @@ describe("comprehensive rules", () => {
   });
 });
 
-/** A FAQ page as positioned runs: header, then rows whose label sits centred below the row's first line. */
 function faqPages(): PdfItem[][] {
   const run = (x: number, y: number, str: string): PdfItem => ({ x, y, w: str.length * 4, str });
   const page1 = [
@@ -113,7 +110,6 @@ function faqPages(): PdfItem[][] {
     run(95, 767, "Card Name"),
     run(250, 767, "Question"),
     run(455, 767, "Answer"),
-    // Row 1: two-line question, three-line answer, label lower down in the row.
     run(170, 730, "Can this card attack"),
     run(170, 718, "on the turn it is played?"),
     run(372, 730, "Yes, it can attack"),
@@ -127,7 +123,6 @@ function faqPages(): PdfItem[][] {
     run(24, 634, "ZZ01-002"),
     run(70, 634, "Sample"),
     run(70, 622, "Rival"),
-    // Row 3 starts at the bottom and carries on over the page break.
     run(170, 120, "If my opponent has no"),
     run(170, 108, "Characters, what happens?"),
     run(372, 120, "Nothing happens, and"),
@@ -177,7 +172,6 @@ describe("official FAQ tables", () => {
   });
 });
 
-// Made-up page in the shape of the official ban list news page.
 const banPage = `
 <h3>Banned/Restricted Cards effective from March 3, 2031</h3>
 <h4>Banned Cards</h4><h5>ZZ02-010 Future Ban</h5>
@@ -285,7 +279,6 @@ describe("official library cache", () => {
   });
 });
 
-/** A library with fixed answers, so tool output can be checked without the official site. */
 class FixedLibrary extends OfficialLibrary {
   constructor(private readonly list: BanList, private readonly faqSet: FaqSet) {
     super({ baseUrl: "https://example.test" });
@@ -447,7 +440,6 @@ describe("card rulings found by topic", () => {
 });
 
 describe("tournament rules manual", () => {
-  // Made-up manual text in the PDF's shape: contents with dotted leaders, chapters, numbered list items and page numbers.
   const lines = [
     "Last Updated: January 2, 2030",
     "Sample Event Rules",

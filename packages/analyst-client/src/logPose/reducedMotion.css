@@ -1,5 +1,3 @@
-/* ——— Reduced motion: pulse instead of swing, no slide-in ——— */
-
 @media (prefers-reduced-motion: reduce) {
   .lp-compass[data-working] .lp-needle {
     animation: none;

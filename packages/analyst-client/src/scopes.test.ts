@@ -13,7 +13,6 @@ describe("chat scopes (#970)", () => {
     expect(matchScope("m_1")).toBe("match:m_1");
     expect(plannerDeckScope(7)).toBe("deck:planner:7");
     expect(duelDeckScope("deck-9")).toBe("deck:duel:deck-9");
-    // A ticket that could not be read comes back whole, dots and all: that is no match id.
     expect(matchScope("aaa.bbb.ccc")).toBeNull();
     expect(plannerDeckScope("x")).toBeNull();
   });

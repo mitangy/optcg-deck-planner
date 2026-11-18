@@ -20,10 +20,8 @@ export function RequireAuth({ children }: { children: ReactNode }) {
   return <Shell user={user}>{children}</Shell>;
 }
 
-/** `/` is the public landing page for visitors and the shopping list for signed-in players (#804). */
 export function HomeRoute() {
   const { data: user, isLoading, refetch } = useMe();
-  // A pre-rendered page keeps showing the landing page while the session loads (see prerendered.ts).
   if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;
   if (!user) {
     return (
@@ -42,7 +40,6 @@ export function HomeRoute() {
   );
 }
 
-/** Meta browsing is public: signed-in users get the app shell, everyone else the slim public header. */
 export function MetaRoute() {
   const { data: user, isLoading } = useMe();
   if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;
@@ -56,7 +53,6 @@ export function MetaRoute() {
   return <PublicMetaScreen />;
 }
 
-/** A card's page is public: signed-in users get the app shell (and their owned/alert controls), everyone else the slim public header. */
 export function CardRoute() {
   const { data: user, isLoading } = useMe();
   if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;

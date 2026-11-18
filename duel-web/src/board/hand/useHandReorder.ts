@@ -1,16 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { followHandDrag, handDropSlot, type SlotRect } from "./handOrder";
 
-/** A hand card being dragged while the hand can be reordered. */
 export type HandReorder = {
   cardId: string;
-  /** Pointer is over the hand: a drop here reorders (and the hand stays up). */
   inZone: boolean;
-  /** Where it would land, counted among the other cards (only while inZone). */
   slot: number | null;
 };
 
-/** Unrotated rect centred where the card is drawn (fanned cards are tilted). */
 function cardRect(el: HTMLElement): SlotRect {
   const r = el.getBoundingClientRect();
   const w = el.offsetWidth || r.width;
@@ -25,13 +21,7 @@ function cardRect(el: HTMLElement): SlotRect {
   };
 }
 
-/**
- * Over the hand → the drop slot among the other cards; elsewhere → null.
- * The hand area is the cards' row plus the cards themselves (tilted fan
- * cards poke out of it), clipped to the hand's panel so a scrolled row
- * doesn't reach past what is on screen. It is measured live, so a tucked
- * hand only counts its visible strip.
- */
+// Tilted fan cards poke out of the row, so the area is the row plus the cards, clipped to the panel; measured live so a tucked hand counts only its visible strip.
 function measureSlot(cardId: string, x: number, y: number): number | null {
   if (typeof document === "undefined") return null;
   const el = document.querySelector<HTMLElement>(`[data-motion-id="${CSS.escape(cardId)}"]`);
@@ -59,13 +49,6 @@ function measureSlot(cardId: string, x: number, y: number): number | null {
   return handDropSlot(cards.filter((c) => c !== el).map(cardRect), x, y);
 }
 
-/**
- * Pointer tracking for dragging a hand card to a new spot in the hand. The
- * card's own drag (CardTile) says when it starts and ends; this follows the
- * pointer in between to say whether it is over the hand and where it lands.
- * `oneWayOut` (a floating fan): once the card has left the hand, the hand
- * is no longer a drop spot for that drag (see `followHandDrag`).
- */
 export function useHandReorder(
   onReorder: (cardId: string, slot: number, x: number, y: number) => void,
   { oneWayOut = false }: { oneWayOut?: boolean } = {},
@@ -75,7 +58,6 @@ export function useHandReorder(
   const leftRef = useRef(false);
   const oneWayOutRef = useRef(oneWayOut);
   oneWayOutRef.current = oneWayOut;
-  /** Drop slot at (x, y) for this drag, null off the hand. */
   const follow = useCallback((cardId: string, x: number, y: number) => {
     const next = followHandDrag(leftRef.current, measureSlot(cardId, x, y), oneWayOutRef.current);
     leftRef.current = next.left;
@@ -105,14 +87,9 @@ export function useHandReorder(
   const begin = useCallback((cardId: string) => {
     cardIdRef.current = cardId;
     leftRef.current = false;
-    // The drag starts on the card, so it starts over the hand.
     setState({ cardId, inZone: true, slot: null });
   }, []);
 
-  /**
-   * Drop at (x, y): true when it landed on the hand. It is reordered only
-   * when `move` is true (a sorted hand keeps its order but still never plays).
-   */
   const end = useCallback(
     (x: number, y: number, move = true) => {
       const cardId = cardIdRef.current;

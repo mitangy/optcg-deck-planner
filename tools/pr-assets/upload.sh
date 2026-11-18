@@ -1,14 +1,4 @@
 #!/usr/bin/env bash
-# Upload PR screenshots/recordings to the orphan `pr-assets` branch on origin
-# (never merged; keeps binaries out of code branches) and print Markdown to
-# paste into a PR body.
-#
-# Usage: tools/pr-assets/upload.sh <number|slug> <file>...
-#   <number>  PR/issue number (digits) or a short slug ([a-z0-9-]+)
-#   <file>    any path; stored as <number>/<basename> on pr-assets
-#
-# Links are pinned to the pushed commit SHA, so they never change under you.
-# Markdown goes to stdout, status lines to stderr. Never force-pushes.
 
 set -euo pipefail
 
@@ -33,14 +23,12 @@ done
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 
-# Owner/repo from origin (https or git@ form), with a fallback.
 owner_repo=mitangy/optcg-deck-planner
 if url=$(git remote get-url origin 2>/dev/null); then
   parsed=$(printf '%s' "$url" | sed -E 's#^(https?://([^/@]+@)?|ssh://git@|git@)[^/:]+[/:]##; s#\.git$##; s#/+$##')
   if [[ "$parsed" =~ ^[^/]+/[^/]+$ ]]; then owner_repo=$parsed; fi
 fi
 
-# Run a command, retrying with backoff 2,4,8,16s (up to 5 tries).
 retry() {
   local delay=2 i
   for i in 1 2 3 4; do

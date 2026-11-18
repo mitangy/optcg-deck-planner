@@ -1,8 +1,3 @@
-/**
- * Friends, spares and trades (#703): add a friend, look at their deck, build and send a trade, answer one, and
- * update the collection after a swap. The friends API is faked in friendsFake.ts. Runs at desktop-1200 and
- * phone-375 and ends flows with the UI audit.
- */
 import { expect, formatIssues, test } from "./fixtures";
 import { expectStationary } from "./audit";
 import { COPIED_DECK_ID, installFriendsApi, KAI_DECK_ID, trade } from "./friendsFake";
@@ -11,7 +6,6 @@ test.afterEach(({ planner }) => {
   expect(planner.errors).toEqual([]);
 });
 
-/** The tray is a fixed layer over the page, so what scrolls under it is expected to be covered. */
 const WITH_TRAY = ["[role=dialog]", "[aria-modal=true]", ".market-sales", ".head-popover-panel", ".sort-menu-panel", ".stats-pill", ".trade-tray"];
 
 const nav = (page: import("@playwright/test").Page) => page.locator("nav a.nav-friends");
@@ -74,7 +68,6 @@ test("the first visit asks about sharing, then keeps four switches (#703)", asyn
   await sharing.getByRole("switch", { name: /Show prices/ }).click();
   await expect(sharing.getByRole("switch", { name: /Show prices/ })).toBeChecked();
   await expect.poll(() => fake.sharing.show_values).toBe(true);
-  // Turning the collection off turns prices off with it.
   await sharing.getByRole("switch", { name: /^Collection/ }).click();
   await expect.poll(() => fake.sharing.collection).toBe("off");
   expect(fake.sharing.show_values).toBe(false);
@@ -103,7 +96,6 @@ test("Just my decks on the first visit turns the collection off (#935)", async (
 });
 
 test("a friend's deck shows what I'd still need from my own collection, and copies to my decks (#703)", async ({ page, planner }) => {
-  // I own 1 Kid & Killer, so Izo (2 short), Kid & Killer (3 short) and the event (2 short) are missing.
   planner.owned.set("EB01-003", 1);
   const fake = await installFriendsApi(page, planner.owned);
   await planner.open("/friends/kai");
@@ -153,22 +145,18 @@ test("building a trade from Spares caps copies at what is spare and sends the of
   await expect(page.getByRole("region", { name: "Their spares" })).toContainText("Tony Tony.Chopper");
   await expect(page.getByRole("region", { name: "You have, they need" })).toContainText("Tony Tony.Chopper");
 
-  // Opening the tray must not move the row you are stepping.
   const more = page.getByRole("button", { name: "More EB01-003 to get" });
   await expectStationary(more, () => more.click(), "Kid & Killer +");
   const tray = page.getByRole("region", { name: "Trade tray" });
   await expect(tray).toBeVisible();
   for (let i = 0; i < 4; i++) if (await more.isEnabled()) await more.click();
-  // Kai has 3 spare.
   await expect(page.getByLabel("EB01-003 to get count")).toHaveText("3");
   await expect(more).toBeDisabled();
 
-  // The tray is pinned to the bottom edge of the screen.
   const box = (await tray.boundingBox())!;
   const viewport = page.viewportSize()!;
   expect(Math.abs(box.y + box.height - viewport.height)).toBeLessThan(2);
 
-  // Scrolled to the end, the footer stays clear of the tray.
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   const footer = (await page.locator("footer.site-footer").boundingBox())!;
   expect(footer.y + footer.height).toBeLessThanOrEqual((await tray.boundingBox())!.y + 1);
@@ -217,7 +205,6 @@ test("an incoming offer shows both sides with values, and accepting it makes it 
   await planner.open("/friends?tab=trades");
   const incoming = page.getByRole("region", { name: "Offers for you" });
   await expect(incoming).toContainText("kai offered you a trade");
-  // Kai gives 2 Kid & Killer ($13.60) and gets 1 Chopper ($0.30), seen from my side.
   await expect(incoming.locator(".trade-side").filter({ hasText: "You get" })).toContainText("$13.60");
   await expect(incoming.locator(".trade-side").filter({ hasText: "You get" })).toContainText("Kid & Killer");
   await expect(incoming.locator(".trade-side").filter({ hasText: "You give" })).toContainText("$0.30");
@@ -248,7 +235,6 @@ test("countering opens Spares with the offer turned around, and sends it as a co
   await expect(page).toHaveURL(/\/friends\/kai\?tab=spares&counter=100$/);
   const tray = page.getByRole("region", { name: "Trade tray" });
   await expect(tray).toContainText("Counter to kai");
-  // Kai asked me for a Chopper and offered two Kid & Killer: from my side that is give 1, get 2.
   await expect(tray).toContainText("Give 1 · Get 2");
   await page.getByRole("button", { name: "Fewer EB01-003 to get" }).click();
   await tray.getByRole("button", { name: "Send counter" }).click();
@@ -265,7 +251,6 @@ test("countering opens Spares with the offer turned around, and sends it as a co
 test("after we traded, Update my collection changes only my counts, and Undo puts them back (#703)", async ({ page, planner }) => {
   const agreed = trade({ ...offer(), status: "accepted" });
   const fake = await installFriendsApi(page, planner.owned, { trades: [agreed] });
-  // Look at the Collection first, so it has to refresh after the update.
   await planner.open("/collection");
   await expect(page.locator('[data-card-id="EB01-006"]:visible')).toBeVisible();
   await expect(page.locator('[data-card-id="EB01-003"]:visible')).toHaveCount(0);
@@ -279,15 +264,12 @@ test("after we traded, Update my collection changes only my counts, and Undo put
   const active = page.getByRole("region", { name: "Active" });
   await active.getByRole("button", { name: "We traded" }).click();
   await expect(active).toContainText("Update your collection to match?");
-  // Nothing changes until I say so.
   expect(planner.owned.get("EB01-003")).toBe(0);
   await active.getByRole("button", { name: "Update my collection" }).click();
-  // I received 2 Kid & Killer and handed over a Chopper.
   await expect.poll(() => planner.owned.get("EB01-003")).toBe(2);
   expect(planner.owned.get("EB01-006")).toBe(2);
   expect(fake.trades[0]!.applied).toBe(true);
 
-  // Nothing is waiting any more: the badge goes, and the link keeps its size.
   await expect(link.locator(".nav-badge")).toHaveCount(0);
   expect((await link.boundingBox())!.width).toBeCloseTo(widthWithBadge, 0);
 
@@ -309,7 +291,6 @@ test("Keep holds copies back from trades and gives them back (#703)", async ({ p
   await row.getByRole("button", { name: "More kept EB01-006" }).click();
   await expect(row).toContainText("1 spare");
   await expect.poll(() => fake.keep.get("EB01-006")).toBe(1);
-  // Keep everything: the row stays so the hold can be undone.
   await row.getByRole("button", { name: "More kept EB01-006" }).click();
   await expect(row).toContainText("0 spare");
   await expect(row.getByRole("button", { name: "More kept EB01-006" })).toBeDisabled();
@@ -326,7 +307,6 @@ test("a deck can be hidden from friends in the deck editor menu (#703)", async (
   await expect.poll(() => planner.deckHidden).toBe(true);
   await page.getByRole("button", { name: "More" }).click();
   await expect(page.getByRole("menuitem", { name: /Hidden from friends/ })).toBeVisible();
-  // Choosing it again shows the deck to friends again.
   await page.getByRole("menuitem", { name: /Hidden from friends/ }).click();
   await expect.poll(() => planner.deckHidden).toBe(false);
 });

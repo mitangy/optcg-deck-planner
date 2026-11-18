@@ -1,11 +1,8 @@
-"""Shared helpers for duel cosmetics catalog scripts."""
 
 from __future__ import annotations
 
 import re
 
-# The one marker list for the scripts (build_cosmetics_catalog.py imports it); the
-# planner DB export also merges backend.domain.SPECIAL_NAME_MARKERS when importable.
 SPECIAL_MARKERS = (
     "alternate art",
     "alt art",
@@ -26,7 +23,6 @@ PRODUCT_ID_FROM_URL_RE = re.compile(r"product/(\d+)_", re.I)
 
 
 def product_id_from_image_url(url: str | None) -> int | None:
-    """Parse TCGPlayer product id from a CDN imageUrl (…/product/{id}_…)."""
     if not url:
         return None
     m = PRODUCT_ID_FROM_URL_RE.search(url)
@@ -43,7 +39,6 @@ def tcgplayer_image_url(product_id: int, size: str = "400w") -> str:
 
 
 def normalize_cosmetics_image_url(url: str | None, product_id: int | None = None) -> str:
-    """Prefer stable TCGPlayer CDN `_400w` URLs for the web atlas."""
     pid = product_id if product_id and product_id > 0 else product_id_from_image_url(url)
     if pid:
         return tcgplayer_image_url(pid, "400w")

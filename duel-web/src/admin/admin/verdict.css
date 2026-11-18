@@ -1,5 +1,3 @@
-/* —— Verdict + eval table —— */
-
 .adm-verdict-compared {
   border-color: var(--line-strong);
 }
@@ -91,7 +89,6 @@
   font-size: 0.9rem;
 }
 
-/* Better / worse is told by the word and arrow as well as the colour. */
 .adm-change {
   font-variant-numeric: tabular-nums;
   color: var(--muted);

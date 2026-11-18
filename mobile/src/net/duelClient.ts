@@ -69,7 +69,6 @@ export class DuelClient {
     const join = this.buildJoin(params);
     const create: DuelCreateOptions = {
       protocolVersion: PROTOCOL_VERSION,
-      // Real matches use the rules mulligan step (Keep hand / redraw 5).
       autoSkipMulligan: false,
       ...params.createOptions,
     };
@@ -88,7 +87,6 @@ export class DuelClient {
     return this.waitWelcome(room);
   }
 
-  /** Join ranked_queue until matched, then join the duel room. */
   async queueRanked(params: ConnectParams): Promise<{ matchId: string; seat: Seat }> {
     await this.disconnect();
     const url = params.serverUrl ?? getGameServerUrl();
@@ -130,7 +128,6 @@ export class DuelClient {
     try {
       await queueRoom.leave(true);
     } catch {
-      /* ignore */
     }
     this.queueRoom = null;
 
@@ -150,7 +147,6 @@ export class DuelClient {
         this.queueRoom.send("cancel", {});
         await this.queueRoom.leave(true);
       } catch {
-        /* ignore */
       }
       this.queueRoom = null;
     }
@@ -193,7 +189,6 @@ export class DuelClient {
       try {
         await this.room.leave(true);
       } catch {
-        /* ignore */
       }
       this.room = null;
     }

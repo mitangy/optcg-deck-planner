@@ -60,7 +60,6 @@ describe("comparing two simulations", () => {
 describe("playing the bots", () => {
   it("finds a deck of vanilla cards clearly worse than the meta deck it was built from (#678)", async () => {
     const catalog = loadCatalog();
-    // ST30-001 wins about half its games against the other three fixture decks; the vanilla pile wins about one in ten.
     const strong = asSim(decks[1]!);
     const rest = [decks[0]!, decks[2]!, decks[3]!].map(asSim);
     const leader = catalog.cards.get(strong.leaderId)!;
@@ -73,7 +72,6 @@ describe("playing the bots", () => {
     const c = compareSims(before, after);
     expect(after.winRate!).toBeLessThan(before.winRate!);
     expect(lostSignificantly(c)).toBe(true);
-    // The other way round it is a clear gain.
     expect(compareSims(after, before).lo).toBeGreaterThan(0);
   }, 120_000);
 });

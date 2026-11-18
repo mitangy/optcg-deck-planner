@@ -1,4 +1,3 @@
-/* ——— Deck page: main column + stats dock ——— */
 .deck-layout {
   display: block;
   min-width: 0;
@@ -64,7 +63,6 @@
 
 .stats-pill {
   position: fixed;
-  /* Left: card rows keep their steppers / Add buttons on the right. */
   left: max(0.75rem, env(safe-area-inset-left, 0px));
   transition: transform 0.2s ease, opacity 0.2s ease;
   bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
@@ -101,7 +99,6 @@
   min-width: 2.75rem;
 }
 
-/* Deck page header: keep the action buttons together on one row; the title block shrinks or the whole group drops below it. */
 @media (min-width: 801px) {
   .deck-main > .page-head {
     flex-wrap: wrap;
@@ -148,7 +145,6 @@
   padding-left: 1rem;
 }
 
-/* Room for the floating pill under the last card (not a big empty scroll). */
 @media (max-width: 1199px) {
   .deck-layout {
     padding-bottom: calc(2.75rem + 0.5rem);
@@ -170,7 +166,6 @@
   .stats-dock {
     position: sticky;
     top: 1rem;
-    /* Narrower near the breakpoint so the table beside it keeps every column. */
     width: clamp(21rem, 26vw, 26rem);
     max-width: 100%;
   }
@@ -220,7 +215,6 @@
   }
 }
 
-/* ——— Deck page header: Edit deck > Play in Duel > quiet Share / More ——— */
 .btn.quiet {
   width: auto;
   margin-top: 0;
@@ -262,7 +256,6 @@
     flex: 0 0 auto;
   }
 
-  /* Edit deck absorbs the slack; Play in Duel keeps its full label. */
   .deck-head-actions > .duel-play-btn {
     flex: 0 0 auto;
     min-width: max-content;
@@ -272,7 +265,6 @@
     padding: 0.45rem 0.6rem;
   }
 
-  /* Deck size rides on the title line instead of its own row. */
   .deck-size-below {
     display: none;
   }
@@ -283,7 +275,6 @@
     white-space: nowrap;
   }
 
-  /* Search, List/Grid and Filters share one row; the filter body opens below it. */
   .list-toolbar.deck-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -339,7 +330,6 @@
   }
 }
 
-/* Very narrow phones: Share and More shrink to icons (labels stay as accessible names) so the row never wraps. */
 @media (max-width: 420px) {
   .deck-head-actions .head-popover-icon {
     display: inline-flex;
@@ -363,7 +353,6 @@
 }
 
 @media (max-width: 420px) {
-  /* Search gets its own full row; List/Grid and Filters share the next one. */
   .deck-toolbar .card-search {
     flex: 1 1 100%;
   }
@@ -393,7 +382,6 @@
     min-width: 2.25rem;
   }
 
-  /* "Done editing" would push the row past 320px; "Done" is enough next to the other actions. */
   .done-editing-extra {
     display: none;
   }
@@ -403,8 +391,6 @@
   white-space: nowrap;
 }
 
-/* Header controls keep their width when the label flips between Edit deck / Done editing.
-   Phones size it with flex in the one-row action bar instead. */
 @media (min-width: 721px) {
   .page-head-actions .btn.deck-edit-toggle {
     min-width: 9.5rem;
@@ -413,7 +399,6 @@
   }
 }
 
-/* ——— Editing beside the list (>= 1200px, the dock breakpoint) ——— */
 @keyframes row-flash-bg {
   from { background-color: color-mix(in srgb, var(--gold) 40%, transparent); }
   to { background-color: transparent; }
@@ -434,7 +419,6 @@ tr.row-flash > td {
 }
 
 @media (min-width: 1200px) {
-  /* The editor takes a column, so the list narrows; tighter cells keep the Cost column from scrolling off the right edge. */
   .deck-layout-editing .deck-main .data-table :is(th, td) {
     padding-inline: 0.5rem;
   }
@@ -442,7 +426,6 @@ tr.row-flash > td {
   .deck-layout-editing .deck-editor-side {
     position: sticky;
     top: 1rem;
-    /* 20rem at the 1200px floor leaves the list room for its Alt arts column (#877). */
     width: clamp(20rem, 26vw, 26rem);
     max-width: 100%;
     max-height: calc(100dvh - 2rem);
@@ -476,7 +459,6 @@ tr.row-flash > td {
     flex: 0 0 auto;
   }
 
-  /* The results take whatever height the viewport leaves under the filters. */
   .deck-editor-side .deck-editor-results {
     flex: 1 1 auto;
     min-height: 0;
@@ -487,7 +469,6 @@ tr.row-flash > td {
     flex-basis: 10rem;
   }
 
-  /* The "what moved" chip floats over the bottom of the panel here; the header is too narrow to share. */
   .deck-editor-side .dh-delta-slot {
     top: auto;
     bottom: 0.6rem;

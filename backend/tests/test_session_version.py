@@ -16,7 +16,6 @@ def test_session_token_embeds_version():
 
 def test_missing_sv_defaults_to_zero():
     settings = _settings()
-    # Simulate a pre-hardening cookie that only carried uid.
     from itsdangerous import URLSafeTimedSerializer
 
     raw = URLSafeTimedSerializer(settings.session_secret, salt="optcg-auth").dumps(

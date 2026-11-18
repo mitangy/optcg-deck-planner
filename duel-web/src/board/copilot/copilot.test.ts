@@ -152,10 +152,8 @@ describe("the snapshot sent to the analyst (#416)", () => {
     expect(mull({ firstSeat: 1 }, true)).toMatchObject({ first: false, mulliganDone: true });
     const old = mull({}, false);
     expect(old).not.toHaveProperty("first");
-    // Past the mulligan the flag is noise.
     expect(buildSnapshot(mkView({ firstSeat: 0, you: { ...you, mulliganDone: true } }), null, null)).not.toHaveProperty("mulliganDone");
   });
-
 
   it("never carries the opponent's hand, even from a malformed view, or either seat's revealed hands (#416)", () => {
     const view = mkView({
@@ -301,8 +299,6 @@ describe("legal moves as the analyst reads them (#416)", () => {
   });
 });
 
-// ——— The executor ———
-
 const plan = (steps: TurnPlan["steps"], turn = 3): TurnPlan => ({ id: "p1", turn, summary: "Go", steps });
 const play = (card: string, trash?: string) => ({ action: "play" as const, card, ...(trash ? { trash } : {}), label: `Play ${card}` });
 const give = (target: string, count: number) => ({ action: "give_don" as const, target, count, label: `Give ${count} DON!!` });
@@ -362,7 +358,6 @@ describe("playing out an approved plan (#416)", () => {
     const view = mkView({}, legal);
     const act = (s: TurnPlan["steps"][number]) => nextIntent(plan([s]), startCursor, view);
     expect(act({ action: "activate", source: "c1", abilityId: "a1", target: "o1", label: "x" })).toMatchObject({ kind: "send", intent: legal[0] });
-    // Ignoring the target must not loosen the source or ability match.
     expect(act({ action: "activate", source: "c2", abilityId: "a1", target: "o1", label: "x" })).toMatchObject({ kind: "blocked" });
     expect(act({ action: "activate", source: "c1", abilityId: "a9", target: "o1", label: "x" })).toMatchObject({ kind: "blocked" });
   });
@@ -416,17 +411,14 @@ describe("playing out an approved plan (#416)", () => {
     const sent = nextIntent(p, startCursor, v1);
     expect(sent).toMatchObject({ kind: "send", intent: PLAY_H1 });
     const cursor = (sent as { cursor: PlanCursor }).cursor;
-    // The same view again (or any view that still has the card in hand) sends nothing.
     expect(nextIntent(p, cursor, v1)).toMatchObject({ kind: "waiting", cursor: { step: 0 } });
     const unchanged = mkView({}, [PLAY_H1, END]);
     expect(nextIntent(p, cursor, unchanged)).toMatchObject({ kind: "waiting", cursor: { step: 0 } });
-    // An attack is taken only when it is no longer legal; a view that still offers it sends nothing.
     const atk = plan([attack("L0", "L1"), endTurn]);
     const atkLegal: Intent[] = [{ type: "declare_attack", attackerId: "L0", target: { kind: "leader" } }, END];
     const atkSent = nextIntent(atk, startCursor, mkView({}, atkLegal)) as { cursor: PlanCursor };
     expect(nextIntent(atk, atkSent.cursor, mkView({}, atkLegal))).toMatchObject({ kind: "waiting", cursor: { step: 0 } });
     expect(nextIntent(atk, atkSent.cursor, mkView({}, [END]))).toMatchObject({ kind: "send", intent: END, cursor: { step: 1 } });
-    // The card left the hand: now the next step goes.
     const v2 = mkView({}, [END]);
     v2.you.hand = v2.you.hand.filter((c) => c.id !== "h1");
     expect(nextIntent(p, cursor, v2)).toMatchObject({ kind: "send", intent: END, cursor: { step: 1 } });
@@ -511,13 +503,10 @@ describe("the Play this turn button (#416)", () => {
   it("refuses a plan made in an earlier game: instance ids are re-permuted per game (#419)", () => {
     const gameA = plan([{ action: "play", card: "card_17", label: "Play card_17" }]);
     const stamped: TurnPlan = { ...gameA, gameKey: "mb1.gameA" };
-    // Game B has a different card under the same id and a legal play for it on the same turn.
     const viewB = mkView({ you: { ...mkView().you, hand: [{ id: "card_17", defId: "OP01-120", playCost: 5 }] } }, [{ type: "play_card", handIndex: 0 }]);
     expect(playBlockReason(stamped, viewB, null, "mb1.gameB")).toBe("This plan was for an earlier game.");
     expect(planCardMode(stamped, null, null, viewB, "mb1.gameB")).toEqual({ kind: "idle", disabledReason: "This plan was for an earlier game." });
-    // A plan with no stamp can't be tied to this game either.
     expect(playBlockReason(gameA, viewB, null, "mb1.gameB")).toBe("This plan was for an earlier game.");
-    // The same game's own plan still plays.
     expect(playBlockReason(stamped, viewB, null, "mb1.gameA")).toBeNull();
   });
 
@@ -564,8 +553,6 @@ describe("a plan outlives the device showing the other seat (#416)", () => {
   });
 });
 
-// ——— Log Pose plays the turn (#725) ———
-
 describe("the choice in the snapshot (#725)", () => {
   const ch = (extra: Partial<PendingChoiceView>): PendingChoiceView =>
     ({ id: "ch1", seat: 0, kind: "effect", cardDefId: "OP01-016", optional: false, prompt: "Choose", ...extra }) as PendingChoiceView;
@@ -576,7 +563,6 @@ describe("the choice in the snapshot (#725)", () => {
     expect(c).toMatchObject({ id: "ch1", optional: true, request: { type: "select", min: 1, max: 2 } });
     expect(c.request!.options).toEqual([
       { id: "o1", defId: "OP01-016", inst: "i9", zone: "character", owner: "opponent", eligible: true },
-      // A hidden card never goes out as a card number.
       { id: "o2", eligible: false },
     ]);
   });

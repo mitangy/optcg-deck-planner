@@ -1,14 +1,5 @@
 #!/usr/bin/env node
-/**
- * The API's TypeScript types, generated from its OpenAPI schema (refactor 2.1c, finding D-05).
- *
- *   node tools/ci/openapi-types.cjs           regenerate packages/api-client/src/generated/schema.ts
- *   node tools/ci/openapi-types.cjs --check   fail when the committed file differs from a fresh one (CI: backend job)
- *
- * The schema comes from `backend/scripts/export_openapi.py` (app.openapi() in-process: production keeps
- * /openapi.json off), the types from `openapi-typescript` (pinned in the root package.json). Python is
- * `$BACKEND_PYTHON`, else `python3`, else `python`.
- */
+// The schema comes from `backend/scripts/export_openapi.py` (app.openapi() in-process) because production keeps /openapi.json off.
 "use strict";
 
 const { execFileSync } = require("node:child_process");
@@ -25,9 +16,7 @@ const HEADER = [
   "",
 ].join("\n");
 
-/**
- * Compare the committed file with a fresh one. Line endings do not count (a Windows checkout may
- * convert them); the first differing line is named so the failure says where to look.
+/** Line endings do not count: a Windows checkout may convert them.
  * @returns {{ ok: true } | { ok: false, line: number, committed: string, fresh: string }}
  */
 function compareGenerated(committed, fresh) {

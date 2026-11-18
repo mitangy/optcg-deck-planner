@@ -1,13 +1,3 @@
-/**
- * A finished game as one player saw it: the replay re-run, every event projected
- * for that seat (the opponent's hand, deck and face-down cards stay hidden) and
- * grouped by turn. This is what a player's match history shows; the full replay
- * never leaves the server.
- *
- * Opponent hands stay hidden while the game can still be played. Only with
- * `revealOpponent` (a finished or cut-off game) does the log also carry the
- * other seat's actual hand at each turn start and after mulligans.
- */
 import { projectGameEvents } from "../engine.js";
 import { replayMatch, type MatchReplay } from "./matchReplay.js";
 import type { CardDefId, GameEvent, InstanceId, MatchState, Seat } from "../types.js";
@@ -15,29 +5,21 @@ import type { CardDefId, GameEvent, InstanceId, MatchState, Seat } from "../type
 export const SEAT_LOG_SCHEMA = 1;
 
 export interface SeatLogTurn {
-  /** The engine's turn number; 0 is the mulligan step when it was played. */
   turn: number;
   activeSeat: Seat;
   events: GameEvent[];
-  /** Your hand at the start of this turn, after the draw step. Absent in logs stored before this was recorded. */
   hand?: CardDefId[];
-  /** How many cards the opponent held then (never which ones). */
   opponentHandCount?: number;
-  /** The opponent's actual hand at the same moment. Only present when the log was built with `revealOpponent`. */
   opponentHand?: CardDefId[];
 }
 
 export interface SeatLog {
   schema: typeof SEAT_LOG_SCHEMA;
   seat: Seat;
-  /** Your hand once mulligans were done. */
   openingHand: CardDefId[];
-  /** The opponent's hand once mulligans were done. Only present when the log was built with `revealOpponent`. */
   opponentOpeningHand?: CardDefId[];
   turns: SeatLogTurn[];
-  /** Every Leader, Character and Stage that was on the board, so attackers and blockers can be named. */
   boardCards: [InstanceId, CardDefId, Seat][];
-  /** Set when the engine could no longer replay the game; the log stops there. */
   diverged?: string;
 }
 

@@ -1,12 +1,3 @@
-/* Crew and location themes (Settings → Theme). Each one overrides the palette
-   tokens from styles.css; the default "Night Sea" theme is :root itself.
-   Ids match THEMES in theme.ts. Accents are soft pastels on dusky, muted
-   backgrounds. The playmat and turn banner (.playmat, .turn-splash) take the
-   theme's dark palette even in light mode, so card art and the red danger /
-   green OK cues always sit on a dark mat. */
-
-/* Straw Hat Pirates: Luffy's straw hat and red vest over the Thousand Sunny's
-   warm wood deck, with Sunny-day sky blue as the second accent. */
 [data-theme="strawHat"],
 [data-theme="strawHat"] :is(.playmat, .turn-splash) {
   --arena-deep: #1e1614;
@@ -45,8 +36,6 @@
   --glow-low: #fed46522;
 }
 
-/* Donquixote Pirates: Doflamingo's pink feather coat and the orange of his
-   glasses and trousers, over a plum night in Dressrosa. */
 [data-theme="donquixote"],
 [data-theme="donquixote"] :is(.playmat, .turn-splash) {
   --arena-deep: #1f1422;
@@ -85,8 +74,6 @@
   --glow-low: #ffb67620;
 }
 
-/* Marines: the white "Justice" coat and seagull emblem over navy, with the
-   blue of the sailor neckerchief as the second accent. */
 [data-theme="marines"],
 [data-theme="marines"] :is(.playmat, .turn-splash) {
   --arena-deep: #101a32;
@@ -125,8 +112,6 @@
   --glow-low: #f7f7f710;
 }
 
-/* Wano Country: vermilion torii and gold leaf over sumi-ink night, with
-   sakura pink as the second accent. */
 [data-theme="wano"],
 [data-theme="wano"] :is(.playmat, .turn-splash) {
   --arena-deep: #1a1621;
@@ -165,8 +150,6 @@
   --glow-low: #ffdd8a1f;
 }
 
-/* Heart Pirates: the Polar Tang's yellow hull and light green underside, on
-   Law's black. */
 [data-theme="heart"],
 [data-theme="heart"] :is(.playmat, .turn-splash) {
   --arena-deep: #18191a;
@@ -205,7 +188,6 @@
   --glow-low: #98d7851c;
 }
 
-/* Fish-Man Island: coral reef over the deep sea, lit by bioluminescent aqua. */
 [data-theme="fishMan"],
 [data-theme="fishMan"] :is(.playmat, .turn-splash) {
   --arena-deep: #101f24;
@@ -244,7 +226,6 @@
   --glow-low: #ff9b811f;
 }
 
-/* Thriller Bark: Moria's haunted purple fog and Perona's ghostly green glow. */
 [data-theme="thrillerBark"],
 [data-theme="thrillerBark"] :is(.playmat, .turn-splash) {
   --arena-deep: #1a1423;
@@ -283,8 +264,6 @@
   --glow-low: #afe9821a;
 }
 
-/* D$ Disco: the Sabaody auctioneer's stage, with mirror-ball magenta and
-   dance-floor cyan spotlights over a midnight violet floor. */
 [data-theme="disco"],
 [data-theme="disco"] :is(.playmat, .turn-splash) {
   --arena-deep: #16132d;
@@ -322,11 +301,6 @@
   --glow-top: #72def830;
   --glow-low: #ff83e822;
 }
-
-/* ===== Light mode (Settings → Mode). Light page, panels and menus in each
-   theme's colours; the game surfaces above keep their dark palette. Buttons
-   and the playmat preview keep the dark-mode values. Theme preview chips
-   follow the mode too. */
 
 [data-mode="light"],
 [data-mode="light"] [data-theme="nightSea"] {

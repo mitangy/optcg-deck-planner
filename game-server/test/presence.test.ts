@@ -47,7 +47,7 @@ describe("PresenceReporter", () => {
     await new Promise((r) => setTimeout(r, 40));
     assert.equal(count, 0);
 
-    reporter.start(); // immediate snapshot
+    reporter.start();
     await waitUntil(() => count === 1);
     reporter.markDirty();
     await waitUntil(() => count === 2, 1000);

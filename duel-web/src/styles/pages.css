@@ -1,4 +1,3 @@
-/* Suspense fallback for lazy routes: reserves the viewport so the footer and chrome do not jump when the page lands. */
 .route-fallback {
   min-height: 100dvh;
 }
@@ -18,8 +17,6 @@ button {
   flex-direction: column;
 }
 
-/* With the legal footer below a page, the page fills the screen minus the
-   footer, so short pages put it at the bottom edge instead of below the fold. */
 #root:has(> .site-footer) {
   display: flex;
   flex-direction: column;

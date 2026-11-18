@@ -1,5 +1,3 @@
-/* —— Opponent hand: backs hanging from the top of the rail —— */
-
 .opp-hand-fan {
   --fan-w: calc(var(--dock-cw) * 0.6);
   position: relative;
@@ -24,7 +22,6 @@
   flex: 0 0 auto;
   width: var(--fan-w);
   height: calc(var(--fan-w) * 1.4);
-  /* Top ~third tucked above the rail edge, like a hand held across the table. */
   margin-top: calc(var(--fan-w) * -0.45);
   border-radius: var(--radius-4);
   transform: rotate(calc(var(--i) * -4deg));
@@ -37,8 +34,7 @@
   margin-left: min(0.2rem, calc((100% - 1.5rem - var(--n) * var(--fan-w)) / max(var(--n) - 1, 1)));
 }
 
-/* Spectators of unranked rooms: the far hand face up. Not tucked, so the cost
-   and name at the top of the card stay visible; tap a card to read it. */
+/* Not tucked, so the cost and name at the top of the card stay visible. */
 .opp-hand-fan .card-tile.opp-fan-face {
   width: var(--fan-w);
   height: calc(var(--fan-w) * 1.4);
@@ -65,8 +61,6 @@
   color: var(--muted);
 }
 
-/* —— Game state panel —— */
-
 .turn-panel {
   display: flex;
   flex-direction: column;
@@ -84,8 +78,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-10);
   background: rgb(var(--deep-rgb) / 0.55);
-  /* The heading sizes from this card's width, not the window's: a column dragged to its narrowest is
-     250px wide in a 1920px window (#774). The banner is a stretched child of .turn-panel, so it has a width. */
+  /* Sized from this card's width, not the window's: a column dragged to its narrowest is 250px wide in a 1920px window. The banner is a stretched child of .turn-panel, so it has a width. */
   container-type: inline-size;
 }
 
@@ -104,7 +97,7 @@
 
 .turn-banner-title {
   font-family: var(--font-display);
-  /* The cap keeps the longest word ("OPPONENT'S") inside the card at the narrowest column; wide columns keep the clamp. */
+  /* The cap keeps the longest word ("OPPONENT'S") inside the card at the narrowest column. */
   font-size: min(clamp(1.1rem, 1.45vw, 1.65rem), 11cqi);
   max-width: 100%;
   overflow-wrap: break-word;
@@ -152,9 +145,7 @@
   color: #ffe0da;
 }
 
-/* What you are answering can be a sentence: two lines, never cut mid-word.
-   Two lines are always reserved here, so a prompt opening or closing
-   mid-response does not nudge the panels below. */
+/* Two lines are always reserved, so a prompt opening or closing mid-response does not nudge the panels below. */
 .turn-panel-respond .turn-banner-sub {
   display: -webkit-box;
   -webkit-box-orient: vertical;

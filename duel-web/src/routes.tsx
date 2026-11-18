@@ -18,11 +18,6 @@ import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 
 export type AppRoute = { path: string; element: ReactElement };
 
-/**
- * Every client route, defined once: `App` renders this table, and the vercel.json test (`seo/seo804.test.ts`)
- * reads the same list instead of scraping the JSX. Meta (`seo/routeMetaTable.ts`) and the prerender pages
- * (`prerender/entry.tsx`) still list their own subsets by path.
- */
 export const APP_ROUTES: readonly AppRoute[] = [
   { path: "/", element: <LobbyPage /> },
   { path: "/play-one-piece-tcg-online", element: <PlayOnlinePage /> },

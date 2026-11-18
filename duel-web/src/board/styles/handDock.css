@@ -1,5 +1,3 @@
-/* —— Hand dock (bottom-right, peeks until hovered) —— */
-
 .hand-dock {
   --dock-gap: 0.5rem;
   --dock-card-h: calc(var(--dock-cw) * 1.4);
@@ -19,8 +17,7 @@
   border-radius: 14px 0 0 0;
   background: linear-gradient(180deg, rgb(var(--raised-rgb) / 0.97), rgb(var(--deep-rgb) / 0.98));
   box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.45);
-  /* Tucked: only the handle and the top of each card show. The short delay
-     keeps it from snapping shut when the pointer grazes the edge. */
+  /* The short delay keeps it from snapping shut when the pointer grazes the edge. */
   transform: translateY(calc(var(--dock-card-h) * 0.58 + 0.6rem));
   transition:
     transform 200ms ease 140ms,
@@ -42,15 +39,13 @@
   }
 }
 
-/* Dragging a card out: tuck the dock so the whole board is a drop target. */
 .hand-dock.is-dragging,
 .hand-dock.is-dragging:hover {
   width: var(--rail-w);
   transform: translateY(calc(var(--dock-card-h) * 0.58 + 0.6rem));
 }
 
-/* Just tucked by its own button or H, pointer still on it: stay tucked until
-   the pointer leaves once, or the click looks like it did nothing. */
+/* Just tucked by its own button or H, pointer still on it: stay tucked until the pointer leaves once, or the click looks like it did nothing. */
 @media (hover: hover) {
   .hand-dock.is-tucking:hover:not(:has(:focus-visible)) {
     width: var(--rail-w);
@@ -58,8 +53,7 @@
   }
 }
 
-/* Hidden (Keep hand open + H / Hide): only the handle shows (after the
-   hover / focus-visible rules, so they don't raise it). */
+/* After the hover / focus-visible rules, so they don't raise it. */
 .hand-dock.is-hidden {
   width: var(--rail-w);
   transform: translateY(calc(100% - var(--dock-head) - var(--safe-b)));
@@ -120,7 +114,6 @@
   transition: transform 140ms ease;
 }
 
-/* Overlap cards when they don't fit (always true when tucked). */
 .hand-dock .hand-dock-cards > * + * {
   margin-left: min(var(--dock-gap), calc((100% - var(--n) * var(--dock-cw)) / var(--n1)));
 }

@@ -9,7 +9,6 @@ import type { Catalog } from "./catalog";
 import type { Deck } from "./decks";
 import { deckSourceId, shortHash } from "./sources";
 
-/** The question with every default filled in. */
 export interface SimQuery {
   goingFirst: boolean;
   turns: number;
@@ -23,7 +22,6 @@ export interface SimQuery {
   seed?: number;
 }
 
-/** The question as the tool receives it. */
 export type SimInput = Partial<SimQuery>;
 
 export interface SimDeps {
@@ -57,7 +55,6 @@ export function resolveQuery(q: SimInput): SimQuery {
 
 type DeckKey = Pick<Deck, "leaderId" | "cards">;
 
-/** The question, the deck and the engine version as one string; `seed` is null until it is known. */
 function canonicalOf(deck: DeckKey, q: SimQuery, seed: number | null): string {
   return JSON.stringify({
     v: 1,
@@ -81,18 +78,14 @@ function baseSeed(deck: DeckKey, q: SimQuery): number {
   return q.seed ?? parseInt(shortHash(canonicalOf(deck, q, null)), 16);
 }
 
-/** `sim:<hash>`: the same question on the same deck and engine, answered by the same number of games, cites the same source. */
 export function simSourceId(deck: DeckKey, q: SimQuery, runsCompleted: number): string {
   const canonical = canonicalOf(deck, q, baseSeed(deck, q));
   return `sim:${shortHash(canonical + "|" + runsCompleted)}`;
 }
 
-// ——— one simulation at a time ———
-
 let running = false;
 const waiting: (() => void)[] = [];
 
-/** Runs `fn` when no other simulation is running; up to two callers wait their turn and any more are refused. */
 export async function exclusive<T>(fn: () => Promise<T>): Promise<T> {
   if (running) {
     if (waiting.length >= MAX_WAITING) throw new Error(BUSY);
@@ -106,8 +99,6 @@ export async function exclusive<T>(fn: () => Promise<T>): Promise<T> {
     else running = false;
   }
 }
-
-// ——— cache ———
 
 const cache = new Map<string, SimResult>();
 export function clearSimCache(): void {
@@ -224,7 +215,6 @@ export async function simulateDeck(catalog: Catalog, deck: Deck, input: SimInput
   (deps.log ?? console.log)(`simulate: ${runs.length}/${q.runs} runs in ${elapsed} ms (${Math.round(elapsed / Math.max(1, runs.length))} ms/run)`);
 
   const result = describeSim(catalog, deck, q, base, setup, runs, truncated, notes);
-  // A game count cut short by the clock depends on how busy the server was, so only complete answers are kept.
   if (!truncated) {
     cache.set(key, result);
     if (cache.size > CACHE_SIZE) cache.delete(cache.keys().next().value!);

@@ -1,7 +1,3 @@
-/**
- * Step 4 E2E: two clients ranked_queue → duel → concede → leaderboard ingest.
- * Run with game-server + FastAPI up (matching GAME_TOKEN_SECRET / DUEL_INGEST_SECRET).
- */
 import { Client } from "@colyseus/sdk";
 import { writeFileSync } from "node:fs";
 
@@ -112,7 +108,6 @@ async function queueAndDuel(tokenA, tokenB) {
   await wait(500);
   if (!bags.A.welcome || !bags.B.welcome) throw new Error("missing welcome");
 
-  // Seat 0 concedes → seat 1 wins
   const conceder = bags.A.welcome.seat === 0 ? dA : dB;
   log("concede from seat 0");
   conceder.send("concede", { protocolVersion: PROTOCOL_VERSION });
@@ -142,7 +137,6 @@ async function main() {
   const { matchId, over } = await queueAndDuel(alice.token, bob.token);
   log("finished match", matchId, over);
 
-  // allow ingest async
   await wait(800);
   const after = await leaderboard();
   log("leaderboard after", after.entries);
@@ -153,8 +147,6 @@ async function main() {
   if (a.games_played < 1 || b.games_played < 1) {
     throw new Error(`ingest missing games_played a=${a.games_played} b=${b.games_played}`);
   }
-  // winner is seat 1 = whoever had preferredSeat 1 from matchmaker (bob was second / seat 1)
-  // Matchmaker assigns first queued = seat 0. Alice queued first → seat 0 concedes → bob wins.
   log("ratings after", {
     alice: { rating: a.rating, games: a.games_played },
     bob: { rating: b.rating, games: b.games_played },
@@ -162,7 +154,6 @@ async function main() {
   if (a.rating === 1000 && b.rating === 1000 && a.games_played === 0) {
     throw new Error("ratings did not move");
   }
-  // Winner should be above loser if both started ~1000
   const winner = over.result.winner === 0 ? a : b;
   const loser = over.result.winner === 0 ? b : a;
   if (winner.rating <= loser.rating) {

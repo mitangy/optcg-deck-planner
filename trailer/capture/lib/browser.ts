@@ -14,15 +14,12 @@ const INFOBAR = 56;
 const FRAME = 1;
 
 export type WindowSpec = {
-  /** Where the page's top-left corner sits on the screen. */
   x: number;
   y: number;
-  /** Page size in CSS pixels. */
   width: number;
   height: number;
   /** Device pixel ratio: 2 makes a phone clip crisp (the screen must then be 2x as big as the page). */
   scale?: number;
-  /** Phone: emulate a touch screen so `(pointer: coarse)` layouts apply. */
   touch?: boolean;
   display?: string;
   url?: string;
@@ -66,7 +63,6 @@ export async function openWindow(spec: WindowSpec): Promise<Win> {
       "--use-mock-keychain",
     ],
   });
-  // tsx compiles with keepNames: functions sent to the page expect this helper to exist there.
   await ctx.addInitScript("window.__name = window.__name || function (f) { return f; };");
   const page = ctx.pages()[0] ?? (await ctx.newPage());
   await page.evaluate("window.__name = window.__name || function (f) { return f; };");

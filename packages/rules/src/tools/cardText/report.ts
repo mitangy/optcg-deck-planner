@@ -1,4 +1,3 @@
-/** Coverage report for the card-text compiler: `npx tsx src/tools/cardText/report.ts [limit] [filter]`. */
 import { cardDataFor, listCardDataIds } from "../../cards/cardData.js";
 import { compileCardText } from "./compileCard.js";
 

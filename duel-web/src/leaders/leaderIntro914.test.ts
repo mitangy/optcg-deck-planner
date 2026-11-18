@@ -34,7 +34,6 @@ describe("leader page intro (#914)", () => {
     expect(best?.placing).toBe(1);
     const shared = sharedCards(decks);
     for (const c of shared) expect(decks.every((d) => d.cards.some((x) => x.name === c.name))).toBe(true);
-    // A card only one list plays is not "in every list".
     const dropFirst = { ...decks[0], cards: decks[0].cards.slice(1) };
     const partial = sharedCards([decks[0], dropFirst]).map((s) => s.name);
     expect(partial).not.toContain(decks[0].cards[0].name);

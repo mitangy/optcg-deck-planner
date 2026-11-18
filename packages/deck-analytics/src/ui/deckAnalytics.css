@@ -1,16 +1,5 @@
-/*
- * Deck analytics panels (stats, draw odds, searchers, build hints). Shared by the planner and duel-web.
- * Colours and fonts come from this package's own --da-* tokens, which each host app maps once:
- * --da-ink, --da-muted, --da-label, --da-line, --da-line-strong, --da-card, --da-card-sunk,
- * --da-bg-deep, --da-accent, --da-gold, --da-gold-bright, --da-gold-soft, --da-gold-ink,
- * --da-violet-ink, --da-warn, --da-warn-ink, --da-danger, --da-shadow-lift, --da-font-body,
- * --da-font-display (frontend/src/styles.css, duel-web/src/styles.css). The hint popover renders in a
- * portal under <body>, so a host that maps them on a wrapper only (duel-web does for the colours)
- * leaves the popover without them. The host also styles .muted, .error, .btn.secondary,
- * .layout-toggle, .card-id and .filter-drawer-badge.
- */
+/* The hint popover renders in a portal under <body>, so a host that maps the --da-* tokens on a wrapper only leaves the popover without them. */
 
-/* ——— Deck stats panel (plain CSS charts) ——— */
 .deck-stats {
   --ds-char: var(--da-accent);
   --ds-event: var(--da-gold);
@@ -319,7 +308,6 @@
   margin: 0;
 }
 
-/* Editing: stats sit in a sticky column beside the editor on wide screens. */
 @media (max-width: 720px) {
   .ds-columns {
     height: 7.25rem;
@@ -330,7 +318,6 @@
   }
 }
 
-/* ——— Deck stats: draw odds + searchers ——— */
 .ds-odds,
 .ds-searchers {
   grid-column: 1 / -1;

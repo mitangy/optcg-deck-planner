@@ -34,7 +34,6 @@ const MODE_OPTIONS: { value: ColorMode; label: string }[] = [
   { value: "system", label: "Auto" },
 ];
 
-/** The jump bar under the title, in page order. */
 const JUMP_LINKS: { id: string; label: string; signedInOnly?: boolean }[] = [
   { id: "account", label: "Account" },
   { id: "gameplay", label: "Gameplay" },
@@ -95,7 +94,6 @@ export function SettingsPage() {
         ))}
       </nav>
 
-      {/* Phones: one column in this order. 1024px and up: Gameplay on the right, the rest on the left. */}
       <div className="settings-cols">
       <div className="settings-a">
       <section className="panel" id="account">

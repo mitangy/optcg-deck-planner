@@ -22,7 +22,6 @@ export type GoldContext = { catalog: Catalog; library?: OfficialLibrary };
 
 const WAIT_MS = 60_000;
 
-/** Replaces `{faq}`, `{deck}` and `{errata}` with the source ids resolved for this case. */
 export function resolveCites(cites: Cites, values: { faq?: string; errata?: string; deck?: string }): Cites {
   const fill = (rule: string) => (rule === "{faq}" ? values.faq : rule === "{errata}" ? values.errata : rule === "{deck}" ? values.deck : rule) ?? rule;
   return { all: cites.all.map((g) => g.map(fill)), none: cites.none?.map(fill) };

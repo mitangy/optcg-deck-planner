@@ -14,7 +14,6 @@ afterEach(() => {
   while (open.length) open.pop()!.close();
 });
 
-/** Serves the app on a free port; `chat: true` wires the in-app chat to a scripted model and a fake planner. */
 function serve(answers: Record<string, unknown>, opts: { config?: Partial<Config>; replies?: Parameters<typeof scriptedModel>[0]; chat?: boolean } = {}) {
   const { calls, api } = planner(answers);
   const model = scriptedModel(opts.replies ?? []);
@@ -29,7 +28,6 @@ const INITIALIZE = { jsonrpc: "2.0", id: 1, method: "initialize", params: { prot
 const mcp = (url: string) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream" }, body: JSON.stringify(INITIALIZE) });
 const post = (url: string, body: unknown, headers: Record<string, string> = {}) => fetch(url, { method: "POST", headers: { "Content-Type": "application/json", ...headers }, body: JSON.stringify(body) });
 
-/** The events of an SSE body, in order. */
 const frames = (text: string) => text.split("\n\n").filter(Boolean).map((f) => ({ event: /^event: (.*)$/m.exec(f)![1]!, data: JSON.parse(/^data: (.*)$/m.exec(f)![1]!) as Record<string, any> }));
 
 const CHAT_ANSWERS = { "GET /analyst/me": {}, "GET /analyst/chat/budget": BUDGET, "POST /analyst/chat/threads": { id: 9 }, "POST /analyst/chat/threads/9/messages": null, "POST /analyst/chat/usage": null };

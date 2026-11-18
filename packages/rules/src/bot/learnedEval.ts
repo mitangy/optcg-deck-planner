@@ -1,8 +1,3 @@
-/**
- * The hard bot's learned position score (#635): the log odds that `seat` wins, from the fitted model in valueWeights.json.
- * Same contract as evaluate(): a finished game is a large win/loss (earlier wins score slightly higher). Units are log odds,
- * not "cards", so margins that were written for the hand-tuned score (search.ts HARD_DEFAULTS.margin) do not carry over.
- */
 import { learnedLogit, VALUE_WEIGHTS, type ValueModel } from "./valueModel.js";
 import type { MatchState, Seat } from "../types.js";
 

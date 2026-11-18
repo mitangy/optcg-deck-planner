@@ -1,13 +1,10 @@
-/** Duel-web ↔ FastAPI: the recording of one of your games, for the replay viewer. Kept apart from historyApi. */
 import type { MatchReplay } from "@optcg/rules/replay/replayTimeline";
 import { ApiError, apiCall } from "../api/http";
 
 export type ReplayPayload = {
   match_id: string;
   your_seat: 0 | 1;
-  /** Display names, indexed by seat. */
   players: [string, string];
-  /** False for a game that never sent a result (the room closed on it). */
   finished: boolean;
   turns: number | null;
   replay: MatchReplay;
@@ -15,7 +12,6 @@ export type ReplayPayload = {
 
 export type ReplayLoadFailure = "signed-out" | "not-found" | "in-progress" | "error";
 
-/** Why a recording could not be loaded; `reason` picks the page's wording. */
 export class ReplayLoadError extends Error {
   constructor(
     readonly reason: ReplayLoadFailure,

@@ -32,19 +32,12 @@ type RailProps = {
   open: LandscapePanel | null;
   onToggle: (panel: LandscapePanel) => void;
   hasChat: boolean;
-  /** Log Pose is on for this match (the brief, the copilot or both): one button, whichever it is. */
   hasBrief?: boolean;
-  /** The brief is being written or the copilot is running: the Log Pose button shows its busy dot. */
   briefBusy?: boolean;
   logCount: number;
-  /** The ⋯ match menu button (there is no top bar in landscape). */
   menu: ReactNode;
 };
 
-/**
- * Landscape phones: the left column shrinks to an icon rail so the board gets
- * the width. The log and chat open as overlays (see LandscapeOverlay).
- */
 export function LandscapeRail({ open, onToggle, hasChat, hasBrief = false, briefBusy = false, logCount, menu }: RailProps) {
   const panels: LandscapePanel[] = [...(hasChat ? (["log", "chat"] as const) : (["log"] as const)), ...(hasBrief ? (["brief"] as const) : [])];
   return (
@@ -73,7 +66,6 @@ export function LandscapeRail({ open, onToggle, hasChat, hasBrief = false, brief
   );
 }
 
-/** Fixed panel beside the rail; outside taps and Escape close it, the board never shifts. */
 export function LandscapeOverlay({
   panel,
   onClose,
@@ -83,9 +75,7 @@ export function LandscapeOverlay({
 }: {
   panel: LandscapePanel;
   onClose: () => void;
-  /** Outside taps close the panel (default). Off: the board stays tappable underneath. */
   backdrop?: boolean;
-  /** Props for the width handle on the panel's right edge (off when the drag handles are). */
   resizeProps?: HTMLAttributes<HTMLDivElement>;
   children: ReactNode;
 }) {

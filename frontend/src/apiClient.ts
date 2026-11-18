@@ -1,8 +1,3 @@
-/**
- * The planner's one HTTP client: its base URL and timeout budgets bound onto the shared `@optcg/api-client` core
- * (credentials, JSON headers, FastAPI `{detail}` error parsing, empty bodies, timeout). `api.ts` and
- * `friends/friendsApi.ts` route every backend call through `request`.
- */
 import { ApiError, createRequest } from "@optcg/api-client";
 import type { RequestOptions } from "@optcg/api-client";
 
@@ -31,7 +26,6 @@ export const API_URL =
       : "http://localhost:8000"
     : "/api");
 
-/** Where the API lives for this page (same-origin /api in production). */
 export function getApiBaseUrl(): string {
   return API_URL;
 }
@@ -42,7 +36,6 @@ export function getApiBaseUrl(): string {
  * hanging forever.
  */
 export const DEFAULT_TIMEOUT_MS = 90_000;
-/** For endpoints that do real server work (receipt matching, bulk imports, scan sample uploads). */
 export const LONG_TIMEOUT_MS = 180_000;
 
 export const request = createRequest({ baseUrl: getApiBaseUrl, defaultTimeoutMs: DEFAULT_TIMEOUT_MS });

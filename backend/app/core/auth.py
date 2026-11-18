@@ -1,4 +1,3 @@
-"""Session cookie auth helpers."""
 
 from __future__ import annotations
 
@@ -30,7 +29,6 @@ def _serializer(settings: Settings) -> URLSafeTimedSerializer:
 
 
 def _ticket_serializer(settings: Settings) -> URLSafeTimedSerializer:
-    # Separate salt so login tickets can never verify as session cookies.
     return URLSafeTimedSerializer(settings.session_secret, salt="optcg-login-ticket")
 
 
@@ -50,19 +48,16 @@ def create_session_token(
 def read_session_token(
     token: str, settings: Settings | None = None
 ) -> tuple[int, int] | None:
-    """Return (user_id, session_version) or None if invalid."""
     settings = settings or get_settings()
     try:
         data = _serializer(settings).loads(token, max_age=SESSION_MAX_AGE_SECONDS)
     except (BadSignature, SignatureExpired):
         return None
-    # Defense in depth: session cookies must not carry a login purpose.
     if data.get("purpose") is not None:
         return None
     uid = data.get("uid")
     if uid is None:
         return None
-    # Missing sv means pre-hardening cookie; treat as version 0.
     sv = data.get("sv", 0)
     try:
         return int(uid), int(sv)
@@ -75,7 +70,6 @@ def new_oauth_nonce() -> str:
 
 
 def create_oauth_state(nonce: str, settings: Settings | None = None) -> str:
-    """Signed OAuth state bound to a browser-held nonce cookie."""
     settings = settings or get_settings()
     return _oauth_serializer(settings).dumps({"v": 1, "n": nonce})
 
@@ -100,11 +94,9 @@ def create_login_ticket(
     user_id: int,
     settings: Settings | None = None,
 ) -> str:
-    """Issue a short-lived, single-use login ticket stored in the DB by jti."""
     settings = settings or get_settings()
     jti = secrets.token_urlsafe(18)
     now = datetime.now(timezone.utc)
-    # Drop expired rows opportunistically so the table stays small.
     db.execute(delete(LoginTicket).where(LoginTicket.expires_at < now))
     db.add(
         LoginTicket(
@@ -124,7 +116,6 @@ def consume_login_ticket(
     ticket: str,
     settings: Settings | None = None,
 ) -> int | None:
-    """Validate and atomically consume a login ticket. Returns user_id or None."""
     settings = settings or get_settings()
     try:
         data = _ticket_serializer(settings).loads(
@@ -152,7 +143,6 @@ def consume_login_ticket(
 
 
 def read_login_ticket(ticket: str, settings: Settings | None = None) -> int | None:
-    """Validate ticket signature/age without consuming (tests / introspection)."""
     settings = settings or get_settings()
     try:
         data = _ticket_serializer(settings).loads(
@@ -173,16 +163,11 @@ def resolve_google_user(
     sub: str,
     name: str,
 ) -> User:
-    """Find or create a user for a verified Google identity.
-
-    Refuses to rebind an email that is already linked to a different google_sub.
-    """
     user = db.scalar(select(User).where(User.google_sub == sub))
     if user is None:
         user = db.scalar(select(User).where(User.email == email))
     if user is None:
         user = User(email=email, name=name, google_sub=sub)
-        # The admin may sign in for the first time after startup already ran sync_admin_role.
         if email.strip().lower() in get_settings().admin_email_set:
             user.role = Role.ADMIN
         db.add(user)

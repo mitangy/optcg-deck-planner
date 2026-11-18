@@ -110,7 +110,6 @@ async function render() {
     ),
   );
   await act(async () => void (await new Promise((r) => setTimeout(r, 30))));
-  // Filters starts collapsed.
   const toggle = [...host.querySelectorAll<HTMLButtonElement>("button.filter-drawer-toggle")].find((b) =>
     b.textContent?.startsWith("Filters"),
   )!;
@@ -129,7 +128,6 @@ describe("Group buy Include filter groups decks by leader (#1203)", () => {
     expect(groups[2].textContent).toContain("Cards not in a deck");
     expect(groups[2].textContent).toContain("Extra copies");
 
-    // Only Deck 3 ticked: Luffy group none, Zoro group partly ticked.
     const luffy = groups[0].querySelector<HTMLInputElement>(".deck-filter-group-head input")!;
     expect(luffy.checked).toBe(false);
     await act(async () => luffy.click());
@@ -143,11 +141,9 @@ describe("Group buy Include filter groups decks by leader (#1203)", () => {
   it("ticking a leader group that completes the list sends deck_ids null (#1203)", async () => {
     await render();
     const heads = host!.querySelectorAll<HTMLInputElement>(".deck-filter-group-head input");
-    // Zoro group is partly ticked (Deck 3 only): ticking it adds Deck 4 and leaves Luffy's decks out.
     expect(heads[1].indeterminate).toBe(true);
     await act(async () => heads[1].click());
     expect(h.update).toHaveBeenLastCalledWith(7, expect.objectContaining({ deck_ids: [3, 4] }));
-    // Ticking Luffy on top of that covers every deck, which is stored as null (all decks).
     h.detail = { ...(h.detail as object), members: [{ ...(h.detail as { members: object[] }).members[0], deck_ids: [3, 4] }] };
     h.update.mockClear();
     await render();

@@ -1,4 +1,3 @@
-"""Tests for TCGPlayer receipt parsing and catalog matching."""
 
 from __future__ import annotations
 
@@ -169,7 +168,6 @@ def test_match_by_card_id_and_name(db):
     assert by_id["OP07-019"].qty == 2
     assert by_id["OP07-019"].confidence in {"name_set", "name_only"}
 
-    # Duplicate memento lines should aggregate when catalog has the name
     _add_printing(
         db,
         "OP15-076",
@@ -179,4 +177,4 @@ def test_match_by_card_id_and_name(db):
     )
     matched2, _ = aggregate_receipt_matches(db, lines)
     memento = next(m for m in matched2 if m.card_id == "OP15-076")
-    assert memento.qty == 3  # 1 + 2 from receipt
+    assert memento.qty == 3

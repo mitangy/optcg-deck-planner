@@ -9,10 +9,8 @@ import { answerStart, targetKey } from "./feedbackModel";
 import { isEmptyAnswer, type DeckEditor } from "./proposals";
 import type { LogPoseGame } from "./types";
 
-/** Sent when the player taps Ask again on an edit whose deck changed. */
 const ASK_AGAIN = "My deck changed. Update that suggestion for the deck as it is now.";
 
-/** The thread's messages: the player's lines, Log Pose's answers with their feedback, edit / deck / plan cards. */
 export function ChatMessages({
   messages,
   busy,
@@ -32,10 +30,9 @@ export function ChatMessages({
   game: LogPoseGame | null;
   phone: boolean;
   onClose: () => void;
-  /** Sends a message as the player (Ask again, a plan card's follow-ups). */
   submit: (text: string) => void;
 }) {
-  /** Where an answer stands among the thread's stored answers: only saved answers with text count, as the server counts them. */
+  /** Only saved answers with text count, as the server counts them. */
   const answerNumber = (i: number) => messages.slice(0, i).filter((x) => x.role === "assistant" && x.saved && x.text.trim()).length;
   return (
     <>

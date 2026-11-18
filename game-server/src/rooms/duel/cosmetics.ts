@@ -13,29 +13,20 @@ import {
 } from "../../protocol.js";
 import type { DuelCore, WireBody } from "./context.js";
 
-/** Per-seat cosmetics (alt-art prefs, playmat / card back): stored, relayed, and filtered so no decklist leaks (#369). */
 export class SeatCosmetics {
-  /** Per-seat alt-art prefs (cosmetics only; not rules state). */
   private seatArtPrefs: [ArtPrefsMap, ArtPrefsMap] = [{}, {}];
-  /**
-   * Card defIds each seat has shown face-up this game. Only prefs for these
-   * go to the other seat and spectators; the rest would name the decklist (#369).
-   */
+  /** Only prefs for these go to the other seat and spectators; the rest would name the decklist. */
   private publicArtDefs: [Set<string>, Set<string>] = [new Set(), new Set()];
-  /** What non-owners last received per seat (JSON), so only a change is pushed. */
   private sentPublicArt: [string, string] = ["{}", "{}"];
-  /** Per-seat custom playmat / card back (cosmetics only). */
   private seatSkins: [SeatSkin | null, SeatSkin | null] = [null, null];
 
   constructor(private readonly core: Pick<DuelCore, "game" | "io" | "seats">) {}
 
-  /** Clear what was shown face-up so a rematch starts clean (prefs and skins stay). */
   resetPerGameState() {
     this.publicArtDefs = [new Set(), new Set()];
     this.sentPublicArt = ["{}", "{}"];
   }
 
-  /** A new game's opening table: fold what is already public into the set, and remember what non-owners hold. */
   startGame() {
     const match = this.core.game.match!;
     for (const seat of [0, 1] as Seat[]) {
@@ -57,13 +48,11 @@ export class SeatCosmetics {
     this.broadcastSeatCosmetics(seat);
   }
 
-  /** One seat's prefs as `client` may see them: whole for the owner, public cards only for anyone else. */
   private artPrefsFor(client: Client, seat: Seat): ArtPrefsMap {
     const prefs = this.seatArtPrefs[seat];
     return this.core.seats.seatForClient(client) === seat ? prefs : visibleArtPrefs(prefs, this.publicArtDefs[seat]);
   }
 
-  /** Push a seat's prefs to every client, each filtered for what it may see. */
   private broadcastSeatCosmetics(seat: Seat, onlyNonOwners = false) {
     this.sentPublicArt[seat] = JSON.stringify(visibleArtPrefs(this.seatArtPrefs[seat], this.publicArtDefs[seat]));
     for (const c of this.core.io.allClients()) {
@@ -73,7 +62,6 @@ export class SeatCosmetics {
     }
   }
 
-  /** Fold what the table just saw into the public set, and tell non-owners about newly public prefs. */
   updatePublicArt(events: GameEvent[]) {
     const match = this.core.game.match;
     if (!match) return;
@@ -92,7 +80,7 @@ export class SeatCosmetics {
       this.core.io.sendParseError(client, e);
       return;
     }
-    // An image a moderator already took down must not be relayed again (#810).
+    // An image a moderator already took down must not be relayed again.
     const blocked = (v: string | null) => {
       const id = cosmeticIdOfLink(v);
       return id !== null && isTakenDown(id);
@@ -104,7 +92,6 @@ export class SeatCosmetics {
     this.core.io.broadcast("skin", payload);
   }
 
-  /** A moderator removed an image: blank it in this room's seats at once (#810). */
   applyTakedowns(list: readonly Takedown[]) {
     for (const t of list) {
       for (const seat of [0, 1] as Seat[]) {
@@ -119,7 +106,6 @@ export class SeatCosmetics {
     }
   }
 
-  /** Push stored seat cosmetics to one client (join / sync). */
   sendStored(client: Client) {
     for (const seat of [0, 1] as Seat[]) {
       const artPrefs = this.artPrefsFor(client, seat);

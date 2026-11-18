@@ -1,7 +1,3 @@
-/**
- * Log Pose builds a new deck (#726): the chat-only propose_new_deck tool checks a full 50-card list and its legality and
- * writes nothing. The app opens its create-deck page with the list filled in, and the player presses Create to save it.
- */
 import { MAIN_DECK_SIZE, normalizeCardId } from "@optcg/card-core";
 import { z } from "zod";
 import type { Catalog } from "./catalog";
@@ -32,7 +28,6 @@ export type NewDeckDraft = {
 
 export type NewDeckResult = { ok: true; draft: Omit<NewDeckDraft, "id"> } | { ok: false; error: string };
 
-/** Checks a whole new deck: a real leader, real main deck cards listed once, exactly 50 cards, and no rule or ban problem. */
 export async function proposeNewDeck(catalog: Catalog, library: OfficialLibrary | undefined, input: NewDeckInput): Promise<NewDeckResult> {
   const leaderId = normalizeCardId(input.leader_id);
   const leader = catalog.cards.get(leaderId);
@@ -76,7 +71,6 @@ export async function proposeNewDeck(catalog: Catalog, library: OfficialLibrary 
 }
 
 
-/** The chat's propose_new_deck tool. Made fresh for every turn. */
 export function newDeckTool(catalog: Catalog, knowledge: { library?: OfficialLibrary }): ToolDef {
   let made = 0;
   return {

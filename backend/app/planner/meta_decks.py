@@ -1,8 +1,3 @@
-"""Meta deck browser (#443): leader shares and tournament decklists from the Limitless TCG events kept by tournament_sync.
-
-Pure query/aggregation functions; the router adds rate limits and caching. Output never carries player data
-(none is stored). Leader and card names are shown without the catalog's trailing id or collector number.
-"""
 
 from __future__ import annotations
 
@@ -24,7 +19,6 @@ TOP_FINISH = 8
 CARD_LEADERS = 10
 CARD_TOP_DECKS = 6
 
-# "Rocks.D.Xebec (039)", "Name (OP14-020)", "Dracule Mihawk - OP14-020"
 _NAME_SUFFIX_RE = re.compile(r"\s*(?:\(\s*(?:[A-Za-z]{1,4}\d{2}-)?\d{1,3}[A-Za-z]?\s*\)|-\s*[A-Za-z]{1,4}\d{2}-\d{3}[A-Za-z]?)\s*$")
 
 
@@ -121,7 +115,6 @@ def meta_decks(db: Session, leader_id: str, days: int, min_players: int, top: in
         counts = {cid: n for cid, n in json.loads(d.decklist or "{}").items() if cid != leader_id and n > 0}
         if counts:
             rows.append((d, counts))
-    # Placing asc (unplaced last), then bigger events, then newest: three stable sorts, least significant first.
     rows.sort(key=lambda r: events[r[0].tournament_id].date, reverse=True)
     rows.sort(key=lambda r: events[r[0].tournament_id].players, reverse=True)
     rows.sort(key=lambda r: (r[0].placing is None, r[0].placing or 0))
@@ -163,24 +156,16 @@ def meta_decks(db: Session, leader_id: str, days: int, min_players: int, top: in
 
 
 def _copies(decklist: str | None) -> dict[str, int]:
-    """{card id: copies} of one stored list; empty for a missing or "{}" list."""
     return {cid: n for cid, n in json.loads(decklist or "{}").items() if n > 0}
 
 
 def _placing_order(rows: list[tuple[TournamentDeck, Tournament]]) -> None:
-    """Placing asc (unplaced last), then bigger events, then newest: three stable sorts, least significant first."""
     rows.sort(key=lambda r: r[1].date, reverse=True)
     rows.sort(key=lambda r: r[1].players, reverse=True)
     rows.sort(key=lambda r: float("inf") if r[0].placing is None else r[0].placing)
 
 
 def card_detail(db: Session, card_id: str, days: int, min_players: int) -> dict | None:
-    """One card's page (#953): its printings and how much tournament play it sees. None when the catalog lacks it.
-
-    A Leader's "decks_with_card" counts the decks it led (its meta share, over every deck like /meta/leaders). Any other
-    card is measured over the decks that have a stored list: decks_with_card, copies, the leaders that play it and the
-    best finishes with it.
-    """
     card = db.get(CatalogCard, card_id)
     if card is None:
         return None
@@ -190,7 +175,7 @@ def card_detail(db: Session, card_id: str, days: int, min_players: int) -> dict 
     decks = db.scalars(select(TournamentDeck).where(TournamentDeck.tournament_id.in_(list(events)))).all() if events else []
     lists = [(d, _copies(d.decklist)) for d in decks]
     lists = [(d, c) for d, c in lists if c]
-    ran: list[tuple[TournamentDeck, int]]  # (deck, copies of this card)
+    ran: list[tuple[TournamentDeck, int]]
     if is_leader:
         total = len(decks)
         ran = [(d, 1) for d in decks if d.leader_id == card_id]

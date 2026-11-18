@@ -1,6 +1,3 @@
-/* Theme-agnostic: colours derive from the surrounding text colour so the
-   footer and legal pages fit both apps and every light / dark theme. */
-
 .site-footer {
   width: 100%;
   margin-top: auto;
@@ -146,7 +143,6 @@
   color: inherit;
 }
 
-/* Narrow, centred variant for single-column pages (duel-web lobby, settings). */
 .site-footer-centered .site-footer-inner {
   max-width: 640px;
   align-items: center;
@@ -157,7 +153,6 @@
   justify-content: center;
 }
 
-/* "Send feedback" in the footer: a button that looks like the links beside it. */
 .site-footer button.site-footer-link {
   appearance: none;
   background: none;
@@ -167,10 +162,6 @@
   font-weight: 600;
   cursor: pointer;
 }
-
-/* —— Feedback dialog ——
-   Fixed overlay in a portal: nothing behind it moves. Each app maps the --fb-*
-   tokens to its own palette (see its styles.css); the fallbacks fit any theme. */
 
 .feedback-backdrop {
   position: fixed;
@@ -315,7 +306,6 @@
 }
 
 @media (max-width: 600px) {
-  /* Bottom sheet on phones. */
   .feedback-backdrop {
     align-items: flex-end;
     padding: 0;

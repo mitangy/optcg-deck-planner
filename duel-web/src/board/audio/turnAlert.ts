@@ -20,11 +20,7 @@ export function audioContext(): AudioContext | null {
   }
 }
 
-/**
- * iOS keeps audio locked until a sound is started inside a user gesture, and a
- * cue fired later by the game (an attack arriving) is not one. Call this from
- * a pointerdown: it resumes the context and plays one silent sample.
- */
+// iOS keeps audio locked until a sound starts inside a user gesture, and a cue fired later by the game is not one.
 export function unlockAudio(): void {
   const ctx = audioContext();
   if (!ctx) return;
@@ -38,7 +34,6 @@ export function unlockAudio(): void {
   }
 }
 
-/** Whether audio has been unlocked (running context). */
 export function audioUnlocked(): boolean {
   return audio?.state === "running";
 }
@@ -49,12 +44,10 @@ export type Note = {
   len: number;
   gain: number;
   type: OscillatorType;
-  /** Glide to this frequency over the note. */
   to?: number;
 };
 
 export function playNotes(notes: Note[]): void {
-  // A muted tab (by hand, or a watch tab beside a live match) makes no sound (#934). unlockAudio still runs.
   if (isTabSilenced()) return;
   try {
     const ctx = audioContext();
@@ -79,7 +72,6 @@ export function playNotes(notes: Note[]): void {
   }
 }
 
-/** Two soft rising notes, synthesized so there is no sound file to ship. */
 export function playTurnChime(): void {
   playNotes([
     { freq: 660, at: 0, len: 0.28, gain: 0.18, type: "sine" },
@@ -87,7 +79,6 @@ export function playTurnChime(): void {
   ]);
 }
 
-/** Lower, falling two-tone "incoming" cue: clearly not the turn chime. */
 export function playAttackCue(): void {
   playNotes([
     { freq: 392, at: 0, len: 0.18, gain: 0.2, type: "triangle" },
@@ -95,12 +86,11 @@ export function playAttackCue(): void {
   ]);
 }
 
-/** One short, dry tick when the opponent uses a card: quieter and shorter than the chime. */
 export function playOpponentPlayCue(): void {
   playNotes([{ freq: 494, at: 0, len: 0.1, gain: 0.11, type: "sine" }]);
 }
 
-/** Low thud when you lose a Life card: no pitch movement, so it cannot pass for the attack cue. */
+// No pitch movement, so it cannot pass for the attack cue.
 export function playLifeLostCue(): void {
   playNotes([
     { freq: 110, at: 0, len: 0.22, gain: 0.3, type: "sine" },
@@ -108,7 +98,6 @@ export function playLifeLostCue(): void {
   ]);
 }
 
-/** Softer, higher thud when the opponent loses a Life card. */
 export function playOppLifeLostCue(): void {
   playNotes([{ freq: 196, at: 0, len: 0.14, gain: 0.11, type: "sine" }]);
 }
@@ -119,11 +108,6 @@ function clearTitleMark() {
   }
 }
 
-/**
- * Buzz / chime / flag the tab when the game starts waiting on you (your turn,
- * a block or counter step, an effect choice). Fires on the rising edge only,
- * so it does not repeat while you play out your turn.
- */
 export function useTurnAlert(needsYou: boolean, opts: { buzz: boolean; sound: boolean }): void {
   const prev = useRef(false);
   const { buzz: buzzOn, sound } = opts;

@@ -1,4 +1,3 @@
-/** Rows of the photo-scan review tray, kept pure so the merge and add rules can be tested. */
 
 import type { ShoppingItem } from "../../api";
 import type { MultiScanConfidence, MultiScanItem } from "../match/cardScanMulti";
@@ -6,18 +5,12 @@ import type { MultiScanConfidence, MultiScanItem } from "../match/cardScanMulti"
 export const MAX_ROW_QTY = 99;
 
 export type TrayRow = {
-  /** Stable React key; survives a Fix. */
   key: string;
   cardId: string | null;
-  /** "sure" < "check" < "none"; a merged row shows its weakest crop. */
   confidence: MultiScanConfidence;
-  /** True once the user typed the card number. */
   fixed: boolean;
-  /** Crop thumbnails, one per detected card in this row. */
   thumbs: string[];
-  /** Indices into the scan's items array of the crops in this row (parallel to `thumbs`). */
   sources: number[];
-  /** Copies to add. 0 = skip. */
   qty: number;
 };
 
@@ -29,7 +22,6 @@ const RANK: Record<MultiScanConfidence, number> = {
 
 const clampQty = (n: number) => Math.max(0, Math.min(MAX_ROW_QTY, Math.floor(n)));
 
-/** One row per card id (two crops of OP01-120 -> qty 2); each unmatched crop keeps its own row at qty 0. */
 export function buildTrayRows(items: MultiScanItem[]): TrayRow[] {
   const rows: TrayRow[] = [];
   const byId = new Map<string, TrayRow>();
@@ -70,7 +62,6 @@ export function buildTrayRows(items: MultiScanItem[]): TrayRow[] {
   return rows;
 }
 
-/** Matched ids the catalog doesn't know become unmatched rows, so nothing unknown is ever sent. */
 export function dropUnknownCards(rows: TrayRow[], known: ReadonlySet<string>): TrayRow[] {
   return rows.map((r) =>
     r.cardId && !known.has(r.cardId)
@@ -79,7 +70,6 @@ export function dropUnknownCards(rows: TrayRow[], known: ReadonlySet<string>): T
   );
 }
 
-/** Point a row at a typed card id. Joins an existing row for that card, summing copies. */
 export function fixRow(rows: TrayRow[], key: string, cardId: string): TrayRow[] {
   const id = cardId.trim().toUpperCase();
   const target = rows.find((r) => r.key === key);
@@ -117,7 +107,6 @@ export function setRowQty(rows: TrayRow[], key: string, qty: number): TrayRow[] 
   return rows.map((r) => (r.key === key && r.cardId ? { ...r, qty: clampQty(qty) } : r));
 }
 
-/** Copies that will be added: rows with a card and a quantity above 0. */
 export function trayAddPayload(rows: TrayRow[]): { card_id: string; add: number }[] {
   return rows.filter((r) => r.cardId && r.qty > 0).map((r) => ({ card_id: r.cardId!, add: r.qty }));
 }
@@ -126,14 +115,12 @@ export function trayReadyCount(rows: TrayRow[]): number {
   return trayAddPayload(rows).reduce((n, i) => n + i.add, 0);
 }
 
-/** Shopping-list status shown under a scanned card in the tray. */
 export function trayNeedText(item: ShoppingItem | undefined): string {
   if (!item) return "Not on your shopping list";
   if (item.still_need > 0) return `Still need ${item.still_need}`;
   return `Covered — you own ${item.owned} of ${item.need}`;
 }
 
-/** One scan crop to share with the scanner's training set, labelled by what the user ended up adding. */
 export type ScanSample = {
   image: string;
   predicted_id: string | null;
@@ -142,11 +129,6 @@ export type ScanSample = {
   label: "confirmed" | "corrected";
 };
 
-/**
- * Crops worth sharing after the user added the tray: only rows that were added (a card and a
- * quantity above 0). A row with fewer copies than crops means the user dropped some, and which
- * crop was the wrong one is unknown, so the whole row is left out.
- */
 export function traySamples(rows: TrayRow[], items: MultiScanItem[]): ScanSample[] {
   const out: ScanSample[] = [];
   for (const row of rows) {

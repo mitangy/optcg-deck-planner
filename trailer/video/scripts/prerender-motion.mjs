@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-// Copies the stills / card art / phone frames the motion piece uses into public/motion/ (gitignored).
-// Sources: MOTION_STILLS (default ../clips/stills, else /mnt/project-files/trailer/clips/stills),
-//          MOTION_CLIPS (default ../clips, else /mnt/project-files/trailer/clips),
-//          MOTION_CARDS (default ../../duel-web/public/cards),
-//          MOTION_MUSIC / MOTION_MUSIC_START / MOTION_MUSIC_BPM (music track, see below).
 import {spawnSync} from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
@@ -54,7 +49,6 @@ for (const [id, pid] of Object.entries(CARD_PIDS)) {
 }
 if (bad.length) { console.error(`motion prerender: card art problems:\n  ${bad.join('\n  ')}`); process.exit(1); }
 
-// phone frames: one clean portrait frame, one landscape frame
 const frame = (clip, t, out) => {
   const src = clips && path.join(clips, clip);
   if (!src || !fs.existsSync(src)) return console.warn(`motion prerender: missing ${clip}`);
@@ -108,8 +102,6 @@ if (musicSrc) {
   if (fs.existsSync(cachedMusic)) { fs.copyFileSync(cachedMusic, path.join(dst, 'music.wav')); hasMotionMusic = true; }
 } else console.log('motion prerender: no music source found, skipping (set MOTION_MUSIC)');
 
-// Sound effects: synthesized by make-motion-sfx.mjs (WebAudio in Playwright's Chromium, no downloads). Rendered into the
-// card cache dir keyed on the generator's source hash and copied into public/motion/sfx/ (public/motion/ is wiped each run).
 let hasMotionSfx = false;
 try {
   const sfxCache = path.join(cacheDir, `sfx-${sfxSourceHash()}`);
@@ -118,7 +110,6 @@ try {
   hasMotionSfx = true;
 } catch (e) { console.warn(`motion prerender: sfx generation failed (${e.message}), rendering without sound effects`); }
 
-// src/generated.json (gitignored) is shared with the trailer; make sure it exists and knows about music.mp3, ocean, motion music and sfx.
 const gen = path.join(root, 'src/generated.json');
 const hasMusic = fs.existsSync(path.join(root, 'public/music.mp3'));
 let cur = {clips: {}};

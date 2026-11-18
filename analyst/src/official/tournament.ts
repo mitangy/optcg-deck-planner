@@ -8,15 +8,9 @@ import { queryTerms } from "./rules";
 export type TournamentSection = { id: string; title: string; text: string };
 export type TournamentDoc = { title: string; updated: string | null; sections: TournamentSection[] };
 
-// "3.5 Match Structure", "2.4.1 Cards". The capital letter keeps "2.5 inches ..." style wraps out.
 const HEADING = /^(\d{1,2})\.(\d{1,2})(?:\.(\d{1,2}))?\s+([A-Z].*)$/;
 const PAGE_NUMBER = /^\d{1,3}$/;
 
-/**
- * A line opens a section when its number fits the outline: the next chapter ("4.0"), a later minor number inside the
- * current chapter ("4.3"), or a later sub-number under an existing section ("2.4.2"). Contents lines (dotted
- * leaders), page numbers and numbered list items ("1. Register ...", which have no minor number) stay out of the headings.
- */
 export function parseTournamentRules(lines: readonly string[]): TournamentDoc {
   const sections: TournamentSection[] = [];
   const byId = new Map<string, TournamentSection>();
@@ -52,14 +46,9 @@ export function parseTournamentRules(lines: readonly string[]): TournamentDoc {
   return { title: "Bandai Organized Play Tournament Rules Manual", updated, sections };
 }
 
-/** "Time runs out" is deck-out slang to the game rules' search; here it means the round timer, which the manual calls "time is called". */
 const eventWording = (query: string) =>
   query.replace(/\b(?:time (?:runs? out|expires?|is up|limit)|(?:goes|go|went|going) to time|out of time|time out)\b/gi, "time is called");
 
-/**
- * Sections ranked by the rarity of the query's terms they contain (each weighs log(sections / sections containing it)),
- * counting double when the term is in the title. Ties keep manual order.
- */
 export function searchTournamentRules(doc: TournamentDoc, query: string, limit = 3): TournamentSection[] {
   const found = queryTerms(eventWording(query));
   if (!found.length) return [];
@@ -103,10 +92,6 @@ export function excerpt(text: string, query: string, cap = 2000): string {
   return `${from > 0 ? "… " : ""}${piece}`;
 }
 
-/**
- * Words that mean the question is about running or playing in an event rather than the game itself.
- * Bare "time" and "event" are left out: card text says "each time" and "[Event]" is a card type.
- */
 const TOURNAMENT_WORDS =
   /\b(?:tournaments?|organi[sz]ed play|time (?:runs? out|is called|limit|expires?|out)|(?:goes|go|went|going) to time|out of time|extra turns?|rounds?|judges?|penalt(?:y|ies)|deck ?lists?|sleeves?|swiss|top ?cut|tie ?-?breaks?|tiebreakers?|best of|bo[135]|matches|match|warnings?|game loss|disqualif\w*|slow play|stalling|proxy|proxies|pairings?|byes?|intentional draws?|(?:local|regional|national|store|online|offline) events?|events? (?:rules?|organi[sz]er|level)|conced(?:e|es|ing))\b/i;
 

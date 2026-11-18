@@ -1,26 +1,15 @@
-/**
- * Cards added straight to Master Shopping (no deck) store a TARGET number of
- * copies to own. The stepper beside a search result shows copies still to buy,
- * so each press translates back into a new target.
- */
 export type ExtraStepInput = {
   owned: number;
-  /** Need from decks alone. */
   deckNeed: number;
-  /** Current direct target, 0 when the card was not added directly. */
   extraQty: number;
-  /** Copies still to buy on the list (need − owned, never below 0). */
   stillNeed: number;
 };
 
-/** New direct target after pressing + (delta 1) or − (delta -1) on the copies-to-buy stepper. 0 removes it. */
 export function nextExtraTarget(input: ExtraStepInput, delta: 1 | -1): number {
   const { owned, deckNeed, stillNeed } = input;
-  // Copies the list wants you to own right now (decks and direct target combined).
   const listTarget = owned + stillNeed;
   if (delta > 0) return listTarget + 1;
   const next = listTarget - 1;
-  // Owned copies and decks already cover this, so nothing needs adding directly.
   if (next <= Math.max(owned, deckNeed)) return 0;
   return next;
 }
@@ -33,12 +22,6 @@ export function totalOwnedCopies(item: { owned: number; alts_owned?: number }): 
   return item.owned + (item.alts_owned ?? 0);
 }
 
-/**
- * Master Shopping's Want stepper edits the number of copies wanted overall.
- * Returns the new direct target: + goes one above the current want; − goes one
- * below, or 0 (drop the direct target) once decks alone already cover that.
- * Callers keep − disabled at the deck floor.
- */
 export function nextWantTarget(input: { need: number; deckNeed: number }, delta: 1 | -1): number {
   const { need, deckNeed } = input;
   if (delta > 0) return need + 1;
@@ -47,7 +30,6 @@ export function nextWantTarget(input: { need: number; deckNeed: number }, delta:
   return next;
 }
 
-/** Want − is disabled at the deck floor: lowering it further means changing the deck. */
 export function wantAtDeckFloor(input: { need: number; deckNeed: number }): boolean {
   return input.deckNeed > 0 && input.need <= input.deckNeed;
 }

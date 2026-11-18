@@ -3,7 +3,6 @@ export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 export const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 export const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
 
-/** Small seeded generator so a take's wobble is the same every run. */
 export function rng(seed: number): () => number {
   let s = seed >>> 0;
   return () => {
@@ -15,11 +14,6 @@ export function rng(seed: number): () => number {
   };
 }
 
-/**
- * Eased page scroll driven from inside the page (requestAnimationFrame, ease-in-out cubic), awaited.
- * `target` is a selector (its top lands at `offset` px, default just below the sticky header) or an absolute scrollY.
- * Native `scrollIntoView({behavior:"smooth"})` is skipped here: under Xvfb it jumps or is cut short, which reads as a splice.
- */
 export async function easeScrollTo(
   page: import("playwright").Page,
   target: string | number,
@@ -55,7 +49,6 @@ export async function easeScrollTo(
   );
 }
 
-/** Wait until the page's height and scroll position have stopped changing (reflow after a crop, an upload, a dialog closing). */
 export async function layoutSettled(page: import("playwright").Page, quietMs = 400, maxMs = 6000): Promise<void> {
   const start = Date.now();
   let last = "";

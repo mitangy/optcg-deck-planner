@@ -13,15 +13,9 @@ export function findCard(view: PlayerView, id: string): BoardCard | null {
   return null;
 }
 
-/**
- * Midline banner for the current battle: "Battle: Attacker (power) → Target (power)".
- * The target comes from `battleEndpoints`, so a Leader target is the defending
- * seat's Leader whichever side attacks, and a Blocker replaces the target.
- */
 export function describeBattle(
   view: PlayerView,
   nameOf: (defId: string) => string,
-  /** Players read it from their seat: "Their Leader 6000 → your Leader 5000". */
   fromSeat = false,
 ): string {
   const b = view.battle as { attackerId?: unknown } | null;

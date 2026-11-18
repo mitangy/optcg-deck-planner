@@ -1,4 +1,3 @@
-/** The desktop Game review as a floating panel (#986): drag it by its header, resize it from its edges, and it stays where it was left. */
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent, type ReactNode, type RefObject } from "react";
 import {
@@ -18,7 +17,6 @@ import {
 } from "./floatRect";
 
 const EDGES: Edge[] = ["top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"];
-/** The size it opens at until the viewer changes it. */
 const IDEAL = { w: 360, h: 560 };
 const EDGE_LABEL: Record<Edge, string> = {
   top: "Resize the review panel taller or shorter from the top. Use the up and down arrow keys, or double-click to reset.",
@@ -33,7 +31,6 @@ const EDGE_LABEL: Record<Edge, string> = {
 
 type Measure = { limits: Limits; anchor: { top: number; left: number; right: number } };
 
-/** The window, the bottom edge of the top bar and the replay controls the panel opens above. */
 function measure(anchor: RefObject<HTMLElement | null>): Measure {
   const bar = document.querySelector(".hud-bar")?.getBoundingClientRect().bottom ?? 0;
   const a = anchor.current?.getBoundingClientRect();
@@ -46,17 +43,14 @@ export function ReviewPanel({
   panelRef,
   render,
 }: {
-  /** The replay controls: the panel opens above them, right-aligned. */
   anchorRef: RefObject<HTMLElement | null>;
   panelRef?: RefObject<HTMLDivElement | null>;
-  /** The content, given the keyboard grip for the header. */
   render(grip: ReactNode): ReactNode;
 }) {
   const [stored, setStored] = useState<Rect | null>(() => readRect());
   const [live, setLive] = useState<Rect | null>(null);
   const [m, setM] = useState<Measure>(() => measure(anchorRef));
   const drag = useRef<{ kind: "move" | Edge; x: number; y: number; start: Rect } | null>(null);
-  // Clamped when drawn, never in storage: a window that grows again gives the remembered box back.
   const rect = clampRect(live ?? stored ?? defaultRect(m.anchor, IDEAL, m.limits), m.limits);
   const rectRef = useRef(rect);
   rectRef.current = rect;
@@ -92,7 +86,6 @@ export function ReviewPanel({
     const target = e.target as Element;
     const edge = target.closest<HTMLElement>("[data-edge]")?.dataset.edge as Edge | undefined;
     if (edge) return begin(e, edge);
-    // The header is the grip; its buttons still click.
     if (target.closest(".rv-summary-head") && !target.closest("button")) begin(e, "move");
   };
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
@@ -130,7 +123,6 @@ export function ReviewPanel({
     </button>
   );
   const style: CSSProperties = { left: rect.x, top: rect.y, width: rect.w, height: rect.h };
-  // In the page's body, not the dock: the dock is its own stacking layer, under the End turn button.
   return createPortal(
     <div
       className={`replay-review-pop${live ? " is-dragging" : ""}`}

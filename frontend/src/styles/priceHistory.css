@@ -1,4 +1,3 @@
-/* Group buy: total across the arts the viewer picked (#850). Same box as the clickable market price so swapping states never shifts the card. */
 .gb-arts-total {
   display: inline-flex;
   align-items: baseline;
@@ -23,9 +22,7 @@
   text-overflow: ellipsis;
   font-size: 0.75rem;
 }
-/* ——— Price alerts (#855) ——— */
 
-/* Bell in the topbar */
 .bell {
   position: relative;
   display: inline-flex;
@@ -51,7 +48,6 @@
   border-color: var(--gold);
 }
 
-/* Absolutely placed so a count appearing never resizes the button. */
 .bell-badge {
   position: absolute;
   top: -0.3rem;
@@ -144,7 +140,6 @@
   font-size: 0.92rem;
 }
 
-/* Shared editor (Watch dialog + lightbox) */
 .alert-form {
   display: grid;
   gap: 0.6rem;
@@ -250,7 +245,6 @@
   font-size: 0.85rem;
 }
 
-/* Lightbox: the row is always one button tall; the editor floats over the art, so nothing shifts. */
 .lightbox-alert {
   position: static;
   width: 17rem;
@@ -266,7 +260,6 @@
   min-width: 0;
 }
 
-/* A set alert reads as a chip (#1028): tinted by what it is doing, one button tall so nothing shifts. */
 .alert-pill {
   display: flex;
   align-items: center;
@@ -388,7 +381,6 @@
   box-shadow: var(--shadow-lift);
 }
 
-/* Price history (#946): the button is one row tall; the panel floats over the art above the action card. */
 .lightbox-history {
   position: static;
   width: 17rem;
@@ -409,7 +401,6 @@
   transform: translateX(-50%);
   z-index: var(--z-raise-3);
   width: min(26rem, calc(100vw - 1.5rem));
-  /* Room for the lightbox controls under it (Card page, Owned stepper, Price alert, Price history). */
   max-height: calc(100dvh - 23.5rem);
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -422,7 +413,6 @@
   box-shadow: var(--shadow-lift);
 }
 
-/* A short landscape screen has no room above the button: the panel takes the screen instead (#968). */
 @media (max-height: 520px) {
   .lightbox-history-pop {
     position: fixed;
@@ -546,7 +536,6 @@
   color: var(--muted);
 }
 
-/* Chart, loading, empty and error states share one box, so switching between them moves nothing. */
 .ph-body {
   position: relative;
   aspect-ratio: 360 / 168;
@@ -648,7 +637,6 @@
   }
 }
 
-/* When to buy (#946): the verdict row keeps its height while loading; its reasons open below it. */
 .ph-buy {
   display: grid;
   gap: 0.3rem;
@@ -706,7 +694,6 @@
 .ph-buy-headline {
   min-width: 0;
   flex: 1 1 auto;
-  /* Wraps to a second line on narrow phones instead of cutting the words off. */
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -732,7 +719,6 @@
   white-space: nowrap;
 }
 
-/* Narrow phones: the estimate moves to a second line instead of being cut off; the line keeps a fixed two-line height. */
 @media (max-width: 480px) {
   .ph-buy-best {
     height: 2.2rem;
@@ -775,7 +761,6 @@
   display: inline-flex;
 }
 
-/* A 22px round "?" inside a 32px button: the extra ring is the hit target for fingers; negative margins keep the row as if it were 22px. */
 .ph-buy-why {
   flex: none;
   box-sizing: border-box;

@@ -1,20 +1,14 @@
 import type { Intent, Seat, TimerMessage } from "../../net/protocol";
 
-/** Counter values (and the power a defender needs) come in steps of 1000. */
 const STEP = 1000;
 
-/**
- * Extra power the defender needs to survive an attack. The attacker wins
- * ties, so the defender must end strictly higher; the answer is rounded up to
- * the next 1000 because Counter cards come in whole thousands. 0 = already safe.
- */
+// The attacker wins ties, so the defender must end strictly higher; Counters come in whole thousands, so round up.
 export function defenseGap(attackerPower: number, defenderPower: number): number {
   const deficit = attackerPower - defenderPower;
   if (deficit < 0) return 0;
   return (Math.floor(deficit / STEP) + 1) * STEP;
 }
 
-/** What the staged counters leave: the gap before and after adding them. */
 export function defenseStatus(
   attackerPower: number,
   defenderPower: number,
@@ -25,7 +19,6 @@ export function defenseStatus(
   return { gap, remaining, safe: remaining === 0 };
 }
 
-/** Power added by the staged cards. Unknown values add 0; a card counts once. */
 export function stagedCounterTotal(
   stagedIds: readonly string[],
   valueById: ReadonlyMap<string, number>,
@@ -35,12 +28,7 @@ export function stagedCounterTotal(
   return total;
 }
 
-/**
- * The `counter_from_hand` intents to send for the staged hand cards, in send
- * order. Cards are found by id in the latest hand (staging can be stale), and
- * every card that leaves the hand shifts the slots after it down by one, so
- * the highest index goes first to keep the remaining indexes valid.
- */
+// Highest index first: every card leaving the hand shifts the later slots down by one. Staging can be stale, so cards are found by id.
 export function resolveStagedCounters(
   intents: readonly Intent[],
   hand: readonly { id: string }[],
@@ -61,11 +49,6 @@ export function resolveStagedCounters(
   return picked.sort((a, b) => b.handIndex - a.handIndex);
 }
 
-/**
- * How much of the response clock is left (1 = full, 0 = out of time), or null
- * when no clock applies. Your own chess clock counts only while it runs for
- * you; otherwise the turn clock, when the room has one.
- */
 export function clockFraction(
   timer: TimerMessage | null | undefined,
   now: number,

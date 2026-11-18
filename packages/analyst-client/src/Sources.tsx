@@ -19,20 +19,11 @@ import {
 import { Markdown } from "./Markdown";
 import { citedCardNames, findMentions } from "./mentions";
 
-/** What the host app adds to sources: links into the app and card data. Both are optional. */
 export type SourceHooks = {
-  /** Where this source can be opened in the app (a match's log page, say), or null when nowhere. */
   href?: (source: ParsedSource) => string | null;
-  /** A card's name and picture from the app's card data. */
   card?: (id: string) => { name?: string; imageUrl?: string } | null | undefined;
-  /** Where a deck ("planner:<id>" or "duel:<id>") can be opened in the app, for an edit that belongs to another page. */
   deckHref?: (ref: string) => string | null;
-  /** Opens that deck inside the app without a page reload, so the answer stays on screen; false when the app can't (the link then loads the page). */
   openDeck?: (ref: string) => boolean;
-  /**
-   * Opens the app's create-deck page with the name and list filled in, for a deck Log Pose built (#726). `auto` is the card opening it by
-   * itself: the app may refuse (a live game), and returns false when it did not navigate.
-   */
   openNewDeck?: (draft: { name: string; list: string }, how: { auto: boolean }) => boolean;
 };
 
@@ -71,7 +62,6 @@ function PlaybookLine({ title }: { title: string }) {
   );
 }
 
-/** What a source is, said in words: used by the popover and the Sources list. */
 function SourceBody({ parsed, title, quote, showCard }: { parsed: ParsedSource; title: string; quote?: string; showCard?: boolean }) {
   const hooks = useContext(SourceHooksContext);
   const card = parsed.kind === "card" && showCard ? hooks.card?.(parsed.id) : null;
@@ -101,11 +91,7 @@ function SourceBody({ parsed, title, quote, showCard }: { parsed: ParsedSource; 
   );
 }
 
-/**
- * A numbered marker and its source popover: a Headless UI Popover, floating (in a portal, kept on
- * screen) next to the marker, so opening it never moves the text. Escape closes only the popover
- * (focus returns to the marker), not the panel behind it, as does a click or tap elsewhere.
- */
+// A Headless UI Popover floating in a portal, so opening it never moves the text; Escape closes only the popover, not the panel behind it.
 function CiteMark({ mark, entry }: { mark: Mark; entry: SourceEntry }) {
   return (
     <Popover as="span">
@@ -137,7 +123,6 @@ function CiteMark({ mark, entry }: { mark: Mark; entry: SourceEntry }) {
   );
 }
 
-/** The card picture a mention shows: fixed in place next to it, never in the way of the pointer. */
 const PEEK_W = 240;
 const PEEK_RATIO = 7 / 5;
 
@@ -166,10 +151,6 @@ function CardPeek({ anchor, name, src }: { anchor: HTMLElement; name: string; sr
   );
 }
 
-/**
- * A card named in an answer. A mouse shows its picture while hovering; the keyboard, while focused; a finger,
- * after a tap (and a tap elsewhere or Escape puts it away). The text never moves.
- */
 function CardMention({ text, name, src }: { text: string; name: string; src: string }) {
   const ref = useRef<HTMLButtonElement>(null);
   const mouse = useRef(false);
@@ -273,11 +254,7 @@ function SourcesList({ entries }: { entries: SourceEntry[] }) {
   );
 }
 
-/**
- * An assistant answer (or review) as Markdown with a numbered marker after each cited span, a popover for each
- * marker, and under it the deduplicated Sources list, or a note that nothing was cited. Source text is only ever
- * rendered as text.
- */
+// Source text is only ever rendered as text.
 export function CitedAnswer({ text, citations, done = true }: { text: string; citations: readonly PlacedCitation[]; done?: boolean }) {
   const { entries, marks } = useMemo(() => buildSources(citations), [citations]);
   const marked = useMemo(() => placeMarkers(text, marks), [text, marks]);

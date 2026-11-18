@@ -1,8 +1,3 @@
-/**
- * Fake friends / spares / trades API for the friends specs (#703). Registered after the base planner fixture, so
- * these routes answer first and everything else falls through to the base fake. State is kept in memory and
- * follows the API contract: sender-side lines, 409 when a spare is gone, apply changes only the caller's owned counts.
- */
 import type { Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import type { User } from "../src/api";
@@ -29,7 +24,6 @@ export type FriendsFake = {
   incomingRequests: (typeof ME)[];
   outgoingRequests: (typeof ME)[];
   sent: { path: string; body: unknown }[];
-  /** Copies Kai has to spare, by card. */
   kaiSpare: Map<string, number>;
   mySpare: Map<string, number>;
   keep: Map<string, number>;
@@ -59,7 +53,6 @@ export async function installFriendsApi(page: Page, owned: Map<string, number>, 
     ]),
     mySpare: new Map([["EB01-006", 2]]),
     keep: new Map(),
-    // A fresh user (never saved sharing) shares decks and collection, with trades closed (#935).
     sharing: { decks: "friends", collection: "friends", trades_open: seed.prompted === false ? false : true, show_values: false, prompted: seed.prompted ?? true },
     kaiSharesCollection: true,
     username: seed.noUsername ? null : ME.username,
@@ -257,7 +250,6 @@ export async function installFriendsApi(page: Page, owned: Map<string, number>, 
         fake.trades.push(trade({ id: 300, from: ME, to: KAI, message: b.message, lines: b.lines }));
       }
       if (action === "apply") {
-        // Only my own half: what I give comes off my owned counts, what I get goes on.
         const iAmSender = t.from.id === ME.id;
         for (const l of t.lines) {
           const iGive = (l.side === "give") === iAmSender;

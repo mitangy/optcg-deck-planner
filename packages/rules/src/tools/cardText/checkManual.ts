@@ -1,7 +1,3 @@
-/**
- * Check manual overrides: they load and validate, and every card name / type
- * they reference exists in the catalog. `npx tsx src/tools/cardText/checkManual.ts`
- */
 import { ABILITY_REGISTRY } from "../../cards/abilities.js";
 import { cardDataFor, listCardDataIds } from "../../cards/cardData.js";
 import { MANUAL_ABILITIES } from "../../cards/manualAbilities.js";

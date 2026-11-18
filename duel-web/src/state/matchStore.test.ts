@@ -15,7 +15,6 @@ import {
 
 const card = (id: string, defId: string) => ({ id, defId });
 
-/** The few view fields the store reads (seat, spectator, turn, board cards); the rest is the board's business. */
 function viewOf(seat: 0 | 1, opts: { turn?: number; spectator?: boolean; chars?: string[] } = {}): PlayerView {
   return {
     seat,
@@ -95,7 +94,6 @@ describe("server errors", () => {
       kind: "reset",
       text: SPECTATOR_CAP_MESSAGE,
     });
-    // A player seat that finds the room full is a plain error, not the spectator cap.
     expect(classifyServerError({ code: "room_full", message: "Room is full" }, view, "player").kind).toBe("banner");
     const gone = run(started(), { type: "error", err: { code: "opponent_no_show", message: "Opponent never arrived" } });
     expect(gone.errorBanner).toBe("Opponent never arrived");
@@ -132,7 +130,6 @@ describe("welcome", () => {
     expect(again.battleLog).toEqual([]);
     expect(again.canReconnect).toBe(true);
 
-    // A resync mid-game (no match over yet) is a clean slate online too.
     const midGame = run(started(), { type: "events", events: [reveal], step: 1 });
     expect(matchReducer(midGame, { type: "welcome", info: welcomeOf(0) }).battleLog).toEqual([]);
   });
@@ -183,7 +180,6 @@ describe("opening dice roll (#1190)", () => {
     const started = matchReducer(rolling, { type: "welcome", info: welcomeOf(0, { dice: result }) });
     expect(started.dice).toBeNull();
     expect(started.firstSeatDice).toEqual(result);
-    // A rematch's welcome carries none, and clears the last game's.
     expect(matchReducer(started, { type: "welcome", info: welcomeOf(0, { dice: null }) }).firstSeatDice).toBeNull();
   });
 

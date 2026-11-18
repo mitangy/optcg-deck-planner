@@ -2,10 +2,8 @@ import { describe, expect, it } from "vitest";
 import { getSpectatorView } from "../engine.js";
 import { Harness } from "../testing/harness.js";
 
-// "One of each art": the view tells every client which copy of an any-number card each instance is (#1292).
-
-const SLEEPTIDS = "OP18-093"; // any number of copies allowed in a deck
-const KAROO = "ST01-003"; // ordinary vanilla card
+const SLEEPTIDS = "OP18-093";
+const KAROO = "ST01-003";
 
 describe("art copy ranks in the player view", () => {
   it("number every Sleeptids copy across hand, field, deck and trash and keep the number when one is played (#1292)", () => {
@@ -15,7 +13,6 @@ describe("art copy ranks in the player view", () => {
     const [onField] = h.field(0, SLEEPTIDS);
     h.deckTop(0, SLEEPTIDS);
     h.trash(0, SLEEPTIDS);
-    // Ranked by instance id across every zone: hand and field "c_t…" (hand first) < deck "d_t…" < trash "t_t…".
     expect(h.view(0).you.hand[0]!.artCopy).toBe(0);
     expect(h.view(0).you.characters[0]!.artCopy).toBe(1);
     expect(h.view(0).you.trashCopies).toEqual([3]);

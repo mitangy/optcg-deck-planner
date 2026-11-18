@@ -9,11 +9,6 @@ import type { handConfirmAnchor } from "../hand/handPrompt";
 import { isPromptHidden } from "./promptHide";
 import { ReplacePrompt } from "./ReplacePrompt";
 
-/**
- * The one pop-up prompt the board shows for the front pending choice, if any: "which Character do you
- * replace?", a Yes/No on the card just used, a floating search / reveal, the effect order, or the choice
- * itself. Hotseat shows the other seat's choice as a wait notice.
- */
 export function PendingChoicePrompt({
   view,
   intents,
@@ -38,7 +33,7 @@ export function PendingChoicePrompt({
   intents: Intent[];
   spectating: boolean;
   mySeat: Seat | null;
-  /** Hotseat: the device is shared, so the other seat's choice shows a wait notice. */
+  // Hotseat: the device is shared, so the other seat's choice shows a wait notice.
   hotseatPass: boolean;
   floatingPrompts: boolean;
   replaceOpen: boolean;
@@ -48,12 +43,10 @@ export function PendingChoicePrompt({
   handConfirm: ReturnType<typeof handConfirmAnchor>;
   hiddenChoiceId: string | null;
   setHiddenChoiceId: Dispatch<SetStateAction<string | null>>;
-  /** Wide boards: mid-battle, the centred prompt keeps off the card being hit. */
   promptBattle: { defenderId: string; attackerId: string } | null;
   wide: boolean;
   lp: boolean;
   onSendIntent: (intent: Intent) => void;
-  /** Sends and drops the hand / board selection. */
   onSendClearing: (intent: Intent) => void;
 }) {
   return (

@@ -1,9 +1,3 @@
-/**
- * Emit card atlas JSON for clients.
- * Usage: npm run export-atlas -- [outfile]
- * Default: mobile/assets/cardAtlas.json
- * Also write duel-web when no outfile given (keeps mobile + web in sync).
- */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { buildCardAtlas } from "../cards/definitions.js";

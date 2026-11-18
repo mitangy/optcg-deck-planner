@@ -3,7 +3,6 @@ import type { DeckDetail, OwnedCollectionResponse, ShoppingResponse } from "../a
 import { patchOwnedCollectionDisplayArt } from "../pages/collection/ownedCollection";
 import { qk } from "../cache/queryKeys";
 
-/** Display art is a view choice only: refresh the views that show it. */
 export function invalidateDisplayArtViews(qc: ReturnType<typeof useQueryClient>) {
   void qc.invalidateQueries({ queryKey: qk.shopping.all() });
   void qc.invalidateQueries({ queryKey: qk.deck.all() });
@@ -12,7 +11,6 @@ export function invalidateDisplayArtViews(qc: ReturnType<typeof useQueryClient>)
   void qc.invalidateQueries({ queryKey: qk.groupBuys() });
 }
 
-/** Patch the chosen art (null = automatic, 0 = base) onto every cached view of a card. */
 export function applyDisplayArtOptimistic(
   qc: ReturnType<typeof useQueryClient>,
   cardId: string,

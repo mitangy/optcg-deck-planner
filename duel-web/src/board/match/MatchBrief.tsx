@@ -27,7 +27,6 @@ type BriefState =
 
 const STARTERS = ["What should I mulligan for?", "What are their key turns?", "How do I play around their best cards?"];
 
-/** Room ids whose brief has opened by itself, for browsers without sessionStorage. */
 const seenInMemory = new Set<string>();
 
 function readSeen(roomMatchId: string): boolean {
@@ -44,7 +43,7 @@ function writeSeen(roomMatchId: string): void {
   try {
     globalThis.sessionStorage?.setItem(briefSeenKey(roomMatchId), "1");
   } catch {
-    /* kept in memory only */
+    // Kept in memory only.
   }
 }
 
@@ -57,10 +56,6 @@ type PinnedProps = {
   onGet: () => void;
 };
 
-/**
- * The brief as it sits at the top of the Log Pose chat: a header row that folds the rest away, the text, and the
- * button that writes one. It never changes the board; it is part of the panel's own scroll.
- */
 function PinnedBrief({ you, opp, state, collapsed, onToggle, onGet }: PinnedProps) {
   const busy = state.kind === "peek" || state.kind === "streaming";
   return (
@@ -118,12 +113,6 @@ function PinnedBrief({ you, opp, state, collapsed, onToggle, onGet }: PinnedProp
   );
 }
 
-/**
- * The Log Pose matchup brief for a casual or practice game: a Brief button for the top bar (or the landscape
- * rail) and a dismissible card that never moves the board. Everything it is about comes from the game server's
- * signed ticket; the analyst checks it again, and a ranked game never gets one. Nothing renders (and no
- * request is made) unless `briefShown` says so.
- */
 export function useMatchBrief(o: {
   source: { brief: BriefTicketWire | null; ranked: boolean | null } | null | undefined;
   role: "player" | "spectator";
@@ -143,9 +132,7 @@ export function useMatchBrief(o: {
   ticketRef.current = brief?.ticket ?? null;
   const autoRef = useRef(settings.matchBriefAuto);
   autoRef.current = settings.matchBriefAuto;
-  /** The matchups already written automatically in this visit: a brief is written at most once per game by itself. */
   const written = useRef<Set<string>>(new Set());
-  // The ticket is new on every reconnect, but it is the same brief while the leaders and deck are.
   const contentKey = brief ? `${brief.leaderId}|${brief.opponentId}|${brief.deck.join(",")}` : "";
 
   const stream = useCallback(
@@ -204,7 +191,6 @@ export function useMatchBrief(o: {
     [session],
   );
 
-  // A free look for a saved brief; a new one is written only on the tap (or with the automatic setting on).
   useEffect(() => {
     if (!shown) return;
     setState({ kind: "peek" });
@@ -227,9 +213,7 @@ export function useMatchBrief(o: {
   const open = shown && panelOpen;
   const setOpen = useCallback((next: boolean) => (next ? openPanel() : closePanel()), [openPanel, closePanel]);
 
-  // Opens the Log Pose panel by itself once per room, during the mulligan, on a wide screen only (a phone's panel is
-  // a sheet over the Keep and Mulligan buttons, so there the Brief button just shows its dot). It folds away when
-  // the first turn starts, but only if it opened by itself and was left alone.
+  // On a phone the panel is a sheet over the Keep and Mulligan buttons, so there the Brief button just shows its dot.
   const auto = useRef({ opened: false, touched: false });
   useEffect(() => {
     if (!shown || o.layout !== "desktop" || !o.roomMatchId || o.phase !== "mulligan" || readSeen(o.roomMatchId)) return;
@@ -260,7 +244,6 @@ export function useMatchBrief(o: {
     }
   }, [o.phase, closePanel]);
 
-  // Log Pose may open over the board only while a brief is up.
   useEffect(() => {
     setBoardBrief(shown);
     return () => setBoardBrief(false);
@@ -284,7 +267,6 @@ export function useMatchBrief(o: {
   );
   useLogPosePage(shown && brief ? { page: "match-brief", label: `${you} vs ${opp}`, deck, scope: liveMatchScope(brief.ticket, you, opp), starters: STARTERS, pinned } : null);
 
-  // The button is the shared Log Pose one (LogPoseMatchButton); this says whether the brief is up and being written.
   if (!shown || !brief) return { shown: false, busy: false, open: false, setOpen };
   return { shown: true, busy: state.kind === "peek" || state.kind === "streaming", open, setOpen };
 }

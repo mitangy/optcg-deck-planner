@@ -16,7 +16,6 @@ const onHelp = vi.fn();
 
 beforeAll(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  // Compact layout (phone): the replay's More sheet exists only there.
   window.matchMedia = ((q: string) => ({
     matches: false,
     media: q,
@@ -45,7 +44,6 @@ afterEach(() => {
   onHelp.mockClear();
 });
 
-/** The board's own hotkeys plus a trigger that opens `children(close)`, wired like DuelBoard wires its modals. */
 function Board({ children, startOpen = false }: { children: (close: () => void) => ReactNode; startOpen?: boolean }) {
   const [open, setOpen] = useState(startOpen);
   useBoardHotkeys({

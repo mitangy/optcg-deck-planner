@@ -1,10 +1,3 @@
-/**
- * Write the current meta decks for the bot self-play recorder (#635).
- *
- *   npx tsx analyst/scripts/meta-decks.ts --api https://backend.example --out meta-decks.json [--leaders 16] [--days 30]
- *
- * The output is the --decks file packages/rules/src/sim/selfPlay.ts reads: [{ name, leaderId, deck: [50 ids] }].
- */
 import { writeFileSync } from "node:fs";
 import { fetchSelfPlayDecks } from "../src/metaDecks";
 

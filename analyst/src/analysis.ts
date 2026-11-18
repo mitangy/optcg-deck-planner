@@ -1,7 +1,3 @@
-/**
- * Deck analysis built on @optcg/deck-analytics, shaped for a model to read: card names next to
- * every number, percentages rounded, and the deck's legality problems first.
- */
 import {
   computeDeckHints,
   computeDeckStats,

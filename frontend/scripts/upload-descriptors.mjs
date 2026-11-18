@@ -21,7 +21,6 @@ import { join } from "node:path";
 import { put } from "@vercel/blob";
 import { descriptorChunkFiles } from "../src/scanner/match/descriptorCache.ts";
 
-/** Everything lives under one prefix so a stale bundle can be identified. */
 const PREFIX = "scan-data";
 
 /**
@@ -72,7 +71,6 @@ async function main() {
     const res = await put(`${PREFIX}/${file}`, body, {
       access: "public",
       contentType: "application/octet-stream",
-      // Content-addressed: same name always means same bytes.
       addRandomSuffix: false,
       allowOverwrite: true,
       cacheControlMaxAge: 31536000,
@@ -83,8 +81,6 @@ async function main() {
     if (uploaded % 10 === 0) console.log(`  ${uploaded}/${chunkFiles.length}`);
   }
 
-  // The card detector model (optional) is published like a chunk: the
-  // content-addressed .onnx first, then its pointer. See pack-detector.mjs.
   const pointerPath = join(dir, "card-detector.json");
   if (existsSync(pointerPath)) {
     const pointer = JSON.parse(readFileSync(pointerPath, "utf8"));
@@ -105,7 +101,6 @@ async function main() {
     console.log(`uploaded card detector ${pointer.file}`);
   }
 
-  // The art embedder bundle (optional): model + embeddings first, then the pointer.
   const embedderPointerPath = join(dir, "card-embedder.json");
   if (existsSync(embedderPointerPath)) {
     const p = JSON.parse(readFileSync(embedderPointerPath, "utf8"));

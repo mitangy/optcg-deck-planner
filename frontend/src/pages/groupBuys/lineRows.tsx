@@ -13,7 +13,6 @@ export function cardShellClass(
   return `${base}${excluded ? " excluded" : ""}${sole}`;
 }
 
-/** Earliest member (member-list order) who still wants copies of this card. */
 function primaryWantingMember(
   line: GroupBuyLine,
   members: GroupBuyMember[],

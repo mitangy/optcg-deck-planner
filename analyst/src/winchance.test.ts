@@ -7,7 +7,6 @@ const { winProbability } = await import("@optcg/rules");
 const { biggestSwings, narrateReplay, reviewMatch } = await import("./matches");
 const { finishedGame } = await import("./testFixtures");
 
-/** Seat 0's chance by turn: flat, then +28 at turn 3, -38 at turn 5, -16 at turn 7, +24 at turn 9. Seat 1 gets the rest. */
 const TABLE: Record<number, number> = { 1: 0.5, 2: 0.52, 3: 0.8, 4: 0.78, 5: 0.4, 6: 0.41, 7: 0.25, 8: 0.26, 9: 0.5 };
 const chance = (turn: number) => TABLE[turn] ?? 0.5;
 
@@ -41,7 +40,6 @@ describe("win chance in reviews (#635)", () => {
     expect(t3.next).toBe("Turning point: your estimated win chance rose from 52% to 80% (+28 points) over the previous turn.");
     const t5 = lineAfter(r.log, /^Estimated chance you win from here: 40%/);
     expect(t5.next).toBe("Turning point: your estimated win chance fell from 78% to 40% (-38 points) over the previous turn.");
-    // Turn 7 moved 16 points but is the fourth biggest; turn 2 moved 2 and is no swing at all.
     expect(lineAfter(r.log, /^Estimated chance you win from here: 25%/).next).not.toMatch(/^Turning point/);
     expect(lineAfter(r.log, /^Estimated chance you win from here: 52%/).next).not.toMatch(/^Turning point/);
   });

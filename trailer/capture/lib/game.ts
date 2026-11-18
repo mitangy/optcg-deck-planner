@@ -1,15 +1,12 @@
-/** Getting a vs-Bot match to a chosen moment without the camera rolling (the lobby clips show the lobby). */
 import type { Page } from "playwright";
 import { profileDecks } from "./data";
 import { sleep } from "./util";
 
-/** Lobby -> Play -> Play vs Bot -> Start game, then keep the opening hand. Uses plain clicks: nobody is watching. */
 export async function startBotGame(page: Page, opts: { level?: "Easy" | "Normal" | "Hard"; botDeck?: string } = {}): Promise<void> {
   await page.getByRole("button", { name: /^Play/ }).first().click();
   await page.getByRole("dialog").getByRole("button", { name: /^Play vs Bot/ }).click();
   if (opts.level) await page.getByRole("radio", { name: opts.level }).click();
   if (opts.botDeck) {
-    // The bot's deck is a Select: open it and pick the row named after the saved deck.
     const deck = profileDecks().find((d) => d.id === opts.botDeck);
     await page.getByLabel("Bot's deck").click();
     await page.getByRole("option", { name: `${deck?.name ?? opts.botDeck} —` }).click();
@@ -45,7 +42,6 @@ export async function endTurn(page: Page): Promise<void> {
   if (await again.isVisible().catch(() => false)) await again.click();
 }
 
-/** Change a duel setting from outside the UI (the same call the Settings screen makes), so a theme can flip on cue. */
 export async function applySettings(page: Page, patch: Record<string, unknown>): Promise<void> {
   await page.evaluate(async (p) => {
     const path = "/src/settings.ts";
@@ -54,7 +50,6 @@ export async function applySettings(page: Page, patch: Record<string, unknown>):
   }, patch);
 }
 
-/** Bot match with the seeded shuffle, played to the start of your second turn (3 DON!!, a full hand). */
 export async function toSecondTurn(page: Page, botDeck = "d-wano"): Promise<void> {
   await startBotGame(page, { botDeck });
   await page.getByRole("button", { name: "Keep opening hand" }).click();

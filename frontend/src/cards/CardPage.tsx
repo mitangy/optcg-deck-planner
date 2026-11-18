@@ -16,7 +16,6 @@ import { qk } from "../cache/queryKeys";
 const STALE_MS = 5 * 60_000;
 const FALLBACK_SOURCE_URL = "https://play.limitlesstcg.com/tournaments/completed?game=OP";
 
-/** The card's printed text, loaded on demand (its own chunk). Its box keeps one height class while loading. */
 function RulesText({ cardId }: { cardId: string }) {
   const { data: rules } = useQuery({
     queryKey: qk.cardRules(cardId),
@@ -280,12 +279,6 @@ function CardNotFound({ cardId, error }: { cardId: string; error: Error & { stat
   );
 }
 
-/**
- * `/cards/:cardId` (#953): one card's art, price history with the When to buy read, and tournament play.
- * `?art=<productId>` picks the printing (absent = base art); `?days=` the tournament window.
- * `renderActions` is given only to signed-in viewers: owned count, shopping list and price alert for the shown art.
- */
-/** The header art; tap it for the full-size card (no actions: this page already has them). */
 function HeadArt({ src, cardId, name, alt }: { src?: string | null; cardId: string; name: string; alt: string }) {
   const [open, setOpen] = useState(false);
   const art = useCardArt(src, cardId, "large");

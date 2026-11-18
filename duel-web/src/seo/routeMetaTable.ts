@@ -1,14 +1,11 @@
 import { matchPath } from "react-router-dom";
 
-/** Where the duel app is served; canonical and sitemap URLs are built from it. */
 export const SITE_ORIGIN = "https://optcgduel.app";
 
 export type RouteMetaEntry = {
-  /** A React Router path pattern. */
   pattern: string;
   title: string;
   description?: string;
-  /** Private or per-player pages: crawlable (so the tag is seen) but never listed. */
   noindex?: boolean;
 };
 
@@ -55,7 +52,6 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
       "The most played One Piece TCG leaders right now with their meta share, top 8 finishes and win rate. Open one for recent top decklists and play it free in this unofficial fan-made simulator.",
   },
   {
-    // Each page sets its own title and description from the leader's numbers (pages/LeaderPage.tsx).
     pattern: "/leaders/:slug",
     title: "Leader decklists – OPTCG Duel",
     description: "Recent top decklists for a One Piece TCG leader. Play the deck free in this unofficial fan-made simulator.",
@@ -98,16 +94,13 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
   { pattern: "/watch/:roomId", title: `Spectate – ${NAME}`, noindex: true },
 ];
 
-/** Unknown paths redirect home in the app and answer 404 on the server, so they must not be listed. */
 const FALLBACK: RouteMetaEntry = { pattern: "*", title: NAME, description: HOME_DESCRIPTION, noindex: true };
 
-/** The meta for a pathname. Pages without their own description get the home one, so a stale description never lingers. */
 export function routeMetaFor(pathname: string): RouteMetaEntry & { description: string } {
   const entry = ROUTE_META.find((e) => matchPath({ path: e.pattern, end: true }, pathname)) ?? FALLBACK;
   return { ...entry, description: entry.description ?? HOME_DESCRIPTION };
 }
 
-/** Pages with a fixed URL that belong in sitemap.xml. */
 export function sitemapPaths(): string[] {
   return ROUTE_META.filter((e) => !e.noindex && !e.pattern.includes(":")).map((e) => e.pattern);
 }

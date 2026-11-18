@@ -1,7 +1,3 @@
-/**
- * Every page's header (menu, back link, title) stays at the top of the window while the page
- * scrolls (#510). The FastAPI backend is faked as a signed-out guest.
- */
 import { test, expect, type Page } from "@playwright/test";
 import { FAKE_API, RED_VANILLA } from "./fixtures";
 
@@ -23,7 +19,6 @@ async function open(page: Page, path: string): Promise<void> {
   await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
 }
 
-/** The sticky bar around the menu button (the header, or just its nav row on phones), measured now. */
 const stuckBar = (page: Page) =>
   page.getByRole("button", { name: "Menu" }).evaluate((btn) => {
     for (let el = btn.parentElement; el; el = el!.parentElement) {
@@ -72,7 +67,6 @@ for (const path of ["/settings", "/whats-new", "/decks/e2e-you/configure"]) {
     const bar = (await stuckBar(page))!;
     expect(bar, "the header is sticky").not.toBeNull();
     expect(bar.top, "bar sits at the top of the window").toBeCloseTo(0, 0);
-    // The menu button is on screen, clear of the top edge, and still works.
     const now = (await button.boundingBox())!;
     expect(now.y).toBeGreaterThanOrEqual(0);
     expect(now.y).toBeLessThan(rest.y + 1);
@@ -81,12 +75,10 @@ for (const path of ["/settings", "/whats-new", "/decks/e2e-you/configure"]) {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("navigation", { name: "Site menu" })).toBeHidden();
 
-    // Edge to edge: the painted bar covers the whole window, and nothing scrolls sideways.
     expect(bar.paintLeft).toBeLessThanOrEqual(0.5);
     expect(bar.paintWidth).toBeGreaterThanOrEqual(bar.clientWidth);
     await noSidewaysScroll(page);
 
-    // Back at the top the header is where it always was.
     await scrollSettled(page, 0);
     expect(await button.boundingBox()).toEqual(rest);
   });

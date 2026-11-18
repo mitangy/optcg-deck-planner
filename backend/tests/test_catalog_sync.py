@@ -1,5 +1,3 @@
-"""sync_catalog's upsert behaviour: printing ids (and any phash) must survive
-across syncs unless the printing's row is genuinely absent upstream."""
 
 from __future__ import annotations
 
@@ -62,13 +60,12 @@ def test_second_sync_preserves_printing_id_and_phash(db, monkeypatch):
     db.commit()
     printing_id = row.id
 
-    # Re-run against identical upstream data (a second nightly sync).
     result2 = catalog_sync.sync_catalog(db)
     assert result2["printing_count"] == 1
 
     row2 = db.query(CatalogPrinting).filter_by(card_id="OP01-001", product_id=111).one()
-    assert row2.id == printing_id  # not a fresh row from delete-then-reinsert
-    assert row2.phash == "abcd1234abcd1234"  # untouched by the resync
+    assert row2.id == printing_id
+    assert row2.phash == "abcd1234abcd1234"
     assert row2.phash_source == row2.image_url
 
 
@@ -83,7 +80,6 @@ def test_price_update_does_not_reset_phash(db, monkeypatch):
     row.phash_source = row.image_url
     db.commit()
 
-    # Upstream price moved, but the image (and so the hash) is unchanged.
     _install_fake_tcgcsv(
         monkeypatch, groups, _group_urls(1, products, _prices())
     )
@@ -116,7 +112,6 @@ def test_printing_dropped_upstream_is_removed(db, monkeypatch):
     result = catalog_sync.sync_catalog(db)
     assert result["printing_count"] == 2
 
-    # TCGCSV stops listing product 222 on the next pull.
     products_after = {"results": [_luffy_product(product_id=111)]}
     _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, products_after, _prices()))
     result2 = catalog_sync.sync_catalog(db)
@@ -211,7 +206,6 @@ def test_failed_group_keeps_its_existing_printings_1218(db, monkeypatch):
     catalog_sync.sync_catalog(db)
     assert db.query(CatalogPrinting).count() == 2
 
-    # Second pull: TCGCSV errors on group 2 only.
     ok = catalog_sync._get_json
 
     def flaky(client, url):

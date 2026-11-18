@@ -1,5 +1,3 @@
-/* Match history list (HistoryPage) and the Log Pose link panel (SettingsPage). */
-
 .history-note {
   color: var(--muted);
 }
@@ -39,7 +37,6 @@
   border-left-style: dashed;
 }
 
-/* "Cut off" wraps onto two short lines so it fits the WON / LOST column. */
 .history-row[data-outcome="unfinished"] .history-outcome {
   line-height: 1.15;
   color: var(--muted, var(--chrome-bright));
@@ -53,7 +50,6 @@
   color: var(--chrome-bright);
 }
 
-/* Leader art, 5:7 like the card. */
 .history-leader-art {
   width: 2.6rem;
   aspect-ratio: 5 / 7;
@@ -69,7 +65,6 @@
   box-shadow: none;
 }
 
-/* Record and Bounty above the list. */
 .history-summary {
   display: flex;
   gap: 2rem;
@@ -99,7 +94,6 @@
   min-width: 0;
 }
 
-/* Wrap instead of clipping: both leader names matter on a phone. */
 .history-leaders,
 .history-meta {
   margin: 0;
@@ -158,7 +152,6 @@
   min-width: 5.5rem;
 }
 
-/* Keep each leader name on one line; the pair wraps between names. */
 .history-leaders > span:not(.history-vs):not(.history-chat) {
   display: inline-block;
   max-width: 100%;
@@ -168,7 +161,6 @@
   vertical-align: bottom;
 }
 
-/* The Log Pose compass after the leaders: fixed size, so rows with and without a chat line up. */
 .history-chat {
   display: inline-block;
   width: 0.95rem;
@@ -195,7 +187,6 @@
   color: var(--chrome);
 }
 
-/* Log Pose lessons review list (Settings). */
 .analyst-subtitle {
   margin: 1rem 0 0.5rem;
   font-size: 0.95rem;
@@ -285,7 +276,6 @@
   min-width: 5.5rem;
 }
 
-/* Each history row opens that game's log (MatchLogPage). */
 .history-list > li {
   min-width: 0;
 }
@@ -315,9 +305,6 @@
   box-shadow: var(--focus);
 }
 
-/* —— Match log page —— */
-/* One column of cards at 600px on phones and tablets; from 1000px the page
-   widens and the turns pair up two to a row (odd turns left, even right). */
 .match-log-page {
   max-width: 600px;
 }
@@ -379,8 +366,6 @@
   font-size: 0.88rem;
 }
 
-/* Turn jump strip: stays in reach while you scroll. Chips are a fixed size so
-   nothing shifts; on phones it is one row that scrolls sideways inside itself. */
 .match-log-jump {
   position: sticky;
   top: var(--sticky-head-h, 0px);
@@ -447,12 +432,10 @@
     gap: var(--space-3);
   }
 
-  /* A lone hand takes the whole row. */
   .match-log-openings > :only-child {
     grid-column: 1 / -1;
   }
 
-  /* A turn: title across the top, plays on the left, hands on the right. */
   .match-log-turn-body[data-hands] {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 0.55fr);
@@ -476,7 +459,6 @@
   }
 
   .match-log-jump {
-    /* Wrapping rows would otherwise cover a lot of a short window. */
     max-height: 6.5rem;
     overflow-y: auto;
   }
@@ -494,8 +476,6 @@
   color: var(--chrome-bright);
 }
 
-/* Hand at the start of a turn: secondary to the event lines below it.
-   A two-column grid keeps both hands' cards starting at the same x. */
 .match-log-turn-hand {
   display: grid;
   grid-template-columns: max-content minmax(0, 1fr);
@@ -513,7 +493,6 @@
   display: contents;
 }
 
-/* Lines with no cards (an empty hand, the opponent's count) span both columns. */
 .match-log-turn-hand > span {
   grid-column: 1 / -1;
 }
@@ -529,7 +508,6 @@
   overflow-wrap: anywhere;
 }
 
-/* Phones: label above its cards. */
 @media (max-width: 520px) {
   .match-log-turn-hand {
     grid-template-columns: minmax(0, 1fr);
@@ -540,7 +518,6 @@
   opacity: 0.85;
 }
 
-/* Bigger than the in-game sidebar: this is a page you read. */
 .match-log-lines {
   font-size: 0.86rem;
   line-height: 1.45;
@@ -559,7 +536,6 @@
   font-size: 0.8rem;
 }
 
-/* Phones: a slimmer art column and tighter gaps so the names keep their room. */
 @media (max-width: 480px) {
   .history-row-link {
     grid-template-columns: 2.6rem 2rem minmax(0, 1fr) auto auto;
@@ -572,7 +548,6 @@
   }
 }
 
-/* —— Watch replay (#476) —— */
 .history-item {
   display: flex;
   align-items: stretch;
@@ -617,7 +592,6 @@
 }
 
 @media (max-width: 480px) {
-  /* The button shrinks to a 44px play icon; rows without one keep the same gap. */
   .history-replay-btn,
   .history-replay-slot {
     width: 44px;
@@ -634,7 +608,6 @@
   margin: 0.4rem 0 0;
 }
 
-/* Import OPTCGSim games (Settings > Log Pose). Rows keep their height whether or not a log is pasted. */
 .sim-import {
   min-width: 0;
 }
@@ -692,7 +665,6 @@
   min-height: 1.4em;
 }
 
-/* Room for two lines, so a message that wraps on a phone does not push what is below it. */
 .sim-import-status {
   min-height: 2.8em;
 }

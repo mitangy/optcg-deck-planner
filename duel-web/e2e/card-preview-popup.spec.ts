@@ -1,15 +1,6 @@
-/**
- * The card preview as a draggable pop-up (#529): hovering a card opens a large
- * floating box that shows while you hover a card (or pin it open), that you can
- * drag anywhere and put back with a double-click; hovering a face-up Life card shows it directly; and Bigger
- * playing area's side columns can be dragged to their own widths.
- *
- * SHOTS=1 also saves screenshots to /mnt/project-files/card-preview-popup/.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
-// This spec is about the new defaults (pop-up on, one column), so it skips the legacy two-column seeding.
 test.use({ legacyLayout: false });
 
 const POPUP = ".card-preview-popup";
@@ -21,7 +12,6 @@ const desktopOnly = () => test.skip(test.info().project.name !== "desktop-1280",
 async function openDemo(page: Page, settings: Record<string, unknown> = {}, query = "") {
   if (Object.keys(settings).length) {
     await page.addInitScript((s) => {
-      // Only the first load: a reload must keep what the page saved itself.
       if (!sessionStorage.getItem("seeded")) {
         localStorage.setItem("optcg-duel:settings", JSON.stringify(s));
         sessionStorage.setItem("seeded", "1");
@@ -45,10 +35,6 @@ async function dragHead(page: Page, dx: number, dy: number) {
   await page.mouse.up();
 }
 
-/**
- * Dragged past an edge, the pop-up stops 8px short, so the pointer is let go off it and it hides
- * like any hover pop-up; hovering the card brings it back where it was left.
- */
 async function dragHeadPastEdge(page: Page, dx: number, dy: number) {
   await dragHead(page, dx, dy);
   await expect(page.locator(POPUP)).toHaveCount(0);
@@ -67,7 +53,6 @@ test("hovering a card opens a large pop-up, and the side column no longer holds 
   expect(box.height).toBeGreaterThan(300);
   await expect(page.locator(`${POPUP} .card-preview-popup-title`)).not.toBeEmpty();
   await expect(page.locator('[data-panel="preview"]')).toHaveCount(0);
-  // Up in the top right of the board, inside the window and not over the right column.
   const rail = (await page.locator(".arena-rail").boundingBox())!;
   expect(box.x + box.width).toBeLessThanOrEqual(rail.x);
   expect(box.y).toBeGreaterThanOrEqual(8);
@@ -83,7 +68,6 @@ test("the pop-up drags by its header, stays on screen, and is where it was left 
   expect(after.x).toBeCloseTo(before.x - 300, 0);
   expect(after.y).toBeCloseTo(before.y - 50, 0);
 
-  // Dragged off every edge, it stops 8px short of each (and, let go off it, hides until a card is hovered again).
   await dragHeadPastEdge(page, -3000, -3000);
   const corner = (await page.locator(POPUP).boundingBox())!;
   expect(corner.x).toBeCloseTo(8, 0);
@@ -124,7 +108,6 @@ const pin = (page: Page) => page.getByRole("button", { name: "Pin card preview" 
 test("a demo that opens with an opponent's play showing has no pop-up until a card is hovered (#529)", async ({ page }) => {
   desktopOnly();
   await openDemo(page);
-  // The opponent's latest play is previewed automatically (the docked panel would show it); the pop-up does not open for it.
   await page.waitForTimeout(600);
   await expect(page.locator(POPUP)).toHaveCount(0);
   await hoverLeader(page);
@@ -138,7 +121,6 @@ test("the pop-up hides shortly after the pointer leaves the card (#529)", async 
   await expect(page.locator(POPUP)).toBeVisible();
   await page.mouse.move(EMPTY_BOARD.x, EMPTY_BOARD.y, { steps: 4 });
   await expect(page.locator(POPUP)).toHaveCount(0);
-  // The same card hovered again reopens it.
   await hoverLeader(page);
   await expect(page.locator(POPUP)).toBeVisible();
 });
@@ -165,14 +147,12 @@ test("a pinned pop-up stays open when the pointer leaves, and unpinning or the x
   await page.mouse.move(EMPTY_BOARD.x, EMPTY_BOARD.y, { steps: 6 });
   await page.waitForTimeout(700);
   await expect(page.locator(POPUP)).toBeVisible();
-  // Still there after a reload (a device setting), showing the card once there is one.
   await page.reload();
   await page.locator(".board-root").waitFor();
   await hoverLeader(page);
   await page.mouse.move(EMPTY_BOARD.x, EMPTY_BOARD.y, { steps: 6 });
   await page.waitForTimeout(700);
   await expect(page.locator(POPUP)).toBeVisible();
-  // The x unpins and hides it; the next hover shows the plain hover pop-up again.
   await page.getByRole("button", { name: "Close card preview" }).click();
   await expect(page.locator(POPUP)).toHaveCount(0);
   await hoverLeader(page);
@@ -201,7 +181,6 @@ test("hovering a face-up Life card shows it in the pop-up without opening the Li
   await page.locator(".side-you .zone-pile-life .zone-pile-face.is-face-up").hover();
   await expect(title).not.toHaveText(leaderName!);
   await expect(page.getByRole("dialog", { name: /face-up Life/i })).toHaveCount(0);
-  // The pile still opens its list on click.
   await page.locator(".side-you .zone-pile-life .zone-pile-face.is-face-up").click();
   await expect(page.getByText("Your face-up Life")).toBeVisible();
 });
@@ -233,7 +212,6 @@ test("a column dragged in Bigger playing area keeps its own width, apart from th
   await page.waitForTimeout(300);
   expect(await rail()).toBe(wider);
 
-  // Normal layout is untouched by what was dragged in the big one.
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("optcg-duel:settings")!));
   expect(saved.panelSizesBig).toMatch(/R=\d+/);
   expect(saved.panelSizes ?? "").toBe("");
@@ -297,7 +275,6 @@ test("the hover pop-up is on top of the play area, not behind a search pop-up's 
   const hits = await page.evaluate((sel) => {
     const r = document.querySelector(sel)!.getBoundingClientRect();
     const out: boolean[] = [];
-    // A grid inside the box, inset from its rounded corners.
     for (let i = 1; i <= 6; i++) {
       for (let j = 1; j <= 6; j++) {
         const el = document.elementFromPoint(r.left + (r.width * i) / 7, r.top + (r.height * j) / 7);

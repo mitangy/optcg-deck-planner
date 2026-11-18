@@ -1,5 +1,3 @@
-/* —— Your voyage, Top bounties, how it works —— */
-
 .voyage,
 .bounties {
   display: flex;
@@ -53,7 +51,6 @@
   color: var(--muted);
 }
 
-/* Three rows tall whether they are loading, loaded or empty, so the column below never moves. */
 .voyage-games {
   min-height: calc(3 * 44px);
 }
@@ -255,7 +252,6 @@
   text-decoration: none;
 }
 
-/* The lobby's three icons carry a one-word label so they are not guesswork. */
 .topbar-right .icon-btn:has(.icon-btn-label) {
   display: inline-flex;
   flex-direction: column;
@@ -274,7 +270,6 @@
   color: var(--muted);
 }
 
-/* No room for the wordmark next to the account chip and three labelled icons. */
 @media (max-width: 479px) {
   .brand-word {
     display: none;
@@ -285,13 +280,11 @@
     height: 30px;
   }
 
-  /* The logo moves into the home hero, next to the title. */
   .topbar-mark {
     display: none;
   }
 }
 
-/* Long deck names end in an ellipsis instead of being cut mid-letter. */
 .deck-picker .ui-select-button,
 .deck-config-switcher .ui-select-button,
 .field .ui-select-button,
@@ -302,13 +295,6 @@
   overflow: hidden;
 }
 
-/*
- * Token bridge for the shared packages: --ui-* is the one set this app maps (the :root block
- * below, following crew themes and light mode); the site-legal (--fb-*) and patch-notes (--wn-*)
- * families alias it, and so does the Log Pose chat (--lp-*, logPose.css) wherever the values match.
- */
-
-/* Shared feedback dialog (packages/site-legal). */
 .feedback-backdrop {
   --fb-bg: var(--ui-panel-bg);
   --fb-ink: var(--ui-ink);
@@ -320,7 +306,6 @@
   font-family: var(--font-body);
 }
 
-/* Shared pop-ups (packages/ui, Headless UI): map its tokens to the arena palette (follows crew themes and light mode). */
 :root {
   --ui-backdrop: rgb(var(--abyss-rgb) / 0.72);
   --ui-panel-bg: var(--arena-panel);
@@ -343,7 +328,6 @@
   --ui-font-display: var(--font-display);
 }
 
-/* What's new card (packages/patch-notes), through the --ui-* set. */
 .wn-card {
   --wn-bg: var(--ui-panel-bg);
   --wn-ink: var(--ui-ink);

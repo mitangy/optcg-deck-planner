@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 import { nextTabTarget, takesTab, type TabContext } from "./boardFocus";
 
 describe("nextTabTarget", () => {
-  // Page order: Concede, opp card, your card, End turn, hand card, settings.
   const page = ["concede", "opp1", "you1", "endTurn", "hand1", "settings"];
-  // Board order: field cards, then the hand.
   const ring = ["you1", "opp1", "hand1"];
   const next = (active: string | null, back = false) => nextTabTarget(page, ring, active, back);
 
@@ -15,7 +13,6 @@ describe("nextTabTarget", () => {
   });
 
   it("leaves the cards after the last one, and Shift+Tab before the first goes back out (#262)", () => {
-    // The cards are one stop, where the first card ("you1") sits in the page.
     expect(next("hand1")).toBe("endTurn");
     expect(next("you1", true)).toBe("concede");
   });

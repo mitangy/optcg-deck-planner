@@ -1,6 +1,5 @@
 import { DISCORD_INVITE_URL } from "@optcg/site-legal";
 
-/** The Discord invite icon link in the top bar. */
 export function DiscordLink() {
   return (
     <a

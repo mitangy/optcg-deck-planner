@@ -1,10 +1,6 @@
 import { useLogPose } from "@optcg/analyst-client";
 import { updateSettings, useDuelSettings } from "../settings";
 
-/**
- * The Log Pose matchup brief settings: shown only to players who have Log Pose, and synced to the account
- * like every other setting.
- */
 export function MatchBriefSettings() {
   const { enabled } = useLogPose();
   const settings = useDuelSettings();

@@ -5,15 +5,12 @@
  */
 import type { CardScenario, EvalCase } from "./types";
 
-// ——— decks (OPTCGSim text, as a player would paste them) ———
-
 const x = (n: number, id: string) => `${n}x${id}`;
 const fours = (prefix: string, nums: string[]) => nums.map((n) => x(4, `${prefix}-${n}`));
 const lines = (...parts: (string | string[])[]) => parts.flat().join("\n");
 
 const OP01_FOURS = fours("OP01", ["004", "005", "006", "007", "008", "009", "010", "011", "012", "013", "014", "015"]);
 
-/** OP01-001 Roronoa Zoro (red) with 50 red OP01 cards: 12 at 4 copies and 2 Nami. 16 cards with +2000 counter. */
 export const ZORO = lines(x(1, "OP01-001"), OP01_FOURS, x(2, "OP01-016"));
 export const ZORO_5X = lines(x(1, "OP01-001"), x(5, "OP01-004"), OP01_FOURS.slice(1), x(1, "OP01-016"));
 export const ZORO_49 = lines(x(1, "OP01-001"), OP01_FOURS, x(1, "OP01-016"));
@@ -31,14 +28,12 @@ export const LUFFY_PAIR = lines(
   x(2, "OP11-072"),
 );
 
-// ——— engine scenario rows for group B (copied from packages/rules/src/__tests__/scenarios) ———
-
-const KAROO = "ST01-003"; // vanilla 1-cost 3000, red
-const VIVI = "ST01-009"; // vanilla 2-cost 4000, red
-const ROBIN = "ST01-008"; // vanilla 3-cost 5000
-const BIG = "EB02-001"; // vanilla 5-cost 7000
-const CHOPPER = "ST01-006"; // 1-cost 1000 [Blocker]
-const SANJI = "OP04-104"; // 5000-power [Blocker]
+const KAROO = "ST01-003";
+const VIVI = "ST01-009";
+const ROBIN = "ST01-008";
+const BIG = "EB02-001";
+const CHOPPER = "ST01-006";
+const SANJI = "OP04-104";
 
 const mine = (card: string) => ({ seat: 0 as const, card });
 const theirs = (card: string) => ({ seat: 1 as const, card });
@@ -148,7 +143,6 @@ export const CASES: EvalCase[] = [
   { id: "A14", group: "A", question: "My opponent is at 1 Life and my attacker has [Double Attack]. If it connects, do I win right there?", faq: { general: "c53ae4f4" }, verdict: "no", cites: faq() },
   { id: "A15", group: "A", question: "Is there an official ruling on Sanji (OP01-013): can I use his Activate: Main with 0 Life cards to get +2000?", faq: { noRuling: "OP01-013" }, verdict: "no_ruling", cites: { all: [["card:OP01-013"]], none: ["ruling:OP01-013#<n>"] } },
 
-  // ——— B: interactions the engine verifies ———
   { id: "B01", group: "B", question: "Kaido leader (OP01-061) with 1 DON!! given. On my turn I K.O. two of my opponent's Characters in battle. How many DON!! does Kaido add?", scenario: KAIDO_ONCE, number: 1, cites: card("OP01-061") },
   { id: "B02", group: "B", question: "I'm on King (OP01-091) with 9 DON!! on my field. What's the power of my opponent's Karoo (ST01-003) on my turn?", scenario: KING_NINE, number: 3000, cites: card("OP01-091") },
   { id: "B03", group: "B", question: "Smiley (OP01-072) has 1 DON!! given and I hold 3 cards. What's its power on my turn?", scenario: SMILEY_THREE, number: 5000, cites: card("OP01-072") },
@@ -162,7 +156,6 @@ export const CASES: EvalCase[] = [
   { id: "B11", group: "B", question: "I'm on Teach (OP09-081). My Doc Q (OP16-109) is K.O.'d in battle. What do I get?", scenario: DOCQ_BLACKBEARD, number: 2, mustSay: [{ re: "draw(s|ing)?\\s+(1|one|a)\\b", example: "You draw 1 card." }], cites: card("OP16-109") },
   { id: "B12", group: "B", question: "Caribou (OP01-007) is K.O.'d in battle. Can his On K.O. take out my opponent's Karoo (ST01-003, 3000 power)?", scenario: CARIBOU_KOS, verdict: "yes", cites: card("OP01-007") },
 
-  // ——— C: deck legality and odds with exact answers ———
   { id: "C01", group: "C", question: "Is this deck legal?", deck: ZORO, tool: "analyze_deck", args: { text: ZORO }, expect: { kind: "legality", legal: true }, cites: deck },
   { id: "C02", group: "C", question: "Is this deck legal?", deck: ZORO_5X, tool: "analyze_deck", args: { text: ZORO_5X }, expect: { kind: "legality", legal: false, hint: "copies", offending: ["OP01-004"] }, cites: deck },
   { id: "C03", group: "C", question: "Is this list ready for a tournament?", deck: ZORO_49, tool: "analyze_deck", args: { text: ZORO_49 }, expect: { kind: "legality", legal: false, hint: "count", mention: 49 }, cites: deck },
@@ -177,7 +170,6 @@ export const CASES: EvalCase[] = [
   { id: "C12", group: "C", question: "Same 50 cards and 8 searchers, going second, but I mulligan any opening hand without one. Chance to see one by my turn 3?", tool: "draw_odds", args: { deckSize: 50, hits: 8, goingFirst: false, mulligan: true, turns: 3 }, expect: { kind: "odds", turn: 3, percent: 91.2 }, cites: { all: [["odds:d50h8x1sm"]] } },
   { id: "C15", group: "C", question: "How many +2000 counters does this deck run, and what are the odds I hold at least 2 by my turn 3 going second?", deck: ZORO, tool: "draw_odds", args: { text: ZORO, kind: "counter2000", atLeast: 2, goingFirst: false, turns: 3 }, expect: { kind: "odds", turn: 3, percent: 80.6, hits: 16 }, cites: { all: [["{deck}"], ["odds:d50h16x2s"]] } },
 
-  // ——— D: matchup and build questions, judged and graded by Miko ———
   { id: "D01", group: "D", question: "I'm on Sabo (OP13-004) into Enel (OP15-058). Who's favoured, what decides it, and should I go first?", focus: ["Flags the playbook note as a draft.", "Quotes the number of games and the interval.", "Says the win rates come from optcgduel.app games, not tournaments.", "Names Enel's 6-card DON!! deck and at least 2 cards."], cites: { all: [["playbook:OP13-004~OP15-058"], ["stats:OP13-004~OP15-058"]] } },
   { id: "D02", group: "D", question: "Give me a mulligan guide for Nico Robin (OP09-062) going second.", focus: ["Gives keep or ship rules that name cards.", "Flags the playbook note as a draft."], cites: { all: [["playbook:OP09-062"]] } },
   { id: "D03", group: "D", question: "Give me 4 changes (+N/-N) to strengthen the early game.", deck: ZORO, checks: ["edits_legal"], focus: ["Lists the changes as +N/-N lines with card numbers.", "Offers export_deck.", "Cites the deck check."], cites: deck },
@@ -189,12 +181,10 @@ export const CASES: EvalCase[] = [
   { id: "D09", group: "D", question: "Add 4 more events for removal.", deck: IMU_OK, checks: ["edits_legal"], focus: ["Says only cost-1 events fit this leader, or picks legal ones.", "Lists the changes as +N/-N lines."], cites: deck },
   { id: "D10", group: "D", question: "What's Ace's (OP16-001) win rate against Kaido (OP17-058)?", checks: ["no_invented_rate"], focus: ["Says there are too few games (3).", "Gives any judgement clearly labeled.", "Invents no number."], cites: { all: [["stats:OP16-001~OP17-058"]] } },
 
-  // ——— E: gated on tools the chat may not offer (not counted in the 50) ———
   { id: "E01", group: "E", question: "How does Sabo (OP13-004) do in recent tournaments, and how does that compare with ladder games?", requiresTools: ["tournament_stats"], focus: ["Keeps tournament results and optcgduel.app games separate.", "Quotes the sample sizes."], cites: { all: [["tourney:OP13-004"], ["stats:OP13-004"]] } },
   { id: "E02", group: "E", question: "How often does this deck have a 2-3-4 curve by turn 4 going first?", deck: ZORO, requiresTools: ["simulate"], focus: ["Says it is a simulation.", "Gives the sample size."], cites: { all: [["sim:*"]] } },
 ];
 
-/** The text sent as the player's message: the question, then the pasted deck list when the case has one. */
 export function messageOf(c: EvalCase): string {
   return c.deck ? `${c.question}\n\n${c.deck}` : c.question;
 }

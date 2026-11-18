@@ -9,11 +9,8 @@ describe("moving around a replay", () => {
   it("step back past a checkpoint lands on the previous step (#476)", () => {
     const cursor = createReplayCursor(timeline);
     for (let s = 0; s <= 10; s++) cursor.stateAt(s);
-    // Back across the checkpoint at step 8 and the one at 4: each step is that step's own state, not a neighbour's.
     for (let s = 10; s >= 0; s--) expect(cursor.stateAt(s)).toEqual(timelineStateAt(timeline, s));
-    // And a jump forward from there still lands exactly.
     expect(cursor.stateAt(37)).toEqual(timelineStateAt(timeline, 37));
-    // A step not seen yet, with a later one remembered: it is built from an earlier state, never the later one.
     expect(cursor.stateAt(30)).toEqual(timelineStateAt(timeline, 30));
     expect(cursor.stateAt(21)).toEqual(timelineStateAt(timeline, 21));
   });

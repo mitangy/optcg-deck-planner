@@ -1,5 +1,3 @@
-/* /leaders and /leaders/:slug (#914). Colours come from the theme variables, so crew themes and light mode follow. */
-
 .leader-page,
 .leaders-index {
   max-width: 960px;
@@ -23,7 +21,6 @@
   background: var(--arena-mid);
 }
 
-/* The fallback text box keeps the art's footprint when the picture cannot load. */
 .leader-hero-art.meta-art-fallback {
   font-size: 1rem;
 }
@@ -131,7 +128,6 @@
   line-height: 1.55;
 }
 
-/* Each list opens in place: the summary row is the same height open or closed, so nothing around it moves. */
 .leader-deck-summary {
   min-height: 44px;
   display: flex;
@@ -161,7 +157,6 @@
   margin: 0.5rem 0 0;
 }
 
-/* /leaders */
 .leaders-grid {
   list-style: none;
   margin: 0;

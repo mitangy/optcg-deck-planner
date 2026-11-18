@@ -1,8 +1,3 @@
-/**
- * Finding a match opens the board straight away: the ranked queue (and the
- * token mint before it) runs behind an empty playmat instead of a Connecting…
- * button. Nobody else queues here, so the search never ends on its own.
- */
 import { test, expect, RED_VANILLA, FAKE_API, type Page } from "./fixtures";
 
 async function openRanked(page: Page) {
@@ -24,7 +19,6 @@ test("Find match opens the board while the queue searches", async ({ page, duel:
   await expect(page).toHaveURL(/\/duel$/);
   const board = page.locator(".board-root.arena-pending");
   await expect(board.getByRole("status")).toContainText("Searching for an opponent");
-  // Your deck's Leader is already on the mat.
   await expect(board.locator(".side-you .zone-leader .card-tile")).toBeVisible();
 
   await board.getByRole("button", { name: "Cancel" }).click();
@@ -33,7 +27,6 @@ test("Find match opens the board while the queue searches", async ({ page, duel:
 });
 
 test("a failed match request returns to the lobby and says why", async ({ page, duel: _duel }) => {
-  // Registered after the fixture's fake API, so this route wins for the token mint.
   await page.route(`${FAKE_API}/duel/guest-token`, (route) =>
     route.fulfill({ status: 503, json: { detail: "Token service down" } }),
   );
@@ -49,7 +42,6 @@ test("after Ranked once, one tap on Play searches for an opponent (#431)", async
   await board.getByRole("button", { name: "Cancel" }).click();
   await expect(page).toHaveURL(/\/$/);
 
-  // Back in the lobby Play names the mode, and no sheet opens.
   const play = page.getByRole("button", { name: "Play", exact: true });
   await expect(play).toHaveAccessibleDescription(/^Ranked/);
   await play.click();

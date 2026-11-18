@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Run before studio/render. Copies ../clips/*.mp4 into public/clips (gitignored),
-// probes real clip durations, and records whether public/music.mp3 exists.
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';

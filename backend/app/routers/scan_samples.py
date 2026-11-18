@@ -1,12 +1,3 @@
-"""Scanner training samples (#852).
-
-When a user confirms cards in the photo scanner we keep a small crop of each
-card (a 200x280 JPEG, never the full photo) with its final label, so the
-scanner can be retrained weekly. Sharing is on by default (``User.share_scans``).
-
-Turning ``share_scans`` off stops new uploads (POST answers 403) but does NOT
-delete rows already stored; ``DELETE /scan-samples/mine`` does that.
-"""
 
 from __future__ import annotations
 

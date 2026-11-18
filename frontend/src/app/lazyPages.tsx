@@ -8,13 +8,6 @@ import {
   ShoppingListSkeleton,
 } from "../ui/Skeleton";
 
-/**
- * Route pages whose code lives in its own module, loaded on first visit instead of
- * with the entry bundle. Each fallback is the skeleton the page itself shows while its
- * data loads, so the hand-off from "code loading" to "data loading" does not move anything.
- * Pages that are pre-rendered or shown to signed-out visitors on first paint (landing,
- * legal, /meta, /cards/:id, login, public share links) stay eager.
- */
 const ShoppingPageImpl = lazy(() => import("../pages/shopping/ShoppingPage").then((m) => ({ default: m.ShoppingPage })));
 const DecksPageImpl = lazy(() => import("../pages/decks/DecksPage").then((m) => ({ default: m.DecksPage })));
 const DeckDetailPageImpl = lazy(() => import("../pages/decks/DeckDetailPage").then((m) => ({ default: m.DeckDetailPage })));
@@ -135,10 +128,6 @@ export function FriendDeckPage() {
   );
 }
 
-/**
- * The card scanner dialog and everything behind it (OpenCV, the ONNX models, the camera UI). It opens
- * as a fixed overlay, so there is nothing to reserve space for while its code downloads.
- */
 export function CardScanner(props: ComponentProps<typeof CardScannerImpl>) {
   return (
     <Suspense fallback={null}>
@@ -147,7 +136,6 @@ export function CardScanner(props: ComponentProps<typeof CardScannerImpl>) {
   );
 }
 
-/** Dev-only tool; `lazy` keeps it out of the production entry bundle for certain. */
 export function ScanValidatePage() {
   return (
     <Suspense fallback={null}>

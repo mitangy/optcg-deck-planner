@@ -6,12 +6,6 @@ import { clampSheet, clampSize, dragRect, dragSheet, keyRect, maxSize, MIN_H, MI
 
 const viewportSize = (): Size => ({ w: window.innerWidth, h: window.innerHeight });
 
-/**
- * The desktop panel's remembered size and position, kept inside the window as the window changes. Size is null
- * while it has its default (full-height drawer) size; position is null while it sits in the bottom-right corner.
- * `vp` is the room the size may grow into (the window less the gap to the right and bottom edges), which is what
- * the resize handles clamp against; `viewport` is the whole window.
- */
 export function useDrawerSize() {
   const [stored, setStored] = useState<Size | null>(() => readSize());
   const [storedPos, setStoredPos] = useState<Pos | null>(() => readPos());
@@ -64,7 +58,6 @@ const LABELS: Record<Edge, string> = {
 
 function Handle({ edge, drawer, panelRef }: { edge: Edge; drawer: DrawerSize; panelRef: RefObject<HTMLDivElement | null> }) {
   const drag = useRef<{ x: number; y: number; start: Frame } | null>(null);
-  // The window now: the remembered size and place, or (for the default drawer) what is on screen.
   const current = (): Frame => {
     const r = panelRef.current?.getBoundingClientRect();
     const { viewport } = drawer;
@@ -137,7 +130,6 @@ function Handle({ edge, drawer, panelRef }: { edge: Edge; drawer: DrawerSize; pa
 
 const EDGES: Edge[] = ["top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"];
 
-/** Drag handles on all four edges and all four corners of the floating window. */
 export function ResizeHandles({ drawer, panelRef }: { drawer: DrawerSize; panelRef: RefObject<HTMLDivElement | null> }) {
   return (
     <>
@@ -150,7 +142,6 @@ export function ResizeHandles({ drawer, panelRef }: { drawer: DrawerSize; panelR
 
 const screenHeight = () => window.visualViewport?.height ?? window.innerHeight;
 
-/** The phone sheet's height as a share of the screen, set as --lp-sheet-h on the panel while a phone sheet is showing. */
 export function useSheetHeight(panelRef: RefObject<HTMLDivElement | null>, phone: boolean) {
   const [frac, setFrac] = useState(() => readSheet());
   useEffect(() => {
@@ -170,7 +161,6 @@ export function useSheetHeight(panelRef: RefObject<HTMLDivElement | null>, phone
   return { frac, setFrac };
 }
 
-/** The sheet's grab handle: drag it up or down, or use the arrow keys. */
 export function SheetGrip({ frac, setFrac }: ReturnType<typeof useSheetHeight>) {
   const drag = useRef<{ y: number; frac: number } | null>(null);
   const live = useRef(frac);
@@ -218,7 +208,6 @@ export function SheetGrip({ frac, setFrac }: ReturnType<typeof useSheetHeight>) 
   );
 }
 
-/** The game board's side columns, measured now (their screen rects); null for a side that has none. */
 function boardColumns(): { left: DOMRect | null; right: DOMRect | null } {
   const out: { left: DOMRect | null; right: DOMRect | null } = { left: null, right: null };
   for (const col of document.querySelectorAll<HTMLElement>("[data-panel-col]")) {
@@ -228,34 +217,18 @@ function boardColumns(): { left: DOMRect | null; right: DOMRect | null } {
   return out;
 }
 
-/** What the header drag needs to know about docking (provided by the Log Pose provider). */
 export type DockControl = {
-  /** Docked now (to the screen edge, or into a board column); null while it floats. */
   dock: Dock;
-  /** Docking is possible here: a desktop page, or a board that has side columns. */
   enabled: boolean;
-  /** On a game board: docking targets the board's columns, and the width is the column's. */
   inGame: boolean;
-  /** On a game board, the sides that have a column shown; a drag or key never docks to the others. */
   sides?: DockSides;
   width: number;
   setDock: (dock: Dock) => void;
 };
 
-/** The translucent area shown while a drag would dock: the column it lands in, or the strip at the screen edge. */
 export type DockPreview = { side: DockSide; rect: Rect };
 
-/**
- * Moving the desktop panel: drag its header (anywhere that isn't a button) or use the arrow keys on the move grip;
- * double-click the header to put it back in the corner. The first move gives the default drawer an explicit size,
- * since a window that moves can't also be as tall as the screen.
- *
- * Docking: dragging a floating window until the pointer is at the left or right screen edge (or over a board
- * column) shows a preview and docks it on release; dragging a docked panel's header far enough lets it go and it
- * keeps moving under the pointer. On the grip an arrow key toward an edge the window touches docks it, and an
- * arrow away from the edge undocks a docked panel. A drag listens on the window, because docking moves the panel
- * to a new place in the page and the header it started on goes away.
- */
+// A drag listens on the window, because docking moves the panel to a new place in the page and the header it started on goes away.
 export function useHeaderMove(
   drawer: DrawerSize,
   panelRef: RefObject<HTMLDivElement | null>,
@@ -295,7 +268,6 @@ export function useHeaderMove(
     const dy = e.clientY - d.y;
     if (d.docked) {
       if (!pulledLoose(dx, dy)) return;
-      // Comes loose: the remembered window, held by the same spot of its header.
       const size = floatSize(dw.size, dw.viewport);
       const pos = looseAt({ x: e.clientX, y: e.clientY }, d.grab, size, dw.viewport);
       Object.assign(d, { docked: false, x: e.clientX, y: e.clientY, pos, size, last: pos });
@@ -400,13 +372,11 @@ export function useHeaderMove(
   };
 }
 
-/** The inner edge of a panel docked to the screen edge: drag it, or use the arrow keys, to change the docked width. */
 export function DockHandle({ side, width, onWidth, onCommit, onReset }: { side: DockSide; width: number; onWidth: (w: number) => void; onCommit: (w: number) => void; onReset: () => void }) {
   const drag = useRef<{ x: number; w: number } | null>(null);
   const next = (e: PointerEvent<HTMLDivElement>) => dragDockW(drag.current!.w, side, e.clientX - drag.current!.x, window.innerWidth);
   const key = (e: KeyboardEvent<HTMLDivElement>) => {
     const step = e.shiftKey ? 64 : 16;
-    // The arrow pointing away from the screen edge widens the panel, the one pointing at it narrows it.
     const away = side === "right" ? "ArrowLeft" : "ArrowRight";
     const toward = side === "right" ? "ArrowRight" : "ArrowLeft";
     if (e.key !== away && e.key !== toward) return;

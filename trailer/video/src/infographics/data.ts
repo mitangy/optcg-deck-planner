@@ -4,9 +4,7 @@ const desk = (src: string, o: Omit<ShotSpec, 'src' | 'kind'>): ShotSpec => ({src
 const cmp = (src: string, o: Omit<ShotSpec, 'src' | 'kind'>): ShotSpec => ({src, kind: 'compact', ...o});
 const ph = (src: string, o: Omit<ShotSpec, 'src' | 'kind'>): ShotSpec => ({src, kind: 'phone', tag: 'Phone', ...o});
 
-/** Shared crops of the bottom-left of the board, where the fanned hand lives. */
 const handCrop = {focus: ['toggle', 'fan'], pad: [14, 40, 270, 0] as [number, number, number, number], ar: 2.6};
-/** Just the Hand / Sort buttons and the first cards beside them: big enough to read. */
 const handTight = {focus: ['toggle', 'sort'], pad: [14, 40, 330, 10] as [number, number, number, number], ar: 2.0};
 
 export const INFOGRAPHICS: InfographicSpec[] = [

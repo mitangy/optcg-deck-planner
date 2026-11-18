@@ -12,41 +12,26 @@ type Props = {
   info: { matchup: string | null; seat: string | null; order: string };
   roomId: string | null;
   isFullscreen: boolean;
-  /** Mute this tab (#934): `silenced` is the current state. */
   tabMute: { silenced: boolean; label: string; title: string; onToggle: () => void };
   leaveLabel?: string;
   onSettings: () => void;
   onToggleFullscreen: () => void;
-  /** Defaults to a full page reload; the saved match resumes on boot. */
   onReload?: () => void;
   onReport: () => void;
   onReportPlayer?: () => void;
-  /** Seats whose art the "hide-art" entry can hide, and its handler (#812). */
   artToggles?: ArtToggle[];
   onToggleArt?: (seat: import("../../net/protocol").Seat) => void;
   onConcede: () => void;
   onLeave: () => void;
-  /**
-   * "left": opens beside the landscape icon rail instead of under the top bar.
-   * "top" / "anchor": opens right under the button wherever it sits (the phone bar, or the
-   * side-column row when Bigger playing area hides the top bar), kept on screen.
-   */
   placement?: "top" | "left" | "anchor";
 };
 
-/** Where the list sits against its button. Headless UI flips and shifts it to stay inside the window. */
 const ANCHORS = {
   top: { to: "bottom end", gap: 4, padding: 8 },
   anchor: { to: "bottom end", gap: 6, padding: 8 },
   left: { to: "right start", gap: 1, padding: 4 },
 } as const;
 
-/**
- * Phone HUD "⋯" menu: everything that no longer fits the one-row bar. A
- * Headless UI Menu: the list floats in a portal, so opening it never moves the
- * bar or the board; arrow keys, Escape (focus back on the button) and outside
- * click come with it.
- */
 export function MatchMenu({
   items,
   info,
@@ -98,7 +83,6 @@ export function MatchMenu({
               switch (id) {
                 case "copy-room":
                   return (
-                    // Stays open just long enough to show "Copied".
                     <MenuItem key={id} keepOpen disabled={!roomId}>
                       <button
                         type="button"
@@ -214,7 +198,6 @@ export function MatchMenu({
                 case "hide-art":
                   return <HideArtItems key={id} toggles={artToggles} onToggle={onToggleArt} />;
                 case "concede":
-                  // Two steps: the first press arms it and the menu stays open (also for Enter / Space).
                   return (
                     <MenuItem key={id} keepOpen>
                       <ConfirmButton

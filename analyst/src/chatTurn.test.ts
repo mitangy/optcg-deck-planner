@@ -53,7 +53,6 @@ describe("chat", () => {
     ]);
     const events: SseEvent[] = [];
     await runChat(deps(api, callModel), "chat.tok", { message: "Hi" }, (e) => events.push(e), new AbortController().signal);
-    // 150K at 0.50 plus 60K at 0.10; pricing the 210K total as one call would give 0.105.
     const expected = 0.075 + 0.006;
     expect(events.at(-1)!.data).toMatchObject({ cost_usd: expect.closeTo(expected, 6) });
     expect((calls.find((c) => c.url.endsWith("/chat/usage"))!.body as Record<string, number>).cost_usd).toBeCloseTo(expected, 6);
@@ -132,7 +131,6 @@ describe("chat", () => {
     const haikuReview = await review("claude-haiku-4-5");
     expect(haikuReview.model).toBe("claude-haiku-4-5");
     expect("output_config" in haikuReview).toBe(false);
-    // Haiku 5.5 does take an effort.
     expect((await chat("claude-haiku-5-5")).output_config).toEqual({ effort: "medium" });
   });
 
@@ -174,7 +172,6 @@ describe("chat", () => {
       "POST /analyst/chat/threads": { id: 9 },
       "POST /analyst/chat/threads/9/messages": null,
       "POST /analyst/chat/usage": null,
-      // The check that counts the unsaved answer (extra=...) finds the credit gone.
       "GET /analyst/chat/budget": (url: string) => (url.includes("extra=") ? { ...BUDGET, allowed: false, refusal: "credit" } : BUDGET),
     });
     const toolUse = { type: "tool_use", id: "t1", name: "get_cards", input: { ids: ["OP01-001"] } };
@@ -186,15 +183,12 @@ describe("chat", () => {
     await expect(runChat(deps(api, callModel), "chat.tok", { message: "Is this leader good?" }, (e) => events.push(e), new AbortController().signal)).rejects.toMatchObject({ status: 429, code: "credit" });
     expect(seen).toHaveLength(1);
     expect(events.map((e) => e.event)).not.toContain("done");
-    // What the second check was asked: the first round's cost.
     const check = calls.filter((c) => c.url.includes("extra="));
     expect(check).toHaveLength(1);
     expect(Number(new URL(check[0]!.url).searchParams.get("extra"))).toBeCloseTo(costUsd(usage(1000, 100)), 6);
-    // The thread keeps the question and the text answered, as plain messages that end on the assistant.
     const saved = calls.find((c) => c.url.endsWith("/threads/9/messages"))!.body as { messages: { role: string; content: any }[] };
     expect(saved.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
     expect(saved.messages[1]!.content).toEqual([{ type: "text", text: "Checking." }]);
-    // The cost is recorded, then a free row says the limit stopped it.
     const rows = calls.filter((c) => c.url.endsWith("/chat/usage")).map((c) => c.body as Record<string, unknown>);
     expect(rows[0]).toMatchObject({ kind: "chat", thread_id: 9, outcome: "ok", tool_calls: 1, input_tokens: 1000 });
     expect(rows[1]).toEqual({ kind: "chat", cost_usd: 0, outcome: "refused", refusal: "credit", thread_id: 9 });
@@ -282,10 +276,8 @@ describe("chat", () => {
 
     expect(events.map((e) => e.event)).toEqual(["thread", "text", "status", "text", "done"]);
     expect(events[2]!.data).toEqual({ text: "Reading card text" });
-    // The second call carries the tool's result for the model to read.
     const toolResult = seen[1]!.messages.at(-1).content[0];
     expect(toolResult).toMatchObject({ type: "tool_result", tool_use_id: "t1" });
-    // Card facts come back as a search result the model can cite.
     expect(toolResult.content[0]).toMatchObject({ type: "search_result", source: "card:OP01-001", citations: { enabled: true } });
     expect(JSON.stringify(toolResult.content)).toContain(getCardDef("OP01-001").name);
 
@@ -294,7 +286,6 @@ describe("chat", () => {
     expect(saved.messages[0]!.content[0].text).toMatch(/^<context>\n[\s\S]*1xOP01-001\n4xOP01-016/);
     expect(saved.messages[0]!.content[1]).toEqual({ type: "text", text: "Is this leader good?" });
     expect(saved.messages[2]!.content[0]).toMatchObject({ type: "tool_result", tool_use_id: "t1" });
-    // Stored content has no cache breakpoints; those are added per request.
     expect(JSON.stringify(saved)).not.toContain("cache_control");
 
     const spend = calls.find((c) => c.url.endsWith("/chat/usage"))!.body as Record<string, unknown>;
@@ -323,7 +314,6 @@ describe("chat", () => {
     const sonnet = await runOn("claude-sonnet-5-5");
     expect(sonnet.model).toBe("claude-sonnet-5-5");
     expect(sonnet.spend.cost_usd).toBeCloseTo(3);
-    // An unknown name (or none) is not sent to the API: the env/default model is used instead.
     expect((await runOn("gpt-5")).model).toBe(CHAT_MODEL);
     expect((await runOn(undefined)).model).toBe(CHAT_MODEL);
   });
@@ -367,7 +357,6 @@ describe("chat", () => {
     ]);
     await runChat(deps(api, callModel), "chat.tok", { thread_id: 4, message: "Again?" }, () => {}, new AbortController().signal);
     expect(seen[0]!.messages[1]).toEqual({ role: "assistant", content: [{ type: "text", text: "Ahoy." }] });
-    // This turn's own thinking stays for the tool loop.
     const turn = seen[1]!.messages.at(-2);
     expect(turn.role).toBe("assistant");
     expect(turn.content[0]).toEqual(now);

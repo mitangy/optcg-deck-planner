@@ -1,4 +1,3 @@
-"""HMAC game tokens shared with the Colyseus game-server (browser-capable bearer)."""
 
 from __future__ import annotations
 
@@ -11,7 +10,7 @@ from typing import Any
 
 from app.core.config import Settings, get_settings
 
-GAME_TOKEN_TTL_SECONDS = 60 * 15  # 15 minutes
+GAME_TOKEN_TTL_SECONDS = 60 * 15
 
 
 def _b64url(data: bytes) -> str:

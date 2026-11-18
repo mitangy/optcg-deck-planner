@@ -1,9 +1,3 @@
-/**
- * The mulligan banner floats over the top of the board (#1282): showing it must
- * not push the playmats down, so the board does not jump when it goes away.
- * `?turn0` is the demo's undecided opening hand; with Opening hand tips on the
- * banner shows, with them off there is none, so the two boards must match.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -33,7 +27,6 @@ for (const vp of [null, { width: 812, height: 375 }]) {
     };
     const withBanner = await open(true);
     const without = await open(false);
-    // The data has to tell the two apart: one board has the banner, one does not.
     expect(withBanner.banner).toBe(1);
     expect(without.banner).toBe(0);
     expect(withBanner.opp).toEqual(without.opp);

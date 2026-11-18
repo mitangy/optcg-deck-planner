@@ -1,11 +1,3 @@
-/**
- * A card Log Pose names in its answer shows the card (#533): a mouse hovers the number or name, a finger taps it.
- * The two Log Pose services are faked in the browser (the planner API's chat session and the analyst's /brief
- * stream, which writes an answer naming OP01-006 by number and by name and citing it); the panel, the board and
- * the card pictures (/cards/*.png) are the real ones.
- *
- * LP_HOVER_SHOTS=<dir> also saves a screenshot of each state there.
- */
 import { readFileSync } from "node:fs";
 import { test, expect, FAKE_API, type Page } from "./fixtures";
 
@@ -25,7 +17,6 @@ const ANSWER = "Lead with OP01-006 on turn two. Otama gives -2000 power, so the 
 const CARD_ART = readFileSync(new URL("../public/cards/ST01-001.png", import.meta.url));
 
 async function stubLogPose(page: Page) {
-  // The card's picture comes from TCGplayer's CDN; the run has no network, so a local scan stands in for it.
   await page.route("https://tcgplayer-cdn.tcgplayer.com/**", (route) => route.fulfill({ status: 200, contentType: "image/png", body: CARD_ART }));
   await page.route(`${FAKE_API}/analyst/chat/session`, (route) =>
     route.fulfill({
@@ -52,10 +43,8 @@ async function stubLogPose(page: Page) {
   });
 }
 
-/** Where a paragraph sits in its own scroller and how big it is: a tap that scrolls the panel is not the text moving. */
 const place = (el: ReturnType<Page["locator"]>) => el.evaluate((n: HTMLElement) => ({ top: n.offsetTop, left: n.offsetLeft, w: n.offsetWidth, h: n.offsetHeight }));
 
-/** A practice board with Log Pose's brief written and open. */
 async function briefOnBoard(page: Page, duel: { startPractice: (o: { seed: number }) => Promise<void> }, opensItself: boolean) {
   await stubLogPose(page);
   await duel.startPractice({ seed: 11 });
@@ -68,7 +57,6 @@ async function briefOnBoard(page: Page, duel: { startPractice: (o: { seed: numbe
   return panel;
 }
 
-/** The picture is up, whole on screen, about 240px wide (less on a small screen), and above the panel. */
 async function expectPeek(page: Page, panel: ReturnType<Page["locator"]>) {
   const peek = page.locator(".lp-peek");
   await expect(peek).toHaveCount(1);
@@ -83,7 +71,6 @@ async function expectPeek(page: Page, panel: ReturnType<Page["locator"]>) {
   expect(box.y + box.height).toBeLessThanOrEqual(vp.height + 1);
   expect(box.width).toBeGreaterThanOrEqual(Math.min(240, vp.width - 16, (vp.height - 16) / 1.4) - 2);
   expect(box.width).toBeLessThanOrEqual(241);
-  // Sits above the panel it floats over, and never takes the pointer.
   const z = (el: ReturnType<Page["locator"]>) => el.evaluate((n) => Number(getComputedStyle(n).zIndex));
   expect(await z(peek)).toBeGreaterThan(await z(panel));
   expect(await peek.evaluate((n) => getComputedStyle(n).pointerEvents)).toBe("none");
@@ -101,7 +88,6 @@ test("a card number or name in a Log Pose answer shows the card while the mouse 
   const before = await place(para);
   await number.hover();
   const peek = await expectPeek(page, panel);
-  // Nothing under the text moved.
   expect(await place(para)).toEqual(before);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/desktop-hover-number.png` });
 
@@ -114,7 +100,6 @@ test("a card number or name in a Log Pose answer shows the card while the mouse 
   await page.mouse.move(5, 5);
   await expect(page.locator(".lp-peek")).toHaveCount(0);
 
-  // The keyboard gets it too, and Escape puts it away without closing the panel.
   await number.focus();
   await page.keyboard.press("Shift+Tab");
   await page.keyboard.press("Tab");
@@ -141,7 +126,6 @@ for (const kind of ["portrait", "landscape"] as const) {
       expect(await place(para)).toEqual(before);
       if (SHOTS) await page.screenshot({ path: `${SHOTS}/phone-${kind}-tap.png` });
 
-      // A second tap puts it away; a tap elsewhere does too.
       await number.tap();
       await expect(page.locator(".lp-peek")).toHaveCount(0);
       await number.tap();
@@ -149,7 +133,6 @@ for (const kind of ["portrait", "landscape"] as const) {
       await panel.locator("#lp-title").tap();
       await expect(page.locator(".lp-peek")).toHaveCount(0);
 
-      // Escape closes the picture first and leaves the panel.
       await number.tap();
       await expect(page.locator(".lp-peek")).toHaveCount(1);
       await page.keyboard.press("Escape");

@@ -1,9 +1,3 @@
-"""Hourly prices for new and upcoming sets, read from TCGPlayer's search API.
-
-TCGCSV only refreshes once a day, so the full catalog sync is a day behind on a
-set that just came out. For sets published in the last few days (and presales)
-this reads the live prices directly and updates the rows the daily sync created.
-"""
 
 from __future__ import annotations
 
@@ -81,12 +75,10 @@ def _body(group_id: int, start: int) -> dict:
 
 
 def _cents(value) -> float | None:
-    # The search API sends unrounded market prices (12.4328); TCGCSV sends cents.
     return None if value is None else round(float(value), 2)
 
 
 def fetch_group_prices(client: httpx.Client, group_id: int) -> dict[int, tuple[float | None, float | None]]:
-    """product id -> (marketPrice, lowestPrice) for every product in one set."""
     prices: dict[int, tuple[float | None, float | None]] = {}
     start = 0
     for page in range(MAX_PAGES):
@@ -105,18 +97,15 @@ def fetch_group_prices(client: httpx.Client, group_id: int) -> dict[int, tuple[f
 
 
 def _record_history(db: Session, history: dict[int, float | None], now: datetime) -> None:
-    """Latest market price of the day wins in the price history (#946)."""
     from app.planner.price_history import record_prices_safely
 
     record_prices_safely(db, as_utc(now).date(), history)
 
 
 def apply_prices(db: Session, prices: dict[int, tuple], now: datetime) -> dict[str, int]:
-    """Write changed prices onto known printings, then re-pick preferred rows for those cards."""
     if not prices:
         return {"printings_updated": 0, "cards_updated": 0}
     rows = db.scalars(select(CatalogPrinting).where(CatalogPrinting.product_id.in_(list(prices)))).all()
-    # Catalog products only: the search API also lists sealed product.
     history = {row.product_id: prices[row.product_id][0] for row in rows}
     printings_updated = 0
     card_ids: set[str] = set()
@@ -162,7 +151,6 @@ def refresh_new_release_prices(db: Session, client: httpx.Client, now: datetime,
 
 
 def run_once(days: int) -> dict | None:
-    """One refresh, or None while the full catalog sync (here or on another worker) runs."""
     from app.core.db import CATALOG_SYNC_LOCK_KEY, SessionLocal, try_advisory_lock
 
     if not catalog_sync._sync_lock.acquire(blocking=False):
@@ -186,7 +174,6 @@ def run_once(days: int) -> dict | None:
 
 
 def start_background(settings):
-    """The hourly task when new-release prices are on (default in production only), else None."""
     if not settings.new_release_prices_enabled:
         return None
     from app.analyst.tournament_sync import sync_loop

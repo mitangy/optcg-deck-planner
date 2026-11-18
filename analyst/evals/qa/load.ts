@@ -41,7 +41,6 @@ export function validateCases(catalog: Catalog, cases: readonly EvalCase[], opts
   return problems;
 }
 
-/** The cases, or an error naming every problem. */
 export function loadCases(catalog: Catalog, cases: readonly EvalCase[] = CASES, opts: { counts?: boolean } = {}): EvalCase[] {
   const problems = validateCases(catalog, cases, opts);
   if (problems.length) throw new Error(`The eval cases are invalid:\n${problems.join("\n")}`);

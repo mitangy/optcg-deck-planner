@@ -1,4 +1,3 @@
-/** Plain-English labels for intents (#635), for position analysis. Reads the state the intent is legal in, from `seat`'s side. */
 import { getCardDef } from "../cards/definitions.js";
 import type { ChoiceOption, Intent, MatchState, Seat } from "../types.js";
 
@@ -7,7 +6,6 @@ function nameOf(defId: string | undefined): string {
   try { return `${getCardDef(defId).name} (${defId})`; } catch { return defId; }
 }
 
-/** The card (name and number) standing at instance `id` on either side of the table. */
 function boardName(state: MatchState, id: string, seat: Seat): string {
   for (const s of [seat, seat === 0 ? 1 : 0] as Seat[]) {
     const p = state.players[s];

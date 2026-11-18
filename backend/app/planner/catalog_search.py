@@ -1,4 +1,3 @@
-"""Catalog search (fuzzy name matching, filters, ranking) and printings lookup."""
 
 from __future__ import annotations
 
@@ -20,13 +19,6 @@ from app.planner.schemas import CatalogCardResult, PrintingView
 
 
 def card_printings(db: Session, card_id: str) -> list[PrintingView]:
-    """Every catalog printing of one card number, cheapest plain first.
-
-    The scanner needs this to price what the user is physically holding: a
-    single card number can span a base printing and far pricier alternate-art
-    or manga treatments, which the card face distinguishes only by a small
-    star above the rarity badge.
-    """
     rows = db.scalars(
         select(CatalogPrinting).where(CatalogPrinting.card_id == card_id)
     ).all()
@@ -58,7 +50,6 @@ _FUZZY_INDEX: dict[tuple, list[tuple[str, list[tuple[str, ...]]]]] = {}
 
 
 def _fuzzy_index(db: Session) -> list[tuple[str, list[tuple[str, ...]]]]:
-    """(card_id, searchable texts) per card, cached until the catalog's size or sync time changes."""
     meta = db.scalar(select(CatalogMeta.last_synced_at).order_by(CatalogMeta.id.desc()).limit(1))
     key = (
         id(db.get_bind()),
@@ -87,7 +78,6 @@ def _fuzzy_index(db: Session) -> list[tuple[str, list[tuple[str, ...]]]]:
 
 
 def _fuzzy_card_costs(db: Session, matcher: fuzzy.QueryMatcher) -> dict[str, int]:
-    """card_id -> best total edit distance over the card's name/set texts (cards that fuzzy-match only)."""
     out: dict[str, int] = {}
     for cid, texts in _fuzzy_index(db):
         costs = [c for c in (matcher.cost_words(t) for t in texts) if c is not None]
@@ -99,10 +89,6 @@ def _fuzzy_card_costs(db: Session, matcher: fuzzy.QueryMatcher) -> dict[str, int
 def _substring_rows(
     db: Session, query: str, color: str, card_type: str, limit: int
 ) -> tuple[list[CatalogCard], list]:
-    """Cards matching the text/colour/type filters, exact id first, then cheaper price, then name.
-
-    Also returns the colour/type filters on their own, which the fuzzy pass reuses.
-    """
     stmt = select(CatalogCard)
     filters = []
     if query:
@@ -135,7 +121,6 @@ def _substring_rows(
     filters.extend(other_filters)
     if filters:
         stmt = stmt.where(*filters)
-    # Prefer exact id matches, then cheaper market price, then name.
     q_upper = query.upper()
     order = [
         CatalogCard.market_price.is_(None),
@@ -153,7 +138,6 @@ def _substring_rows(
 def _fuzzy_extra_rows(
     db: Session, matcher: fuzzy.QueryMatcher, rows: list[CatalogCard], other_filters: list, limit: int
 ) -> list[CatalogCard]:
-    """Typo-tolerant pass: cards the substring search missed, closest first (at most ``limit - len(rows)``)."""
     seen = {r.card_id for r in rows}
     costs = _fuzzy_card_costs(db, matcher)
     costs = {cid: c for cid, c in costs.items() if cid not in seen}
@@ -199,7 +183,6 @@ def _with_alt_rows(
     limit: int,
     user_id: int | None,
 ) -> list[CatalogCardResult]:
-    """Each matched card followed by its alt-art printings as rows of their own, capped at ``limit`` rows."""
     ids = {row.card_id for row in rows}
     alt_map = alt_arts_map(db, ids)
     alt_owned = alt_owned_map(db, user_id) if user_id is not None else {}
@@ -267,14 +250,6 @@ def search_catalog(
     alts: bool = False,
     user_id: int | None = None,
 ) -> list[CatalogCardResult]:
-    """Search cards by name, id, color, type, rarity, or set.
-
-    With ``alts`` each matched card is followed by its alt-art printings as their
-    own rows (``alt_product_id`` set), capped at ``limit`` rows in total.
-
-    Text also matches any printing's name or set, so a card reprinted in another
-    set is found there (one row per card, shown as its preferred printing).
-    """
     limit = max(1, min(limit, 100))
     query = (q or "").strip()
     rows, other_filters = _substring_rows(db, query, color, card_type, limit)

@@ -37,11 +37,9 @@ import { MetaRoute, CardRoute, HomeRoute, RequireAuth } from "./routeGuards";
 export default function App() {
   const { pathname } = useLocation();
   const logPosePage = useMemo(() => defaultLogPosePage(pathname), [pathname]);
-  // Shares RequireAuth's cached /auth/me query; signing in or out asks for the chat session again.
   const { data: me } = useMe();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const navigate = useNavigate();
-  // A deck Log Pose builds opens the import page with the list filled in (#726).
   const sources = useMemo(() => ({ ...PLANNER_SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o)) }), [navigate]);
   return (
     <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={sources}>

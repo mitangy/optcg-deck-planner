@@ -1,15 +1,3 @@
-/**
- * Golden replay tooling.
- *
- *   npm run replay:record -- <name> <seed> [--leaders ST01-001,OP01-001] [--first 0|1]
- *                            [--lines 120 | --full] [--note "why this replay exists"]
- *   npm run replay:bless  [-- <name>...]     rewrite goldens from their fixtures
- *
- * `record` plays a seeded game with a random legal-move policy (the fuzzer's
- * deck builder and choice answers) and writes `replays/<name>.json` plus its
- * golden. `bless` re-narrates existing fixtures and overwrites the goldens; it
- * refuses to run when CI is set, and the test suite never writes goldens.
- */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { describeEvents } from "../review/describeEvents.js";
 import { applyIntent, assertInvariants, createMatch, listLegalIntents, skipMulligans } from "../engine.js";
@@ -23,7 +11,6 @@ interface RecordOptions {
   seed: number;
   leaders: [string | undefined, string | undefined];
   firstSeat: Seat;
-  /** Stop once this many narrated lines exist and the game is back in a quiet Main Phase. */
   maxLines: number;
   full: boolean;
   note: string;

@@ -1,8 +1,3 @@
-/**
- * One review through the whole eval (#675): the production review request, the model's text, the extracted
- * claims and a verdict for each. The model, extractor and cost all come in as arguments so tests and the dry run
- * use scripted ones.
- */
 import type { MatchReplay, Seat } from "@optcg/rules";
 import type { Catalog } from "../../src/catalog";
 import { costUsd, flattenCited, reviewRequest, REVIEW_MAX_LINES, type CallModel, type Usage } from "../../src/chat";

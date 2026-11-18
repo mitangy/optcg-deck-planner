@@ -1,4 +1,3 @@
-/* ——— Loading skeletons (breathing pulse) ——— */
 
 .visually-hidden {
   position: absolute;
@@ -27,7 +26,6 @@
   background: color-mix(in srgb, var(--line) 55%, var(--card));
   border-radius: var(--radius-10);
   animation: skeleton-breathe 1.55s ease-in-out infinite;
-  /* Keep layout stable — never grow from content. */
   flex-shrink: 0;
 }
 
@@ -114,7 +112,6 @@
   gap: 0.45rem;
   align-content: start;
   flex: 1 1 auto;
-  /* Real header text block (eyebrow, title, leader line, counts) measures 118-141px on desktop depending on wrapping, ~136px on phones. */
   min-height: 8.8rem;
 }
 
@@ -124,7 +121,6 @@
   }
 }
 
-/* Phones: the real action row is one row (Edit, Play, two icon buttons); keep the placeholder on one row too. */
 @media (max-width: 720px) {
   .deck-head-actions > .skeleton-btn-deck {
     flex: 1 1 0;

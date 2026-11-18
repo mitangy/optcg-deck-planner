@@ -21,7 +21,6 @@ type State =
 
 const cardName = (id: string) => lookupCard(id).name || id;
 
-/** Your Leader's art on a history row; a plain block when the art is missing or fails. */
 function LeaderArt({ defId }: { defId: string | null }) {
   const { src, fail } = useArtFallback(defId ? resolveCardImageUrl(defId, { size: "thumb" }) : null, defId);
   return src ? (
@@ -31,7 +30,6 @@ function LeaderArt({ defId }: { defId: string | null }) {
   );
 }
 
-/** A small compass on a row whose game has a Log Pose chat. */
 function ChatMark() {
   return (
     <span className="history-chat" role="img" aria-label="Has a Log Pose chat" title="You have a Log Pose chat about this game">
@@ -59,7 +57,6 @@ export function HistoryPage() {
     [state],
   );
 
-  // Rows without a recording keep a blank slot so the rows with one stay aligned with them.
   const anyReplay = rows.some((r) => r.replay);
 
   return (

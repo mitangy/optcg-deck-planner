@@ -5,14 +5,9 @@ import type { MatchHistoryEntry } from "../../history/historyApi";
 import type { ReplayNavState } from "../../replay/replayRetry";
 import { matchOverFacts, pollMatchRecord } from "./matchOverFactsModel";
 
-/** Loads the saved match for History facts (rating, log); resolves to its entry or throws. */
 export type LoadMatchRecord = (matchId: string) => Promise<MatchHistoryEntry>;
 
-/**
- * Turn count, rating change and a "View match log" link for the match-over
- * card. The saved match arrives a moment after the game ends (and never for
- * guests), so it is fetched a few times and the extra lines appear when it lands.
- */
+// The saved match arrives a moment after the game ends (and never for guests), so it is fetched a few times.
 export function MatchOverFactsList({
   matchId,
   turnNumber,
@@ -39,7 +34,7 @@ export function MatchOverFactsList({
         {facts.rating ? <span className="match-result-rating"> · {facts.rating}</span> : null}
       </p>
       {loadRecord && inRouter ? (
-        // The slot keeps its height while the saved match is still on its way, so the card does not grow when the button lands.
+        // The slot keeps its height while the saved match is on its way, so the card does not grow when the button lands.
         <div className="match-result-review-slot">
           {facts.replayPath ? (
             <Link className="btn btn-primary match-result-replay" to={facts.replayPath} state={{ fromMatchOver: true } satisfies ReplayNavState}>

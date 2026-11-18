@@ -1,7 +1,3 @@
-/**
- * One real card per DSL primitive, asserting the concrete state change so a
- * silently ignored operation fails loudly (the fuzzer cannot detect no-ops).
- */
 import { describe, expect, it } from "vitest";
 import { FILLER, Harness } from "../testing/harness.js";
 
@@ -87,7 +83,6 @@ describe("DON!! primitives", () => {
     expect(h.state.delayed.length).toBe(1);
     expect(h.state.players[0].costArea.filter((d) => !d.rested).length).toBe(0);
     h.act(0, { type: "end_turn" });
-    // The delayed effect set one DON!! active at the end of the turn; the victim stayed rested.
     expect(h.state.players[1].characters[0]!.rested).toBe(true);
     expect(h.state.delayed.length).toBe(0);
   });
@@ -114,7 +109,6 @@ describe("Life primitives", () => {
     h.life(0, "ST01-014", FILLER);
     h.attach(0, h.state.players[0].leader, 4);
     h.attack(h.state.players[0].leader, robin!).passBattle();
-    // Opponent's turn from Robin's controller's view: On K.O. may deal 1 damage.
     expect(h.choice?.seat).toBe(1);
     h.accept(1);
     expect(h.choice?.kind).toBe("life_trigger");
@@ -149,7 +143,6 @@ describe("event triggers", () => {
     h.hand(0, "OP15-076");
     h.don(0, 3);
     h.play(0, "OP15-076");
-    // Paying DON!! −1 returns a DON!! (player picks which); Kiten's own effect resolves first.
     h.accept(0);
     expect(h.choice?.prompt).toMatch(/return to your DON!! deck/);
     h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"] });
@@ -180,7 +173,6 @@ describe("event triggers", () => {
     const [victim] = h.field(1, FILLER);
     victim!.rested = true;
     h.attack(chinjao!, victim!).passBattle();
-    // Drew two, then had to trash two (forced with an otherwise empty hand, but still asked: #369).
     expect(h.state.lastEvents.some((e) => e.type === "drew" && e.count === 2)).toBe(true);
     h.forced();
     expect(h.state.players[0].trash.length).toBe(2);

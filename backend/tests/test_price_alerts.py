@@ -1,4 +1,3 @@
-"""Card price alerts, their emails and the notification inbox (#855)."""
 
 from __future__ import annotations
 
@@ -23,8 +22,6 @@ LATER = datetime(2026, 11, 2, 12, 0, tzinfo=timezone.utc)
 
 
 class Outbox:
-    """Stands in for mailer.send_email so no test sends a real message."""
-
     def __init__(self, result: bool = True) -> None:
         self.sent: list[dict] = []
         self.result = result
@@ -43,7 +40,6 @@ def outbox(monkeypatch):
 
 
 def _seed(db, base=5.0, alt=3.0):
-    """Luffy with a base art at `base` and one alternate art at `alt`."""
     add_catalog(db, LUFFY, name="Luffy", product_id=1001, market=base)
     add_catalog(db, LUFFY, name="Luffy", product_id=ALT, market=alt, special=True)
     return make_user(db, email="a@example.com", name="A", sub="sub-a")
@@ -71,8 +67,6 @@ def _alert(db, user, *, product_id=0, target=5.0, direction="below", armed=True,
 def _inbox(db, user):
     return db.scalars(select(Notification).where(Notification.user_id == user.id)).all()
 
-
-# ------------------------------------------------------------------ checking prices
 
 
 def test_alert_fires_when_price_drops_to_exactly_the_target_855(db, outbox):
@@ -105,7 +99,6 @@ def test_alert_does_not_fire_again_while_the_price_stays_under_the_target_855(db
     assert price_alerts.check_alerts(db, LATER)["fired"] == 0
     assert len(_inbox(db, user)) == 1 and len(outbox.sent) == 1
     db.refresh(alert)
-    # The "Hit" chip shows the price it fired at, not the latest one.
     assert (alert.triggered_price, alert.last_price) == (4.0, 3.5)
 
 
@@ -264,8 +257,6 @@ def test_inbox_keeps_only_the_newest_hundred_notifications_855(db, outbox):
     assert "Luffy is now $1.00" in titles
 
 
-# ------------------------------------------------------------------ hooks
-
 
 def test_a_price_refresh_checks_alerts_after_applying_prices_855(db, outbox):
     user = _seed(db, base=5.0)
@@ -318,8 +309,6 @@ def test_a_catalog_sync_checks_alerts_with_its_own_session_and_survives_a_failur
     assert seen == [session]
     assert catalog_sync.sync_status()["last_error"] is None
 
-
-# ------------------------------------------------------------------ API
 
 
 def _login(c, SessionLocal, email):
@@ -447,7 +436,7 @@ def test_editing_the_target_rearms_or_disarms_against_the_current_price_855(clie
     c, SessionLocal = client
     _catalog(SessionLocal, base=3.0)
     _login(c, SessionLocal, "a@x.test")
-    alert = _post(c, target_price=4.0).json()  # met at creation, so disarmed
+    alert = _post(c, target_price=4.0).json()
     assert alert["armed"] is False
 
     lower = c.patch(f"/price-alerts/{alert['id']}", json={"target_price": 2.0}).json()
@@ -527,8 +516,6 @@ def test_marking_read_changes_only_the_ids_given_and_only_my_own_855(client):
         other = s.get(Notification, ids[3])
         assert other.read_at is None
 
-
-# ------------------------------------------------------------------ mailer
 
 
 @pytest.fixture()

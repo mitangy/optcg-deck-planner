@@ -1,15 +1,8 @@
-/**
- * Mute one tab (#934): spectating a game in one tab while dueling in another made the sound effects confusing. The
- * Mute this tab control silences only its own tab and the choice lives in that tab's sessionStorage. A spectator tab
- * also goes quiet by itself while another tab of the same browser has a live match open as a player.
- * The computer has a toolbar button (and the M key); the phone has an entry in the match menu.
- */
 import { test, expect, mintGameToken, FAKE_API, RED_VANILLA } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 const phone = (info: { project: { name: string } }) => info.project.name === "phone-375";
 
-/** The control's name and pressed state: a toolbar button on the computer, a ⋯ menu entry on the phone. */
 async function tabMuteState(page: Page, onPhone: boolean): Promise<{ name: string; pressed: string | null; title: string | null }> {
   if (onPhone) await page.getByRole("button", { name: "Match menu" }).first().click();
   const control = onPhone
@@ -62,7 +55,6 @@ test("the M key mutes and unmutes this tab on the computer (#934)", async ({ pag
 
 test("a spectator tab goes quiet while another tab plays, and sound returns when that tab closes (#934)", async ({ page, duel, context }, info) => {
   const onPhone = phone(info);
-  // A game against the bot is a normal online match (a practice room is hotseat on one device, which plays no part).
   const created = page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
   await page.addInitScript((d) => {
     if (sessionStorage.getItem("e2e-seeded")) return;
@@ -80,7 +72,6 @@ test("a spectator tab goes quiet while another tab plays, and sound returns when
   const roomId = body.room?.roomId ?? body.roomId;
   expect(roomId).toBeTruthy();
 
-  // Same browser context, so the two tabs share a BroadcastChannel.
   const spec = await context.newPage();
   await spec.route(`${FAKE_API}/**`, (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -95,12 +86,10 @@ test("a spectator tab goes quiet while another tab plays, and sound returns when
   await spec.goto(`/watch/${roomId}`);
   await spec.locator(".board-root").waitFor({ timeout: 30_000 });
 
-  // The player's tab is never quieted by the watch tab, and the watch tab hears the player within a couple of beats.
   await expect.poll(async () => (await tabMuteState(spec, onPhone)).name, { timeout: 15_000 }).toBe("Unmute this tab");
   expect(await tabMuteState(spec, onPhone)).toMatchObject({ pressed: "true", title: expect.stringMatching(/another tab/i) });
   expect(await tabMuteState(page, onPhone)).toMatchObject({ name: "Mute this tab", pressed: "false" });
 
-  // Close the player's tab (it says bye, or goes stale within seconds): the watch tab is audible again by itself.
   await page.close({ runBeforeUnload: true });
   await expect.poll(async () => (await tabMuteState(spec, onPhone)).name, { timeout: 15_000 }).toBe("Mute this tab");
   expect(await tabMuteState(spec, onPhone)).toMatchObject({ pressed: "false" });

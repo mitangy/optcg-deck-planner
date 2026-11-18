@@ -8,7 +8,6 @@ import { confirmLabel, MODE_CARDS, modeTitle, type PlayMode } from "./modes";
 import type { LobbyDecks } from "./useLobbyDecks";
 import type { LobbySheet } from "./useLobbySheet";
 
-/** The Play sheet: the mode chooser, then the form for the chosen mode with its confirm button. */
 export function PlaySheet({
   sheet,
   deckState,

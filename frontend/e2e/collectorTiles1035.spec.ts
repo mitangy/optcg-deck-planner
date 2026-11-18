@@ -1,7 +1,3 @@
-/**
- * Collector copies from the alt tiles (#1035): the deck page tile toggles a collector copy, Master Shopping shows it
- * (same per-user want), and the pressed toggle there removes it again.
- */
 import { expect, test } from "./fixtures";
 
 test.afterEach(({ planner }) => {
@@ -45,7 +41,6 @@ test("Master Shopping: an extra copy of the art the deck copy uses asks first, t
   await extra.scrollIntoViewIfNeeded();
   const before = await extra.boundingBox();
 
-  // Cancel (and Escape) save nothing.
   await extra.click();
   const dialog = page.getByRole("dialog", { name: "Add an extra Izo (Gold-stamped)?" });
   await expect(dialog).toContainText("Your deck copy is already this art. Add an extra one on top?");

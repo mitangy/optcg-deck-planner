@@ -8,7 +8,6 @@
 const KEY = "optcg-duel:stale-chunk-reload";
 const RETRY_AFTER_MS = 60_000;
 
-/** The browsers' messages for a dynamic import whose file could not be fetched or parsed. */
 export function isStaleChunkError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return /dynamically imported module|Importing a module script failed|error loading dynamically imported module|Unable to preload CSS/i.test(

@@ -25,7 +25,6 @@ def client(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("FRONTEND_ORIGIN", "http://localhost:5173")
     monkeypatch.setenv("DATABASE_URL", "sqlite://")
     get_settings.cache_clear()
-    # Fresh buckets per test: request/invite limits are keyed by user id.
     friends_router._request_rate._hits.clear()
     friends_router._invite_rate._hits.clear()
 
@@ -126,12 +125,10 @@ def test_friend_status_follows_presence_snapshots(client):
     f = _as(c, luffy).get("/friends").json()["friends"][0]
     assert (f["status"], f["room_id"]) == ("in_game", "room-a")
 
-    # Next snapshot no longer lists Zoro: the game ended and the room closed.
     _snapshot(c, [])
     f = _as(c, luffy).get("/friends").json()["friends"][0]
     assert (f["status"], f["room_id"]) == ("offline", None)
 
-    # Zoro opens the lobby (which polls /friends): now online.
     _as(c, zoro).get("/friends")
     assert _as(c, luffy).get("/friends").json()["friends"][0]["status"] == "online"
 
@@ -163,7 +160,7 @@ def test_stale_presence_and_seen_read_as_offline(client, monkeypatch: pytest.Mon
     luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
     _befriend(c, luffy, zoro, "Zoro", "Luffy")
     _snapshot(c, [{"user_id": zoro, "room_id": "room-a"}])
-    _as(c, zoro).get("/friends")  # Zoro was in the lobby too
+    _as(c, zoro).get("/friends")
 
     later = datetime.now(timezone.utc) + timedelta(minutes=5)
     monkeypatch.setattr(friends_router, "utcnow", lambda: later)
@@ -174,7 +171,7 @@ def test_stale_presence_and_seen_read_as_offline(client, monkeypatch: pytest.Mon
 def test_presence_ignores_non_friends(client):
     c, S = client
     luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
-    _as(c, luffy).post("/friends/requests", json={"username": "Zoro"})  # never accepted
+    _as(c, luffy).post("/friends/requests", json={"username": "Zoro"})
     _snapshot(c, [{"user_id": zoro, "room_id": "room-a"}])
     body = _as(c, luffy).get("/friends").json()
     assert body["friends"] == []
@@ -198,7 +195,6 @@ def test_invite_reaches_friend_until_inviter_leaves_room(client, monkeypatch: py
     invites = _as(c, zoro).get("/friends").json()["invites"]
     assert [(i["from_username"], i["room_id"]) for i in invites] == [("Luffy", "room-p")]
 
-    # A minute later Luffy is still waiting in the room: invite stands.
     later = datetime.now(timezone.utc) + timedelta(minutes=1)
     monkeypatch.setattr(friends_router, "utcnow", lambda: later)
     with S() as db:
@@ -206,7 +202,6 @@ def test_invite_reaches_friend_until_inviter_leaves_room(client, monkeypatch: py
         db.commit()
     assert len(_as(c, zoro).get("/friends").json()["invites"]) == 1
 
-    # Luffy left the room: the invite goes away.
     with S() as db:
         db.query(DuelPresence).delete()
         db.commit()
@@ -238,7 +233,6 @@ def test_presence_lives_in_redis_when_configured_389(client, fake_redis):
     f = _as(c, luffy).get("/friends").json()["friends"][0]
     assert (f["status"], f["room_id"]) == ("in_game", "room-a")
 
-    # The next snapshot no longer lists Zoro: the room closed.
     _snapshot(c, [])
     f = _as(c, luffy).get("/friends").json()["friends"][0]
     assert (f["status"], f["room_id"]) == ("offline", None)
@@ -250,7 +244,6 @@ def test_room_that_moved_process_stays_listed_in_redis_389(client, fake_redis):
     _befriend(c, luffy, zoro, "Zoro", "Luffy")
     _snapshot(c, [{"user_id": zoro, "room_id": "room-a"}], instance="gs-1")
     _snapshot(c, [{"user_id": zoro, "room_id": "room-a"}], instance="gs-2")
-    # The old process's next snapshot drops the room; the new owner still has it.
     _snapshot(c, [], instance="gs-1")
     f = _as(c, luffy).get("/friends").json()["friends"][0]
     assert (f["status"], f["room_id"]) == ("in_game", "room-a")
@@ -274,7 +267,6 @@ def test_friend_in_a_game_carries_the_pool_their_room_is_on_682(client):
         f = _as(c, luffy).get("/friends").json()["friends"][0]
         assert (f["room_id"], f["server_url"]) == ("room-a", None), bad
 
-    # A game server that does not report one (older build) leaves it out.
     _snapshot(c, [{k: v for k, v in entry.items() if k != "server_url"}])
     assert _as(c, luffy).get("/friends").json()["friends"][0]["server_url"] is None
 
@@ -286,7 +278,6 @@ def test_invite_still_names_the_pool_its_room_is_on_after_a_pool_flip_682(client
     blue, green = "https://gs-blue.example.com", "https://gs-green.example.com"
     assert c.put("/duel/admin/game-server-pool", json={"url": blue}, headers=ADMIN).status_code == 200
 
-    # Luffy opens a room on blue and invites Zoro; then the pointer flips to green.
     sent = _as(c, luffy).post(f"/friends/{zoro}/invite", json={"room_id": "room-p", "server_url": blue + "/"})
     assert sent.json()["server_url"] == blue
     assert c.put("/duel/admin/game-server-pool", json={"url": green}, headers=ADMIN).status_code == 200
@@ -294,13 +285,11 @@ def test_invite_still_names_the_pool_its_room_is_on_after_a_pool_flip_682(client
     invites = _as(c, zoro).get("/friends").json()["invites"]
     assert [(i["room_id"], i["server_url"]) for i in invites] == [("room-p", blue)]
 
-    # A room opened just before the flip can be invited into just after it: blue is still an address the API handed out.
     late = _as(c, luffy).post(f"/friends/{zoro}/invite", json={"room_id": "room-q", "server_url": blue})
     assert late.json()["server_url"] == blue
 
 
 def test_invite_ignores_a_server_url_the_api_never_handed_out_682(client, fake_redis):
-    """The recipient's client dials the invite's address with its game token, so a made-up one is dropped."""
     c, S = client
     luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
     _befriend(c, luffy, zoro, "Zoro", "Luffy")
@@ -315,7 +304,6 @@ def test_invite_takes_the_pool_from_the_game_servers_report_when_it_has_one_682(
     c, S = client
     luffy, zoro = _user(S, "Luffy"), _user(S, "Zoro")
     _befriend(c, luffy, zoro, "Zoro", "Luffy")
-    # No server_url on the invite (the inviter's client did not know it), but Luffy's game server reports one.
     assert _as(c, luffy).post(f"/friends/{zoro}/invite", json={"room_id": "room-p"}).json()["server_url"] is None
     _snapshot(c, [{"user_id": luffy, "room_id": "room-p", "phase": "waiting", "server_url": "https://gs-blue.example.com"}])
     invites = _as(c, zoro).get("/friends").json()["invites"]

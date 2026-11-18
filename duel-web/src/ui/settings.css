@@ -1,5 +1,3 @@
-/* —— Settings: playmat —— */
-
 .playmat-preview {
   width: 100%;
   aspect-ratio: 12 / 7;
@@ -47,7 +45,6 @@ label.btn.is-busy {
   accent-color: var(--chrome);
 }
 
-/* —— Playmat / card back image editor —— */
 .img-editor-backdrop {
   position: fixed;
   inset: 0;
@@ -74,7 +71,6 @@ label.btn.is-busy {
 
 .img-editor-frame {
   width: 100%;
-  /* Cap height so tall card-back frames fit small screens. */
   max-height: 55dvh;
   margin-inline: auto;
   border-radius: var(--radius-10);
@@ -98,8 +94,6 @@ label.btn.is-busy {
 .img-editor-actions {
   justify-content: flex-end;
 }
-
-/* —— Keyboard shortcut help —— */
 
 .kbd {
   display: inline-block;
@@ -139,8 +133,6 @@ label.btn.is-busy {
   font-size: 0.9rem;
   line-height: 1.35;
 }
-
-/* —— Bounty (ranked rating) —— */
 
 .bounty-amount {
   font-family: var(--font-num);

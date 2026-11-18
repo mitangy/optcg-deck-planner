@@ -1,7 +1,3 @@
-"""Group buy routes (pooled TCGPlayer orders). Split out of routers/api.py (refactor 3.9c, D-03).
-
-Registered right after the api router in app.main, so matching order is unchanged.
-"""
 
 from __future__ import annotations
 
@@ -211,7 +207,6 @@ def match_group_buy_receipt(
     try:
         group_buy.save_receipt_text(db, user, group_id, body.receipt_text)
     except PermissionError:
-        # Members may match for preview; only the host saves.
         pass
     return report
 

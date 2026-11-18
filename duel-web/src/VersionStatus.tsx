@@ -4,7 +4,6 @@ function reload() {
   window.location.reload();
 }
 
-/** "Version abc1234 · Oct 2, 12:48 AM · Up to date", plus Reload / Check now when `actions` is set. */
 export function VersionStatus({ actions = false }: { actions?: boolean }) {
   const status = useUpdateStatus();
   const built = formatBuildTime(BUILD_TIME);
@@ -44,7 +43,6 @@ export function VersionStatus({ actions = false }: { actions?: boolean }) {
   );
 }
 
-/** Lobby banner shown only while a newer deploy is live than the running bundle. */
 export function UpdateNotice() {
   const status = useUpdateStatus();
   if (status.kind !== "update") return null;

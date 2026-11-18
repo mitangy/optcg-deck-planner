@@ -3,20 +3,17 @@ import { basePowerOf } from "../engine/queries.js";
 import { Harness } from "../testing/harness.js";
 import type { Seat } from "../types.js";
 
-// Trigger timing: delayed effects, end-of-battle triggers and the trigger queue.
+const THATCH = "OP03-005";
+const PRB_LUFFY = "PRB02-005";
+const MULTICOLOR_LEADER = "EB01-001";
+const BENTHAM = "OP02-064";
+const HAWKINS = "ST02-010";
+const BENTHAM_KO = "ST08-013";
+const ROBIN = "ST01-008";
+const SAI = "OP01-012";
+const KAROO = "ST01-003";
+const ALVIDA = "OP03-023";
 
-const THATCH = "OP03-005"; // 1-cost, [Activate: Main] +2000 power during this turn. Then, trash this Character at the end of this turn.
-const PRB_LUFFY = "PRB02-005"; // 4-cost, [Your Turn] [On Play] If your Leader is multicolored and the opponent has 7 or less DON!!: they rest 1 active DON!! at the start of their next Main Phase.
-const MULTICOLOR_LEADER = "EB01-001"; // red/green
-const BENTHAM = "OP02-064"; // 5-cost, [DON!! x1] [When Attacking] ... Then, at the end of this battle, place this Character at the bottom of the owner's deck.
-const HAWKINS = "ST02-010"; // 6000, [DON!! x1] [Once Per Turn] [Your Turn] If this Character battles your opponent's Character, set this card as active.
-const BENTHAM_KO = "ST08-013"; // 6000, [DON!! x1] At the end of a battle in which this Character battles your opponent's Character, you may KO that Character.
-const ROBIN = "ST01-008"; // vanilla 5000
-const SAI = "OP01-012"; // vanilla 2-cost 4000
-const KAROO = "ST01-003"; // vanilla 1-cost {Animal}/{Alabasta}
-const ALVIDA = "OP03-023"; // vanilla 1-cost {East Blue}
-
-/** End the active seat's turn; the other seat's turn begins. */
 function endTurn(h: Harness): void {
   h.act(h.state.activeSeat, { type: "end_turn" });
 }
@@ -30,7 +27,6 @@ describe("delayed effects and end-of-battle triggers", () => {
     const h = new Harness();
     const [thatch] = h.field(0, THATCH);
     h.act(0, { type: "activate_ability", sourceId: thatch!.id, abilityId: "op03-005#0" });
-    // Still on the field for the rest of the turn.
     expect(h.state.players[0].characters.map((c) => c.defId)).toEqual([THATCH]);
     expect(h.state.delayed).toHaveLength(1);
     endTurn(h);
@@ -83,7 +79,6 @@ describe("delayed effects and end-of-battle triggers", () => {
       h.attack(hawkins!, target === "leader" ? "leader" : karoo!);
       h.passBattle();
       expect(h.state.phase).toBe("main");
-      // Set active only after a battle with a Character.
       expect(h.find(0, HAWKINS)!.rested).toBe(target === "leader");
     }
   });
@@ -106,14 +101,14 @@ describe("delayed effects and end-of-battle triggers", () => {
 });
 
 describe("queued triggers", () => {
-  const ACE = "P-028"; // [Double Attack]
-  const BONNEY = "OP08-105"; // [DON!! x1] [Your Turn] [Once Per Turn] When a card is removed from your opponent's Life cards, draw 2 cards and trash 1 card from your hand.
-  const CARROT = "OP01-009"; // [Trigger] Play this card.
-  const LABOON = "EB01-047"; // [Once Per Turn] When a Character is K.O.'d, draw 1 card and trash 1 card from your hand.
-  const VISTA = "OP16-011"; // [DON!! x1] [When Attacking] K.O. up to 2 of your opponent's Characters with 2000 base power or less.
-  const BLUENO = "EB01-017"; // 2000 power
-  const YAMATO = "EB05-046"; // [On Your Opponent's Attack] You may trash 1 card from your hand: If you have 10 or more cards in your trash, your Leader's base power becomes 7000 during this turn.
-  const BON_KUREI = "OP04-069"; // [On Your Opponent's Attack] DON!! -1: This Character's base power becomes the same as the attacker's.
+  const ACE = "P-028";
+  const BONNEY = "OP08-105";
+  const CARROT = "OP01-009";
+  const LABOON = "EB01-047";
+  const VISTA = "OP16-011";
+  const BLUENO = "EB01-017";
+  const YAMATO = "EB05-046";
+  const BON_KUREI = "OP04-069";
 
   it("a [Once Per Turn] trigger queued twice in one turn resolves once (#649)", () => {
     const h = new Harness();
@@ -163,7 +158,6 @@ describe("queued triggers", () => {
     const unordered = h.choice!.unorderedChoices!;
     expect(unordered).toHaveLength(2);
     h.act(1, { type: "order_pending_effects", orderedIds: [...unordered].sort((a, b) => (a.cardDefId === BON_KUREI ? -1 : 1) - (b.cardDefId === BON_KUREI ? -1 : 1)).map((c) => c.id) });
-    // Bon Kurei is skipped without a prompt; Yamato is asked next.
     expect(h.choice?.cardDefId).toBe(YAMATO);
     expect(h.state.players[1].costArea).toHaveLength(2);
     expect(basePowerOf(h.state, 1, bon!)).toBe(4000);
@@ -171,7 +165,7 @@ describe("queued triggers", () => {
 });
 
 describe("a delayed effect that does not name the source card", () => {
-  const BONNEY = "EB02-015"; // 7-cost. [On Play] ... set up to 1 of your DON!! cards as active at the end of this turn.
+  const BONNEY = "EB02-015";
 
   it("still fires at the end of the turn after its source left the field (#753)", () => {
     const h = new Harness();
@@ -180,7 +174,6 @@ describe("a delayed effect that does not name the source card", () => {
     h.don(0, 10);
     h.play(0, BONNEY);
     h.forced();
-    // A 6th Character: Bonney is the one trashed to make room.
     h.play(0, ALVIDA, { trashCharacterId: h.find(0, BONNEY)!.id });
     expect(ids(h, 0)).not.toContain(BONNEY);
     const rested = () => h.state.players[0].costArea.filter((d) => d.rested).length;
