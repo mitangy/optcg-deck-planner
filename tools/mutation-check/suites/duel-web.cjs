@@ -5,6 +5,9 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // Duel UX review, deck editor (#1343)
+    {"id": "deckeditor1343-cost-groups-descending", "file": "duel-web/src/decks/groupStacks.ts", "from": "return [...groups.values()].sort((a, b) => a.cost - b.cost);", "to": "return [...groups.values()].sort((a, b) => b.cost - a.cost);", "kills": ["orders groups cheapest first, keeps the given order inside a cost and totals the copies"], "args": "src/decks/groupStacks"},
+    {"id": "deckeditor1343-cost-groups-copies-uncounted", "file": "duel-web/src/decks/groupStacks.ts", "from": "g.cards += s.count;", "to": "g.cards += 1;", "kills": ["orders groups cheapest first, keeps the given order inside a cost and totals the copies"], "args": "src/decks/groupStacks"},
     // Users list header sorting (#1323)
     {"id": "users1323-click-active-does-not-flip", "file": "duel-web/src/admin/adminLogic.ts", "from": "return { key, dir: current.dir === \"asc\" ? \"desc\" : \"asc\" };", "to": "return { key, dir: current.dir };", "kills": ["flips the direction when the active column is clicked again"], "args": "src/admin/adminLogic"},
     {"id": "users1323-counts-start-ascending", "file": "duel-web/src/admin/adminLogic.ts", "from": "return key === \"user\" || key === \"role\" || key === \"source\" ? \"asc\" : \"desc\";", "to": "return \"asc\";", "kills": ["starts text columns A to Z and counts and Joined with the biggest first"], "args": "src/admin/adminLogic"},

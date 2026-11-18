@@ -83,22 +83,23 @@ test("the deck editor offers One of each art on an any-number card and spreads t
       const loki = page.locator("article.deck-stack", { hasText: "OP17-119" });
       await expect(sleeptids).toHaveCount(1);
 
-      if (!size.phone) {
-        await loki.locator(".deck-stack-art-select").click();
-        await expect(page.getByRole("option", { name: "Standard" })).toBeVisible();
-        await expect(page.getByRole("option", { name: "One of each art" })).toHaveCount(0);
-        await page.keyboard.press("Escape");
-        await sleeptids.locator(".deck-stack-art-select").click();
-        await shot(page, "deck-editor-picker-open", size);
-        await page.getByRole("option", { name: "One of each art" }).click();
-        await expect(sleeptids.locator(".deck-stack-art-select")).toHaveText(/One of each art/);
-      } else {
-        await sleeptids.locator(".deck-stack-name-btn").click();
-        await expect(page.getByRole("button", { name: "One of each art" })).toBeVisible();
-        await shot(page, "deck-editor-card-sheet", size);
-        await page.getByRole("button", { name: "One of each art" }).click();
-        await page.getByRole("button", { name: "Done" }).click();
-      }
+      const artButton = (tile: typeof sleeptids) => tile.getByRole("button", { name: /^Artwork for / });
+      await artButton(loki).click();
+      await expect(page.getByRole("menuitem", { name: "Standard" })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: "One of each art" })).toHaveCount(0);
+      await page.keyboard.press("Escape");
+      await artButton(sleeptids).click();
+      await shot(page, "deck-editor-picker-open", size);
+      await page.getByRole("menuitem", { name: "One of each art" }).click();
+      await artButton(sleeptids).click();
+      await expect(page.getByRole("menuitem", { name: /One of each art/ })).toHaveAttribute("aria-current", "true");
+      await page.keyboard.press("Escape");
+
+      // The enlarged card offers the same choice.
+      await sleeptids.locator(".deck-stack-name-btn").click();
+      await expect(page.getByRole("button", { name: "One of each art" })).toBeVisible();
+      await shot(page, "deck-editor-card-sheet", size);
+      await page.getByRole("button", { name: "Done" }).click();
 
       const saved = await page.evaluate(([key]) => JSON.parse(localStorage.getItem(key!) ?? "[]")[0].artPrefs, [DECKS_KEY]);
       expect(saved).toEqual({ [SLEEPTIDS]: "each" });
