@@ -66,6 +66,14 @@ describe("match chat", () => {
 });
 
 describe("illegal-intent banner", () => {
+  it("a stale_intent rejection shows no banner, online or hotseat (#1351)", () => {
+    for (const mode of ["online", "hotseat"] as const) {
+      expect(classifyServerError({ code: "stale_intent", message: "x" }, { view: viewOf(0), mode }, "player")).toEqual({
+        kind: "ignore",
+      });
+    }
+  });
+
   it("a stale rejection clears only an illegal_intent banner (#304)", () => {
     const illegal = run(createInitialMatchState(), {
       type: "error",
@@ -230,6 +238,32 @@ describe("battle log", () => {
     expect(second.instances.has("c1")).toBe(true);
     expect(second.instances.has("c2")).toBe(true);
     expect(before.has("c2")).toBe(false);
+  });
+});
+
+describe("server restart warning (#1352)", () => {
+  it("shows the warning, and the close that follows ends the game for the lobby instead of offering a reconnect (#1352)", () => {
+    const warned = run(started(), { type: "serverRestarting", seconds: 10 });
+    expect(warned.serverRestart).toEqual({ seconds: 10 });
+    expect(warned.view).not.toBeNull();
+    for (const close of ["disconnect", "drop"] as const) {
+      const s = run(warned, { type: close });
+      expect(s).toMatchObject({ view: null, matchId: null, canReconnect: false, reconnecting: false, connected: false });
+      expect(s.errorBanner).toMatch(/restarted for an update/);
+    }
+  });
+
+  it("a close with no warning still offers to reconnect (#1352)", () => {
+    const s = run(started(), { type: "disconnect" });
+    expect(s).toMatchObject({ canReconnect: true, errorBanner: null });
+    expect(s.view).not.toBeNull();
+  });
+
+  it("a game that already ended shows no warning, and a new game clears it (#1352)", () => {
+    const over = run(started(), { type: "matchOver", result: { winner: 0, reason: "concede" } as never }, { type: "serverRestarting", seconds: 10 });
+    expect(over.serverRestart).toBeNull();
+    const warned = run(started(), { type: "serverRestarting", seconds: 10 });
+    expect(run(warned, { type: "welcome", info: welcomeOf(0) }).serverRestart).toBeNull();
   });
 });
 

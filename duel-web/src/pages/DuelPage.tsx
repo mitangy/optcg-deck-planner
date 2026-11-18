@@ -32,6 +32,7 @@ export function DuelPage() {
     seat,
     matchId,
     errorBanner,
+    serverRestart,
     matchOver,
     rating,
     sendIntent,
@@ -131,6 +132,7 @@ export function DuelPage() {
         seat={seat}
         matchId={matchId}
         errorBanner={errorBanner}
+        serverRestart={serverRestart}
         matchOver={matchOver}
         players={players}
         timer={timer}

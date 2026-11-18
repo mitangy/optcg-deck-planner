@@ -1,4 +1,4 @@
-import { randomInt } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import type { Seat } from "@optcg/rules";
 import { ProtocolError } from "@optcg/duel-protocol";
 import { requireGameToken } from "./env.js";
@@ -87,6 +87,11 @@ export function releaseCreatorRoom(uid: number | null): void {
 export function gameSeed(clientSeed?: number): number {
   if (clientSeed !== undefined && !requireGameToken()) return clientSeed;
   return randomInt(0, 2 ** 32);
+}
+
+// The seed alone is 32 bits, so every game also gets a CSPRNG key its shuffles come from.
+export function newRngKey(): string {
+  return randomBytes(32).toString("hex");
 }
 
 // A client-pinnable first player would let a player choose the turn order.

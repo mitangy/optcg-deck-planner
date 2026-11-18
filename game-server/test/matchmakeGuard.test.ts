@@ -20,6 +20,13 @@ describe("shuffle seeds", () => {
     assert.ok(seeds.some((s) => s !== 42), `seeds ${seeds.join(",")}`);
   });
 
+  it("marks a seed as pinned only when the client's value was honoured (#1350)", async () => {
+    assert.equal(parseCreateOptions({ seed: 42 }).seedPinned, true);
+    assert.equal(parseCreateOptions({}).seedPinned, false);
+    const pinned = await withTokensRequired(() => [1, 2, 3, 4].map(() => parseCreateOptions({ seed: 42 }).seedPinned));
+    assert.deepEqual(pinned, [false, false, false, false]);
+  });
+
   it("does not derive the seed from the clock (#318)", () => {
     const realNow = Date.now;
     Date.now = () => 1_700_000_000_123;

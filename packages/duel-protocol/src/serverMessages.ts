@@ -13,6 +13,7 @@ import type {
 
   MatchOverMessage,
   PlayerView,
+  ServerRestartingMessage,
   Seat,
   SeatPlayerInfo,
   SeatPlayers,
@@ -189,7 +190,11 @@ export function parseView(raw: unknown): ViewMessage {
   } else {
     assertNoOpponentHand(view);
   }
-  return { protocolVersion: PROTOCOL_VERSION, view };
+  return { protocolVersion: PROTOCOL_VERSION, view, step: asStep(o.step) };
+}
+
+function asStep(raw: unknown): number | undefined {
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw >= 0 ? raw : undefined;
 }
 
 export type ReceivedErrorMessage = {
@@ -251,6 +256,12 @@ export function parsePresence(raw: unknown): [number | null, number | null] {
   const a = Array.isArray(o.awayUntil) ? o.awayUntil : [];
   const at = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
   return [at(a[0]), at(a[1])];
+}
+
+export function parseServerRestarting(raw: unknown): ServerRestartingMessage {
+  const o = versionedBody(raw, "server_restarting");
+  const seconds = typeof o.seconds === "number" && Number.isFinite(o.seconds) ? Math.max(0, Math.round(o.seconds)) : 0;
+  return { protocolVersion: PROTOCOL_VERSION, seconds };
 }
 
 export function parseCosmetics(raw: unknown): CosmeticsMessage {

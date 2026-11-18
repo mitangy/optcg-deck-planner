@@ -2,6 +2,7 @@ import { isProtocolVersion } from "./constants.js";
 
 export const ERROR_CODES = [
   "illegal_intent",
+  "stale_intent",
   "match_not_ready",
   "match_over",
   "bad_protocol",

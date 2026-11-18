@@ -26,6 +26,19 @@ if (WS_MAX_PAYLOAD_BYTES < SKIN_MAX_PLAYMAT_CHARS + SKIN_MAX_CARD_BACK_CHARS + 4
   throw new Error("WS_MAX_PAYLOAD_BYTES must fit the largest skin message");
 }
 
+/** Games being played right now, across the pool: a deploy waits for this to reach zero. */
+export function countLiveMatches(rooms: { metadata?: unknown }[]): number {
+  return rooms.filter((room) => (room.metadata as { phase?: string } | undefined)?.phase === "playing").length;
+}
+
+async function liveMatchesNow(): Promise<number | null> {
+  try {
+    return countLiveMatches(await matchMaker.query({ name: "duel" }));
+  } catch {
+    return null;
+  }
+}
+
 function activeMatchesCaller(authorization: string | undefined, devUserId: unknown): number | null {
   const bearer = /^Bearer\s+(.+)$/i.exec(authorization ?? "")?.[1]?.trim();
   if (bearer) return verifyGameToken(bearer)?.uid ?? null;
@@ -49,7 +62,7 @@ const server = defineServer({
   },
 
   express: (app) => {
-    app.get("/health", (_req, res) => {
+    app.get("/health", async (_req, res) => {
       res.json({
         ok: true,
         service: "optcg-game-server",
@@ -67,6 +80,8 @@ const server = defineServer({
         processId: matchMaker.processId,
         roomCount: matchMaker.stats.local.roomCount,
         ccu: matchMaker.stats.local.ccu,
+        // Games in progress (not lobbies or finished rooms); null when it could not be counted.
+        liveMatches: await liveMatchesNow(),
       });
     });
 

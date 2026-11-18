@@ -21,6 +21,7 @@ export type EnvConfig = {
 
 export type RoomConfig = EnvConfig & {
   seed: number;
+  seedPinned: boolean;
   firstSeat: Seat;
   autoSkipMulligan: boolean;
   diceRoll: boolean;
@@ -60,6 +61,7 @@ export function buildRoomConfig(options: unknown, parsed: ReturnType<typeof pars
   return {
     ...env,
     seed: parsed.seed,
+    seedPinned: parsed.seedPinned,
     firstSeat: parsed.firstSeat,
     autoSkipMulligan: parsed.autoSkipMulligan,
     diceRoll: env.requireGameToken || parsed.diceRoll,

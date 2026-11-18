@@ -31,7 +31,8 @@ export function botDisplayName(level: BotLevel): string {
 export class BotDriver {
   private botTimer: TimerHandle | null = null;
   private botJob: { id: number; match: MatchState } | null = null;
-  stats = { decisions: 0, searches: 0, ms: 0 };
+  /** hardMoves: moves decided through the worker pool, fallbacks included; fallbacks: those that fell back to a Normal move. */
+  stats = { decisions: 0, searches: 0, ms: 0, hardMoves: 0, fallbacks: 0 };
   private botTurn = -1;
   private botIntentsThisTurn = 0;
 
@@ -147,7 +148,9 @@ export class BotDriver {
         return;
       }
       let intent = r.intent;
+      this.stats.hardMoves += 1;
       if (r.error !== null) {
+        this.stats.fallbacks += 1;
         io.log("warn", "bot_worker_failed", { matchId: game.matchId, message: r.error });
         try {
           intent = chooseBotIntentFromState(m, BOT_SEAT, { level: "normal", rng: bot.rng });

@@ -1017,3 +1017,97 @@ def test_solo_games_do_not_touch_ratings_or_match_history_988(client):
     assert _solo(c, "g1", me["id"], won=True).status_code == 200
     assert c.get("/duel/matches/me").json()["matches"] == []
     assert c.get("/duel/rating/me").json()["games_played"] == 0
+
+
+# Win-trading cap (#1351)
+def _pair(c):
+    a = c.post("/duel/dev-token", json={"user_key": "alice"}).json()["user_id"]
+    b = c.post("/duel/dev-token", json={"user_key": "bob"}).json()["user_id"]
+    return a, b
+
+
+def _age_match(SessionLocal, match_id: str, hours: float) -> None:
+    db = SessionLocal()
+    try:
+        row = db.query(DuelMatch).filter_by(match_id=match_id).one()
+        row.created_at = datetime.now(timezone.utc) - timedelta(hours=hours)
+        db.commit()
+    finally:
+        db.close()
+
+
+def _rating(SessionLocal, user_id: int) -> tuple[int, int]:
+    db = SessionLocal()
+    try:
+        r = db.get(DuelRating, user_id)
+        return r.rating, r.games_played
+    finally:
+        db.close()
+
+
+def test_third_ranked_game_between_a_pair_in_a_day_still_moves_ratings_1351(client):
+    c, _ = client
+    a, b = _pair(c)
+    for i in range(2):
+        _ingest(c, f"cap-{i}", a, b, 0)
+    third = _ingest(c, "cap-2", a, b, 0)
+    assert third["seat0_rating_after"] > third["seat0_rating_before"]
+    assert third["seat1_rating_after"] < third["seat1_rating_before"]
+
+
+def test_fourth_ranked_game_between_a_pair_in_a_day_moves_no_ratings_1351(client):
+    c, SessionLocal = client
+    a, b = _pair(c)
+    for i in range(3):
+        _ingest(c, f"cap-{i}", a, b, 0)
+    before = (_rating(SessionLocal, a), _rating(SessionLocal, b))
+    fourth = _ingest(c, "cap-3", a, b, 0)
+    assert fourth["seat0_rating_after"] == fourth["seat0_rating_before"]
+    assert fourth["seat1_rating_after"] == fourth["seat1_rating_before"]
+    assert (_rating(SessionLocal, a), _rating(SessionLocal, b)) == before
+    db = SessionLocal()
+    try:
+        row = db.query(DuelMatch).filter_by(match_id="cap-3").one()
+        assert row.ranked is True
+    finally:
+        db.close()
+
+
+def test_ranked_games_older_than_a_day_do_not_count_toward_the_pair_cap_1351(client):
+    c, SessionLocal = client
+    a, b = _pair(c)
+    for i in range(3):
+        _ingest(c, f"cap-{i}", a, b, 0)
+        _age_match(SessionLocal, f"cap-{i}", 25)
+    fresh = _ingest(c, "cap-3", a, b, 0)
+    assert fresh["seat0_rating_after"] != fresh["seat0_rating_before"]
+
+
+def test_ranked_games_against_other_opponents_do_not_count_toward_the_pair_cap_1351(client):
+    c, _ = client
+    a, b = _pair(c)
+    other = c.post("/duel/dev-token", json={"user_key": "carol"}).json()["user_id"]
+    for i in range(3):
+        _ingest(c, f"cap-{i}", a, other, 0)
+    first_vs_b = _ingest(c, "cap-b", a, b, 0)
+    assert first_vs_b["seat0_rating_after"] != first_vs_b["seat0_rating_before"]
+
+
+def test_pair_cap_counts_games_in_either_seat_order_1351(client):
+    c, _ = client
+    a, b = _pair(c)
+    _ingest(c, "cap-0", a, b, 0)
+    _ingest(c, "cap-1", b, a, 0)
+    _ingest(c, "cap-2", a, b, 1)
+    capped = _ingest(c, "cap-3", b, a, 1)
+    assert capped["seat0_rating_after"] == capped["seat0_rating_before"]
+    assert capped["seat1_rating_after"] == capped["seat1_rating_before"]
+
+
+def test_unranked_games_do_not_count_toward_the_pair_cap_1351(client):
+    c, _ = client
+    a, b = _pair(c)
+    for i in range(3):
+        _ingest(c, f"cap-{i}", a, b, 0, ranked=False)
+    ranked = _ingest(c, "cap-r", a, b, 0)
+    assert ranked["seat0_rating_after"] != ranked["seat0_rating_before"]

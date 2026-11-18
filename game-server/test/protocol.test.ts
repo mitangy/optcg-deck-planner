@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   PROTOCOL_VERSION,
   parseCreateOptions,
+  parseIntentEnvelope,
   parseIntentMessage,
   parseJoinOptions,
   parseSkinMessage,
@@ -185,5 +186,25 @@ describe("protocol parsers", () => {
       intent: { type: "end_turn" },
     });
     assert.deepEqual(intent, { type: "end_turn" });
+  });
+
+  it("intent envelope keeps a valid step and cardId and drops neither when absent (#1351)", () => {
+    const base = { protocolVersion: PROTOCOL_VERSION, intent: { type: "play_card", handIndex: 2 } };
+    assert.deepEqual(parseIntentEnvelope({ ...base, step: 7, cardId: "c-12" }), {
+      intent: base.intent,
+      step: 7,
+      cardId: "c-12",
+    });
+    assert.deepEqual(parseIntentEnvelope(base), { intent: base.intent });
+  });
+
+  it("intent envelope rejects a malformed or oversized step or cardId (#1351)", () => {
+    const base = { protocolVersion: PROTOCOL_VERSION, intent: { type: "end_turn" } };
+    for (const step of [-1, 1.5, "3", null, Number.MAX_SAFE_INTEGER + 2]) {
+      assert.throws(() => parseIntentEnvelope({ ...base, step }), /step/, `step ${String(step)}`);
+    }
+    for (const cardId of ["", 5, null, "x".repeat(65)]) {
+      assert.throws(() => parseIntentEnvelope({ ...base, cardId }), /cardId/, `cardId ${String(cardId)}`);
+    }
   });
 });

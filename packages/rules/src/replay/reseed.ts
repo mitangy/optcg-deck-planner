@@ -7,7 +7,7 @@ import type { MatchState } from "../types.js";
  */
 export function reseedMatch(state: MatchState, seed: number, shuffleDecks: boolean): MatchState {
   const next = structuredClone(state) as MatchState;
-  const rng = createSeededRng(seed >>> 0);
+  const rng = createSeededRng(state.rng.key ? { seed: seed >>> 0, cursor: 0, key: state.rng.key } : seed >>> 0);
   if (shuffleDecks) {
     for (const p of next.players) {
       const cards = rng.shuffle(p.deck.map((defId, i) => ({ defId, id: p.zoneInstanceIds.deck[i]! })));

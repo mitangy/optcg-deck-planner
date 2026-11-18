@@ -113,5 +113,12 @@ module.exports = {
       ["move-skips-literal", "if (name === undefined) { count += 1; return next; }", "if (name === undefined) return match;", "a literal file path is rewritten wherever a suite names it"],
       ["move-ignores-suites-dir", "const suitesDir = dirIndex >= 0 ? path.resolve(argv[dirIndex + 1]) : path.join(__dirname, \"suites\");", "const suitesDir = path.join(__dirname, \"suites\");", "rewrites a suites directory in place"],
     ].map(([id, from, to, kill]) => ({ id, file: "tools/mutation-check/move.cjs", from, to, kills: [kill], args: '"tools/mutation-check/move.test.cjs"' })),
+    // Deploy-when-idle wait (#1352)
+    ...[
+      ["idle1352-unknown-count-is-idle", "return Number.isInteger(n) && n >= 0 ? n : null;", "return Number.isInteger(n) && n >= 0 ? n : 0;", "an unreachable server or a missing count is never treated as idle (#1352)"],
+      ["idle1352-failed-check-is-idle", "log(`health check failed: ${e.message}`);", "log(`health check failed: ${e.message}`); live = 0;", "an unreachable server or a missing count is never treated as idle (#1352)"],
+      ["idle1352-stops-at-one-match", "if (live === 0) return { idle: true, polls };", "if (live !== null && live <= 1) return { idle: true, polls };", "it keeps polling every interval while games run, then reports idle (#1352)"],
+      ["idle1352-deploys-after-timeout", "if (now() + intervalMs > deadline) return { idle: false, polls };", "if (now() + intervalMs > deadline) return { idle: true, polls };", "games that never finish run out the wait without reporting idle (#1352)"],
+    ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/wait-for-idle.cjs", from, to, kills: [kill], args: '"tools/ci/wait-for-idle.test.cjs"' })),
   ],
 };

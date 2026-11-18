@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import or_, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.core import redis_client
@@ -15,6 +15,21 @@ from app.core.models import User
 from app.duel.models import DuelMatch, DuelMatchLog, DuelMatchProgress, DuelMatchSeatLog
 from app.duel.schemas import DuelMatchHistoryEntry
 from app.usernames import duel_display_name
+
+
+def ranked_pair_games_in_window(db: Session, user_a: int, user_b: int, hours: int) -> int:
+    """Ranked games between these two users, in either seat order, in the last `hours`."""
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    return db.scalar(
+        select(func.count(DuelMatch.id)).where(
+            DuelMatch.ranked.is_(True),
+            DuelMatch.created_at >= since,
+            or_(
+                (DuelMatch.seat0_user_id == user_a) & (DuelMatch.seat1_user_id == user_b),
+                (DuelMatch.seat0_user_id == user_b) & (DuelMatch.seat1_user_id == user_a),
+            ),
+        )
+    ) or 0
 
 
 def lock_match(db: Session, match_id: str) -> None:

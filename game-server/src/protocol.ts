@@ -1,5 +1,6 @@
 import { BOT_LEVELS, parseIntent, type BotLevel, type Intent, type Seat } from "@optcg/rules";
 import {
+  INTENT_CARD_ID_MAX_LENGTH,
   PROTOCOL_VERSION,
   asPlayerDeck,
   bad,
@@ -18,6 +19,8 @@ export const RANKED_SEAT_SECONDS = 15 * 60;
 export function parseCreateOptions(raw: unknown): {
   protocolVersion: ProtocolVersion;
   seed: number;
+  /** A create option pinned the seed (dev and tests): the room then deals from the bare seed, with no secret key. */
+  seedPinned: boolean;
   firstSeat: Seat;
   autoSkipMulligan: boolean;
   diceRoll: boolean;
@@ -32,9 +35,9 @@ export function parseCreateOptions(raw: unknown): {
   if (o.protocolVersion !== undefined && !isProtocolVersion(o.protocolVersion)) {
     throw bad("Unsupported protocolVersion on create");
   }
-  const seed = gameSeed(
-    typeof o.seed === "number" && Number.isFinite(o.seed) ? Math.floor(o.seed) : undefined,
-  );
+  const clientSeed = typeof o.seed === "number" && Number.isFinite(o.seed) ? Math.floor(o.seed) : undefined;
+  const seed = gameSeed(clientSeed);
+  const seedPinned = clientSeed !== undefined && seed === clientSeed;
   if (o.firstSeat !== undefined && o.firstSeat !== 0 && o.firstSeat !== 1) {
     throw bad("firstSeat must be 0 or 1");
   }
@@ -106,6 +109,7 @@ export function parseCreateOptions(raw: unknown): {
   return {
     protocolVersion: PROTOCOL_VERSION,
     seed,
+    seedPinned,
     firstSeat,
     autoSkipMulligan,
     diceRoll,
@@ -118,7 +122,13 @@ export function parseCreateOptions(raw: unknown): {
   };
 }
 
+export type ParsedIntentMessage = { intent: Intent; step?: number; cardId?: string };
+
 export function parseIntentMessage(raw: unknown): Intent {
+  return parseIntentEnvelope(raw).intent;
+}
+
+export function parseIntentEnvelope(raw: unknown): ParsedIntentMessage {
   const o = expectEnvelope(raw, "intent message");
   if (
     !o.intent ||
@@ -132,6 +142,19 @@ export function parseIntentMessage(raw: unknown): Intent {
   if (!parsed.ok) {
     throw bad(parsed.message);
   }
-  return parsed.intent;
+  const out: ParsedIntentMessage = { intent: parsed.intent };
+  if (o.step !== undefined) {
+    if (typeof o.step !== "number" || !Number.isSafeInteger(o.step) || o.step < 0) {
+      throw bad("intent step must be a non-negative integer");
+    }
+    out.step = o.step;
+  }
+  if (o.cardId !== undefined) {
+    if (typeof o.cardId !== "string" || !o.cardId || o.cardId.length > INTENT_CARD_ID_MAX_LENGTH) {
+      throw bad("intent cardId must be a short string");
+    }
+    out.cardId = o.cardId;
+  }
+  return out;
 }
 

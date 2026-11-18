@@ -5,6 +5,9 @@ INITIAL_RATING = 1000
 K_PROVISIONAL = 40
 K_STANDARD = 24
 PROVISIONAL_GAMES = 10
+# Ranked games between the same two accounts that may move ratings per rolling day; later ones are saved with deltas of 0.
+RANKED_PAIR_DAILY_LIMIT = 3
+RANKED_PAIR_WINDOW_HOURS = 24
 
 
 def elo_k(games_played: int) -> int:

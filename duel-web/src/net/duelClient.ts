@@ -8,6 +8,7 @@ import {
   parseError,
   parseMatchOver,
   parsePresence,
+  parseServerRestarting,
   parseRematchState,
   parseTimer,
   parseUndoApplied,
@@ -74,6 +75,7 @@ export type DuelClientHandlers = {
   onUndoState?: (state: UndoState) => void;
   onUndoApplied?: (info: UndoApplied) => void;
   onPresence?: (awayUntil: [number | null, number | null]) => void;
+  onServerRestarting?: (seconds: number) => void;
   onRematchState?: (state: RematchState) => void;
   onDiceState?: (state: DiceStateMessage) => void;
   onTakenOver?: () => void;
@@ -111,6 +113,8 @@ export class DuelClient {
   private connectSeq = 0;
   private pendingReconnect: Promise<{ matchId: string; seat: Seat }> | null = null;
   private lastView: PlayerView | null = null;
+  /** Server step of lastView; sent with each intent so the server can drop one aimed at an older state. */
+  private lastStep: number | undefined;
   /** Turn an End turn went out on; until its result arrives, Main actions would land in the opponent's turn. */
   private endTurnSentOn: number | null = null;
   private illegalIntentOn: number | null = null;
@@ -336,7 +340,14 @@ export class DuelClient {
       if (this.passSent === intent.type) return;
       this.passSent = intent.type;
     }
-    this.room.send(CLIENT_MESSAGE.intent, { protocolVersion: PROTOCOL_VERSION, intent });
+    const handIndex = handIndexOfIntent(intent);
+    const cardId = handIndex === undefined ? undefined : this.lastView?.you.hand[handIndex]?.id;
+    this.room.send(CLIENT_MESSAGE.intent, {
+      protocolVersion: PROTOCOL_VERSION,
+      intent,
+      ...(this.lastStep === undefined ? {} : { step: this.lastStep }),
+      ...(cardId === undefined ? {} : { cardId }),
+    });
   }
 
   concede() {
@@ -506,7 +517,13 @@ export class DuelClient {
     });
   }
 
-  private noteView(view: PlayerView) {
+  private releaseIntentLatches() {
+    this.endTurnSentOn = null;
+    this.passSent = null;
+  }
+
+  private noteView(view: PlayerView, step?: number) {
+    this.lastStep = step;
     this.lastView = view;
     this.passSent = null;
     if (view.turnNumber !== this.endTurnSentOn) this.endTurnSentOn = null;
@@ -544,7 +561,7 @@ export class DuelClient {
         onBad: reportBad("Bad view"),
         handle: (raw) => {
           const msg = parseView(raw);
-          this.noteView(msg.view);
+          this.noteView(msg.view, msg.step);
           this.handlers.onView?.(msg.view);
         },
       },
@@ -565,7 +582,10 @@ export class DuelClient {
         onBad: () => ({ protocolVersion: PROTOCOL_VERSION, code: "unknown", message: "Malformed error" }),
         handle: (raw) => {
           const err = parseError(raw);
-          if (err.code === "illegal_intent") {
+          if (err.code === "stale_intent") {
+            // The server follows with a fresh view; the store shows nothing for it.
+            this.releaseIntentLatches();
+          } else if (err.code === "illegal_intent") {
             this.endTurnSentOn = null;
             this.passSent = null;
             this.illegalIntentOn = this.lastView?.turnNumber ?? null;
@@ -615,6 +635,11 @@ export class DuelClient {
         type: SERVER_MESSAGE.undo_applied,
         onBad: ignoreBad,
         handle: (raw) => this.handlers.onUndoApplied?.(parseUndoApplied(raw)),
+      },
+      {
+        type: SERVER_MESSAGE.server_restarting,
+        onBad: ignoreBad,
+        handle: (raw) => this.handlers.onServerRestarting?.(parseServerRestarting(raw).seconds),
       },
       { type: SERVER_MESSAGE.taken_over, handle: () => this.markTakenOver(room) },
     ];
@@ -685,3 +710,9 @@ const reportBad =
   });
 
 const ignoreBad = (): null => null;
+
+function handIndexOfIntent(intent: Intent): number | undefined {
+  return intent.type === "play_card" || intent.type === "counter_from_hand" || intent.type === "counter_event"
+    ? intent.handIndex
+    : undefined;
+}

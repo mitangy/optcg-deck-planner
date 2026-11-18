@@ -401,6 +401,32 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
         assert.deepEqual(bag.errors, []);
       });
 
+      it("a Hard job that times out counts as a fallback and bot_game_over reports it with the Hard move count (#1351)", async () => {
+        const { pool, jobs } = stubPool(async () => { throw new Error("bot job timed out after 4000 ms"); });
+        setSharedBotPool(pool);
+        const room = await createHard();
+        const human = await getServer().connectTo(room, join("human", 0));
+        const bag = attach(human);
+        await waitUntil(() => bag.welcomes.length > 0);
+        humanSend(human, { type: "end_turn" });
+        await waitUntil(() => internals(room).match.turnNumber >= 3 && last(bag).activeSeat === 0);
+        assert.ok(jobs.length > 0);
+        assert.ok(room.bots.stats.fallbacks > 0, "the timeout was counted");
+        assert.equal(room.bots.stats.fallbacks, room.bots.stats.hardMoves, "every move here was a fallback");
+        const lines: string[] = [];
+        const origLog = console.log;
+        console.log = (...a: unknown[]) => { lines.push(a.map(String).join(" ")); };
+        try {
+          human.send("concede", { protocolVersion: PROTOCOL_VERSION });
+          await waitUntil(() => bag.over !== undefined);
+        } finally { console.log = origLog; }
+        const over = lines.map((l) => { try { return JSON.parse(l) as Record<string, unknown>; } catch { return null; } }).find((o) => o?.event === "bot_game_over");
+        assert.ok(over, "bot_game_over was logged");
+        assert.equal(over.fallbacks, room.bots.stats.fallbacks);
+        assert.equal(over.hardMoves, room.bots.stats.hardMoves);
+        assert.ok((over.fallbacks as number) > 0);
+      });
+
       it("when the human concedes mid-search the room cancels the search, and the late answer changes nothing (#635)", async () => {
         let release: (r: BotJobOutput) => void = () => undefined;
         const { pool, jobs, cancelled } = stubPool(() => new Promise<BotJobOutput>((resolve) => { release = resolve; }));

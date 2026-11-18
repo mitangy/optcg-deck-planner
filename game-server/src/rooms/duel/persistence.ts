@@ -1,4 +1,4 @@
-import { seatLog, type Seat } from "@optcg/rules";
+import { seatLog, type MatchReplay, type Seat } from "@optcg/rules";
 import {
   LatestOnlySender,
   type MatchProgressPayload,
@@ -7,6 +7,13 @@ import {
 } from "../../writeback.js";
 import type { DuelCore } from "./context.js";
 import { BOT_SEAT } from "./bots.js";
+
+/** The key predicts the rest of the game's shuffles, so a snapshot of a game still being played leaves it out. */
+function withoutKeyUnlessOver(replay: MatchReplay, over: boolean): MatchReplay {
+  if (over || replay.rngKey === undefined) return replay;
+  const { rngKey: _key, ...rest } = replay;
+  return rest;
+}
 
 export class MatchPersistence {
   private progressTurn: number | null = null;
@@ -138,7 +145,7 @@ export class MatchPersistence {
       seat0_leader_id: game.replay?.players[0].leaderId,
       seat1_leader_id: game.replay?.players[1].leaderId,
       turns: game.match?.turnNumber,
-      replay: game.replay ? { ...game.replay, intents: [...game.replay.intents] } : undefined,
+      replay: game.replay ? { ...withoutKeyUnlessOver(game.replay, reveal), intents: [...game.replay.intents] } : undefined,
       seat_logs: this.seatLogs(reveal),
     };
   }

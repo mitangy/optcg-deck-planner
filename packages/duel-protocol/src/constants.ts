@@ -17,6 +17,8 @@ export const SKIN_PUBLIC_PATH = /^\/duel\/cosmetics\/\d{1,12}\/public\/[A-Za-z0-
 
 export const CHAT_MAX_LENGTH = 200;
 
+export const INTENT_CARD_ID_MAX_LENGTH = 64;
+
 export const HAND_ORDER_MAX_IDS = 100;
 export const HAND_ORDER_MAX_ID_LENGTH = 64;
 
@@ -54,6 +56,7 @@ export const SERVER_MESSAGE = {
   undo_state: "undo_state",
   undo_applied: "undo_applied",
   taken_over: "taken_over",
+  server_restarting: "server_restarting",
   pong: "pong",
 } as const;
 export type ServerMessageType = (typeof SERVER_MESSAGE)[keyof typeof SERVER_MESSAGE];

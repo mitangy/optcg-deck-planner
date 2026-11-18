@@ -39,7 +39,18 @@ export type ApplyResult = { ok: true } | { ok: false; message: string };
 export class DuelGame {
   matchId = "";
   seed = 0;
-  match: MatchState | null = null;
+  /** Secret 256-bit key of the running game, absent for a pinned-seed room. Never sent to players. */
+  rngKey: string | null = null;
+  private currentMatch: MatchState | null = null;
+  /** Rises on every match change (intent, timer, concede, undo); never reset, so undo cannot make an old step look current. */
+  stateStep = 0;
+  get match(): MatchState | null {
+    return this.currentMatch;
+  }
+  set match(next: MatchState | null) {
+    this.currentMatch = next;
+    this.stateStep += 1;
+  }
   /** Never sent to players. */
   replay: MatchReplay | null = null;
   ranked = true;

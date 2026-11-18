@@ -109,6 +109,7 @@ import { useBoardLayout } from "./layout/useBoardLayout";
 import { useBoardPanels } from "./panels/useBoardPanels";
 import { useDefendFlow } from "./combat/useDefendFlow";
 import { EMPTY_IDS, useDonSelection } from "./don/useDonSelection";
+import { RestartNotice } from "./match/RestartNotice";
 import { useFanState } from "./hand/useFanState";
 import { useFullscreen } from "./layout/useFullscreen";
 import { useHandArrangement } from "./hand/useHandArrangement";
@@ -122,6 +123,8 @@ type Props = {
   seat: Seat | null;
   matchId: string | null;
   errorBanner: string | null;
+  /** The server announced a restart that will end this game. */
+  serverRestart?: { seconds: number } | null;
   matchOver: MatchOverMessage["result"] | null;
   players?: SeatPlayers | null;
   timer?: TimerMessage | null;
@@ -166,6 +169,7 @@ export function DuelBoard({
   seat,
   matchId,
   errorBanner,
+  serverRestart = null,
   matchOver,
   players = null,
   timer = null,
@@ -1519,6 +1523,8 @@ export function DuelBoard({
           {awayLeft} for them to reconnect — after that the match is yours.
         </div>
       ) : null}
+
+      {serverRestart && !over ? <RestartNotice seconds={serverRestart.seconds} /> : null}
 
       {errorBanner ? (
         <button type="button" className="error-banner" onClick={onClearError}>
