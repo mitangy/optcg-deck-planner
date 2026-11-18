@@ -872,6 +872,9 @@ body:has(.trade-tray) .lp-compass {
   .tray-add-message,
   .need-ask {
     min-height: 2.75rem;
+  }
+}
+
 /* #1362 Friends tab */
 .friends-needs-you {
   margin-bottom: var(--space-4);
