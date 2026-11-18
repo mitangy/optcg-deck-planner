@@ -46,6 +46,6 @@ test("on a landscape phone the match-over card fits the screen and scrolls insid
   const box = (await card.boundingBox())!;
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
-  await card.getByRole("button", { name: "Return home" }).scrollIntoViewIfNeeded();
-  await expect(card.getByRole("button", { name: "Return home" })).toBeInViewport();
+  await card.getByRole("button", { name: "Home" }).scrollIntoViewIfNeeded();
+  await expect(card.getByRole("button", { name: "Home" })).toBeInViewport();
 });

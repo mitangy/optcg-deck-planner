@@ -11,6 +11,20 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/settings", label: "Settings" },
 ];
 
+const INLINE_HREFS = ["/decks", "/leaderboard", "/history", "/tournaments"];
+const INLINE_LABEL: Record<string, string> = { "/history": "History" };
+
+export const INLINE_NAV: readonly NavItem[] = INLINE_HREFS.map((href) => ({
+  href,
+  label: INLINE_LABEL[href] ?? NAV_ITEMS.find((i) => i.href === href)!.label,
+}));
+
+const SHOWN_INLINE = new Set([...INLINE_NAV.map((i) => i.href), "/settings"]);
+
+export function isShownInline(href: string): boolean {
+  return SHOWN_INLINE.has(href);
+}
+
 const ADMIN_ITEM: NavItem = { href: "/admin", label: "Admin" };
 
 export function navItemsFor(role: string | null | undefined): readonly NavItem[] {

@@ -115,10 +115,6 @@
   gap: var(--space-2);
 }
 
-.mode-tiles-4 {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
 .mode-tiles-5 {
   grid-template-columns: repeat(6, minmax(0, 1fr));
 }
@@ -153,6 +149,10 @@
 .mode-tile:not(:disabled):hover {
   border-color: var(--line-strong);
   background-color: var(--arena-panel);
+}
+
+.mode-tile[aria-current="true"] {
+  border-color: var(--line-strong);
 }
 
 .mode-tile:focus-visible {

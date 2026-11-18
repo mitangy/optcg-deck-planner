@@ -25,11 +25,18 @@ describe("last Play mode", () => {
   });
 
   it("keeps the other modes as they are (#431, #631)", () => {
-    for (const m of ["hotseat", "bot", "queue", "spectate", "create"] as const) {
+    for (const m of ["hotseat", "bot", "queue", "create"] as const) {
       const s = memory();
       writeLastMode(m, s);
       expect(readLastMode(s)).toBe(m);
     }
+  });
+
+  it("never remembers Spectate as the Play mode (#1343)", () => {
+    const s = memory();
+    writeLastMode("spectate", s);
+    expect(s.data[LAST_MODE_KEY]).toBeUndefined();
+    expect(readLastMode(memory({ [LAST_MODE_KEY]: "spectate" }))).toBeNull();
   });
 
   it("reads an unknown or missing value as no last mode (#431)", () => {

@@ -22,12 +22,11 @@ afterEach(() => {
 });
 
 async function mount(counts: { online: number; matches: number }, disabled = false): Promise<HTMLElement> {
-  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(counts))));
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
   await act(async () => {
-    root!.render(<LivePanel {...handlers} disabled={disabled} />);
+    root!.render(<LivePanel counts={counts} {...handlers} disabled={disabled} />);
   });
   return host;
 }

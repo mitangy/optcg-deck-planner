@@ -2,6 +2,7 @@ import { useEffect, useRef, type CSSProperties, type MouseEvent as ReactMouseEve
 import { DON_CARD_ART, fallbackToDefaultDon } from "./donArt";
 import { useClickCopy } from "../input/clickCopy";
 import { groupIntoPiles, type DonPiles } from "./donPiles";
+import { railTapDon } from "./donSelection";
 import { createLongPressController } from "../preview/inspectGestures";
 import { usePointerDrag } from "../input/usePointerDrag";
 
@@ -191,9 +192,16 @@ export function DonStrip({
 
   function handleRailClick(e: ReactMouseEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement;
-    if (!target.closest(".don-chip-btn")) {
+    if (target.closest(".don-chip-btn")) return;
+    const touch = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+    const legal = touch && onDonToggleSelect ? items.filter((t) => draggableDonIds?.has(t.id)).map((t) => t.id) : [];
+    if (legal.length === 0) {
       onClearDonSelection?.();
+      return;
     }
+    const next = railTapDon(selectedDonIds ?? new Set(), legal);
+    if (next) onDonToggleSelect?.(next);
+    else onClearDonSelection?.();
   }
 
   function renderChip(t: DonToken) {

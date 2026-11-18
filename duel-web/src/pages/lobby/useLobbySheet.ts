@@ -18,10 +18,8 @@ export function useLobbySheet() {
     if (next === "create") setTimerPreset("off");
   }
 
-  function openSheet(at: PlayMode | null = null) {
-    setError(null);
-    setMode(null);
-    if (at) pickMode(at);
+  function openSheet(at: PlayMode) {
+    pickMode(at);
     setSheetOpen(true);
   }
 
@@ -29,11 +27,6 @@ export function useLobbySheet() {
     setSheetOpen(false);
     setMode(null);
     setError(null);
-  }
-
-  function backToModes() {
-    setError(null);
-    setMode(null);
   }
 
   return {
@@ -54,7 +47,6 @@ export function useLobbySheet() {
     pickMode,
     openSheet,
     closeSheet,
-    backToModes,
   };
 }
 

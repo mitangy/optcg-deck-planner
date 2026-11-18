@@ -58,8 +58,7 @@ test("Lobby private room: the Create / Join row follows arrow keys and swaps the
   });
   await seedDecks(page);
   await page.goto("/");
-  await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
   const row = page.getByRole("tablist", { name: "Private room" });
   await expect(row.getByRole("tab", { name: "Create" })).toHaveAttribute("aria-selected", "true");
   await expect(page.getByRole("button", { name: "Create room" })).toBeVisible();

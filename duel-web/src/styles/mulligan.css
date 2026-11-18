@@ -27,10 +27,140 @@
   color: var(--chrome-bright);
 }
 
-@media (max-width: 359px) {
-  .mulligan-banner-explainer {
+/* The opening hand while you decide: large and centred over the board, with the choice directly under it (#1343). Sized from the mat (a size container), so it fits 1280x720, 375x812 and 812x375 with no scrolling. */
+.arena .mulligan-hand {
+  --mh-gap: 0.5rem;
+  --mh-cols: 5;
+  --mh-n: 5;
+  --mh-chrome: 11rem;
+  --mh-cw: max(
+    56px,
+    min(
+      calc((min(100cqw - 1rem, 46rem) - 2rem - 6px - (var(--mh-cols) - 1) * var(--mh-gap)) / var(--mh-cols)),
+      calc((100cqh - var(--mh-chrome)) / round(up, var(--mh-n) / var(--mh-cols), 1) / 1.4),
+      8.5rem
+    )
+  );
+  position: absolute;
+  z-index: calc(var(--z-log) + 1);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(calc(100cqw - 1rem), 46rem);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem 0.9rem;
+  border: 1px solid rgb(var(--chrome-rgb) / 0.45);
+  border-radius: var(--radius-10);
+  background: linear-gradient(180deg, rgb(var(--chrome-rgb) / 0.16), rgba(20, 28, 24, 0.96)), var(--arena-panel);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+  color: var(--ink);
+  animation: mulligan-hand-in 200ms ease-out;
+}
+
+@keyframes mulligan-hand-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena .mulligan-hand {
+    animation: none;
+  }
+}
+
+:root[data-motion="reduce"] .arena .mulligan-hand {
+  animation: none;
+}
+
+@container playmat (max-width: 30rem) {
+  .arena .mulligan-hand {
+    --mh-cols: 3;
+  }
+}
+
+/* A short window has no room for the sentence; the turn splash already says who goes first. */
+@container playmat (max-height: 24rem) {
+  .arena .mulligan-hand {
+    --mh-chrome: 8rem;
+    gap: 0.45rem;
+    padding-block: 0.5rem 0.65rem;
+  }
+
+  .arena .mulligan-hand .mulligan-hand-hint {
     display: none;
   }
+}
+
+.mulligan-hand-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--chrome-bright);
+}
+
+.mulligan-hand-order,
+.mulligan-hand-hint {
+  margin: 0;
+  max-width: 36rem;
+  text-align: center;
+  font-size: 0.8rem;
+  line-height: 1.35;
+}
+
+.mulligan-hand-order strong {
+  color: var(--chrome-bright);
+}
+
+.mulligan-hand-cards {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--mh-gap);
+}
+
+.arena .mulligan-hand-cards > .card-tile {
+  flex: 0 0 auto;
+  width: var(--mh-cw);
+  height: calc(var(--mh-cw) * 1.4);
+  margin: 0;
+}
+
+.mulligan-hand-actions {
+  width: min(100%, 28rem);
+}
+
+.arena .mulligan-hand .primary-dock.primary-dock-inline {
+  position: static;
+  transform: none;
+  width: 100%;
+  height: auto;
+  flex-direction: row;
+  gap: 0.6rem;
+}
+
+.arena .mulligan-hand .primary-dock-inline .primary-dock-main,
+.arena .mulligan-hand .primary-dock-inline .intent-btn.dock-extra {
+  flex: 1 1 0;
+  width: auto;
+  height: 3rem;
+  min-width: 0;
+  max-width: none;
+}
+
+.arena .mulligan-hand .primary-dock-inline .intent-btn {
+  font-size: 0.9rem;
 }
 
 .intent-bar-mulligan h2 {

@@ -51,7 +51,7 @@
 }
 
 .defend-line {
-  font-size: 0.74rem;
+  font-size: 0.8rem;
   color: var(--ink);
 }
 
@@ -60,7 +60,7 @@
 }
 
 .defend-verdict {
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 800;
   color: #f0b45a;
 }
@@ -244,12 +244,12 @@
   .arena.arena-lp .defend-line,
   .arena.arena-lp .defend-verdict {
     white-space: normal;
-    font-size: 0.64rem;
+    font-size: 0.75rem;
     line-height: 1.25;
   }
 
   .arena.arena-lp .defend-line {
-    height: 3.75em;
+    height: 5em;
   }
 
   .arena.arena-lp .defend-verdict {
@@ -263,7 +263,7 @@
 
   .arena.arena-lp .defend-hand {
     min-width: 6.4em;
-    font-size: 0.6rem;
+    font-size: 0.75rem;
     line-height: 1.25;
   }
 
@@ -320,18 +320,19 @@
     font-size: 0.64rem;
   }
 
+  /* Two full rows of cards fit beside the End turn button on a 375px-tall screen (#1343). */
   .arena.arena-lp .board-col .rail-hand {
-    --rail-hand-cw: 60px;
+    --rail-hand-cw: 58px;
   }
 
   .arena.arena-lp .rail-hand-head {
-    padding: 0.2rem 0.5rem 0.1rem;
+    padding: 0.15rem 0.5rem 0.05rem;
     font-size: 0.7rem;
   }
 
   .arena.arena-lp .rail-hand-cards {
-    padding: 0.15rem 0.5rem 0.3rem;
-    gap: var(--space-1);
+    padding: 0.1rem 0.5rem 0.15rem;
+    gap: 3px var(--space-1);
     touch-action: pan-y;
   }
 }
