@@ -10,11 +10,11 @@ async function matBoxes(page: Page, settings: Record<string, unknown>) {
     const b = await page.locator(sel).first().boundingBox();
     return b && { x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.width), h: Math.round(b.height) };
   };
-  return { banner: await page.locator(".mulligan-banner").count(), opp: await box(".side-opp"), you: await box(".side-you") };
+  return { banner: await page.locator(".mulligan-hand-hint").count(), opp: await box(".side-opp"), you: await box(".side-you") };
 }
 
 for (const vp of [null, { width: 812, height: 375 }]) {
-  test(`the mulligan banner floats over the board without moving it${vp ? ` at ${vp.width}x${vp.height}` : ""} (#1282)`, async ({ browser }, info) => {
+  test(`the opening hand floats over the board without moving it${vp ? ` at ${vp.width}x${vp.height}` : ""} (#1282)`, async ({ browser }, info) => {
     test.skip(vp != null && info.project.name !== "phone-375", "landscape is a phone layout");
     const viewport = vp ?? info.project.use.viewport!;
     const open = async (gameHints: boolean) => {

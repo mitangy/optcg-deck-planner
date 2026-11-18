@@ -11,7 +11,6 @@ async function box(page: Page, sel: string): Promise<Box> {
     return { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
   });
 }
-const overlaps = (a: Box, b: Box) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
 test("Keep opening hand is the gold button and Mulligan the outline one (#1343)", async ({ page }) => {
   await page.goto("/demo?turn0");
@@ -27,15 +26,13 @@ for (const size of [
   { name: "phone landscape", width: 812, height: 375 },
   { name: "desktop", width: 1280, height: 720 },
 ]) {
-  test(`the turn order banner stays off your own mat at the mulligan, ${size.name} (#1343)`, async ({ page }) => {
+  test(`the turn order is told by the opening hand, not by a banner over it, ${size.name} (#1343)`, async ({ page }) => {
     await page.setViewportSize({ width: size.width, height: size.height });
     await page.goto("/demo?turn0");
-    await page.locator(".turn-splash-card").waitFor();
+    const hand = page.locator(".mulligan-hand");
+    await expect(hand.locator(".mulligan-hand-order")).toContainText("You go first");
     await page.waitForTimeout(400);
-    const splash = await box(page, ".turn-splash-card");
-    const you = await box(page, ".side-you");
-    // The banner scales in from 0.85 to 1.04, so a few pixels of overshoot onto the mat's edge is the animation, not the placement.
-    expect(overlaps(splash, { ...you, top: you.top + 8 }), "banner over your mat").toBe(false);
+    await expect(page.locator(".turn-splash-card")).toHaveCount(0);
   });
 }
 

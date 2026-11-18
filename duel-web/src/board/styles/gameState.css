@@ -65,7 +65,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
-  padding: 0.65rem 0.7rem 0.7rem;
+  padding: 0.65rem 0.4rem 0.7rem;
 }
 
 .turn-banner {
@@ -184,10 +184,22 @@
 }
 
 .turn-player {
-  padding: 0.4rem 0.5rem 0.45rem;
+  position: relative;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  column-gap: 0.25rem;
+  row-gap: 0.15rem;
+  min-width: 0;
+  padding: 0.3rem 0.3rem 0.3rem 0.45rem;
   border: 1px solid transparent;
   border-radius: var(--radius-8);
   background: rgba(255, 255, 255, 0.03);
+}
+
+/* With a clock the line is too long for the column: the numbers drop under the name instead of squeezing it. */
+.turn-player:has(.turn-player-clock) {
+  flex-wrap: wrap;
 }
 
 .turn-player-you.is-active {
@@ -200,17 +212,13 @@
   background: rgb(var(--sea-rgb) / 0.12);
 }
 
-.turn-player-head {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  min-width: 0;
-}
-
+/* A bar on the row's left edge instead of a dot: it costs no width on a 250px column, which the name needs. */
 .turn-player-dot {
-  flex: none;
-  width: 0.5rem;
-  height: 0.5rem;
+  position: absolute;
+  left: 0.2rem;
+  top: 0.3rem;
+  bottom: 0.3rem;
+  width: 3px;
   border-radius: var(--radius-round);
   background: rgba(255, 255, 255, 0.18);
 }
@@ -226,26 +234,27 @@
 }
 
 .turn-player-name {
-  flex: 1;
-  min-width: 0;
+  /* "Opponent" and "You" must always be readable; only long usernames may ellipsise. */
+  flex: 0 1 auto;
+  min-width: min(100%, 3.9rem);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
   color: var(--ink);
 }
 
 .turn-order-badge {
   flex: none;
-  padding: 0.08rem 0.5rem;
+  padding: 0.04rem 0.3rem;
   border: 1px solid rgb(var(--sea-bright-rgb) / 0.55);
   border-radius: var(--radius-pill);
   background: rgb(var(--sea-rgb) / 0.18);
   color: #c8e4f5;
-  font-size: 0.68rem;
+  font-size: 0.75rem;
   font-weight: 800;
-  letter-spacing: 0.05em;
+  letter-spacing: 0;
 }
 
 .turn-order-badge.first {
@@ -255,28 +264,29 @@
 }
 
 .turn-player-stats {
-  display: grid;
-  /* Never narrower than the label, so HAND and DECK cannot run together. */
-  grid-template-columns: repeat(4, minmax(min-content, 1fr));
-  gap: var(--space-1);
-  margin: 0.35rem 0 0;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.2rem;
+  margin: 0 0 0 auto;
 }
 
 .turn-player-stats > div {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
   min-width: 0;
-  text-align: center;
 }
 
 .turn-player-stats dt {
-  font-size: 0.58rem;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
   color: var(--muted);
 }
 
 .turn-player-stats dd {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: var(--ink);
   font-variant-numeric: tabular-nums;

@@ -771,11 +771,11 @@ test("the action bar says to answer the prompt or shows the wait (#262)", async 
   await expect(page.locator(".intent-bar .waiting-opp")).toBeVisible();
 });
 
-test("desktop mulligan puts Keep and Mulligan side by side in the board dock, with no Actions panel (#368)", async ({ page }, info) => {
+test("desktop mulligan puts Keep and Mulligan side by side under the opening hand, with no Actions panel (#368, #1343)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "desktop board dock");
   await page.goto("/demo?turn0");
   await page.locator(".board-root").waitFor();
-  const dock = page.locator(".primary-dock");
+  const dock = page.locator(".mulligan-hand .primary-dock");
   const keep = dock.getByRole("button", { name: "Keep opening hand" });
   const redo = dock.getByRole("button", { name: /^Mulligan/ });
   await expect(keep).toBeVisible();
