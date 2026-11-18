@@ -32,7 +32,7 @@ export function describeBattle(
       }
       return nameOf(card.defId);
     };
-    return `${label(atk, "Attacker", true)} ${atk?.power ?? "?"} → ${label(def, "Defender", false)} ${def?.power ?? "?"}`;
+    return `${label(atk, "Attacker", true)} (${atk?.power ?? "?"}) attacks ${label(def, "Defender", false)} (${def?.power ?? "?"})`;
   }
   const atkName = atk?.defId ? nameOf(atk.defId) : "Attacker";
   const defName = def?.defId ? nameOf(def.defId) : "Defender";

@@ -24,14 +24,15 @@ export function useLiveCounts(): LiveCounts | null {
 }
 
 type LivePanelProps = {
+  counts: LiveCounts | null;
   onInvite: () => void;
   onBot: () => void;
   onPractice: () => void;
   disabled?: boolean;
 };
 
-export function LivePanel({ onInvite, onBot, onPractice, disabled }: LivePanelProps) {
-  const summary = liveSummary(useLiveCounts());
+export function LivePanel({ counts, onInvite, onBot, onPractice, disabled }: LivePanelProps) {
+  const summary = liveSummary(counts);
   if (!summary) return null;
   if (!summary.empty) {
     return (

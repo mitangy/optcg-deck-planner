@@ -48,6 +48,7 @@
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
+  --content-max: 1100px;
   color-scheme: dark;
 }
 

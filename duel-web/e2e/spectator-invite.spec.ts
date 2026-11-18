@@ -42,8 +42,7 @@ for (const vp of [
     const host = await newDevice(browser, info, NAMI, vp);
     const created = host.page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
     await host.page.goto("/");
-    await host.page.getByRole("button", { name: "Play", exact: true }).click();
-    await host.page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
+    await host.page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
     await host.page.getByRole("button", { name: "Create room" }).click();
     const inviteRoom = await roomIdOf(created);
 

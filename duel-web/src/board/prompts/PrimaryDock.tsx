@@ -14,7 +14,7 @@ export function intentBtnClass(intent: Intent): string {
     return "intent-btn intent-btn-pass";
   }
   if (intent.type !== "mulligan") return "intent-btn";
-  return intent.doMulligan ? "intent-btn intent-btn-mulligan" : "intent-btn intent-btn-keep";
+  return intent.doMulligan ? "intent-btn intent-btn-mulligan" : "intent-btn intent-btn-end intent-btn-keep";
 }
 
 type ButtonProps = {

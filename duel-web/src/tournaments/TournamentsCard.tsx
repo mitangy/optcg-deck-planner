@@ -4,7 +4,7 @@ import { useTournaments } from "./hooks";
 import "./tournaments.css";
 
 export function TournamentsCard({ signedIn }: { signedIn: boolean }) {
-  const { list } = useTournaments(signedIn);
+  const { list, error } = useTournaments(signedIn);
   if (!signedIn) return null;
   const active = (list ?? []).filter((t) => t.status === "open" || t.status === "running");
   const readyCount = active.filter((t) => t.my_match_ready && t.status === "running").length;
@@ -25,8 +25,8 @@ export function TournamentsCard({ signedIn }: { signedIn: boolean }) {
             <TournamentRow key={t.id} t={t} />
           ))}
         </ul>
-      ) : list ? (
-        <p className="tcard-empty">Run a bracket or round robin with your friends.</p>
+      ) : list || error ? (
+        <p className="tcard-empty">No tournaments yet.</p>
       ) : null}
     </section>
   );

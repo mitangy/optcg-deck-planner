@@ -497,3 +497,15 @@
     transform: none;
   }
 }
+
+/* Decks and New deck share the lobby's content width (the top bar's 1100px) so the menu and Back buttons stay put. */
+.deck-config.deck-config-page {
+  max-width: var(--content-max);
+  padding-inline: max(1rem, var(--safe-l)) max(1rem, var(--safe-r));
+}
+
+.deck-card-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+}

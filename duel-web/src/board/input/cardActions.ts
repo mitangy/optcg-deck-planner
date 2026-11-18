@@ -73,7 +73,7 @@ export function cardActionText(anIntent: Intent, view?: PlayerView): CardActionT
     }
     case "play_card":
       return {
-        label: intent.trashCharacterId != null ? "Play (replace…)" : "Play",
+        label: intent.trashCharacterId != null ? "Play and replace a Character" : "Play",
         sub: null,
         title,
       };

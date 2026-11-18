@@ -23,8 +23,7 @@ test("a spectator of an unranked room sees both hands face up (#250)", async ({ 
     return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
   });
   await spec.goto("/");
-  await spec.getByRole("button", { name: "Play", exact: true }).click();
-  await spec.getByRole("dialog").getByRole("button", { name: /^Spectate/ }).click();
+  await spec.locator(".mode-tiles").getByRole("button", { name: /^Spectate/ }).click();
   await spec.getByLabel("Room id").fill(roomId!);
   await spec.getByRole("button", { name: "Watch", exact: true }).click();
 

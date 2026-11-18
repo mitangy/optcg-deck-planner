@@ -153,6 +153,16 @@
   justify-content: center;
 }
 
+.site-footer-compact .site-footer-inner {
+  max-width: 1200px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0 1.1rem;
+  padding-block: 0.4rem max(0.4rem, env(safe-area-inset-bottom, 0px));
+}
+
 .site-footer button.site-footer-link {
   appearance: none;
   background: none;

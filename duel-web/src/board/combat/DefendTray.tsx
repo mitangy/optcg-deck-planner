@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "@optcg/ui/cardArt";
 import { resolveCardImageUrl } from "../../decks/artPrefs";
 import type { Seat } from "../../net/protocol";
-import type { DefendModel } from "./defendModel";
+import { defendVerdict, type DefendModel } from "./defendModel";
 import { usePointerDrag } from "../input/usePointerDrag";
 
 function Thumb({ defId, artCopy, ownerSeat }: { defId: string; artCopy?: number; ownerSeat: Seat }) {
@@ -97,6 +97,8 @@ type Props = {
   onSkipBlockCounter?: (id: string) => void;
   counterDrag?: CounterDragHandlers;
   handCount?: number;
+  // False when the attack summary and verdict are shown above the Pass button instead.
+  summary?: boolean;
 };
 
 export function DefendTray({
@@ -110,22 +112,11 @@ export function DefendTray({
   onSkipBlockCounter,
   counterDrag,
   handCount,
+  summary = true,
 }: Props) {
   const m = model;
   const stagedSet = new Set(m.stagedIds);
-  const safe = m.remaining === 0;
-
-  let verdict: string;
-  if (m.gap == null || m.remaining == null) verdict = "Attack incoming";
-  else if (m.phase === "counter" && m.stagedIds.length > 0) {
-    const total = `+${m.stagedTotal}${m.stagedUnknown ? "+" : ""} staged`;
-    verdict = m.stagedUnknown
-      ? total
-      : safe
-        ? `${total} · Safe`
-        : `${total} · still short by ${m.remaining}`;
-  } else if (m.gap === 0) verdict = "Safe";
-  else verdict = `Need +${m.gap} to survive`;
+  const verdict = defendVerdict(m);
 
   const staged = m.phase === "counter" ? m.stagedIds.length : 0;
   const handAfter = handCount != null ? Math.max(handCount - staged, 0) : 0;
@@ -140,20 +131,22 @@ export function DefendTray({
           <span style={{ transform: `scaleX(${clock})` }} />
         </div>
       ) : null}
+      {summary ? (
+        <>
       <p className="defend-line">
         <span className="defend-line-text">
-          <strong>{m.attackerName}</strong> {power(m.attackerPower)} →{" "}
+          <strong>{m.attackerName}</strong> ({power(m.attackerPower)}) attacks{" "}
           {m.blocking ? "Blocker " : ""}
-          <strong>{m.defenderName}</strong> {power(m.defenderPower)}
-          {m.preview ? " (if it blocks)" : ""}
+          <strong>{m.defenderName}</strong> ({power(m.defenderPower)})
+          {m.preview ? " if it blocks" : ""}
         </span>
       </p>
       <div className="defend-verdict-row">
         <p
-          className={`defend-verdict${m.gap === 0 || (m.stagedIds.length > 0 && safe) ? " is-safe" : ""}`}
+          className={`defend-verdict${verdict.safe ? " is-safe" : ""}`}
           role="status"
         >
-          {verdict}
+          {verdict.text}
         </p>
         {handCount != null ? (
           <span
@@ -167,6 +160,8 @@ export function DefendTray({
           </span>
         ) : null}
       </div>
+        </>
+      ) : null}
       <div className="defend-chips">
         {m.phase === "block" ? (
           m.blockers.length === 0 && m.earlyCounters.length === 0 ? (

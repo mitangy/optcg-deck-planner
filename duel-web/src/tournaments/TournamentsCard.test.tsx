@@ -57,6 +57,27 @@ describe("Tournaments card on the lobby (#997)", () => {
     expect(el.textContent).not.toContain("Done one");
   });
 
+  it("says there are no tournaments yet instead of leaving a bare heading, with New tournament beside it (#1343)", async () => {
+    const el = await mount([summary({ name: "Done one", status: "finished" })]);
+    expect(el.querySelector(".tcard-empty")?.textContent).toBe("No tournaments yet.");
+    expect(el.querySelector('a[href="/tournaments"]')?.textContent).toBe("New tournament");
+  });
+
+  it("says the same when the list could not be loaded (#1343)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(
+        <MemoryRouter>
+          <TournamentsCard signedIn />
+        </MemoryRouter>,
+      );
+    });
+    expect(host.querySelector(".tcard-empty")?.textContent).toBe("No tournaments yet.");
+  });
+
   it("shows nothing and loads nothing when signed out (#997)", async () => {
     const el = await mount([summary({})], false);
     expect(el.innerHTML).toBe("");

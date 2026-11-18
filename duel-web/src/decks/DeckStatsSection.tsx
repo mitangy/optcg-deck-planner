@@ -18,7 +18,8 @@ function readOpen(): boolean {
   return readStored(OPEN_KEY) === "1";
 }
 
-export function DeckStatsSection({ deck }: { deck: SavedDeck }) {
+/** With `panel` the stats show as a plain section (opened from a button) instead of a collapsible one. */
+export function DeckStatsSection({ deck, panel = false }: { deck: SavedDeck; panel?: boolean }) {
   const cards = useMemo(() => deckStatsCards(deck.cards), [deck.cards]);
   const baseHints = useDeckHints(deck.id, cards, deck.leaderId, false);
   const askLogPose = useLogPoseAsk();
@@ -28,6 +29,17 @@ export function DeckStatsSection({ deck }: { deck: SavedDeck }) {
   );
   const [open, setOpen] = useState(readOpen);
   const count = hints.visible.length;
+
+  if (panel) {
+    return (
+      <section className="deck-config-section deck-stats-section">
+        <h2 className="lobby-section-title">Deck stats</h2>
+        <div className="deck-stats duel-deck-stats">
+          <DeckStatsPanel cards={cards} leaderId={deck.leaderId} hints={hints} />
+        </div>
+      </section>
+    );
+  }
 
   return (
     <details

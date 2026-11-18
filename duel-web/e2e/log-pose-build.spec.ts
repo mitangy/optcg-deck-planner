@@ -149,7 +149,7 @@ test("opens the create-deck page with Log Pose's deck filled in, once, and the c
   await expect(page.locator("#new-deck-name")).toHaveValue("Log Pose Red");
 
   if (phone) await expect(panel).toHaveCount(0);
-  await page.getByRole("button", { name: "Create deck from list" }).click();
+  await page.getByRole("button", { name: "Import deck" }).click();
   await expect(page).toHaveURL(/\/decks\/[^/]+\/configure$/);
   await expect(page.locator("article.deck-stack", { hasText: "ST01-008" }).getByLabel("4 copies")).toBeVisible();
 });

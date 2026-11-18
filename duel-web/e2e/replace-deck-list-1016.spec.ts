@@ -21,7 +21,9 @@ test("Replace with deck list overwrites the open deck and keeps its name (#1016)
   const stack = (id: string) => page.locator("article.deck-stack", { hasText: id });
   await expect(stack("ST01-006")).not.toHaveCount(0);
 
-  await page.locator("summary", { hasText: "Replace with deck list" }).click();
+  // Phones open the panel from a button under the title; desktop has it in the side panel.
+  if (info.project.name === "phone-375") await page.getByRole("button", { name: "Replace list" }).click();
+  else await page.locator("summary", { hasText: "Replace with deck list" }).click();
   await page.locator("#deck-import-text").fill("1xST01-001\n4xST01-003\n4xST01-008");
   await shot(page, `duel-${info.project.name}-1-pasted`);
   await page.getByRole("button", { name: "Replace deck", exact: true }).click();
