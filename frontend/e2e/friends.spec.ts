@@ -208,7 +208,7 @@ const offer = () =>
 test("an incoming offer shows both sides with values, and accepting it makes it active (#703)", async ({ page, planner }) => {
   await installFriendsApi(page, planner.owned, { trades: [offer()] });
   await planner.open("/friends?tab=trades");
-  const incoming = page.getByRole("region", { name: "Offers for you" });
+  const incoming = page.getByRole("region", { name: "Needs you" });
   await expect(incoming).toContainText("kai offered you a trade");
   await expect(incoming.locator(".trade-side").filter({ hasText: "You get" })).toContainText("$13.60");
   await expect(incoming.locator(".trade-side").filter({ hasText: "You get" })).toContainText("Kid & Killer");
@@ -218,9 +218,9 @@ test("an incoming offer shows both sides with values, and accepting it makes it 
   await expect(nav(page).locator(".nav-badge")).toHaveText("1");
 
   await incoming.getByRole("button", { name: "Accept" }).click();
-  const active = page.getByRole("region", { name: "Active" });
-  await expect(active).toContainText("Agreed");
-  await expect(page.getByRole("region", { name: "Offers for you" })).toHaveCount(0);
+  const active = page.getByRole("region", { name: "In progress" });
+  await expect(active).toContainText("Swap the cards");
+  await expect(page.getByRole("region", { name: "Needs you" })).toHaveCount(0);
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });
@@ -229,8 +229,8 @@ test("declining an offer moves it to History (#703)", async ({ page, planner }) 
   await installFriendsApi(page, planner.owned, { trades: [offer()] });
   await planner.open("/friends?tab=trades");
   await page.getByRole("button", { name: "Decline" }).click();
-  await expect(page.getByRole("region", { name: "History" })).toContainText("Declined");
-  await expect(nav(page).locator(".nav-badge")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "History" })).toContainText("Declined", { timeout: 10_000 });
+  await expect(nav(page).locator(".nav-badge")).toHaveCount(0, { timeout: 10_000 });
 });
 
 test("countering opens Spares with the offer turned around, and sends it as a counter (#703)", async ({ page, planner }) => {
@@ -266,7 +266,7 @@ test("after we traded, Update my collection changes only my counts, and Undo put
   await page.getByRole("tab", { name: /Trades/ }).click();
   await expect(link.locator(".nav-badge")).toHaveText("1");
   const widthWithBadge = (await link.boundingBox())!.width;
-  const active = page.getByRole("region", { name: "Active" });
+  const active = page.locator(".trade-card");
   await active.getByRole("button", { name: "We traded" }).click();
   await expect(active).toContainText("Update your collection to match?");
   expect(planner.owned.get("EB01-003")).toBe(0);

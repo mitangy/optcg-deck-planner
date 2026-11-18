@@ -819,3 +819,58 @@ body:has(.trade-tray) .lp-compass {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* #1362 trades + friend pages */
+.step-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--label);
+  white-space: nowrap;
+}
+
+.spares-hint {
+  margin: 0 0 var(--space-3);
+}
+
+.spares-disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.trade-status.tone-attention {
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+}
+
+.trade-status.tone-neutral {
+  background: var(--bg-deep);
+  color: var(--muted);
+}
+
+.need-ask {
+  margin-top: var(--space-3);
+}
+
+.tray-add-give,
+.tray-add-message {
+  justify-self: start;
+}
+
+@media (pointer: coarse), (max-width: 640px) {
+  .trade-actions .btn,
+  .trade-actions button,
+  .tray-clear,
+  .tray-add-give,
+  .tray-add-message,
+  .need-ask {
+    min-height: 2.75rem;
+  }
+}
