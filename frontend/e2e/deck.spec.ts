@@ -195,7 +195,7 @@ test("DON!! browser shows big card tiles and searches the DON!! catalog (#435)",
 
 async function openStats(page: import("@playwright/test").Page) {
   if (page.viewportSize()!.width >= 1000) return;
-  await page.getByRole("button", { name: /^Stats/ }).click();
+  await page.getByRole("button", { name: /^Deck stats/ }).click();
 }
 
 test("Why? on a build hint opens Log Pose and sends the hint with the deck (#399)", async ({ page, planner }) => {

@@ -2,6 +2,7 @@ export const qk = {
   me: () => ["me"] as const,
 
   decks: () => ["decks"] as const,
+  decksForFilter: (deckIds: number[]) => ["decks", "filter", deckIds] as const,
   deck: {
     all: () => ["deck"] as const,
     byId: (deckId: number) => ["deck", deckId] as const,

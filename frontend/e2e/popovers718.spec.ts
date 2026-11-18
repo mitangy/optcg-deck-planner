@@ -133,7 +133,7 @@ test("the Sort panel stays open while its checkboxes and arrows are used, is rea
 });
 
 test("a build hint opens in a popover that Escape and a tap outside close, with its chip left where it was (#718)", async ({ page }) => {
-  if (page.viewportSize()!.width < 1000) await page.getByRole("button", { name: /^Stats/ }).click();
+  if (page.viewportSize()!.width < 1000) await page.getByRole("button", { name: /^Deck stats/ }).click();
   const chip = page.locator('[data-hint-id="count"]:visible');
   await expectStationary(chip, () => chip.click(), "hint chip");
   const pop = page.locator(".dh-pop");

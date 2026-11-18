@@ -21,7 +21,7 @@ import {
 } from "../ui/cardListControls";
 import { CardWorkspace } from "../ui/CardWorkspace";
 import { BuildTag } from "@optcg/ui/appShell";
-import { DeckStatsDock } from "./decks/DeckStats";
+import { SharedStatsDock } from "./decks/DeckStats";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { CardThumb } from "../ui/CardThumb";
 import { GridCard, MobileCard } from "../ui/PlannerCard";
@@ -285,7 +285,7 @@ export function PublicSharePage() {
             </CardWorkspace>
           </section>
           {data.kind === "deck" && (
-            <DeckStatsDock cards={shareStatsCards} leaderId={data.items[0]?.primary_leader_card_id ?? null} />
+            <SharedStatsDock cards={shareStatsCards} leaderId={data.items[0]?.primary_leader_card_id ?? null} />
           )}
           </div>
         )}

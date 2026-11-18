@@ -156,5 +156,10 @@ module.exports = {
     { id: "analytics-empty-token-masked", file: "packages/ui/src/appShell/analytics.ts", from: "path.length > prefix.length", to: "path.length >= prefix.length", kills: ["keeps a path that has no token after the prefix"] },
     { id: "analytics-before-send-drops-fields", file: "packages/ui/src/appShell/analytics.ts", from: "({ ...event, url:", to: "({ url:", kills: ["rewrites the event url and keeps the other fields"] },
     { id: "version-dismiss-nothing-hides", file: "packages/ui/src/appShell/appVersion.ts", from: "dismissedSha = status.deployed.sha;\n", to: "", kills: ["a dismissed build stays hidden until a newer one is deployed"] },
+    // Shared confirm dialog replacing window.confirm (#1342)
+    { id: "confirm-cancel-not-default-focus", file: "packages/ui/src/popups/ConfirmDialog.tsx", from: "className=\"btn secondary\" data-autofocus onClick={onCancel}", to: "className=\"btn secondary\" onClick={onCancel}", kills: ["opens with Cancel focused and the danger style on the confirm button (#1342)"], args: "src/popups/ConfirmDialog" },
+    { id: "confirm-cancel-resolves-true", file: "packages/ui/src/popups/ConfirmDialog.tsx", from: "onCancel={() => finish(false)}", to: "onCancel={() => finish(true)}", kills: ["Cancel does nothing and hands focus back to the trigger (#1342)", "Escape cancels without running the action (#1342)"], args: "src/popups/ConfirmDialog" },
+    { id: "confirm-button-resolves-false", file: "packages/ui/src/popups/ConfirmDialog.tsx", from: "onConfirm={() => finish(true)}", to: "onConfirm={() => finish(false)}", kills: ["the confirm button runs the action once (#1342)"], args: "src/popups/ConfirmDialog" },
+    { id: "confirm-not-danger-style", file: "packages/ui/src/popups/ConfirmDialog.tsx", from: "danger = true,", to: "danger = false,", kills: ["opens with Cancel focused and the danger style on the confirm button (#1342)"], args: "src/popups/ConfirmDialog" },
   ],
 };

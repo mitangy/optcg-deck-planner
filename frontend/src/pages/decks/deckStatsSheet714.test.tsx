@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { DeckStatsDock } from "./DeckStats";
+import { DeckStatsDock, StatsButton } from "./DeckStats";
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
@@ -19,7 +19,7 @@ afterEach(() => {
 });
 
 const wait = () => new Promise((r) => setTimeout(r, 40));
-const pill = () => document.querySelector<HTMLButtonElement>(".stats-pill")!;
+const pill = () => document.querySelector<HTMLButtonElement>(".deck-stats-btn")!;
 const backdrop = () => document.querySelector<HTMLElement>(".stats-sheet-backdrop");
 const sheet = () => document.querySelector<HTMLElement>(".stats-sheet");
 
@@ -39,12 +39,22 @@ async function click(el: Element) {
   });
 }
 
-/** Narrow screen (jsdom has no matchMedia), so the dock is the floating Stats pill and a bottom sheet. */
+function Harness() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <StatsButton open={open} onClick={() => setOpen(true)} />
+      <DeckStatsDock cards={[]} leaderId={null} mode="sheet" sheetOpen={open} onSheetOpenChange={setOpen} />
+    </>
+  );
+}
+
+/** The header Stats button opens the bottom sheet that phones and edit mode use. */
 async function openSheet() {
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
-  await act(async () => root!.render(<DeckStatsDock cards={[]} leaderId={null} />));
+  await act(async () => root!.render(<Harness />));
   pill().focus();
   await click(pill());
 }
@@ -83,7 +93,7 @@ describe("deck stats sheet on the shared Dialog", () => {
     expect(document.activeElement).not.toBe(pill());
   });
 
-  it("Escape closes it and focus returns to the Stats pill (#714)", async () => {
+  it("Escape closes it and focus returns to the Stats button (#714)", async () => {
     await openSheet();
     await press("Escape");
     expect(backdrop()).toBeNull();

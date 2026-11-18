@@ -81,11 +81,12 @@ test("Collection picks up copies a group buy's Mark purchased adds and Undo take
     await nav.getByRole("link", { name: "Collection" }).click();
     await expect(page.getByRole("heading", { name: "Collection", level: 1 })).toBeVisible();
   };
-  page.on("dialog", (d) => void d.accept());
+  const confirmDialog = async (button: string) => page.getByRole("alertdialog").getByRole("button", { name: button }).click();
   await expect(totals).toContainText("$5.80");
 
   await toGroupBuy();
   await page.getByRole("button", { name: "Mark purchased (4)" }).click();
+  await confirmDialog("Mark purchased");
   await expect.poll(() => planner.owned.get("EB01-003")).toBe(4);
   await expect(page.getByRole("button", { name: "Undo Mark purchased" })).toBeVisible();
   await toCollection();
@@ -94,6 +95,7 @@ test("Collection picks up copies a group buy's Mark purchased adds and Undo take
 
   await toGroupBuy();
   await page.getByRole("button", { name: "Undo Mark purchased" }).click();
+  await confirmDialog("Undo");
   await expect.poll(() => planner.owned.get("EB01-003")).toBe(0);
   await expect(page.getByRole("button", { name: "Mark purchased (4)" })).toBeVisible();
   await toCollection();

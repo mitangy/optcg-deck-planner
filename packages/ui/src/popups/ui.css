@@ -180,3 +180,38 @@
   font-weight: 700;
   text-align: center;
 }
+
+:where(.ui-confirm) {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 26rem;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-lift, none);
+}
+
+:where(.ui-confirm-title) {
+  margin: 0;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+:where(.ui-confirm-message) {
+  margin: 0;
+  color: var(--ui-muted, inherit);
+  overflow-wrap: anywhere;
+}
+
+:where(.ui-confirm-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+:where(.ui-confirm-actions .btn) {
+  flex: 1 1 8rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  margin: 0;
+}
