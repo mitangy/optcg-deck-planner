@@ -1,6 +1,10 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-18", app: "duel", pr: 1355, title: "A warning before the server restarts", text: "When the server restarts for an update during your game, the board now says so about 10 seconds ahead, and you land back in the lobby with an explanation. A game cut off this way ends with no winner and does not change ratings. Before, it could count as a loss for one player." },
+  { date: "2026-11-18", app: "duel", pr: 1355, title: "Ranked rating pauses after 3 games against the same opponent", text: "After 3 rated games against the same opponent within 24 hours, further ranked games between you two are still played and saved, but ratings stay where they are." },
+  { date: "2026-11-18", app: "duel", pr: 1355, title: "Late taps no longer hit the wrong card", text: "If the game changes just as you tap, for example on a slow connection, your action is no longer applied to a different card or a newer game state. The board simply refreshes." },
+  { date: "2026-11-18", app: "duel", pr: 1355, title: "Stronger shuffles", text: "Deck shuffles now come from a much stronger random source, so the order of either deck cannot be worked out from the cards you can see." },
   { date: "2026-11-18", app: "duel", pr: 1349, title: "Ranked and tournament decks must be legal", text: "Ranked and tournament games now refuse a deck that is not exactly 50 cards, has more than 4 copies of a card (unless the card allows any number), or has a card that shares no color with the Leader. Casual games are unchanged." },
   { date: "2026-11-18", app: "duel", pr: 1349, title: "Tournament games hide hands from spectators", text: "In a tournament game, spectators no longer see either player's hand and undo is off, the same as ranked. Casual spectators still see both hands, but you can no longer watch a game you are playing in." },
   { date: "2026-11-18", app: "duel", pr: 1349, title: "Game over shows right away", text: "The game over screen now appears the moment a game ends, instead of sometimes waiting while the result was being saved." },
