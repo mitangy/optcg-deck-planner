@@ -32,6 +32,47 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // board-phone package (#1343)
+    { id: "e2e-bp2-1343-scrim-transparent", args: "board-phone-1343.spec --project=desktop-1280 -g \"look pop-up dims\"", edits: [
+      { file: "duel-web/src/board/prompts/float.css", from: "  background: rgb(var(--deep-rgb) / 0.5);\n  pointer-events: none;\n  animation: float-scrim-in", to: "  background: transparent;\n  pointer-events: none;\n  animation: float-scrim-in" }
+    ], kills: ["board-phone-1343.spec.ts > the look pop-up dims the board, keeps its sentence in the header and clips nothing at 1280x720 (#1343) [desktop-1280]"] },
+    { id: "e2e-bp2-1343-scrim-blocks-board", args: "board-phone-1343.spec --project=desktop-1280 -g \"look pop-up dims\"", edits: [
+      { file: "duel-web/src/board/prompts/float.css", from: "  background: rgb(var(--deep-rgb) / 0.5);\n  pointer-events: none;", to: "  background: rgb(var(--deep-rgb) / 0.5);\n  pointer-events: auto;" }
+    ], kills: ["board-phone-1343.spec.ts > the look pop-up dims the board, keeps its sentence in the header and clips nothing at 1280x720 (#1343) [desktop-1280]"] },
+    { id: "e2e-bp2-1343-dock-bubble-returns", args: "board-phone-1343.spec --project=desktop-1280 -g \"look pop-up dims\"", edits: [
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "pendingChoices?.length && (!wide || ownChoice) ? null", to: "pendingChoices?.length && !wide ? null" }
+    ], kills: ["board-phone-1343.spec.ts > the look pop-up dims the board, keeps its sentence in the header and clips nothing at 1280x720 (#1343) [desktop-1280]"] },
+    { id: "e2e-bp2-1343-landscape-effects-clip", args: "board-phone-1343.spec --project=desktop-1280 -g \"effects pop-up dims\"", edits: [
+      { file: "duel-web/src/board/prompts/float.css", from: "- 14.6rem) * 0.714)", to: "- 8.6rem) * 0.714)" }
+    ], kills: ["board-phone-1343.spec.ts > the effects pop-up dims the board, keeps its sentence in the header and clips nothing at 812x375 (#1343) [desktop-1280]"] },
+    { id: "e2e-bp2-1343-instruction-back-in-bubble", args: "board-phone-1343.spec --project=desktop-1280 -g \"look pop-up dims\"", edits: [
+      { file: "duel-web/src/board/prompts/FloatingPrompt.tsx", from: "          <span className=\"float-prompt\">{choice.prompt}</span>", to: "          <span className=\"float-prompt\"></span>" }
+    ], kills: ["board-phone-1343.spec.ts > the look pop-up dims the board, keeps its sentence in the header and clips nothing at 1280x720 (#1343) [desktop-1280]"] },
+    { id: "e2e-bp2-1343-don-rail-tap-clears", args: "board-phone-1343.spec --project=phone-375 -g \"DON!! area\"", edits: [
+      { file: "duel-web/src/board/don/DonStrip.tsx", from: "const legal = touch && onDonToggleSelect ?", to: "const legal = false && onDonToggleSelect ?" }
+    ], kills: ["board-phone-1343.spec.ts > phone landscape: the DON!! area is a 44px tap target and the piles carry an icon (#1343) [phone-375]"] },
+    { id: "e2e-bp2-1343-pile-icons-hidden", args: "board-phone-1343.spec --project=phone-375 -g \"DON!! area\"", edits: [
+      { file: "duel-web/src/board/styles/viewports.css", from: "  .arena .side-field .zone-pile-meta .count-icon {\n    display: block;", to: "  .arena .side-field .zone-pile-meta .count-icon {\n    display: none;" }
+    ], kills: ["board-phone-1343.spec.ts > phone landscape: the DON!! area is a 44px tap target and the piles carry an icon (#1343) [phone-375]"] },
+    { id: "e2e-bp2-1343-leave-not-danger", args: "board-phone-1343.spec --project=phone-375 -g \"match menu is grouped\"", edits: [
+      { file: "duel-web/src/board/match/MatchMenu.tsx", from: "className=\"match-menu-item match-menu-danger\" onClick={onLeave}", to: "className=\"match-menu-item\" onClick={onLeave}" }
+    ], kills: ["board-phone-1343.spec.ts > phone match menu is grouped, with Concede and Leave at the bottom as danger rows (#1343) [phone-375]"] },
+    { id: "e2e-bp2-1343-menu-icons-stacked", args: "board-phone-1343.spec --project=phone-375 -g \"match menu is grouped\"", edits: [
+      { file: "duel-web/src/board/styles/compactHud.css", from: ".match-menu-icons {\n  flex-direction: row;", to: ".match-menu-icons {\n  flex-direction: column;" }
+    ], kills: ["board-phone-1343.spec.ts > phone match menu is grouped, with Concede and Leave at the bottom as danger rows (#1343) [phone-375]"] },
+    { id: "e2e-bp2-1343-menu-item-40", args: "board-phone-1343.spec --project=phone-375 -g \"match menu is grouped\"", edits: [
+      { file: "duel-web/src/board/styles/compactHud.css", from: ".match-menu-item {\n  min-height: 44px;", to: ".match-menu-item {\n  min-height: 40px;" },
+      { file: "duel-web/src/board/styles/compactHud.css", from: "  gap: 0.4rem;\n  padding: 0 0.5rem;\n  font-size: 0.75rem;", to: "  gap: 0.4rem;\n  min-height: 40px;\n  padding: 0 0.5rem;\n  font-size: 0.75rem;" }
+    ], kills: ["board-phone-1343.spec.ts > phone match menu is grouped, with Concede and Leave at the bottom as danger rows (#1343) [phone-375]"] },
+    { id: "e2e-bp2-1343-sort-hit-area-shrinks", args: "board-phone-1343.spec --project=phone-375 -g \"thumb needs\"", edits: [
+      { file: "duel-web/src/board/styles/phoneBoard.css", from: "    width: max(100%, 44px);\n    height: max(100%, 44px);", to: "    width: 100%;\n    height: 100%;" }
+    ], kills: ["board-phone-1343.spec.ts > phone portrait: the controls a thumb needs have a 44px hit area (#1343) [phone-375]"] },
+    { id: "e2e-bp2-1343-menu-button-40", args: "board-phone-1343.spec --project=phone-375 -g \"thumb needs\"", edits: [
+      { file: "duel-web/src/board/styles/phoneBoard.css", from: "    min-width: 44px;\n    min-height: 44px;\n  }\n\n  /* The two corner", to: "    min-width: 40px;\n    min-height: 40px;\n  }\n\n  /* The two corner" }
+    ], kills: ["board-phone-1343.spec.ts > phone portrait: the controls a thumb needs have a 44px hit area (#1343) [phone-375]"] },
+    { id: "e2e-bp2-1343-captions-small", args: "board-phone-1343.spec --project=phone-375 -g \"reach 12px\"", edits: [
+      { file: "duel-web/src/board/styles/phoneBoard.css", from: "  .arena .side-field .zone-pile-meta .zone-pile-label {\n    font-size: 0.75rem;", to: "  .arena .side-field .zone-pile-meta .zone-pile-label {\n    font-size: 0.6rem;" }
+    ], kills: ["board-phone-1343.spec.ts > phone portrait: board captions and chips reach 12px (#1343) [phone-375]"] },
     // New deck: Leader start, paste start, shared width, Edit button (#1343)
     { id: "e2e-newdeck1343-leader-deck-wrong-leader", args: "new-deck-1343.spec", edits: [
       { file: "duel-web/src/decks/newDeckStart.ts", from: "leaderId: leader.id, cards: []", to: "leaderId: \"ST01-001\", cards: []" },

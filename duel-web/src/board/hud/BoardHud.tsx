@@ -8,6 +8,7 @@ import type { TabMute } from "../audio/tabMute";
 import type { SeatClocks } from "../panels/TurnStatusPanel";
 import { UndoControl } from "../match/UndoControl";
 import type { UndoUi } from "../match/undoHud";
+import { HudIcon } from "./HudIcons";
 
 export type MatchMenuPlacement = "top" | "left" | "anchor";
 
@@ -22,7 +23,7 @@ function MuteTabButton({ className, tabMute, tabMuteText }: { className: string;
       onClick={tabMute.toggle}
     >
       <span className="tab-mute-icon" aria-hidden>
-        {tabMute.silenced ? "🔇" : "🔊"}
+        <HudIcon kind={tabMute.silenced ? "muted" : "sound"} />
       </span>
     </button>
   );
@@ -38,7 +39,7 @@ function FullscreenButton({ className, isFullscreen, onToggle }: { className: st
       title={isFullscreen ? "Exit full screen" : "Full screen"}
       onClick={onToggle}
     >
-      {isFullscreen ? "⤡" : "⛶"}
+      <HudIcon kind={isFullscreen ? "fullscreen-exit" : "fullscreen"} />
     </button>
   );
 }
@@ -411,7 +412,7 @@ export function BoardHud(p: BoardHudProps) {
               title="Gameplay settings"
               onClick={onSettings}
             >
-              ⚙
+              <HudIcon kind="settings" />
             </button>
             <button
               type="button"
@@ -420,7 +421,7 @@ export function BoardHud(p: BoardHudProps) {
               title="Report a problem"
               onClick={onReportProblem}
             >
-              ⚑
+              <HudIcon kind="flag" />
             </button>
             {canReportPlayer ? (
               <button
@@ -430,7 +431,7 @@ export function BoardHud(p: BoardHudProps) {
                 title="Report player"
                 onClick={onReportPlayer}
               >
-                ⚠
+                <HudIcon kind="warning" />
               </button>
             ) : null}
             <button type="button" className="leave-btn" onClick={onLeave}>

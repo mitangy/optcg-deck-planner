@@ -253,11 +253,32 @@
   .arena .side-field .don-strip-label {
     margin-bottom: 0;
     line-height: 1.1;
+    font-size: 0.75rem;
   }
 
   /* Rows are only ~1.1–1.4 cards tall here and the captions hit their font floor: drop them so piles never spill into the neighbouring row. */
   .arena .side-field .zone-pile-label {
     display: none;
+  }
+
+  /* The word is gone, so a small pictogram (the same ones the portrait count chips use) tells Deck, Trash, Life and DON!! deck apart. */
+  .arena .side-field .zone-pile-meta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25em;
+  }
+
+  .arena .side-field .zone-pile-meta .count-icon {
+    display: block;
+    flex: none;
+    width: 12px;
+    height: 12px;
+    color: #e6d6ad;
+  }
+
+  .arena .side-field .zone-life .count-icon {
+    color: #e0685c;
   }
 
   .arena .side-field .zone-deck .zone-pile-stack,
