@@ -1,6 +1,6 @@
 import { Select } from "@optcg/ui/popups";
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type MetaDeck, type MetaLeader, type User } from "../api";
 import { CardArtImg, CardThumb } from "../ui/CardThumb";
@@ -15,6 +15,7 @@ import {
   META_DEFAULT_DAYS,
 } from "./meta";
 import { qk } from "../cache/queryKeys";
+import { cardBackState } from "../cards/cardBack";
 import { copyText } from "@optcg/ui/clipboard";
 
 const FALLBACK_SOURCE_URL = "https://play.limitlesstcg.com/tournaments/completed?game=OP";
@@ -98,6 +99,7 @@ export function MetaDeckRow({
 }) {
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -176,7 +178,7 @@ export function MetaDeckRow({
                       <CardThumb src={c.image_url} cardId={c.card_id} alt={c.name || c.card_id} />
                       <span className="meta-card-count">{c.count}×</span>
                     </div>
-                    <Link className="meta-card-name" to={`/cards/${encodeURIComponent(c.card_id)}`} title={`${c.name || c.card_id}: open card page`}>
+                    <Link className="meta-card-name" to={`/cards/${encodeURIComponent(c.card_id)}`} state={cardBackState(location)} title={`${c.name || c.card_id}: open card page`}>
                       {c.name || c.card_id}
                     </Link>
                   </li>

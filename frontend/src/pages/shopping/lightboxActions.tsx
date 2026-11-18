@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useId, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { api, ShoppingItem } from "../../api";
 import { useSavedShoppingDeckIds } from "./shoppingDeckFilter";
 import { nextExtraTarget, totalOwnedCopies } from "./shoppingExtras";
@@ -9,6 +9,7 @@ import { LightboxPriceAlertControl } from "../../prices/PriceAlerts";
 import { LightboxPriceHistoryControl } from "../../prices/PriceHistory";
 import { LightboxPanelProvider } from "../../prices/lightboxPanel";
 import { qk } from "../../cache/queryKeys";
+import { cardBackState } from "../../cards/cardBack";
 
 function useFullShoppingState(deckIds?: number[]): { byId: Map<string, ShoppingItem>; loaded: boolean } {
   const q = useQuery({
@@ -182,11 +183,28 @@ export const renderCardPageActions = (cardId: string, productId: number) => (
   </>
 );
 
-export const renderLightboxActions = (cardId: string, productId?: number, close?: () => void) => (
-  <LightboxPanelProvider>
-    <Link className="btn secondary lightbox-card-link" to={`/cards/${encodeURIComponent(cardId)}${productId ? `?art=${productId}` : ""}`} onClick={close}>
+function CardPageLink({ cardId, productId, close }: { cardId: string; productId?: number; close?: () => void }) {
+  const { pathname, search } = useLocation();
+  const qc = useQueryClient();
+  const deckId = /^\/decks\/(\d+)$/.exec(pathname)?.[1];
+  const deckName = deckId
+    ? qc.getQueriesData<{ name?: string }>({ queryKey: qk.deck.byId(Number(deckId)) }).find(([, d]) => d?.name)?.[1]?.name
+    : undefined;
+  return (
+    <Link
+      className="btn secondary lightbox-card-link"
+      to={`/cards/${encodeURIComponent(cardId)}${productId ? `?art=${productId}` : ""}`}
+      state={cardBackState({ pathname, search }, deckName)}
+      onClick={close}
+    >
       Card page
     </Link>
+  );
+}
+
+export const renderLightboxActions = (cardId: string, productId?: number, close?: () => void) => (
+  <LightboxPanelProvider>
+    <CardPageLink cardId={cardId} productId={productId} close={close} />
     <LightboxShoppingControl cardId={cardId} />
     <LightboxPriceAlertControl cardId={cardId} productId={productId ?? 0} />
     <LightboxPriceHistoryControl cardId={cardId} productId={productId ?? 0} />
