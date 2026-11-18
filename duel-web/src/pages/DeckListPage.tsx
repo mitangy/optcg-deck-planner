@@ -93,7 +93,7 @@ function DeckCard({
   return (
     <li className="deck-card-slot">
       <div className="deck-list-row deck-card">
-        <button type="button" className="deck-card-open" aria-label={`Edit ${deck.name}`} onClick={onOpen}>
+        <button type="button" className="deck-card-open" aria-label={`Open ${deck.name}`} onClick={onOpen}>
           <span className="deck-card-art">
             {leaderArt ? (
               <img className="deck-card-img" src={leaderArt} alt="" loading="lazy" onError={failLeaderArt} />
@@ -150,9 +150,14 @@ function DeckCard({
               Built-in
             </span>
           )}
-          <button type="button" className="deck-card-play" aria-label={`Play with ${deck.name}`} onClick={onPlay}>
-            Play <span aria-hidden>→</span>
-          </button>
+          <span className="deck-card-actions">
+            <button type="button" className="deck-card-play" aria-label={`Edit ${deck.name}`} onClick={onOpen}>
+              Edit
+            </button>
+            <button type="button" className="deck-card-play" aria-label={`Play with ${deck.name}`} onClick={onPlay}>
+              Play <span aria-hidden>→</span>
+            </button>
+          </span>
         </div>
         <Menu>
           <MenuButton type="button" className="deck-card-menu-btn" aria-label={`Actions for ${deck.name}`}>
@@ -312,7 +317,7 @@ export function DeckListPage() {
 
   return (
     <div className="app-shell">
-      <div className="deck-config deck-config-wide deck-list-page">
+      <div className="deck-config deck-config-page deck-list-page">
         <DeckConfigHeader
           back={{ to: "/", label: "Home", ariaLabel: "Back to home" }}
           heading={
