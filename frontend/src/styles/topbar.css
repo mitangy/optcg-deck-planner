@@ -33,6 +33,12 @@
   justify-content: space-between;
 }
 
+/* Flex, not a line box: the mark's baseline would otherwise leave descender space under the link and grow the row. */
+.brand {
+  display: flex;
+  align-items: center;
+}
+
 .brand a {
   color: #f6eedc;
   text-decoration: none;
@@ -44,6 +50,13 @@
   align-items: center;
   gap: 0.65rem;
   min-width: 0;
+}
+
+.brand-mark {
+  display: block;
+  flex: 0 0 auto;
+  width: 36px;
+  height: 36px;
 }
 
 .brand-wordmark {

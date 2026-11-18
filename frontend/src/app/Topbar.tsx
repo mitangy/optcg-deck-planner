@@ -7,7 +7,7 @@ export function Topbar({ brandTo = "/", nav, children }: { brandTo?: string; nav
     <header className="topbar">
       <div className="topbar-inner">
         <div className="brand">
-          <Link to={brandTo}>
+          <Link to={brandTo} aria-label="OPTCG Planner">
             <BrandWordmark />
             <span>Planner</span>
           </Link>
