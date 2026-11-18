@@ -39,7 +39,7 @@
     "@types/node": "^26.6.6",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
-    "@vercel/blob": "^2.8.0",
+    "@vercel/blob": "^2.9.0",
     "@vitejs/plugin-react": "^4.7.0",
     "jpeg-js": "^0.4.4",
     "jsdom": "^26.1.0",
