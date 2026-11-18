@@ -71,7 +71,7 @@ import { actionKeyTags, stepHandSelection } from "./input/hotkeys";
 import { useBoardHotkeys, useConfirmButtonKey } from "./input/useBoardHotkeys";
 import { buzz } from "./audio/haptics";
 import { RotateHint } from "./layout/RotateHint";
-import { handCardOutOfReach, needsDonHint } from "./hand/handAffordance";
+import { handCardOutOfReach } from "./hand/handAffordance";
 import { DicePhase } from "./match/DicePhase";
 import { firstSeatLine } from "./match/firstSeatLine";
 import { playerLabel, seatLabel, seatName } from "./match/playerNames";
@@ -1149,11 +1149,6 @@ export function DuelBoard({
     onSendIntent(intent);
   };
   const dock = dockIntents(barIntents, { defending: defendPrimary != null });
-  const selectedHandCard = handFilter != null ? you.hand[handFilter] : undefined;
-  const affordHint =
-    selectedHandCard && yourTurn && view.phase === "main" && cardIntents.length === 0
-      ? needsDonHint(selectedHandCard.playCost ?? lookupCard(selectedHandCard.defId).cost, you.activeDonCount, selectedHandCard.blocked) ?? undefined
-      : undefined;
   const replayBar = replay ? (
     <div className="intent-bar replay-bar">
       {isValidElement(replay.controls)
@@ -1189,7 +1184,6 @@ export function DuelBoard({
       defend={defendPrimary}
       counterLabel={counterLabel}
       onCard={{ count: cardIntents.length, active: popoverOpen }}
-      emptyHint={affordHint}
     />
     {replayBar}
     </>

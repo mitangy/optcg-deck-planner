@@ -53,6 +53,13 @@ describe("card actions on the card (#255)", () => {
     expect(text.title).toMatch(/^Activate /);
   });
 
+  it("a play that trashes a Character reads as a full phrase, a plain play stays Play (#1343)", () => {
+    expect(cardActionText({ type: "play_card", handIndex: 2, trashCharacterId: "y-c1" }, view).label).toBe(
+      "Play and replace a Character",
+    );
+    expect(cardActionText({ type: "play_card", handIndex: 2 }, view).label).toBe("Play");
+  });
+
   it("an ability with no target shows its readable ability id (#255)", () => {
     const text = cardActionText(
       { type: "activate_ability", sourceId: "y-leader", abilityId: "leader_give_rested_don" },
