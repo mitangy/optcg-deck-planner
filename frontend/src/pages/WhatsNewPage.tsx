@@ -15,7 +15,7 @@ function WhatsNewBody() {
         </div>
       </div>
       <VersionStatus />
-      <WhatsNewFeed app="planner" />
+      <WhatsNewFeed app="planner" cardHref={(id) => `/cards/${id}`} />
     </>
   );
 }

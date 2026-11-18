@@ -1,5 +1,6 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import type { AppName } from "./helpers";
+import { NoteCards } from "./NoteCards";
 import { loadUnseen, markAllSeen } from "./lastSeen";
 import { usePatchNotes } from "./loadNotes";
 import { WHATS_NEW_PATH } from "./paths";
@@ -15,11 +16,13 @@ export function WhatsNewCard({
   Link,
   to = WHATS_NEW_PATH,
   notes,
+  cardHref,
 }: {
   app: AppName;
   Link: ComponentType<WhatsNewLinkProps>;
   to?: string;
   notes?: readonly PatchNote[];
+  cardHref?: (id: string) => string;
 }) {
   const fetched = usePatchNotes();
   const all = notes ?? fetched;
@@ -46,6 +49,7 @@ export function WhatsNewCard({
           <li key={`${note.date}-${note.title}`}>
             <strong>{note.title}</strong>
             <span>{note.text}</span>
+            {note.cards?.length ? <NoteCards cards={note.cards} cardHref={cardHref} compact /> : null}
           </li>
         ))}
       </ul>
