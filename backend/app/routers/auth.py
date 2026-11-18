@@ -18,6 +18,7 @@ from app.core.auth import (
     OAUTH_RETURN_COOKIE,
     OAUTH_STATE_MAX_AGE_SECONDS,
     SESSION_COOKIE,
+    SESSION_RENEW_AFTER_SECONDS,
     consume_login_ticket,
     create_login_ticket,
     create_oauth_state,
@@ -27,6 +28,7 @@ from app.core.auth import (
     get_optional_user,
     new_oauth_nonce,
     resolve_google_user,
+    session_token_age_seconds,
     verify_oauth_state,
 )
 from app.core.config import Settings, get_settings
@@ -327,7 +329,19 @@ def logout(
 
 
 @router.get("/me", response_model=UserOut | None)
-def me(user: Annotated[User | None, Depends(get_optional_user)]):
+def me(
+    request: Request,
+    response: Response,
+    user: Annotated[User | None, Depends(get_optional_user)],
+    settings: Annotated[Settings, Depends(get_settings)],
+):
+    # The web apps call this on load and on focus: re-issue an aging session so
+    # people who keep using the app are not signed out 30 days after the last login.
+    if user is not None:
+        token = request.cookies.get(SESSION_COOKIE)
+        age = session_token_age_seconds(token, settings) if token else None
+        if age is not None and age > SESSION_RENEW_AFTER_SECONDS:
+            _set_session_cookie(response, user, settings)
     return user
 
 

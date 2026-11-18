@@ -6,7 +6,7 @@ import threading
 import time
 from collections import defaultdict
 from datetime import date, datetime, timezone
-from typing import Any, Callable
+from typing import Any, Callable, Iterable
 
 import httpx
 from sqlalchemy import delete, select
@@ -20,6 +20,10 @@ CATEGORY_ID = 68
 USER_AGENT = "OPTCGWebTracker/1.0"
 TCGCSV_BASE = f"https://tcgcsv.com/tcgplayer/{CATEGORY_ID}"
 REQUEST_PAUSE_S = 0.12
+# A run that would drop more than this share (and more than this many rows) of the
+# existing printings is more likely a truncated upstream than real removals.
+MAX_STALE_DELETE_SHARE = 0.10
+MAX_STALE_DELETE_ROWS = 50
 
 log = logging.getLogger("uvicorn.error")
 
@@ -205,6 +209,17 @@ def _special_flags(printings: list[tuple[int, str, float | None]]) -> dict[int, 
     }
 
 
+def _cards_by_id(db: Session, card_ids: Iterable[str] | None) -> dict[str, CatalogCard]:
+    if card_ids is None:
+        return {c.card_id: c for c in db.scalars(select(CatalogCard)).all()}
+    ids = list(card_ids)
+    found: dict[str, CatalogCard] = {}
+    for start in range(0, len(ids), 500):
+        rows = db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(ids[start : start + 500])))
+        found.update((c.card_id, c) for c in rows)
+    return found
+
+
 def refresh_special_flags(db: Session, card_ids: set[str] | None = None) -> dict[str, int]:
     query = select(CatalogPrinting)
     if card_ids is not None:
@@ -228,9 +243,10 @@ def refresh_special_flags(db: Session, card_ids: set[str] | None = None) -> dict
 
     now = datetime.now(timezone.utc)
     cards_updated = 0
+    cards = _cards_by_id(db, by_card)
     for card_id, rows in by_card.items():
         best = sorted(rows, key=_orm_printing_sort_key)[0]
-        card = db.get(CatalogCard, card_id)
+        card = cards.get(card_id)
         if card is None:
             continue
         payload = {
@@ -341,6 +357,7 @@ def sync_catalog(db: Session) -> dict[str, Any]:
         (row.card_id, row.product_id): row for row in db.scalars(select(CatalogPrinting)).all()
     }
     seen_keys: set[tuple[str, int]] = set()
+    cards = _cards_by_id(db, None)
 
     printing_count = 0
     for card_id, entries in by_card.items():
@@ -354,7 +371,7 @@ def sync_catalog(db: Session) -> dict[str, Any]:
         printing_count += len(entries)
 
         best = sorted(entries, key=_printing_sort_key)[0]
-        row = db.get(CatalogCard, card_id)
+        row = cards.get(card_id)
         payload = {
             "card_id": card_id,
             "name": best["name"],
@@ -407,12 +424,24 @@ def sync_catalog(db: Session) -> dict[str, Any]:
         for key in set(existing_printings) - seen_keys
         if existing_printings[key].group_name not in skipped_groups
     }
-    if stale_keys:
+    deletes_skipped = (
+        len(stale_keys) > MAX_STALE_DELETE_ROWS
+        and len(stale_keys) > len(existing_printings) * MAX_STALE_DELETE_SHARE
+    )
+    if deletes_skipped:
+        log.warning(
+            "catalog sync: not deleting %d of %d existing printings (upstream looks incomplete)",
+            len(stale_keys),
+            len(existing_printings),
+        )
+    elif stale_keys:
         stale_ids = [existing_printings[k].id for k in stale_keys]
         db.execute(delete(CatalogPrinting).where(CatalogPrinting.id.in_(stale_ids)))
 
     meta = db.scalar(select(CatalogMeta).limit(1))
     notes = f"TCGCSV sync ({printing_count} printings)"
+    if deletes_skipped:
+        notes += f"; deletes skipped ({len(stale_keys)} stale printings kept)"
     if meta is None:
         meta = CatalogMeta(card_count=len(by_card), last_synced_at=now, notes=notes)
         db.add(meta)
@@ -435,4 +464,5 @@ def sync_catalog(db: Session) -> dict[str, Any]:
         "card_count": len(by_card),
         "printing_count": printing_count,
         "synced_at": now.isoformat(),
+        "deletes_skipped": deletes_skipped,
     }

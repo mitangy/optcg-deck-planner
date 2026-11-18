@@ -717,3 +717,22 @@ def test_extra_copies_count_in_a_group_buy_whatever_decks_are_ticked_1208(db, tw
     luffy = next(line for line in detail.lines if line.card_id == "OP01-001")
 
     assert [m.qty for m in luffy.members if m.user_id == host.id] == [2]
+
+
+def test_resetting_the_invite_link_retires_the_old_token_1346(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Reset")
+    old = created.invite_token
+
+    with pytest.raises(PermissionError):
+        group_buy.reset_invite(db, friend, created.id)
+    assert group_buy.get_group_buy(db, host, created.id).invite_token == old
+
+    reset = group_buy.reset_invite(db, host, created.id)
+    assert reset.invite_token != old
+    assert reset.invite_path.endswith(reset.invite_token)
+    for call in (group_buy.join_group_buy, group_buy.public_group_buy_view, group_buy.invite_preview):
+        with pytest.raises(LookupError):
+            call(db, friend, old) if call is group_buy.join_group_buy else call(db, old)
+    assert group_buy.invite_preview(db, reset.invite_token).title == "Reset"
+    assert group_buy.join_group_buy(db, friend, reset.invite_token).id == created.id

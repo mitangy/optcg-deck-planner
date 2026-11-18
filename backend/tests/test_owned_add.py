@@ -65,3 +65,50 @@ def test_owned_add_rejects_out_of_range_amounts_and_oversize_lists_701(db):
 
     assert [r.status_code for r in (too_many, zero, long, empty)] == [422, 422, 422, 422]
     assert db.query(Owned).count() == 0
+
+
+def test_owned_add_does_not_overwrite_a_change_made_after_the_row_was_loaded_1346(db):
+    from sqlalchemy import update
+    from sqlalchemy.orm import sessionmaker
+
+    from app.planner import owned as owned_svc
+
+    user = _seed(db)
+    set_owned(db, user, "OP01-120", 1)
+    stale = db.query(Owned).filter_by(user_id=user.id, card_id="OP01-120").one()
+    assert stale.qty == 1
+    writer = sessionmaker(bind=db.get_bind(), autoflush=False, autocommit=False)()
+    try:
+        writer.execute(update(Owned).where(Owned.user_id == user.id).values(qty=10))
+        writer.commit()
+    finally:
+        writer.close()
+
+    assert owned_svc.add_owned(db, user, [("OP01-120", 2)]) == [("OP01-120", 12)]
+
+
+def test_owned_increment_survives_a_row_created_between_the_check_and_the_insert_1346(db, monkeypatch):
+    from sqlalchemy.orm import sessionmaker
+
+    from app.planner import owned as owned_svc
+
+    user = _seed(db)
+    real_execute = db.execute
+    raced = {"done": False}
+
+    def racing_execute(stmt, *a, **k):
+        result = real_execute(stmt, *a, **k)
+        if not raced["done"] and getattr(stmt, "is_update", False):
+            raced["done"] = True
+            other = sessionmaker(bind=db.get_bind(), autoflush=False, autocommit=False)()
+            try:
+                other.add(Owned(user_id=user.id, card_id="OP01-001", qty=4))
+                other.commit()
+            finally:
+                other.close()
+        return result
+
+    monkeypatch.setattr(db, "execute", racing_execute)
+    owned_svc.increment_owned(db, user.id, "OP01-001", 3)
+    monkeypatch.undo()
+    assert db.query(Owned).filter_by(user_id=user.id, card_id="OP01-001").one().qty == 7

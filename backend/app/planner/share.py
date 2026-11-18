@@ -169,9 +169,10 @@ def public_share_view(
     owner = db.get(User, link.user_id)
     if owner is None:
         raise NotFound("Share link not found")
-    owner_name = owner.username or (owner.name or owner.email.split("@")[0] or "Collector").strip()
     viewer_signed_in = viewer is not None
     viewer_is_owner = viewer is not None and viewer.id == owner.id
+    # Anyone with the link can open this page; only the owner sees their Google name.
+    owner_name = owner.username or ((owner.name or "").strip() if viewer_is_owner else "") or "A collector"
 
     if link.kind == "deck":
         if link.deck_id is None:

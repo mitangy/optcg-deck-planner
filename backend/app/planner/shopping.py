@@ -274,7 +274,13 @@ def shopping_list(
     merged_wants = _merged_alt_wants(db, user, decks, extras, need, sum_leaders)
 
     alts = alt_arts_map(
-        db, set(need), wanted=merged_wants, owned=alt_owned, collector=collector
+        db,
+        set(need),
+        wanted=merged_wants,
+        owned=alt_owned,
+        collector=collector,
+        catalog=catalog,
+        primary_ids=product_ids,
     )
     items: list[ShoppingItem] = []
     cards_still = 0
