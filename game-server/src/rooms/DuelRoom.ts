@@ -348,6 +348,11 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
 
     if (identity.role === "spectator") {
+      // A second connection from a seated account would read the opponent's hand.
+      if (this.seats.holdsSeat(identity.userId) && !this.seats.sharedOwner()) {
+        this.rejectJoin(client, "unauthorized", "You are playing in this match");
+        return;
+      }
       const cameraSeat: Seat =
         identity.preferredSeat === 0 || identity.preferredSeat === 1
           ? identity.preferredSeat
@@ -379,6 +384,12 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
         this.rejectJoin(client, "unsupported_deck", problem);
         return;
       }
+    }
+
+    // The same hole from the other side: spectate first, then take a seat.
+    if (this.spectators.list.some((s) => s.userId === identity.userId)) {
+      this.rejectJoin(client, "unauthorized", "You are watching this match");
+      return;
     }
 
     if (reservedSeat !== null && this.seats.slot(reservedSeat)) {

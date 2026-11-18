@@ -592,6 +592,85 @@ describe("DuelRoom", () => {
     assert.deepEqual(welcome.view.you.hand, []);
   });
 
+  describe("a seated account cannot spectate its own match (#1344)", () => {
+    async function seatedRoom(seatUids: [number, number], ownerUid?: number) {
+      const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 42, autoSkipMulligan: true });
+      const owner = ownerUid ? { ownerToken: gameToken(ownerUid) } : {};
+      const bags: [SeatBag, SeatBag] = [{ views: [], errors: [] }, { views: [], errors: [] }];
+      const c0 = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(seatUids[0]), preferredSeat: 0, ...owner });
+      attach(c0, bags[0]);
+      const c1 = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(seatUids[1]), preferredSeat: 1, ...owner });
+      attach(c1, bags[1]);
+      await syncSeat(c0, bags[0]);
+      await syncSeat(c1, bags[1]);
+      return { room, bags };
+    }
+    // The refusal is sent before a client can register a handler, so the room's rejectJoin is observed instead.
+    async function attempt(room: DuelRoom, options: Record<string, unknown>) {
+      const target = room as unknown as { rejectJoin(c: unknown, code: string, message: string): void };
+      const original = target.rejectJoin;
+      const refusals: { code: string; message: string }[] = [];
+      target.rejectJoin = function (this: unknown, c, code, message) {
+        refusals.push({ code, message });
+        return original.call(this, c, code, message);
+      };
+      const views: { revealedHands?: unknown }[] = [];
+      try {
+        const c = await colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, ...options });
+        c.onMessage("welcome", (m: { view: { revealedHands?: unknown } }) => views.push(m.view));
+        c.send("sync", { protocolVersion: PROTOCOL_VERSION });
+        await new Promise((r) => setTimeout(r, 250));
+      } catch {
+        // A refused join may close the socket before the SDK settles.
+      } finally {
+        target.rejectJoin = original;
+      }
+      return { refusals, views };
+    }
+    const spectate = (room: DuelRoom, uid: number) =>
+      attempt(room, { gameToken: gameToken(uid), role: "spectator", preferredSeat: 0 });
+
+    it("a player's second connection as a spectator is refused in a casual room", async () => {
+      const { room } = await seatedRoom([901, 902]);
+      for (const uid of [901, 902]) {
+        const { refusals, views } = await spectate(room, uid);
+        assert.deepEqual(refusals.map((e) => e.code), ["unauthorized"]);
+        assert.match(refusals[0]!.message, /playing in this match/);
+        assert.equal(views.length, 0);
+      }
+      assert.equal(room.spectators.count, 0);
+    });
+
+    it("an unrelated account still spectates a casual room and sees both hands", async () => {
+      const { room } = await seatedRoom([903, 904]);
+      const other = await spectate(room, 905);
+      assert.deepEqual(other.refusals, []);
+      assert.ok(other.views.at(-1)!.revealedHands, "an unrelated spectator keeps the unranked hand view");
+    });
+
+    it("a seat that dropped and is within its reconnect grace still blocks its account", async () => {
+      const { room } = await seatedRoom([906, 907]);
+      room.seats.markAway(0, Date.now() + 60_000);
+      const { refusals } = await spectate(room, 906);
+      assert.deepEqual(refusals.map((e) => e.code), ["unauthorized"]);
+    });
+
+    it("the owner of a practice match, whose two seats share one owner, can still spectate it", async () => {
+      const { room } = await seatedRoom([908, 909], 910);
+      const { refusals, views } = await spectate(room, 910);
+      assert.deepEqual(refusals, []);
+      assert.ok(views.at(-1)!.revealedHands);
+    });
+
+    it("an account already spectating cannot then take a seat", async () => {
+      const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 42, autoSkipMulligan: true });
+      assert.deepEqual((await spectate(room, 911)).refusals, []);
+      const { refusals } = await attempt(room, { gameToken: gameToken(911), preferredSeat: 0 });
+      assert.deepEqual(refusals.map((e) => e.code), ["unauthorized"]);
+      assert.equal(room.seats.filled(), 0);
+    });
+  });
+
   const handIds = (hand: { id: string }[] | undefined) => (hand ?? []).map((c) => c.id);
 
   type RawWelcome = {
