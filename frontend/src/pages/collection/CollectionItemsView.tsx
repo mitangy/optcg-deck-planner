@@ -5,7 +5,7 @@ import { CardColorChips } from "../../ui/CollectionToolbar";
 import { CardThumb, MobileCardMedia } from "../../ui/CardThumb";
 import { mainImageUrl, shownProductId } from "../../cards/altArt";
 import { MarketPrice } from "../../cards/MarketPrice";
-import { AltStripRow, CardBodies, useWideListRows } from "../../cards/AltTray";
+import { AltStripRow, AltTrayContext, CardBodies, useWideListRows, wideGridAlts } from "../../cards/AltTray";
 import { OwnedCell, ownedCellIsTotal } from "./OwnedCells";
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { usedInSortValue } from "../shopping/ShoppingItemsView";
@@ -73,9 +73,11 @@ export function CollectionItemsView({
       <div className="card-grid collection-grid">
         {items.map((item) => {
           const copies = item.owned + (item.alts_owned ?? 0);
+          const wideAlts = wideGridAlts(wide, item.alt_arts?.length ?? 0, showAltArts);
+          const altsBox = hasAltRow(item) ? <div className="grid-card-alts">{altRow(item)}</div> : null;
           return (
             <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
-              <div className="grid-card collection-grid-card">
+              <div className={`grid-card collection-grid-card${wideAlts.className}`}>
                 <div className="collection-tile-art">
                   <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
                   <span className="copies-badge" role="img" aria-label={`${copies} owned`} title={`${copies} owned`}>
@@ -104,8 +106,9 @@ export function CollectionItemsView({
                       TCGPlayer
                     </a>
                   )}
-                  {hasAltRow(item) && <div className="grid-card-alts">{altRow(item)}</div>}
+                  {wideAlts.wide ? null : altsBox}
                 </div>
+                {wideAlts.wide ? <AltTrayContext.Provider value={true}>{altsBox}</AltTrayContext.Provider> : null}
               </div>
             </article>
           );
