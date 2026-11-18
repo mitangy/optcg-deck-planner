@@ -84,17 +84,70 @@
 .defend-hand {
   flex: none;
   box-sizing: border-box;
-  min-width: 4.6em;
+  /* Wide enough for "Hand 10 → 8" plus the chevron, so toggling or staging never moves it (#1368). */
+  min-width: 7.4em;
   padding: 0 6px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-pill);
+  background: rgba(0, 0, 0, 0.28);
+  font: inherit;
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1.35;
   text-align: center;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
-  color: var(--muted);
+  color: var(--ink);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.defend-hand::after {
+  content: "\25BE";
+  margin-left: 0.35em;
+  color: var(--chrome-bright);
+}
+
+.defend-hand[aria-expanded="true"] {
+  border-color: var(--chrome-bright);
+  background: rgb(var(--chrome-rgb) / 0.24);
+}
+
+.defend-hand[aria-expanded="true"]::after {
+  content: "\25B4";
+}
+
+.defend-hand:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+/* The hand takes the chips' place inside the same tray box, so opening it never resizes the board (#1368). */
+.defend-hand-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 4px 2px 2px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+  --defend-hand-cw: 58px;
+}
+
+.arena .defend-hand-view > .card-tile {
+  flex: 0 0 auto;
+  width: var(--defend-hand-cw);
+  height: calc(var(--defend-hand-cw) * 1.4);
+  margin: 0;
+}
+
+.arena .defend-hand-view > .card-tile.hand-staged {
+  outline: 2px solid var(--chrome-bright);
+  outline-offset: -2px;
+  box-shadow: 0 0 0 1px var(--chrome), 0 0 10px rgb(var(--chrome-bright-rgb) / 0.35);
 }
 
 .defend-chips {
@@ -262,7 +315,7 @@
   }
 
   .arena.arena-lp .defend-hand {
-    min-width: 6.4em;
+    min-width: 7.4em;
     font-size: 0.75rem;
     line-height: 1.25;
   }
@@ -300,6 +353,18 @@
 
   .arena.arena-lp .defend-chip-main {
     font-size: 0.7rem;
+  }
+
+  .arena.arena-lp .defend-hand-view {
+    display: flex;
+    flex-wrap: wrap;
+    align-content: flex-start;
+    gap: 3px var(--space-1);
+    overflow-x: hidden;
+    overflow-y: auto;
+    touch-action: pan-y;
+    padding: 3px 1px;
+    --defend-hand-cw: 52px;
   }
 
   .arena.arena-lp .arena-rail .intent-bar-defend {

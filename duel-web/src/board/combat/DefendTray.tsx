@@ -97,6 +97,10 @@ type Props = {
   onSkipBlockCounter?: (id: string) => void;
   counterDrag?: CounterDragHandlers;
   handCount?: number;
+  // Phone tray only: the Hand pill toggles this view in place of the chips, so Counters can be picked from the real hand (#1368).
+  handView?: ReactNode;
+  handOpen?: boolean;
+  onToggleHand?: () => void;
   // False when the attack summary and verdict are shown above the Pass button instead.
   summary?: boolean;
 };
@@ -112,6 +116,9 @@ export function DefendTray({
   onSkipBlockCounter,
   counterDrag,
   handCount,
+  handView,
+  handOpen = false,
+  onToggleHand,
   summary = true,
 }: Props) {
   const m = model;
@@ -149,19 +156,31 @@ export function DefendTray({
           {verdict.text}
         </p>
         {handCount != null ? (
-          <span
+          <button
+            type="button"
             className="defend-hand"
-            aria-label={`Your hand: ${handCount} ${handCount === 1 ? "card" : "cards"}${
-              staged > 0 ? `, ${handAfter} after these counters` : ""
-            }`}
+            aria-expanded={handOpen}
+            aria-label={
+              handOpen
+                ? "Hide your hand"
+                : `Show your hand, ${handCount} ${handCount === 1 ? "card" : "cards"}${
+                    staged > 0 ? `, ${handAfter} after these counters` : ""
+                  }`
+            }
+            onClick={onToggleHand}
           >
             Hand {handCount}
             {staged > 0 ? ` → ${handAfter}` : ""}
-          </span>
+          </button>
         ) : null}
       </div>
         </>
       ) : null}
+      {handCount != null && handOpen && handView ? (
+        <div className="defend-hand-view" aria-label="Your hand">
+          {handView}
+        </div>
+      ) : (
       <div className="defend-chips">
         {m.phase === "block" ? (
           m.blockers.length === 0 && m.earlyCounters.length === 0 ? (
@@ -251,6 +270,7 @@ export function DefendTray({
           </>
         )}
       </div>
+      )}
     </section>
   );
 }

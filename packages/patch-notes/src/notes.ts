@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-18", app: "duel", pr: 1368, title: "See your hand when you are attacked on a phone", text: "On a phone, the Hand button in the block and counter tray now opens your whole hand in place of the blockers and counters. Tap it again to go back. While picking a Counter, tap a Counter card in your hand to add it, the same as tapping its chip." },
   { date: "2026-11-18", app: "planner", pr: 1358, title: "A new logo for the planner", text: "The planner has a new logo, a deck card with a checklist. You will see it in the header, in the browser tab and as the icon when you add the planner to your Home Screen." },
   { date: "2026-11-18", app: "planner", pr: 1354, title: "Master Shopping shows cards sooner", text: "The Master Shopping head is shorter, so your cards start higher on the page. There is now one Buy on TCGPlayer button that is always there, and when you tick cards a bar at the bottom lets you buy just those." },
   { date: "2026-11-18", app: "planner", pr: 1354, title: "Compact and Comfortable lists", text: "On Shopping, Decks and Collection, the List view has a Compact and a Comfortable setting. Compact fits many more cards on screen and Comfortable keeps the big card art. All three pages share one toolbar for search, colors, types, Sort, Filters and layout." },
