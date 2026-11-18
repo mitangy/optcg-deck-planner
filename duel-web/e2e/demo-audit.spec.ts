@@ -235,7 +235,7 @@ test("an idle midline strip has no divider line and keeps the height of one with
 
 for (const [where, beside, sel] of [
   ["midline", false, ".midline .prompt-text"],
-  ["caption under the buttons", true, ".dock-caption .prompt-text"],
+  ["caption above the buttons", true, ".dock-heading-text"],
 ] as const) {
   test(`double-clicking the ${where} prompt text selects nothing (#314, #556)`, async ({ page }, info) => {
     test.skip(beside && info.project.name !== "desktop-1280", "the dock caption is desktop only");
@@ -810,7 +810,7 @@ test("the battle strip has a solid background and a gold edge (#539)", async ({ 
   await page.locator(".board-root").waitFor();
   const strip = page.locator(".arena .midline .prompt");
   await expect(strip).toBeVisible();
-  await expect(strip).toContainText("→");
+  await expect(strip).toContainText("attacks");
   const { bg, border, chrome } = await strip.evaluate((el) => {
     const probe = document.createElement("span");
     probe.style.color = "var(--chrome)";

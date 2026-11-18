@@ -37,6 +37,7 @@ import { HandLabel } from "./hand/HandLabel";
 import { IntentBar } from "./prompts/IntentBar";
 import { useSideDockPlacement } from "./panels/sideDockPlacement";
 import { PrimaryDock } from "./prompts/PrimaryDock";
+import { DockHeading } from "./combat/DockHeading";
 import { waitingOnOpponent } from "./match/waitingOnOpponent";
 import { DefendTray } from "./combat/DefendTray";
 import { useHudHeight } from "./layout/useHudHeight";
@@ -1049,10 +1050,15 @@ export function DuelBoard({
     });
   }
 
+  // Beside the board the attack summary heads the action area, above Pass block / Pass counter; the rail tray then skips its own copy.
+  const dockHeading = sideActions && !over && defend != null ? defend : null;
+  // The phone tray already opens with the same sentence, so the strip over the mats would only repeat it.
+  const stripText = trayHere && defend != null && midlineBattle ? null : midlineShown;
   const defendTray =
     (trayHere || railDefend) && defend ? (
       <DefendTray
         model={defend}
+        summary={dockHeading == null}
         layout={railDefend ? "rail" : "tray"}
         handCount={trayHere ? handCount : undefined}
         ownerSeat={boardSeat}
@@ -1625,10 +1631,10 @@ export function DuelBoard({
               }
             />
 
-            <div className={`midline${docked && midlineShown ? " midline-docked" : ""}`}>
-              {midlineShown ? (
+            <div className={`midline${docked && stripText ? " midline-docked" : ""}`}>
+              {stripText ? (
                 <div className={`prompt${midlineBattle ? " prompt-battle" : ""}`} title={midlineTitle ?? undefined}>
-                  <span className="prompt-text">{midlineShown}</span>
+                  <span className="prompt-text">{stripText}</span>
                 </div>
               ) : rotateHintShown ? (
                 <RotateHint onClose={closeRotateHint} />
@@ -1741,10 +1747,11 @@ export function DuelBoard({
                 counterLabel={counterLabel}
                 onSend={sendPrimary}
               />
+              {dockHeading ? <DockHeading model={dockHeading} /> : null}
               <div className="dock-caption" role="status">
                 {mulliganBody ? (
                   <p className="dock-caption-mulligan">{mulliganBody}</p>
-                ) : midlineShown ? (
+                ) : midlineShown && !(dockHeading && midlineBattle) ? (
                   <div className={`prompt${midlineBattle ? " prompt-battle" : ""}`} title={midlineTitle ?? undefined}>
                     <span className="prompt-text">{midlineShown}</span>
                   </div>

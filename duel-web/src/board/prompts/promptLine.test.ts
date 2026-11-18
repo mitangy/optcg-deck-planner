@@ -48,10 +48,10 @@ describe("respondSubline", () => {
 
   it("says block or counter only in the block / counter step with nothing open (#278)", () => {
     expect(respondSubline({ ...base, phase: "block", choice: null })).toBe(
-      "Teach is attacking — block or counter",
+      "Teach is attacking. Block or counter",
     );
     expect(respondSubline({ ...base, phase: "counter", choice: undefined })).toBe(
-      "Teach is attacking — block or counter",
+      "Teach is attacking. Block or counter",
     );
   });
 
@@ -71,7 +71,7 @@ describe("respondSubline", () => {
 
   it("ignores the opponent's choice, which is not yours to answer (#278)", () => {
     expect(respondSubline({ ...base, phase: "counter", choice: choice({ seat: 1 }) })).toBe(
-      "Teach is attacking — block or counter",
+      "Teach is attacking. Block or counter",
     );
   });
 });
