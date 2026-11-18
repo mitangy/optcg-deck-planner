@@ -1,4 +1,4 @@
-import { test, expect, RED_VANILLA, FAKE_API, type Page } from "./fixtures";
+import { test, expect, RED_LEGAL, FAKE_API, type Page } from "./fixtures";
 
 async function openRanked(page: Page) {
   await page.addInitScript((deck) => {
@@ -7,7 +7,7 @@ async function openRanked(page: Page) {
     localStorage.clear();
     localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify([{ id: "e2e-you", name: "E2E You", ...deck, updatedAt: 1 }]));
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
-  }, RED_VANILLA);
+  }, RED_LEGAL);
   await page.goto("/");
   await page.getByRole("button", { name: "Play", exact: true }).click();
   await page.getByRole("dialog").getByRole("button", { name: /^Ranked/ }).click();
