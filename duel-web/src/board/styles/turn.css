@@ -62,6 +62,10 @@
   gap: 0.15rem;
 }
 
+.turn-splash-above {
+  transform: translate(-50%, -100%);
+}
+
 .turn-splash-anchored .turn-splash-card strong {
   font-size: clamp(1.15rem, 2.1vw, 1.9rem);
 }

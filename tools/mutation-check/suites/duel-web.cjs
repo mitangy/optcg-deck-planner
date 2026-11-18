@@ -5,6 +5,11 @@ module.exports = {
   cwd: "duel-web",
   runner: "vitest",
   mutations: [
+    // board-prompts package (#1343)
+    {"id": "bp1343-keep-not-primary", "file": "duel-web/src/board/prompts/PrimaryDock.tsx", "from": "\"intent-btn intent-btn-end intent-btn-keep\"", "to": "\"intent-btn intent-btn-keep\"", "kills": ["Keep opening hand is the gold primary button and Mulligan stays the outline one (#1343)"], "args": "src/board/prompts/mulliganButtons"},
+    {"id": "bp1343-mulligan-also-primary", "file": "duel-web/src/board/prompts/PrimaryDock.tsx", "from": "\"intent-btn intent-btn-mulligan\"", "to": "\"intent-btn intent-btn-end intent-btn-mulligan\"", "kills": ["Keep opening hand is the gold primary button and Mulligan stays the outline one (#1343)"], "args": "src/board/prompts/mulliganButtons"},
+    {"id": "bp1343-banner-above-wrong-edge", "file": "duel-web/src/board/motion/splashAnchor.ts", "from": "y: youMat.top };", "to": "y: youMat.top + youMat.height / 2 };", "kills": ["puts the phone banner bottom edge on the line above the player mat, centred on it (#1343)"], "args": "src/board/motion/splashAnchor"},
+    {"id": "bp1343-banner-above-order-unchecked", "file": "duel-web/src/board/motion/splashAnchor.ts", "from": "  if (youMat.top < oppMat.top) return null;\n", "to": "", "kills": ["gives up when a mat is missing or the player mat is not below the opponent mat (#1343)"], "args": "src/board/motion/splashAnchor"},
     // Users list header sorting (#1323)
     {"id": "users1323-click-active-does-not-flip", "file": "duel-web/src/admin/adminLogic.ts", "from": "return { key, dir: current.dir === \"asc\" ? \"desc\" : \"asc\" };", "to": "return { key, dir: current.dir };", "kills": ["flips the direction when the active column is clicked again"], "args": "src/admin/adminLogic"},
     {"id": "users1323-counts-start-ascending", "file": "duel-web/src/admin/adminLogic.ts", "from": "return key === \"user\" || key === \"role\" || key === \"source\" ? \"asc\" : \"desc\";", "to": "return \"asc\";", "kills": ["starts text columns A to Z and counts and Joined with the biggest first"], "args": "src/admin/adminLogic"},
