@@ -320,8 +320,9 @@
     font-size: 0.64rem;
   }
 
+  /* Two full rows of cards fit beside the End turn button on a 375px-tall screen (#1343). */
   .arena.arena-lp .board-col .rail-hand {
-    --rail-hand-cw: 60px;
+    --rail-hand-cw: 52px;
   }
 
   .arena.arena-lp .rail-hand-head {

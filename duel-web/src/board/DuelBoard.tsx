@@ -14,6 +14,7 @@ import { RevealOverlay } from "./motion/RevealOverlay";
 import { CardSpotlightLayer } from "./preview/CardSpotlight";
 import { describeMatchResult } from "./match/matchResult";
 import { CardTile } from "./zones/CardTile";
+import { MulliganHand } from "./prompts/MulliganHand";
 import { canDragAttacker, canDragCounter, canDragHandCard, canDropPlayOnField, findDropTargetAtPoint, playCardTrashTargetIds, playNeedsReplace, isReplacePlay, resolveDropIntents, type DragPayload } from "./combat/dragIntents";
 import { AttackIndicator, DragAttackArrow } from "./combat/AttackIndicator";
 import { BoardMotion } from "./motion/BoardMotion";
@@ -886,7 +887,8 @@ export function DuelBoard({
   const drawerClass =
     drawer === "open" ? " is-open" : drawer === "hidden" ? " is-hidden" : tuckUnderPointer ? " is-tucking" : "";
 
-  const splash: SplashMessage | null = over || !prefs.turnSplash || replayQuiet
+  // While you decide, the opening hand says who goes first, so the splash would only sit on the cards.
+  const splash: SplashMessage | null = over || !prefs.turnSplash || replayQuiet || decidingMulligan
     ? null
     : mulliganPhase
       ? spectating
@@ -1148,7 +1150,9 @@ export function DuelBoard({
     setSelectedBoardId(null);
     onSendIntent(intent);
   };
-  const dock = dockIntents(barIntents, { defending: defendPrimary != null });
+  const mulliganDock = dockIntents(barIntents, { defending: false });
+  // While you decide, Mulligan and Keep opening hand live under the opening hand in the middle of the board, so no other dock or bar repeats them.
+  const dock = decidingMulligan ? { primary: null, extras: [] as Intent[] } : dockIntents(barIntents, { defending: defendPrimary != null });
   const replayBar = replay ? (
     <div className="intent-bar replay-bar">
       {isValidElement(replay.controls)
@@ -1168,7 +1172,7 @@ export function DuelBoard({
   ) : null;
   const intentPanel = railDefend && defendTray ? (
     defendTray
-  ) : wide && !lp ? null : !spectating ? (
+  ) : (wide && !lp) || decidingMulligan ? null : !spectating ? (
     <>
     <IntentBar
       waiting={oppWait}
@@ -1329,32 +1333,30 @@ export function DuelBoard({
         : undefined;
   const docked = wide && !lp && !spectating && !over && !sideActions;
   const mulliganBody =
-    mulliganPhase && !spectating ? (
-      view.you.mulliganDone ? (
-        <>
-          <strong>Mulligan locked in.</strong> Waiting for the other seat
-          {view.opponent.mulliganDone ? "" : " — pass the device if this is hotseat"}.
-        </>
-      ) : !prefs.gameHints ? null : (
-        <>
-          <strong>
-            {firstSeatLine({
-              youFirst,
-              boardSeat,
-              pickedBy: firstSeatPickedBy,
-              dice: firstSeatDice,
-              opponentName: seatName(players, oppSeat) ?? undefined,
-            })}
-          </strong>{" "}
-          {youFirst
-            ? "No draw and 1 DON!! on your first turn."
-            : "You draw and get 2 DON!! on your first turn."}{" "}
-          <strong>Opening hand:</strong> keep these 5 cards, or mulligan to
-          shuffle them back and draw a new hand of 5. Life is dealt after both
-          players decide.
-        </>
-      )
+    mulliganPhase && !spectating && view.you.mulliganDone ? (
+      <>
+        <strong>Mulligan locked in.</strong> Waiting for the other seat
+        {view.opponent.mulliganDone ? "" : " — pass the device if this is hotseat"}.
+      </>
     ) : null;
+  const mulliganOrder = decidingMulligan ? (
+    <>
+      <strong>
+        {firstSeatLine({
+          youFirst,
+          boardSeat,
+          pickedBy: firstSeatPickedBy,
+          dice: firstSeatDice,
+          opponentName: seatName(players, oppSeat) ?? undefined,
+        })}
+      </strong>
+      {" · "}
+      {youFirst ? "No draw, 1 DON!! on turn 1" : "You draw, 2 DON!! on turn 1"}
+    </>
+  ) : null;
+  const mulliganHint = decidingMulligan && prefs.gameHints
+    ? "Keep these cards, or mulligan to shuffle them back and draw 5 new ones. Life is dealt after both players decide."
+    : null;
   function renderColumnPanels(column: PanelColumn) {
     const ids = shownPanels[column];
     const sized = ids.some((id) => panelResize.shown.heights[id] != null);
@@ -1557,12 +1559,31 @@ export function DuelBoard({
 
         <div className="playmat" ref={playmatRef} data-mat-drop={wide && !lp ? "" : undefined}>
           {mulliganBody && !sideActions ? (
-            <div
-              className={`mulligan-banner${view.you.mulliganDone ? "" : " mulligan-banner-explainer"}`}
-              role="status"
-            >
+            <div className="mulligan-banner" role="status">
               {mulliganBody}
             </div>
+          ) : null}
+          {decidingMulligan ? (
+            <MulliganHand
+              cards={you.hand}
+              ownerSeat={boardSeat}
+              viewingSeat={viewingSeat}
+              showCounter={prefs.handCounters}
+              order={mulliganOrder}
+              hint={mulliganHint}
+              actions={
+                <PrimaryDock
+                  inline
+                  primary={mulliganDock.primary}
+                  extras={mulliganDock.extras}
+                  keyOffset={cardIntents.length}
+                  waiting={null}
+                  view={view}
+                  disabled={over}
+                  onSend={sendPrimary}
+                />
+              }
+            />
           ) : null}
           <div className="playmat-inner">
             {farHand && specFans === "portrait" ? (
@@ -1726,7 +1747,7 @@ export function DuelBoard({
               }
             />
           </div>
-          {sideActions ? (
+          {sideActions && !decidingMulligan ? (
             <div className="side-dock" data-side-dock>
               <PrimaryDock
                 inline

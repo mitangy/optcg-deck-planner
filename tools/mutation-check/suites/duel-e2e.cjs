@@ -32,6 +32,29 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // Board layout: opening hand overlay, bigger side-column hand, one-line stats, no chat vs bot, preview off the action button (#1343)
+    { id: "e2e-bl1343-no-opening-hand-overlay", args: "board-layout-1343.spec", edits: [
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "          {decidingMulligan ? (\n            <MulliganHand", to: "          {false ? (\n            <MulliganHand" },
+    ], kills: ["board-layout-1343.spec.ts > the opening hand is shown large with the choice under it, all in view at 1280x720 (#1343) [desktop-1280]", "board-layout-1343.spec.ts > the opening hand is shown large with the choice under it, all in view at 375x812 (#1343) [phone-375]", "board-layout-1343.spec.ts > the opening hand is shown large with the choice under it, all in view at 812x375 (#1343) [phone-375]"] },
+    { id: "e2e-bl1343-opening-hand-cards-small", args: "board-layout-1343.spec", edits: [
+      { file: "duel-web/src/styles/mulligan.css", from: "      8.5rem\n    )\n  );", to: "      4rem\n    )\n  );" },
+    ], kills: ["board-layout-1343.spec.ts > the opening hand is shown large with the choice under it, all in view at 1280x720 (#1343) [desktop-1280]"] },
+    { id: "e2e-bl1343-hand-keeps-one-row", args: "board-layout-1343.spec", edits: [
+      { file: "duel-web/src/board/styles/rail.css", from: "  flex-grow: 3;\n  min-height: min(calc(clamp(60px, 9.4dvh, 150px) * 2.8 + 0.4rem + 3.4rem), 52%);", to: "  min-height: min(calc(clamp(60px, 9.4dvh, 150px) * 1.4 + 3.4rem), 50%);" },
+      { file: "duel-web/src/board/styles/rail.css", from: ".arena.arena-wide .board-panel[data-panel=\"chat\"]:has(> .chat-panel:not(.collapsed)) {\n  flex: 1 1 0;\n  min-height: 7rem;", to: ".arena.arena-wide .board-panel[data-panel=\"chat\"]:has(> .chat-panel:not(.collapsed)) {\n  flex: 1 1 0;\n  min-height: 14rem;" },
+    ], kills: ["board-layout-1343.spec.ts > the hand in the side column shows two full rows at 1280x720 (#1343) [desktop-1280]"] },
+    { id: "e2e-bl1343-landscape-hand-sliver", args: "board-layout-1343.spec", edits: [
+      { file: "duel-web/src/board/styles/defend.css", from: "--rail-hand-cw: 52px;", to: "--rail-hand-cw: 60px;" },
+    ], kills: ["board-layout-1343.spec.ts > the hand beside the board is not a sliver on a sideways phone (#1343) [phone-375]"] },
+    { id: "e2e-bl1343-player-stats-wrap", args: "board-layout-1343.spec", edits: [
+      { file: "duel-web/src/board/styles/gameState.css", from: "  flex-wrap: nowrap;\n  align-items: center;\n  column-gap: 0.25rem;", to: "  flex-wrap: wrap;\n  align-items: center;\n  column-gap: 0.25rem;" },
+    ], kills: ["board-layout-1343.spec.ts > each player is one compact line with name, order and the four numbers (#1343) [desktop-1280]"] },
+    { id: "e2e-bl1343-chat-in-bot-games", args: "board-layout-1343.spec", edits: [
+      { file: "duel-web/src/pages/duelPageChrome.ts", from: "chat: !o.vsBot", to: "chat: true" },
+    ], kills: ["board-layout-1343.spec.ts > Play vs Bot has no chat (#1343) [desktop-1280]", "board-layout-1343.spec.ts > Play vs Bot has no chat (#1343) [phone-375]"] },
+    { id: "e2e-bl1343-preview-over-dock", args: "board-layout-1343.spec", edits: [
+      { file: "duel-web/src/board/preview/CardPreviewPopup.tsx", from: "placePreviewPopup(base, r, anchor, view, dock)", to: "placePreviewPopup(base, r, anchor, view, [])" },
+    ], kills: ["board-layout-1343.spec.ts > the card preview never covers the action button at 1280x720 with Actions beside on (#1343) [desktop-1280]", "board-layout-1343.spec.ts > the card preview never covers the action button at 1280x720 with Actions beside off (#1343) [desktop-1280]"] },
     // New deck: Leader start, paste start, shared width, Edit button (#1343)
     { id: "e2e-newdeck1343-leader-deck-wrong-leader", args: "new-deck-1343.spec", edits: [
       { file: "duel-web/src/decks/newDeckStart.ts", from: "leaderId: leader.id, cards: []", to: "leaderId: \"ST01-001\", cards: []" },
