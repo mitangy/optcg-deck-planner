@@ -26,7 +26,6 @@ export function MulliganHand({ cards, ownerSeat, viewingSeat, showCounter, order
         {cards.map((c) => (
           <CardTile
             key={c.id}
-            motionId={c.id}
             defId={c.defId}
             artCopy={c.artCopy}
             showCounter={showCounter}
