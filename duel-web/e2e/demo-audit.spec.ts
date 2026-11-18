@@ -233,15 +233,16 @@ test("an idle midline strip has no divider line and keeps the height of one with
   expect((await page.locator(".midline").boundingBox())!.height).toBeCloseTo(idle, 0);
 });
 
-for (const [where, beside, sel] of [
-  ["midline", false, ".midline .prompt-text"],
-  ["caption above the buttons", true, ".dock-heading-text"],
+for (const [where, beside, sel, screen] of [
+  ["midline", false, ".midline .prompt-text", "?attacked"],
+  ["caption under the buttons", true, ".dock-caption .prompt-text", "?attacked"],
+  ["attack summary above the buttons", true, ".dock-heading-text", "?counter=block"],
 ] as const) {
   test(`double-clicking the ${where} prompt text selects nothing (#314, #556)`, async ({ page }, info) => {
     test.skip(beside && info.project.name !== "desktop-1280", "the dock caption is desktop only");
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.addInitScript((b) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ actionsBeside: b })), beside);
-    await page.goto("/demo?attacked");
+    await page.goto(`/demo${screen}`);
     const text = page.locator(sel);
     await expect(text).toBeVisible();
     await text.dblclick();
@@ -806,6 +807,7 @@ test("the Mulligan button has a solid background, not see-through (#461)", async
 });
 
 test("the battle strip has a solid background and a gold edge (#539)", async ({ page }) => {
+  test.skip(test.info().project.name === "phone-375", "on a phone the defend tray opens with the same sentence, so the strip is not drawn (#1343)");
   await page.goto("/demo?counter");
   await page.locator(".board-root").waitFor();
   const strip = page.locator(".arena .midline .prompt");

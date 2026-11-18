@@ -65,7 +65,7 @@ describe("respondSubline", () => {
 
   it("does not say block or counter outside those steps (#278)", () => {
     const sub = respondSubline({ ...base, phase: "main", choice: null });
-    expect(sub).not.toMatch(/block or counter/);
+    expect(sub).not.toMatch(/block or counter/i);
     expect(sub).not.toBe("");
   });
 

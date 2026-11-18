@@ -47,7 +47,7 @@ async function candidates(page: Page): Promise<Candidate[]> {
       const r = el.getBoundingClientRect();
       if (r.width < 4 || r.height < 4 || getComputedStyle(el).visibility === "hidden") continue;
       const label = (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
-      if (/^(Undo|Leave|Return home)/.test(label)) continue;
+      if (/^(Undo|Leave|Return home|Home$)/.test(label)) continue;
       let weight = el.classList.contains("card-tile") ? 1 : 4;
       if (/^Attack/.test(label)) weight = 12;
       else if (/^(Play|Give( all)? (DON|\d)|Activate|\+\d|All \()/.test(label)) weight = 8;

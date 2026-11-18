@@ -49,6 +49,21 @@ function DeckSelect({
   );
 }
 
+export type RematchStage = "none" | "left" | "order" | "order-wait" | "waiting" | "accept" | "ask";
+
+// The gold button of the match-over card is the rematch offer while this has one, and Return home when it does not ("none", "left").
+export function rematchStage(state: RematchState | null, mySeat: Seat, autoAccept = false): RematchStage {
+  if (!state) return "none";
+  if (!state.available) return "left";
+  if (state.chooser != null) return autoAccept || state.chooser === mySeat ? "order" : "order-wait";
+  const oppSeat: Seat = mySeat === 0 ? 1 : 0;
+  const mine = state.requested[mySeat];
+  const theirs = state.requested[oppSeat];
+  if (mine && !theirs) return "waiting";
+  if (theirs && !mine) return "accept";
+  return "ask";
+}
+
 type Props = {
   state: RematchState | null;
   mySeat: Seat;
@@ -60,12 +75,13 @@ type Props = {
 
 export function RematchPanel({ state, mySeat, players, autoAccept = false, deckOptions, onAction }: Props) {
   const [picks, setPicks] = useState<[string, string]>(["", ""]);
+  const [decksOpen, setDecksOpen] = useState(false);
   if (!state) return null;
   const oppSeat: Seat = mySeat === 0 ? 1 : 0;
   const oppName = seatName(players, oppSeat) ?? "Your opponent";
 
   if (!state.available) {
-    return <p className="rematch-note">{oppName} left — a rematch isn&apos;t available.</p>;
+    return <p className="rematch-note">{oppName} left. A rematch isn&apos;t available.</p>;
   }
 
   if (state.chooser != null) {
@@ -75,8 +91,8 @@ export function RematchPanel({ state, mySeat, players, autoAccept = false, deckO
           <p className="rematch-note">
             <strong>
               {autoAccept ? `${seatLabel(players, state.chooser)} lost` : "You lost"}
-            </strong>{" "}
-            — pick the turn order for the rematch.
+            </strong>
+            . Pick the turn order for the rematch.
           </p>
           <div className="rematch-actions">
             <button type="button" className="btn btn-primary" onClick={() => onAction("first")}>
@@ -96,17 +112,26 @@ export function RematchPanel({ state, mySeat, players, autoAccept = false, deckO
   const theirs = state.requested[oppSeat];
   const oppNewDeck = !autoAccept && state.newDeck[oppSeat];
 
+  // One fixed-height slot, so revealing the select does not move the buttons above it.
   const pickers = deckOptions && deckOptions.length > 0 ? (
-    <div className="rematch-decks">
-      {(autoAccept ? ([0, 1] as const) : [mySeat]).map((seat) => (
-        <DeckSelect
-          key={seat}
-          options={deckOptions}
-          value={picks[seat]}
-          label={autoAccept ? `${seatLabel(players, seat)}: deck for the rematch` : "Deck for the rematch"}
-          onChange={(id) => setPicks((p) => (seat === 0 ? [id, p[1]] : [p[0], id]))}
-        />
-      ))}
+    <div className="rematch-deck-slot">
+      {decksOpen ? (
+        <div className="rematch-decks">
+          {(autoAccept ? ([0, 1] as const) : [mySeat]).map((seat) => (
+            <DeckSelect
+              key={seat}
+              options={deckOptions}
+              value={picks[seat]}
+              label={autoAccept ? `${seatLabel(players, seat)}: deck for the rematch` : "Deck for the rematch"}
+              onChange={(id) => setPicks((p) => (seat === 0 ? [id, p[1]] : [p[0], id]))}
+            />
+          ))}
+        </div>
+      ) : (
+        <button type="button" className="rematch-change-deck" onClick={() => setDecksOpen(true)}>
+          {autoAccept ? "Change decks" : "Change deck"}
+        </button>
+      )}
     </div>
   ) : null;
   const request = () => onAction("request", deckOptions ? decksFromPicks(deckOptions, picks) : undefined);
@@ -133,7 +158,6 @@ export function RematchPanel({ state, mySeat, players, autoAccept = false, deckO
           <strong>{oppName} wants a rematch!</strong>
         </p>
         {oppNewDeck ? <p className="rematch-note">{oppName} is bringing a different deck.</p> : null}
-        {pickers}
         <div className="rematch-actions">
           <button type="button" className="btn btn-primary" onClick={request}>
             Accept rematch
@@ -142,6 +166,7 @@ export function RematchPanel({ state, mySeat, players, autoAccept = false, deckO
             No thanks
           </button>
         </div>
+        {pickers}
       </div>
     );
   }
@@ -151,12 +176,12 @@ export function RematchPanel({ state, mySeat, players, autoAccept = false, deckO
       {state.declinedBy === oppSeat && !autoAccept ? (
         <p className="rematch-note">{oppName} declined the rematch.</p>
       ) : null}
-      {pickers}
       <div className="rematch-actions">
         <button type="button" className="btn btn-primary" onClick={request}>
           {autoAccept ? "Rematch" : "Ask for a rematch"}
         </button>
       </div>
+      {pickers}
     </div>
   );
 }

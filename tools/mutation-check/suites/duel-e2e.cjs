@@ -32,6 +32,31 @@ module.exports = {
   cwd: "duel-web",
   runner: "playwright",
   mutations: [
+    // board-prompts package (#1343)
+    { id: "e2e-bp1343-banner-centred-on-phone", args: "board-prompts-1343.spec --project=phone-375 -g banner", edits: [
+      { file: "duel-web/src/board/motion/TurnSplash.tsx", from: "const above = onMat ? null : splashAnchorAboveMat(measureMat(\".side-opp\"), measureMat(\".side-you\"));", to: "const above = null;" },
+    ], kills: ["board-prompts-1343.spec.ts > the turn order banner stays off your own mat at the mulligan, phone portrait (#1343) [phone-375]", "board-prompts-1343.spec.ts > the turn order banner stays off your own mat at the mulligan, phone landscape (#1343) [phone-375]"] },
+    { id: "e2e-bp1343-keep-is-outline", args: "board-prompts-1343.spec --project=desktop-1280 -g Keep", edits: [
+      { file: "duel-web/src/board/prompts/PrimaryDock.tsx", from: "\"intent-btn intent-btn-end intent-btn-keep\"", to: "\"intent-btn intent-btn-keep\"" },
+    ], kills: ["board-prompts-1343.spec.ts > Keep opening hand is the gold button and Mulligan the outline one (#1343) [desktop-1280]"] },
+    { id: "e2e-bp1343-no-dock-heading", args: "board-prompts-1343.spec --project=desktop-1280 -g \"told what attacks\"", edits: [
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "{dockHeading ? <DockHeading model={dockHeading} /> : null}", to: "" },
+    ], kills: ["board-prompts-1343.spec.ts > you are told what attacks what above Pass block, in body text (#1343) [desktop-1280]"] },
+    { id: "e2e-bp1343-turn-prompt-dim", args: "board-prompts-1343.spec --project=desktop-1280 -g \"Turn card\"", edits: [
+      { file: "duel-web/src/board/styles/gameState.css", from: "  min-height: 2.5em;\n  color: var(--ink);\n}", to: "  min-height: 2.5em;\n}" },
+    ], kills: ["board-prompts-1343.spec.ts > the Turn card's prompt that needs you reads in the normal text colour (#1343) [desktop-1280]"] },
+    { id: "e2e-bp1343-defend-line-small", args: "board-prompts-1343.spec --project=phone-375 -g \"12px\"", edits: [
+      { file: "duel-web/src/board/styles/defend.css", from: ".defend-line {\n  font-size: 0.8rem;", to: ".defend-line {\n  font-size: 0.7rem;" },
+    ], kills: ["board-prompts-1343.spec.ts > the attack summary is at least 12px on phones and does not overlap the chips (#1343) [phone-375]"] },
+    { id: "e2e-bp1343-replace-button-clips", args: "board-prompts-1343.spec --project=phone-375 -g \"Play and replace\"", edits: [
+      { file: "duel-web/src/interactions.css", from: "  min-width: 132px;\n  min-height: 44px;\n  padding: 4px 12px;\n  border: 1px solid #6bc48a55;", to: "  min-width: 132px;\n  max-width: 120px;\n  white-space: nowrap;\n  overflow: hidden;\n  min-height: 44px;\n  padding: 4px 12px;\n  border: 1px solid #6bc48a55;" },
+    ], kills: ["board-prompts-1343.spec.ts > Play and replace a Character fits its button on a full board (#1343) [phone-375]"] },
+    { id: "e2e-bp1343-change-deck-moves-buttons", args: "board-prompts-1343.spec -g \"Change deck\"", edits: [
+      { file: "duel-web/src/board/styles/roomStates.css", from: ".rematch-deck .ui-select-button {\n  min-height: 2.75rem;", to: ".rematch-deck .ui-select-button {\n  min-height: 4.5rem;" },
+    ], kills: ["board-prompts-1343.spec.ts > the match over card has one gold button and Change deck reveals the select without moving it (#1343) [desktop-1280]", "board-prompts-1343.spec.ts > the match over card has one gold button and Change deck reveals the select without moving it (#1343) [phone-375]"] },
+    { id: "e2e-bp1343-two-gold-buttons", args: "board-prompts-1343.spec -g \"gold button\"", edits: [
+      { file: "duel-web/src/board/match/MatchResultView.tsx", from: "className={`btn ${homePrimary ? \"btn-primary\" : \"btn-secondary\"} match-result-home`}", to: "className={`btn btn-primary match-result-home`}" },
+    ], kills: ["board-prompts-1343.spec.ts > the match over card has one gold button and Change deck reveals the select without moving it (#1343) [desktop-1280]", "board-prompts-1343.spec.ts > the guest match over card keeps one gold button and drops Review game (#1343) [desktop-1280]"] },
     // A pop-up dragged to the far left of the screen floats there instead of jumping into the right column (#1245): the edge strip only docks toward a side with a column, and a folded-away column reports no span. Both layers are reverted.
     { id: "e2e-prompt-edge-drop-jumps-to-open-column", args: "prompt-dock.spec --project=desktop-1280 -g far.left", edits: [
       { file: "duel-web/src/board/prompts/promptDock.ts", from: "  if (x <= EDGE_PX && columns.left) return \"left\";\n  if (x >= viewWidth - EDGE_PX && columns.right) return \"right\";\n", to: "  if (x <= EDGE_PX) return \"left\";\n  if (x >= viewWidth - EDGE_PX) return \"right\";\n" },
@@ -384,8 +409,8 @@ module.exports = {
     ] },
     // The battle strip carries the solid gold-edged look (#539)
     { id: "e2e-battle-strip-class-dropped", args: "demo-audit -g \"battle strip has a solid background\"", edits: [
-      { file: "duel-web/src/board/DuelBoard.tsx", from: "{midlineShown ? (\n                <div className={`prompt${midlineBattle ? \" prompt-battle\" : \"\"}`}", to: "{midlineShown ? (\n                <div className={`prompt${\"\"}`}" },
-      { file: "duel-web/src/board/DuelBoard.tsx", from: ": midlineShown ? (\n                  <div className={`prompt${midlineBattle ? \" prompt-battle\" : \"\"}`}", to: ": midlineShown ? (\n                  <div className={`prompt${\"\"}`}" },
+      { file: "duel-web/src/board/DuelBoard.tsx", from: "{stripText ? (\n                <div className={`prompt${midlineBattle ? \" prompt-battle\" : \"\"}`}", to: "{stripText ? (\n                <div className={`prompt${\"\"}`}" },
+      { file: "duel-web/src/board/DuelBoard.tsx", from: ": midlineShown && !(dockHeading && midlineBattle) ? (\n                  <div className={`prompt${midlineBattle ? \" prompt-battle\" : \"\"}`}", to: ": midlineShown && !(dockHeading && midlineBattle) ? (\n                  <div className={`prompt${\"\"}`}" },
     ], kills: [
       "demo-audit.spec.ts > the battle strip has a solid background and a gold edge (#539) [desktop-1280]",
       "demo-audit.spec.ts > the battle strip has a solid background and a gold edge (#539) [phone-375]",
@@ -1249,7 +1274,7 @@ module.exports = {
     {"id": "e2e-tabmute934-phone-menu-has-no-mute", "args": "tab-mute --project=phone-375", "file": "duel-web/src/board/match/matchMenuItems.ts", "from": "  if (!o.muteInBar) items.push(\"mute-tab\");\n", "to": "", "kills": ["tab-mute.spec.ts > Mute this tab flips the control and the choice survives a reload of that tab (#934) [phone-375]", "tab-mute.spec.ts > a spectator tab goes quiet while another tab plays, and sound returns when that tab closes (#934) [phone-375]"]},
     {"id": "e2e-tabmute934-desktop-toolbar-has-no-mute", "args": "tab-mute --project=desktop-1280", "file": "duel-web/src/board/hud/BoardHud.tsx", "from": "            <MuteTabButton className=\"hud-undo-btn hud-settings-btn\" tabMute={tabMute} tabMuteText={tabMuteText} />\n", "to": "", "kills": ["tab-mute.spec.ts > Mute this tab flips the control and the choice survives a reload of that tab (#934) [desktop-1280]", "tab-mute.spec.ts > the M key mutes and unmutes this tab on the computer (#934) [desktop-1280]", "tab-mute.spec.ts > a spectator tab goes quiet while another tab plays, and sound returns when that tab closes (#934) [desktop-1280]"]},
     // Review game on the match-over card (#965)
-    {"id": "e2e-review965-button-missing", "args": "review-game --project=desktop-1280", "file": "duel-web/src/board/match/MatchOverFacts.tsx", "from": "{facts.replayPath ? (\n            <Link", "to": "{false ? (\n            <Link", "kills": ["review-game.spec.ts > Review game opens the replay in the same tab (#965) [desktop-1280]", "review-game.spec.ts > a replay that is still saving is retried behind 'Saving the game…' (#965) [desktop-1280]"]},
+    {"id": "e2e-review965-button-missing", "args": "review-game --project=desktop-1280", "file": "duel-web/src/board/match/MatchOverFacts.tsx", "from": "{facts.replayPath ? (\n        <Link", "to": "{false ? (\n        <Link", "kills": ["review-game.spec.ts > Review game opens the replay in the same tab (#965) [desktop-1280]", "review-game.spec.ts > a replay that is still saving is retried behind 'Saving the game…' (#965) [desktop-1280]"]},
     {"id": "e2e-review965-always-retries", "args": "review-game --project=desktop-1280", "file": "duel-web/src/pages/ReplayPage.tsx", "from": "const fetched = fromMatchOver\n", "to": "const fetched = true\n", "kills": ["review-game.spec.ts > opened any other way, an in-progress replay shows the notice at once (#965) [desktop-1280]"]},
     {"id": "e2e-review965-never-retries", "args": "review-game --project=desktop-1280", "file": "duel-web/src/pages/ReplayPage.tsx", "from": "const fetched = fromMatchOver\n", "to": "const fetched = false\n", "kills": ["review-game.spec.ts > a replay that is still saving is retried behind 'Saving the game…' (#965) [desktop-1280]"]},
     {"id": "e2e-review965-state-not-passed", "args": "review-game --project=desktop-1280", "file": "duel-web/src/board/match/MatchOverFacts.tsx", "from": " state={{ fromMatchOver: true } satisfies ReplayNavState}", "to": "", "kills": ["review-game.spec.ts > a replay that is still saving is retried behind 'Saving the game…' (#965) [desktop-1280]"]},

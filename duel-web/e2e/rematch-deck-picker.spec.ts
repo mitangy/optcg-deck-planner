@@ -38,6 +38,7 @@ async function openOver(page: Page, size: (typeof SIZES)[number], settings: Reco
   await page.setViewportSize({ width: size.width, height: size.height });
   await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), settings);
   await page.goto("/demo?over");
+  await page.getByRole("button", { name: "Change deck" }).click();
   await page.locator(".rematch-deck .ui-select-button").waitFor();
   await page.waitForTimeout(300);
 }
@@ -72,6 +73,8 @@ for (const size of SIZES) {
     expect(lb.width).toBeGreaterThanOrEqual(before.trigger!.width - 1);
 
     const row = page.locator(".ui-select-option", { hasText: "Straw Hat Midrange with a Very Long Deck Name" });
+    // The list scrolls; on a short landscape screen the long-named deck sits below the first rows.
+    await row.scrollIntoViewIfNeeded();
     const rb = (await row.boundingBox())!;
     const top = await page.evaluate(
       ([x, y]) => document.elementFromPoint(x!, y!)?.closest(".ui-select-option") !== null,
