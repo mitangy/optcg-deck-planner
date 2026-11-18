@@ -194,7 +194,9 @@ function handTests(where: string, landscape = false) {
       await move(overBoard);
       await page.waitForTimeout(200);
       const carried = (await lift.boundingBox())!;
-      expect(carried.width).toBeLessThan(held.width);
+      // Held sideways the hand tiles are already about board size, so the carried card only has to not grow (#1343).
+      if (landscape) expect(carried.width).toBeLessThan(held.width + 1);
+      else expect(carried.width).toBeLessThan(held.width);
       expect(carried.width).toBeLessThan(66);
       expect(Math.abs(carried.y + carried.height / 2 - overBoard.y)).toBeLessThan(carried.height);
 

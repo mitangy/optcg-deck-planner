@@ -182,7 +182,8 @@ for (const size of DESKTOP_SIZES) {
         if ((await loc.count()) === 0) continue;
         await page.mouse.move(2, 2);
         await page.waitForTimeout(150);
-        await loc.hover();
+        // The pop-up left by the previous card may sit over this one; the pointer still goes there.
+        await loc.hover({ force: true });
         await expect(page.locator(".card-preview-popup")).toBeVisible();
         await page.waitForTimeout(250);
         const covered = await page.evaluate(() => {
