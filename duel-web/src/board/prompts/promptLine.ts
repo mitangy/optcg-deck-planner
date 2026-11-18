@@ -16,7 +16,7 @@ export function respondSubline(o: {
 }): string {
   if (o.choice && o.choice.seat === o.mySeat) return promptShortLine(o.choice);
   if (o.phase === "block" || o.phase === "counter") {
-    return `${o.oppName} is attacking — block or counter`;
+    return `${o.oppName} is attacking. Block or counter`;
   }
   return "Your answer is needed";
 }

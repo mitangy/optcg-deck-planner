@@ -1,5 +1,6 @@
 import { useContext } from "react";
 import { intentLabel } from "./intentLabel";
+import { noActionReason } from "./noActionReason";
 import type { Intent, PlayerView } from "../../net/protocol";
 import { splitCardActions } from "../input/cardActions";
 import { isReplacePlay } from "../combat/dragIntents";
@@ -22,7 +23,6 @@ type Props = {
   onChooseReplace?: (handIndex: number) => void;
   defend?: { label: string; onPress?: () => void };
   counterLabel?: string;
-  emptyHint?: string;
   onCard?: { count: number; active: boolean };
   waiting?: WaitingOnOpponent | null;
   idle?: "prompt" | "opponent" | null;
@@ -52,7 +52,6 @@ export function IntentBar({
   onChooseReplace,
   defend,
   counterLabel,
-  emptyHint,
   onCard,
   waiting = null,
   idle = null,
@@ -104,12 +103,11 @@ export function IntentBar({
         <div className="intent-row">
           {shown.length === 0 && !defend ? (
             <p className="intent-empty">
-              {emptyHint ??
-                (onCard?.active
-                  ? "Choose an action on the card"
-                  : nothingSelected
-                    ? "Select a card for actions"
-                    : "No actions for this card")}
+              {onCard?.active
+                ? "Choose an action on the card"
+                : nothingSelected
+                  ? "Select a card for actions"
+                  : (view ? noActionReason(view, { handIndex, boardId }) : null) ?? "No actions for this card"}
             </p>
           ) : null}
           {shown.map((intent, idx) => (

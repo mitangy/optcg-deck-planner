@@ -155,6 +155,7 @@
   overflow-wrap: anywhere;
   line-height: 1.25;
   min-height: 2.5em;
+  color: var(--ink);
 }
 
 .arena.arena-lp .turn-panel-respond .turn-banner-sub {

@@ -31,13 +31,13 @@ describe("describeBattle", () => {
   it("reads from your seat as Their Leader and your Leader (#277)", () => {
     const oppChar = VIEW.opponent.characters.find((c) => c.id === "o-c1")!;
     expect(banner({ attackerSeat: 1, attackerId: "o-c1", target: { kind: "leader" } }, true)).toBe(
-      `${oppChar.defId} ${oppChar.power} → your Leader ${VIEW.you.leader.power}`,
+      `${oppChar.defId} (${oppChar.power}) attacks your Leader (${VIEW.you.leader.power})`,
     );
     expect(banner({ attackerSeat: 1, attackerId: VIEW.opponent.leader.id, target: { kind: "leader" } }, true)).toBe(
-      `Their Leader ${VIEW.opponent.leader.power} → your Leader ${VIEW.you.leader.power}`,
+      `Their Leader (${VIEW.opponent.leader.power}) attacks your Leader (${VIEW.you.leader.power})`,
     );
     expect(banner({ attackerSeat: 0, attackerId: VIEW.you.leader.id, target: { kind: "leader" } }, true)).toBe(
-      `Your Leader ${VIEW.you.leader.power} → their Leader ${VIEW.opponent.leader.power}`,
+      `Your Leader (${VIEW.you.leader.power}) attacks their Leader (${VIEW.opponent.leader.power})`,
     );
   });
 });
