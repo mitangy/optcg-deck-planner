@@ -102,8 +102,14 @@ async function menuWorks(page: Page): Promise<void> {
   await expect(page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
   await page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Home" }).click();
   await expect(page.getByRole("navigation", { name: "Site menu" })).toBeHidden();
-  await page.getByRole("button", { name: "Menu" }).click();
-  await page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Leaderboard" }).click();
+  if (page.viewportSize()!.width >= 1024) {
+    // The wide top bar shows Leaderboard inline and leaves it out of the menu (#1343).
+    await expect(page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Leaderboard" })).toBeHidden();
+    await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Leaderboard" }).click();
+  } else {
+    await page.getByRole("button", { name: "Menu" }).click();
+    await page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Leaderboard" }).click();
+  }
   await expect(page).toHaveURL(/\/leaderboard$/);
   await expect(page.getByRole("heading", { name: "Leaderboard" })).toBeVisible();
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeNavHref, NAV_ITEMS, navItemsFor } from "./navItems";
+import { activeNavHref, INLINE_NAV, isShownInline, NAV_ITEMS, navItemsFor } from "./navItems";
 
 describe("menu: which item is the current page (#460)", () => {
   it("marks Home only on the home page, not on every page (#460)", () => {
@@ -57,5 +57,16 @@ describe("menu: Admin is for staff only (#667)", () => {
     expect(navItemsFor("user").map((i) => i.href)).not.toContain("/admin");
     expect(navItemsFor(null).map((i) => i.href)).not.toContain("/admin");
     expect(activeNavHref("/admin")).toBe("/admin");
+  });
+});
+
+describe("wide top bar shows some menu entries inline (#1343)", () => {
+  it("hides in the menu only what the bar already shows: Decks, Leaderboard, History, Tournaments and Settings (#1343)", () => {
+    const hidden = NAV_ITEMS.filter((i) => isShownInline(i.href)).map((i) => i.href);
+    expect(hidden).toEqual(["/leaderboard", "/decks", "/history", "/tournaments", "/settings"]);
+  });
+
+  it("every inline link is also a menu entry, so narrow screens still reach it (#1343)", () => {
+    for (const item of INLINE_NAV) expect(NAV_ITEMS.map((i) => i.href)).toContain(item.href);
   });
 });
