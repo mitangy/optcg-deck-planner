@@ -114,14 +114,14 @@ export class Spectators {
       if (!client) continue;
       const view = this.playerView(game.match, slot.seat);
       io.send(client, "events", { events: projectGameEvents(events, slot.seat), step });
-      io.send(client, "view", { view });
+      io.send(client, "view", { view, step: game.stateStep });
     }
     for (const spec of this.slots) {
       const client = io.clientFor(spec.sessionId);
       if (!client) continue;
       const view = this.spectatorView(game.match, spec.cameraSeat);
       io.send(client, "events", { events: projectGameEvents(events, null), step });
-      io.send(client, "view", { view });
+      io.send(client, "view", { view, step: game.stateStep });
     }
   }
 }

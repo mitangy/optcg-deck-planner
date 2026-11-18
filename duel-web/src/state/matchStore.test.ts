@@ -66,6 +66,14 @@ describe("match chat", () => {
 });
 
 describe("illegal-intent banner", () => {
+  it("a stale_intent rejection shows no banner, online or hotseat (#1351)", () => {
+    for (const mode of ["online", "hotseat"] as const) {
+      expect(classifyServerError({ code: "stale_intent", message: "x" }, { view: viewOf(0), mode }, "player")).toEqual({
+        kind: "ignore",
+      });
+    }
+  });
+
   it("a stale rejection clears only an illegal_intent banner (#304)", () => {
     const illegal = run(createInitialMatchState(), {
       type: "error",

@@ -81,6 +81,8 @@ export function classifyServerError(
   connectRole: "player" | "spectator",
 ): ErrorOutcome {
   if (isSeatReservationExpiredError(err.message)) return { kind: "ignore" };
+  // The server already resent the view, so a stale intent needs no banner.
+  if (err.code === "stale_intent") return { kind: "ignore" };
   if (state.mode === "hotseat") return { kind: "banner", text: `${err.code}: ${err.message}` };
   if (err.code === "match_not_ready" && !state.view) return { kind: "ignore" };
   if (err.code === "room_full" && connectRole === "spectator") return { kind: "reset", text: SPECTATOR_CAP_MESSAGE };

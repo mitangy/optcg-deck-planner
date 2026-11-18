@@ -17,6 +17,7 @@ import type { MatchProgressPayload, MatchResultPayload, SoloGamePayload } from "
 import { deviceHandoffTests } from "./deviceHandoff.js";
 import { botRoomTests } from "./botRoom.js";
 import { diceRoomTests } from "./diceRoom.js";
+import { staleIntentTests } from "./staleIntent.js";
 import { withFakeTime } from "./fakeTime.js";
 import { withRoomEnv } from "./roomEnv.js";
 import { mintTestTournamentTicket } from "./tournamentTicketHelper.js";
@@ -2907,4 +2908,5 @@ describe("DuelRoom", () => {
   deviceHandoffTests(() => colyseus);
   botRoomTests(() => colyseus);
   diceRoomTests(() => colyseus);
+  staleIntentTests(() => colyseus);
 });

@@ -1,5 +1,6 @@
 import { BOT_LEVELS, parseIntent, type BotLevel, type Intent, type Seat } from "@optcg/rules";
 import {
+  INTENT_CARD_ID_MAX_LENGTH,
   PROTOCOL_VERSION,
   asPlayerDeck,
   bad,
@@ -121,7 +122,13 @@ export function parseCreateOptions(raw: unknown): {
   };
 }
 
+export type ParsedIntentMessage = { intent: Intent; step?: number; cardId?: string };
+
 export function parseIntentMessage(raw: unknown): Intent {
+  return parseIntentEnvelope(raw).intent;
+}
+
+export function parseIntentEnvelope(raw: unknown): ParsedIntentMessage {
   const o = expectEnvelope(raw, "intent message");
   if (
     !o.intent ||
@@ -135,6 +142,19 @@ export function parseIntentMessage(raw: unknown): Intent {
   if (!parsed.ok) {
     throw bad(parsed.message);
   }
-  return parsed.intent;
+  const out: ParsedIntentMessage = { intent: parsed.intent };
+  if (o.step !== undefined) {
+    if (typeof o.step !== "number" || !Number.isSafeInteger(o.step) || o.step < 0) {
+      throw bad("intent step must be a non-negative integer");
+    }
+    out.step = o.step;
+  }
+  if (o.cardId !== undefined) {
+    if (typeof o.cardId !== "string" || !o.cardId || o.cardId.length > INTENT_CARD_ID_MAX_LENGTH) {
+      throw bad("intent cardId must be a short string");
+    }
+    out.cardId = o.cardId;
+  }
+  return out;
 }
 

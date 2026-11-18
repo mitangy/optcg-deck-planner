@@ -189,7 +189,11 @@ export function parseView(raw: unknown): ViewMessage {
   } else {
     assertNoOpponentHand(view);
   }
-  return { protocolVersion: PROTOCOL_VERSION, view };
+  return { protocolVersion: PROTOCOL_VERSION, view, step: asStep(o.step) };
+}
+
+function asStep(raw: unknown): number | undefined {
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw >= 0 ? raw : undefined;
 }
 
 export type ReceivedErrorMessage = {

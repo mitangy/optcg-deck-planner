@@ -63,7 +63,7 @@ export class SyncSender {
       ...this.botInfo(),
     };
     io.send(client, "welcome", welcome);
-    io.send(client, "view", { view });
+    io.send(client, "view", { view, step: game.stateStep });
     cosmetics.sendStored(client);
     chat.sendHistory(client);
     undo.sendState(client);
@@ -115,7 +115,7 @@ export class SyncSender {
       firstSeatPickedBy: game.firstSeatPickedBy,
     };
     io.send(client, "welcome", welcome);
-    io.send(client, "view", { view });
+    io.send(client, "view", { view, step: game.stateStep });
     cosmetics.sendStored(client);
     chat.sendHistory(client);
     if (game.match.winner !== null && game.matchOverSent) this.sendMatchOver(client);

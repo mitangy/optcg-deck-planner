@@ -233,7 +233,7 @@ describe("DuelClient turn guard", () => {
     const view = (turnNumber: number, activeSeat: 0 | 1) =>
       handler("view")({
         protocolVersion: PROTOCOL_VERSION,
-        view: { seat: 0, activeSeat, turnNumber, phase: "main", opponent: { handCount: 5 }, pendingChoices: [], legalIntents: [] },
+        view: { seat: 0, activeSeat, turnNumber, phase: "main", you: { hand: [] }, opponent: { handCount: 5 }, pendingChoices: [], legalIntents: [] },
       });
     const error = (code: string, message: string) =>
       handler("error")({ protocolVersion: PROTOCOL_VERSION, code, message });
@@ -311,6 +311,64 @@ describe("DuelClient turn guard", () => {
     expect(t.onStaleIllegalIntent).toHaveBeenCalledTimes(1);
     t.view(5, 0);
     expect(t.onStaleIllegalIntent).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DuelClient stale-intent guards (#1351)", () => {
+  function wired() {
+    const client = new DuelClient();
+    const room = Object.assign(fakeRoom({ answersPing: true }), { send: vi.fn() });
+    attach(client, room);
+    const handler = (name: string) =>
+      room.onMessage.mock.calls.find((c) => c[0] === name)![1] as (raw: unknown) => void;
+    const view = (step?: number) =>
+      handler("view")({
+        protocolVersion: PROTOCOL_VERSION,
+        view: {
+          seat: 0,
+          activeSeat: 0,
+          turnNumber: 3,
+          phase: "main",
+          you: { hand: [{ id: "c-a" }, { id: "c-b" }] },
+          opponent: { handCount: 5 },
+          pendingChoices: [],
+          legalIntents: [],
+        },
+        ...(step === undefined ? {} : { step }),
+      });
+    const bodies = () => room.send.mock.calls.map((c) => c[1] as Record<string, unknown>);
+    return { client, handler, view, bodies };
+  }
+
+  it("sends the step of the view it acted on, and the instance id for a hand-index intent", () => {
+    const t = wired();
+    t.view(41);
+    t.client.sendIntent({ type: "play_card", handIndex: 1 });
+    t.view(42);
+    t.client.sendIntent({ type: "counter_from_hand", handIndex: 0 });
+    t.client.sendIntent({ type: "give_don", donId: "d1", targetId: "t1" });
+    const [play, counter, give] = t.bodies();
+    expect(play).toMatchObject({ step: 41, cardId: "c-b" });
+    expect(counter).toMatchObject({ step: 42, cardId: "c-a" });
+    expect(give!.step).toBe(42);
+    expect(give).not.toHaveProperty("cardId");
+  });
+
+  it("sends no step before the server has sent one (old server)", () => {
+    const t = wired();
+    t.view();
+    t.client.sendIntent({ type: "end_turn" });
+    expect(t.bodies()[0]).not.toHaveProperty("step");
+  });
+
+  it("lets End turn go out again after the server answers stale_intent", () => {
+    const t = wired();
+    t.view(5);
+    t.client.sendIntent({ type: "end_turn" });
+    t.handler("error")({ protocolVersion: PROTOCOL_VERSION, code: "stale_intent", message: "State changed" });
+    t.view(6);
+    t.client.sendIntent({ type: "end_turn" });
+    expect(t.bodies().map((b) => b.step)).toEqual([5, 6]);
   });
 });
 

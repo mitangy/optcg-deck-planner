@@ -89,6 +89,18 @@ export type EventsMessage = {
 export type ViewMessage = {
   protocolVersion: ProtocolVersion;
   view: PlayerView;
+  /** Server state version of `view`. Rises on every state change, undo included. */
+  step?: number;
+};
+
+/** Client intent envelope. Both guards are optional: older clients omit them. */
+export type IntentMessage = {
+  protocolVersion: ProtocolVersion;
+  intent: Intent;
+  /** The ViewMessage.step the client acted on; a different current step makes the server drop the intent. */
+  step?: number;
+  /** Instance id of the hand card a handIndex intent meant. */
+  cardId?: string;
 };
 
 export type ErrorMessage = {

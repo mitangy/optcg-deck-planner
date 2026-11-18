@@ -22,7 +22,7 @@ import {
   PROTOCOL_VERSION,
   TAKEN_OVER_CLOSE_CODE,
   parseCreateOptions,
-  parseIntentMessage,
+  parseIntentEnvelope,
   parseJoinOptions,
   CLIENT_MESSAGE,
   ProtocolError,
@@ -839,11 +839,31 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
 
     let intent: Intent;
+    let step: number | undefined;
+    let cardId: string | undefined;
     try {
-      intent = parseIntentMessage(message);
+      ({ intent, step, cardId } = parseIntentEnvelope(message));
     } catch (e) {
       this.io.sendParseError(client, e);
       return;
+    }
+
+    // Omitted guards (older tabs) skip these checks. A stale intent is dropped and the sender resynced.
+    if (step !== undefined && step !== game.stateStep) {
+      this.rejectStale(client, seat, "State changed since the action was taken");
+      return;
+    }
+    if (cardId !== undefined && intentHandIndex(intent) !== undefined) {
+      const hand = game.match.players[seat].hand;
+      if (hand[intentHandIndex(intent)!]?.id !== cardId) {
+        // The same card elsewhere in hand is still what the player meant (the engine re-checks legality); a card that left the hand is stale.
+        const at = hand.findIndex((c) => c.id === cardId);
+        if (at < 0) {
+          this.rejectStale(client, seat, "That card is no longer in your hand");
+          return;
+        }
+        intent = { ...intent, handIndex: at } as Intent;
+      }
     }
 
     const applied = this.applySeatIntent(seat, intent);
@@ -851,6 +871,12 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       this.sendError(client, "illegal_intent", applied.message);
       this.io.send(client, "view", { view: this.spectators.playerView(game.match, seat) });
     }
+  }
+
+  private rejectStale(client: Client, seat: Seat, message: string) {
+    const { game } = this;
+    this.io.send(client, "view", { view: this.spectators.playerView(game.match!, seat), step: game.stateStep });
+    this.sendError(client, "stale_intent", message);
   }
 
   applySeatIntent(seat: Seat, intent: Intent): ApplyResult {
@@ -1019,4 +1045,10 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   private log(level: LogLevel, event: string, data: Record<string, unknown>) {
     writeLog(level, event, data);
   }
+}
+
+function intentHandIndex(intent: Intent): number | undefined {
+  return intent.type === "play_card" || intent.type === "counter_from_hand" || intent.type === "counter_event"
+    ? intent.handIndex
+    : undefined;
 }
