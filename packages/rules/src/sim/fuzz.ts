@@ -6,8 +6,8 @@ import { assertConservation, assertSnapshotContinues, cardCounts } from "./invar
 import type { ChoiceRequest, Intent, MatchState, PendingChoice, Seat } from "../types.js";
 
 export function actingSeat(state: MatchState): Seat {
-  if (state.phase === "mulligan") return state.players[0].mulliganDone ? 1 : 0;
   if (state.pendingChoices.length > 0) return state.pendingChoices[0]!.seat;
+  if (state.phase === "mulligan") return state.players[0].mulliganDone ? 1 : 0;
   if ((state.phase === "block" || state.phase === "counter") && state.battle) return state.battle.attackerSeat === 0 ? 1 : 0;
   return state.activeSeat;
 }

@@ -71,8 +71,8 @@ export class Spectators {
       io.sendParseError(client, e);
       return;
     }
-    // Ranked rooms never show hands to spectators, so there is nothing to keep.
-    if (game.ranked || !game.match) return;
+    // Ranked and tournament rooms never show hands to spectators, so there is nothing to keep.
+    if (game.competitive || !game.match) return;
     const next = idsInHand(game.match.players[seat].hand, ids);
     const prev = this.seatHandOrder[seat];
     if (next.length === prev.length && next.every((id, i) => id === prev[i])) return;
@@ -95,9 +95,9 @@ export class Spectators {
     return { ...view, revealedHands: this.orderedHands(view.revealedHands) };
   }
 
-  // Ranked keeps hands hidden so a spectator can't relay them to a player.
+  // Ranked and tournament games keep hands hidden so a spectator can't relay them to a player.
   spectatorView(match: MatchState, cameraSeat: Seat) {
-    const view = getSpectatorView(match, cameraSeat, { revealHands: !this.core.game.ranked });
+    const view = getSpectatorView(match, cameraSeat, { revealHands: !this.core.game.competitive });
     if (!view.revealedHands) return view;
     return { ...view, revealedHands: this.orderedHands(view.revealedHands) };
   }

@@ -22,6 +22,7 @@ export function parseCreateOptions(raw: unknown): {
   autoSkipMulligan: boolean;
   diceRoll: boolean;
   ranked: boolean;
+  tournamentTicket?: string;
   seatUserIds?: [number, number];
   players?: [PlayerDeckWire, PlayerDeckWire];
   bot?: BotRoomOptions;
@@ -109,6 +110,7 @@ export function parseCreateOptions(raw: unknown): {
     autoSkipMulligan,
     diceRoll,
     ranked,
+    tournamentTicket: typeof o.tournamentTicket === "string" && o.tournamentTicket.length <= 2048 ? o.tournamentTicket : undefined,
     seatUserIds: bot ? undefined : seatUserIds,
     players,
     bot,

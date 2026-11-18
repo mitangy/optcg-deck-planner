@@ -70,6 +70,8 @@ export type PlayResult = {
   action: "join" | "host" | "wait" | "hosted";
   room_id?: string;
   server_url?: string | null;
+  /** Only on "host": proves to the game server that the room it opens is this match's tournament room. */
+  ticket?: string | null;
 };
 
 export const call = apiCall;

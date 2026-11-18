@@ -5,6 +5,7 @@ import {
   getSeatReservationSeconds,
   requireGameToken,
 } from "../env.js";
+import { hashToNegativeId } from "../devIdentity.js";
 import { verifyGameToken } from "../gameToken.js";
 import { checkMatchmakeToken } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
@@ -177,11 +178,4 @@ export class MatchmakerRoom extends Room {
   private log(level: LogLevel, event: string, data: Record<string, unknown>) {
     writeLog(level, event, data);
   }
-}
-
-function hashToNegativeId(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  const n = Math.abs(h) % 1_000_000_000;
-  return -1 - n;
 }

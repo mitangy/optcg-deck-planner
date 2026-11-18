@@ -89,17 +89,11 @@ export function getDuelIngestSecret(): string {
   return process.env.DUEL_INGEST_SECRET?.trim() || DEV_DUEL_INGEST_SECRET;
 }
 
-// The environment is managed outside this repo, so production still starts with the public default; anyone knowing it can post match results.
-export function warnIfDefaultIngestSecretInProduction(
-  env: NodeJS.ProcessEnv = process.env,
-  log: (message: string) => void = console.error,
-): boolean {
-  if (env.NODE_ENV !== "production") return false;
-  if (env.DUEL_INGEST_SECRET?.trim()) return false;
-  log(
-    `[SECURITY] DUEL_INGEST_SECRET is not set in production: the public default "${DEV_DUEL_INGEST_SECRET}" authenticates match-result and presence calls to the API. Set DUEL_INGEST_SECRET (the same value on the API).`,
-  );
-  return true;
+// The public default would let anyone post match results and presence to the API.
+export function assertProductionIngestSecret(env: NodeJS.ProcessEnv = process.env): void {
+  if (env.NODE_ENV !== "production") return;
+  if (env.DUEL_INGEST_SECRET?.trim()) return;
+  throw new Error("DUEL_INGEST_SECRET must be set in production (the same value as on the API)");
 }
 
 export function getReconnectGraceSeconds(): number {

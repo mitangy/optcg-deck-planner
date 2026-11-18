@@ -118,12 +118,17 @@ export function parseCosmeticsMessage(raw: unknown): ArtPrefsMap {
   return asArtPrefsMap(o.artPrefs);
 }
 
+const ART_PREF_KEY_MAX = 32;
+const ART_PREF_VALUE_MAX = 64;
+
 function asArtPrefsMap(raw: unknown): ArtPrefsMap {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw bad("artPrefs object required");
   const out: ArtPrefsMap = {};
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
     if (typeof k !== "string" || !k.trim()) continue;
     if (typeof v !== "string" || !v.trim()) continue;
+    // Real keys are card ids (9 chars at most today) and values art ids ("p1"); the caps leave room to grow.
+    if (k.length > ART_PREF_KEY_MAX || v.length > ART_PREF_VALUE_MAX) continue;
     // Bound size so cosmetics cannot bloat room memory.
     if (Object.keys(out).length >= 200) break;
     out[k.trim()] = v.trim();

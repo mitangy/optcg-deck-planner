@@ -16,7 +16,8 @@ import {
   SKIN_MAX_CARD_BACK_CHARS,
   SKIN_MAX_PLAYMAT_CHARS,
 } from "./protocol.js";
-import { DuelRoom, hashToNegativeId } from "./rooms/DuelRoom.js";
+import { hashToNegativeId } from "./devIdentity.js";
+import { DuelRoom } from "./rooms/DuelRoom.js";
 import { MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
 
 // Colyseus' default 4 KB closes the socket (1009) on a real skin message (playmat + card back).

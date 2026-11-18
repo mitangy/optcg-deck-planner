@@ -31,7 +31,7 @@ export class SyncSender {
 
   private briefFor(seat: Seat): BriefTicketWire | undefined {
     const { game } = this.core;
-    if (game.ranked || !game.replay) return undefined;
+    if (game.competitive || !game.replay) return undefined;
     const mine = game.replay.players[seat];
     const theirs = game.replay.players[1 - seat];
     const ticket = mintBriefTicket({
@@ -56,6 +56,7 @@ export class SyncSender {
       view,
       players: this.playersInfo(),
       ranked: game.ranked,
+      tournament: game.tournament,
       firstSeatPickedBy: game.firstSeatPickedBy,
       brief: this.briefFor(seat),
       dice: game.dice,
@@ -110,6 +111,7 @@ export class SyncSender {
       view,
       players: this.playersInfo(),
       ranked: game.ranked,
+      tournament: game.tournament,
       firstSeatPickedBy: game.firstSeatPickedBy,
     };
     io.send(client, "welcome", welcome);

@@ -34,6 +34,16 @@ export const RED_VANILLA: DeckList = {
   cards: ["ST01-003", "ST01-006", "ST01-008", "ST01-009", "OP12-002"].flatMap((id) => [id, id, id, id]),
 };
 
+// Ranked refuses a deck that breaks deck construction, so the queue needs a full 50 (#1341).
+export const RED_LEGAL: DeckList = {
+  leaderId: "ST01-001",
+  cards: [
+    ...["ST01-002", "ST01-003", "ST01-004", "ST01-005", "ST01-006", "ST01-007", "ST01-008", "ST01-009", "ST01-010", "ST01-011", "ST01-012", "ST01-013"].flatMap((id) => [id, id, id, id]),
+    "ST01-014",
+    "ST01-014",
+  ],
+};
+
 function b64url(buf: Buffer | string): string {
   return Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }

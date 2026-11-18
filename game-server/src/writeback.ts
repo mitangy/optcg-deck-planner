@@ -9,6 +9,8 @@ export type MatchResultPayload = {
   winner_seat: 0 | 1;
   reason: string;
   ranked: boolean;
+  /** True only for a room opened with a backend tournament ticket: the one kind of result that may decide a tournament match. */
+  tournament?: boolean;
   seat0_leader_id?: string;
   seat1_leader_id?: string;
   turns?: number;
@@ -17,7 +19,7 @@ export type MatchResultPayload = {
 };
 export type MatchProgressPayload = Pick<
   MatchResultPayload,
-  "seat0_user_id" | "seat1_user_id" | "ranked" | "seat0_leader_id" | "seat1_leader_id" | "turns" | "replay" | "seat_logs"
+  "seat0_user_id" | "seat1_user_id" | "ranked" | "tournament" | "seat0_leader_id" | "seat1_leader_id" | "turns" | "replay" | "seat_logs"
 > & {
   /** Set only as the room closes, when nobody is playing and the recording can be watched. */
   closed?: boolean;

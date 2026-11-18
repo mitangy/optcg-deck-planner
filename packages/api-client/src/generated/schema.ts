@@ -5970,6 +5970,11 @@ export interface components {
             seat_logs?: {
                 [key: string]: unknown;
             }[] | null;
+            /**
+             * Tournament
+             * @default false
+             */
+            tournament: boolean;
             /** Turns */
             turns?: number | null;
             /** Winner Seat */
@@ -6023,6 +6028,11 @@ export interface components {
             seat_logs?: {
                 [key: string]: unknown;
             }[] | null;
+            /**
+             * Tournament
+             * @default false
+             */
+            tournament: boolean;
             /** Turns */
             turns?: number | null;
         };
@@ -8114,6 +8124,8 @@ export interface components {
             room_id?: string | null;
             /** Server Url */
             server_url?: string | null;
+            /** Ticket */
+            ticket?: string | null;
         };
         /** PlayerOut */
         PlayerOut: {
