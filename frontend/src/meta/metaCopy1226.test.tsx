@@ -33,8 +33,8 @@ const deck = {
   card_count: 0,
   text: "4xOP01-016",
 } as unknown as MetaDeck;
-const copyButton = () =>
-  Array.from(document.querySelectorAll("button")).find((b) => /Cop(y list|ied)/.test(b.textContent ?? ""))!;
+const copyButton = () => document.querySelector<HTMLButtonElement>('button[aria-label="Copy list"]')!;
+const copiedNote = () => document.querySelector('[role="status"]')?.textContent;
 
 describe("Meta deck Copy list (#1226)", () => {
   it("still copies when navigator.clipboard is unavailable (#1226)", async () => {
@@ -59,7 +59,8 @@ describe("Meta deck Copy list (#1226)", () => {
       copyButton().click();
     });
     expect(exec).toHaveBeenCalledWith("copy");
-    expect(copyButton().textContent).toBe("Copied");
+    expect(copiedNote()).toBe("Copied");
+    expect(copyButton().querySelector("svg")?.getAttribute("data-icon")).toBe("check");
     expect(document.querySelector(".meta-deck-error")).toBeNull();
   });
 });
