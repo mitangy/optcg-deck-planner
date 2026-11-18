@@ -1,4 +1,5 @@
 import { Room, Client } from "colyseus";
+import { rejectPendingReconnections } from "./pendingReconnections.js";
 import {
   applyIntent,
   buildTestDeck,
@@ -483,14 +484,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.chat.forget(oldSessionId);
     // A seat dropped mid-grace: kill the pending reclaim so the old socket's
     // reconnection token can never take the seat back from this one.
-    const pending = (
-      this as unknown as {
-        _reconnections: Record<string, [string, { reject(reason?: unknown): void }]>;
-      }
-    )._reconnections;
-    for (const entry of Object.values(pending)) {
-      if (entry[0] === oldSessionId) entry[1].reject(false);
-    }
+    rejectPendingReconnections(this, oldSessionId);
     const old = this.io.clientFor(oldSessionId);
     if (old) {
       this.io.send(old, "taken_over", { seat });

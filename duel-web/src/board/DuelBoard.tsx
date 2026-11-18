@@ -1,106 +1,55 @@
-import { cloneElement, isValidElement, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type { ChatLine, DiceAction, DiceResult, DiceStateMessage, Intent, MatchOverMessage, PlayerView, Seat, SeatPlayers, SeatSkin, TimerMessage } from "../net/protocol";
 import { BattleLogPanel } from "./panels/BattleLogPanel";
-import { CardPreviewPanel } from "./preview/CardPreviewPanel";
 import { CardPreviewPopup } from "./preview/CardPreviewPopup";
 import { MatchViewerSeatContext } from "./zones/artOwnership";
 import { PromptSlotContext } from "./prompts/promptSlot";
 import { ChatPanel } from "./panels/ChatPanel";
 import type { BattleLogEntry } from "./match/battleLog";
-import { AttackWarning, type AttackWarn } from "./combat/AttackWarning";
-import { cantAttackReason } from "./combat/attackBlock";
-import { useAttackAttempt } from "./combat/useAttackAttempt";
-import { RevealOverlay } from "./motion/RevealOverlay";
-import { CardSpotlightLayer } from "./preview/CardSpotlight";
 import { describeMatchResult } from "./match/matchResult";
-import { CardTile } from "./zones/CardTile";
-import { MulliganHand } from "./prompts/MulliganHand";
-import { canDragAttacker, canDragCounter, canDragHandCard, canDropPlayOnField, findDropTargetAtPoint, playCardTrashTargetIds, playNeedsReplace, isReplacePlay, resolveDropIntents, type DragPayload } from "./combat/dragIntents";
-import { AttackIndicator, DragAttackArrow } from "./combat/AttackIndicator";
-import { BoardMotion } from "./motion/BoardMotion";
+import { type DragPayload } from "./combat/dragIntents";
 import { describeBattle } from "./combat/battleBanner";
 import { battleEndpoints } from "./combat/battleArc";
 import { useScreenWakeLock } from "./layout/wakeLock";
-import {
-  CardActionPopover,
-  DonAttachConfirm,
-  DragGhost,
-  type CardActionButton,
-  type GhostPayload,
-} from "./BoardOverlays";
-import { blockIntentFor, cardActionText, counterIntentForCard, counterIntentForHand, soleCardButton, splitCardActions } from "./input/cardActions";
-import { beginAttach, donIdsForTarget, quickAttachCounts } from "./don/donSelection";
+import { type CardActionButton } from "./BoardOverlays";
+import { cardActionText, splitCardActions } from "./input/cardActions";
 import { handConfirmAnchor, handUseFromIntent, measureHandCard, type HandUse } from "./hand/handPrompt";
 import { isHandPick } from "./prompts/fieldTargets";
 import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand, usesWideFan } from "./hand/handLayout";
-import { SpectatorFarHand } from "./hand/SpectatorFarHand";
-import { HandLabel } from "./hand/HandLabel";
-import { IntentBar } from "./prompts/IntentBar";
 import { useSideDockPlacement } from "./panels/sideDockPlacement";
-import { PrimaryDock } from "./prompts/PrimaryDock";
-import { DockHeading } from "./combat/DockHeading";
 import { waitingOnOpponent } from "./match/waitingOnOpponent";
-import { DefendTray } from "./combat/DefendTray";
 import { useHudHeight } from "./layout/useHudHeight";
-import { clockFraction } from "./combat/defendTrayModel";
-import {
-  attackTargetIdsForAttacker,
-  findAttackIntent,
-  filterIntentsForSelection,
-  hasBoardActions,
-} from "./prompts/intentFilter";
+import { filterIntentsForSelection } from "./prompts/intentFilter";
 import { dockIntents, splitPrimaryIntent } from "./prompts/primaryIntent";
-import { SideField } from "./zones/SideField";
 import { DonArtContext, donArtUrl } from "./don/donArt";
 import { lookupCard } from "../cards/atlas";
-import { cardBackCssValue, useCardBackUrl } from "../cardBack";
+import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { sideSkins } from "./layout/seatSkins";
 import { updateSettings, useDuelSettings } from "../settings";
-import { PANEL_LABELS, collapsedColumns, type PanelColumn, type PanelId } from "./panels/panelLayout";
-import { SidePanel } from "./panels/SidePanels";
 import { usePhoneResize } from "./panels/usePhoneResize";
-import { fanDocked, farFanPosForDrop, parseFanPos, serializeFanPos, spectatorNearFanPosForDrop } from "./hand/handFanPos";
+import { fanDocked } from "./hand/handFanPos";
 import { fanCornerFor } from "./hand/fanCorner";
 import { type LoadMatchRecord } from "./match/MatchOverFacts";
 import { useFanFit } from "./hand/useFanFit";
-import { useFanMove } from "./hand/useFanMove";
-import { endTurnWarning } from "./settings/gameplayPrefs";
 import { GameplaySettingsSheet } from "./settings/GameplaySettings";
 import { HotkeyHelpSheet } from "./input/HotkeyHelp";
 import { actionKeyTags, stepHandSelection } from "./input/hotkeys";
 import { useBoardHotkeys, useConfirmButtonKey } from "./input/useBoardHotkeys";
 import { buzz } from "./audio/haptics";
-import { RotateHint } from "./layout/RotateHint";
-import { handCardOutOfReach } from "./hand/handAffordance";
 import { DicePhase } from "./match/DicePhase";
-import { firstSeatLine } from "./match/firstSeatLine";
 import { playerLabel, seatLabel, seatName } from "./match/playerNames";
 import { PendingBoard, type BoardWaiting } from "./PendingBoard";
-import { fanPoseStyle, handDrawer } from "./hand/handFanGeometry";
+import { handDrawer } from "./hand/handFanGeometry";
 import { farHandWithReveals, revealedIdSet } from "./hand/handReveal";
-import { OppHandCorner, OppHandFan, OppHandHint, TurnStatusPanel } from "./panels/TurnStatusPanel";
-import { TurnSplash, type SplashMessage } from "./motion/TurnSplash";
-import { MatchMenu } from "./match/MatchMenu";
 import type { ArtToggle } from "./prompts/HideArtItems";
 import { LandscapeRail, LandscapeOverlay } from "./layout/LandscapeRail";
-import { useMatchBrief } from "./match/MatchBrief";
-import { useLogPose } from "@optcg/analyst-client";
-import { useLogPoseCopilot } from "./copilot/LogPoseCopilot";
-import { LogPoseMatchButton } from "./copilot/LogPoseMatchButton";
-import { matchLogPoseEntry } from "./match/matchBriefModel";
 import type { BriefTicketWire } from "../net/protocol";
 import { handIndexOf } from "./prompts/intentFields";
-import { matchMenuItems } from "./match/matchMenuItems";
-import { openFeedback } from "../feedbackDialog";
-import { openReport } from "../reports/reportDialog";
-import { matchReportTarget } from "../reports/reportTargets";
-import { promptOpenFor } from "./prompts/promptHide";
 import { promptShortLine } from "./prompts/promptLine";
-import { BoardHud, HudUndoPass } from "./hud/BoardHud";
-import { MatchResultView, type BoardRematch } from "./match/MatchResultView";
+import { BoardHud } from "./hud/BoardHud";
+import { type BoardRematch } from "./match/MatchResultView";
 import { HandDockLayer } from "./hand/HandDockLayer";
-import { PendingChoicePrompt } from "./prompts/PendingChoicePrompt";
 import { SpectatorFanLayer } from "./hand/SpectatorFanLayer";
 import { UndoRequestBanner } from "./match/UndoRequestBanner";
 import { deriveUndoUi, type BoardUndo } from "./match/undoHud";
@@ -108,7 +57,7 @@ import { useBoardAudio } from "./audio/useBoardAudio";
 import { useBoardLayout } from "./layout/useBoardLayout";
 import { useBoardPanels } from "./panels/useBoardPanels";
 import { useDefendFlow } from "./combat/useDefendFlow";
-import { EMPTY_IDS, useDonSelection } from "./don/useDonSelection";
+import { useDonSelection } from "./don/useDonSelection";
 import { RestartNotice } from "./match/RestartNotice";
 import { useFanState } from "./hand/useFanState";
 import { useFullscreen } from "./layout/useFullscreen";
@@ -117,6 +66,23 @@ import { formatCountdown, seatClockLabels, useClockNow } from "./match/useMatchC
 import { useOppPlayPreview } from "./motion/useOppPlayPreview";
 import { useOrientationHint } from "./layout/useOrientationHint";
 import { usePromptState } from "./prompts/usePromptState";
+import { mulliganBodyFor, mulliganOpeningFor } from "./match/mulliganBody";
+import { splashMessageFor } from "./motion/splashMessage";
+import { ghostPayloadFor } from "./combat/ghostPayload";
+import { renderHandCardsFor } from "./hand/handCards";
+import { specGripFor, specHandToggleFor } from "./hand/specHandChrome";
+import { BoardDefendTray } from "./combat/BoardDefendTray";
+import { useBoardSelection } from "./input/useBoardSelection";
+import { PlaymatBoard } from "./zones/PlaymatBoard";
+import { useMatchAssist } from "./match/useMatchAssist";
+import { useHandRowWheel } from "./hand/useHandRowWheel";
+import { buildSidePanels, columnGeometry, renderColumnPanelsFor } from "./panels/boardColumns";
+import { useFanPlacement } from "./hand/useFanPlacement";
+import { BoardOverlayLayers } from "./BoardOverlayLayers";
+import { BoardIntentPanel } from "./prompts/BoardIntentPanel";
+import { boardChrome } from "./hud/boardChrome";
+import { LandscapeSideRail } from "./layout/LandscapeSideRail";
+import { PortraitRail } from "./layout/PortraitRail";
 
 type Props = {
   view: PlayerView | null;
@@ -253,54 +219,25 @@ export function DuelBoard({
   const specFans = spectatorFans(Boolean((spectator || view?.spectator) && view?.revealedHands), wide, lp);
   const specGrid = spectatorHandGrid(specFans);
   const fanHand = usesWideFan(wide, lp, lpFan, specFans, handLayout);
-  const fanPos = useMemo(() => parseFanPos(prefs.handFanPos), [prefs.handFanPos]);
-  const specNearPos = useMemo(() => parseFanPos(prefs.spectatorNearFanPos), [prefs.spectatorNearFanPos]);
-  const specFarPos = useMemo(() => parseFanPos(prefs.spectatorFarFanPos), [prefs.spectatorFarFanPos]);
-  const fanRef = useRef<HTMLDivElement | null>(null);
-  const farRef = useRef<HTMLDivElement | null>(null);
-  const boardCentreX = () => {
-    const r = playmatRef.current?.getBoundingClientRect();
-    return r ? r.left + r.width / 2 : window.innerWidth / 2;
-  };
-  const fanMove = useFanMove(
-    fanRef,
-    specFans ? specNearPos : fanPos,
-    (next) =>
-      updateSettings(
-        specFans ? { spectatorNearFanPos: serializeFanPos(next) } : { handFanPos: serializeFanPos(next) },
-      ),
-    boardCentreX,
-    specFans ? (centreX, bottom, _h, vp) => spectatorNearFanPosForDrop(centreX, bottom, vp) : undefined,
-    specFans ? { bodySelector: ".hand-fan-cards", anchorGrip: true } : undefined,
-  );
-  const farMove = useFanMove(
-    farRef,
-    specFarPos,
-    (next) => updateSettings({ spectatorFarFanPos: serializeFanPos(next) }),
-    boardCentreX,
-    (centreX, bottom, height, vp) => {
-      const mat = playmatRef.current?.getBoundingClientRect();
-      return farFanPosForDrop(centreX, bottom, height, vp, mat?.top ?? 0);
-    },
-    { bodySelector: ".hand-fan-cards", anchorGrip: true },
-  );
-  const shownFanPos = fanMove.livePos ?? (specFans ? specNearPos : fanPos);
-  const shownFarPos = specFans === "desktop" ? (farMove.livePos ?? specFarPos) : null;
-  const fanFloating = fanHand && shownFanPos != null && (fanMove.livePos != null || !fanDocked(shownFanPos));
-  const handUp = fanFloating ? !floatTucked : handPinned;
   const {
-    pinned: farPinned,
-    setPinned: setFarPinned,
-    floatTucked: farFloatTucked,
-    setFloatTucked: setFarFloatTucked,
-    tuckUnderPointer: farTuckUnderPointer,
-    setTuckUnderPointer: setFarTuckUnderPointer,
-    hoverUp: farHoverUp,
-    setHoverUp: setFarHoverUp,
-  } = useFanState(false);
-  const farUp = shownFarPos ? !farFloatTucked : farPinned;
-  const farTop = shownFarPos == null;
-  const fanCenter = fanHand && shownFanPos == null;
+    fanRef,
+    farRef,
+    fanMove,
+    farMove,
+    shownFanPos,
+    shownFarPos,
+    fanFloating,
+    handUp,
+    setFarPinned,
+    setFarFloatTucked,
+    farTuckUnderPointer,
+    setFarTuckUnderPointer,
+    farHoverUp,
+    setFarHoverUp,
+    farUp,
+    farTop,
+    fanCenter,
+  } = useFanPlacement({ prefs, specFans, fanHand, playmatRef, floatTucked, handPinned });
   const railHand = usesRailHand(wide, lp, railHandTall, fanHand);
   const phoneFan = usesPhoneFan(wide, specGrid ? "grid" : specFans ? "fan" : handLayout);
   const {
@@ -319,26 +256,13 @@ export function DuelBoard({
   const handRowRef = useRef<HTMLDivElement | null>(null);
   const playmatUrl = usePlaymatUrl();
   const cardBackUrl = useCardBackUrl();
-  const playmatDim = prefs.playmatDim;
-  const playmatOpacity = prefs.playmatOpacity;
 
   useEffect(() => {
     setHandPinned(prefs.keepHandOpen);
     setHandHidden(false);
   }, [prefs.keepHandOpen, setHandPinned]);
 
-  useEffect(() => {
-    const el = handRowRef.current;
-    if (!el) return;
-    const onWheel = (e: WheelEvent) => {
-      if (el.scrollWidth <= el.clientWidth) return;
-      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
-      el.scrollLeft += e.deltaY;
-      e.preventDefault();
-    };
-    el.addEventListener("wheel", onWheel, { passive: false });
-    return () => el.removeEventListener("wheel", onWheel);
-  }, [handCollapsed, wide, railHand, view?.you.hand.length]);
+  useHandRowWheel(handRowRef, handCollapsed, wide, railHand, view?.you.hand.length);
 
   const previewOppSeat = useOppPlayPreview({ battleLog, seat, view, wide, lp });
 
@@ -367,30 +291,19 @@ export function DuelBoard({
   const sideActions = prefs.actionsBeside && wide && !lp && !spectating && !tilted;
   // The playmat only exists once the match view has arrived, so the placement effect re-runs then.
   useSideDockPlacement(playmatRef, sideActions && view != null);
-  const brief = useMatchBrief({
-    source: matchBrief,
-    role: spectating ? "spectator" : "player",
-    roomMatchId: matchId,
-    phase: view?.phase,
-    over,
-    layout: lp ? "landscape" : wide ? "desktop" : "portrait",
-  });
-  const copilot = useLogPoseCopilot({
-    source: matchBrief,
-    role: spectating ? "spectator" : "player",
+  const { brief, copilot, logPoseEntry, lpAnalyst, logPoseOpen, logPoseButton } = useMatchAssist({
+    matchBrief,
+    spectating,
+    matchId,
     view,
+    over,
+    lp,
+    wide,
     battleLog,
     onSendIntent,
-    over,
-    layout: lp ? "landscape" : wide ? "desktop" : "portrait",
-    ticketSeat: matchBrief?.ticketSeat ?? seat,
+    seat,
     errorBanner,
   });
-  const logPoseEntry = matchLogPoseEntry({ briefShown: brief.shown, copilotShown: copilot.shown });
-  const lpAnalyst = useLogPose();
-  const logPoseOpen = logPoseEntry === "button" && lpAnalyst.panelOpen;
-  const logPoseButton =
-    logPoseEntry === "button" ? <LogPoseMatchButton layout={lp ? "landscape" : wide ? "desktop" : "portrait"} over={over} busy={brief.busy || copilot.running} /> : null;
   const result = describeMatchResult({
     winner: matchOver?.winner ?? view?.winner,
     reason: matchOver?.reason ?? view?.winReason,
@@ -476,22 +389,7 @@ export function DuelBoard({
     const ends = battleEndpoints(view);
     return ends?.incoming ? ends.targetId : null;
   }, [counterDragEnabled, view]);
-  const {
-    selectedDonIds,
-    setSelectedDonIds,
-    donPiles,
-    setPendingAttach,
-    pendingAttach,
-    draggableDonIds,
-    giveDonHighlightIds,
-    donSelectActive,
-    moveDonToPile,
-    clearDonSelection,
-    confirmAttach,
-    toggleDonSelect,
-    quickCounts,
-    quickAttach,
-  } = useDonSelection({
+  const don = useDonSelection({
     view,
     intents,
     dndEnabled,
@@ -501,6 +399,7 @@ export function DuelBoard({
     onSendIntent,
     clearSelection,
   });
+  const { selectedDonIds, setPendingAttach, pendingAttach, donSelectActive, clearDonSelection, confirmAttach, quickCounts, quickAttach } = don;
 
   function toggleHandHidden() {
     setHandHidden((v) => !v);
@@ -593,199 +492,39 @@ export function DuelBoard({
     onToggleTabMute: tabMute.toggle,
   });
 
-  const playFieldHighlight = Boolean(
-    dragPayload?.type === "play_card" &&
-      (canDropPlayOnField(intents, dragPayload.handIndex) ||
-        playNeedsReplace(intents, dragPayload.handIndex)),
-  );
-
-  const playTrashHighlightIds = useMemo(() => {
-    if (dragPayload?.type !== "play_card") return EMPTY_IDS;
-    return new Set(playCardTrashTargetIds(intents, dragPayload.handIndex));
-  }, [dragPayload, intents]);
-
-  const actionableBoardIds = useMemo(() => {
-    if (!view) return EMPTY_IDS;
-    const ids = new Set<string>();
-    const candidates = [
-      view.you.leader.id,
-      ...view.you.characters.map((c) => c.id),
-      ...(view.you.stage ? [view.you.stage.id] : []),
-    ];
-    for (const id of candidates) {
-      if (hasBoardActions(intents, id)) ids.add(id);
-    }
-    return ids;
-  }, [view, intents]);
-
   const reorderInHand = handReorder.reorder?.inZone === true;
   const handTucked = dragPayload != null && !reorderInHand;
 
-  const draggableAttackerIds = useMemo(() => {
-    if (!dndEnabled || !view) return EMPTY_IDS;
-    const ids = new Set<string>();
-    for (const id of [view.you.leader.id, ...view.you.characters.map((c) => c.id)]) {
-      if (canDragAttacker(intents, id)) ids.add(id);
-    }
-    return ids;
-  }, [dndEnabled, view, intents]);
-
-  const attackReadyIds = prefs.attackGlow ? draggableAttackerIds : EMPTY_IDS;
-
-  const attackerId = dragPayload?.type === "attack" ? dragPayload.attackerId : selectedBoardId;
-  const attackTargetIds = useMemo(() => {
-    if (!dndEnabled || !attackerId || !view) return EMPTY_IDS;
-    return new Set(attackTargetIdsForAttacker(intents, attackerId, view.opponent.leader.id));
-  }, [dndEnabled, attackerId, intents, view]);
-
-  function commitDrop(payload: DragPayload, clientX: number, clientY: number) {
-    const drop = findDropTargetAtPoint(clientX, clientY);
-    const toSend = resolveDropIntents(payload, drop, intents, {
-      opponentLeaderId: view?.opponent.leader.id,
-      defenderId: counterDefenderId,
-    });
-    setDragPayload(null);
-    if (
-      toSend.length === 0 &&
-      payload.type === "play_card" &&
-      drop?.kind !== "play_trash" &&
-      playNeedsReplace(intents, payload.handIndex)
-    ) {
-      openReplace(payload.handIndex);
-      return;
-    }
-    if (toSend.length > 0) {
-      buzz("drop");
-      setHandFilter(null);
-      setSelectedBoardId(null);
-      if (payload.type === "counter") {
-        const cardId = view?.you.hand[payload.handIndex]?.id;
-        setStagedCounterIds((cur) => cur.filter((id) => id !== cardId));
-        if (cardId && toSend[0]?.type === "pass_block") {
-          setStagedBlockerId(null);
-          setQueuedCounter({ cardId, mode: "send" });
-        }
-      }
-      for (const intent of toSend) onSendIntent(intent);
-      if (payload.type === "give_don") clearDonSelection();
-    }
-  }
-
-  function popoverIntentsFor(selection: { handIndex: number | null; boardId: string | null }, dropGiveDonTo?: string): Intent[] {
-    if (!view || spectating || defendPrimary) return [];
-    const front = view.pendingChoices?.[0];
-    const base = front
-      ? view.legalIntents.filter((i) => i.type !== "resolve_pending_choice" && i.type !== "order_pending_effects")
-      : dropGiveDonTo
-        ? view.legalIntents.filter((i) => !(i.type === "give_don" && i.targetId === dropGiveDonTo))
-        : view.legalIntents;
-    return splitCardActions(filterIntentsForSelection(splitPrimaryIntent(base).rest, selection)).card;
-  }
-
-  function pressCardAction(intent: Intent) {
-    if (isReplacePlay(intent)) {
-      openReplace(intent.handIndex);
-      return;
-    }
-    setHandFilter(null);
-    setSelectedBoardId(null);
-    onSendIntent(intent);
-  }
-
-  function selectHandCard(idx: number) {
-    if (prefs.oneTapActions && !trayHere && defend?.phase === "counter") {
-      const counter = counterIntentForHand(intents, idx);
-      if (counter) {
-        setHandFilter(null);
-        setSelectedBoardId(null);
-        onSendIntent(counter);
-        return;
-      }
-    }
-    if (prefs.oneTapActions && handFilter !== idx && !dragPayload && !replaceOpen && !donSelectActive) {
-      const sole = soleCardButton(popoverIntentsFor({ handIndex: idx, boardId: null }), []);
-      if (sole?.kind === "action") {
-        pressCardAction(sole.action);
-        return;
-      }
-    }
-    setSelectedBoardId(null);
-    setHandFilter((prev) => (prev === idx ? null : idx));
-  }
-
-  function selectBoardCard(id: string) {
-    if (selectedDonIds.size > 0) {
-      const pending = beginAttach(intents, selectedDonIds, id);
-      if (pending) {
-        if (prefs.oneTapActions) confirmAttach(pending);
-        else setPendingAttach(pending);
-        return;
-      }
-      clearDonSelection();
-    }
-    if (prefs.oneTapActions && !trayHere && defend?.phase === "block") {
-      const block = blockIntentFor(intents, id);
-      if (block) {
-        setHandFilter(null);
-        setSelectedBoardId(null);
-        onSendIntent(block);
-        return;
-      }
-    }
-    if (prefs.oneTapActions && view && selectedBoardId !== id && !dragPayload && !replaceOpen && !donSelectActive) {
-      const quickRow =
-        dndEnabled && (view.you.leader.id === id || view.you.characters.some((c) => c.id === id))
-          ? quickAttachCounts(donIdsForTarget(intents, id).length)
-          : [];
-      const sole = soleCardButton(
-        popoverIntentsFor({ handIndex: null, boardId: id }, quickRow.length > 0 ? id : undefined),
-        quickRow,
-      );
-      if (sole) {
-        pressCardAction(sole.action);
-        return;
-      }
-    }
-    setHandFilter(null);
-    setSelectedBoardId((prev) => (prev === id ? null : id));
-  }
-
-  useEffect(() => {
-    if (!selectedBoardId || !view) return;
-    const stillOnBoard =
-      view.you.leader.id === selectedBoardId ||
-      view.you.characters.some((c) => c.id === selectedBoardId) ||
-      view.you.stage?.id === selectedBoardId;
-    if (!stillOnBoard) setSelectedBoardId(null);
-  }, [selectedBoardId, view]);
-
-  const [attackWarn, setAttackWarn] = useState<AttackWarn | null>(null);
-  useAttackAttempt({
-    enabled: dndEnabled,
-    selectedId: selectedBoardId,
-    reasonFor: (id) => {
-      if (!view) return null;
-      const card =
-        view.you.leader.id === id ? view.you.leader : view.you.characters.find((c) => c.id === id);
-      if (!card) return null;
-      return cantAttackReason(card, {
-        phase: view.phase,
-        busy: Boolean(view.battle) || Boolean(view.pendingChoices?.length),
-        turnsStarted: view.you.turnsStarted,
-        intents,
-      });
-    },
-    onAttempt: (a) => setAttackWarn({ ...a, nonce: Date.now() }),
+  const sel = useBoardSelection({
+    view,
+    intents,
+    prefs,
+    spectating,
+    dndEnabled,
+    dragPayload,
+    setDragPayload,
+    handFilter,
+    setHandFilter,
+    selectedBoardId,
+    setSelectedBoardId,
+    counterDefenderId,
+    replaceOpen,
+    openReplace,
+    defend,
+    defendPrimary,
+    trayHere,
+    setStagedCounterIds,
+    setStagedBlockerId,
+    setQueuedCounter,
+    donSelectActive,
+    selectedDonIds,
+    setPendingAttach,
+    confirmAttach,
+    clearDonSelection,
+    onSendIntent,
   });
+  const { commitDrop, pressCardAction, selectHandCard, attackWarn } = sel;
 
-  function selectAttackTarget(targetId: string) {
-    if (!view || !selectedBoardId) return;
-    const intent = findAttackIntent(intents, selectedBoardId, targetId, view.opponent.leader.id);
-    if (intent) {
-      setSelectedBoardId(null);
-      onSendIntent(intent);
-    }
-  }
 
   useFanFit(
     fanRef,
@@ -830,22 +569,7 @@ export function DuelBoard({
     return ends ? { defenderId: ends.targetId, attackerId: ends.attackerId } : null;
   })();
 
-  const ghostPayload: GhostPayload | null =
-    reorderInHand || liftedHandId != null
-    ?
-      null
-    : dragPayload?.type === "give_don"
-      ? { type: "give_don", count: dragPayload.donIds.length }
-      : (dragPayload?.type === "play_card" || dragPayload?.type === "counter") &&
-          you.hand[dragPayload.handIndex]
-        ? {
-            type: dragPayload.type,
-            defId: you.hand[dragPayload.handIndex]!.defId,
-            artCopy: you.hand[dragPayload.handIndex]!.artCopy,
-            ownerSeat: mySeat ?? view.seat,
-          }
-        :
-          null;
+  const ghostPayload = ghostPayloadFor({ reorderInHand, liftedHandId, dragPayload, you, mySeat, view });
 
   const pendingAttachName = (() => {
     if (!pendingAttach) return "";
@@ -893,170 +617,70 @@ export function DuelBoard({
   const drawerClass =
     drawer === "open" ? " is-open" : drawer === "hidden" ? " is-hidden" : tuckUnderPointer ? " is-tucking" : "";
 
-  // While you decide, the opening hand says who goes first, so the splash would only sit on the cards.
-  const splash: SplashMessage | null = over || !prefs.turnSplash || replayQuiet || decidingMulligan
-    ? null
-    : mulliganPhase
-      ? spectating
-        ? null
-        : {
-            key: `order-${matchId ?? ""}-${boardSeat}`,
-            title: youFirst ? "You go first" : "You go second",
-            sub: youFirst ? "No draw · 1 DON!! on turn 1" : "You draw · 2 DON!! on turn 1",
-            tone: youFirst ? "mine" : "theirs",
-            ms: 3200,
-          }
-      : {
-          key: `turn-${view.turnNumber}-${view.activeSeat}`,
-          title: spectating
-            ? `${seatLabel(players, view.activeSeat)}'s turn`
-            : youActive
-              ? "Your turn"
-              : "Opponent's turn",
-          sub:
-            view.turnNumber <= 2 && !spectating
-              ? `Turn ${view.turnNumber} · you went ${youFirst ? "first" : "second"}`
-              : `Turn ${view.turnNumber}`,
-          tone: spectating ? "neutral" : youActive ? "mine" : "theirs",
-        };
+  const splash = splashMessageFor({
+    over,
+    prefs,
+    replayQuiet,
+    mulliganPhase,
+    decidingMulligan,
+    spectating,
+    matchId,
+    boardSeat,
+    youFirst,
+    view,
+    players,
+    youActive,
+  });
 
   const undoUi = deriveUndoUi(undo, boardSeat);
-  const { undoState, undoPendingTheirs, undoNothingYet } = undoUi;
 
-  function reorderMarker(ids: readonly string[]): { id: string; cls: string } | null {
-    const r = handReorder.reorder;
-    if (handSorted || !r || r.slot == null) return null;
-    const others = ids.filter((id) => id !== r.cardId);
-    if (others.length === 0 || ids.indexOf(r.cardId) === r.slot) return null;
-    return r.slot < others.length
-      ? { id: others[r.slot]!, cls: "hand-drop-before" }
-      : { id: others[others.length - 1]!, cls: "hand-drop-after" };
-  }
-
-  function specGrip(which: "near" | "far") {
-    if (specFans !== "desktop" || !prefs.layoutGrips) return undefined;
-    const move = which === "near" ? fanMove : farMove;
-    const name = seatLabel(players, which === "near" ? boardSeat : oppSeat);
-    return (
-      <button
-        type="button"
-        className="hand-fan-grip"
-        aria-label={`Move ${name} hand (drag, or arrow keys)`}
-        title={`Drag to move ${name} hand anywhere`}
-        {...move.gripProps}
-      >
-        <span aria-hidden />
-      </button>
+  const renderHandCards = (fanned = false) =>
+    renderHandCardsFor(
+      {
+        view,
+        you,
+        prefs,
+        spectating,
+        nearHand,
+        skins,
+        boardSeat,
+        viewingSeat,
+        intents,
+        yourTurn,
+        handPick,
+        handSorted,
+        handDisplayIndices,
+        handReorder,
+        handFilter,
+        myRevealed,
+        liftedHandId,
+        setLiftedHandId,
+        dndEnabled,
+        counterDragEnabled,
+        defend,
+        earlyCounterIds,
+        selectHandCard,
+        setDragPayload,
+        commitDrop,
+      },
+      fanned,
     );
-  }
-
-  function specHandToggle(which: "near" | "far", count: number) {
-    const near = which === "near";
-    const up = near ? handUp : farUp;
-    return (
-      <button
-        type="button"
-        className="hand-fan-toggle"
-        aria-expanded={near ? handOpen : farUp}
-        title={up ? "Let the hand tuck away" : "Keep the hand up"}
-        onClick={near ? toggleHandUp : toggleFarUp}
-      >
-        <span className="hand-fan-title">{seatLabel(players, near ? boardSeat : oppSeat)} hand</span>
-        <span className="hand-rail-count">{count}</span>
-        <span className="hand-dock-caret" aria-hidden>
-          {up ? "▾" : "▴"}
-        </span>
-      </button>
-    );
-  }
-
-  function renderHandCards(fanned = false) {
-    const pose = (i: number, n: number): CSSProperties | undefined => (fanned ? fanPoseStyle(i, n) : undefined);
-    if (spectating && nearHand) {
-      return nearHand.map((c, i) => (
-        <CardTile
-          key={c.id}
-          motionId={c.id}
-          defId={c.defId}
-          artCopy={c.artCopy}
-          showCounter={prefs.handCounters}
-          inspectOnClick
-          ownerSeat={boardSeat}
-          style={pose(i, nearHand.length)}
-        />
-      ));
-    }
-    if (spectating) {
-      const n = Math.min(you.handCount ?? 0, 8);
-      const back = skins.near.cardBack
-        ? ({ "--card-back-art": cardBackCssValue(skins.near.cardBack) } as CSSProperties)
-        : undefined;
-      return Array.from({ length: n }).map((_, i) => (
-        <span key={i} className="card-back hand-back" style={{ ...back, ...pose(i, n) }} />
-      ));
-    }
-    const order = handDisplayIndices ?? you.hand.map((_, i) => i);
-    const reorderable = !handSorted;
-    const marker = reorderMarker(order.map((i) => you.hand[i]!.id));
-    return order.map((idx, pos) => {
-      const c = you.hand[idx]!;
-      const playable = dndEnabled && canDragHandCard(intents, idx);
-      const counterable =
-        !playable &&
-        counterDragEnabled &&
-        (defend?.phase === "block" ? earlyCounterIds.has(c.id) : canDragCounter(intents, idx));
-      const boardDrag = playable || counterable;
-      const cost = c.playCost ?? lookupCard(c.defId).cost;
-      const unaffordable = handCardOutOfReach({
-        dimSetting: prefs.dimUnplayable,
-        mainPhase: yourTurn && view?.phase === "main",
-        picking: !!handPick,
-        playable,
-        cost,
-        activeDon: you.activeDonCount,
-        blocked: c.blocked,
-      });
-      const payload: DragPayload = counterable
-        ? { type: "counter", handIndex: idx }
-        : { type: "play_card", handIndex: idx };
-      return (
-        <CardTile
-          key={c.id}
-          motionId={c.id}
-          defId={c.defId}
-          artCopy={c.artCopy}
-          playCost={c.playCost}
-          blocked={yourTurn && view?.phase === "main" ? c.blocked : undefined}
-          showCounter={prefs.handCounters}
-          selected={handFilter === idx}
-          onClick={() => selectHandCard(idx)}
-          instantClick={!prefs.oneTapActions}
-          dragEnabled={boardDrag || reorderable}
-          dragPayload={payload}
-          onDragStart={() => {
-            setLiftedHandId(c.id);
-            handReorder.begin(c.id);
-            if (boardDrag) setDragPayload(payload);
-          }}
-          onDragEnd={(x, y) => {
-            setLiftedHandId(null);
-            if (handReorder.end(x, y, reorderable)) setDragPayload(null);
-            else if (boardDrag) commitDrop(payload, x, y);
-          }}
-          onDragCancel={() => {
-            setLiftedHandId(null);
-            handReorder.cancel();
-            setDragPayload(null);
-          }}
-          ownerSeat={boardSeat}
-          viewingSeat={viewingSeat}
-          revealed={myRevealed.has(c.id)}
-          classNameExtra={[unaffordable ? "hand-unaffordable" : "", myRevealed.has(c.id) ? "hand-revealed" : "", marker?.id === c.id ? marker.cls : "", liftedHandId === c.id ? "card-lifted" : ""].filter(Boolean).join(" ") || undefined}
-          style={pose(pos, order.length)}
-        />
-      );
-    });
-  }
+  const specChrome = {
+    specFans,
+    prefs,
+    fanMove,
+    farMove,
+    players,
+    boardSeat,
+    oppSeat,
+    handUp,
+    farUp,
+    handOpen,
+    toggleHandUp,
+    toggleFarUp,
+  };
+  const specGrip = (which: "near" | "far") => specGripFor(specChrome, which);
+  const specHandToggle = (which: "near" | "far", count: number) => specHandToggleFor(specChrome, which, count);
 
   // Beside the board the attack summary heads the action area, above Pass block / Pass counter; the rail tray then skips its own copy.
   const dockHeading = sideActions && !over && defend != null ? defend : null;
@@ -1064,50 +688,24 @@ export function DuelBoard({
   const stripText = trayHere && defend != null && midlineBattle ? null : midlineShown;
   const defendTray =
     (trayHere || railDefend) && defend ? (
-      <DefendTray
-        model={defend}
+      <BoardDefendTray
+        defend={defend}
         summary={dockHeading == null}
-        layout={railDefend ? "rail" : "tray"}
-        handCount={trayHere ? handCount : undefined}
-        ownerSeat={boardSeat}
-        clock={clockFraction(timer, now, boardSeat)}
-        onToggleBlocker={(id) => {
-          const block = prefs.oneTapActions || railDefend ? blockIntentFor(intents, id) : null;
-          if (block) {
-            setStagedBlockerId(null);
-            onSendIntent(block);
-          } else setStagedBlockerId((cur) => (cur === id ? null : id));
-        }}
-        onToggleCounter={(id) => {
-          const counter =
-            prefs.oneTapActions || railDefend ? counterIntentForCard(intents, you.hand, id) : null;
-          if (counter) onSendIntent(counter);
-          else
-            setStagedCounterIds((cur) =>
-              cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
-            );
-        }}
-        onCounterEvent={(i) => {
-          const intent = defend.events[i]?.intent;
-          if (intent) onSendIntent(intent);
-        }}
-        onSkipBlockCounter={(id) => skipBlockToCounter(id, prefs.oneTapActions || railDefend ? "send" : "stage")}
-        counterDrag={
-          defend.phase === "counter" || defend.earlyCounters.length > 0
-            ? {
-                onStart: (cardId) => {
-                  const handIndex = you.hand.findIndex((c) => c.id === cardId);
-                  if (handIndex >= 0) setDragPayload({ type: "counter", handIndex });
-                },
-                onEnd: (cardId, x, y) => {
-                  const handIndex = you.hand.findIndex((c) => c.id === cardId);
-                  if (handIndex >= 0) commitDrop({ type: "counter", handIndex }, x, y);
-                  else setDragPayload(null);
-                },
-                onCancel: () => setDragPayload(null),
-              }
-            : undefined
-        }
+        railDefend={railDefend}
+        trayHere={trayHere}
+        handCount={handCount}
+        boardSeat={boardSeat}
+        timer={timer}
+        now={now}
+        prefs={prefs}
+        intents={intents}
+        you={you}
+        setStagedBlockerId={setStagedBlockerId}
+        setStagedCounterIds={setStagedCounterIds}
+        skipBlockToCounter={skipBlockToCounter}
+        onSendIntent={onSendIntent}
+        setDragPayload={setDragPayload}
+        commitDrop={commitDrop}
       />
     ) : null;
 
@@ -1159,52 +757,35 @@ export function DuelBoard({
   const mulliganDock = dockIntents(barIntents, { defending: false });
   // While you decide, Mulligan and Keep opening hand live under the opening hand in the middle of the board, so no other dock or bar repeats them.
   const dock = decidingMulligan ? { primary: null, extras: [] as Intent[] } : dockIntents(barIntents, { defending: defendPrimary != null });
-  const replayBar = replay ? (
-    <div className="intent-bar replay-bar">
-      {isValidElement(replay.controls)
-        ? cloneElement(replay.controls as React.ReactElement<{ resultSlot?: ReactNode }>, {
-            resultSlot:
-              over && resultHidden ? (
-                <>
-                  <span className={`match-result-inline-text match-result-${result.outcome}`}>{result.headline}</span>
-                  <button type="button" className="replay-result-btn" onClick={() => setResultHidden(false)}>
-                    Show result
-                  </button>
-                </>
-              ) : null,
-          })
-        : replay.controls}
-    </div>
-  ) : null;
-  const intentPanel = railDefend && defendTray ? (
-    defendTray
-  ) : (wide && !lp) || decidingMulligan ? null : !spectating ? (
-    <>
-    <IntentBar
-      waiting={oppWait}
-      idle={oppWait ? "opponent" : view.pendingChoices?.[0]?.seat === mySeat ? "prompt" : null}
-      intents={barIntents}
+  const intentPanel = (
+    <BoardIntentPanel
       view={view}
-      disabled={over}
-      filterHandIndex={handFilter}
+      prefs={prefs}
+      mySeat={mySeat}
+      railDefend={railDefend}
+      defendTray={defendTray}
+      wide={wide}
+      lp={lp}
+      spectating={spectating}
+      isReplay={isReplay}
+      over={over}
+      nearHand={nearHand}
+      oppWait={oppWait}
+      barIntents={barIntents}
+      handFilter={handFilter}
       selectedBoardId={selectedBoardId}
-      confirmEndTurn={endTurnWarning(isReplay ? "never" : prefs.endTurnConfirm, view.legalIntents)}
-      onSend={sendPrimary}
-      onChooseReplace={openReplace}
-      defend={defendPrimary}
+      defendPrimary={defendPrimary}
       counterLabel={counterLabel}
-      onCard={{ count: cardIntents.length, active: popoverOpen }}
+      popoverOpen={popoverOpen}
+      decidingMulligan={decidingMulligan}
+      sendPrimary={sendPrimary}
+      openReplace={openReplace}
+      replay={replay}
+      resultHidden={resultHidden}
+      setResultHidden={setResultHidden}
+      result={result}
+      cardIntentCount={cardIntents.length}
     />
-    {replayBar}
-    </>
-  ) : replayBar ? (
-    replayBar
-  ) : !wide || lp ? null : (
-    <div className="intent-bar">
-      <p className="intent-empty">
-        {nearHand ? "Spectating — both hands shown; intents disabled" : "Spectating — both hands hidden; intents disabled"}
-      </p>
-    </div>
   );
 
   const chatPanel = chat && prefs.showChat ? (
@@ -1238,221 +819,86 @@ export function DuelBoard({
   const donArtForSeat = (s?: Seat) => (s != null && s === oppSeat && s !== boardSeat ? farDonUrl : nearDonUrl);
 
   const previewPopup = prefs.previewPopup && prefs.showCardPreview && wide && !lp;
-  const sidePanels: Record<PanelId, React.ReactNode> = {
-    preview: prefs.showCardPreview && !previewPopup ? <CardPreviewPanel /> : null,
-    log: (
-      <BattleLogPanel
-        entries={battleLog}
-        viewingSeat={spectating || mySeat == null ? undefined : mySeat}
-        alwaysOpen
-      />
-    ),
-    oppHand: oppHandOnMat || specFans === "desktop" ? null : (
-      <OppHandFan
-        count={opp.handCount}
-        cardBackUrl={oppCardBackUrl}
-        cards={shownFarHand}
-        ownerSeat={oppSeat}
-      />
-    ),
-    turn: (
-      <TurnStatusPanel
-        view={view}
-        boardSeat={boardSeat}
-        firstSeat={firstSeat}
-        players={players}
-        spectating={spectating}
-        turnClock={turnClock}
-        matchClock={matchClock}
-        seatClocks={seatClocks}
-      />
-    ),
-    hand: railHand && specFans === "landscape" && nearHand ? (
-      <section className="rail-hand rail-hand-spec" aria-label={`${seatLabel(players, boardSeat)} hand: ${handCount} cards`}>
-        <HandLabel name={seatLabel(players, boardSeat)} count={handCount} />
-        <div className="hand-row hand-row-spec-grid" ref={handRowRef}>
-          <div className="hand-row-inner">{renderHandCards()}</div>
-        </div>
-      </section>
-    ) : railHand ? (
-      <section
-        className={`rail-hand${handTucked ? " is-dragging" : ""}`}
-        aria-label={`Your hand: ${handCount} cards`}
-      >
-        <div className="rail-hand-head">
-          <span className="rail-hand-title">{spectating ? "Seat hand" : "Hand"}</span>
-          <span className="hand-rail-count">{handCount}</span>
-          {!spectating ? (
-            sortHandBtn
-          ) : null}
-        </div>
-        <div className="rail-hand-cards" ref={handRowRef}>
-          {renderHandCards()}
-        </div>
-      </section>
-    ) : null,
-    chat: chatPanel,
-    logpose: logPoseSide ? (
-      <div ref={logPoseSide === "left" ? setLogPoseHostL : setLogPoseHostR} className="lp-dock-host" data-panel-host="logpose" />
-    ) : null,
-  };
-  const shownPanels: Record<PanelColumn, PanelId[]> = {
-    left: panelLayout.left.filter((id) => sidePanels[id] != null),
-    right: panelLayout.right.filter((id) => sidePanels[id] != null),
-  };
-  const bigBoard = prefs.bigBoard || (spectating && lp);
-  const defendCol: PanelColumn = singleSide ?? "right";
-  const collapsed = collapsedColumns(shownPanels, panelDrag.draggingId != null && !singleSide, {
-    [defendCol]: railDefend && defendTray != null,
+  const sidePanels = buildSidePanels({
+    prefs,
+    previewPopup,
+    battleLog,
+    spectating,
+    mySeat,
+    oppHandOnMat,
+    specFans,
+    opp,
+    oppCardBackUrl,
+    shownFarHand,
+    oppSeat,
+    view,
+    boardSeat,
+    firstSeat,
+    players,
+    turnClock,
+    matchClock,
+    seatClocks,
+    railHand,
+    nearHand,
+    handCount,
+    handRowRef,
+    renderHandCards,
+    handTucked,
+    sortHandBtn,
+    chatPanel,
+    logPoseSide,
+    setLogPoseHostL,
+    setLogPoseHostR,
   });
-  const noTopBar = bigBoard && wide && !lp && !compactHud;
-  const idleCollapsed = collapsedColumns(shownPanels, false, { [defendCol]: railDefend && defendTray != null });
-  const actionsSide: PanelColumn | null = !noTopBar ? null : idleCollapsed.right && !idleCollapsed.left ? "left" : "right";
-  const noLeftCol = wide && !lp && collapsed.left && actionsSide !== "left";
-  const noRightCol = wide && !lp && collapsed.right && actionsSide !== "right";
-  const cutColumns: Record<PanelColumn, boolean> = {
-    left: wide && !lp && !noLeftCol && singleSide !== "right",
-    right: wide && !lp && !noRightCol && singleSide !== "left",
-  };
-  const shownCuts = {
-    left: cutColumns.left ? panelResize.shown.cuts.left : undefined,
-    right: cutColumns.right ? panelResize.shown.cuts.right : undefined,
-  };
+  const { shownPanels, bigBoard, defendCol, noTopBar, actionsSide, noLeftCol, noRightCol, cutColumns, shownCuts, arenaStyle } = columnGeometry({
+    prefs,
+    spectating,
+    wide,
+    lp,
+    panelLayout,
+    sidePanels,
+    panelDrag,
+    singleSide,
+    railDefend,
+    defendTray,
+    compactHud,
+    panelResize,
+    phoneResize,
+  });
   const fanCorner = fanCornerFor({
     fan: fanHand,
     spectatorFan: specFans != null,
     moved: shownFanPos != null,
     cuts: shownCuts,
   });
-  const arenaStyle: CSSProperties | undefined =
-    wide && !lp
-      ? ({
-          ...panelResize.arenaStyle(shownPanels, cutColumns),
-          ...(singleSide === "left" && panelResize.shown.widths.left == null
-            ? { "--left-w": bigBoard ? "clamp(250px, 17vw, 330px)" : "clamp(260px, 22vw, 400px)" }
-            : null),
-          ...(noLeftCol ? { "--left-w": "0px" } : null),
-          ...(noRightCol ? { "--rail-w": "0px" } : null),
-        } as CSSProperties)
-      : lp
-        ? phoneResize.style
-        : undefined;
   const docked = wide && !lp && !spectating && !over && !sideActions;
-  const mulliganBody =
-    mulliganPhase && !spectating && view.you.mulliganDone ? (
-      <>
-        <strong>Mulligan locked in.</strong> Waiting for the other seat
-        {view.opponent.mulliganDone ? "" : " — pass the device if this is hotseat"}.
-      </>
-    ) : null;
-  const mulliganOrder = decidingMulligan ? (
-    <>
-      <strong>
-        {firstSeatLine({
-          youFirst,
-          boardSeat,
-          pickedBy: firstSeatPickedBy,
-          dice: firstSeatDice,
-          opponentName: seatName(players, oppSeat) ?? undefined,
-        })}
-      </strong>
-      {" · "}
-      {youFirst ? "No draw, 1 DON!! on turn 1" : "You draw, 2 DON!! on turn 1"}
-    </>
-  ) : null;
-  const mulliganHint = decidingMulligan && prefs.gameHints
-    ? "Keep these cards, or mulligan to shuffle them back and draw 5 new ones. Life is dealt after both players decide."
-    : null;
-  function renderColumnPanels(column: PanelColumn) {
-    const ids = shownPanels[column];
-    const sized = ids.some((id) => panelResize.shown.heights[id] != null);
-    const panels = ids.map((id, i) =>
-      renderSidePanel(id, i > 0 ? ids[i - 1]! : null, i === ids.length - 1, sized),
-    );
-    const after = ids.indexOf("turn") + 1;
-    if (column === defendCol && railDefend && defendTray) {
-      panels.splice(
-        after,
-        0,
-        <div key="defend" className="board-panel" data-panel="defend">
-          {defendTray}
-        </div>,
-      );
-    }
-    return panels;
-  }
-  function renderSidePanel(id: PanelId, above: PanelId | null, last: boolean, columnSized: boolean) {
-    const el = sidePanels[id];
-    if (el == null) return null;
-    return (
-      <SidePanel
-        key={id}
-        id={id}
-        dragging={panelDrag.draggingId === id}
-        grip={prefs.layoutGrips ? panelDrag.gripProps(id) : null}
-        divider={
-          prefs.layoutGrips && above
-            ? panelResize.dividerProps(above, id, `${PANEL_LABELS[above]} and ${PANEL_LABELS[id]}`)
-            : null
-        }
-        style={panelResize.panelStyle(id, last, columnSized)}
-      >
-        {el}
-      </SidePanel>
-    );
-  }
+  const mulliganBody = mulliganBodyFor({
+    view,
+    spectating,
+    mulliganPhase,
+  });
+  const { mulliganOrder, mulliganHint } = mulliganOpeningFor({
+    decidingMulligan,
+    prefs,
+    youFirst,
+    boardSeat,
+    oppSeat,
+    players,
+    firstSeatPickedBy,
+    firstSeatDice,
+  });
+  const renderColumnPanels = renderColumnPanelsFor({
+    shownPanels,
+    sidePanels,
+    panelResize,
+    panelDrag,
+    prefs,
+    defendCol,
+    railDefend,
+    defendTray,
+  });
 
-  const reportProblem = () => openFeedback("Report a problem");
-  const reportTargetFor = (source: "match" | "spectate" | "postmatch") =>
-    canReport && !isReplay && !hotseatPass
-      ? matchReportTarget({ source, matchId, spectating, mySeat, players, seatSkins })
-      : null;
-  const canReportPlayer = reportTargetFor("match") !== null;
-  const reportPlayer = () => {
-    const target = reportTargetFor(spectating ? "spectate" : "match");
-    if (target) openReport(target);
-  };
-  const matchMenuEl = (placement: "top" | "left" | "anchor") => (
-    <MatchMenu
-      placement={placement}
-      items={matchMenuItems({
-        spectating,
-        over,
-        hotseat: Boolean(hotseatPass),
-        fullscreenOffered,
-        fullscreenInBar: placement === "anchor",
-        muteInBar: placement === "anchor",
-        canConcede: Boolean(onConcede),
-        replay: isReplay,
-        canReportPlayer,
-        hideArtOffered: artToggles.length > 0,
-      })}
-      artToggles={artToggles}
-      onToggleArt={toggleHiddenArt}
-      info={{
-        matchup: players
-          ? `${spectating ? seatLabel(players, 0) : seatName(players, boardSeat) ?? "You"} vs ${seatLabel(
-              players,
-              spectating ? 1 : oppSeat,
-            )}`
-          : null,
-        seat: isReplay ? "Replay" : spectating ? "Spectating" : null,
-        order: orderLabel,
-      }}
-      roomId={matchId}
-      isFullscreen={isFullscreen}
-      tabMute={{ silenced: tabMute.silenced, label: tabMuteText.label, title: tabMuteText.title, onToggle: tabMute.toggle }}
-      leaveLabel={leaveLabel}
-      onSettings={() => setSettingsOpen(true)}
-      onToggleFullscreen={toggleFullscreen}
-      onReport={reportProblem}
-      onReportPlayer={reportPlayer}
-      onConcede={() => onConcede?.()}
-      onLeave={onLeave}
-    />
-  );
-
-  const hudProps = {
+  const { hudProps, matchMenuEl, columnActions, reportTargetFor, canReportPlayer } = boardChrome({
     view,
     players,
     matchId,
@@ -1471,24 +917,24 @@ export function DuelBoard({
     matchClock,
     seatClocks,
     logPoseButton,
-    matchMenu: matchMenuEl,
     undoUi,
-    undoHidden: undoPendingTheirs || (compactHud && undoNothingYet),
+    compactHud,
     hotseatPass,
     tabMute,
     tabMuteText,
     fullscreenOffered,
     isFullscreen,
-    onToggleFullscreen: toggleFullscreen,
-    onSettings: () => setSettingsOpen(true),
-    onReportProblem: reportProblem,
-    canReportPlayer,
-    onReportPlayer: reportPlayer,
+    toggleFullscreen,
+    setSettingsOpen,
     onConcede,
     leaveLabel,
     onLeave,
-  };
-  const columnActions = <BoardHud variant="column" {...hudProps} />;
+    canReport,
+    mySeat,
+    seatSkins,
+    artToggles,
+    toggleHiddenArt,
+  });
 
   return (
     <MatchViewerSeatContext.Provider value={spectating ? null : boardSeat}>
@@ -1565,224 +1011,62 @@ export function DuelBoard({
           </aside>
         ) : null}
 
-        <div className="playmat" ref={playmatRef} data-mat-drop={wide && !lp ? "" : undefined}>
-          {mulliganBody && !sideActions ? (
-            <div className="mulligan-banner" role="status">
-              {mulliganBody}
-            </div>
-          ) : null}
-          {decidingMulligan ? (
-            <MulliganHand
-              cards={you.hand}
-              ownerSeat={boardSeat}
-              viewingSeat={viewingSeat}
-              showCounter={prefs.handCounters}
-              order={mulliganOrder}
-              hint={mulliganHint}
-              actions={
-                <PrimaryDock
-                  inline
-                  primary={mulliganDock.primary}
-                  extras={mulliganDock.extras}
-                  keyOffset={cardIntents.length}
-                  waiting={null}
-                  view={view}
-                  disabled={over}
-                  onSend={sendPrimary}
-                />
-              }
-            />
-          ) : null}
-          <div className="playmat-inner">
-            {farHand && specFans === "portrait" ? (
-              <SpectatorFarHand cards={farHand} ownerSeat={oppSeat} mode="portrait" name={seatLabel(players, oppSeat)} />
-            ) : farHand && specFans === "desktop" ? null : oppHandOnMat ? (
-              <div
-                className={`opp-hand-mat opp-hand-mat-${oppHandOnMat}${oppHandOnMat === "centre" ? "" : " opp-hand-mat-side"}`}
-              >
-                <SidePanel
-                  id="oppHand"
-                  dragging={panelDrag.draggingId === "oppHand"}
-                  grip={prefs.layoutGrips ? panelDrag.gripProps("oppHand") : null}
-                >
-                  <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="mat" cards={shownFarHand} ownerSeat={oppSeat} />
-                </SidePanel>
-              </div>
-            ) : oppHandRight ? (
-              <div className="opp-hand-hint opp-hand-hint-right">
-                <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" cards={shownFarHand} ownerSeat={oppSeat} />
-              </div>
-            ) : (
-              <OppHandHint count={opp.handCount} cardBackUrl={oppCardBackUrl} cards={shownFarHand} ownerSeat={oppSeat} />
-            )}
-
-            <SideField
-              side="opp"
-              lifeFan={prefs.lifeFan}
-              compact
-              countRow={portraitMat}
-              turnOrder={firstSeat === oppSeat ? "first" : "second"}
-              activeTurn={oppActive}
-              matImageUrl={oppMatUrl}
-              cardBackUrl={oppCardBackUrl}
-              donArtUrl={farDonUrl}
-              matDim={playmatDim}
-              matOpacity={playmatOpacity}
-              ownerSeat={oppSeat}
-              viewingSeat={viewingSeat}
-              data={{
-                leader: opp.leader,
-                characters: opp.characters,
-                stage: opp.stage,
-                deckCount: opp.deckCount,
-                trash: opp.trash,
-                lifeCount: opp.lifeCount,
-                faceUpLife: lifeFaceUp(oppSeat, opp.faceUpLife),
-                donDeckCount: opp.donDeckCount,
-                costAreaCount: opp.costAreaCount,
-                activeDonCount: opp.activeDonCount,
-              }}
-              target={
-                attackTargetIds.size > 0
-                  ? { targetableIds: attackTargetIds, onSelectTarget: selectAttackTarget }
-                  : undefined
-              }
-              battleDrop={
-                dragPayload?.type === "attack"
-                  ? { kind: "attack", ids: attackTargetIds }
-                  : undefined
-              }
-            />
-
-            <div className={`midline${docked && stripText ? " midline-docked" : ""}`}>
-              {stripText ? (
-                <div className={`prompt${midlineBattle ? " prompt-battle" : ""}`} title={midlineTitle ?? undefined}>
-                  <span className="prompt-text">{stripText}</span>
-                </div>
-              ) : rotateHintShown ? (
-                <RotateHint onClose={closeRotateHint} />
-              ) : null}
-            </div>
-
-            <SideField
-              side="you"
-              lifeFan={prefs.lifeFan}
-              compact={simpleOwnBoard}
-              countRow={simpleOwnBoard}
-              turnOrder={youFirst ? "first" : "second"}
-              activeTurn={youActive}
-              matImageUrl={skins.near.playmat}
-              matDim={playmatDim}
-              matOpacity={playmatOpacity}
-              cardBackUrl={skins.near.cardBack}
-              donArtUrl={nearDonUrl}
-              ownerSeat={boardSeat}
-              viewingSeat={viewingSeat}
-              data={{
-                leader: you.leader,
-                characters: you.characters,
-                stage: you.stage,
-                deckCount: you.deckCount,
-                trash: you.trash,
-                lifeCount: you.lifeCount,
-                faceUpLife: lifeFaceUp(boardSeat, you.faceUpLife),
-                donDeckCount: you.donDeckCount,
-                costArea: you.costArea,
-                activeDonCount: you.activeDonCount,
-              }}
-              donPile={
-                spectating
-                  ? undefined
-                  : { piles: donPiles, onMove: moveDonToPile }
-              }
-              select={
-                spectating
-                  ? undefined
-                  : {
-                      selectedId: selectedBoardId,
-                      onSelect: selectBoardCard,
-                      actionableIds: actionableBoardIds,
-                    }
-              }
-              attackReadyIds={attackReadyIds}
-              attackDrag={
-                draggableAttackerIds.size > 0
-                  ? {
-                      draggableIds: draggableAttackerIds,
-                      onDragStart: (id) => setDragPayload({ type: "attack", attackerId: id }),
-                      onDragEnd: (id, x, y) =>
-                        commitDrop({ type: "attack", attackerId: id }, x, y),
-                      onDragCancel: () => setDragPayload(null),
-                    }
-                  : undefined
-              }
-              battleDrop={
-                dragPayload?.type === "counter" && counterDefenderId
-                  ? { kind: "counter", ids: new Set([counterDefenderId]) }
-                  : undefined
-              }
-              drag={
-                dndEnabled
-                  ? {
-                      draggableDonIds,
-                      draggingDonIds:
-                        dragPayload?.type === "give_don"
-                          ? new Set(dragPayload.donIds)
-                          : EMPTY_IDS,
-                      selectedDonIds,
-                      onDonDragStart: (donId) => {
-                        const donIds =
-                          selectedDonIds.size > 0 && selectedDonIds.has(donId)
-                            ? Array.from(selectedDonIds)
-                            : [donId];
-                        setSelectedDonIds(new Set(donIds));
-                        setPendingAttach(null);
-                        setDragPayload({ type: "give_don", donIds });
-                      },
-                      onDonDragEnd: (donId, x, y) => {
-                        const donIds =
-                          dragPayload?.type === "give_don" ? dragPayload.donIds : [donId];
-                        commitDrop({ type: "give_don", donIds }, x, y);
-                      },
-                      onDonDragCancel: () => setDragPayload(null),
-                      onDonToggleSelect: toggleDonSelect,
-                      onClearDonSelection: clearDonSelection,
-                      giveDonHighlightIds,
-                      playTrashHighlightIds,
-                      playFieldHighlight,
-                    }
-                  : undefined
-              }
-            />
-          </div>
-          {sideActions && !decidingMulligan ? (
-            <div className="side-dock" data-side-dock>
-              <PrimaryDock
-                inline
-                primary={over ? null : dock.primary}
-                extras={over ? [] : dock.extras}
-                keyOffset={cardIntents.length}
-                waiting={oppWait}
-                view={view}
-                disabled={over}
-                confirmEndTurn={endTurnWarning(isReplay ? "never" : prefs.endTurnConfirm, view.legalIntents)}
-                defend={defendPrimary}
-                counterLabel={counterLabel}
-                onSend={sendPrimary}
-              />
-              {dockHeading ? <DockHeading model={dockHeading} /> : null}
-              <div className="dock-caption" role="status">
-                {mulliganBody ? (
-                  <p className="dock-caption-mulligan">{mulliganBody}</p>
-                ) : midlineShown && !(dockHeading && midlineBattle) ? (
-                  <div className={`prompt${midlineBattle ? " prompt-battle" : ""}`} title={midlineTitle ?? undefined}>
-                    <span className="prompt-text">{midlineShown}</span>
-                  </div>
-                ) : null}
-              </div>
-            </div>
-          ) : null}
-        </div>
+        <PlaymatBoard
+          playmatRef={playmatRef}
+          view={view}
+          prefs={prefs}
+          players={players}
+          boardSeat={boardSeat}
+          oppSeat={oppSeat}
+          viewingSeat={viewingSeat}
+          firstSeat={firstSeat}
+          youFirst={youFirst}
+          youActive={youActive}
+          oppActive={oppActive}
+          spectating={spectating}
+          isReplay={isReplay}
+          over={over}
+          wide={wide}
+          lp={lp}
+          portraitMat={portraitMat}
+          simpleOwnBoard={simpleOwnBoard}
+          docked={docked}
+          sideActions={sideActions}
+          mulliganBody={mulliganBody}
+          mulligan={{ deciding: decidingMulligan, order: mulliganOrder, hint: mulliganHint }}
+          dockHeading={dockHeading}
+          specFans={specFans}
+          farHand={farHand}
+          oppHandOnMat={oppHandOnMat}
+          oppHandRight={oppHandRight}
+          shownFarHand={shownFarHand}
+          oppCardBackUrl={oppCardBackUrl}
+          oppMatUrl={oppMatUrl}
+          farDonUrl={farDonUrl}
+          nearDonUrl={nearDonUrl}
+          skins={skins}
+          lifeFaceUp={lifeFaceUp}
+          panelDrag={panelDrag}
+          midline={{ shown: midlineShown, strip: stripText, battle: midlineBattle, title: midlineTitle }}
+          rotateHintShown={rotateHintShown}
+          closeRotateHint={closeRotateHint}
+          dndEnabled={dndEnabled}
+          dragPayload={dragPayload}
+          setDragPayload={setDragPayload}
+          selectedBoardId={selectedBoardId}
+          counterDefenderId={counterDefenderId}
+          sel={sel}
+          don={don}
+          intentDock={{
+            dock,
+            mulliganDock,
+            cardIntentCount: cardIntents.length,
+            oppWait,
+            defendPrimary,
+            counterLabel,
+            onSend: sendPrimary,
+          }}
+        />
 
         {wide && !lp ? (
           <div className="arena-rail board-col" data-panel-col="right" data-col-off={singleSide === "left" ? "" : undefined} data-col-cut={shownCuts.right != null ? "" : undefined}>
@@ -1794,116 +1078,57 @@ export function DuelBoard({
             {railHand || fanHand ? null : <div className="rail-dock-spacer" aria-hidden />}
           </div>
         ) : wide ? (
-          <div className="arena-rail board-col">
-            {hotseatPass || (undo && undoState?.enabled && !spectating && !over) ? (
-              <div className="lp-actions">
-                <HudUndoPass ui={undoUi} hidden={undoPendingTheirs || (compactHud && undoNothingYet)} spectating={spectating} over={over} hotseatPass={hotseatPass} />
-              </div>
-            ) : null}
-            {farHand && specFans === "landscape" ? (
-              <SpectatorFarHand
-                cards={farHand}
-                ownerSeat={oppSeat}
-                mode="landscape"
-                name={seatLabel(players, oppSeat)}
-              />
-            ) : oppHandRight ? (
-              <OppHandCorner count={opp.handCount} cardBackUrl={oppCardBackUrl} variant="row" cards={shownFarHand} ownerSeat={oppSeat} />
-            ) : (
-              <OppHandFan
-                count={opp.handCount}
-                cardBackUrl={oppCardBackUrl}
-                compact
-                cards={shownFarHand}
-                ownerSeat={oppSeat}
-              />
-            )}
-            {defendTray ? null : (
-              <TurnStatusPanel
-                view={view}
-                boardSeat={boardSeat}
-                firstSeat={firstSeat}
-                players={players}
-                spectating={spectating}
-                turnClock={turnClock}
-                matchClock={matchClock}
-                seatClocks={seatClocks}
-                compact
-              />
-            )}
-            {defendTray ?? sidePanels.hand ?? (fanHand ? <div className="lp-rail-fill" aria-hidden /> : null)}
-            {intentPanel}
-            {prefs.layoutGrips ? <div className="phone-resize phone-resize-rail" {...phoneResize.handleProps("rail")} /> : null}
-          </div>
+          <LandscapeSideRail
+            view={view}
+            prefs={prefs}
+            players={players}
+            boardSeat={boardSeat}
+            oppSeat={oppSeat}
+            firstSeat={firstSeat}
+            spectating={spectating}
+            over={over}
+            compactHud={compactHud}
+            hotseatPass={hotseatPass}
+            undo={undo}
+            undoUi={undoUi}
+            specFans={specFans}
+            farHand={farHand}
+            shownFarHand={shownFarHand}
+            oppHandRight={oppHandRight}
+            oppCardBackUrl={oppCardBackUrl}
+            turnClock={turnClock}
+            matchClock={matchClock}
+            seatClocks={seatClocks}
+            defendTray={defendTray}
+            handPanel={sidePanels.hand}
+            fanHand={fanHand}
+            intentPanel={intentPanel}
+            phoneResize={phoneResize}
+          />
         ) : (
-          <div className="arena-rail">
-            {defendTray ?? (
-              <div className={`hand-rail${handCollapsed && !handPick ? " collapsed" : ""}`}>
-                <div className={`hand-rail-head${specFans && nearHand ? " hand-rail-head-spec" : ""}`}>
-                  {specFans && nearHand ? (
-                    <HandLabel name={seatLabel(players, boardSeat)} count={handCount} />
-                  ) : (
-                    <>
-                      {spectating ? (
-                        <>
-                          <span className="hand-rail-title">{nearHand ? "Seat hand" : "Seat hand (hidden)"}</span>
-                          <span className="hand-rail-count">{handCount}</span>
-                        </>
-                      ) : (
-                        <button
-                          type="button"
-                          className="hand-rail-toggle"
-                          aria-expanded={!(handCollapsed && !handPick)}
-                          aria-label={`${handCollapsed && !handPick ? "Show" : "Hide"} your hand, ${handCount} cards`}
-                          onClick={toggleHandCollapsed}
-                        >
-                          <span className="hand-rail-title">Hand</span>
-                          <span className="hand-rail-count">{handCount}</span>
-                        </button>
-                      )}
-                    </>
-                  )}
-                  {!spectating ? (
-                    <div className="hand-rail-actions">
-                      {sortHandBtn}
-                      <button
-                        type="button"
-                        className="hand-rail-btn hand-collapse-btn"
-                        onClick={toggleHandCollapsed}
-                      >
-                        {handCollapsed && !handPick ? "Show" : "Hide"}
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-                {phoneFan ? (
-                  <div className="hand-row hand-row-fan" ref={handRowRef}>
-                    <div
-                      className="hand-row-inner hand-fan-cards"
-                      style={{ "--n": Math.max(handCount, 1) } as CSSProperties}
-                    >
-                      {renderHandCards(true)}
-                    </div>
-                  </div>
-                ) : (
-                  <div className={`hand-row${specGrid ? " hand-row-spec-grid" : ""}`} ref={handRowRef}>
-                    <div className="hand-row-inner">{renderHandCards()}</div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {intentPanel}
-
-            <BattleLogPanel
-              entries={battleLog}
-              viewingSeat={spectating || mySeat == null ? undefined : mySeat}
-              collapsed={logCollapsed}
-              onToggle={() => setLogCollapsed((v) => !v)}
-            />
-
-            {chatPanel}
-          </div>
+          <PortraitRail
+            boardSeat={boardSeat}
+            mySeat={mySeat}
+            players={players}
+            spectating={spectating}
+            specFans={specFans}
+            specGrid={specGrid}
+            nearHand={nearHand}
+            handCount={handCount}
+            handCollapsed={handCollapsed}
+            handPick={handPick}
+            phoneFan={phoneFan}
+            handRowRef={handRowRef}
+            toggleHandCollapsed={toggleHandCollapsed}
+            sortHandBtn={sortHandBtn}
+            renderHandCards={renderHandCards}
+            defendTray={defendTray}
+            intentPanel={intentPanel}
+            battleLog={battleLog}
+            logCollapsed={logCollapsed}
+            onToggleLog={() => setLogCollapsed((v) => !v)}
+            chatPanel={chatPanel}
+          />
         )}
       </div>
 
@@ -1992,12 +1217,20 @@ export function DuelBoard({
         renderHandCards={renderHandCards}
       />
 
-      <PendingChoicePrompt
+      <BoardOverlayLayers
         view={view}
+        prefs={prefs}
         intents={intents}
         spectating={spectating}
+        isReplay={isReplay}
+        over={over}
+        wide={wide}
+        lp={lp}
         mySeat={mySeat}
-        hotseatPass={Boolean(hotseatPass)}
+        boardSeat={boardSeat}
+        players={players}
+        matchId={matchId}
+        hotseatPass={hotseatPass}
         floatingPrompts={floatingPrompts}
         replaceOpen={replaceOpen}
         replaceCardId={replaceCardId}
@@ -2007,90 +1240,43 @@ export function DuelBoard({
         hiddenChoiceId={hiddenChoiceId}
         setHiddenChoiceId={setHiddenChoiceId}
         promptBattle={promptBattle}
-        wide={wide}
-        lp={lp}
         onSendIntent={onSendIntent}
-        onSendClearing={(intent) => {
-          clearSelection();
-          onSendIntent(intent);
-        }}
-      />
-
-      {replay && wide && !lp ? <div className="replay-dock">{replay.controls}</div> : null}
-
-      {docked ? (
-        <PrimaryDock
-          primary={dock.primary}
-          extras={dock.extras}
-          keyOffset={cardIntents.length}
-          waiting={oppWait}
-          view={view}
-          disabled={over}
-          confirmEndTurn={endTurnWarning(isReplay ? "never" : prefs.endTurnConfirm, view.legalIntents)}
-          defend={defendPrimary}
-          counterLabel={counterLabel}
-          onSend={sendPrimary}
-        />
-      ) : null}
-
-      <TurnSplash message={splash} />
-      <AttackWarning warn={prefs.cantAttackWarning ? attackWarn : null} />
-      <RevealOverlay
-        reveal={reveals.current}
-        waiting={reveals.waiting}
-        oppSeat={previewOppSeat}
-        onDismiss={reveals.dismiss}
-      />
-      <AttackIndicator
-        view={over || !prefs.battleArrow ? null : view}
-        dimmed={promptOpenFor(view.pendingChoices?.[0], spectating ? null : mySeat, hiddenChoiceId)}
-      />
-      <BoardMotion view={view} />
-      <CardSpotlightLayer
-        batch={spotlights.current}
-        waiting={spotlights.waiting}
-        oppSeat={previewOppSeat}
-        onDone={spotlights.done}
-      />
-      <DragGhost payload={ghostPayload} />
-      <DragAttackArrow attackerId={dragPayload?.type === "attack" ? dragPayload.attackerId : null} />
-      {popoverOpen && anchorCard ? (
-        <CardActionPopover
-          anchorId={anchorCard.id}
-          cardName={lookupCard(anchorCard.defId).name}
-          actions={popoverActions}
-          donCounts={handFilter == null ? quickCounts : []}
-          onDon={quickAttach}
-        />
-      ) : null}
-      {pendingAttach && dndEnabled ? (
-        <DonAttachConfirm
-          pending={pendingAttach}
-          targetName={pendingAttachName}
-          onConfirm={() => confirmAttach()}
-          onCancel={clearDonSelection}
-        />
-      ) : null}
-
-      <MatchResultView
-        over={over}
+        clearSelection={clearSelection}
+        replay={replay}
+        docked={docked}
+        dock={dock}
+        oppWait={oppWait}
+        defendPrimary={defendPrimary}
+        counterLabel={counterLabel}
+        sendPrimary={sendPrimary}
+        splash={splash}
+        attackWarn={attackWarn}
+        reveals={reveals}
+        spotlights={spotlights}
+        previewOppSeat={previewOppSeat}
+        ghostPayload={ghostPayload}
+        dragPayload={dragPayload}
+        popoverOpen={popoverOpen}
+        anchorCard={anchorCard}
+        popoverActions={popoverActions}
+        handFilter={handFilter}
+        quickCounts={quickCounts}
+        quickAttach={quickAttach}
+        pendingAttach={pendingAttach}
+        dndEnabled={dndEnabled}
+        pendingAttachName={pendingAttachName}
+        confirmAttach={confirmAttach}
+        clearDonSelection={clearDonSelection}
         resultHidden={resultHidden}
         setResultHidden={setResultHidden}
         result={result}
-        isReplay={isReplay}
-        wide={wide}
-        lp={lp}
         matchOver={matchOver}
-        view={view}
-        spectating={spectating}
-        players={players}
-        matchId={matchId}
         loadMatchRecord={loadMatchRecord}
         rematch={rematch}
-        boardSeat={boardSeat}
         canReportPlayer={canReportPlayer}
         reportTargetFor={reportTargetFor}
         onLeave={onLeave}
+        cardIntentCount={cardIntents.length}
       />
     </div>
     </DonArtContext.Provider>

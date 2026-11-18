@@ -20,6 +20,7 @@ const guard = "game-server/src/matchmakeGuard.ts";
 const env = "game-server/src/env.ts";
 const handOrder = "game-server/src/handOrder.ts";
 const tk = "game-server/src/tournamentTicket.ts";
+const reconnections = "game-server/src/rooms/pendingReconnections.ts";
 module.exports = {
   cwd: "game-server",
   runner: "mocha",
@@ -31,6 +32,9 @@ module.exports = {
     { id: "restart1352-warns-lobby-room", args: "test/duelRoom.test.ts -g \"1352\"", file: room, from: "    if (this.game.matchStarted && !this.game.matchOverSent) {\n      this.io.broadcast(\"server_restarting\"", to: "    if (!this.game.matchOverSent) {\n      this.io.broadcast(\"server_restarting\"", kills: ["a room with no game in progress sends no warning (#1352)"] },
     { id: "restart1352-warns-finished-game", args: "test/duelRoom.test.ts -g \"1352\"", file: room, from: "    if (this.game.matchStarted && !this.game.matchOverSent) {\n      this.io.broadcast(\"server_restarting\"", to: "    if (this.game.matchStarted) {\n      this.io.broadcast(\"server_restarting\"", kills: ["a finished game sends no warning (#1352)"] },
     { id: "health1352-counts-waiting-rooms", args: "test/duelRoom.test.ts -g \"1352\"", file: appConfig, from: "?.phase === \"playing\").length", to: "?.phase !== \"finished\").length", kills: ["counts a game being played but not a room still waiting for its opponent (#1352)"] },
+    // Seat takeover cancels only the dropped session's pending reclaim, and a changed Colyseus internal throws (#1353)
+    { id: "takeover1353-rejects-every-reclaim", args: "test/pendingReconnections.test.ts", file: reconnections, from: "    if (entry[0] === sessionId) entry[1].reject(false);", to: "    entry[1].reject(false);", kills: ["rejects only the reclaims pending for the given session (#1353)"] },
+    { id: "takeover1353-shape-unchecked", args: "test/pendingReconnections.test.ts", file: reconnections, from: "    if (!ok) throw new Error(\"Colyseus Room._reconnections entries are not [sessionId, deferred]\");\n", to: "", kills: ["throws instead of skipping when the private field changes shape (#1353)"] },
     // Game over never waits on the outbox database (#1345)
     { id: "match-over1345-waits-for-write", args: "test/duelRoom.test.ts -g \"1345\"", file: room, from: "    this.io.broadcast(\"match_over\", { result });", to: "    void Promise.all([...this.pendingResultWrites]).then(() => this.io.broadcast(\"match_over\", { result }));", kills: ["both players get match_over while the result write never completes (#1345)", "a result whose write fails is delivered once the database recovers, and written once (#1345)"] },
     { id: "match-over1345-second-result-dropped", args: "test/duelRoom.test.ts -g \"1345\"", file: room, from: "    this.trackResultWrite(this.persistence.writebackResult(result.winner, result.reason));", to: "    if (this.pendingResultWrites.size === 0) this.trackResultWrite(this.persistence.writebackResult(result.winner, result.reason));", kills: ["a rematch started while the earlier result is still retrying keeps both results (#1345)"] },
@@ -253,7 +257,7 @@ module.exports = {
     { id: "handoff-old-device-not-told", file: room, from: "      this.io.send(old, \"taken_over\", { seat });\n", to: "", kills: ["taking a seat over closes the old connected device"] },
     { id: "handoff-old-device-not-closed", file: room, from: "      old.leave(TAKEN_OVER_CLOSE_CODE);", to: "", kills: ["taking a seat over closes the old connected device"] },
     { id: "handoff-no-welcome-for-new-device", file: room, from: "    if (game.matchStarted && game.match) this.sendSync(client);\n    this.refreshMetadata();\n  }\n\n", to: "    this.refreshMetadata();\n  }\n\n", kills: ["taking a seat over closes the old connected device"] },
-    { id: "handoff-old-reconnection-survives", file: room, from: "      if (entry[0] === oldSessionId) entry[1].reject(false);", to: "", kills: ["taking over a dropped seat during the reconnect grace works and the old reconnection token can no longer reclaim (#451)"] },
+    { id: "handoff-old-reconnection-survives", file: reconnections, from: "    if (entry[0] === sessionId) entry[1].reject(false);", to: "", kills: ["taking over a dropped seat during the reconnect grace works and the old reconnection token can no longer reclaim (#451)"] },
     { id: "handoff-metadata-no-owners", file: room, from: "{ owners: this.seats.owners(), phase, ranked: game.ranked }", to: "{ owners: [null, null], phase, ranked: game.ranked }", kills: ["GET /active-matches lists a live match for the account that holds a seat", "GET /active-matches reports a practice match"] },
     { id: "handoff-metadata-never-finished", file: room, from: "const phase = game.matchOverSent ? \"finished\" : game.m", to: "const phase = game.m", kills: ["GET /active-matches leaves out finished matches (#451)"] },
     { id: "handoff-lookup-lists-finished", file: appConfig, from: "if (!owners || meta?.phase === \"finished\") return [];", to: "if (!owners) return [];", kills: ["GET /active-matches leaves out finished matches (#451)"] },
