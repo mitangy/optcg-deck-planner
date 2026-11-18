@@ -257,6 +257,8 @@ details.deck-config-section.deck-collapsible {
   }
 
   .deck-editor-layout {
+    /* Room for the sticky Add cards column to stay put while the page scrolls, even with a short deck. */
+    min-height: calc(100dvh + 12rem);
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
     gap: 1.5rem;
