@@ -332,7 +332,7 @@
 
   .arena.arena-lp .rail-hand-cards {
     padding: 0.1rem 0.5rem 0.15rem;
-    gap: 2px var(--space-1);
+    gap: 3px var(--space-1);
     touch-action: pan-y;
   }
 }
