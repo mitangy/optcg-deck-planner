@@ -87,11 +87,14 @@ export function useDefendFlow({
       : null;
   const trayHere = defend != null && (!wide || lp);
   const railDefend = defend != null && wide && !lp;
+  // The phone tray's hand view starts closed for every attack step (#1368).
+  const [defendHandOpen, setDefendHandOpen] = useState(false);
   const defendKey =
     trayHere && view ? `${view.turnNumber}:${defend.phase}:${JSON.stringify(view.battle ?? null)}` : null;
   useEffect(() => {
     setStagedCounterIds([]);
     setStagedBlockerId(null);
+    setDefendHandOpen(false);
   }, [defendKey]);
   useEffect(() => {
     if (!queuedCounter || !view) return;
@@ -154,6 +157,8 @@ export function useDefendFlow({
     railDefend,
     defendPrimary,
     counterLabel,
+    defendHandOpen,
+    setDefendHandOpen,
     setStagedCounterIds,
     setStagedBlockerId,
     setQueuedCounter,
