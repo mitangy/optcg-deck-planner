@@ -26,7 +26,7 @@ test("adding a friend sends a request, and an incoming request can be accepted (
   await page.getByRole("button", { name: "Send request" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Request sent to sora." })).toBeVisible();
   expect(fake.sent.find((s) => s.path === "/friends/requests")?.body).toEqual({ username: "sora" });
-  const requests = page.getByRole("region", { name: "Friend requests" });
+  const requests = page.getByRole("region", { name: "Sent requests" });
   await expect(requests).toContainText("sora");
   await expect(requests).toContainText("request sent");
 
@@ -34,7 +34,7 @@ test("adding a friend sends a request, and an incoming request can be accepted (
   await page.getByRole("button", { name: "Send request" }).click();
   await expect(page.getByText("No player with that username.")).toBeVisible();
 
-  await requests.getByRole("button", { name: "Accept" }).click();
+  await page.getByRole("region", { name: "Needs you" }).getByRole("button", { name: "Accept" }).click();
   await expect(friends.getByRole("link", { name: "zoro" })).toBeVisible();
 
   const issues = await planner.audit();

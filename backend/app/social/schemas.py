@@ -208,6 +208,10 @@ class TradesOut(BaseModel):
 class TradeSummaryOut(BaseModel):
     incoming_pending: int
     active: int
+    # Incoming friend requests awaiting this user's answer.
+    friend_requests: int = 0
+    # Completed trades this user has not applied to their collection yet.
+    to_apply: int = 0
 
 
 class DuelPresenceEntry(BaseModel):

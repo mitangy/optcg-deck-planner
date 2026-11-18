@@ -94,9 +94,16 @@ export function otherUsername(trade: Trade): string {
   return trade.i_am_sender ? trade.to_username : trade.from_username;
 }
 
+/** Things that need the viewer's action: offers to answer, friend requests, completed trades to apply. Agreed trades waiting on a physical swap are not counted. */
 export function navBadgeCount(summary: TradesSummary | undefined): number {
   if (!summary) return 0;
-  return Math.max(0, summary.incoming_pending) + Math.max(0, summary.active);
+  return Math.max(0, summary.incoming_pending) + Math.max(0, summary.to_apply ?? 0) + Math.max(0, summary.friend_requests ?? 0);
+}
+
+/** Trades tab count: offers to answer plus completed trades not yet applied to the viewer's collection. */
+export function tradesTabCount(trades: Pick<TradesOut, "incoming" | "active"> | undefined): number {
+  if (!trades) return 0;
+  return trades.incoming.length + trades.active.filter((t) => t.status === "completed" && !t.my_applied).length;
 }
 
 export const capOf = (item: SpareItem): CardCap => ({

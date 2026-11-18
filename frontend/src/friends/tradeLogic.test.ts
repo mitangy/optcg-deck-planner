@@ -144,8 +144,8 @@ describe("which side of a trade is mine (#703)", () => {
 });
 
 describe("Friends nav badge (#703)", () => {
-  it("counts offers waiting plus trades in progress (#703)", () => {
-    expect(navBadgeCount({ incoming_pending: 2, active: 3 })).toBe(5);
+  it("counts offers waiting plus trades to apply (#703)", () => {
+    expect(navBadgeCount({ incoming_pending: 2, active: 3, friend_requests: 0, to_apply: 1 })).toBe(3);
     expect(navBadgeCount(undefined)).toBe(0);
   });
 

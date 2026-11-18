@@ -872,5 +872,129 @@ body:has(.trade-tray) .lp-compass {
   .tray-add-message,
   .need-ask {
     min-height: 2.75rem;
+/* #1362 Friends tab */
+.friends-needs-you {
+  margin-bottom: var(--space-4);
+  border-color: var(--gold);
+  background: linear-gradient(180deg, var(--gold-soft), var(--card) 70%);
+}
+
+.friends-needs-link {
+  margin: 0.5rem 0 0;
+  font-size: 0.92rem;
+}
+
+.friends-needs-link a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-weight: 600;
+}
+
+/* Every action on this tab keeps a 44px hit area. */
+.friends-act,
+.friends-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  box-sizing: border-box;
+}
+
+.friends-more {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.friends-row-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.friends-row-menu-list {
+  min-width: 10rem;
+}
+
+.friends-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.friends-menu-item.danger {
+  color: var(--danger);
+}
+
+.friends-offer {
+  width: auto;
+  margin-top: 0;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.friends-me {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.92rem;
+}
+
+.friends-me strong {
+  overflow-wrap: anywhere;
+}
+
+/* The hint line takes no room until it has something to say; its live region stays mounted. */
+.friend-hint.empty {
+  min-height: 0;
+  margin: 0;
+}
+
+/* Avatar tones: tinted fills with ink that stays above 4.5:1 in both themes. */
+.friend-avatar[data-tone] {
+  background: hsl(var(--tone-h) 45% 86%);
+  color: hsl(var(--tone-h) 55% 22%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .friend-avatar[data-tone] {
+    background: hsl(var(--tone-h) 35% 24%);
+    color: hsl(var(--tone-h) 70% 86%);
+  }
+}
+
+:root[data-theme="dark"] .friend-avatar[data-tone] {
+  background: hsl(var(--tone-h) 35% 24%);
+  color: hsl(var(--tone-h) 70% 86%);
+}
+
+.friend-avatar[data-tone="0"] { --tone-h: 12; }
+.friend-avatar[data-tone="1"] { --tone-h: 38; }
+.friend-avatar[data-tone="2"] { --tone-h: 85; }
+.friend-avatar[data-tone="3"] { --tone-h: 150; }
+.friend-avatar[data-tone="4"] { --tone-h: 190; }
+.friend-avatar[data-tone="5"] { --tone-h: 220; }
+.friend-avatar[data-tone="6"] { --tone-h: 265; }
+.friend-avatar[data-tone="7"] { --tone-h: 325; }
+
+/* Wide screens: friends become tiles instead of 1,000px-long rows. */
+@media (min-width: 1600px) {
+  .friends-tiles {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .friends-tiles .friend-list-row {
+    border: 1px solid var(--line);
   }
 }

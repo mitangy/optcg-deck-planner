@@ -7,14 +7,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.statuses import TradeStatus
+from app.core.statuses import FriendshipStatus, TradeStatus
 from app.social import trades as tr
 from app.core.auth import get_current_user
 from app.core.time import utcnow
 from app.core.db import get_db
 from app.social.schemas import CounterIn, TradeIn, TradeOut, TradesOut, TradeSummaryOut
 from app.core.models import User
-from app.social.models import TradeOffer
+from app.social.models import Friendship, TradeOffer
 from app.core.rate_limit import RateLimiter
 
 router = APIRouter(prefix="/trades", tags=["trades"])
@@ -103,7 +103,19 @@ def trade_summary(
         select(TradeOffer.id).where(_involving(user.id), TradeOffer.status == TradeStatus.COMPLETED)
     ).all()
     unapplied = len(completed_ids) - len(tr.active_applies(db, user.id, list(completed_ids)))
-    return TradeSummaryOut(incoming_pending=incoming or 0, active=(accepted or 0) + unapplied)
+    friend_requests = db.scalar(
+        select(func.count(Friendship.id)).where(
+            or_(Friendship.user_low_id == user.id, Friendship.user_high_id == user.id),
+            Friendship.status == FriendshipStatus.PENDING,
+            Friendship.requester_id != user.id,
+        )
+    )
+    return TradeSummaryOut(
+        incoming_pending=incoming or 0,
+        active=(accepted or 0) + unapplied,
+        friend_requests=friend_requests or 0,
+        to_apply=unapplied,
+    )
 
 
 def _require_status(offer: TradeOffer, *allowed: TradeStatus) -> None:

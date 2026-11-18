@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 
-from app.social.models import TradeOffer
+from app.social.models import Friendship, TradeOffer
 from tests.friend_support import (  # noqa: F401  (client is a fixture)
     add_alt,
     add_card,
@@ -299,7 +299,7 @@ def test_a_stale_pending_offer_expires_when_listed_703(client):
     me, kai = _setup(S, client[0])
     offer = _simple(c, me, kai)
     _expire(S, offer["id"])
-    assert as_user(c, kai).get("/trades/summary").json() == {"incoming_pending": 0, "active": 0}
+    assert as_user(c, kai).get("/trades/summary").json() == {"incoming_pending": 0, "active": 0, "friend_requests": 0, "to_apply": 0}
     body = as_user(c, kai).get("/trades").json()
     assert body["incoming"] == []
     assert [t["status"] for t in body["history"]] == ["expired"]
@@ -463,8 +463,8 @@ def test_the_summary_counts_incoming_offers_and_active_trades_703(client):
     _simple(c, me, kai)
     second = _simple(c, me, kai)
     as_user(c, kai).post(f"/trades/{second['id']}/accept")
-    assert as_user(c, kai).get("/trades/summary").json() == {"incoming_pending": 1, "active": 1}
-    assert as_user(c, me).get("/trades/summary").json() == {"incoming_pending": 0, "active": 1}
+    assert as_user(c, kai).get("/trades/summary").json() == {"incoming_pending": 1, "active": 1, "friend_requests": 0, "to_apply": 0}
+    assert as_user(c, me).get("/trades/summary").json() == {"incoming_pending": 0, "active": 1, "friend_requests": 0, "to_apply": 0}
 
 
 def test_history_lists_the_newest_fifty_first_703(client):
@@ -524,3 +524,23 @@ def test_unfriending_cancels_open_and_accepted_offers_but_keeps_finished_ones_70
     assert status[elsewhere["id"]] == "pending"
     assert as_user(c, kai).get("/trades/summary").json()["incoming_pending"] == 0
     assert as_user(c, me).post(f"/trades/{pending['id']}/accept").status_code == 403
+
+
+def test_the_summary_counts_incoming_friend_requests_and_unapplied_trades_1362(client):
+    c, S = client
+    me, kai = _setup(S, client[0])
+    oid = _to_completed(c, me, kai)
+    sender = make_user(S, "nami")
+    mine_out = make_user(S, "zoro")
+    with S() as db:
+        db.add(Friendship(user_low_id=min(sender, me), user_high_id=max(sender, me), requester_id=sender, status="pending"))
+        db.add(Friendship(user_low_id=min(mine_out, me), user_high_id=max(mine_out, me), requester_id=me, status="pending"))
+        db.commit()
+    body = as_user(c, me).get("/trades/summary").json()
+    assert body["friend_requests"] == 1
+    assert body["to_apply"] == 1
+    as_user(c, me).post(f"/trades/{oid}/apply")
+    body = as_user(c, me).get("/trades/summary").json()
+    assert body["to_apply"] == 0
+    assert body["friend_requests"] == 1
+    assert as_user(c, kai).get("/trades/summary").json()["friend_requests"] == 0
