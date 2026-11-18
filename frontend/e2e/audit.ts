@@ -330,7 +330,8 @@ async function boxOf(trigger: Locator): Promise<Box> {
 }
 
 export async function expectStationary(trigger: Locator, toggle: () => Promise<void>, label: string): Promise<void> {
-  await trigger.scrollIntoViewIfNeeded();
+  // Centre it, clear of the phone tab bar, so the click does not scroll the page by itself.
+  await trigger.evaluate((el) => el.scrollIntoView({ block: "center" }));
   const before = await boxOf(trigger);
   await toggle();
   await trigger.page().evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
