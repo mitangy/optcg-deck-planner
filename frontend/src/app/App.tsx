@@ -5,6 +5,7 @@ import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
 import { BuildTag } from "@optcg/ui/appShell";
 import { submitFeedback } from "./feedback";
 import { LogPoseProvider } from "@optcg/analyst-client";
+import { ErrorBoundary } from "@optcg/ui/errorBoundary";
 import {
   defaultLogPosePage,
   openDeckFor,
@@ -45,6 +46,7 @@ export default function App() {
   return (
     <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={sources}>
       <RouteMeta signedIn={!!me} />
+      <ErrorBoundary resetKey={pathname}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
@@ -141,6 +143,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ErrorBoundary>
       <SiteFooter Link={Link} onFeedback={() => setFeedbackOpen(true)} trailing={<BuildTag />} />
       {feedbackOpen ? (
         <FeedbackDialog

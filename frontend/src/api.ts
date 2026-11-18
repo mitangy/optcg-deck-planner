@@ -782,6 +782,8 @@ export const api = {
     request<GroupBuyInvitePreview>(`/public/group-buys/${encodeURIComponent(token)}`),
   publicGroupBuy: (token: string) =>
     request<GroupBuyDetail>(`/public/group-buys/${encodeURIComponent(token)}/view`),
+  resetGroupBuyInvite: (id: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/invite/reset`, { method: "POST" }),
   setGroupBuyTitle: (id: number, title: string) =>
     request<GroupBuyDetail>(`/group-buys/${id}/title`, {
       method: "PUT",

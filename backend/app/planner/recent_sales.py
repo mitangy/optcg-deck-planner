@@ -69,7 +69,7 @@ def fetch_recent_sales(product_id: int, limit: int = 3) -> list[RecentSale]:
         return cached[1][:limit]
 
     url = TCGPLAYER_SALES_URL.format(product_id=product_id)
-    with httpx.Client(timeout=10.0) as client:
+    with httpx.Client(timeout=4.0) as client:
         resp = client.post(
             url,
             headers=_HEADERS,

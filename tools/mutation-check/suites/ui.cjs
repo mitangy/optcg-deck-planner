@@ -161,5 +161,10 @@ module.exports = {
     { id: "confirm-cancel-resolves-true", file: "packages/ui/src/popups/ConfirmDialog.tsx", from: "onCancel={() => finish(false)}", to: "onCancel={() => finish(true)}", kills: ["Cancel does nothing and hands focus back to the trigger (#1342)", "Escape cancels without running the action (#1342)"], args: "src/popups/ConfirmDialog" },
     { id: "confirm-button-resolves-false", file: "packages/ui/src/popups/ConfirmDialog.tsx", from: "onConfirm={() => finish(true)}", to: "onConfirm={() => finish(false)}", kills: ["the confirm button runs the action once (#1342)"], args: "src/popups/ConfirmDialog" },
     { id: "confirm-not-danger-style", file: "packages/ui/src/popups/ConfirmDialog.tsx", from: "danger = true,", to: "danger = false,", kills: ["opens with Cancel focused and the danger style on the confirm button (#1342)"], args: "src/popups/ConfirmDialog" },
-  ],
+      // Error boundary (#1346)
+    {"id": "errorboundary1346-no-reset", "file": "packages/ui/src/errorBoundary/ErrorBoundary.tsx", "from": "if (this.state.failed && prev.resetKey !== this.props.resetKey) this.setState({ failed: false });", "to": "void prev;", "kills": ["the fallback clears when the reset key changes (#1346)"], "args": "src/errorBoundary"},
+    {"id": "errorboundary1346-resets-on-every-update", "file": "packages/ui/src/errorBoundary/ErrorBoundary.tsx", "from": "prev.resetKey !== this.props.resetKey) this.setState", "to": "true) this.setState", "kills": ["the fallback stays while the reset key is unchanged (#1346)"], "args": "src/errorBoundary"},
+    {"id": "errorboundary1346-no-fallback", "file": "packages/ui/src/errorBoundary/ErrorBoundary.tsx", "from": "return { failed: true };", "to": "return { failed: false };", "kills": ["a child that throws shows the fallback and logs the error (#1346)"], "args": "src/errorBoundary"},
+    {"id": "errorboundary1346-no-log", "file": "packages/ui/src/errorBoundary/ErrorBoundary.tsx", "from": "console.error(\"Uncaught render error\", error, info.componentStack);", "to": "void error; void info;", "kills": ["a child that throws shows the fallback and logs the error (#1346)"], "args": "src/errorBoundary"},
+],
 };

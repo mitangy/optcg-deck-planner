@@ -30,12 +30,9 @@ export function getApiBaseUrl(): string {
   return API_URL;
 }
 
-/**
- * Default per-request budget. Generous on purpose: the API runs on a free-tier host whose cold start can take
- * most of a minute, and nothing was time-limited before this client existed. It only has to stop a request
- * hanging forever.
- */
-export const DEFAULT_TIMEOUT_MS = 90_000;
+/** Default per-request budget: long enough for a slow response, short enough that a dead connection surfaces as an error. */
+export const DEFAULT_TIMEOUT_MS = 30_000;
+/** For calls that parse or match a large payload server-side (deck lists, receipts, scan uploads). */
 export const LONG_TIMEOUT_MS = 180_000;
 
 export const request = createRequest({ baseUrl: getApiBaseUrl, defaultTimeoutMs: DEFAULT_TIMEOUT_MS });

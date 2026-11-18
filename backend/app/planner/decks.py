@@ -523,8 +523,16 @@ def get_deck_detail(
     leader_ids = {d.leader_card_id for d in decks if d.leader_card_id}
     catalog = catalog_map(db, all_ids | leader_ids)
     deck_wants = _printing_wants_for_decks(db, [target.id]).get(target.id, {})
-    alts = alt_arts_map(db, all_ids, wanted=deck_wants, owned=alt_owned, collector=collector)
     product_ids = primary_product_ids(db, all_ids)
+    alts = alt_arts_map(
+        db,
+        all_ids,
+        wanted=deck_wants,
+        owned=alt_owned,
+        collector=collector,
+        catalog=catalog,
+        primary_ids=product_ids,
+    )
 
     baseline = _resolve_main_deck(decks, target.leader_card_id)
     is_main = baseline is not None and baseline.id == target.id
