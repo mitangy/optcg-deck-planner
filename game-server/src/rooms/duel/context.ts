@@ -45,7 +45,6 @@ export class DuelGame {
   ranked = true;
   matchStarted = false;
   matchOverSent = false;
-  resultPending: Promise<void> | null = null;
   disposed = false;
   seatDecks: [PlayerDeckWire | null, PlayerDeckWire | null] = [null, null];
   /** Names captured at match start so they survive a seat dropping. */
@@ -94,6 +93,7 @@ export interface DuelCore {
 
   applySeatIntent(seat: Seat, intent: Intent): ApplyResult;
   concedeSeat(seat: Seat): void;
+  endGameOutsideRules(winner: Seat, reason: string): void;
   startMatch(firstSeat: Seat, pickedBy: Seat | null): void;
   syncPublicState(): void;
   maybeSendMatchOver(): void;

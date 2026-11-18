@@ -2191,6 +2191,105 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  describe("game over does not wait on the outbox database (#1345)", () => {
+    async function concededRoom(seed: number, persist: (p: MatchResultPayload) => Promise<void>) {
+      const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed, autoSkipMulligan: true });
+      Object.assign(room, {
+        ingestSeats: () => [101, 102],
+        persistMatchProgress: async () => {},
+        persistMatchResult: persist,
+      });
+      const bags: [SeatBag, SeatBag] = [
+        { views: [], errors: [] },
+        { views: [], errors: [] },
+      ];
+      const c0 = await colyseus.connectTo(room, joinOpts("alice", 0));
+      attach(c0, bags[0]);
+      const c1 = await colyseus.connectTo(room, joinOpts("bob", 1));
+      attach(c1, bags[1]);
+      await syncSeat(c0, bags[0]);
+      await syncSeat(c1, bags[1]);
+      return { room, bags, c0, c1 };
+    }
+
+    it("both players get match_over while the result write never completes (#1345)", () => withFakeTime(async () => {
+      const { bags, c0, c1 } = await concededRoom(81, () => new Promise<void>(() => {}));
+      c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+      await waitUntil(() => bags[0].over != null && bags[1].over != null, 5000);
+      assert.equal(bags[1].over!.result.winner, 1);
+      await c0.leave(true);
+      await c1.leave(true);
+    }));
+
+    it("a result whose write fails is delivered once the database recovers, and written once (#1345)", () => withFakeTime(async (time) => {
+      const attempts: MatchResultPayload[] = [];
+      let failures = 3;
+      const { bags, c0, c1 } = await concededRoom(82, async (p) => {
+        attempts.push(p);
+        if (failures-- > 0) throw new Error("db down");
+      });
+      c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+      await waitUntil(() => bags[0].over != null && bags[1].over != null, 5000);
+      assert.equal(attempts.length, 1, "match_over did not wait for the retries");
+      await time.advance(3000);
+      assert.equal(attempts.length, 4);
+      await time.advance(10_000);
+      assert.equal(attempts.length, 4, "no write after the one that landed");
+      await c0.leave(true);
+      await c1.leave(true);
+    }));
+
+    it("a rematch started while the earlier result is still retrying keeps both results (#1345)", () => withFakeTime(async (time) => {
+      const landed: MatchResultPayload[] = [];
+      let down = true;
+      const { bags, c0, c1 } = await concededRoom(83, async (p) => {
+        if (down) throw new Error("db down");
+        landed.push(p);
+      });
+      const rematch: { available: boolean; chooser: 0 | 1 | null }[] = [];
+      c0.onMessage("rematch_state", (msg: (typeof rematch)[number]) => rematch.push(msg));
+      c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+      await waitUntil(() => rematch.some((r) => r.available), 5000);
+      c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+      c1.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
+      await waitUntil(() => rematch.at(-1)!.chooser === 0, 5000);
+      bags[0].over = undefined;
+      bags[1].over = undefined;
+      c0.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "first" });
+      await waitUntil(() => bags[0].views.at(-1)!.winner === null && bags[0].views.length > 1, 5000);
+      c1.send("concede", { protocolVersion: PROTOCOL_VERSION });
+      await waitUntil(() => bags[0].over != null && bags[1].over != null, 5000);
+      await time.advance(2000);
+      assert.equal(landed.length, 0);
+      down = false;
+      await time.advance(2000);
+      assert.equal(landed.length, 2, "both games' results landed");
+      assert.notEqual(landed[0]!.match_id, landed[1]!.match_id);
+      assert.deepEqual(landed.map((p) => p.winner_seat).sort(), [0, 1]);
+      await c0.leave(true);
+      await c1.leave(true);
+    }));
+
+    it("an empty room is not disposed while its result is still being written (#1345)", () => withFakeTime(async (time) => {
+      let down = true;
+      const landed: MatchResultPayload[] = [];
+      const { room, bags, c0, c1 } = await concededRoom(84, async (p) => {
+        if (down) throw new Error("db down");
+        landed.push(p);
+      });
+      c0.send("concede", { protocolVersion: PROTOCOL_VERSION });
+      await waitUntil(() => bags[0].over != null, 5000);
+      await c0.leave(true);
+      await c1.leave(true);
+      await time.advance(5000);
+      assert.notEqual(matchMaker.getLocalRoomById(room.roomId), undefined);
+      down = false;
+      await time.advance(2000);
+      assert.equal(landed.length, 1);
+      await waitUntil(() => matchMaker.getLocalRoomById(room.roomId) === undefined, 5000);
+    }));
+  });
+
   it("match clock: a seat that never answers its mulligan loses on time, not the first player (#248)", () => withFakeTime(async (time) => {
     const room = await colyseus.createRoom<DuelRoom>("duel", {
       protocolVersion: PROTOCOL_VERSION,

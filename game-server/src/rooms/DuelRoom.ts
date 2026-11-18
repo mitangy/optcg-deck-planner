@@ -12,6 +12,7 @@ import {
   type MatchState,
   type Seat,
 } from "@optcg/rules";
+import { hashToNegativeId } from "../devIdentity.js";
 import { sanitizeDisplayName, verifyGameToken } from "../gameToken.js";
 import { writeLog, type LogLevel } from "../log.js";
 import { SlidingWindowLimiter } from "../rateLimit.js";
@@ -72,6 +73,8 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   readonly game = new DuelGame();
   readonly seats = new SeatRegistry();
   private roomConfig: RoomConfig | null = null;
+  private readonly pendingResultWrites = new Set<Promise<void>>();
+  private autoDisposeBeforeWrite = true;
   readonly time: DuelTime = duelTimeSource.create?.(this) ?? realTime(this);
   readonly io: RoomIO = {
     allClients: () => this.clients,
@@ -239,14 +242,15 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.clocks.clearTimerLoop();
     this.log("info", "room_disposed", { matchId: this.game.matchId });
     // A game closing without a result keeps its log up to the last action.
-    if (this.game.matchStarted && !this.game.matchOverSent && !this.game.resultPending) {
+    if (this.game.matchStarted && !this.game.matchOverSent) {
       await this.persistence.saveProgress(true);
     }
   }
 
   async onBeforeShutdown() {
-    // Do not dispose a completed match before its result is durably queued.
-    await this.game.resultPending;
+    // Do not dispose a completed match before its result is durably queued. A rematch can add a write
+    // while we wait, so loop until none is left.
+    while (this.pendingResultWrites.size > 0) await Promise.all([...this.pendingResultWrites]);
     super.onBeforeShutdown();
   }
 
@@ -501,6 +505,20 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.time.setTimeout(() => this.forfeitAbsentSeat(seat, "abandoned"), 1500);
   }
 
+  /** Ends the game for a reason the rules engine does not know (concede, forfeit, clock) by mimicking its leader-defeated result. */
+  endGameOutsideRules(winner: Seat, reason: string) {
+    const { game } = this;
+    game.endReason = reason;
+    game.match = { ...game.match!, winner, winReason: "leader_battle_at_zero_life", phase: "game_over" };
+    this.undo.request = null;
+    this.syncPublicState();
+    this.spectators.broadcastViews([]);
+    this.undo.broadcastState();
+    this.clocks.stopSeatClock();
+    this.clocks.clearTimerLoop();
+    this.clocks.broadcastTimer();
+  }
+
   private forfeitAbsentSeat(seat: Seat, reason: "abandoned" | "disconnect") {
     const { game } = this;
     if (!game.match || !game.matchStarted || game.matchOverSent) return;
@@ -508,16 +526,8 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     if (this.seats.slot(seat)) return;
     const other = (seat === 0 ? 1 : 0) as Seat;
     if (!this.seats.slot(other)) return;
-    game.endReason = reason;
-    game.match = { ...game.match, winner: other, winReason: "leader_battle_at_zero_life", phase: "game_over" };
     this.seats.clearAway();
-    this.undo.request = null;
-    this.syncPublicState();
-    this.spectators.broadcastViews([]);
-    this.clocks.stopSeatClock();
-    this.clocks.clearTimerLoop();
-    this.clocks.broadcastTimer();
-    this.undo.broadcastState();
+    this.endGameOutsideRules(other, reason);
     this.broadcastPresence();
     this.log("info", "forfeit_absent", { matchId: game.matchId, seat, reason, winner: other });
     this.maybeSendMatchOver();
@@ -777,19 +787,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     const { game } = this;
     if (!game.match) return;
     const winner = (seat === 0 ? 1 : 0) as Seat;
-    game.endReason = "concede";
-    game.match = {
-      ...game.match,
-      winner,
-      winReason: "leader_battle_at_zero_life",
-      phase: "game_over",
-    };
-    this.syncPublicState();
-    this.spectators.broadcastViews([]);
-    this.undo.request = null;
-    this.undo.broadcastState();
-    this.clocks.stopSeatClock();
-    this.clocks.broadcastTimer();
+    this.endGameOutsideRules(winner, "concede");
     this.log("info", "concede", { matchId: game.matchId, seat, winner });
     this.maybeSendMatchOver();
   }
@@ -876,7 +874,6 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.bots.resetPerGameState();
     game.gameNumber += 1;
     game.matchOverSent = false;
-    game.resultPending = null;
     game.endReason = null;
     game.replay = null;
     this.persistence.resetPerGameState();
@@ -893,28 +890,45 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
 
   maybeSendMatchOver() {
     const { game } = this;
-    if (!game.match || game.match.winner === null || game.matchOverSent || game.resultPending) return;
+    if (!game.match || game.match.winner === null || game.matchOverSent) return;
     const result = {
       winner: game.match.winner,
       reason: game.endReason ?? game.match.winReason ?? "unknown",
     };
     this.bots.clearTimer();
-    const autoDispose = this.autoDispose;
-    this.autoDispose = false;
-    game.resultPending = this.persistence.writebackResult(result.winner, result.reason).then(() => {
-      game.matchOverSent = true;
-      this.refreshMetadata();
-      presence.markDirty();
-      this.log("info", "match_end", { matchId: game.matchId, ...result });
-      if (game.bot) {
-        const turns = game.match?.turnNumber;
-        this.log("info", "bot_game_over", { matchId: game.matchId, level: game.bot.level, winner: result.winner, turns, ...this.bots.stats });
-      }
-      this.io.broadcast("match_over", { result });
-      this.rematch.broadcast();
-      this.autoDispose = autoDispose;
-      if (autoDispose && this.clients.length === 0) void this.disconnect().catch(() => undefined);
-    });
+    // The end screen never waits on the outbox database; the durable write retries on its own.
+    game.matchOverSent = true;
+    this.trackResultWrite(this.persistence.writebackResult(result.winner, result.reason));
+    this.refreshMetadata();
+    presence.markDirty();
+    this.log("info", "match_end", { matchId: game.matchId, ...result });
+    if (game.bot) {
+      const turns = game.match?.turnNumber;
+      this.log("info", "bot_game_over", { matchId: game.matchId, level: game.bot.level, winner: result.winner, turns, ...this.bots.stats });
+    }
+    this.io.broadcast("match_over", { result });
+    this.rematch.broadcast();
+  }
+
+  /**
+   * Tracked per room rather than per game: a rematch resets per-game state while the earlier result may
+   * still be retrying, and the room must neither dispose nor shut down until every write has landed.
+   */
+  private trackResultWrite(write: Promise<void>) {
+    if (this.pendingResultWrites.size === 0) {
+      this.autoDisposeBeforeWrite = this.autoDispose;
+      this.autoDispose = false;
+    }
+    const tracked: Promise<void> = write
+      .catch(() => this.log("warn", "match_result_write_failed", { matchId: this.game.matchId }))
+      .then(() => {
+        this.pendingResultWrites.delete(tracked);
+        if (this.pendingResultWrites.size > 0) return;
+        const autoDispose = this.autoDisposeBeforeWrite;
+        this.autoDispose = autoDispose;
+        if (autoDispose && this.clients.length === 0) void this.disconnect().catch(() => undefined);
+      });
+    this.pendingResultWrites.add(tracked);
   }
 
   ingestSeats(): [number, number] | { skip: string } {
@@ -976,11 +990,4 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   private log(level: LogLevel, event: string, data: Record<string, unknown>) {
     writeLog(level, event, data);
   }
-}
-
-export function hashToNegativeId(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  const n = Math.abs(h) % 1_000_000_000;
-  return -1 - n;
 }
