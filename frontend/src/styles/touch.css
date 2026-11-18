@@ -2,11 +2,11 @@
    text is smaller than 12px. Visuals stay as designed; the extra area is an invisible ::after centred on the control
    (zero specificity, so a control with its own position or ::after keeps it). */
 @media (max-width: 800px) {
-  :where(.card-workspace, .collection-filter-panel, .sort-menu-panel) :where(button, a[href]) {
+  :where(.card-workspace, .collection-filter-panel, .sort-menu-panel, .gb-head, .gb-actions, .gb-share, .gb-more) :where(button, a[href]) {
     position: relative;
   }
 
-  :where(.card-workspace, .collection-filter-panel, .sort-menu-panel) :where(button, a[href])::after {
+  :where(.card-workspace, .collection-filter-panel, .sort-menu-panel, .gb-head, .gb-actions, .gb-share, .gb-more) :where(button, a[href])::after {
     content: "";
     position: absolute;
     inset: min(0px, calc((100% - 2.75rem) / 2));

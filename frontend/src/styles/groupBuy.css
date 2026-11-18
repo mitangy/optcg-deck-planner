@@ -104,10 +104,16 @@
 
 .group-buy-status {
   display: inline-block;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, currentColor 10%, transparent);
   font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  line-height: 1.4;
+  white-space: nowrap;
   color: var(--muted);
 }
 
@@ -127,24 +133,7 @@
   color: var(--info-ink);
 }
 
-.group-buy-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem 0.6rem;
-  margin: 0 0 1rem;
-  min-width: 0;
-}
-
-.group-buy-toolbar .btn {
-  width: auto;
-  margin-top: 0;
-  min-height: 2.25rem;
-  padding: 0.4rem 0.85rem;
-  font-size: 0.9rem;
-}
-
 .group-buy-members,
-.group-buy-contribution,
 .group-buy-settlement {
   margin: 0 0 1.25rem;
 }
@@ -166,12 +155,6 @@
   font-weight: 700;
   color: var(--ink, inherit);
   opacity: 0.9;
-}
-
-.group-buy-receipt-gate {
-  margin: 0.35rem 0 0.75rem;
-  font-size: 0.9rem;
-  min-width: 0;
 }
 
 .group-buy-receipt-head-actions {
@@ -287,7 +270,6 @@
   border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
 }
 
-.group-buy-members li,
 .group-buy-member-cell {
   display: flex;
   flex-wrap: wrap;
@@ -301,7 +283,7 @@
   gap: 0.65rem 1rem;
   grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
   margin: 0.65rem 0 1rem;
-  align-items: end;
+  align-items: start;
 }
 
 .group-buy-order-form label {
@@ -535,4 +517,586 @@
 
 .data-table td.alt-arts-cell .alt-arts {
   max-width: 100%;
+}
+
+/* Header (#1361): back link, title + pencil + status pill on one line, one summary line, the step bar, one hint line. */
+.group-buy-detail .gb-head {
+  align-items: start;
+  margin-bottom: 0.6rem;
+}
+
+.gb-back {
+  margin: 0;
+}
+
+.gb-back a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+}
+
+.group-buy-detail .gb-title-row {
+  flex-wrap: nowrap;
+  gap: 0.4rem 0.6rem;
+  min-height: 2.5rem;
+}
+
+.group-buy-detail .gb-title-row h1 {
+  flex: 0 1 auto;
+  font-size: 1.9rem;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.gb-title-row .group-buy-status {
+  flex: 0 0 auto;
+}
+
+.gb-rename-btn {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  margin: 0;
+  color: var(--muted);
+}
+
+.gb-summary {
+  margin: 0.2rem 0 0.55rem;
+  min-width: 0;
+}
+
+.gb-summary strong {
+  color: var(--ink);
+}
+
+.gb-stepper {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.25rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+  font-size: 0.88rem;
+}
+
+.gb-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.gb-step + .gb-step::before {
+  content: "";
+  width: 1.1rem;
+  height: 2px;
+  margin-right: 0.45rem;
+  background: var(--line-strong);
+  border-radius: 2px;
+}
+
+.gb-step.done + .gb-step::before,
+.gb-step.current::before {
+  background: var(--ok-line);
+}
+
+.gb-step-mark {
+  display: inline-grid;
+  place-items: center;
+  width: 1.45rem;
+  height: 1.45rem;
+  border-radius: var(--radius-pill);
+  border: 1.5px solid var(--line-strong);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.gb-step.done {
+  color: var(--ok-ink);
+}
+
+.gb-step.done .gb-step-mark {
+  border-color: var(--ok-line);
+  background: var(--ok-bg);
+}
+
+.gb-step.current {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.gb-step.current .gb-step-mark {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+}
+
+.gb-step-hint {
+  margin: 0.4rem 0 0;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+
+/* Actions: one primary button, a couple of secondary ones and a More menu. */
+.gb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.6rem;
+  margin: 0 0 0.9rem;
+  min-width: 0;
+}
+
+.gb-actions .btn {
+  width: auto;
+  margin-top: 0;
+  min-height: 2.5rem;
+  padding: 0.4rem 1rem;
+  font-size: 0.92rem;
+  white-space: nowrap;
+}
+
+.gb-actions .btn.primary {
+  order: -1;
+}
+
+.gb-more {
+  flex: 0 0 auto;
+}
+
+.gb-more-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  margin: 0;
+}
+
+@media (min-width: 1000px) {
+  /* Wide screens: actions sit at the right of the header instead of taking a row of their own. */
+  .group-buy-detail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 1.25rem;
+    align-items: start;
+  }
+
+  .group-buy-detail > * {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .group-buy-detail > .gb-head {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .group-buy-detail > .gb-actions {
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
+    margin: 0.4rem 0 0;
+  }
+}
+
+/* Phones: the step bar shrinks its labels instead of wrapping; actions share the row. */
+@media (max-width: 640px) {
+  .group-buy-detail .gb-title-row h1 {
+    font-size: 1.45rem;
+    overflow-wrap: anywhere;
+  }
+
+  .gb-stepper {
+    gap: 0.15rem 0.45rem;
+    font-size: 0.78rem;
+  }
+
+  .gb-step {
+    gap: 0.25rem;
+  }
+
+  .gb-step + .gb-step::before {
+    width: 0.5rem;
+    margin-right: 0.2rem;
+  }
+
+  .gb-step-mark {
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.7rem;
+  }
+
+  .gb-actions .btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .gb-actions .btn.primary {
+    flex-basis: 100%;
+  }
+}
+
+/* Your share */
+.gb-share {
+  margin: 0 0 0.9rem;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  min-width: 0;
+  display: grid;
+  gap: 0.25rem 1rem;
+}
+
+.gb-share-line,
+.gb-share-detail {
+  margin: 0;
+  min-width: 0;
+}
+
+.gb-share-line {
+  font-size: 1.02rem;
+}
+
+.gb-share-detail {
+  font-size: 0.85rem;
+}
+
+.gb-share-for {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.15rem 0.75rem;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.gb-share-for-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.gb-share-for-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.4rem;
+  align-items: center;
+}
+
+.gb-share .deck-filter {
+  margin-top: 0.5rem;
+}
+
+/* Members: closed summary is one line of name chips; open rows have the name left, stats right. */
+.gb-member-chips {
+  display: flex;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.2rem 0.75rem;
+  min-width: 0;
+  vertical-align: middle;
+  overflow: hidden;
+  font-weight: 600;
+}
+
+.gb-member-chip {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.gb-member-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gb-member-chip-host {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.group-buy-members .filter-drawer-label {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.group-buy-members .filter-drawer-summary {
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.group-buy-members li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.2rem 1rem;
+  min-width: 0;
+}
+
+.gb-member-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.45rem;
+  min-width: 0;
+}
+
+.gb-member-stats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.1rem 1rem;
+  text-align: right;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .group-buy-members li {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gb-member-stats {
+    justify-content: flex-start;
+    text-align: left;
+  }
+}
+
+/* Order & settlement: a four row mini receipt. */
+.gb-receipt {
+  display: grid;
+  gap: 0.15rem;
+  max-width: 18rem;
+  margin: 0.25rem 0 0;
+}
+
+.gb-receipt > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.gb-receipt dt {
+  color: var(--muted);
+}
+
+.gb-receipt dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.gb-receipt .gb-receipt-total {
+  margin-top: 0.2rem;
+  padding-top: 0.3rem;
+  border-top: 1px solid var(--line);
+  font-weight: 700;
+}
+
+.gb-receipt .gb-receipt-total dt {
+  color: var(--ink);
+}
+
+.gb-receipt-date {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+}
+
+.group-buy-order-form .group-buy-field-hint {
+  margin-top: 0.25rem;
+}
+
+/* Card lines */
+.group-buy-merged-heading {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.group-buy-custom-tag {
+  flex: 0 0 auto;
+  padding: 0 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: help;
+}
+
+.gb-prices {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.1rem 0.9rem;
+  min-width: 0;
+}
+
+.gb-price-line {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  white-space: nowrap;
+}
+
+.gb-price-amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.gb-prices .gb-arts-total {
+  flex: 1 0 100%;
+  padding-inline: 0;
+}
+
+.gb-tcg-link {
+  white-space: nowrap;
+}
+
+.gb-line-total {
+  white-space: nowrap;
+}
+
+.gb-line-total .gb-arts-total {
+  display: flex;
+  padding-inline: 0;
+}
+
+.group-buy-table .card-cell-text .muted:not(.card-id) {
+  white-space: nowrap;
+}
+
+/* Compact group buy rows: small art, one line of card text, the buy stepper beside its hint. */
+.table-wrap.density-compact .group-buy-table .card-cell {
+  min-width: 13rem;
+}
+
+.table-wrap.density-compact .group-buy-table .group-buy-qty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+  max-width: 13rem;
+}
+
+.table-wrap.density-compact .group-buy-table .group-buy-qty-meta {
+  width: auto;
+  min-width: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0 0.4rem;
+}
+
+.table-wrap.density-compact .group-buy-table .group-buy-exclude-btn.btn {
+  min-height: 0;
+  padding: 0.1rem 0.4rem;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-decoration: underline;
+}
+
+.table-wrap.density-compact .group-buy-table .group-buy-who {
+  gap: 0.1rem 0.5rem;
+}
+
+.table-wrap.density-compact .group-buy-table .gb-used-in .used-in-chips {
+  max-height: 1.6rem;
+}
+
+/* Compact card lines: id + name, colour + copies, who, the price lines, then the TCGPlayer link and alt chip. */
+.mobile-card-list.density-compact .group-buy-who-row {
+  order: 5;
+  flex: 1 0 100%;
+  margin: 0;
+}
+
+.mobile-card-list.density-compact .mobile-card-price-row > .gb-prices {
+  order: 6;
+  flex: 1 0 100%;
+  gap: 0.05rem 0.7rem;
+}
+
+.mobile-card-list.density-compact .mobile-card-price-row > :is(.gb-tcg-link, .alt-chip) {
+  order: 7;
+  flex: 0 0 auto;
+}
+
+.mobile-card-list.density-compact .mobile-card-info > .mobile-used-in {
+  order: 8;
+  flex: 1 0 100%;
+}
+
+.mobile-card-list.density-compact .group-buy-qty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+}
+
+.mobile-card-list.density-compact .group-buy-qty-meta {
+  width: auto;
+  min-width: 0;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 0 0.4rem;
+}
+
+.mobile-card-list.density-compact .group-buy-exclude-btn.btn {
+  min-height: 0;
+  padding: 0.1rem 0.4rem;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 0.78rem;
+  text-decoration: underline;
+}
+
+.gb-share .gb-share-edit.btn {
+  width: auto;
+  min-width: 4.25rem;
+  margin: 0;
+  min-height: 2rem;
+  padding: 0.15rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+/* Compact rows drop the default "From shopping" hint: it is the normal state, and a custom quantity still says so. */
+:is(.table-wrap, .mobile-card-list).density-compact .group-buy-qty-default {
+  display: none;
+}
+
+:is(.table-wrap, .mobile-card-list).density-compact .gb-arts-total {
+  padding-block: 0;
+}
+
+.mobile-card-list.density-compact .gb-prices {
+  row-gap: 0;
 }

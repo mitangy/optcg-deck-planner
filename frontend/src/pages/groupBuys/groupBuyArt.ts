@@ -1,4 +1,5 @@
 import { money, type GroupBuyLine } from "../../api";
+import { shownMarket } from "../../cards/altArt";
 
 type ArtLine = Pick<
   GroupBuyLine,
@@ -91,4 +92,11 @@ export function visibleGroupBuyLines<
     if (!opts.showExcluded && excluded && l.total_qty <= 0) return false;
     return l.total_qty > 0 || (opts.showExcluded && excluded);
   });
+}
+
+/** Each: the market price of the art the row shows (the picked alt art when there is one, otherwise the base card). */
+export function shownArtPrice(
+  line: Pick<GroupBuyLine, "market_price" | "alt_arts" | "display_art">,
+): number | null {
+  return shownMarket(line).price ?? null;
 }

@@ -2,8 +2,7 @@ import { expect, test } from "./fixtures";
 
 const GB = 9;
 const SHOTS = process.env.PR_SHOTS_DIR;
-const CONFIRM =
-  "Reset the invite link? The current link stops working for everyone who has it. People already in the group buy stay in.";
+const CONFIRM_TITLE = "Reset the invite link?";
 
 function detail(isHost: boolean, token: string) {
   return {
@@ -63,20 +62,16 @@ test("The host resets the invite link and the next copy uses the new one (#1346)
 
   const copy = page.getByRole("button", { name: "Copy invite link" });
   await copy.click();
-  const reset = page.getByTestId("gb-reset-invite");
-  const before = await reset.boundingBox();
+  const before = await copy.boundingBox();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-invite-panel.png` });
 
-  const messages: string[] = [];
-  page.once("dialog", (d) => {
-    messages.push(d.message());
-    void d.accept();
-  });
-  await reset.click();
+  // Reset lives under More and asks in the planner's own dialog, not a browser pop-up.
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByTestId("gb-reset-invite").click();
+  await page.getByRole("alertdialog", { name: CONFIRM_TITLE }).getByRole("button", { name: "Reset link" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Invite link reset" })).toBeVisible();
-  expect(messages).toEqual([CONFIRM]);
   expect(resets).toBe(1);
-  expect(await reset.boundingBox()).toEqual(before);
+  expect(await copy.boundingBox()).toEqual(before);
 
   await copy.click();
   const copied = await page.evaluate(() => (window as unknown as { __copied: string[] }).__copied);
@@ -92,8 +87,11 @@ test("Cancelling the reset confirm leaves the invite link alone (#1346)", async 
   });
   await page.route(`**/api/group-buys/${GB}`, (route) => route.fulfill({ json: detail(true, "old-token") }));
   await planner.open(`/group-buys/${GB}`);
-  page.once("dialog", (d) => void d.dismiss());
+  await page.getByRole("button", { name: "More actions" }).click();
   await page.getByTestId("gb-reset-invite").click();
+  const dialog = page.getByRole("alertdialog", { name: CONFIRM_TITLE });
+  await dialog.getByRole("button", { name: "Cancel" }).click();
+  await expect(dialog).toHaveCount(0);
   expect(resets).toBe(0);
 });
 
@@ -101,6 +99,8 @@ test("A member who is not the host does not see Reset link (#1346)", async ({ pa
   await page.route(`**/api/group-buys/${GB}`, (route) => route.fulfill({ json: detail(false, "old-token") }));
   await planner.open(`/group-buys/${GB}`);
   await expect(page.getByRole("button", { name: "Copy invite link" })).toBeVisible();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await expect(page.getByRole("menuitem", { name: "Leave group buy" })).toBeVisible();
   await expect(page.getByTestId("gb-reset-invite")).toHaveCount(0);
 });
 

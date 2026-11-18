@@ -89,13 +89,16 @@ test("Collection picks up copies a group buy's Mark purchased adds and Undo take
   await page.getByRole("button", { name: "Mark purchased (4)" }).click();
   await confirmDialog("Mark purchased");
   await expect.poll(() => planner.owned.get("EB01-003")).toBe(4);
-  await expect(page.getByRole("button", { name: "Undo Mark purchased" })).toBeVisible();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await expect(page.getByRole("menuitem", { name: "Undo Mark purchased" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await toCollection();
   await expect(page.locator(row("EB01-003"))).toBeVisible();
   await expect(totals).toContainText("$33.00");
 
   await toGroupBuy();
-  await page.getByRole("button", { name: "Undo Mark purchased" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Undo Mark purchased" }).click();
   await confirmDialog("Undo");
   await expect.poll(() => planner.owned.get("EB01-003")).toBe(0);
   await expect(page.getByRole("button", { name: "Mark purchased (4)" })).toBeVisible();

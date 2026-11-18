@@ -211,7 +211,7 @@
 /* Phone cards: about 7.5rem tall. Art fills the height on the left; line 1 id, name and alt chip, line 2 the To buy text
    and the To buy $ button, line 3 the Own / Need steppers side by side. The price rows are unwrapped (display: contents)
    so their pieces take part in the info column's flow. */
-@media (max-width: 800px) {
+@media (max-width: 900px), (max-height: 500px) and (orientation: landscape) {
   .mobile-card-list.density-compact {
     gap: 0.4rem;
   }

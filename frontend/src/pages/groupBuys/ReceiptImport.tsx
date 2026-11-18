@@ -48,6 +48,8 @@ type Props = {
   onDraftChange: (draft: ReceiptApplyDraft | null) => void;
   onError: (message: string) => void;
   onReceiptSaved?: () => void;
+  /** Bumped by the header's Import receipt button: opens the paste box, scrolls to it and focuses it. */
+  focusRequest?: number;
 };
 
 export function ReceiptImportPanel({
@@ -58,6 +60,7 @@ export function ReceiptImportPanel({
   onDraftChange,
   onError,
   onReceiptSaved,
+  focusRequest = 0,
 }: Props) {
   const savedText = (initialReceiptText || "").trim();
   const [open, setOpen] = useState(() => status === "ordered" || status === "locked");
@@ -72,6 +75,10 @@ export function ReceiptImportPanel({
   const onErrorRef = useRef(onError);
   onErrorRef.current = onError;
   const autoMatchKeyRef = useRef<string | null>(null);
+  const pasteRef = useRef<HTMLTextAreaElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const handledFocusRef = useRef(focusRequest);
+  const pendingFocusRef = useRef(false);
 
   const canUse = isHost && (status === "locked" || status === "ordered");
 
@@ -192,6 +199,21 @@ export function ReceiptImportPanel({
     [report],
   );
 
+  useEffect(() => {
+    if (focusRequest === handledFocusRef.current) return;
+    handledFocusRef.current = focusRequest;
+    pendingFocusRef.current = true;
+    setOpen(true);
+  }, [focusRequest]);
+
+  useEffect(() => {
+    // Runs after the box is mounted when the panel was hidden.
+    if (!pendingFocusRef.current || !open || !pasteRef.current) return;
+    pendingFocusRef.current = false;
+    panelRef.current?.scrollIntoView({ block: "start", behavior: "smooth" });
+    pasteRef.current.focus({ preventScroll: true });
+  }, [focusRequest, open]);
+
   if (!canUse) return null;
 
   function toggleCard(cardId: string) {
@@ -232,7 +254,7 @@ export function ReceiptImportPanel({
   const statusKind = matchedReady ? "ready" : savedText || text.trim() || match.isPending ? "pending" : "needed";
 
   return (
-    <div className="group-buy-receipt">
+    <div className="group-buy-receipt" ref={panelRef} id="group-buy-receipt">
       <div className="group-buy-receipt-head">
         <h2>TCGPlayer receipt</h2>
         <div className="group-buy-receipt-head-actions">
@@ -252,7 +274,7 @@ export function ReceiptImportPanel({
             type="button"
             className="btn secondary group-buy-receipt-toggle"
             aria-expanded={open}
-            aria-label={open ? "Hide import" : "Import receipt"}
+            aria-label={open ? "Hide import" : "Show import"}
             onClick={() => setOpen((v) => !v)}
           >
             <span className="group-buy-receipt-toggle-stack">
@@ -260,7 +282,7 @@ export function ReceiptImportPanel({
                 Hide import
               </span>
               <span className="group-buy-receipt-toggle-label" aria-hidden={open}>
-                Import receipt
+                Show import
               </span>
             </span>
           </button>
@@ -276,6 +298,7 @@ export function ReceiptImportPanel({
           <label className="group-buy-receipt-paste">
             Receipt text
             <textarea
+              ref={pasteRef}
               value={text}
               rows={8}
               maxLength={200000}
