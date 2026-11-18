@@ -19,7 +19,7 @@ import { botRoomTests } from "./botRoom.js";
 import { diceRoomTests } from "./diceRoom.js";
 import { withFakeTime } from "./fakeTime.js";
 import { withRoomEnv } from "./roomEnv.js";
-import { replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
+import { BOT_META_DECKS, replayMatch, serializeMatch, type MatchReplay, type MatchState } from "@optcg/rules";
 
 type PlayerView = {
   seat: 0 | 1;
@@ -41,6 +41,8 @@ type SeatBag = {
   errors: { code: string; message: string }[];
   over?: { result: { winner: 0 | 1; reason: string } };
 };
+
+const legalDeck = { leaderId: BOT_META_DECKS[0]!.leaderId, deck: [...BOT_META_DECKS[0]!.deck] };
 
 function joinOpts(devUserId: string, preferredSeat?: 0 | 1) {
   return {
@@ -819,9 +821,101 @@ describe("DuelRoom", () => {
     );
     const ok = await colyseus.sdk.joinOrCreate("ranked_queue", {
       ...joinOpts("queue-good"),
-      deck: { leaderId: "OP01-001", deck: ["ST01-003"] },
+      deck: legalDeck,
     });
     await ok.leave(true);
+  });
+
+  it("ranked_queue turns away a deck that breaks deck construction rules (#1341)", async () => {
+    const wrongSize = { leaderId: legalDeck.leaderId, deck: legalDeck.deck.slice(1) };
+    await assert.rejects(
+      () => colyseus.sdk.joinOrCreate("ranked_queue", { ...joinOpts("queue-short"), deck: wrongSize }),
+      /exactly 50 cards \(this one has 49\)/,
+    );
+    const stacked = { leaderId: "OP01-001", deck: Array.from({ length: 50 }, () => "ST01-003") };
+    await assert.rejects(
+      () => colyseus.sdk.joinOrCreate("ranked_queue", { ...joinOpts("queue-stacked"), deck: stacked }),
+      /at most 4 copies/,
+    );
+    await assert.rejects(
+      () => colyseus.sdk.joinOrCreate("ranked_queue", { ...joinOpts("queue-color"), deck: { leaderId: "OP01-001", deck: legalDeck.deck } }),
+      /share a color/,
+    );
+  });
+
+  it("a ranked room turns away an illegal deck at join with unsupported_deck (#1341)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      ranked: true,
+      rankedAttestation: getRankedMatchCreateSecret(),
+      seatUserIds: [51, 52],
+    });
+    // The error message is sent before the client can register a handler, so the room's rejectJoin is observed instead.
+    const target = room as unknown as { rejectJoin(c: unknown, code: string, message: string): void };
+    const original = target.rejectJoin;
+    const seen: { code: string; message: string }[] = [];
+    target.rejectJoin = function (this: unknown, c: unknown, code: string, message: string) {
+      seen.push({ code, message });
+      return original.call(this, c, code, message);
+    };
+    try {
+      await colyseus
+        .connectTo(room, {
+          protocolVersion: PROTOCOL_VERSION,
+          gameToken: gameToken(51),
+          preferredSeat: 0,
+          deck: { leaderId: legalDeck.leaderId, deck: legalDeck.deck.slice(10) },
+        })
+        .catch(() => undefined);
+      await waitUntil(() => seen.length > 0, 5000);
+    } finally {
+      target.rejectJoin = original;
+    }
+    assert.equal(seen[0]!.code, "unsupported_deck");
+    assert.match(seen[0]!.message, /exactly 50 cards/);
+  });
+
+  it("a ranked room accepts a legal deck at join (#1341)", async () => {
+    const room = await colyseus.createRoom<DuelRoom>("duel", {
+      protocolVersion: PROTOCOL_VERSION,
+      ranked: true,
+      rankedAttestation: getRankedMatchCreateSecret(),
+      seatUserIds: [53, 54],
+    });
+    const bag: SeatBag = { views: [], errors: [] };
+    const c0 = await colyseus.connectTo(room, {
+      protocolVersion: PROTOCOL_VERSION,
+      gameToken: gameToken(53),
+      preferredSeat: 0,
+      deck: legalDeck,
+    });
+    attach(c0, bag);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.deepEqual(bag.errors, []);
+    assert.equal(room.clients.length, 1);
+  });
+
+  it("creating a ranked room with illegal seat decks is refused (#1341)", async () => {
+    await assert.rejects(
+      () =>
+        colyseus.createRoom<DuelRoom>("duel", {
+          protocolVersion: PROTOCOL_VERSION,
+          ranked: true,
+          players: [legalDeck, { leaderId: legalDeck.leaderId, deck: legalDeck.deck.slice(5) }],
+        }),
+      /exactly 50 cards/,
+    );
+  });
+
+  it("a casual room still starts with a 20-card deck (#1341)", async () => {
+    const short = { leaderId: legalDeck.leaderId, deck: legalDeck.deck.slice(0, 20) };
+    const room = await colyseus.createRoom<DuelRoom>("duel", { protocolVersion: PROTOCOL_VERSION, seed: 3, autoSkipMulligan: true });
+    const bag: SeatBag = { views: [], errors: [] };
+    const c0 = await colyseus.connectTo(room, { ...joinOpts("casual-short", 0), deck: short });
+    attach(c0, bag);
+    await new Promise((r) => setTimeout(r, 300));
+    assert.deepEqual(bag.errors, []);
+    assert.equal(room.clients.length, 1);
   });
 
   it("a paired ranked room sends the waiting player back when the opponent never joins (#302)", async () => {
