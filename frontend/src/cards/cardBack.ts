@@ -17,7 +17,6 @@ const LABELS: [RegExp, string][] = [
 export function cardBackState(from: { pathname: string; search?: string }, deckName?: string | null): { from: CardBack } | undefined {
   const to = `${from.pathname}${from.search ?? ""}`;
   if (/^\/decks\/\d+$/.test(from.pathname)) return { from: { to, label: deckName?.trim() || "Deck" } };
-  if (/^\/cards\//.test(from.pathname)) return undefined;
   const hit = LABELS.find(([re]) => re.test(from.pathname));
   return hit ? { from: { to, label: hit[1] } } : undefined;
 }

@@ -1931,5 +1931,7 @@ module.exports = {
     { id: "reprints1311-include-same-day-sets", file: "backend/app/planner/price_history.py", from: "if day is not None and day > released", to: "if day is not None and day >= released", kills: ["test_price_history_lists_later_plain_reprints_of_the_card_1311"] },
     { id: "reprints1311-not-distinct-sorted", file: "backend/app/planner/price_history.py", from: "return sorted({day.isoformat() for _, day in rows if day is not None and day > released})", to: "return [day.isoformat() for _, day in rows if day is not None and day > released][::-1]", kills: ["test_price_history_lists_later_plain_reprints_of_the_card_1311"] },
     { id: "reprints1311-router-drops-reprints", file: "backend/app/routers/api.py", from: "reprints=price_history.later_reprints(db, printing, released),", to: "", kills: ["test_price_history_lists_later_plain_reprints_of_the_card_1311"] },
-  ],
+      {"id":"meta1342-card-price-dropped","file":"backend/app/planner/meta_decks.py","from":"\"market_price\": c.market_price if c else None,","to":"\"market_price\": None,","kills":["test_deck_cards_and_leader_carry_the_catalog_market_price_1342"],"args":"tests/test_meta_decks.py"},
+    {"id":"meta1342-leader-price-dropped","file":"backend/app/planner/meta_decks.py","from":"\"leader_market_price\": leader.market_price if leader else None,","to":"\"leader_market_price\": None,","kills":["test_deck_cards_and_leader_carry_the_catalog_market_price_1342"],"args":"tests/test_meta_decks.py"},
+],
 };
