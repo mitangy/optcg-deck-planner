@@ -1,6 +1,7 @@
+import type { ReactNode } from "react";
 import type { Intent, PlayerView, Seat, TimerMessage } from "../../net/protocol";
 import type { DuelSettings } from "../../settings";
-import { blockIntentFor, counterIntentForCard } from "../input/cardActions";
+import { blockIntentFor } from "../input/cardActions";
 import { DefendTray } from "./DefendTray";
 import { clockFraction } from "./defendTrayModel";
 import type { DragPayload } from "./dragIntents";
@@ -15,6 +16,10 @@ export function BoardDefendTray({
   railDefend,
   trayHere,
   handCount,
+  handView,
+  handOpen,
+  onToggleHand,
+  onToggleCounter,
   boardSeat,
   timer,
   now,
@@ -22,7 +27,6 @@ export function BoardDefendTray({
   intents,
   you,
   setStagedBlockerId,
-  setStagedCounterIds,
   skipBlockToCounter,
   onSendIntent,
   setDragPayload,
@@ -33,6 +37,10 @@ export function BoardDefendTray({
   railDefend: boolean;
   trayHere: boolean;
   handCount: number;
+  handView: ReactNode;
+  handOpen: boolean;
+  onToggleHand: () => void;
+  onToggleCounter: (id: string) => void;
   boardSeat: Seat;
   timer: TimerMessage | null;
   now: number;
@@ -40,7 +48,6 @@ export function BoardDefendTray({
   intents: Intent[];
   you: PlayerView["you"];
   setStagedBlockerId: DefendFlow["setStagedBlockerId"];
-  setStagedCounterIds: DefendFlow["setStagedCounterIds"];
   skipBlockToCounter: DefendFlow["skipBlockToCounter"];
   onSendIntent: (intent: Intent) => void;
   setDragPayload: (payload: DragPayload | null) => void;
@@ -52,6 +59,9 @@ export function BoardDefendTray({
       summary={summary}
       layout={railDefend ? "rail" : "tray"}
       handCount={trayHere ? handCount : undefined}
+      handView={trayHere ? handView : undefined}
+      handOpen={trayHere && handOpen}
+      onToggleHand={onToggleHand}
       ownerSeat={boardSeat}
       clock={clockFraction(timer, now, boardSeat)}
       onToggleBlocker={(id) => {
@@ -61,15 +71,7 @@ export function BoardDefendTray({
           onSendIntent(block);
         } else setStagedBlockerId((cur) => (cur === id ? null : id));
       }}
-      onToggleCounter={(id) => {
-        const counter =
-          prefs.oneTapActions || railDefend ? counterIntentForCard(intents, you.hand, id) : null;
-        if (counter) onSendIntent(counter);
-        else
-          setStagedCounterIds((cur) =>
-            cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id],
-          );
-      }}
+      onToggleCounter={onToggleCounter}
       onCounterEvent={(i) => {
         const intent = defend.events[i]?.intent;
         if (intent) onSendIntent(intent);
