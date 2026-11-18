@@ -236,6 +236,9 @@ export function ShoppingItemsView({
                 imageSrc={mainImageUrl(item)}
                 imageProductId={shownProductId(item)}
                 onMediaClick={stopCardSelectBubble}
+                alts={showAltArts && (item.alt_arts?.length ?? 0) > 0 ? altRow(item) : undefined}
+                altCount={item.alt_arts?.length ?? 0}
+                altsProps={{ onClick: stopCardSelectBubble }}
                 meta={
                   <>
                     {stillNeededText(item.still_need, item.need)}
@@ -277,11 +280,6 @@ export function ShoppingItemsView({
                     <div className="grid-card-extra muted" onClick={stopCardSelectBubble}>
                       <span>Added directly</span>
                       {removeExtraButton(item)}
-                    </div>
-                  )}
-                  {showAltArts && (item.alt_arts?.length ?? 0) > 0 && (
-                    <div className="grid-card-alts" onClick={stopCardSelectBubble}>
-                      {altRow(item)}
                     </div>
                   )}
               </GridCard>

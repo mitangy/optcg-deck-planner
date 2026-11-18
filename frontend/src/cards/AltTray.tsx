@@ -11,6 +11,25 @@ export function useWideListRows(): boolean {
   return useMediaQuery(WIDE_ALT_STRIP_QUERY);
 }
 
+/** Grid columns a card with alts spans on wide screens (#1333): 2, or 3 from 5 alt tiles (the Base tile counts). */
+export function wideGridSpan(altArtCount: number): 2 | 3 {
+  return altArtCount + 1 >= 5 ? 3 : 2;
+}
+
+/**
+ * Wide Grid (#1333): a card with alt arts (and Show alt arts on) is wider and lays out side by side, with the
+ * alt tiles in a tray on the right. Returns the extra classes for the `.grid-card` (empty below 1600px, with the
+ * alts hidden, or without alts) and whether the alts move out of the body into that tray.
+ */
+export function wideGridAlts(bigScreen: boolean, altArtCount: number, shown = true): { wide: boolean; className: string } {
+  const wide = bigScreen && shown && altArtCount > 0;
+  return { wide, className: wide ? ` alt-wide alt-wide-${wideGridSpan(altArtCount)}` : "" };
+}
+
+export function useWideGridAlts(altArtCount: number, shown = true) {
+  return wideGridAlts(useWideListRows(), altArtCount, shown);
+}
+
 /** True inside a strip row: AltArtsRow then wraps its tiles in the tray and labels it "Alt arts · N". */
 export const AltTrayContext = createContext(false);
 

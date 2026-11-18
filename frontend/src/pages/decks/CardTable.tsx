@@ -165,6 +165,8 @@ export function CardTable({
             imageSrc={mainImageUrl(c)}
             imageProductId={shownProductId(c)}
             copies={stackCopies(c)}
+            alts={showAltArts && (c.alt_arts?.length ?? 0) > 0 ? altRow(c) : undefined}
+            altCount={c.alt_arts?.length ?? 0}
             meta={
               <>
                 {[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
@@ -198,9 +200,6 @@ export function CardTable({
                 <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
                   TCGPlayer
                 </a>
-              )}
-              {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
-                <div className="grid-card-alts">{altRow(c)}</div>
               )}
           </GridCard>
         ))}

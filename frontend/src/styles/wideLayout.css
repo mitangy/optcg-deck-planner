@@ -171,6 +171,66 @@
   }
 }
 
+/* Wide Grid (#1333): a card with alt arts spans 2 grid columns (3 with 5+ alt tiles) and lays out side by side:
+   art and details in a 12rem column, the alt tiles in the List's tray on the right. Cards keep their sort order
+   (no dense packing), so a row may end early. The grid is a size container so a span never asks for more columns
+   than fit: thresholds are 2 / 3 columns of the widest column minimum (13.75rem) plus the 0.85rem gaps, and
+   below them the card stays one column. React adds .alt-wide only from 1600px with alts shown (cards/AltTray.tsx). */
+@media (min-width: 1600px) {
+  .card-grid {
+    container-type: inline-size;
+  }
+
+  .grid-card.alt-wide {
+    display: grid;
+    grid-template-columns: 12rem minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    column-gap: 1rem;
+    align-items: start;
+  }
+
+  .grid-card.alt-wide > :is(.grid-card-media, .collection-tile-art) {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .grid-card.alt-wide > .grid-card-body {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .grid-card.alt-wide > .grid-card-alts {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    align-self: stretch;
+    margin-top: 0;
+  }
+
+  .grid-card.alt-wide > .grid-card-alts .alt-tray {
+    height: 100%;
+  }
+
+  /* No #877 height cap in the tray: it grows with the tiles. */
+  .grid-card.alt-wide > .grid-card-alts .alt-arts {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@container (min-width: 28.35rem) {
+  .grid-card-wrap:has(> .grid-card.alt-wide),
+  .card-grid > .grid-card.alt-wide {
+    grid-column: span 2;
+  }
+}
+
+@container (min-width: 42.95rem) {
+  .grid-card-wrap:has(> .grid-card.alt-wide-3),
+  .card-grid > .grid-card.alt-wide-3 {
+    grid-column: span 3;
+  }
+}
+
 /* Scale the whole planner on big monitors (#1325). rem sizes (text, card art, tiles, popovers) grow with
    the root: 16px at 1600px wide, 18px at 1920px, capped at 21px (~2400px). Media and container queries
    use px/em, which ignore the root size, so breakpoints stay put. Below 1600px nothing changes. */

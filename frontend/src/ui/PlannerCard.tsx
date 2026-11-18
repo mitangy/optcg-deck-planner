@@ -1,4 +1,5 @@
 import type { HTMLAttributes, ReactNode } from "react";
+import { AltTrayContext, useWideGridAlts } from "../cards/AltTray";
 import { MobileCardMedia, StackedThumb } from "./CardThumb";
 
 type Root = Omit<HTMLAttributes<HTMLElement>, "className" | "children">;
@@ -22,6 +23,9 @@ export function GridCard({
   meta,
   onMediaClick,
   copies,
+  alts,
+  altCount = 0,
+  altsProps,
   children,
 }: {
   cardId: string;
@@ -29,6 +33,11 @@ export function GridCard({
   imageSrc?: string;
   /** Printing the main art shows (0 = base) so the lightbox price alert targets it. */
   imageProductId?: number;
+  /** Alt tiles of the card (omit when hidden or none). Under the body, or in a tray beside the card on wide screens (#1333). */
+  alts?: ReactNode;
+  /** How many alt arts `alts` holds, which sets how wide the card is on wide screens. */
+  altCount?: number;
+  altsProps?: Omit<HTMLAttributes<HTMLDivElement>, "className" | "children">;
   /** Extra classes after `grid-card` (e.g. `need`, `done`, `excluded`). */
   className?: string;
   /** `div` when an outer wrapper already is the article (Shopping's selectable wrapper). */
@@ -44,10 +53,17 @@ export function GridCard({
   copies?: number;
   children?: ReactNode;
 }) {
+  const hasAlts = alts != null && alts !== false;
+  const wideAlts = useWideGridAlts(altCount, hasAlts);
+  const altsBox = hasAlts ? (
+    <div className="grid-card-alts" {...altsProps}>
+      {alts}
+    </div>
+  ) : null;
   return (
     <Tag
       {...rootProps}
-      className={`grid-card${className ? ` ${className}` : ""}`}
+      className={`grid-card${className ? ` ${className}` : ""}${wideAlts.className}`}
       data-card-id={dataCardId}
     >
       {before}
@@ -59,7 +75,9 @@ export function GridCard({
         <div className="grid-card-name">{name}</div>
         {meta != null ? <div className="grid-card-meta muted">{meta}</div> : null}
         {children}
+        {wideAlts.wide ? null : altsBox}
       </div>
+      {wideAlts.wide && altsBox ? <AltTrayContext.Provider value={true}>{altsBox}</AltTrayContext.Provider> : null}
     </Tag>
   );
 }

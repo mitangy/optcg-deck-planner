@@ -15,6 +15,21 @@ const share = "shopping-share.spec.ts";
 const visual = "visual.spec.ts";
 const trigger = `${deck} > expanding a market price shows the last sales without moving the price`;
 
+// Wide Grid (#1333): one test per page (Shopping, deck page, Collection) for each claim in wideGrid1333.spec.ts.
+const wideGrid1333 = (claim, pages = ["Shopping", "deck page", "Collection"]) =>
+  pages.map((page) => `wideGrid1333.spec.ts > ${claim.replace("%", page)} (#1333) [desktop-1200]`);
+const wg = {
+  spans: "1920px % Grid: a card with alts spans 2 columns, 3 with 5+ tiles, a plain card stays 1",
+  tray: "1920px % Grid: the alt tiles sit side by side in a tray beside the card",
+  below: "1599px % Grid: nothing spans and there is no tray",
+  hidden: "1920px % Grid with Show alt arts off: no card spans",
+  fit: "% Grid: no sideways scroll at 1600px and 2560px, and the cards keep their sort order",
+  columns: "% Grid: a span never asks for more columns than the grid has",
+};
+const wgArgs = "wideGrid1333 --project=desktop-1200";
+const altTray = "frontend/src/cards/AltTray.tsx";
+const wideCss = "frontend/src/styles/wideLayout.css";
+
 module.exports = {
   cwd: "frontend",
   runner: "playwright",
@@ -39,6 +54,18 @@ module.exports = {
     { id: "e2e-wide1329-strip-tiles-one-column", args: "wideAltStrip1329 --project=desktop-1200", file: "frontend/src/styles/wideLayout.css", from: "    grid-template-columns: repeat(auto-fill, var(--alt-tile-w));", to: "    grid-template-columns: minmax(0, 1fr);", kills: ["wideAltStrip1329.spec.ts > 1920px Master Shopping: no Alt arts column, the alt tiles sit side by side under the card's numbers (#1329) [desktop-1200]", "wideAltStrip1329.spec.ts > 1920px deck page: no Alt arts column, the alt tiles sit side by side under the card's numbers (#1329) [desktop-1200]", "wideAltStrip1329.spec.ts > 1920px Collection: no Alt arts column, the alt tiles sit side by side under the card's numbers (#1329) [desktop-1200]"] },
     { id: "e2e-wide1329-strip-ignores-show-alt-arts", args: "wideAltStrip1329 --project=desktop-1200", file: "frontend/src/pages/shopping/ShoppingItemsView.tsx", from: "const stripped = wide && showAltArts && (item.alt_arts?.length ?? 0) > 0;", to: "const stripped = wide && (item.alt_arts?.length ?? 0) > 0;", kills: ["wideAltStrip1329.spec.ts > 1920px Master Shopping with Show alt arts off has no strip rows (#1329) [desktop-1200]"] },
     { id: "e2e-wide1329-chart-axis-font-rem", args: "wideScale1325 --project=desktop-1200 -g \"price history\"", file: "frontend/src/styles/priceHistory.css", from: "  font-size: 10px;\n  font-family: inherit;", to: "  font-size: 0.625rem;\n  font-family: inherit;", kills: ["wideScale1325.spec.ts > price history chart axis labels keep their 10px size at 2560px (#1329) [desktop-1200]"] },
+    // Wide Grid: cards with alt arts span columns and show a tray beside the card (#1333)
+    { id: "e2e-wide1333-grid-never-wide", args: wgArgs, file: altTray, from: 'export const WIDE_ALT_STRIP_QUERY = "(min-width: 1600px)";', to: 'export const WIDE_ALT_STRIP_QUERY = "(min-width: 99999px)";', kills: [...wideGrid1333(wg.spans), ...wideGrid1333(wg.tray)] },
+    { id: "e2e-wide1333-grid-wide-from-1400", args: wgArgs, file: altTray, from: 'export const WIDE_ALT_STRIP_QUERY = "(min-width: 1600px)";', to: 'export const WIDE_ALT_STRIP_QUERY = "(min-width: 1400px)";', kills: wideGrid1333(wg.below) },
+    { id: "e2e-wide1333-grid-hidden-alts-still-span", args: wgArgs, file: altTray, from: "const wide = bigScreen && shown && altArtCount > 0;", to: "const wide = bigScreen && altArtCount > 0;", kills: wideGrid1333(wg.hidden) },
+    { id: "e2e-wide1333-grid-two-tiles-span-three", args: wgArgs, file: altTray, from: "return altArtCount + 1 >= 5 ? 3 : 2;", to: "return altArtCount + 1 >= 2 ? 3 : 2;", kills: wideGrid1333(wg.spans) },
+    { id: "e2e-wide1333-grid-many-tiles-span-two", args: wgArgs, file: altTray, from: "return altArtCount + 1 >= 5 ? 3 : 2;", to: "return 2;", kills: wideGrid1333(wg.spans) },
+    { id: "e2e-wide1333-grid-tray-tiles-one-column", args: wgArgs, file: wideCss, from: "    grid-template-columns: repeat(auto-fill, var(--alt-tile-w));", to: "    grid-template-columns: minmax(0, 1fr);", kills: wideGrid1333(wg.tray) },
+    { id: "e2e-wide1333-grid-span-ignores-columns", args: wgArgs, file: wideCss, edits: [
+      { file: wideCss, from: "@container (min-width: 28.35rem)", to: "@container (min-width: 0rem)" },
+      { file: wideCss, from: "@container (min-width: 42.95rem)", to: "@container (min-width: 0rem)" },
+    ], kills: wideGrid1333(wg.columns) },
+    { id: "e2e-wide1333-grid-dense-flow", args: wgArgs, file: wideCss, from: "    container-type: inline-size;\n  }", to: "    container-type: inline-size;\n    grid-auto-flow: row dense;\n  }", kills: wideGrid1333(wg.fit, ["Shopping", "deck page"]) },
     // Lightbox action controls share one width (#1034)
     { id: "e2e-lightbox1034-shopping-control-narrower", args: "lightboxButtonWidths1034 --project=desktop-1200", file: "frontend/src/styles/lightbox.css", from: ".lightbox-action > .shopping-extra-control,\n", to: "", kills: ["lightboxButtonWidths1034.spec.ts > the enlarged card's four action controls are the same width, before and after Add (#1034) [desktop-1200]"] },
     // Lightbox price alert follows the main art (#896)
