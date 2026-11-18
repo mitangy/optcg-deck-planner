@@ -120,16 +120,10 @@ export function NewDeckPage() {
 
           {start === "meta" ? <MetaPicker value={metaChoice} onChange={setMetaChoice} /> : null}
 
-          {start !== "meta" ? (
+          {start === "paste" ? (
             <div className="field">
-              <label htmlFor="new-deck-name">{start === "leader" ? "Deck name (optional)" : "Deck name"}</label>
-              <input
-                id="new-deck-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder={start === "leader" ? (leader ? leaderDeckName("", leader.name) : "Leader name deck") : "My red ST01"}
-                required={start === "paste"}
-              />
+              <label htmlFor="new-deck-name">Deck name</label>
+              <input id="new-deck-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="My red ST01" required />
             </div>
           ) : null}
 
@@ -155,6 +149,17 @@ export function NewDeckPage() {
               <p className="meta nd-picked" role="status">
                 {leader ? `Selected: ${leader.name} (${leader.id})` : "Pick a Leader to continue."}
               </p>
+            ) : null}
+            {start === "leader" ? (
+              <div className="field">
+                <label htmlFor="new-deck-name">Deck name (optional)</label>
+                <input
+                  id="new-deck-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={leader ? leaderDeckName("", leader.name) : "Leader name deck"}
+                />
+              </div>
             ) : null}
             <button type="submit" className="btn btn-primary" disabled={creating || !ready}>
               {creating ? "Creating…" : startButtonLabel(start, initialList)}

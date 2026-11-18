@@ -301,12 +301,12 @@
   position: sticky;
   bottom: 0;
   z-index: var(--z-raise-2);
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   margin: 0;
-  padding: 0.6rem 0 max(0.6rem, var(--safe-b));
+  padding: 0.5rem 0 max(0.5rem, var(--safe-b));
   border-top: 1px solid var(--line);
   background: var(--arena-deep);
 }
@@ -319,4 +319,35 @@
 
 .deck-new-actions .btn {
   flex: 0 0 auto;
+}
+
+.deck-new-actions .field {
+  flex: 1 1 100%;
+  order: -1;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.deck-new-actions .field label {
+  font-size: 0.8rem;
+}
+
+.deck-new-actions .field input {
+  min-height: 44px;
+}
+
+@media (min-width: 640px) {
+  .deck-new-form .deck-new-actions {
+    flex-wrap: nowrap;
+  }
+
+  .deck-new-actions .field {
+    flex: 1 1 16rem;
+    order: 0;
+  }
+
+  .deck-new-actions .nd-picked {
+    flex: 1 1 10rem;
+    align-self: center;
+  }
 }
