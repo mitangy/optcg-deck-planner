@@ -1,8 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <defs><clipPath id="crown"><path d="M19 38c0-11 5.8-18 13-18s13 7 13 18z"/></clipPath></defs>
-  <rect width="64" height="64" rx="14" fill="#16303b"/>
-  <!-- straw hat, side view: crown, red band, flat brim -->
-  <path d="M19 38c0-11 5.8-18 13-18s13 7 13 18z" fill="#e2b458"/>
-  <rect x="17" y="32" width="30" height="6" fill="#b8322a" clip-path="url(#crown)"/>
-  <rect x="8" y="37" width="48" height="5" rx="2.5" fill="#d9a441"/>
+<rect width="64" height="64" rx="14" fill="#0b1720"/>
+<rect x="14" y="5" width="36" height="54" rx="5" fill="#16303b" stroke="#e2b458" stroke-width="3.5"/>
+<rect x="20" y="15" width="9" height="9" rx="2" fill="#e2b458"/>
+<path d="M22 19.6l2.2 2.2 3.4-4" fill="none" stroke="#16303b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="32" y="17.5" width="12" height="4" rx="2" fill="#efe6d2"/>
+<rect x="20" y="27.5" width="9" height="9" rx="2" fill="#e2b458"/>
+<path d="M22 32.1l2.2 2.2 3.4-4" fill="none" stroke="#16303b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<rect x="32" y="30" width="12" height="4" rx="2" fill="#efe6d2"/>
+<rect x="20.75" y="40.75" width="7.5" height="7.5" rx="1.6" fill="none" stroke="#e2b458" stroke-width="1.5"/>
+<rect x="32" y="42.5" width="8" height="4" rx="2" fill="#efe6d2" opacity="0.55"/>
 </svg>
