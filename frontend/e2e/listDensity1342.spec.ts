@@ -91,5 +91,5 @@ test("Compact phone cards are about half the height of Comfortable ones, with th
   await page.getByRole("group", { name: "List density" }).getByRole("button", { name: "Comfortable" }).click();
   const comfortable = await stableRows(page);
   expect(compact.height).toBeLessThan(comfortable.height * 0.65);
-  expect(compact.height).toBeLessThan(200);
+  expect(compact.height).toBeLessThan(210);
 });

@@ -65,9 +65,10 @@ test("ticking a card shows the selection bar over the page and moves nothing (#1
   await expect(dock).toBeVisible();
   expect(await stableTop(page)).toBe(before);
   const box = (await dock.locator(".buy-dock-bar").boundingBox())!;
-  const vh = page.viewportSize()!.height;
-  expect(box.y + box.height).toBeLessThanOrEqual(vh);
-  expect(box.y + box.height).toBeGreaterThan(vh - 40);
+  // On a phone the bar rests on the bottom tab bar, otherwise on the viewport edge.
+  const floor = phone ? (await page.locator("nav.bottom-nav").boundingBox())!.y : page.viewportSize()!.height;
+  expect(box.y + box.height).toBeLessThanOrEqual(floor + 1);
+  expect(box.y + box.height).toBeGreaterThan(floor - 40);
   await expect(page.getByRole("button", { name: /^Buy 1 selected$/ })).toBeVisible();
 });
 

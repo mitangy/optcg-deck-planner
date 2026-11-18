@@ -117,6 +117,13 @@ async function altBox(card: Locator) {
 }
 
 type Case = { name: string; path: string; card: (page: Page) => Locator; layout: "List" | "Grid" };
+
+// Phone Grid tiles fold their alts behind a chip (#1342): open every folded tray.
+async function openFoldedAlts(page: Page) {
+  const folded = page.locator('.alt-chip[aria-expanded="false"]:visible');
+  for (let i = 0; i < 12 && (await folded.count()) > 0; i++) await folded.first().click();
+}
+
 const byText = (page: Page, selector: string, text: string) => page.locator(selector).filter({ hasText: text });
 const SCROLL_CASES: Case[] = [
   { name: "deck list", path: "/decks/1", card: (p) => p.locator(`[data-card-id="${IZO}"]:visible`), layout: "List" },
@@ -132,6 +139,7 @@ for (const c of SCROLL_CASES) {
     planner.manyAlts(IZO, 8);
     await planner.open(c.path);
     await setLayout(page, c.layout);
+    if (c.layout === "Grid") await openFoldedAlts(page);
     const phoneList = testInfo.project.name === "phone-375" && c.layout === "List";
     const box = await altBox(c.card(page));
     expect(box.tiles).toBe(10);
@@ -139,6 +147,7 @@ for (const c of SCROLL_CASES) {
     expect(box.overflowY).toBe("auto");
     expect(box.noSideways).toBe(true);
     if (phoneList) expect(box.before.rows).toBe(3);
+    else if (testInfo.project.name === "phone-375") expect([4, 5]).toContain(box.before.count); // 12px text makes the narrow phone tiles taller
     else expect(box.before.count).toBe(5);
     expect(box.lastReachable).toBe(true);
   });

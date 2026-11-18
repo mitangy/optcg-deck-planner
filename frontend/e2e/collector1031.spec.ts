@@ -48,11 +48,12 @@ test("Master Shopping: the price popover adds a collector copy even when nothing
   planner.addAlt(IZO, GOLD);
   planner.owned.set(IZO, 4);
   await planner.open("/");
-  const showAll = page.getByRole("checkbox", { name: /still need/i });
+  const showAll = page.getByRole("checkbox", { name: /to buy only/i });
   if (await showAll.count()) await showAll.uncheck();
   if (!(await page.locator(`[data-buy-split="${IZO}"]:visible`).count())) {
     await page.getByRole("button", { name: /^Filters/ }).click();
-    await page.getByRole("checkbox", { name: /still need/i }).uncheck();
+    await page.getByRole("checkbox", { name: /to buy only/i }).uncheck();
+    await page.keyboard.press("Escape");
   }
   const trigger = page.locator(`[data-buy-split="${IZO}"]:visible`).first();
   await trigger.click();

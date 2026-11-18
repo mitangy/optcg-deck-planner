@@ -47,6 +47,11 @@
     min-height: 2.75rem;
   }
 
+  /* The invisible border must not make compact cards taller: the hit box overlaps the space around the box. */
+  .mobile-card-list.density-compact .owned-wrap input.owned {
+    margin-block: calc((var(--owned-vis-h) - 2.75rem) / 2);
+  }
+
   .collection-filter-list label,
   .collection-filter-panel .deck-filter label,
   .sort-menu-item label {

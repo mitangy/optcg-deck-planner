@@ -99,8 +99,8 @@ test("the Sort panel stays open while its checkboxes and arrows are used, is rea
   const filters = page.getByRole("button", { name: /^Filters/ });
   if (!(await page.getByRole("button", { name: /^Sort:/ }).isVisible())) await filters.click();
   const sort = page.getByRole("button", { name: /^Sort:/ });
-  const neighbour = page.getByLabel("Show alt arts");
-  await expectStationary(neighbour, () => sort.click(), "Show alt arts beside Sort");
+  const neighbour = page.getByRole("button", { name: /^Filters/ });
+  await expectStationary(neighbour, () => sort.click(), "Filters beside Sort");
   const panel = page.getByRole("dialog", { name: "Sort order" });
   await expect(panel).toBeVisible();
   await expectBelowAndOnScreen(page, sort, panel);

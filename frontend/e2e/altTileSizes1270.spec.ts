@@ -128,6 +128,12 @@ function expectOneSize(tiles: Awaited<ReturnType<typeof tileSizes>>) {
   }
 }
 
+// Phone Grid tiles fold their alts behind a chip (#1342): open every folded tray.
+async function openFoldedAlts(page: Page) {
+  const folded = page.locator('.alt-chip[aria-expanded="false"]:visible');
+  for (let i = 0; i < 12 && (await folded.count()) > 0; i++) await folded.first().click();
+}
+
 for (const layout of ["List", "Grid"] as const) {
   test(`Shopping ${layout}: Base and alt tiles share one width, height and thumbnail size (#1270, #1280)`, async ({ page, planner }) => {
     planner.manyAlts(IZO, 6);
@@ -135,6 +141,7 @@ for (const layout of ["List", "Grid"] as const) {
     planner.altWants.set(`${IZO}:201`, 1);
     await planner.open("/");
     await setLayout(page, layout);
+    await openFoldedAlts(page);
     await expect(page.locator(".alt-art-base:visible").first()).toBeVisible();
     expectOneSize(await tileSizes(page));
   });
