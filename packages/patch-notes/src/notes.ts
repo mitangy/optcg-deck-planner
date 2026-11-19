@@ -1,6 +1,16 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-19", app: "planner", pr: 0, title: "Six more OP18 alt arts", text: "Alt arts for Nefeltari Vivi (OP18-011), Ms. All Sunday (OP18-041), Mr.1 & Miss Doublefinger (OP18-048), Spandam (OP18-079), I'll Make the Call (OP18-096) and Monkey.D.Luffy (OP18-118) are now in the planner and the duel app. TCGPlayer has no pictures for them yet, so they show the standard art until it does; I'll Make the Call shows an early scan.",
+    cards: [
+      { id: "OP18-011", name: "Nefeltari Vivi", image: "https://tcgplayer-cdn.tcgplayer.com/product/734007_400w.jpg", label: "Alternate Art" },
+      { id: "OP18-041", name: "Ms. All Sunday", image: "https://tcgplayer-cdn.tcgplayer.com/product/734012_400w.jpg", label: "Alternate Art" },
+      { id: "OP18-048", name: "Mr.1 & Miss Doublefinger", image: "https://tcgplayer-cdn.tcgplayer.com/product/733770_400w.jpg", label: "Alternate Art" },
+      { id: "OP18-079", name: "Spandam", image: "https://tcgplayer-cdn.tcgplayer.com/product/734010_400w.jpg", label: "Alternate Art" },
+      { id: "OP18-096", name: "I'll Make the Call", image: "https://tcgplayer-cdn.tcgplayer.com/product/734013_400w.jpg", label: "Alternate Art" },
+      { id: "OP18-118", name: "Monkey.D.Luffy", image: "https://tcgplayer-cdn.tcgplayer.com/product/734011_400w.jpg", label: "Alternate Art" },
+    ],
+  },
   { date: "2026-11-18", app: "planner", pr: 1366, title: "Friend requests and trade offers come first", text: "On the Friends page, a Needs you box at the top shows friend requests to accept and trade offers waiting for your answer. Friend requests now light the Friends badge, and agreed trades that only wait on swapping cards in person no longer do. Each friend has an Offer a trade button, and Remove friend sits in a menu on the row." },
   { date: "2026-11-18", app: "planner", pr: 1366, title: "Offer any of your spares in a trade", text: "On a friend's Spares tab you can now give any of your spare cards, not just the ones on their Shopping list. The steppers say Ask for and Give, and an empty You give side has an Add cards you give button. A friend's deck page can ask them for the cards you're missing that they have spare." },
   { date: "2026-11-18", app: "planner", pr: 1366, title: "Trades say whose move it is", text: "Trades now show Your answer, Waiting on a friend, Swap the cards or Update collection, and the ones that need you are listed first. Declining or cancelling a trade can be undone for 5 seconds. Buttons are easier to tap on phones, and the trade tray fits phones held sideways." },
