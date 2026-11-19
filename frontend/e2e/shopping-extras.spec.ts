@@ -45,7 +45,7 @@ test("a direct target above the deck need raises the list and the Collection sho
   await openAdd(page);
   await addPanel(page).getByRole("searchbox").fill("Izo");
   const result = page.locator('[data-catalog-id="EB01-002"]');
-  await expect(result).toContainText("Own 2 · Decks need 4");
+  await expect(result).toContainText("Owned 2 · Decks need 4");
   await expect(result.getByRole("button", { name: "Buy fewer EB01-002" })).toBeDisabled();
 
   await result.getByRole("button", { name: "Buy more EB01-002" }).click();

@@ -77,6 +77,16 @@
   -moz-appearance: textfield;
 }
 
+.owned-total {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: normal;
+  cursor: default;
+  user-select: text;
+}
+
 .owned::-webkit-outer-spin-button,
 .owned::-webkit-inner-spin-button {
   -webkit-appearance: none;

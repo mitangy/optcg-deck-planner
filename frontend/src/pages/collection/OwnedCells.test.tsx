@@ -65,6 +65,23 @@ describe("Owned shows the total including alt arts (#652)", () => {
     expect(host.querySelector(".alts-owned-note")?.textContent).toBe("+1 alt · 3 total");
   });
 
+  it("with editable alt tiles the Owned cell shows the read-only total and a base/alt breakdown, no stepper (#1380)", () => {
+    const host = mount(<OwnedCell owned={1} altsOwned={2} editedInTiles stepper={<input className="owned" defaultValue="1" />} />);
+    expect(host.querySelector("input")).toBeNull();
+    const total = host.querySelector(".owned-total");
+    expect(total?.textContent).toBe("3");
+    expect(total?.getAttribute("aria-label")).toBe("3 owned in total");
+    expect(host.querySelector(".alts-owned-note")?.textContent).toBe("1 base · 2 alts");
+  });
+
+  it("with editable tiles and one alt the breakdown says alt, and with no alts owned it shows only the total (#1380)", () => {
+    const one = mount(<OwnedCell owned={4} altsOwned={1} editedInTiles stepper={null} />);
+    expect(one.querySelector(".alts-owned-note")?.textContent).toBe("4 base · 1 alt");
+    const none = mount(<OwnedCell owned={4} altsOwned={0} editedInTiles stepper={null} />);
+    expect(none.querySelector(".owned-total")?.textContent).toBe("4");
+    expect(none.querySelector(".alts-owned-note")).toBeNull();
+  });
+
   it("without alt copies the Owned cell shows only the stepper (#1342)", () => {
     const host = mount(<OwnedCell owned={2} stepper={<input className="owned" defaultValue="2" />} />);
     expect(host.querySelector("input.owned")).not.toBeNull();
