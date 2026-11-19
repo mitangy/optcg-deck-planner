@@ -1,7 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
-  { date: "2026-11-19", app: "planner", pr: 1379, title: "Owned shows your total when a card has alt arts", text: "Cards with alt arts show your total owned in the Owned column, with how many are base and how many are alt underneath. Change the counts on the art tiles." },
+  { date: "2026-11-19", app: "planner", pr: 1380, title: "Owned shows your total when a card has alt arts", text: "Cards with alt arts show your total owned in the Owned column, with how many are base and how many are alt underneath. Change the counts on the art tiles." },
   { date: "2026-11-18", app: "duel", pr: 1372, title: "No spectating a match you are playing in", text: "You can't spectate a match you're playing in, not even a practice match. Opening its watch link now says why." },
   { date: "2026-11-18", app: "planner", pr: 1366, title: "Friend requests and trade offers come first", text: "On the Friends page, a Needs you box at the top shows friend requests to accept and trade offers waiting for your answer. Friend requests now light the Friends badge, and agreed trades that only wait on swapping cards in person no longer do. Each friend has an Offer a trade button, and Remove friend sits in a menu on the row." },
   { date: "2026-11-18", app: "planner", pr: 1366, title: "Offer any of your spares in a trade", text: "On a friend's Spares tab you can now give any of your spare cards, not just the ones on their Shopping list. The steppers say Ask for and Give, and an empty You give side has an Add cards you give button. A friend's deck page can ask them for the cards you're missing that they have spare." },

@@ -78,15 +78,15 @@ function view(items: ShoppingItem[], showAltArts: boolean) {
   return host;
 }
 
-describe("the Owned column shows the total when the art tiles carry the steppers (#1379)", () => {
-  it("a card with alt tiles shows the read-only total and base/alt counts, no stepper in its Owned cell (#1379)", () => {
+describe("the Owned column shows the total when the art tiles carry the steppers (#1380)", () => {
+  it("a card with alt tiles shows the read-only total and base/alt counts, no stepper in its Owned cell (#1380)", () => {
     const host = view([item()], true);
     expect(host.querySelector(".desktop-table .owned-total")?.textContent).toBe("4");
     expect(host.querySelector(".desktop-table .alts-owned-note")?.textContent).toBe("2 base · 2 alts");
     expect(host.querySelector(".desktop-table input.owned")).toBeNull();
   });
 
-  it("with alt arts off or a card without alt arts the Owned cell keeps the base stepper (#1379)", () => {
+  it("with alt arts off or a card without alt arts the Owned cell keeps the base stepper (#1380)", () => {
     const off = view([item()], false);
     expect(off.querySelector(".desktop-table input.owned")).not.toBeNull();
     expect(off.querySelector(".desktop-table .owned-total")).toBeNull();

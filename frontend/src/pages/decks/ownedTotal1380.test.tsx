@@ -66,8 +66,8 @@ async function render(cards: CardView[], editable: boolean, showAltArts = true) 
   return host.querySelector(".desktop-table")!;
 }
 
-describe("deck Owned column with alt tiles (#1379)", () => {
-  it("a card whose editable alt tiles are shown gets the read-only total, other cards keep the stepper (#1379)", async () => {
+describe("deck Owned column with alt tiles (#1380)", () => {
+  it("a card whose editable alt tiles are shown gets the read-only total, other cards keep the stepper (#1380)", async () => {
     const table = await render([card("OP01-016", 2, { owned: 1, alts_owned: 2, alt_arts: [ALT] }), card("OP01-025", 2, { owned: 1 })], true);
     const alts = table.querySelector('tr[data-card-id="OP01-016"]')!;
     expect(alts.querySelector(".owned-total")?.textContent).toBe("3");
@@ -77,7 +77,7 @@ describe("deck Owned column with alt tiles (#1379)", () => {
     expect(plain.querySelector("input.owned")).not.toBeNull();
   });
 
-  it("without an alt-owned handler (read-only deck) the Owned column keeps its stepper and alt note (#1379)", async () => {
+  it("without an alt-owned handler (read-only deck) the Owned column keeps its stepper and alt note (#1380)", async () => {
     const table = await render([card("OP01-016", 2, { owned: 1, alts_owned: 2, alt_arts: [ALT] })], false);
     const row = table.querySelector('tr[data-card-id="OP01-016"]')!;
     expect(row.querySelector(".owned-total")).toBeNull();

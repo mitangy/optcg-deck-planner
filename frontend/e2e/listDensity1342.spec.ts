@@ -71,7 +71,7 @@ test("the alt chip opens that row's alt tiles under it without moving the chip, 
   await expect(tray).toHaveCount(0);
 });
 
-test("a card with alt arts shows its total owned and a base/alt breakdown, no stepper in the Owned column (#1379)", async ({ page, planner }, info) => {
+test("a card with alt arts shows its total owned and a base/alt breakdown, no stepper in the Owned column (#1380)", async ({ page, planner }, info) => {
   test.skip(info.project.name !== "desktop-1200", "desktop rows");
   planner.defaultDensity = true;
   planner.altOwned.set(`${IZO}:201`, 1);

@@ -21,7 +21,7 @@ export function AltsOwnedNote({ count, total }: { count?: number; total?: number
   );
 }
 
-/** Read-only total in the Owned column when the art tiles hold the steppers: "1 base · 2 alts" under the total (#1379). */
+/** Read-only total in the Owned column when the art tiles hold the steppers: "1 base · 2 alts" under the total (#1380). */
 export function OwnedTotalCell({ owned, altsOwned }: { owned: number; altsOwned?: number }) {
   const total = totalOwned(owned, altsOwned);
   const alts = Math.max(0, altsOwned ?? 0);
@@ -43,7 +43,7 @@ export function OwnedTotalCell({ owned, altsOwned }: { owned: number; altsOwned?
 
 /**
  * The Owned column steps the base art and notes the alt copies. With `editedInTiles` (the art tiles show a Base stepper and
- * a stepper per alt) it shows the total owned, read-only, with the base and alt counts under it (#1379).
+ * a stepper per alt) it shows the total owned, read-only, with the base and alt counts under it (#1380).
  */
 export function OwnedCell({
   owned,
