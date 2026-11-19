@@ -34,6 +34,8 @@ module.exports = {
   cwd: "frontend",
   runner: "playwright",
   mutations: [
+    // Phone collector sub-rows keep their small thumbnail in Compact density (#1379)
+    { id: "e2e-collector1379-compact-thumb-spills", args: "collectorThumbOverlap1379 --project=phone-375", file: "frontend/src/styles/collectorCopies.css", from: "  .mobile-card-list .mobile-card.collector-card .collector-thumb-wrap .thumb-btn,\n  .mobile-card-list .mobile-card.collector-card .collector-thumb-wrap .thumb {", to: "  .mobile-card.collector-card .collector-thumb-wrap .thumb {", kills: ["collectorThumbOverlap1379.spec.ts > Phone Shopping compact: collector copy thumbnail does not overlap its text (#1379) [phone-375]"] },
     // Card lists: compact density, chip, base stepper, phone head and touch targets (#1342)
     { id: "e2e-density1342-shopping-default-comfortable", args: "listDensity1342 --project=desktop-1200 -g \"Compact is the default\"", file: "frontend/src/ui/CardLayout.tsx", from: 'return page === "shopping" || page === "collection" || page === "groupBuy" ? "compact" : "comfortable";', to: 'return "comfortable";', kills: ["listDensity1342.spec.ts > Compact is the default on Shopping and fits many more rows on screen than Comfortable (#1342) [desktop-1200]"] },
     { id: "e2e-density1342-chip-does-not-expand", args: "listDensity1342 --project=desktop-1200 -g \"alt chip opens\"", file: altTray, from: "      if (next.has(key)) next.delete(key);\n      else next.add(key);", to: "      next.delete(key);", kills: ["listDensity1342.spec.ts > the alt chip opens that row's alt tiles under it without moving the chip, and closes them again (#1342) [desktop-1200]"] },
