@@ -50,7 +50,7 @@ afterEach(() => {
 });
 
 describe("Meta leader search", () => {
-  it("keeps the space when a name is typed key by key (#ISSUE)", async () => {
+  it("keeps the space when a name is typed key by key (#1375)", async () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);

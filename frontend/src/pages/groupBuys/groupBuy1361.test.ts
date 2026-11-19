@@ -41,7 +41,7 @@ describe("group buy header actions (#1361)", () => {
     expect(groupBuyActions("completed", true, false, false).more).toEqual(["delete"]);
   });
 
-  it("an ordered pool keeps Undo Mark purchased for the host after a partial purchase (#ISSUE)", () => {
+  it("an ordered pool keeps Undo Mark purchased for the host after a partial purchase (#1375)", () => {
     expect(groupBuyActions("ordered", true, true, true).more).toEqual(["undo-purchase", "delete"]);
     expect(groupBuyActions("ordered", true, true, false).more).toEqual(["delete"]);
     expect(groupBuyActions("ordered", false, true, true).more).toEqual(["leave"]);
