@@ -71,16 +71,16 @@ test("the alt chip opens that row's alt tiles under it without moving the chip, 
   await expect(tray).toHaveCount(0);
 });
 
-test("a card with alt arts keeps a base-art stepper in its Owned column (#1342)", async ({ page, planner }, info) => {
+test("a card with alt arts shows its total owned and a base/alt breakdown, no stepper in the Owned column (#1379)", async ({ page, planner }, info) => {
   test.skip(info.project.name !== "desktop-1200", "desktop rows");
   planner.defaultDensity = true;
   planner.altOwned.set(`${IZO}:201`, 1);
   await planner.open("/shopping");
   const row = page.locator("tbody tr", { has: page.getByText(IZO, { exact: true }) }).first();
-  await expect(row.locator(".alts-owned-note")).toContainText("+1 alt");
-  const start = planner.owned.get(IZO) ?? 0;
-  await row.getByRole("button", { name: "Increase owned", exact: true }).click();
-  await expect.poll(() => planner.owned.get(IZO)).toBe(start + 1);
+  const base = planner.owned.get(IZO) ?? 0;
+  await expect(row.getByRole("img", { name: `${base + 1} owned in total` })).toBeVisible();
+  await expect(row.locator(".alts-owned-note")).toHaveText(`${base} base · 1 alt`);
+  await expect(row.getByRole("button", { name: "Increase owned", exact: true })).toHaveCount(0);
 });
 
 test("Compact phone cards are about half the height of Comfortable ones, with the alts behind a chip (#1342)", async ({ page, planner }, info) => {

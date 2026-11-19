@@ -67,6 +67,7 @@ export function CollectionItemsView({
     <OwnedCell
       owned={item.owned}
       altsOwned={item.alts_owned}
+      editedInTiles={hasAltRow(item)}
       stepper={<OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />}
     />
   );

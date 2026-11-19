@@ -122,6 +122,7 @@ export function ShoppingItemsView({
     <OwnedCell
       owned={item.owned}
       altsOwned={item.alts_owned}
+      editedInTiles={hasAlts(item)}
       stepper={<OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />}
     />
   );

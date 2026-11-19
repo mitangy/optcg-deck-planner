@@ -29,6 +29,12 @@
     --owned-vis-h: 1.75rem;
   }
 
+  /* The read-only total is the same visible box as the stepper's number; it needs no hit slop (#1379). */
+  .owned-wrap .owned-total {
+    height: var(--owned-vis-h);
+    padding-block: 0;
+  }
+
   .owned-wrap input.owned {
     box-sizing: border-box;
     height: 2.75rem;
