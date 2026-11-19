@@ -1,7 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
-  { date: "2026-11-19", app: "planner", pr: 0, title: "Six more OP18 alt arts", text: "Alt arts for Nefeltari Vivi (OP18-011), Ms. All Sunday (OP18-041), Mr.1 & Miss Doublefinger (OP18-048), Spandam (OP18-079), I'll Make the Call (OP18-096) and Monkey.D.Luffy (OP18-118) are now in the planner and the duel app. TCGPlayer has no pictures for them yet, so they show the standard art until it does; I'll Make the Call shows an early scan.",
+  { date: "2026-11-19", app: "planner", pr: 1374, title: "Six more OP18 alt arts", text: "Alt arts for Nefeltari Vivi (OP18-011), Ms. All Sunday (OP18-041), Mr.1 & Miss Doublefinger (OP18-048), Spandam (OP18-079), I'll Make the Call (OP18-096) and Monkey.D.Luffy (OP18-118) are now in the planner and the duel app. TCGPlayer has no pictures for them yet, so they show the standard art until it does; I'll Make the Call shows an early scan.",
     cards: [
       { id: "OP18-011", name: "Nefeltari Vivi", image: "https://tcgplayer-cdn.tcgplayer.com/product/734007_400w.jpg", label: "Alternate Art" },
       { id: "OP18-041", name: "Ms. All Sunday", image: "https://tcgplayer-cdn.tcgplayer.com/product/734012_400w.jpg", label: "Alternate Art" },
