@@ -956,6 +956,8 @@
   .mobile-card-price-row:has(.mobile-card-want) {
     flex-wrap: wrap;
     justify-content: flex-start;
+    /* Owned and Need line up by their labels, even when Owned has a base/alt note under it (#1380). */
+    align-items: flex-start;
     gap: 0.3rem 0.9rem;
   }
 

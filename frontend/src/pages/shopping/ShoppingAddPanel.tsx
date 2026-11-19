@@ -29,7 +29,7 @@ export function ShoppingAddPanel({ deckIds }: { deckIds?: number[] }) {
         searchIcon="search"
         renderMeta={(card) => {
           const deckNeed = shoppingById.get(card.card_id)?.deck_need ?? 0;
-          return [`Own ${ownedOf(card.card_id)}`, deckNeed > 0 ? `Decks need ${deckNeed}` : ""]
+          return [`Owned ${ownedOf(card.card_id)}`, deckNeed > 0 ? `Decks need ${deckNeed}` : ""]
             .filter(Boolean)
             .join(" · ");
         }}

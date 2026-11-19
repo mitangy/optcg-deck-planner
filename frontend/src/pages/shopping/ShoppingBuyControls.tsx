@@ -63,7 +63,7 @@ export function ShoppingBuyButton({
         <MenuItem disabled={!canMarkBought || busy}>
           <button type="button" onClick={onBuyInPerson}>
             Buying in person
-            <span className="muted">{canMarkBought ? "Add the selected copies to Own" : "Tick cards first"}</span>
+            <span className="muted">{canMarkBought ? "Add the selected copies to Owned" : "Tick cards first"}</span>
           </button>
         </MenuItem>
       </MenuList>
