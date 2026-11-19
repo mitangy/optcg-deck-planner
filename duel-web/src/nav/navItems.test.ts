@@ -41,7 +41,7 @@ describe("menu: which item is the current page (#460)", () => {
   });
 
   it("lists Home, Leaderboard, Decks, Meta decks, Match history, Tournaments, What's new, Settings in that order (#460)", () => {
-    expect(NAV_ITEMS.map((i) => i.href)).toEqual(["/", "/leaderboard", "/decks", "/decks/meta", "/history", "/tournaments", "/whats-new", "/settings"]);
+    expect(NAV_ITEMS.map((i) => i.href)).toEqual(["/", "/leaderboard", "/decks", "/decks/meta", "/profile", "/history", "/tournaments", "/whats-new", "/settings"]);
   });
 
   it("marks Tournaments on the list and on one tournament (#997)", () => {

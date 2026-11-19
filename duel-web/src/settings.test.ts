@@ -26,6 +26,25 @@ describe("loadSettings", () => {
   });
 });
 
+describe("profile picture setting (#1383)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a stored card id, drops anything that is not text, and follows the account (#1383)", () => {
+    stubStored({ profileCard: "OP01-001" });
+    expect(loadSettings().profileCard).toBe("OP01-001");
+    stubStored({ profileCard: 7 });
+    expect(loadSettings().profileCard).toBe("");
+    stubStored({});
+    expect(syncedSettings(loadSettings()).profileCard).toBe("");
+    stubStored({ profileCard: "OP01-001" });
+    expect(syncedSettings(loadSettings()).profileCard).toBe("OP01-001");
+    stubStored({});
+    expect(mergeRemoteSettings(loadSettings(), { profileCard: "ST01-012" }).profileCard).toBe("ST01-012");
+  });
+});
+
 describe("DON!! art setting (#440)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
