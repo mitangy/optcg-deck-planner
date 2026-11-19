@@ -770,5 +770,6 @@ module.exports = {
   {"id": "meta1359-techs-no-copies-tiebreak", "file": "frontend/src/meta/meta.ts", "from": "|| b.count - a.count ||", "to": "||", "kills": ["lists only cards in fewer than half the lists, rarest first, then more copies, then id (#1359)"], "args": "src/meta/meta.test.ts"},
   {"id": "meta1359-techs-uncapped", "file": "frontend/src/meta/meta.ts", "from": ".slice(0, max);", "to": ";", "kills": ["a card at exactly half the lists is not distinctive and the result is capped (#1359)"], "args": "src/meta/meta.test.ts"},
   {"id": "meta1359-copied-no-status", "file": "frontend/src/meta/MetaPage.tsx", "from": "{copied ? \"Copied\" : \"\"}", "to": "{\"\"}", "kills": ["still copies when navigator.clipboard is unavailable (#1226)"], "args": "src/meta/metaCopy1226.test.tsx"},
+  {"id": "metaISSUE-search-trims-typed-space", "file": "frontend/src/meta/MetaPage.tsx", "from": "const query = next.q ?? q;", "to": "const query = (next.q ?? q).trim();", "kills": ["keeps the space when a name is typed key by key (#ISSUE)"], "args": "src/meta/metaSearch.test.tsx"},
 ],
 };
