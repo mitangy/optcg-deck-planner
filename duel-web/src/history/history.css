@@ -1036,7 +1036,7 @@
 /* Card names show their art on hover (mouse only), floating over the page so nothing moves. */
 .log-card-thumb {
   position: fixed;
-  z-index: 60;
+  z-index: var(--z-preview);
   width: 9rem;
   aspect-ratio: 5 / 7;
   border-radius: var(--radius-8, 8px);
