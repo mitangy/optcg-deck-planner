@@ -2753,5 +2753,6 @@ module.exports = {
     {"id": "home1391-last-tag-on-first-visit", "file": "duel-web/src/pages/lobby/PlayActions.tsx", "from": "{primary.remembered && card.mode === primary.mode ? <span", "to": "{card.mode === primary.mode ? <span", "kills": ["tags and outlines nothing when no mode was played yet (#1391)"], "args": "src/pages/lobby/PlayActions"},
     {"id": "home1391-outline-without-last-mode", "file": "duel-web/src/pages/lobby/PlayActions.tsx", "from": "aria-current={primary.remembered && card.mode === primary.mode ? \"true\"", "to": "aria-current={card.mode === primary.mode ? \"true\"", "kills": ["tags and outlines nothing when no mode was played yet (#1391)"], "args": "src/pages/lobby/PlayActions"},
     {"id": "home1391-remembered-always", "file": "duel-web/src/home/primaryAction.ts", "from": "    remembered: usable,", "to": "    remembered: true,", "kills": ["with no history, a guest plays vs Bot and a signed-in player plays Ranked (#1343)"], "args": "src/home/primaryAction"},
+    {"id": "home1391-default-deck-op17", "file": "duel-web/src/decks/storage.ts", "from": "  return [luffy, a, b];", "to": "  return [a, luffy, b];", "kills": ["a new visitor starts on the clean-art OP13 Luffy starter (#1391)"], "args": "src/decks/validateImportedList"},
   ],
 };
