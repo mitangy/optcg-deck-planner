@@ -89,6 +89,7 @@ describe("deck editor stacks (#1272)", () => {
     expect(layers("OP01-025")).toEqual({ copies: 1, badge: "2" });
     expect(layers("OP01-013")).toEqual({ copies: 0, badge: "1" });
     expect(layers("OP01-075")).toEqual({ copies: 3, badge: "6" });
-    expect(layers("OP01-001")).toEqual({ copies: 0, badge: "×1" });
+    // The Leader tile carries no ×1 badge (#1386).
+    expect(layers("OP01-001")).toEqual({ copies: 0, badge: undefined });
   });
 });

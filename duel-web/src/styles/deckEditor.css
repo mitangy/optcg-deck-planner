@@ -1004,3 +1004,222 @@ body:has(.deck-bottom-bar) {
     grid-column: 1 / -1;
   }
 }
+
+/* Editor header: Play sits next to Saved / Save (#1386). */
+.deck-play-btn {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.deck-starter-note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.85rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-8);
+  background: rgb(var(--chrome-rgb) / 0.08);
+  font-size: 0.85rem;
+}
+
+.deck-starter-note .btn {
+  min-height: 36px;
+}
+
+/* Add cards: why a card cannot be added (#1386). */
+.deck-color-hint,
+.deck-search-note {
+  margin: 0;
+  font-size: 0.78rem;
+}
+
+.deck-search-note {
+  color: var(--ink);
+}
+
+.deck-search-reason {
+  margin-top: 0.1rem;
+  color: var(--danger, #e07070);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+/* Artwork picker: a picture per option, clamped to the viewport (#1386). */
+.deck-art-menu {
+  max-width: calc(100vw - 16px);
+  max-height: min(70dvh, 26rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.deck-art-menu-item {
+  justify-content: flex-start;
+  min-height: 56px;
+}
+
+.deck-art-thumbs {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+.deck-art-thumbs .deck-art-thumb {
+  display: block;
+  width: 36px;
+  height: 50px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--arena-mid);
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.deck-art-thumbs .deck-art-thumb + .deck-art-thumb {
+  margin-left: -14px;
+}
+
+.deck-art-menu-label {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.deck-art-menu-check {
+  flex: 0 0 1rem;
+  text-align: right;
+}
+
+.deck-art-menu-item[aria-current="true"] .deck-art-thumbs .deck-art-thumb {
+  box-shadow: 0 0 0 2px var(--chrome-bright);
+}
+
+/* Phone held sideways: one compact header row, compact tools and Leader, so the main deck shows on the first screen (#1386). */
+@media (max-height: 499px) and (orientation: landscape) {
+  .deck-config-header {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.2rem;
+  }
+
+  .deck-config-heading {
+    flex: 1 1 0;
+    gap: 0;
+  }
+
+  .deck-config-title {
+    font-size: 1.15rem;
+    line-height: 1.2;
+  }
+
+  .deck-config-heading .meta {
+    margin: 0;
+    overflow: hidden;
+    font-size: 0.72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .deck-config-header .deck-config-nav {
+    flex: 0 0 auto;
+    gap: 0.4rem;
+  }
+
+  .deck-config-header .deck-config-nav .btn,
+  .deck-config-header .deck-config-nav button {
+    min-height: 36px;
+    padding-block: 0.2rem;
+  }
+
+  .deck-config {
+    gap: var(--space-2);
+    padding-top: max(0.5rem, var(--safe-t));
+  }
+
+  .deck-editor-layout.is-compact .deck-config-section {
+    padding-top: 0.3rem;
+    border-top: 0;
+  }
+
+  .deck-header-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    min-height: 0;
+  }
+
+  .deck-header-actions .btn {
+    min-height: 36px;
+    padding-block: 0.2rem;
+  }
+
+  .deck-header-actions .deck-planner-badge {
+    display: none;
+  }
+
+  .is-compact .deck-tool-btn {
+    min-height: 32px;
+    flex: 0 0 auto;
+    padding-block: 0.15rem;
+  }
+
+  .is-compact .deck-tools {
+    gap: 0.4rem;
+  }
+
+  /* Deck tools and the Leader share one row; panels and the main deck follow full width. */
+  .deck-editor-layout.is-compact {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+  }
+
+  .is-compact .deck-editor-main {
+    display: contents;
+  }
+
+  .is-compact .deck-tools {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .is-compact .deck-editor-leader {
+    grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+  }
+
+  .deck-editor-layout.is-compact > :not(.deck-tools):not(.deck-editor-leader):not(.deck-bottom-bar),
+  .is-compact .deck-editor-deck {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .deck-starter-note {
+    padding: 0.2rem 0.6rem;
+    font-size: 0.78rem;
+  }
+
+  .deck-starter-note .btn {
+    min-height: 30px;
+  }
+
+  .deck-editor-leader .lobby-section-title {
+    display: none;
+  }
+
+  .deck-editor-leader .deck-stack-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .deck-editor-leader .deck-stack {
+    padding-block: 0.15rem;
+  }
+
+  .deck-editor-leader .deck-stack-art-btn {
+    width: 36px;
+  }
+
+  .deck-editor-leader .deck-stack-meta .deck-stack-name-btn {
+    min-height: 36px;
+  }
+}
