@@ -1,0 +1,164 @@
+/* Settings page: search, the sticky section bar, edge fades on the chip rows and the Saved pill. */
+
+.page-settings [hidden] {
+  display: none !important;
+}
+
+/* Search sits above the sticky bar and is not part of it, so the bar stays one chip row tall. */
+.settings-search input[type="search"] {
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.settings-empty {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+/* The section bar sticks right under the stuck page header (--sticky-head-h is its measured height). */
+.settings-jump-bar {
+  --bar-py: 0.4rem;
+  position: sticky;
+  top: var(--sticky-head-h, 0px);
+  z-index: calc(var(--z-deck-config) - 1);
+  isolation: isolate;
+  min-width: 0;
+  margin: calc(-1 * var(--bar-py)) 0;
+  padding: var(--bar-py) 0;
+}
+
+.settings-jump-bar::before {
+  content: "";
+  position: absolute;
+  z-index: var(--z-under);
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 100vw;
+  transform: translateX(-50%);
+  border-bottom: 1px solid var(--line);
+  background: rgb(var(--deep-rgb) / 0.72);
+  backdrop-filter: blur(6px);
+  pointer-events: none;
+}
+
+.settings-jump-bar .settings-jump {
+  /* Room for the focus ring, which the scrolling row would otherwise clip. */
+  padding: 3px 2px;
+  margin: -3px -2px;
+}
+
+/* A window too short to spare two bars (a phone held sideways) lets the section bar scroll away. */
+@media (max-height: 520px) {
+  .settings-jump-bar,
+  .page-settings .settings-group-jump {
+    position: static;
+  }
+
+  .settings-jump-bar::before {
+    display: none;
+  }
+}
+
+/* Chip rows fade out on the side that has more chips beyond it. */
+.settings-jump[data-more-end="true"],
+.page-settings .settings-group-jump[data-more-end="true"] {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2.25rem), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.25rem), transparent);
+}
+
+.settings-jump[data-more-start="true"],
+.page-settings .settings-group-jump[data-more-start="true"] {
+  -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 2.25rem), transparent);
+  mask-image: linear-gradient(to left, #000 calc(100% - 2.25rem), transparent);
+}
+
+.settings-jump[data-more-start="true"][data-more-end="true"],
+.page-settings .settings-group-jump[data-more-start="true"][data-more-end="true"] {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 2.25rem, #000 calc(100% - 2.25rem), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 2.25rem, #000 calc(100% - 2.25rem), transparent);
+}
+
+/* Jumps land the heading below the stuck header and section bar (the header is html's scroll-padding). */
+.page-settings .panel[id],
+.page-settings .settings-section[id] {
+  scroll-margin-top: calc(var(--settings-nav-h, 0px) + 0.75rem);
+}
+
+/* Gameplay group chips: one scrolling row that sticks under the section bar while you scroll the panel. */
+.page-settings .settings-group-jump {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  position: sticky;
+  top: calc(var(--sticky-head-h, 0px) + var(--settings-nav-h, 0px));
+  z-index: var(--z-raise-2);
+  margin: 0 -1.1rem;
+  padding: 0.45rem 1.1rem;
+  background: var(--arena-panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.page-settings .settings-group-jump::-webkit-scrollbar {
+  display: none;
+}
+
+.page-settings .settings-group-chip {
+  flex: none;
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .page-settings .settings-group-chip {
+    min-height: 44px;
+  }
+}
+
+.page-settings .settings-group {
+  scroll-margin-top: calc(var(--settings-nav-h, 0px) + var(--settings-gnav-h, 0px) + 0.5rem);
+}
+
+.gameplay-device-note {
+  margin: 0;
+}
+
+/* Saved pill: fixed, so it never moves the page. */
+.saved-pill {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--safe-b, 0px) + 1rem);
+  z-index: var(--z-popover);
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.45rem 0.85rem;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: var(--radius-pill);
+  background: var(--arena-panel);
+  color: var(--ink);
+  font-size: 0.85rem;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.saved-pill.is-on {
+  opacity: 1;
+}
+
+.saved-pill-check {
+  flex: none;
+  color: var(--chrome);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saved-pill {
+    transition: none;
+  }
+}

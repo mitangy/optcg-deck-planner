@@ -16,8 +16,11 @@ import {
 import { useLockNote } from "../layout/orientation";
 import { LAYOUT_RESET, layoutMoved } from "../layout/layoutReset";
 import { POPUP_SIZE_MAX, POPUP_SIZE_MIN, POPUP_SIZE_STEP, clampPopupSize } from "../preview/popupSize";
+import { ROW_TEXT, rowSearchText } from "./gameplayText";
 import { playTurnChime } from "../audio/turnAlert";
 import {
+  filterGroupsByQuery,
+  hiddenRowsNote,
   showToggleShown,
   turnAlertCopy,
   rowDisabledNote,
@@ -44,139 +47,37 @@ type Toggle = {
   invert?: boolean;
 };
 
-const TOGGLES: Toggle[] = [
-  {
-    key: "sortHandByCost",
-    label: "Sort hand by cost",
-    hint: "Starts each match with the hand's Sort button on.",
-  },
-  {
-    key: "keepHandOpen",
-    label: "Keep hand open",
-    hint: "The hand stays up instead of tucking away. Press H during a match to hide it.",
-  },
-  {
-    key: "layoutGrips",
-    label: "Drag handles",
-    hint: "Shows grips for moving the side panels and the hand. Your layout stays when it's off.",
-  },
-  {
-    key: "oneTapActions",
-    label: "One-tap actions",
-    hint: "Skips the confirm tap: one-button actions, Counters, Blockers and DON!! happen on the first tap.",
-  },
-  {
-    key: "dimUnplayable",
-    label: "Gray out unplayable cards",
-    hint: "In your main phase, fades hand cards you can't play.",
-  },
-  {
-    key: "handCounters",
-    label: "Counter values on hand cards",
-    hint: "Shows each hand card's Counter value as a badge.",
-  },
-  {
-    key: "cantAttackWarning",
-    label: "Can't attack warning",
-    hint: "A card that can't attack flashes red and says why.",
-  },
-  {
-    key: "battleArrow",
-    label: "Battle arrow",
-    hint: "Draws an arc from the attacker to its target.",
-  },
-  {
-    key: "attackGlow",
-    label: "Attack-ready glow",
-    hint: "Cards that can attack right now glow green.",
-  },
-  {
-    key: "compactOwnBoard",
-    label: "Simple board on phones",
-    hint: "Portrait phones: your Life, Deck, DON!! and Trash become counts, so your cards get bigger.",
-  },
-  {
-    key: "previewBigCard",
-    label: "Show card text beneath card",
-    hint: "Adds the card's stats and effect text under the art. Off shows just the card, as big as it fits.",
-    invert: true,
-  },
-  {
-    key: "previewPopup",
-    label: "Card preview pop-up",
-    hint: "Shows the card preview as a pop-up you can drag, instead of a side panel. Needs Card preview on.",
-  },
-  {
-    key: "donUpright",
-    label: "Upright DON!! on rested cards",
-    hint: "DON!! stays upright when the card it's on rests.",
-  },
-  {
-    key: "totalPower",
-    label: "Show total power",
-    hint: "Shows only the total power: green when raised, red when lowered. Hover a card for the breakdown.",
-  },
-  {
-    key: "shortcutTags",
-    label: "Shortcut key tags",
-    hint: "Shows each action's key on its button. The keys work either way.",
-  },
-  {
-    key: "oppHandTopRight",
-    label: "Opponent hand, top right",
-    hint: "Shows the opponent's hand on the right of their side instead of the left.",
-  },
-  {
-    key: "tiltedBoard",
-    label: "Tilted board",
-    hint: "The board leans away from you like a real table.",
-  },
-  {
-    key: "bigBoard",
-    label: "Bigger playing area",
-    hint: "Gives the playmats as much of the window as it can: hides the top bar and trims the columns and margins.",
-  },
-  {
-    key: "actionsBeside",
-    label: "Buttons beside the board",
-    hint: "Puts the action buttons beside the mats so the mats touch. Off puts them in a strip between the mats.",
-  },
-  {
-    key: "turnSplash",
-    label: "Turn banner",
-    hint: "Shows “Your turn” / “Opponent's turn” over the board.",
-  },
-  {
-    key: "gameHints",
-    label: "Opening hand tips",
-    hint: "Explains Keep, Mulligan and who goes first during the mulligan.",
-  },
-  {
-    key: "reduceMotion",
-    label: "Reduce animations",
-    hint: "Calmer attack arcs, banners and hand motion.",
-  },
-  {
-    key: "turnAlert",
-    label: "Vibration",
-    hint: "Buzzes on supported phones (Android) for card moves, attacks and your turn.",
-  },
-  {
-    key: "turnSound",
-    label: "Sounds",
-    hint: "A chime on your turn, plus short sounds for plays, attacks, K.O.s and more. Works on iPhone too.",
-  },
-  {
-    key: "spectatorSound",
-    label: "Sound while watching",
-    hint: "Game sounds while you spectate a match. Off keeps watching tabs quiet. Needs Sounds on.",
-  },
-  {
-    key: "quietWatchTabs",
-    label: "Quiet watch tabs",
-    hint: "A tab where you're spectating or watching a replay stays silent while another tab has your match open.",
-  },
+// Which rows are switches. Their words come from ROW_TEXT, the same source the Settings search reads.
+const TOGGLE_KEYS: { key: ToggleKey; invert?: boolean }[] = [
+  { key: "sortHandByCost" },
+  { key: "keepHandOpen" },
+  { key: "layoutGrips" },
+  { key: "oneTapActions" },
+  { key: "dimUnplayable" },
+  { key: "handCounters" },
+  { key: "cantAttackWarning" },
+  { key: "battleArrow" },
+  { key: "attackGlow" },
+  { key: "compactOwnBoard" },
+  { key: "previewBigCard", invert: true },
+  { key: "previewPopup" },
+  { key: "donUpright" },
+  { key: "totalPower" },
+  { key: "shortcutTags" },
+  { key: "oppHandTopRight" },
+  { key: "tiltedBoard" },
+  { key: "bigBoard" },
+  { key: "actionsBeside" },
+  { key: "turnSplash" },
+  { key: "gameHints" },
+  { key: "reduceMotion" },
+  { key: "turnAlert" },
+  { key: "turnSound" },
+  { key: "spectatorSound" },
+  { key: "quietWatchTabs" },
 ];
+
+const TOGGLES: Toggle[] = TOGGLE_KEYS.map((t) => ({ ...t, label: ROW_TEXT[t.key].label, hint: ROW_TEXT[t.key].hint }));
 
 type ShowToggle = { key: ShowKey; label: string; hint: string };
 
@@ -245,16 +146,30 @@ function jumpToGroup(id: GroupId) {
   group.scrollIntoView({ block: "start", behavior: reduced ? "auto" : "smooth" });
 }
 
-export function GameplaySettingsFields({ spectating = false }: { spectating?: boolean } = {}) {
-  const settings = useDuelSettings();
-  const lockNote = useLockNote(settings.screenOrientation);
+/** What this window and pointer can show, which decides the rows that appear. */
+export function useFieldDevice(): FieldDevice {
   // Phones and tall windows keep the flat board, so the switch would do nothing there.
   const tiltFits = useMediaQuery(TILT_BOARD_QUERY);
   const desktop = useMediaQuery(DESKTOP_BOARD_QUERY);
   const finePointer = useMediaQuery(FINE_POINTER_QUERY);
   const portrait = useMediaQuery(PORTRAIT_MAT_QUERY);
   const sidewaysFan = useMediaQuery(SIDEWAYS_FAN_QUERY);
-  const device: FieldDevice = { desktop, tiltFits, finePointer, portrait, sidewaysFan };
+  return { desktop, tiltFits, finePointer, portrait, sidewaysFan };
+}
+
+/**
+ * `query` (the Settings page search) keeps only the rows whose text matches; the in-match sheet passes none.
+ * `deviceNote` adds the muted line about options this device hides.
+ */
+export function GameplaySettingsFields({
+  spectating = false,
+  query = "",
+  deviceNote = false,
+}: { spectating?: boolean; query?: string; deviceNote?: boolean } = {}) {
+  const settings = useDuelSettings();
+  const lockNote = useLockNote(settings.screenOrientation);
+  const device = useFieldDevice();
+  const { desktop, portrait, sidewaysFan } = device;
   const noteFor = (key: RowKey) => rowDisabledNote(key, device, settings);
   const disabledNote = (note: string | null) =>
     note ? (
@@ -262,7 +177,8 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
         {note}
       </p>
     ) : null;
-  const groups = visibleGroups(device, undefined, { spectating });
+  const groups = filterGroupsByQuery(visibleGroups(device, undefined, { spectating }), query, rowSearchText);
+  const deviceHint = deviceNote && !query.trim() ? hiddenRowsNote(device) : null;
   const toggleByKey = new Map<RowKey, Toggle>(TOGGLES.map((t) => [t.key, t]));
 
   function renderRow(key: RowKey): ReactNode {
@@ -303,48 +219,42 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
       case "endTurnConfirm":
         return (
           <div className="field">
-            <label htmlFor="end-turn-confirm">Confirm before ending turn</label>
+            <label htmlFor="end-turn-confirm">{ROW_TEXT.endTurnConfirm.label}</label>
             <Select
               id="end-turn-confirm"
               value={settings.endTurnConfirm}
               onChange={(v) => updateSettings({ endTurnConfirm: v })}
               options={END_TURN_OPTIONS}
             />
-            <p className="field-hint">
-              The middle option asks only while you have active DON!! or a ready attacker.
-            </p>
+            <p className="field-hint">{ROW_TEXT.endTurnConfirm.hint}</p>
           </div>
 
         );
       case "responseStops":
         return (
           <div className="field">
-            <label htmlFor="response-stops">Stop for block and counter</label>
+            <label htmlFor="response-stops">{ROW_TEXT.responseStops.label}</label>
             <Select
               id="response-stops"
               value={settings.responseStops}
               onChange={(v) => updateSettings({ responseStops: v })}
               options={RESPONSE_STOP_OPTIONS}
             />
-            <p className="field-hint">
-              Auto passes when you can&apos;t block or counter. Smart also passes when your Counters can&apos;t save the card.
-            </p>
+            <p className="field-hint">{ROW_TEXT.responseStops.hint}</p>
           </div>
 
         );
       case "screenOrientation":
         return (
           <div className="field">
-            <label htmlFor="screen-orientation">Screen orientation</label>
+            <label htmlFor="screen-orientation">{ROW_TEXT.screenOrientation.label}</label>
             <Select
               id="screen-orientation"
               value={settings.screenOrientation}
               onChange={(v) => updateSettings({ screenOrientation: v })}
               options={ORIENTATION_OPTIONS}
             />
-            <p className="field-hint">
-              Locks rotation during a match where the browser allows it (Android, full screen or installed).
-            </p>
+            <p className="field-hint">{ROW_TEXT.screenOrientation.hint}</p>
             {lockNote ? (
               <p className="field-hint field-note" role="status">
                 Your browser can&apos;t lock rotation here, so turn your phone instead.
@@ -356,7 +266,7 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
       case "handLayout":
         return (
           <div className="field">
-            <label htmlFor="hand-layout">Hand layout</label>
+            <label htmlFor="hand-layout">{ROW_TEXT.handLayout.label}</label>
             <Select
               id="hand-layout"
               disabled={noteFor("handLayout") !== null}
@@ -378,7 +288,7 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
       case "sidePanels":
         return (
           <div className="field">
-            <span className="field-label" id="side-panels-label">Side panels</span>
+            <span className="field-label" id="side-panels-label">{ROW_TEXT.sidePanels.label}</span>
             <div className="panel-layout-row">
               <button
                 type="button"
@@ -390,16 +300,14 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
                 Reset layout
               </button>
             </div>
-            <p className="field-hint">
-              With Drag handles on, drag a panel&apos;s grip to move it, or an edge to resize it (double-click to reset). Reset layout puts every panel, hand and pop-up back.
-            </p>
+            <p className="field-hint">{ROW_TEXT.sidePanels.hint}</p>
           </div>
 
         );
       case "sideColumns":
         return (
           <div className="field">
-            <label htmlFor="side-columns">Side columns</label>
+            <label htmlFor="side-columns">{ROW_TEXT.sideColumns.label}</label>
             <Select
               id="side-columns"
               value={settings.sideColumns}
@@ -410,16 +318,14 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
                 { value: "both", label: "Both" },
               ]}
             />
-            <p className="field-hint">
-              One column gives the board more room. Both keeps a column on each side.
-            </p>
+            <p className="field-hint">{ROW_TEXT.sideColumns.hint}</p>
           </div>
 
         );
       case "oppHandSpot":
         return (
           <div className="field">
-            <label htmlFor="opp-hand-spot">Opponent hand position</label>
+            <label htmlFor="opp-hand-spot">{ROW_TEXT.oppHandSpot.label}</label>
             <Select
               id="opp-hand-spot"
               value={settings.oppHandSpot}
@@ -431,32 +337,28 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
                 { value: "right", label: "Right of the mat" },
               ]}
             />
-            <p className="field-hint">
-              Where the opponent&apos;s hand sits: in a side panel, or pinned to their half of the mat.
-            </p>
+            <p className="field-hint">{ROW_TEXT.oppHandSpot.hint}</p>
           </div>
 
         );
       case "textSize":
         return (
           <div className="field">
-            <label htmlFor="text-size">Text size</label>
+            <label htmlFor="text-size">{ROW_TEXT.textSize.label}</label>
             <Select
               id="text-size"
               value={settings.textSize}
               onChange={(v) => updateSettings({ textSize: v })}
               options={TEXT_SIZE_OPTIONS}
             />
-            <p className="field-hint">
-              Makes text and card power numbers bigger or smaller.
-            </p>
+            <p className="field-hint">{ROW_TEXT.textSize.hint}</p>
           </div>
 
         );
       case "lifeFan":
         return (
           <div className="field">
-            <label htmlFor="life-fan">Life stack direction</label>
+            <label htmlFor="life-fan">{ROW_TEXT.lifeFan.label}</label>
             <Select
               id="life-fan"
               disabled={noteFor("lifeFan") !== null}
@@ -464,25 +366,21 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
               onChange={(v) => updateSettings({ lifeFan: v })}
               options={LIFE_FAN_OPTIONS}
             />
-            <p className="field-hint">
-              Which way your Life cards fan out. The opponent&apos;s Life mirrors yours.
-            </p>
+            <p className="field-hint">{ROW_TEXT.lifeFan.hint}</p>
             {disabledNote(noteFor("lifeFan"))}
           </div>
         );
       case "animationSpeed":
         return (
           <div className="field">
-            <label htmlFor="animation-speed">Animation speed</label>
+            <label htmlFor="animation-speed">{ROW_TEXT.animationSpeed.label}</label>
             <Select
               id="animation-speed"
               value={settings.animationSpeed}
               onChange={(v) => updateSettings({ animationSpeed: v })}
               options={ANIMATION_OPTIONS}
             />
-            <p className="field-hint">
-              How fast cards move for draws, plays and K.O.s.
-            </p>
+            <p className="field-hint">{ROW_TEXT.animationSpeed.hint}</p>
           </div>
 
         );
@@ -496,18 +394,16 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
                 disabled={settings.animationSpeed === "off"}
                 onChange={(e) => updateSettings({ cardSpotlight: e.target.checked })}
               />
-              <span>Spotlight played and K.O.&apos;d cards</span>
+              <span>{ROW_TEXT.cardSpotlight.label}</span>
             </label>
-            <p className="field-hint">
-              Cards that are played, used as a Counter, K.O.&apos;d or trashed show big for a moment. Off when Animation speed is Off.
-            </p>
+            <p className="field-hint">{ROW_TEXT.cardSpotlight.hint}</p>
           </div>
 
         );
       case "popupSize":
         return (
           <div className="field">
-            <label htmlFor="popup-size">Pop-up size · {settings.popupSize}%</label>
+            <label htmlFor="popup-size">{ROW_TEXT.popupSize.label} · {settings.popupSize}%</label>
             <input
               id="popup-size"
               type="range"
@@ -518,15 +414,13 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
               value={settings.popupSize}
               onChange={(e) => updateSettings({ popupSize: clampPopupSize(Number(e.target.value)) })}
             />
-            <p className="field-hint">
-              Size of choice, search and action pop-ups. The − and + in a pop-up’s top bar change it too.
-            </p>
+            <p className="field-hint">{ROW_TEXT.popupSize.hint}</p>
           </div>
         );
       case "previewPopupSize":
         return (
           <div className="field">
-            <label htmlFor="preview-popup-size">Card pop-up size · {settings.previewPopupSize}%</label>
+            <label htmlFor="preview-popup-size">{ROW_TEXT.previewPopupSize.label} · {settings.previewPopupSize}%</label>
             <input
               id="preview-popup-size"
               type="range"
@@ -537,18 +431,14 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
               value={settings.previewPopupSize}
               onChange={(e) => updateSettings({ previewPopupSize: clampPopupSize(Number(e.target.value)) })}
             />
-            <p className="field-hint">
-              Size of the hover card pop-up. The − and + in its top bar change it too.
-            </p>
+            <p className="field-hint">{ROW_TEXT.previewPopupSize.hint}</p>
           </div>
         );
       case "showOnScreen":
         return (
           <div className="field gameplay-group" role="group" aria-labelledby="show-on-screen-label">
-            <span className="field-label" id="show-on-screen-label">Show on screen</span>
-            <p className="field-hint">
-              Hide extras you don&apos;t use. Hidden panels keep their place in your layout.
-            </p>
+            <span className="field-label" id="show-on-screen-label">{ROW_TEXT.showOnScreen.label}</span>
+            <p className="field-hint">{ROW_TEXT.showOnScreen.hint}</p>
             {SHOW_TOGGLES.filter((t) => showToggleShown(t.key, device)).map((t) => (
               <div className="gameplay-toggle" key={t.key}>
                 <label className="switch">
@@ -604,6 +494,7 @@ export function GameplaySettingsFields({ spectating = false }: { spectating?: bo
           ))}
         </section>
       ))}
+      {deviceHint ? <p className="field-hint gameplay-device-note">{deviceHint}</p> : null}
     </div>
   );
 }

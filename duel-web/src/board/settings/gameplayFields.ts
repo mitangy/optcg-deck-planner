@@ -249,3 +249,39 @@ export function visibleGroups(
 export function groupOf(key: RowKey): GroupId | undefined {
   return GAMEPLAY_GROUPS.find((g) => g.rows.includes(key))?.id;
 }
+
+/** Lowercase words of a search box. Blank or whitespace-only gives none, which means "no search". */
+export function searchWords(query: string): string[] {
+  return query.toLowerCase().split(/\s+/).filter(Boolean);
+}
+
+/** Every word of the query appears in the text (any order, any case). No words matches everything. */
+export function textMatchesQuery(query: string, text: string): boolean {
+  const hay = text.toLowerCase();
+  return searchWords(query).every((w) => hay.includes(w));
+}
+
+/**
+ * Keeps the rows whose own text (label and hint, from `textOf`) or whose group title matches the query, and drops
+ * groups left with no rows. Groups keep their order, so a header stays above its matches.
+ */
+export function filterGroupsByQuery(
+  groups: GameplayGroup[],
+  query: string,
+  textOf: (key: RowKey) => string,
+): GameplayGroup[] {
+  if (searchWords(query).length === 0) return groups;
+  return groups
+    .map((g) => ({
+      ...g,
+      rows: g.rows.filter((r) => textMatchesQuery(query, `${textOf(r)} ${g.title} ${g.chip}`)),
+    }))
+    .filter((g) => g.rows.length > 0);
+}
+
+/** A one-line note when this device hides some rows that another kind of device shows. */
+export function hiddenRowsNote(d: FieldDevice): string | null {
+  const all = GAMEPLAY_GROUPS.flatMap((g) => g.rows);
+  if (all.every((r) => rowShown(r, d))) return null;
+  return d.desktop ? "Some options only show on a phone or tablet." : "Some options only show on a computer.";
+}
