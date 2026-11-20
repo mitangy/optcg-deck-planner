@@ -8,6 +8,13 @@
     font-size: max(12px, 0.62rem);
   }
 
+  /* Inline link in the one-line live status: 44px tall hit area without moving the text. */
+  .live-invite-link {
+    display: inline-block;
+    padding: 14px 4px;
+    margin: -14px -4px;
+  }
+
   .voyage-stat > span {
     font-size: max(12px, 0.66rem);
   }

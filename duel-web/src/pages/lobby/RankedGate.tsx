@@ -17,7 +17,7 @@ export function RankedGate({ onClose, onBot }: { onClose: () => void; onBot: () 
         <a className="btn btn-primary btn-lg sheet-confirm" href={googleLoginUrl()}>
           Sign in
         </a>
-        <button type="button" className="btn btn-lg sheet-confirm" onClick={onBot}>
+        <button type="button" className="btn btn-secondary btn-lg sheet-confirm" onClick={onBot}>
           Play vs Bot instead
         </button>
       </div>
