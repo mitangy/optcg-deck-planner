@@ -51,18 +51,6 @@
   margin: -3px -2px;
 }
 
-/* A window too short to spare two bars (a phone held sideways) lets the section bar scroll away. */
-@media (max-height: 520px) {
-  .settings-jump-bar,
-  .page-settings .settings-group-jump {
-    position: static;
-  }
-
-  .settings-jump-bar::before {
-    display: none;
-  }
-}
-
 /* Chip rows fade out on the side that has more chips beyond it. */
 .settings-jump[data-more-end="true"],
 .page-settings .settings-group-jump[data-more-end="true"] {
@@ -160,5 +148,18 @@
 @media (prefers-reduced-motion: reduce) {
   .saved-pill {
     transition: none;
+  }
+}
+
+/* A window too short to spare two bars (a phone held sideways) lets the section bar scroll away. */
+/* Last in the file so it wins over the sticky rules above. */
+@media (max-height: 520px) {
+  .settings-jump-bar,
+  .page-settings .settings-group-jump {
+    position: static;
+  }
+
+  .settings-jump-bar::before {
+    display: none;
   }
 }

@@ -641,3 +641,31 @@ img.zone-pile-face {
     padding: 0.25rem;
   }
 }
+
+/* A phone held sideways: keep the title and search compact so more than one row of art shows. */
+@media (max-height: 500px) {
+  .don-dialog-head {
+    margin-bottom: 0.35rem;
+  }
+
+  .don-dialog-title {
+    font-size: 1.05rem;
+  }
+
+  .don-dialog-search {
+    margin-bottom: 0.4rem;
+  }
+
+  .don-dialog-search label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .don-art-grid {
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  }
+}
