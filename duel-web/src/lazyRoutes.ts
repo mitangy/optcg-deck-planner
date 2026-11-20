@@ -17,6 +17,7 @@ export const loadDemoPage = withCards(() => import("./pages/DemoPage"));
 const loadDeckConfigurePage = withCards(() => import("./pages/DeckConfigurePage"));
 const loadNewDeckPage = withCards(() => import("./pages/NewDeckPage"));
 const loadSettingsPage = () => import("./pages/SettingsPage");
+const loadProfilePage = () => import("./pages/ProfilePage");
 const loadHistoryPage = withCards(() => import("./pages/HistoryPage"));
 const loadMatchLogPage = withCards(() => import("./pages/MatchLogPage"));
 const loadTournamentsPage = () => import("./tournaments/TournamentsPage");
@@ -28,6 +29,7 @@ export const DemoPage = lazy(() => loadDemoPage().then((m) => ({ default: m.Demo
 export const DeckConfigurePage = lazy(() => loadDeckConfigurePage().then((m) => ({ default: m.DeckConfigurePage })));
 export const NewDeckPage = lazy(() => loadNewDeckPage().then((m) => ({ default: m.NewDeckPage })));
 export const SettingsPage = lazy(() => loadSettingsPage().then((m) => ({ default: m.SettingsPage })));
+export const ProfilePage = lazy(() => loadProfilePage().then((m) => ({ default: m.ProfilePage })));
 export const HistoryPage = lazy(() => loadHistoryPage().then((m) => ({ default: m.HistoryPage })));
 export const MatchLogPage = lazy(() => loadMatchLogPage().then((m) => ({ default: m.MatchLogPage })));
 export const WhatsNewPage = lazy(() => import("./pages/WhatsNewPage").then((m) => ({ default: m.WhatsNewPage })));

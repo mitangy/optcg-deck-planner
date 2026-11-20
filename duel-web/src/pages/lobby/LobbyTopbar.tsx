@@ -4,8 +4,11 @@ import { BrandWordmark } from "../../BrandMark";
 import { NavMenu } from "../../nav/NavMenu";
 import { INLINE_NAV } from "../../nav/navItems";
 import { googleLoginUrl } from "../../net/api";
+import { ProfileAvatar } from "../../profile/ProfileAvatar";
+import { useDuelSettings } from "../../settings";
 
 export function LobbyTopbar({ authMode, accountName, bounty }: { authMode: "guest" | "google" | "dev"; accountName: string; bounty: number | null }) {
+  const { profileCard } = useDuelSettings();
   return (
     <header className="topbar">
       <div className="topbar-inner">
@@ -26,8 +29,8 @@ export function LobbyTopbar({ authMode, accountName, bounty }: { authMode: "gues
               Sign in
             </a>
           ) : null}
-          <Link to="/settings" className="account-chip" title="Account settings">
-            <span className="account-dot" data-mode={authMode} aria-hidden />
+          <Link to="/profile" className="account-chip" title="Your profile" aria-label={`Your profile: ${accountName}`}>
+            {profileCard ? <ProfileAvatar cardId={profileCard} name={accountName} size={22} /> : <span className="account-dot" data-mode={authMode} aria-hidden />}
             <span className="account-name">{accountName}</span>
             {bounty != null ? (
               <span className="account-rating" title="Bounty">

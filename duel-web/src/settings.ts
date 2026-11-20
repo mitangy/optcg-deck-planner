@@ -30,6 +30,7 @@ export type DuelSettings = {
   theme: ThemeId;
   colorMode: ColorMode;
   donArt: number | null;
+  profileCard: string;
 
   endTurnConfirm: EndTurnConfirm;
   responseStops: ResponseStops;
@@ -102,6 +103,7 @@ const DEFAULTS: DuelSettings = {
   theme: DEFAULT_THEME,
   colorMode: "dark",
   donArt: null,
+  profileCard: "",
   endTurnConfirm: "actions",
   responseStops: "always",
   screenOrientation: "auto",
