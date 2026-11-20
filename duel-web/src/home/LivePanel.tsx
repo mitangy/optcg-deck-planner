@@ -26,12 +26,10 @@ export function useLiveCounts(): LiveCounts | null {
 type LivePanelProps = {
   counts: LiveCounts | null;
   onInvite: () => void;
-  onBot: () => void;
-  onPractice: () => void;
   disabled?: boolean;
 };
 
-export function LivePanel({ counts, onInvite, onBot, onPractice, disabled }: LivePanelProps) {
+export function LivePanel({ counts, onInvite, disabled }: LivePanelProps) {
   const summary = liveSummary(counts);
   if (!summary) return null;
   if (!summary.empty) {
@@ -43,20 +41,14 @@ export function LivePanel({ counts, onInvite, onBot, onPractice, disabled }: Liv
     );
   }
   return (
-    <section className="live-empty" aria-label="No matches right now">
-      <h2 className="live-empty-title">No matches being played right now</h2>
-      <p className="live-empty-copy">Start one: invite a friend, or warm up against a bot.</p>
-      <button type="button" className="btn btn-primary live-empty-invite" disabled={disabled} onClick={onInvite}>
-        Invite a friend
-      </button>
-      <div className="live-empty-alt">
-        <button type="button" className="btn live-empty-small" disabled={disabled} onClick={onBot}>
-          Play vs Bot
+    <p className="live-pill" role="status">
+      <span className="live-dot live-dot-idle" aria-hidden />
+      <span>
+        No live matches right now ·{" "}
+        <button type="button" className="live-invite-link" disabled={disabled} onClick={onInvite}>
+          Invite a friend
         </button>
-        <button type="button" className="btn live-empty-small" disabled={disabled} onClick={onPractice}>
-          Practice
-        </button>
-      </div>
-    </section>
+      </span>
+    </p>
   );
 }
