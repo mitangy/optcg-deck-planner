@@ -868,7 +868,12 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
 
     // Omitted guards (older tabs) skip these checks. A stale intent is dropped and the sender resynced.
-    if (step !== undefined && step !== game.stateStep) {
+    // A board sends several intents from one view (DON!! to attach, counters to play) all stamped with that view's step.
+    // Only the seat's own unbroken chain may reuse it: any other state change moves stateStep past chain.to.
+    const chain = this.stepChains[seat];
+    const inChain = chain !== null && step === chain.from && game.stateStep === chain.to;
+    this.stepChains[seat] = null;
+    if (step !== undefined && step !== game.stateStep && !inChain) {
       this.rejectStale(client, seat, "State changed since the action was taken");
       return;
     }
@@ -889,8 +894,13 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     if (!applied.ok) {
       this.sendError(client, "illegal_intent", applied.message);
       this.io.send(client, "view", { view: this.spectators.playerView(game.match, seat) });
+      return;
     }
+    if (step !== undefined) this.stepChains[seat] = { from: inChain ? chain.from : step, to: game.stateStep };
   }
+
+  /** Per seat: the step its last applied intent was stamped with, and the step the game reached by applying it. */
+  private stepChains: [{ from: number; to: number } | null, { from: number; to: number } | null] = [null, null];
 
   private rejectStale(client: Client, seat: Seat, message: string) {
     const { game } = this;
@@ -950,6 +960,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     game.matchOverSent = false;
     game.endReason = null;
     game.replay = null;
+    this.stepChains = [null, null];
     this.persistence.resetPerGameState();
     this.undo.resetPerGameState();
     this.clocks.resetPerGameState();
