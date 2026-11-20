@@ -59,6 +59,8 @@ test("See all opens the full list and the card stays away afterwards (#450)", as
   await card(page).getByRole("link", { name: "See all" }).click();
   await expect(page).toHaveURL(/\/whats-new$/);
   await expect(page.getByRole("heading", { name: "What’s new", level: 1 })).toBeVisible();
+  // The list opens on the recent updates; a search reaches the older ones.
+  await page.getByRole("searchbox", { name: "Search updates" }).fill("Choose your DON");
   await expect(page.getByRole("heading", { name: "October 8, 2026" })).toBeVisible();
   await expect(page.getByText("Choose your DON!! art")).toBeVisible();
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "What’s new" })).toBeVisible();
@@ -80,4 +82,35 @@ test("Settings > About links to the full list (#450)", async ({ page }) => {
   await page.locator("#about").getByRole("link", { name: "What’s new" }).click();
   await expect(page).toHaveURL(/\/whats-new$/);
   await expect(page.getByRole("heading", { name: "What’s new", level: 1 })).toBeVisible();
+});
+
+test("What's new opens on recent updates, Show older reveals more, and nothing scrolls sideways (#1390)", async ({ page }) => {
+  await openLobby(page, "2026-10-05");
+  await page.goto("/whats-new");
+  await expect(page.getByRole("heading", { name: "What’s new", level: 1 })).toBeVisible();
+  const total = notesFor("duel", PATCH_NOTES).length;
+  const notes = page.locator(".wn-note");
+  await expect(notes.first()).toBeVisible();
+  const before = await notes.count();
+  expect(before).toBeLessThan(total);
+  const noScroll = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  expect(await noScroll()).toBe(true);
+
+  await page.getByRole("button", { name: /^Show older/ }).click();
+  expect(await notes.count()).toBeGreaterThan(before);
+  expect(await noScroll()).toBe(true);
+
+  const vp = page.viewportSize()!;
+  if (vp.width >= 1100) {
+    const rail = (await page.getByRole("navigation", { name: "Months" }).boundingBox())!;
+    const column = (await notes.first().boundingBox())!;
+    expect(rail.x).toBeGreaterThanOrEqual(0);
+    expect(rail.x + rail.width).toBeLessThanOrEqual(column.x);
+    // The rail hangs in the gutter: the page's reading column keeps its full width.
+    expect(column.width).toBeGreaterThanOrEqual(540);
+  } else {
+    await expect(page.getByRole("navigation", { name: "Months" })).toBeHidden();
+    const back = (await page.getByRole("link", { name: "Back to home" }).boundingBox())!;
+    expect(back.width).toBeLessThanOrEqual(48);
+  }
 });
