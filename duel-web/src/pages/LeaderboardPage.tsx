@@ -144,12 +144,12 @@ export function LeaderboardPage() {
       ) : null}
 
       <section className="leaderboard" aria-label="Leaderboard" aria-busy={res.status === "loading"}>
-        <div className="leaderboard-cols" aria-hidden>
+        {loaded && loaded.length === 0 ? null : <div className="leaderboard-cols" aria-hidden>
           <span className="leaderboard-rank">#</span>
           <span className="bounty-name">Player</span>
           <span className="leaderboard-bounty">{timeless ? "Bounty" : "Gain"}</span>
           <span className="leaderboard-record">W-L</span>
-        </div>
+        </div>}
         {res.status === "loading" ? (
           <ol className="bounty-list leaderboard-list" role="status" aria-label="Loading the leaderboard">
             {Array.from({ length: SKELETON_ROWS }, (_, i) => (
