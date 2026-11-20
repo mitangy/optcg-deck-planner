@@ -154,3 +154,17 @@ describe("built-in starter decks (#1386)", () => {
     expect(copy.name).toMatch(/\(copy\)$/);
   });
 });
+
+describe("deck editor Copy deck list (#1386)", () => {
+  it("copies the draft including an unsaved change, not the saved deck (#1386)", async () => {
+    saveDeck({ id: "c1", name: "Copy me", leaderId: "ST01-001", cards: Array(50).fill("ST01-006") });
+    const writeText = vi.fn(() => Promise.resolve());
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    await mountPage("/decks/c1/configure");
+    await click(host!.querySelector('button[aria-label^="Remove one"]')!);
+    expect(getSavedDeck("c1")!.cards).toHaveLength(50);
+    await click(byText("Copy deck list"));
+    expect(writeText).toHaveBeenCalledWith("1xST01-001\n49xST01-006");
+    expect(host!.querySelector('[role="status"].deck-list-toast')?.textContent).toContain("Copied");
+  });
+});

@@ -14,13 +14,13 @@ import {
   setSelectedDeckId,
   type SavedDeck,
 } from "../decks/storage";
+import { useCopyDeckList, useToast } from "../decks/useCopyDeckList";
 import { applyPlannerDeepLink, parsePlannerDeepLink } from "../decks/planner";
 import { ensureAuth } from "../auth/session";
 import { googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { Dialog, DialogTitle, Listbox, ListboxButton, ListboxList, ListboxOption, Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
-import { deckListText } from "../decks/deckListText";
 import { colorFill } from "../board/preview/PreviewBadges";
 import { MAX_DECK_NAME_LENGTH, MAX_MAIN_DECK_SIZE, saveDeckDraft } from "../decks/editDeck";
 import {
@@ -262,29 +262,6 @@ function RenameDialog({ deck, onClose, onSaved }: { deck: SavedDeck; onClose: ()
   );
 }
 
-function CopyListDialog({ text, onClose }: { text: string; onClose: () => void }) {
-  return (
-    <Dialog open onClose={onClose} className="leave-dialog-backdrop" panelClassName="leave-dialog">
-      <DialogTitle as="h2">Copy deck list</DialogTitle>
-      <p className="meta">Your browser blocked copying. Select the list below and copy it by hand.</p>
-      <textarea
-        className="deck-copy-text"
-        readOnly
-        rows={10}
-        value={text}
-        aria-label="Deck list"
-        data-autofocus
-        onFocus={(e) => e.currentTarget.select()}
-      />
-      <div className="leave-dialog-actions">
-        <button type="button" className="btn btn-secondary" onClick={onClose}>
-          Close
-        </button>
-      </div>
-    </Dialog>
-  );
-}
-
 function DeckToolbar({
   query,
   onQuery,
@@ -341,11 +318,10 @@ export function DeckListPage() {
   const deepLinkHandled = useRef(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<DeckSort>(loadDeckSort);
-  const [notice, setNotice] = useState<string | null>(null);
+  const { say, toast } = useToast();
+  const { copyList, dialog: copyDialog } = useCopyDeckList(say);
   const [renaming, setRenaming] = useState<SavedDeck | null>(null);
-  const [copyFallback, setCopyFallback] = useState<string | null>(null);
   const [newId, setNewId] = useState<string | null>(null);
-  const noticeTimer = useRef<number | undefined>(undefined);
 
   function openImported(result: ImportIntoDeckResult) {
     if (!result.ok) {
@@ -415,24 +391,6 @@ export function DeckListPage() {
 
   function refresh() {
     setTick((n) => n + 1);
-  }
-
-  function say(message: string) {
-    setNotice(message);
-    window.clearTimeout(noticeTimer.current);
-    noticeTimer.current = window.setTimeout(() => setNotice(null), 3500);
-  }
-
-  useEffect(() => () => window.clearTimeout(noticeTimer.current), []);
-
-  async function copyList(deck: SavedDeck) {
-    const text = deckListText(deck);
-    try {
-      await navigator.clipboard.writeText(text);
-      say(`Copied the deck list for “${deck.name}”.`);
-    } catch {
-      setCopyFallback(text);
-    }
   }
 
   function duplicate(deck: SavedDeck) {
@@ -537,9 +495,7 @@ export function DeckListPage() {
           )}
         </section>
       </div>
-      <div className="deck-list-toast" role="status" aria-live="polite">
-        {notice}
-      </div>
+      {toast}
       {renaming ? (
         <RenameDialog
           deck={renaming}
@@ -551,7 +507,7 @@ export function DeckListPage() {
           }}
         />
       ) : null}
-      {copyFallback !== null ? <CopyListDialog text={copyFallback} onClose={() => setCopyFallback(null)} /> : null}
+      {copyDialog}
     </div>
   );
 }

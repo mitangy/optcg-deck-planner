@@ -217,6 +217,8 @@ type Props = {
   onArtChanged?: () => void;
   /** The "Replace with deck list" panel. On phones it opens from a button, so it is rendered as a plain panel there. */
   sideTop?: (panel: boolean) => ReactNode;
+  /** Copies the deck as an OPTCGSim code; shows a Copy list action beside the import tools. */
+  onCopyList?: () => void;
 };
 
 const FILTERS_OPEN_KEY = "optcg-duel:deck-filters-open";
@@ -242,7 +244,7 @@ export function countHiddenFilters(f: {
 
 type ToolPanel = "stats" | "replace" | null;
 
-export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
+export function DeckEditor({ deck, onChange, onArtChanged, sideTop, onCopyList }: Props) {
   const [query, setQuery] = useState("");
   const leaderColors = useMemo(() => [...lookupCard(deck.leaderId).colors], [deck.leaderId]);
   const [colors, setColors] = useState<string[]>(leaderColors);
@@ -627,6 +629,11 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
       <div className="deck-editor-layout">
         <aside className="deck-editor-side">
           {sideTop?.(false)}
+          {onCopyList ? (
+            <button type="button" className="btn btn-secondary btn-sm deck-copy-list-btn" onClick={onCopyList}>
+              Copy deck list
+            </button>
+          ) : null}
           {deckStats ? <DeckStatsSection deck={currentDeck} /> : null}
           <details
             className="deck-config-section deck-collapsible deck-add-cards"
@@ -665,6 +672,11 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
       <div className="deck-tools" role="group" aria-label="Deck tools">
         {deckStats ? toolButton("stats", "Deck stats") : null}
         {sideTop ? toolButton("replace", "Replace list") : null}
+        {onCopyList ? (
+          <button type="button" className="btn btn-secondary btn-sm deck-tool-btn" onClick={onCopyList}>
+            Copy list
+          </button>
+        ) : null}
       </div>
       {toolPanel === "stats" && deckStats ? <DeckStatsSection deck={currentDeck} panel /> : null}
       {toolPanel === "replace" ? sideTop?.(true) : null}

@@ -1223,3 +1223,13 @@ body:has(.deck-bottom-bar) {
     min-height: 36px;
   }
 }
+
+/* Copy deck list sits under the import panel in the side column. */
+.deck-copy-list-btn {
+  align-self: flex-start;
+}
+
+/* On phones the toast clears the fixed bottom bar. */
+body:has(.deck-bottom-bar) .deck-list-toast {
+  bottom: calc(var(--deck-bar-h, 56px) + 12px + var(--safe-b, 0px));
+}

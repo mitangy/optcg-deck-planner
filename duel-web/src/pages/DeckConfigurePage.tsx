@@ -25,6 +25,7 @@ import {
   validateImportedList,
   type SavedDeck,
 } from "../decks/storage";
+import { useCopyDeckList, useToast } from "../decks/useCopyDeckList";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 
@@ -56,6 +57,9 @@ export function DeckConfigurePage() {
   const dirty = Boolean(saved && draft && isDeckDirty(saved, draft));
   const blankName = Boolean(draft && !draft.name.trim());
   const leave = useLeaveGuard(dirty);
+  const { say, toast } = useToast();
+  const { copyList, dialog: copyDialog } = useCopyDeckList(say);
+
   const draftRef = useRef(draft);
   draftRef.current = draft;
 
@@ -250,6 +254,7 @@ export function DeckConfigurePage() {
           deck={deck}
           onChange={onChangeDraft}
           onArtChanged={onArtChanged}
+          onCopyList={() => void copyList(deck)}
           sideTop={(panel) => (
             <DeckImportPanel
               collapsible={!panel}
@@ -266,6 +271,8 @@ export function DeckConfigurePage() {
           )}
         />
       </div>
+      {toast}
+      {copyDialog}
 
       {leave.pending ? (
         <Dialog
