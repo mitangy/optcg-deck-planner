@@ -19,6 +19,9 @@ export type MatchRow = {
   yourLeader: string;
   yourLeaderId: string | null;
   opponentLeader: string;
+  opponentLeaderId: string | null;
+  /** Ranked or Casual, written out so the row never says it with colour alone. */
+  mode: "Ranked" | "Casual";
   opponent: string;
   turns: string | null;
   bountyDelta: string | null;
@@ -38,7 +41,9 @@ export function matchRow(
 ): MatchRow {
   const reason = REASONS[m.reason] ?? m.reason.replace(/_/g, " ");
   const loserReasons = new Set(["concede", "timeout", "match_timeout", "abandoned", "disconnect", "deck_out", "leader_battle_at_zero_life"]);
-  const how = loserReasons.has(m.reason) ? `${m.won ? "Opponent" : "You"} ${reason}` : capitalize(reason);
+  // "match clock ran out" needs a possessive: "Your match clock ran out", not "You match clock ran out" (#1388).
+  const who = m.reason === "match_timeout" ? (m.won ? "Opponent's" : "Your") : m.won ? "Opponent" : "You";
+  const how = loserReasons.has(m.reason) ? `${who} ${reason}` : capitalize(reason);
   const delta = m.rating_after - m.rating_before;
   const unfinished = m.finished === false;
   return {
@@ -48,6 +53,8 @@ export function matchRow(
     yourLeader: m.your_leader_id ? cardName(m.your_leader_id) : "Unknown leader",
     yourLeaderId: m.your_leader_id,
     opponentLeader: m.opponent_leader_id ? cardName(m.opponent_leader_id) : "Unknown leader",
+    opponentLeaderId: m.opponent_leader_id,
+    mode: m.ranked ? "Ranked" : "Casual",
     opponent: m.opponent_name,
     turns: m.turns != null ? `${m.turns} turns` : null,
     bountyDelta: m.ranked && !unfinished ? (delta >= 0 ? `+${delta}` : `−${Math.abs(delta)}`) : null,

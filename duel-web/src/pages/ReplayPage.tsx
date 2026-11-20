@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { SeatPlayers } from "../net/protocol";
 import { googleLoginUrl } from "../net/api";
@@ -22,7 +22,7 @@ function ReplayNotice({ title, children, matchId, signIn = false }: { title: str
     <div className="app-shell">
       <div className="page page-narrow">
         <header className="page-header">
-          <BackLink to="/history" label="History" ariaLabel="Back to match history" />
+          <BackLink to="/history" label="Match history" ariaLabel="Back to match history" />
           <h1 className="page-title">{title}</h1>
         </header>
         <section className="panel replay-notice" role="status">
@@ -39,7 +39,7 @@ function ReplayNotice({ title, children, matchId, signIn = false }: { title: str
               </Link>
             ) : null}
             <Link className="btn btn-secondary" to="/history">
-              Back to history
+              Back to match history
             </Link>
           </div>
         </section>
@@ -71,6 +71,8 @@ function replayNote(status: { kind: string } | undefined, atEnd: boolean, matchI
 
 function ReplayBoard({ payload }: { payload: ReplayPayload }) {
   const navigate = useNavigate();
+  // /replay/:id?review=1 opens straight into the game review (#1388).
+  const startInReview = useSearchParams()[0].get("review") === "1";
   const replay: Replay = useReplay(payload);
   const players = useMemo<SeatPlayers>(() => [{ name: payload.players[0] }, { name: payload.players[1] }], [payload.players]);
   const matchId = payload.match_id;
@@ -103,7 +105,7 @@ function ReplayBoard({ payload }: { payload: ReplayPayload }) {
         battleLog={ready?.battleLog}
         waiting={ready ? undefined : { status: `Rebuilding the game… ${Math.round(replay.phase === "building" ? replay.progress * 100 : 100)}%` }}
         leaveLabel="Exit replay"
-        replay={ready ? { controls: <ReplayControls state={ready.controls} actions={ready.actions} note={replayNote(status, ready.atEnd, matchId)} reserveRow={payload.replay.end != null} review={payload.replay.end != null ? review : null} />, quiet: ready.quiet } : undefined}
+        replay={ready ? { controls: <ReplayControls state={ready.controls} actions={ready.actions} note={replayNote(status, ready.atEnd, matchId)} reserveRow={payload.replay.end != null} review={payload.replay.end != null ? review : null} startInReview={startInReview} />, quiet: ready.quiet } : undefined}
         onSendIntent={ready ? ready.sendIntent : () => undefined}
         onLeave={() => navigate("/history")}
         onClearError={ready ? ready.clearError : () => undefined}
