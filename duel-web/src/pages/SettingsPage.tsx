@@ -201,6 +201,9 @@ export function SettingsPage() {
             </p>
             <UsernameSettings user={authUser} />
             <div className="btn-row">
+              <Link to="/profile" className="btn btn-secondary">
+                Profile
+              </Link>
               <Link to="/history" className="btn btn-secondary">
                 Match history
               </Link>

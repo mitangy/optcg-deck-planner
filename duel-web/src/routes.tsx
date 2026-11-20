@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { Navigate } from "react-router-dom";
 import { CardDataGate } from "./cards/CardDataGate";
-import { AdminPage, AdminUserPage, DeckConfigurePage, DemoPage, DuelPage, HistoryPage, HotseatPage, MatchLogPage, NewDeckPage, ReplayPage, SettingsPage, TournamentPage, TournamentsPage, WhatsNewPage } from "./lazyRoutes";
+import { AdminPage, AdminUserPage, DeckConfigurePage, DemoPage, DuelPage, HistoryPage, HotseatPage, MatchLogPage, NewDeckPage, ProfilePage, ReplayPage, SettingsPage, TournamentPage, TournamentsPage, WhatsNewPage } from "./lazyRoutes";
 import { AuthCompletePage } from "./pages/AuthCompletePage";
 import { DeckListPage } from "./pages/DeckListPage";
 import { EventRulesPage } from "./pages/EventRulesPage";
@@ -33,6 +33,7 @@ export const APP_ROUTES: readonly AppRoute[] = [
   { path: "/decks/configure", element: <Navigate to="/decks" replace /> },
   { path: "/duel", element: <DuelPage /> },
   { path: "/hotseat", element: <HotseatPage /> },
+  { path: "/profile", element: <CardDataGate><ProfilePage /></CardDataGate> },
   { path: "/settings", element: <SettingsPage /> },
   { path: "/leaderboard", element: <LeaderboardPage /> },
   { path: "/tournaments", element: <TournamentsPage /> },
