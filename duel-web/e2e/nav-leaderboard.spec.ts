@@ -99,7 +99,7 @@ async function menuWorks(page: Page): Promise<void> {
   await expect(page.locator(".home-deck")).toBeVisible();
   await noSidewaysScroll(page);
 
-  await page.getByRole("button", { name: "Menu" }).click();
+  await page.getByRole("button", { name: "Menu", exact: true }).click();
   await expect(page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
   await page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Home" }).click();
   await expect(page.getByRole("navigation", { name: "Site menu" })).toBeHidden();
@@ -108,7 +108,7 @@ async function menuWorks(page: Page): Promise<void> {
     await expect(page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Leaderboard" })).toBeHidden();
     await page.getByRole("navigation", { name: "Main" }).getByRole("link", { name: "Leaderboard" }).click();
   } else {
-    await page.getByRole("button", { name: "Menu" }).click();
+    await page.getByRole("button", { name: "Menu", exact: true }).click();
     await page.getByRole("navigation", { name: "Site menu" }).getByRole("link", { name: "Leaderboard" }).click();
   }
   await expect(page).toHaveURL(/\/leaderboard$/);
