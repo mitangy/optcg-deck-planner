@@ -21,7 +21,7 @@ export function VoyageCard({ me, games }: { me: RatingMe | null | undefined; gam
       <div className="friends-head">
         <h2 className="friends-title">Your voyage</h2>
         <Link to="/history" className="btn btn-ghost btn-sm">
-          History
+          Match history
         </Link>
       </div>
       <div className="voyage-card">
