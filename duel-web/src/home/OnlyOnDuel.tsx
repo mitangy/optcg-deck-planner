@@ -6,12 +6,8 @@ import type { SavedDeck } from "../decks/storage";
 
 export function OnlyOnDuel({
   deck,
-  onSpectate,
-  disabled,
 }: {
   deck: SavedDeck | null;
-  onSpectate: () => void;
-  disabled?: boolean;
 }) {
   const ask = useLogPoseAsk();
   return (
@@ -20,10 +16,6 @@ export function OnlyOnDuel({
         Only on OPTCG Duel
       </h2>
       <div className="only-duel-grid">
-        <Link to="/leaderboard" className="only-tile">
-          <span className="only-tile-title">Ranked bounties</span>
-          <span className="only-tile-blurb">Win games, raise your Bounty, climb the board.</span>
-        </Link>
         {ask ? (
           <button
             type="button"
@@ -40,10 +32,6 @@ export function OnlyOnDuel({
             <span className="only-tile-blurb">Ask about your deck, matchups and mistakes.</span>
           </button>
         ) : null}
-        <button type="button" className="only-tile only-tile-dup" disabled={disabled} onClick={onSpectate}>
-          <span className="only-tile-title">Spectate</span>
-          <span className="only-tile-blurb">Watch friends and top players live.</span>
-        </button>
         <Link to="/history" className="only-tile">
           <span className="only-tile-title">Replays</span>
           <span className="only-tile-blurb">Step through any game you played.</span>
