@@ -185,7 +185,7 @@
 
 .deck-stack-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(calc(148 * var(--deck-u)), 1fr));
   gap: 0.85rem;
 }
 
@@ -345,8 +345,8 @@
   flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
-  min-width: 36px;
-  min-height: 36px;
+  min-width: calc(36 * var(--deck-u));
+  min-height: calc(36 * var(--deck-u));
   padding: 0;
   border: 0;
   background: transparent;
@@ -391,8 +391,8 @@
   flex: 0 0 auto;
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: calc(28 * var(--deck-u));
+  height: calc(28 * var(--deck-u));
   padding: 0;
   border: 1px solid var(--line);
   border-radius: var(--radius-6);
@@ -657,7 +657,7 @@
 
 /* Main deck grouped by cost: groups flow side by side so the curve reads at a glance. */
 .deck-cost-groups {
-  --deck-tile-w: 118px;
+  --deck-tile-w: calc(118 * var(--deck-u));
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
@@ -704,7 +704,7 @@
 }
 
 .deck-editor-leader .deck-stack {
-  width: 132px;
+  width: calc(132 * var(--deck-u));
 }
 
 .deck-editor-leader .deck-stack-grid {
@@ -1249,4 +1249,22 @@ body:has(.deck-bottom-bar) {
 /* On phones the toast clears the fixed bottom bar. */
 body:has(.deck-bottom-bar) .deck-list-toast {
   bottom: calc(var(--deck-bar-h, 56px) + 12px + var(--safe-b, 0px));
+}
+/* Big monitors (#1382): the page already grows its root font with the screen; from 1600px the deck editor sizes
+   (tiles, Leader, panel, art button) follow it. Below 1600px --deck-u stays 1px, so nothing changes there. */
+html {
+  --deck-u: 1px;
+}
+
+@media (min-width: 1600px) {
+  html {
+    --deck-u: calc(1rem / 16);
+  }
+}
+
+/* Very wide screens: the root font is already at its cap, so the cards keep growing on their own. */
+@media (min-width: 2200px) {
+  html {
+    --deck-u: calc(1rem / 13.5);
+  }
 }
