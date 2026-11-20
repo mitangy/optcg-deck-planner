@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { Menu, MenuButton, MenuItem, MenuList, Select } from "@optcg/ui/popups";
 import { ApiError, googleLoginUrl } from "../net/api";
 import { PageShell } from "../layout/PageShell";
 import { ensureDefaultDeck, getSelectedDeckId, listSavedDecks, setSelectedDeckId } from "../decks/storage";
@@ -10,13 +9,16 @@ import {
   groupByRound,
   invitableFriends,
   joinedCount,
-  matchStatusLabel,
   minPlayers,
   myNextMatch,
   opponentOf,
-  roundLabel,
+  roundStartsOpen,
   startBlocker,
 } from "./bracket";
+import { Bracket } from "./Bracket";
+import { MatchCard } from "./MatchCard";
+import { YourMatch } from "./YourMatch";
+import { TIMER_PRESET_OPTIONS } from "../home/timerPreset";
 import { usePolling } from "../lib/usePolling";
 import { useWho } from "./hooks";
 import {
@@ -28,7 +30,6 @@ import {
   leaveTournament,
   removeTournamentPlayer,
   startTournament,
-  type Person,
   type Tournament,
   type TournamentMatch,
 } from "./tournamentApi";
@@ -52,69 +53,6 @@ function useDeckPick() {
   return { options: decks.map((d) => ({ value: d.id, label: d.name })), id, pick };
 }
 
-function Seat({ p, m }: { p: Person | null; m: TournamentMatch }) {
-  const won = p !== null && m.winner_id === p.user_id;
-  const text = p ? p.username : m.status === "done" && m.decided_by === "bye" ? "Bye" : "TBD";
-  return (
-    <div className="tseat" data-won={won || undefined} data-lost={m.winner_id !== null && !won ? true : undefined} data-empty={p ? undefined : true}>
-      <span className="tseat-name">{text}</span>
-      {won ? <span className="tseat-win">W</span> : null}
-    </div>
-  );
-}
-
-function MatchCard({
-  m,
-  myId,
-  organizer,
-  onAward,
-  onPlay,
-  busy,
-}: {
-  m: TournamentMatch;
-  myId: number;
-  organizer: boolean;
-  onAward: (m: TournamentMatch, p: Person) => void;
-  onPlay: (m: TournamentMatch) => void;
-  busy: boolean;
-}) {
-  const mine = m.a?.user_id === myId || m.b?.user_id === myId;
-  const ready = m.status === "ready";
-  const players = [m.a, m.b].filter((p): p is Person => p !== null);
-  return (
-    <div className="tmatch" data-mine={mine || undefined} data-status={m.status}>
-      <Seat p={m.a} m={m} />
-      <Seat p={m.b} m={m} />
-      <div className="tmatch-foot">
-        <span className="tmatch-status">{matchStatusLabel(m)}</span>
-        <span className="tmatch-actions">
-          {ready && mine ? (
-            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={() => onPlay(m)}>
-              Play
-            </button>
-          ) : null}
-          {ready && organizer ? (
-            <Menu>
-              <MenuButton type="button" className="btn btn-ghost btn-sm" disabled={busy}>
-                Award win
-              </MenuButton>
-              <MenuList anchor={{ to: "bottom end", gap: 4, padding: 8 }} className="match-menu friend-menu">
-                {players.map((p) => (
-                  <MenuItem key={p.user_id}>
-                    <button type="button" className="match-menu-item" onClick={() => onAward(m, p)}>
-                      {p.username} wins
-                    </button>
-                  </MenuItem>
-                ))}
-              </MenuList>
-            </Menu>
-          ) : null}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 export function TournamentPage() {
   const { code = "" } = useParams<{ code: string }>();
   const navigate = useNavigate();
@@ -124,6 +62,7 @@ export function TournamentPage() {
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [inviteQuery, setInviteQuery] = useState("");
   const deck = useDeckPick();
 
   const load = useCallback(async () => {
@@ -214,7 +153,8 @@ export function TournamentPage() {
   const open = t.status === "open";
   const started = t.status === "running" || t.status === "finished";
   const sharedFirst = t.status === "finished" && !t.winner && t.standings.filter((r) => r.rank === 1).length > 1;
-  const invitable = invitableFriends(friends.state?.friends ?? [], t.players);
+  const allInvitable = invitableFriends(friends.state?.friends ?? [], t.players);
+  const invitable = invitableFriends(friends.state?.friends ?? [], t.players, inviteQuery);
 
   return (
     <PageShell {...shellProps}>
@@ -223,7 +163,8 @@ export function TournamentPage() {
         <span className="tchip" data-status={t.status}>
           {t.status === "open" ? "Signing up" : t.status === "running" ? "Running" : t.status === "finished" ? "Finished" : "Cancelled"}
         </span>
-        <span>by {t.organizer.username}</span>
+        <span>{TIMER_PRESET_OPTIONS.find((o) => o.value === t.timer)?.label ?? "No timer"}</span>
+        <span>by {t.organizer.user_id === myId ? "you" : t.organizer.username}</span>
       </div>
 
       {note ? <p className="error-text">{note}</p> : null}
@@ -232,7 +173,7 @@ export function TournamentPage() {
       {t.status === "finished" ? (
         <section className="notice notice-gold" aria-label="Winner">
           <div className="notice-body">
-            <strong>{t.winner ? `${t.winner.username} won` : sharedFirst ? "Shared first place" : "Finished"}</strong>
+            <strong>{t.winner ? (t.winner.user_id === myId ? "You won" : `${t.winner.username} won`) : sharedFirst ? "Shared first place" : "Finished"}</strong>
             <span>{t.name}</span>
           </div>
         </section>
@@ -316,6 +257,11 @@ export function TournamentPage() {
             {isOrganizer ? (
               <section className="panel" aria-label="Invite friends">
                 <h2 className="panel-title">Invite friends</h2>
+                {allInvitable.length > 6 ? (
+                  <div className="field">
+                    <input type="search" aria-label="Search friends" placeholder="Search friends" value={inviteQuery} onChange={(e) => setInviteQuery(e.target.value)} />
+                  </div>
+                ) : null}
                 {invitable.length > 0 ? (
                   <ul className="tplayers">
                     {invitable.map((f) => (
@@ -328,7 +274,7 @@ export function TournamentPage() {
                     ))}
                   </ul>
                 ) : (
-                  <p className="panel-copy tnote">{friends.state ? "No friends left to invite." : "Loading friends…"}</p>
+                  <p className="panel-copy tnote">{!friends.state ? "Loading friends…" : allInvitable.length > 0 ? "No friends match that search." : "No friends left to invite."}</p>
                 )}
               </section>
             ) : null}
@@ -336,63 +282,22 @@ export function TournamentPage() {
         </div>
       ) : null}
 
-      {t.status === "running" && t.me.role !== null ? (
-        <section className="panel tmine" aria-label="Your match">
-          <h2 className="panel-title">Your match</h2>
-          {next ? (
-            <>
-              <p className="panel-copy">
-                {next.status === "ready" ? (
-                  <>
-                    <strong>You vs {opponentOf(next, myId)?.username ?? "TBD"}</strong>
-                    {t.format === "single_elim" ? ` · ${roundLabel(next.round, t.rounds)}` : ` · Round ${next.round}`}
-                  </>
-                ) : (
-                  "Waiting for your opponent to be decided."
-                )}
-              </p>
-              {next.status === "ready" ? (
-                <div className="tmine-row">
-                  <div className="field">
-                    <label htmlFor="t-deck">Your deck</label>
-                    <Select<string> id="t-deck" value={deck.id} onChange={deck.pick} options={deck.options} />
-                  </div>
-                  <button type="button" className="btn btn-primary" disabled={busy || !deck.id} onClick={() => play(next)}>
-                    Play
-                  </button>
-                </div>
-              ) : null}
-              {next.status === "ready" ? <p className="field-hint">Both of you press Play. One opens the room and the other joins it. Pick your deck first.</p> : null}
-            </>
-          ) : (
-            <p className="panel-copy">{t.players.some((p) => p.user_id === myId && p.status === "joined") ? "You have no match right now." : "You are not in this tournament."}</p>
-          )}
-        </section>
-      ) : null}
+      {t.status === "running" && t.me.role !== null ? <YourMatch t={t} next={next} myId={myId} busy={busy} deck={deck} onPlay={play} /> : null}
 
       {started && t.format === "single_elim" ? (
-        <section className="panel" aria-label="Bracket">
+        <section className="panel tbracket-panel" aria-label="Bracket">
           <h2 className="panel-title">Bracket</h2>
-          <div className="tbracket" tabIndex={0} role="group" aria-label="Bracket rounds">
-            {rounds.map((r) => (
-              <div key={r.round} className="tround">
-                <h3 className="tround-title">{roundLabel(r.round, t.rounds)}</h3>
-                <div className="tround-list">
-                  {r.matches.map((m) => (
-                    <MatchCard
-                      key={m.id}
-                      m={m}
-                      myId={myId}
-                      organizer={isOrganizer}
-                      busy={busy}
-                      onPlay={play}
-                      onAward={(mm, p) => void act(() => awardTournamentMatch(t.code, mm.id, p.user_id))}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          <Bracket
+            matches={t.matches}
+            rounds={t.rounds}
+            next={next}
+            myId={myId}
+            nextId={next?.id ?? null}
+            organizer={isOrganizer}
+            busy={busy}
+            onPlay={play}
+            onAward={(mm, p) => void act(() => awardTournamentMatch(t.code, mm.id, p.user_id))}
+          />
         </section>
       ) : null}
 
@@ -425,24 +330,33 @@ export function TournamentPage() {
               </table>
             </div>
           </section>
-          {rounds.map((r) => (
-            <section key={r.round} className="panel" aria-label={`Round ${r.round}`}>
-              <h2 className="panel-title">Round {r.round}</h2>
-              <div className="tmatch-grid">
-                {r.matches.map((m) => (
-                  <MatchCard
-                    key={m.id}
-                    m={m}
-                    myId={myId}
-                    organizer={isOrganizer}
-                    busy={busy}
-                    onPlay={play}
-                    onAward={(mm, p) => void act(() => awardTournamentMatch(t.code, mm.id, p.user_id))}
-                  />
-                ))}
-              </div>
-            </section>
-          ))}
+          {rounds.map((r) => {
+            const done = !roundStartsOpen(r.matches);
+            return (
+              <details key={r.round} className="panel tround-rr" aria-label={`Round ${r.round}`} open={!done}>
+                <summary className="tround-sum">
+                  <h2 className="panel-title">
+                    Round {r.round}
+                    {done ? " · done" : ""}
+                  </h2>
+                </summary>
+                <div className="tmatch-grid">
+                  {r.matches.map((m) => (
+                    <MatchCard
+                      key={m.id}
+                      m={m}
+                      myId={myId}
+                      nextId={next?.id ?? null}
+                      organizer={isOrganizer}
+                      busy={busy}
+                      onPlay={play}
+                      onAward={(mm, p) => void act(() => awardTournamentMatch(t.code, mm.id, p.user_id))}
+                    />
+                  ))}
+                </div>
+              </details>
+            );
+          })}
         </>
       ) : null}
 
