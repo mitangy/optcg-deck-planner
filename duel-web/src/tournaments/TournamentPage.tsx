@@ -15,7 +15,7 @@ import {
   roundStartsOpen,
   startBlocker,
 } from "./bracket";
-import { Bracket } from "./Bracket";
+import { Bracket } from "./BracketView";
 import { MatchCard } from "./MatchCard";
 import { YourMatch } from "./YourMatch";
 import { TIMER_PRESET_OPTIONS } from "../home/timerPreset";
