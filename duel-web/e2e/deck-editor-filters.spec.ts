@@ -27,10 +27,12 @@ test("the deck editor's Add cards filters stay small checkboxes that toggle behi
   await expect(section.locator("label.deck-color-chip")).toHaveCount(6);
   await expect(section.locator("fieldset")).toHaveCount(0);
   const red = section.locator("label.deck-color-chip", { hasText: "Red" });
-  await red.click();
+  // A red Leader starts with Red ticked (#1386); the chip still toggles off and on.
   await expect(red.locator("input")).toBeChecked();
   await red.click();
   await expect(red.locator("input")).not.toBeChecked();
+  await red.click();
+  await expect(red.locator("input")).toBeChecked();
 
   await section.getByRole("button", { name: "More filters" }).click();
   for (const [fieldset, name] of [["Type", "Character"], ["Attribute", "Strike"]] as const) {
@@ -73,8 +75,8 @@ test("More filters shows how many hidden filters are set, narrows results and re
   await expect(more.getByLabel("2 active")).toBeVisible();
   await expect(section.locator(".deck-search-row")).not.toHaveCount(before);
   for (const row of await section.locator(".deck-search-row .deck-stack-id").allTextContents()) {
-    expect(row).toMatch(/event/);
-    expect(row).toMatch(/cost [01]\b/);
+    expect(row).toMatch(/\bevent\b/i);
+    expect(row).toMatch(/\bcost [01]\b/i);
   }
 
   await more.click();
