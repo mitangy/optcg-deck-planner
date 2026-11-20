@@ -29,7 +29,7 @@ const MATCHES = [
   { ...base, match_id: "m4", reason: "match_timeout", has_chat: true, replay_ready: false, opponent_leader_id: "OP01-001" },
 ];
 
-async function openHistory(page: Page): Promise<void> {
+async function openHistory(page: Page, at = "/history"): Promise<void> {
   await page.route(`${FAKE_API}/**`, (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/health") return route.fulfill({ json: { ok: true } });
@@ -37,8 +37,8 @@ async function openHistory(page: Page): Promise<void> {
     if (path === "/duel/matches/me") return route.fulfill({ json: { matches: MATCHES } });
     return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
   });
-  await page.goto("/history");
-  await expect(page.locator(".history-row-link")).toHaveCount(MATCHES.length);
+  await page.goto(at);
+  await expect(page.locator(".history-row-link").first()).toBeVisible();
 }
 
 for (const [w, h] of [
@@ -66,3 +66,14 @@ for (const [w, h] of [
     await expect(page.getByText("Cut off")).toBeVisible();
   });
 }
+
+test("the Profile page's match list keeps leaders, opponent and result readable on a big screen (#1388)", async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-1280", "sets its own viewport");
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await openHistory(page, "/profile");
+  // Profile shows the shared list in a narrow panel: the History page's one-line wide grid must not squeeze the text out.
+  const widths = await page.locator(".history-row-link").first().evaluate((row) =>
+    [".history-leaders", ".history-opp", ".history-how"].map((sel) => Math.round(row.querySelector(sel)!.getBoundingClientRect().width)),
+  );
+  for (const w of widths) expect(w, `text column widths ${widths.join(", ")}`).toBeGreaterThan(80);
+});

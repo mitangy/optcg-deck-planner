@@ -3,6 +3,8 @@
 }
 
 .history-list {
+  /* Rows lay out by the list's own width, so the same list fits the History page, the Profile panel and phones (#1388). */
+  container: history-list / inline-size;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -524,7 +526,7 @@
   box-shadow: var(--focus);
 }
 
-@media (max-width: 480px) {
+@container history-list (max-width: 36rem) {
   .history-replay-btn,
   .history-replay-slot {
     width: 44px;
@@ -852,7 +854,7 @@
   position: relative;
 }
 
-@media (max-width: 480px) {
+@container history-list (max-width: 36rem) {
   .history-row-link {
     grid-template-columns: auto auto auto minmax(0, 1fr);
     grid-template-areas:
@@ -890,7 +892,8 @@
   }
 }
 
-@media (min-width: 1200px) {
+/* One-line rows when the list is wide (the History page on a big screen), never in Profile's narrow panel (#1388). */
+@container history-list (min-width: 56rem) {
   .history-row-link {
     grid-template-columns: 4.2rem auto minmax(0, 1.25fr) minmax(0, 1fr) 4.8rem 3.4rem;
     grid-template-areas:
