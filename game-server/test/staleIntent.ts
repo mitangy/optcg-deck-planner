@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import type { ColyseusTestServer } from "@colyseus/testing";
 import type { Room as ClientRoom } from "@colyseus/sdk";
+import { getCardDef } from "@optcg/rules";
 import { PROTOCOL_VERSION } from "../src/protocol.js";
 import type { DuelRoom } from "../src/rooms/DuelRoom.js";
 
-type View = { activeSeat: 0 | 1; you: { hand: { id: string; defId: string }[] } };
+type View = { activeSeat: 0 | 1; legalIntents: { type: string }[]; you: { hand: { id: string; defId: string }[] } };
 type Bag = { views: { view: View; step?: number }[]; errors: { code: string; message: string }[] };
 
 async function waitUntil(pred: () => boolean, timeoutMs = 5000): Promise<void> {
@@ -122,6 +123,84 @@ export function staleIntentTests(getColyseus: () => ColyseusTestServer) {
       await waitUntil(() => t.bags[t.active].errors.some((e) => e.code === "stale_intent"));
       await pause();
       assert.equal(t.match().activeSeat, t.active);
+    });
+  });
+
+  describe("same-seat intent chains (#1376)", () => {
+    const giveAll = (t: Awaited<ReturnType<typeof setup>>, n: number) => {
+      const p = t.match().players[t.active];
+      while (p.costArea.length < n) p.costArea.push(p.donDeck.pop()!);
+      const leader = p.leader.id;
+      return p.costArea.slice(0, n).map((d) => ({ type: "give_don", donId: d.id, targetId: leader }));
+    };
+
+    it("several DON!! given in one tick with the same step all attach (#1376)", async () => {
+      const t = await setup(31);
+      const gives = giveAll(t, 3);
+      const step = t.stepOf(t.active);
+      for (const g of gives) t.send(t.active, g, { step });
+      await waitUntil(() => t.match().players[t.active].attachedDons.length === 3 || t.bags[t.active].errors.length > 0);
+      await pause();
+      assert.deepEqual(t.bags[t.active].errors, []);
+      assert.equal(t.match().players[t.active].attachedDons.length, 3);
+    });
+
+    it("several counters played from one counter step with the same step all apply (#1376)", async () => {
+      const t = await setup(42);
+      const send = (seat: 0 | 1, intent: object) => {
+        const seen = [t.bags[0].views.length, t.bags[1].views.length];
+        t.send(seat, intent, { step: t.stepOf(seat) });
+        return waitUntil(() => t.bags[0].views.length > seen[0]! && t.bags[1].views.length > seen[1]!);
+      };
+      for (let i = 0; i < 40 && t.match().phase !== "block"; i++) {
+        const seat = ([0, 1] as const).find((s) => t.bags[s].views.at(-1)!.view.legalIntents.length > 0)!;
+        const legal = t.bags[seat].views.at(-1)!.view.legalIntents;
+        await send(seat, legal.find((x) => x.type === "declare_attack") ?? legal.find((x) => x.type === "end_turn") ?? legal[0]!);
+      }
+      assert.equal(t.match().phase, "block");
+      const defender = (1 - t.match().activeSeat) as 0 | 1;
+      await send(defender, { type: "pass_block" });
+      assert.equal(t.match().phase, "counter");
+      const p = t.match().players[defender];
+      const counterDef = "EB02-055"; // a vanilla Character with a 2000 Counter
+      assert.equal(getCardDef(counterDef).counter, 2000);
+      p.hand[0]!.defId = counterDef;
+      p.hand[1]!.defId = counterDef;
+      const [a, b] = [p.hand[0]!.id, p.hand[1]!.id];
+      const step = t.stepOf(defender);
+      const trashBefore = p.trash.filter((d) => d === counterDef).length;
+      t.send(defender, { type: "counter_from_hand", handIndex: 0 }, { step, cardId: a });
+      t.send(defender, { type: "counter_from_hand", handIndex: 0 }, { step, cardId: b });
+      await waitUntil(() => !t.match().players[defender].hand.some((c) => c.id === a || c.id === b) || t.bags[defender].errors.length > 0);
+      await pause();
+      assert.deepEqual(t.bags[defender].errors, []);
+      assert.equal(t.match().players[defender].trash.filter((d) => d === counterDef).length, trashBefore + 2);
+      assert.ok(!t.match().players[defender].hand.some((c) => c.id === a || c.id === b));
+    });
+
+    it("another state change between two same-step intents makes the second stale (#1376)", async () => {
+      const t = await setup(31);
+      const [g1, g2] = giveAll(t, 2);
+      const step = t.stepOf(t.active);
+      t.send(t.active, g1!, { step });
+      await waitUntil(() => t.match().players[t.active].attachedDons.length === 1);
+      t.room.game.match = t.match(); // any non-chain change (timer, opponent, undo) moves the step
+      t.send(t.active, g2!, { step });
+      await waitUntil(() => t.bags[t.active].errors.some((e) => e.code === "stale_intent"));
+      assert.equal(t.match().players[t.active].attachedDons.length, 1);
+    });
+
+    it("a rejected intent ends the chain: a later same-step intent is stale (#1376)", async () => {
+      const t = await setup(31);
+      const [g1, g2] = giveAll(t, 2);
+      const step = t.stepOf(t.active);
+      t.send(t.active, g1!, { step });
+      await waitUntil(() => t.match().players[t.active].attachedDons.length === 1);
+      t.send(t.active, g2!, { step: step - 1 });
+      await waitUntil(() => t.bags[t.active].errors.length === 1);
+      t.send(t.active, g2!, { step });
+      await waitUntil(() => t.bags[t.active].errors.length === 2);
+      assert.equal(t.match().players[t.active].attachedDons.length, 1);
     });
   });
 }

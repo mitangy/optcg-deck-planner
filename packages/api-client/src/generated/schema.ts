@@ -5854,16 +5854,34 @@ export interface components {
          * @description Public rating data; account email is intentionally excluded.
          */
         DuelLeaderboardEntryOut: {
+            /** Bounty Change */
+            bounty_change?: number | null;
             /** Games Played */
             games_played: number;
+            /**
+             * Losses
+             * @default 0
+             */
+            losses: number;
             /** Name */
             name: string;
+            /** Provisional */
+            provisional: boolean;
+            /** Rank */
+            rank: number;
+            /** Rank Change */
+            rank_change?: number | null;
             /** Rating */
             rating: number;
             /** User Id */
             user_id: number;
             /** Username */
             username?: string | null;
+            /**
+             * Wins
+             * @default 0
+             */
+            wins: number;
         };
         /** DuelLeaderboardOut */
         DuelLeaderboardOut: {
@@ -6102,6 +6120,11 @@ export interface components {
             losses: number;
             /** Name */
             name: string;
+            /**
+             * Provisional
+             * @default true
+             */
+            provisional: boolean;
             /** Rank */
             rank?: number | null;
             /** Rating */
@@ -14021,6 +14044,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                window?: "all" | "week" | "month";
             };
             header?: never;
             path?: never;

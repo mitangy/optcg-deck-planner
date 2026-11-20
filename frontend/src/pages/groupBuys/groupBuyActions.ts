@@ -41,7 +41,7 @@ export function groupBuyActions(statusRaw: string, isHost: boolean, receiptReady
     case "locked":
       return { primary: "mark-ordered", secondary: ["mass-entry"], more: ["unlock", "delete"] };
     case "ordered":
-      return { primary: receiptReady ? "mark-purchased" : "import-receipt", secondary: ["mass-entry"], more: ["delete"] };
+      return { primary: receiptReady ? "mark-purchased" : "import-receipt", secondary: ["mass-entry"], more: canUndo ? ["undo-purchase", "delete"] : ["delete"] };
     case "completed":
       return { primary: null, secondary: [], more: canUndo ? ["undo-purchase", "delete"] : ["delete"] };
   }
