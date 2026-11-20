@@ -142,6 +142,7 @@ class DuelRatingOut(BaseModel):
     wins: int = 0
     losses: int = 0
     rank: int | None = None
+    provisional: bool = True
 
 
 class DuelLiveOut(BaseModel):
@@ -159,6 +160,13 @@ class DuelLeaderboardEntryOut(BaseModel):
     username: str | None = None
     rating: int
     games_played: int
+    rank: int
+    provisional: bool
+    wins: int = 0
+    losses: int = 0
+    # Rank places gained since yesterday (all time) or rating gained in the window; null when not comparable.
+    rank_change: int | None = None
+    bounty_change: int | None = None
 
 
 class DuelLeaderboardOut(BaseModel):

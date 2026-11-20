@@ -354,13 +354,13 @@ export function MetaPage({ user }: { user: User | null }) {
     const l = next.leader ?? leaderId;
     const d = next.days ?? days;
     const t = next.top8 ?? top8;
-    const query = (next.q ?? q).trim();
+    const query = next.q ?? q;
     const picked = next.colors ?? colors;
     const sorted = next.sort ?? sort;
     if (l) p.set("leader", l);
     if (d !== META_DEFAULT_DAYS) p.set("days", String(d));
     if (l && t) p.set("top8", "1");
-    if (query) p.set("q", query);
+    if (query.trim()) p.set("q", query);
     if (picked.length) p.set("colors", picked.map((c) => c.toLowerCase()).join(","));
     if (sorted !== META_DEFAULT_SORT) p.set("sort", sorted);
     const s = p.toString();
