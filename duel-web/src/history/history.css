@@ -367,7 +367,7 @@
 }
 
 @media (min-width: 1000px) {
-  .match-log-page {
+  .page.match-log-page {
     max-width: 1180px;
   }
 

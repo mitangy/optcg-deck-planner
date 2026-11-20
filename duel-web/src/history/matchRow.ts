@@ -41,7 +41,9 @@ export function matchRow(
 ): MatchRow {
   const reason = REASONS[m.reason] ?? m.reason.replace(/_/g, " ");
   const loserReasons = new Set(["concede", "timeout", "match_timeout", "abandoned", "disconnect", "deck_out", "leader_battle_at_zero_life"]);
-  const how = loserReasons.has(m.reason) ? `${m.won ? "Opponent" : "You"} ${reason}` : capitalize(reason);
+  // "match clock ran out" needs a possessive: "Your match clock ran out", not "You match clock ran out" (#1388).
+  const who = m.reason === "match_timeout" ? (m.won ? "Opponent's" : "Your") : m.won ? "Opponent" : "You";
+  const how = loserReasons.has(m.reason) ? `${who} ${reason}` : capitalize(reason);
   const delta = m.rating_after - m.rating_before;
   const unfinished = m.finished === false;
   return {

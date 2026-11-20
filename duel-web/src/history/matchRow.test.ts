@@ -36,6 +36,11 @@ describe("match history rows", () => {
     expect(matchRow(entry({ has_replay: true }), cardName, now).replay).toBe(false);
   });
 
+  it("says whose match clock ran out in plain words (#1388)", () => {
+    expect(matchRow(entry({ won: false, reason: "match_timeout" }), cardName, now).how).toBe("Your match clock ran out");
+    expect(matchRow(entry({ won: true, reason: "match_timeout" }), cardName, now).how).toBe("Opponent's match clock ran out");
+  });
+
   it("says who conceded, left or took the last hit from your side (#244)", () => {
     expect(matchRow(entry({ won: false, reason: "concede" }), cardName, now).how).toBe("You conceded");
     expect(matchRow(entry({ won: true, reason: "concede" }), cardName, now).how).toBe("Opponent conceded");
