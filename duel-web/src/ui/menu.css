@@ -141,6 +141,15 @@
     align-items: center;
     gap: var(--space-1);
     margin-right: var(--space-2);
+    /* Squeezed out before any button or the account pill (#1391). */
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: clip;
+    overflow-clip-margin: 6px;
+  }
+
+  .topbar-right {
+    flex: none;
   }
 
   .topbar-link {

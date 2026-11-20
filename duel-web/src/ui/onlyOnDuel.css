@@ -16,7 +16,9 @@
 
 .only-duel-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* One row whatever the count (three tiles, four with the Log Pose coach) (#1391). */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
   gap: 0.6rem;
 }
 
@@ -68,8 +70,14 @@
 
 @media (max-width: 479px) {
   .only-duel-grid {
+    grid-auto-flow: row;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-2);
+  }
+
+  /* An odd last tile fills its row instead of leaving a hole. */
+  .only-duel-grid > .only-tile:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
   }
 
   .only-tile {
@@ -91,13 +99,6 @@
     display: none;
   }
 
-  .only-tile-dup {
-    display: none;
-  }
-
-  .only-tile:nth-child(n + 5 of :not(.only-tile-dup)) {
-    display: none;
-  }
 }
 
 
@@ -115,9 +116,12 @@
 
 .for-you-title {
   min-width: 0;
+  /* Two lines before an ellipsis: "Review your last game" must not be cut to "Review your la…" (#1391). */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   font-family: var(--font-display);
   font-weight: 700;
   font-size: 0.95rem;
