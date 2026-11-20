@@ -23,12 +23,21 @@ export function LookPreview() {
       <span className="look-preview-tag" aria-hidden>
         Your board
       </span>
-      <div className="look-preview-cards" aria-hidden>
-        <div
-          className="look-preview-back"
-          style={{ backgroundImage: `${cardBackCssValue(cardBackUrl)}, linear-gradient(145deg, #243447, #15202c)` }}
-        />
-        <img className="look-preview-don" src={donArtUrl(settings.donArt)} alt="" draggable={false} onError={fallbackToDefaultDon} />
+      <div className="look-preview-board" aria-hidden>
+        <div className="look-preview-zone look-preview-dons">
+          {[0, 1, 2].map((i) => (
+            <img key={i} className="look-preview-card look-preview-don" src={donArtUrl(settings.donArt)} alt="" draggable={false} onError={fallbackToDefaultDon} />
+          ))}
+        </div>
+        <div className="look-preview-zone look-preview-deck">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="look-preview-card look-preview-back"
+              style={{ backgroundImage: `${cardBackCssValue(cardBackUrl)}, linear-gradient(145deg, #243447, #15202c)` }}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
