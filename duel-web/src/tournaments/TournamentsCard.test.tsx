@@ -45,9 +45,9 @@ async function mount(tournaments: TournamentSummary[], signedIn = true): Promise
 describe("Tournaments card on the lobby (#997)", () => {
   it("flags a running tournament whose match is ready for you and links to it (#997)", async () => {
     const el = await mount([summary({ my_match_ready: true }), summary({ id: 2, code: "def", name: "Other", my_match_ready: false })]);
-    expect(el.textContent).toContain("Your match is ready");
+    expect(el.textContent).toContain("Play now");
     expect(el.textContent).toContain("1 ready");
-    expect(el.textContent?.match(/Your match is ready/g)).toHaveLength(1);
+    expect(el.textContent?.match(/Play now/g)).toHaveLength(1);
     expect(el.querySelector('a[href="/tournaments/abc"]')).not.toBeNull();
   });
 

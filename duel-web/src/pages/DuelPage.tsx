@@ -11,6 +11,7 @@ import { rematchDeckOptions } from "../decks/rematchDecks";
 import { setSelectedDeckId } from "../decks/storage";
 import { fetchMatchDetail } from "../history/historyApi";
 import { useDuelSession } from "../state/DuelSession";
+import { clearActiveTournamentMatch, getActiveTournamentMatch, tournamentReturnFor } from "../tournaments/activeTournamentMatch";
 import { duelPageChrome } from "./duelPageChrome";
 
 const loadMatchRecord = (matchId: string) => fetchMatchDetail(matchId).then((d) => d.match);
@@ -84,6 +85,7 @@ export function DuelPage() {
 
   const spectating = role === "spectator" || Boolean(view?.spectator);
   const chrome = duelPageChrome({ vsBot, spectating, rating });
+  const tournamentCode = tournamentReturnFor(getActiveTournamentMatch(), { spectating, isReplay: false });
   const rolling = !view && !(launching && launch) && !resuming && Boolean(dice);
   const waiting: BoardWaiting | undefined = view
     ? undefined
@@ -172,6 +174,15 @@ export function DuelPage() {
           void leave();
           navigate("/", { replace: true });
         }}
+        onBackToTournament={
+          tournamentCode
+            ? () => {
+                clearActiveTournamentMatch();
+                void leave();
+                navigate(`/tournaments/${tournamentCode}`, { replace: true });
+              }
+            : undefined
+        }
         onClearError={clearError}
       />
       {role === "spectator" && view && friends.state?.invites.length ? createPortal(

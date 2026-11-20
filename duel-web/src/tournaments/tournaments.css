@@ -391,3 +391,69 @@
 }
 
 .tshare { flex-direction: row; align-items: center; }
+
+/* list page (#1385) */
+.tgroup { display: flex; flex-direction: column; gap: 0.4rem; }
+.tgroup + .tgroup { margin-top: var(--space-3); }
+
+.tgroup-title {
+  margin: 0;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--chrome);
+}
+
+.tgroup-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  align-self: flex-start;
+  min-height: 44px;
+  padding: 0 0.5rem;
+  margin-left: -0.5rem;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  font: inherit;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--chrome);
+  cursor: pointer;
+}
+
+.tgroup-toggle:hover { background: rgb(var(--chrome-rgb) / 0.06); }
+.tgroup-toggle:focus-visible { outline: none; box-shadow: var(--focus); }
+
+.tgroup-caret {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 140ms ease;
+}
+
+.tgroup-toggle[aria-expanded="true"] .tgroup-caret { transform: rotate(45deg); }
+
+/* Names wrap to two lines instead of cutting off; the meta line breaks between facts, never inside one. */
+.trow-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.trow-meta { display: flex; flex-wrap: wrap; overflow-wrap: normal; }
+.trow-meta-part { white-space: nowrap; }
+.trow-meta-part + .trow-meta-part::before { content: "\00b7"; margin: 0 0.4em; }
+
+@media (min-width: 1600px) {
+  .page.tpage { max-width: 1240px; }
+  .tgrid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+}

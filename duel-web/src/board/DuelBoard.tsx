@@ -121,6 +121,8 @@ type Props = {
   waiting?: BoardWaiting;
   onSendIntent: (intent: Intent) => void;
   onLeave: () => void;
+  /** Tournament game: a Match over button that leaves the room and returns to the tournament. */
+  onBackToTournament?: () => void;
   onClearError: () => void;
 };
 
@@ -162,6 +164,7 @@ export function DuelBoard({
   waiting,
   onSendIntent: sendIntent,
   onLeave,
+  onBackToTournament,
   onClearError,
 }: Props) {
   const [handFilter, setHandFilter] = useState<number | null>(null);
@@ -1299,6 +1302,7 @@ export function DuelBoard({
         canReportPlayer={canReportPlayer}
         reportTargetFor={reportTargetFor}
         onLeave={onLeave}
+        onBackToTournament={onBackToTournament}
         cardIntentCount={cardIntents.length}
       />
     </div>
