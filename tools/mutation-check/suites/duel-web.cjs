@@ -705,7 +705,7 @@ module.exports = {
     { id: "validate-any-number-capped", file: `${src}/decks/storage.ts`, from: "    if (line.count > maxCopiesFor(line.cardId)) {", to: "    if (line.count > 4) {", kills: ["accepts 7 copies of a card that allows any number (OP16-042) (#579)"] },
     { id: "edit-any-number-capped", file: `${src}/cards/atlas.ts`, from: "  return lookupCard(defId).deckRules?.includes(\"any_number\") ? Infinity : MAX_COPIES_PER_CARD;", to: "  return MAX_COPIES_PER_CARD;", kills: ["deck editor adds a 5th OP16-042 (any number) but not a 5th normal card (#579)", "accepts 7 copies of a card that allows any number (OP16-042) (#579)"] },
     { id: "validate-uncurated-rejected", file: `${src}/decks/storage.ts`, from: "      if (!isCardId(line.cardId)) {", to: "      if (true) {", kills: ["rejects over-4 but allows uncurated OPTCG ids as stubs"] },
-    { id: "seed-teach-missing", file: `${src}/decks/storage.ts`, from: "  return [a, b];", to: "  return [a];", kills: ["seeds Teach-named OP16 deck once"] },
+    { id: "seed-teach-missing", file: `${src}/decks/storage.ts`, from: "  return [luffy, a, b];", to: "  return [luffy, a];", kills: ["seeds Teach-named OP16 deck once"] },
     { id: "seed-overwrites-edits", file: `${src}/decks/storage.ts`, from: "  const existing = all.find((d) => d.id === id);\n  if (existing) {", to: "  const existing = undefined as SavedDeck | undefined;\n  if (existing) {", kills: ["does not overwrite Configure edits on re-seed"] },
     // net
     { id: "guest-id-no-seat-suffix", file: `${src}/net/api.ts`, from: "  let id = `${base}-${suffix}`;", to: "  let id = `${base}`;", kills: ["appends seat suffix"] },
