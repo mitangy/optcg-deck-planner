@@ -130,7 +130,7 @@
   padding: 0.4rem 0.75rem;
   position: sticky;
   top: var(--sticky-head-h, 0px);
-  z-index: 1;
+  z-index: var(--z-raise-1);
   background: var(--arena-deep);
   font-size: 0.75rem;
   font-weight: 700;
