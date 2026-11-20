@@ -101,7 +101,9 @@ test.describe("phone landscape", () => {
   test("phone landscape fits Play and the deck on the first screen (#431)", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1280", "viewport is set by the test; one project is enough");
     await openLobby(page);
-    await expect(page.locator(".home-brand")).toBeHidden();
+    // The headline stays, but as one short row (no kicker or rule) so Play and the deck still fit (#1391).
+    await expect(page.locator(".home-kicker")).toBeHidden();
+    expect((await page.locator(".home-hero").boundingBox())!.height).toBeLessThan(48);
     const vp = page.viewportSize()!;
     for (const sel of [".btn-play", ".home-deck"]) {
       const box = (await page.locator(sel).boundingBox())!;

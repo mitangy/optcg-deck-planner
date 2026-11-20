@@ -1,22 +1,12 @@
 import { Link } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
-import { resolveCardImageUrl } from "../decks/artPrefs";
-import { useArtFallback } from "../cards/useArtFallback";
 import { historySummary } from "./historySummary";
 import { matchRow, outcomeKey } from "./matchRow";
+import { LeaderPair } from "./LeaderPair";
 import type { MatchHistoryEntry } from "./historyApi";
 import "./history.css";
 
 const cardName = (id: string) => lookupCard(id).name || id;
-
-function LeaderArt({ defId }: { defId: string | null }) {
-  const { src, fail } = useArtFallback(defId ? resolveCardImageUrl(defId, { size: "thumb" }) : null, defId);
-  return src ? (
-    <img className="history-leader-art" src={src} alt="" loading="lazy" onError={fail} />
-  ) : (
-    <span className="history-leader-art history-leader-art-empty" aria-hidden />
-  );
-}
 
 function ChatMark() {
   return (
@@ -25,6 +15,7 @@ function ChatMark() {
         <circle cx="12" cy="12" r="9" />
         <path d="M12 6.5 14.2 12h-4.4zM12 17.5 9.8 12h4.4z" />
       </svg>
+      <span aria-hidden>Chat</span>
     </span>
   );
 }
@@ -44,19 +35,23 @@ export function MatchHistoryList({ matches, limit }: { matches: readonly MatchHi
             data-outcome={outcomeKey(r.outcome)}
           >
             <span className="history-outcome">{r.outcome}</span>
-            <LeaderArt defId={r.yourLeaderId} />
-            <div className="history-main">
-              <p className="history-leaders">
-                <span>{r.yourLeader}</span>
-                <span className="history-vs">vs</span>
-                <span>{r.opponentLeader}</span>
-                {r.hasChat ? <ChatMark /> : null}
-              </p>
-              <p className="history-meta">
-                {[r.opponent, r.how, r.turns, r.when].filter(Boolean).join(" · ")}
-              </p>
-            </div>
-            {r.bountyDelta ? <span className="history-bounty" title="Bounty change">{r.bountyDelta}</span> : null}
+            <LeaderPair yours={r.yourLeaderId} theirs={r.opponentLeaderId} />
+            <p className="history-leaders" title={`${r.yourLeader} vs ${r.opponentLeader}`}>
+              <span>{r.yourLeader}</span>
+              <span className="history-vs">vs</span>
+              <span>{r.opponentLeader}</span>
+            </p>
+            <p className="history-opp" title={r.opponent}>
+              {r.opponent}
+            </p>
+            <p className="history-how">
+              <span className="history-how-text">{[r.how, r.turns, r.when].filter(Boolean).join(" · ")}</span>
+              {r.hasChat ? <ChatMark /> : null}
+            </p>
+            <span className="history-tag" data-mode={r.mode.toLowerCase()}>
+              {r.mode}
+            </span>
+            {r.bountyDelta ? <span className="history-bounty" title="Bounty change">{r.bountyDelta}</span> : <span className="history-bounty" />}
             <span className="history-chevron" aria-hidden>›</span>
           </Link>
           {r.replay ? (
@@ -81,20 +76,81 @@ export function MatchHistoryList({ matches, limit }: { matches: readonly MatchHi
 export function RecordSummary({ matches }: { matches: readonly MatchHistoryEntry[] }) {
   const summary = historySummary(matches);
   if (!summary) return null;
+  const { ranked, casual, streak, recent } = summary;
   return (
-    <dl className="history-summary" aria-label="Your record">
-      <div>
-        <dt>Record</dt>
-        <dd>
-          {summary.wins}-{summary.losses}
-        </dd>
-      </div>
-      {summary.rating != null ? (
+    <section className="history-summary" aria-label={`Your record over the last ${summary.games} games`}>
+      <h2 className="history-summary-title">Last {summary.games} {summary.games === 1 ? "game" : "games"}</h2>
+      <dl className="history-summary-grid">
         <div>
-          <dt>Bounty</dt>
-          <dd>{summary.rating}</dd>
+          <dt>Record</dt>
+          <dd>
+            {summary.wins}-{summary.losses}
+            <span className="history-summary-sub">{summary.winPct}% won</span>
+          </dd>
         </div>
-      ) : null}
-    </dl>
+        <div>
+          <dt>Ranked</dt>
+          <dd>
+            {ranked.wins}-{ranked.losses}
+          </dd>
+        </div>
+        <div>
+          <dt>Casual</dt>
+          <dd>
+            {casual.wins}-{casual.losses}
+          </dd>
+        </div>
+        {streak ? (
+          <div>
+            <dt>Streak</dt>
+            <dd data-streak={streak.kind}>
+              {streak.kind}
+              {streak.count}
+            </dd>
+          </div>
+        ) : null}
+        {summary.rating != null ? (
+          <div>
+            <dt>Bounty</dt>
+            <dd>{summary.rating}</dd>
+          </div>
+        ) : null}
+      </dl>
+      <ol className="history-dots" aria-label={`Last ${recent.length} results, oldest first: ${[...recent].reverse().join(", ")}`}>
+        {[...recent].reverse().map((r, i) => (
+          <li key={i} className="history-dot" data-result={r} aria-hidden>
+            {r}
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+const SKELETON_ROWS = 3;
+
+/** Placeholder rows shaped like real ones, so the list doesn't jump when games arrive (#1388). */
+export function MatchHistorySkeleton() {
+  return (
+    <div aria-busy="true">
+      <p className="visually-hidden" role="status">Loading your matches</p>
+      <ol className="history-list" aria-hidden>
+        {Array.from({ length: SKELETON_ROWS }, (_, i) => (
+          <li key={i} className="history-item">
+            <div className="history-row history-row-link history-skeleton">
+              <span className="history-outcome history-skel">&nbsp;</span>
+              <span className="history-pair">
+                <span className="history-leader-art history-leader-art-empty" />
+                <span className="history-leader-art history-leader-art-empty" />
+              </span>
+              <span className="history-leaders history-skel">&nbsp;</span>
+              <span className="history-opp history-skel">&nbsp;</span>
+              <span className="history-how history-skel">&nbsp;</span>
+              <span className="history-tag history-skel">&nbsp;</span>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }

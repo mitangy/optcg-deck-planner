@@ -1,8 +1,7 @@
 import { PageShell } from "../layout/PageShell";
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
 import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi";
-import { MatchHistoryList, RecordSummary } from "../history/MatchHistoryList";
+import { MatchHistoryList, MatchHistorySkeleton, RecordSummary } from "../history/MatchHistoryList";
 import { useClickCopy } from "../board/input/clickCopy";
 import { ApiError, googleLoginUrl } from "../net/api";
 import { errorMessage } from "../lib/errors";
@@ -26,10 +25,19 @@ export function HistoryPage() {
   const copy = useClickCopy();
 
   return (
-    <PageShell pageClass="page-narrow" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }} title="Match history">
+    <PageShell pageClass="history-page" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }} title="Match history">
 
-      {state.status === "loading" ? <p className="panel-copy history-note">Loading your matches…</p> : null}
-      {state.status === "error" ? <p className="panel-copy history-note" role="alert">{state.message}</p> : null}
+      {state.status === "loading" ? <MatchHistorySkeleton /> : null}
+      {state.status === "error" ? (
+        <section className="panel history-error" role="alert">
+          <p className="panel-copy">We couldn't load your matches. {state.message}</p>
+          <div className="btn-row">
+            <button type="button" className="btn btn-primary" onClick={res.reload}>
+              Try again
+            </button>
+          </div>
+        </section>
+      ) : null}
       {state.status === "signed-out" ? (
         <section className="panel">
           <p className="panel-copy">Sign in to keep a history of your duels.</p>
@@ -53,12 +61,7 @@ export function HistoryPage() {
         </>
       ) : null}
 
-      {state.status === "ready" ? (
-        <p className="field-hint history-hint">
-          {copy("Tap a game to read it turn by turn.")} Want a coach's take? Add your Log Pose link from{" "}
-          <Link to="/settings">Settings</Link> to Claude and ask it to review a game.
-        </p>
-      ) : null}
+      {state.status === "ready" && state.matches.length > 0 ? <p className="field-hint history-hint">{copy("Tap a game to read it turn by turn.")}</p> : null}
     </PageShell>
   );
 }

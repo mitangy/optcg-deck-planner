@@ -6,6 +6,7 @@ import {
   registerAtlasStub,
 } from "../cards/atlas";
 import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
+import { BOT_META_DECKS } from "@optcg/rules/botMetaDecks";
 import { cardDataReady } from "../cards/cardData";
 
 const STORAGE_KEY = "optcg.duel.savedDecks.v1";
@@ -535,7 +536,17 @@ function ensureSeedDeck(id: string, name: string, list: string, legacyName: stri
   return seed;
 }
 
+/** The clean-art starter new guests land on: the OP13-001 Luffy entry of the bot meta decks (#1391). */
+function luffyStarterList(): string {
+  const meta = BOT_META_DECKS.find((d) => d.leaderId === "OP13-001");
+  if (!meta) throw new Error("Seed deck starter-op13-luffy: OP13-001 missing from BOT_META_DECKS");
+  const counts = new Map<string, number>([[meta.leaderId, 1]]);
+  for (const id of meta.deck) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return [...counts].map(([id, n]) => `${n}x${id}`).join("\n");
+}
+
 export function ensureTestDecks(): SavedDeck[] {
+  const luffy = ensureSeedDeck("starter-op13-luffy", "Starter: OP13 Luffy", luffyStarterList(), "Starter: OP13 Luffy");
   const a = ensureSeedDeck("test-op17-red", "Starter: OP17 Red", TEST_OP17_LIST, "Test OP17 red");
   const b = ensureSeedDeck(
     "test-op16-black",
@@ -543,5 +554,5 @@ export function ensureTestDecks(): SavedDeck[] {
     TEST_OP16_LIST,
     "Test OP16 Teach (black/yellow)",
   );
-  return [a, b];
+  return [luffy, a, b];
 }
