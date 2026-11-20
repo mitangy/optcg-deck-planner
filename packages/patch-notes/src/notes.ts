@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-19", app: "duel", pr: 1382, title: "Deck editor fills big monitors", text: "On wide screens (1600 pixels and up) the deck editor now uses more of the page and scales up its text and card pictures, so it is no longer a small column in the middle of a large monitor. Smaller screens look the same." },
   { date: "2026-11-19", app: "planner", pr: 1380, title: "Owned shows your total when a card has alt arts", text: "Cards with alt arts show your total owned in the Owned column, with how many are base and how many are alt underneath. Change the counts on the art tiles." },
   { date: "2026-11-19", app: "planner", pr: 1379, title: "Shopping on phones: alt art copies in Compact view", text: "On a phone, the extra alt art copies under a card in Compact view no longer have the card picture covering their name and price." },
   { date: "2026-11-18", app: "duel", pr: 1372, title: "No spectating a match you are playing in", text: "You can't spectate a match you're playing in, not even a practice match. Opening its watch link now says why." },

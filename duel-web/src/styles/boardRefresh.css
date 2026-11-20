@@ -258,7 +258,7 @@ details.deck-config-section.deck-collapsible {
 
   .deck-editor-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(340px, 400px);
+    grid-template-columns: minmax(0, 1fr) minmax(calc(340 * var(--deck-u)), calc(400 * var(--deck-u)));
     gap: 1.5rem;
     align-items: start;
     min-width: 0;
@@ -268,7 +268,7 @@ details.deck-config-section.deck-collapsible {
     grid-column: 1;
     grid-row: 1;
     display: grid;
-    grid-template-columns: 132px minmax(0, 1fr);
+    grid-template-columns: calc(132 * var(--deck-u)) minmax(0, 1fr);
     column-gap: 1.25rem;
     align-items: start;
     min-width: 0;
@@ -311,6 +311,19 @@ details.deck-config-section.deck-collapsible {
 
   .deck-editor-side .deck-filter-row {
     grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+}
+
+/* Big monitors (#1382): the deck editor (not Meta) uses more of the screen. */
+@media (min-width: 1600px) {
+  .deck-config-wide:has(.deck-editor-layout) {
+    max-width: min(100%, 2400px);
+  }
+}
+
+@media (min-width: 2600px) {
+  .deck-config-wide:has(.deck-editor-layout) {
+    max-width: min(100%, 3200px);
   }
 }
 
