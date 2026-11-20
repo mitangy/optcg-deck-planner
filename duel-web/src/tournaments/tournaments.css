@@ -274,6 +274,7 @@
 .tround-list-phone { display: flex; flex-direction: column; gap: 0.6rem; }
 
 .tround-rr { display: block; }
+.tround-rr:not([open]) { padding-block: 0.2rem; }
 .tround-sum {
   display: flex;
   align-items: center;
