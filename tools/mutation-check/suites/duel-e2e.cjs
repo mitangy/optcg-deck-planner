@@ -1168,6 +1168,9 @@ module.exports = {
     { id: "e2e-sticky-header-anchor-jump-under-header", args: "sticky-header --project=desktop-1280 -g \"Settings jump\"", file: "duel-web/src/ui/panels.css", from: "  scroll-padding-top: calc(var(--sticky-head-h, 0px) + 0.5rem);", to: "  scroll-padding-top: 0;", kills: [
       "sticky-header.spec.ts > a Settings jump link lands a section below the header (#510) [desktop-1280]",
     ] },
+    { id: "e2e-settings-jump-under-section-bar-1389", args: "sticky-header --project=desktop-1280 -g \"Settings jump\"", file: "duel-web/src/pages/settingsPage.css", from: "  scroll-margin-top: calc(var(--settings-nav-h, 0px) + 0.75rem);", to: "  scroll-margin-top: 0.75rem;", kills: [
+      "sticky-header.spec.ts > a Settings jump link lands a section below the header (#510) [desktop-1280]",
+    ] },
     { id: "e2e-sticky-header-height-not-published", args: "sticky-header --project=desktop-1280 -g \"Settings jump|search column\"", file: "duel-web/src/nav/NavMenu.tsx", from: "  useStickyHeadHeight(buttonRef);\n", to: "", kills: [
       "sticky-header.spec.ts > a Settings jump link lands a section below the header (#510) [desktop-1280]",
       "sticky-header.spec.ts > the deck editor's card search column stays below the header (#510) [desktop-1280]",
