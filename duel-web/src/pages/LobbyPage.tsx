@@ -79,6 +79,10 @@ export function LobbyPage() {
       sheet.setSheetOpen(true);
       window.history.replaceState(window.history.state, "", window.location.pathname);
     }
+    if (new URLSearchParams(window.location.search).get("play") === "ranked") {
+      sheet.openSheet("queue");
+      window.history.replaceState(window.history.state, "", window.location.pathname);
+    }
     warmDuelServices(getApiBaseUrl(), rememberedGameServerUrl() ?? serverUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
