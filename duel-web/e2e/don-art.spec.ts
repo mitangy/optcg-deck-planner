@@ -42,11 +42,12 @@ test("Settings: search, pick, persist and reset the DON!! card (#440)", async ({
   const preview = panel.locator(".don-art-preview");
   await expect(preview).toHaveAttribute("src", "/cards/DON.jpg");
 
-  await panel.getByLabel("Find DON!! art").fill("Luffy and Loki");
-  const tile = panel.locator(".don-art-tile", { hasText: "Luffy and Loki" }).first();
-  await tile.scrollIntoViewIfNeeded();
-  await tile.click();
-  await expect(tile).toHaveAttribute("aria-pressed", "true");
+  await panel.getByRole("button", { name: "Change DON!! art" }).click();
+  const dialog = page.getByRole("dialog", { name: "Choose DON!! art" });
+  await dialog.getByLabel("Find DON!! art").fill("Luffy and Loki");
+  await dialog.locator(".don-art-tile", { hasText: "Luffy and Loki" }).first().click();
+  await expect(dialog).toBeHidden();
+  await expect(panel.getByRole("button", { name: "Change DON!! art" })).toBeFocused();
   await expect(preview).toHaveAttribute("src", /tcgplayer-cdn\.tcgplayer\.com\/product\/\d+_400w\.jpg$/);
   const chosen = await preview.getAttribute("src");
 

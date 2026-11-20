@@ -8,6 +8,7 @@ import { flushAccountSync, stopAccountSync } from "../account/accountSync";
 import { clearAuth, useAuthUser } from "../auth/session";
 import { CARD_BACK_ASPECT, cardBackCssValue, useCardBackUrl } from "../cardBack";
 import { DonArtPicker } from "./DonArtPicker";
+import { LookPreview } from "./LookPreview";
 import { SettingToggle } from "./SettingToggle";
 import { CosmeticActions, useCosmeticSlot } from "../cosmetics/CosmeticActions";
 import { CosmeticHistory } from "../cosmetics/CosmeticHistory";
@@ -30,7 +31,6 @@ import {
 import { useDuelSession } from "../state/DuelSession";
 import { THEMES, type ColorMode } from "../theme";
 import { VersionStatus } from "../VersionStatus";
-import { openFeedback } from "../feedbackDialog";
 import { AnalystLinkPanel } from "../history/AnalystLinkPanel";
 import "../history/history.css";
 
@@ -279,6 +279,7 @@ export function SettingsPage() {
       <div className="settings-c">
       <div className="settings-section" id="appearance" role="group" aria-labelledby="appearance-title" hidden={!appearanceShown}>
         <h2 className="settings-section-title" id="appearance-title">Appearance</h2>
+        <LookPreview />
         <section className="panel" id="theme" hidden={!show.theme}>
           <h2 className="panel-title" id="theme-title">Theme</h2>
           <div className="segmented segmented-3" role="radiogroup" aria-label="Mode">
@@ -327,19 +328,6 @@ export function SettingsPage() {
 
         <section className="panel" id="playmat" hidden={!show.playmat}>
           <h2 className="panel-title">Playmat</h2>
-          <div
-            className={`playmat-preview${playmatUrl ? " has-art" : ""}`}
-            style={
-              playmatUrl
-                ? {
-                    backgroundImage: `linear-gradient(rgba(5, 10, 14, ${settings.playmatDim}), rgba(5, 10, 14, ${settings.playmatDim})), linear-gradient(rgba(14, 34, 48, ${1 - settings.playmatOpacity}), rgba(14, 34, 48, ${1 - settings.playmatOpacity})), url("${playmatUrl}")`,
-                  }
-                : undefined
-            }
-            aria-label={playmatUrl ? "Your playmat" : "Default playmat"}
-          >
-            {!playmatUrl ? <span>Default playmat</span> : null}
-          </div>
           <p className="field-hint">
             Best at 12:7 (official mats are 24 × 14 in). Crop, rotate and flip after
             choosing. Shown on your side of the board.{" "}
@@ -457,17 +445,14 @@ export function SettingsPage() {
       <section className="panel panel-quiet" id="about" hidden={!show.about}>
         <h2 className="panel-title">About</h2>
         <p className="panel-copy">
-          Private prototype. Rules engine and card effects are a work in
-          progress.
+          Card effects are still being added. If a card plays wrong, report it
+          from the match.
         </p>
         <VersionStatus actions />
         <div className="about-feedback">
           <Link to="/whats-new" className="btn btn-ghost btn-sm about-feedback-btn">
             What’s new
           </Link>
-          <button type="button" className="btn btn-ghost btn-sm about-feedback-btn" onClick={() => openFeedback("Send feedback")}>
-            Send feedback
-          </button>
         </div>
       </section>
       </div>

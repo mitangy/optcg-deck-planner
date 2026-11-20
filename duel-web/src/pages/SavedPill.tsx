@@ -3,6 +3,8 @@ import { useDuelSettings } from "../settings";
 
 const SHOW_MS = 1500;
 const FADE_MS = 300;
+/** A store change counts as the player's save only this soon after they touched the page. */
+const USER_EDIT_MS = 1000;
 
 /**
  * A small "Saved" confirmation after any change to the settings store. It is fixed to the bottom of the window, so
@@ -15,10 +17,25 @@ export function SavedPill({ signedIn }: { signedIn: boolean }) {
   const [on, setOn] = useState(false);
   const [text, setText] = useState("");
   const timers = useRef<number[]>([]);
+  const lastTouch = useRef(-Infinity);
+
+  // Account sync can replace the settings object with no edit here; only a change right after
+  // the player clicked, typed or dragged on the page shows "Saved".
+  useEffect(() => {
+    const mark = () => {
+      lastTouch.current = performance.now();
+    };
+    const events = ["pointerdown", "keydown", "input", "change"] as const;
+    for (const e of events) document.addEventListener(e, mark, true);
+    return () => {
+      for (const e of events) document.removeEventListener(e, mark, true);
+    };
+  }, []);
 
   useEffect(() => {
     if (seen.current === settings) return;
     seen.current = settings;
+    if (performance.now() - lastTouch.current > USER_EDIT_MS) return;
     for (const t of timers.current) window.clearTimeout(t);
     setText(signedIn ? "Saved to your account" : "Saved in this browser");
     setOn(true);

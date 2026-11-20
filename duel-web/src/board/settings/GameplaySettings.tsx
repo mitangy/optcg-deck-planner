@@ -1,6 +1,7 @@
 import { Fragment, type ReactNode } from "react";
 import type { OppHandSpot } from "../panels/panelLayout";
 import { Dialog, Select } from "@optcg/ui/popups";
+import { SettingToggle } from "../../pages/SettingToggle";
 import {
   updateSettings,
   useDuelSettings,
@@ -187,32 +188,28 @@ export function GameplaySettingsFields({
       const t = toggle.key === "turnAlert" ? { ...toggle, ...turnAlertCopy(device, toggle) } : toggle;
       const note = noteFor(t.key);
       return (
-        <div className="gameplay-toggle" key={t.key}>
-          <label className="switch">
-            <input
-              type="checkbox"
-              checked={
-                t.key === "oppHandTopRight"
-                  ? settings.oppHandSpot === "right"
-                  : t.invert
-                    ? !settings[t.key]
-                    : settings[t.key]
-              }
-              disabled={note !== null}
-              onChange={(e) => {
-                if (t.key === "oppHandTopRight") {
-                  updateSettings({ oppHandSpot: e.target.checked ? "right" : "" });
-                  return;
-                }
-                updateSettings({ [t.key]: t.invert ? !e.target.checked : e.target.checked });
-                if (t.key === "turnSound" && e.target.checked) playTurnChime();
-              }}
-            />
-            <span>{t.label}</span>
-          </label>
-          <p className="field-hint">{t.hint}</p>
-          {disabledNote(note)}
-        </div>
+        <SettingToggle
+          key={t.key}
+          label={t.label}
+          hint={t.hint}
+          checked={
+            t.key === "oppHandTopRight"
+              ? settings.oppHandSpot === "right"
+              : t.invert
+                ? !settings[t.key]
+                : settings[t.key]
+          }
+          disabled={note !== null}
+          note={note}
+          onChange={(next) => {
+            if (t.key === "oppHandTopRight") {
+              updateSettings({ oppHandSpot: next ? "right" : "" });
+              return;
+            }
+            updateSettings({ [t.key]: t.invert ? !next : next });
+            if (t.key === "turnSound" && next) playTurnChime();
+          }}
+        />
       );
     }
     switch (key) {
@@ -386,19 +383,13 @@ export function GameplaySettingsFields({
         );
       case "cardSpotlight":
         return (
-          <div className="gameplay-toggle">
-            <label className="switch">
-              <input
-                type="checkbox"
-                checked={settings.cardSpotlight}
-                disabled={settings.animationSpeed === "off"}
-                onChange={(e) => updateSettings({ cardSpotlight: e.target.checked })}
-              />
-              <span>{ROW_TEXT.cardSpotlight.label}</span>
-            </label>
-            <p className="field-hint">{ROW_TEXT.cardSpotlight.hint}</p>
-          </div>
-
+          <SettingToggle
+            label={ROW_TEXT.cardSpotlight.label}
+            hint={ROW_TEXT.cardSpotlight.hint}
+            checked={settings.cardSpotlight}
+            disabled={settings.animationSpeed === "off"}
+            onChange={(cardSpotlight) => updateSettings({ cardSpotlight })}
+          />
         );
       case "popupSize":
         return (
@@ -440,17 +431,13 @@ export function GameplaySettingsFields({
             <span className="field-label" id="show-on-screen-label">{ROW_TEXT.showOnScreen.label}</span>
             <p className="field-hint">{ROW_TEXT.showOnScreen.hint}</p>
             {SHOW_TOGGLES.filter((t) => showToggleShown(t.key, device)).map((t) => (
-              <div className="gameplay-toggle" key={t.key}>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={settings[t.key]}
-                    onChange={(e) => updateSettings({ [t.key]: e.target.checked })}
-                  />
-                  <span>{t.label}</span>
-                </label>
-                <p className="field-hint">{t.hint}</p>
-              </div>
+              <SettingToggle
+                key={t.key}
+                label={t.label}
+                hint={t.hint}
+                checked={settings[t.key]}
+                onChange={(next) => updateSettings({ [t.key]: next })}
+              />
             ))}
           </div>
 

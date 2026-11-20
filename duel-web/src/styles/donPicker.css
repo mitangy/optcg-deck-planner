@@ -35,7 +35,8 @@
 }
 
 .don-art-scroll {
-  height: min(26rem, 60dvh);
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   min-width: 0;
@@ -47,7 +48,7 @@
 
 .don-art-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 6.5rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
   gap: var(--space-2);
   min-width: 0;
 }
@@ -107,7 +108,7 @@
 }
 
 .don-art-set {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   line-height: 1.2;
   color: var(--muted);
 }
@@ -569,3 +570,74 @@ img.zone-pile-face {
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
 }
 
+
+/* The picker dialog: a large centred modal on desktop, full screen on phones. Only the grid scrolls. */
+.don-dialog {
+  --ui-pad: max(1rem, var(--safe-t)) max(1rem, var(--safe-r)) max(1rem, var(--safe-b)) max(1rem, var(--safe-l));
+}
+
+.don-dialog-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: min(960px, 100%);
+  height: min(85dvh, 820px);
+  padding: 0.85rem 1rem 1rem;
+  overflow: hidden;
+  color: var(--ink);
+  background: var(--arena-panel);
+  border: 1px solid var(--chrome);
+  border-radius: var(--radius-14);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.don-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-shrink: 0;
+}
+
+.don-dialog-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.2;
+  color: var(--chrome-bright);
+}
+
+.don-dialog-search {
+  flex-shrink: 0;
+}
+
+.don-dialog .icon-btn {
+  width: 44px;
+  height: 44px;
+}
+
+@media (max-width: 640px), (max-height: 500px) {
+  .don-dialog {
+    --ui-pad: 0;
+  }
+
+  .don-dialog-panel {
+    width: 100%;
+    height: 100dvh;
+    border-radius: 0;
+    border-width: 0;
+    padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+      max(0.75rem, var(--safe-l));
+  }
+}
+
+@media (max-width: 640px) {
+  .don-art-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .don-art-tile {
+    padding: 0.25rem;
+  }
+}
