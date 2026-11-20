@@ -219,12 +219,13 @@ export function googleLoginUrl(returnTo: string = window.location.origin): strin
 
 export type LeaderboardEntry = Schemas["DuelLeaderboardEntryOut"];
 
-export async function fetchLeaderboard(limit = 5): Promise<LeaderboardEntry[]> {
+/** Only a 404 (no board yet) is an empty list; a failed load throws so the page can offer Try again. */
+export async function fetchLeaderboard(limit = 5, window: "all" | "week" | "month" = "all"): Promise<LeaderboardEntry[]> {
   try {
-    const body = await apiCall<Partial<Schemas["DuelLeaderboardOut"]> | null>(`/duel/leaderboard?limit=${limit}`);
+    const body = await apiCall<Partial<Schemas["DuelLeaderboardOut"]> | null>(`/duel/leaderboard?limit=${limit}&window=${window}`);
     return body?.entries ?? [];
   } catch (e) {
-    if (isHttpError(e)) return [];
+    if (e instanceof ApiError && e.status === 404) return [];
     throw e;
   }
 }
@@ -239,6 +240,7 @@ export type RatingMe = {
   wins: number;
   losses: number;
   rank: number | null;
+  provisional?: boolean;
 };
 
 export async function fetchRatingMe(): Promise<RatingMe | null> {

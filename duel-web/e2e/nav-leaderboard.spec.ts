@@ -12,6 +12,10 @@ const players = (n: number, meAt: number | null) =>
     username: meAt === i ? USER.username : `Rival${i + 1}`,
     rating: 1800 - i * 7,
     games_played: 60 - (i % 40),
+    rank: i + 1,
+    provisional: false,
+    wins: 55 - (i % 40),
+    losses: 5,
   }));
 
 async function fakeApi(page: Page, opts: { me?: { rank: number; rating: number; games: number }; entries?: unknown[] } = {}): Promise<void> {
@@ -122,18 +126,22 @@ async function leaderboardRows(page: Page): Promise<void> {
   await expect(rows).toHaveCount(100);
   const first = rows.first();
   await expect(first).toContainText("Rival1");
-  await expect(first.locator(".bounty-rank")).toHaveText("1");
+  await expect(first.locator(".leaderboard-rank")).toHaveText("1");
   await expect(first.locator(".bounty-amount")).toHaveAccessibleName("Bounty 1,800 berries");
-  await expect(first.locator(".leaderboard-games")).toHaveText("60");
+  await expect(first.locator(".leaderboard-record")).toHaveText("55-5");
+  await expect(first.locator(".leaderboard-record")).toHaveAttribute("title", "60 games");
   await expect(rows.nth(4)).toHaveClass(/\bme\b/);
   await expect(rows.nth(4)).toContainText("You");
   await expect(page.locator(".bounty-row.pinned")).toHaveCount(0);
+  await expect(page.getByLabel("Your bounty")).toContainText("Rank 5");
+  await page.getByRole("button", { name: "Show me" }).click();
+  await expect(rows.nth(4)).toHaveClass(/\bflash\b/);
   await expect(page.getByText(/rating/i)).toHaveCount(0);
   await noSidewaysScroll(page);
   const vp = page.viewportSize()!;
   for (const i of [0, 4, 99]) {
     await rows.nth(i).scrollIntoViewIfNeeded();
-    const cols = rows.nth(i).locator(".bounty-rank, .bounty-name, .leaderboard-bounty, .leaderboard-games");
+    const cols = rows.nth(i).locator(".leaderboard-rank, .bounty-name, .leaderboard-bounty, .leaderboard-record");
     for (let c = 0; c < (await cols.count()); c++) {
       const b = (await cols.nth(c).boundingBox())!;
       expect(b.x, `row ${i} col ${c} left`).toBeGreaterThanOrEqual(0);
@@ -147,10 +155,10 @@ async function pinnedYou(page: Page): Promise<void> {
   await page.goto("/leaderboard");
   const pinned = page.locator(".bounty-row.pinned");
   await expect(pinned).toBeVisible();
-  await expect(pinned.locator(".bounty-rank")).toHaveText("140");
+  await expect(pinned.locator(".leaderboard-rank")).toHaveText("140");
   await expect(pinned).toContainText("You");
   await expect(pinned.locator(".bounty-amount")).toHaveAccessibleName("Bounty 1,203 berries");
-  await expect(pinned.locator(".leaderboard-games")).toHaveText("12");
+  await expect(pinned.locator(".leaderboard-record")).toHaveText("20-10");
   await expect(page.locator(".leaderboard-list .bounty-row")).toHaveCount(101);
 }
 

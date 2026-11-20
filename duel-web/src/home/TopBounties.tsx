@@ -32,9 +32,9 @@ export function TopBountiesCard({ entries, me }: { entries: LeaderboardEntry[]; 
         </Link>
       </div>
       <ol className="bounty-list">
-        {entries.slice(0, TOP_N).map((e, i) => (
+        {entries.slice(0, TOP_N).map((e) => (
           <li key={e.user_id} className={`bounty-row${me && e.user_id === me.user_id ? " me" : ""}`}>
-            <span className="bounty-rank">{i + 1}</span>
+            <span className="bounty-rank">{e.rank}</span>
             <span className="bounty-name">{e.username || e.name}</span>
             <BountyAmount amount={e.rating} />
           </li>
