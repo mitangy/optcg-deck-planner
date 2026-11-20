@@ -19,6 +19,9 @@ export type MatchRow = {
   yourLeader: string;
   yourLeaderId: string | null;
   opponentLeader: string;
+  opponentLeaderId: string | null;
+  /** Ranked or Casual, written out so the row never says it with colour alone. */
+  mode: "Ranked" | "Casual";
   opponent: string;
   turns: string | null;
   bountyDelta: string | null;
@@ -48,6 +51,8 @@ export function matchRow(
     yourLeader: m.your_leader_id ? cardName(m.your_leader_id) : "Unknown leader",
     yourLeaderId: m.your_leader_id,
     opponentLeader: m.opponent_leader_id ? cardName(m.opponent_leader_id) : "Unknown leader",
+    opponentLeaderId: m.opponent_leader_id,
+    mode: m.ranked ? "Ranked" : "Casual",
     opponent: m.opponent_name,
     turns: m.turns != null ? `${m.turns} turns` : null,
     bountyDelta: m.ranked && !unfinished ? (delta >= 0 ? `+${delta}` : `−${Math.abs(delta)}`) : null,

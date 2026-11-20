@@ -66,6 +66,16 @@ describe("match history rows", () => {
     expect([row.outcome, row.how, row.bountyDelta]).toEqual(["Cut off", "Game didn't finish", null]);
   });
 
+  it("tags a game Ranked or Casual in words (#1388)", () => {
+    expect(matchRow(entry({ ranked: true }), cardName, now).mode).toBe("Ranked");
+    expect(matchRow(entry({ ranked: false }), cardName, now).mode).toBe("Casual");
+  });
+
+  it("carries the opponent's Leader id for the art pair (#1388)", () => {
+    expect(matchRow(entry({}), cardName, now).opponentLeaderId).toBe("OP05-060");
+    expect(matchRow(entry({ opponent_leader_id: null }), cardName, now).opponentLeaderId).toBeNull();
+  });
+
   it("dates recent games relative to now (#244)", () => {
     expect(matchRow(entry({ created_at: "2026-10-02T11:15:00Z" }), cardName, now).when).toBe("45m ago");
     expect(matchRow(entry({ created_at: "2026-10-02T09:00:00Z" }), cardName, now).when).toBe("3h ago");
