@@ -99,3 +99,16 @@ for (const [w, h, minRows] of [[375, 812, 2], [812, 375, 0]] as const) {
     }
   });
 }
+
+test("deck editor tiles grow on a 2560px screen and stay 118px at 1440 (#1382)", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop-1280", "desktop layout");
+  const tile = page.locator(".deck-editor-deck article.deck-stack").first();
+  const page_ = page.locator(".deck-config-wide");
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await openStarter(page);
+  expect((await tile.boundingBox())!.width).toBeCloseTo(118, 0);
+  await page.setViewportSize({ width: 2560, height: 1440 });
+  expect((await tile.boundingBox())!.width).toBeGreaterThan(150);
+  expect((await page_.boundingBox())!.width).toBeGreaterThan(1480);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
