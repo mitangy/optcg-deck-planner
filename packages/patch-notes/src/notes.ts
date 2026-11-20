@@ -1,6 +1,9 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-20", app: "duel", pr: 1393, title: "Back to your tournament after a game", text: "After a tournament game, Match over has a Back to tournament button. On the tournament page, Your match now says when your opponent is already waiting in the room, with a Join now button, and a match still waiting says whose winner you play next." },
+  { date: "2026-11-20", app: "duel", pr: 1393, title: "A real tournament bracket", text: "The bracket now lines each match up with the two matches that feed it, with lines between rounds, and a 16-player bracket fits on a laptop screen. On a phone you see one round at a time with tabs, starting on the round with your match. Your own seat is marked You." },
+  { date: "2026-11-20", app: "duel", pr: 1393, title: "Clearer round robins and tournament list", text: "In a round robin only your next match has a Play button, and finished rounds fold away. The Tournaments list is grouped into Now, Signing up and Finished, shows full names on big screens, and says Play now when your match is ready. Organizers can search their friends to invite, and the page shows the timer." },
   { date: "2026-11-19", app: "planner", pr: 1380, title: "Owned shows your total when a card has alt arts", text: "Cards with alt arts show your total owned in the Owned column, with how many are base and how many are alt underneath. Change the counts on the art tiles." },
   { date: "2026-11-19", app: "planner", pr: 1379, title: "Shopping on phones: alt art copies in Compact view", text: "On a phone, the extra alt art copies under a card in Compact view no longer have the card picture covering their name and price." },
   { date: "2026-11-18", app: "duel", pr: 1372, title: "No spectating a match you are playing in", text: "You can't spectate a match you're playing in, not even a practice match. Opening its watch link now says why." },
