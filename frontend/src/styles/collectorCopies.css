@@ -414,13 +414,18 @@
     flex: 1 1 auto;
   }
 
-  .mobile-card.collector-card .collector-thumb-wrap {
+  /* Beat the density rules (.mobile-card-list.density-compact .mobile-card .thumb) so the thumb fills this wrap in every density. */
+  .mobile-card-list .mobile-card.collector-card .collector-thumb-wrap {
+    flex: none;
     width: 2.6rem;
   }
 
-  .mobile-card.collector-card .collector-thumb-wrap .thumb {
+  .mobile-card-list .mobile-card.collector-card .collector-thumb-wrap .thumb-btn,
+  .mobile-card-list .mobile-card.collector-card .collector-thumb-wrap .thumb {
+    display: block;
     width: 100%;
     height: auto;
+    aspect-ratio: 63 / 88;
   }
 
   .collector-card-text {

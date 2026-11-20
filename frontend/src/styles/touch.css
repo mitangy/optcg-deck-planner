@@ -29,7 +29,8 @@
     --owned-vis-h: 1.75rem;
   }
 
-  .owned-wrap input.owned {
+  /* The read-only total (#1380) takes the same box as the stepper's number so Owned and Need labels stay level. */
+  .owned-wrap :is(input.owned, .owned-total) {
     box-sizing: border-box;
     height: 2.75rem;
     min-width: 2.75rem;
@@ -48,7 +49,7 @@
   }
 
   /* The invisible border must not make compact cards taller: the hit box overlaps the space around the box. */
-  .mobile-card-list.density-compact .owned-wrap input.owned {
+  .mobile-card-list.density-compact .owned-wrap :is(input.owned, .owned-total) {
     margin-block: calc((var(--owned-vis-h) - 2.75rem) / 2);
   }
 

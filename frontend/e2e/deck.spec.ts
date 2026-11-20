@@ -61,7 +61,7 @@ test("each card row names the card, how many are still needed and its price", as
   await expect(page.locator(IZO)).toContainText("Izo");
   await expectStill(page.locator(IZO), 2, 4);
   await expect(page.locator(IZO).locator("button:not(.alt-arts button)").filter({ hasText: /\$1\.25/ })).toBeVisible();
-  await expect(page.locator(IZO).locator("input.owned")).toHaveValue("2");
+  await expect(page.locator(IZO).locator(".owned-total")).toHaveText("2");
 });
 
 test("List/Grid toggle swaps the layout and passes the audit", async ({ page, planner }) => {
@@ -126,20 +126,20 @@ test("opening the filters and the sort menu moves nothing", async ({ page, plann
 
 test("owned stepper saves each click and updates still needed (#652)", async ({ page, planner }) => {
   const row = page.locator(IZO);
-  const total = row.locator("input.owned");
-  await expect(total).toHaveValue("2");
+  const total = row.locator(".owned-total");
+  await expect(total).toHaveText("2");
 
   const inc = row.getByRole("button", { name: "Increase owned for Izo base art", exact: true });
   const dec = row.getByRole("button", { name: "Decrease owned for Izo base art", exact: true });
   await inc.click();
-  await expect(total).toHaveValue("3");
+  await expect(total).toHaveText("3");
   await expectStill(row, 1, 4);
   expect(planner.owned.get("EB01-002")).toBe(3);
   expect(planner.requests).toContain("PUT /owned/EB01-002");
 
   await dec.click();
   await dec.click();
-  await expect(total).toHaveValue("1");
+  await expect(total).toHaveText("1");
   await expectStill(row, 3, 4);
   expect(planner.owned.get("EB01-002")).toBe(1);
 
@@ -249,8 +249,8 @@ test("an owned alt art lowers $ left, becomes the main art, and leaves a Base ti
   await expect(qty).toHaveText("1");
   await expect(left).toHaveText("$35.55 to finish");
   expect(planner.altOwned.get("EB01-002:201")).toBe(1);
-  await expect(page.locator(IZO).locator("input.owned")).toHaveValue("2");
-  await expect(page.locator(IZO).locator(".alts-owned-note")).toHaveText("+1 alt · 3 total");
+  await expect(page.locator(IZO).locator(".owned-total")).toHaveText("3");
+  await expect(page.locator(IZO).locator(".alts-owned-note")).toHaveText("2 base · 1 alt");
   await expectStill(page.locator(IZO), 1, 4);
   await expect(page.locator(IZO).locator(".alt-art-base")).toContainText("Base");
   await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);

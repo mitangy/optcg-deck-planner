@@ -27,6 +27,7 @@ import {
   parseJoinOptions,
   CLIENT_MESSAGE,
   ProtocolError,
+  SEATED_SPECTATOR_MESSAGE,
   errorCodeOf,
   type ErrorCode,
   type PlayerDeckWire,
@@ -272,7 +273,9 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
 
   onAuth(client: Client, options: unknown) {
     try {
-      return this.resolveIdentity(options);
+      const identity = this.resolveIdentity(options);
+      this.refuseSeatedSpectator(identity);
+      return identity;
     } catch (e) {
       const err = e as Error;
       this.log("warn", "join_rejected", {
@@ -365,8 +368,8 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
 
     if (identity.role === "spectator") {
       // A second connection from a seated account would read the opponent's hand.
-      if (this.seats.holdsSeat(identity.userId) && !this.seats.sharedOwner()) {
-        this.rejectJoin(client, "unauthorized", "You are playing in this match");
+      if (this.seats.holdsSeat(identity.userId)) {
+        this.rejectJoin(client, "unauthorized", SEATED_SPECTATOR_MESSAGE);
         return;
       }
       const cameraSeat: Seat =
@@ -604,6 +607,14 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       this.clearSeat(client.sessionId);
       this.broadcastPresence();
       this.forfeitAbsentSeat(seat, "disconnect");
+    }
+  }
+
+  // A second connection from a seated account would read the opponent's hand. Refused in onAuth so
+  // joinById itself rejects with the message (a room error sent during onJoin never reaches the client).
+  private refuseSeatedSpectator(identity: { role: string; userId: number }): void {
+    if (identity.role === "spectator" && this.seats.holdsSeat(identity.userId)) {
+      throw new ProtocolError(SEATED_SPECTATOR_MESSAGE, "unauthorized");
     }
   }
 

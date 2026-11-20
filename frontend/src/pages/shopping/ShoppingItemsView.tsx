@@ -122,6 +122,7 @@ export function ShoppingItemsView({
     <OwnedCell
       owned={item.owned}
       altsOwned={item.alts_owned}
+      editedInTiles={hasAlts(item)}
       stepper={<OwnedInput cardId={item.card_id} value={item.owned} onSaved={onOwnedSaved} />}
     />
   );
@@ -254,7 +255,7 @@ export function ShoppingItemsView({
                   </div>
                   <div className="grid-card-steppers">
                     <div className="grid-card-owned" onClick={stopCardSelectBubble}>
-                      <span>Own</span>
+                      <span>Owned</span>
                       {ownedCell(item)}
                     </div>
                     <div className="grid-card-owned grid-card-want" onClick={stopCardSelectBubble}>
@@ -367,7 +368,7 @@ export function ShoppingItemsView({
                 />
               </th>
               <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
-              <SortableTh label="Own" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Need" colKey="want" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="To buy" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
@@ -569,7 +570,7 @@ export function ShoppingItemsView({
                     {altChip(item)}
                   </div>
                   <div className="mobile-card-owned">
-                    <span>Own</span>
+                    <span>Owned</span>
                     {ownedCell(item)}
                   </div>
                   <div className="mobile-card-owned mobile-card-want">

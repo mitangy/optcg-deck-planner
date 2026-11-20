@@ -166,7 +166,7 @@ export function PublicSharePage() {
                     imageSrc={item.image_url || undefined}
                     meta={
                       <>
-                        Own {totalOwned(item.owned, item.alts_owned)} · {toBuyText(item.still_need, item.need)}
+                        Owned {totalOwned(item.owned, item.alts_owned)} · {toBuyText(item.still_need, item.need)}
                         {item.still_need > 0 ? ` · To buy ${money(item.remaining_cost)}` : ""}
                       </>
                     }
@@ -189,7 +189,7 @@ export function PublicSharePage() {
                     <thead>
                       <tr>
                         <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
-                        <SortableTh label="Own" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
+                        <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
                         <SortableTh label="Need" colKey="want" firstDir="desc" sort={sort} onSort={onSort} />
                         <SortableTh label="To buy" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
                         <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
@@ -244,7 +244,7 @@ export function PublicSharePage() {
                       rarity={item.rarity}
                       meta={
                         <>
-                          {[`Own ${totalOwned(item.owned, item.alts_owned)}`, toBuyText(item.still_need, item.need)]
+                          {[`Owned ${totalOwned(item.owned, item.alts_owned)}`, toBuyText(item.still_need, item.need)]
                             .filter(Boolean)
                             .join(" · ")}
                           {item.still_need > 0 ? ` · To buy ${money(item.remaining_cost)}` : ""}

@@ -5,6 +5,7 @@ import appConfig from "../src/app.config.js";
 import { presence, type PresenceEntry } from "../src/presence.js";
 import {
   PROTOCOL_VERSION,
+  SEATED_SPECTATOR_MESSAGE,
   SKIN_MAX_CARD_BACK_CHARS,
   SKIN_MAX_PLAYMAT_CHARS,
 } from "../src/protocol.js";
@@ -788,13 +789,22 @@ describe("DuelRoom", () => {
       await syncSeat(c1, bags[1]);
       return { room, bags };
     }
-    it("a player's second connection as a spectator is refused in a casual room", async () => {
+    it("a player's second connection as a spectator is refused in a casual room (#1371)", async () => {
       const { room } = await seatedRoom([901, 902]);
       for (const uid of [901, 902]) {
-        const { refusals, views } = await spectate(room, uid);
-        assert.deepEqual(refusals.map((e) => e.code), ["unauthorized"]);
-        assert.match(refusals[0]!.message, /playing in this match/);
+        const { views } = await spectate(room, uid);
         assert.equal(views.length, 0);
+      }
+      assert.equal(room.spectators.count, 0);
+    });
+
+    it("the spectator join itself is rejected with the message, not a room error that arrives too late (#1371)", async () => {
+      const { room } = await seatedRoom([912, 913]);
+      for (const uid of [912, 913]) {
+        await assert.rejects(
+          colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(uid), role: "spectator", preferredSeat: 0 }),
+          (e: Error) => e.message === SEATED_SPECTATOR_MESSAGE,
+        );
       }
       assert.equal(room.spectators.count, 0);
     });
@@ -806,18 +816,21 @@ describe("DuelRoom", () => {
       assert.ok(other.views.at(-1)!.revealedHands, "an unrelated spectator keeps the unranked hand view");
     });
 
-    it("a seat that dropped and is within its reconnect grace still blocks its account", async () => {
+    it("a seat that dropped and is within its reconnect grace still blocks its account (#1371)", async () => {
       const { room } = await seatedRoom([906, 907]);
       room.seats.markAway(0, Date.now() + 60_000);
-      const { refusals } = await spectate(room, 906);
-      assert.deepEqual(refusals.map((e) => e.code), ["unauthorized"]);
+      await assert.rejects(
+        colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(906), role: "spectator", preferredSeat: 0 }),
+        (e: Error) => e.message === SEATED_SPECTATOR_MESSAGE,
+      );
     });
 
-    it("the owner of a practice match, whose two seats share one owner, can still spectate it", async () => {
+    it("the owner of a practice match is refused as a spectator too (#1371)", async () => {
       const { room } = await seatedRoom([908, 909], 910);
-      const { refusals, views } = await spectate(room, 910);
-      assert.deepEqual(refusals, []);
-      assert.ok(views.at(-1)!.revealedHands);
+      await assert.rejects(
+        colyseus.connectTo(room, { protocolVersion: PROTOCOL_VERSION, gameToken: gameToken(910), role: "spectator", preferredSeat: 0 }),
+        (e: Error) => e.message === SEATED_SPECTATOR_MESSAGE,
+      );
     });
 
     it("an account already spectating cannot then take a seat", async () => {

@@ -143,6 +143,8 @@ export function LobbyPage() {
 
         <div className="home-primary">
           <UpdateNotice />
+          {/* Top of the play column so a phone sees why it landed here without scrolling (#1371). */}
+          {friendError ? <p className="error-text lobby-error" role="alert">{friendError}</p> : null}
 
           <ResumeNotices
             pendingResume={pendingResume}
@@ -209,7 +211,6 @@ export function LobbyPage() {
 
         <div className="home-side">
           <EventBanner />
-          {friendError ? <p className="error-text">{friendError}</p> : null}
           {busy && busyStatus && !sheet.sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
           <LogPoseTile deck={selectedDeck} />
           {authMode === "google" ? <VoyageCard me={me} games={games} /> : null}

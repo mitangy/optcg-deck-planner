@@ -82,6 +82,8 @@ test("Master Shopping: the remaining price splits the buy between base and alt a
 
   await page.keyboard.press("Escape");
   await expect(dialog(page)).toBeHidden();
+  // the phone sheet's backdrop fades out after the dialog closes; audit the settled page
+  await expect(page.getByTestId("buy-split-backdrop")).toHaveCount(0);
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
 });

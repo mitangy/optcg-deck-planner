@@ -220,22 +220,23 @@ test("an alt tile shows its owned count, and stepping it raises Owned, the card'
   await expect(izo.locator(".alt-want-caption")).toHaveText(["Owned", "Owned"]);
   await expect(izo.locator(".alt-art-base")).toContainText("Base");
   await expect(altTile.locator(".alt-want-qty")).toHaveText("0");
-  await expect(izo.locator("input.owned")).toHaveValue("2");
+  await expect(izo.locator(".owned-total")).toHaveText("2");
+  await expect(izo.locator(".alts-owned-note")).toHaveCount(0);
   await expect(totals).toContainText("$5.80");
 
   await izo.getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true }).click();
   await expect(altTile.locator(".alt-want-qty")).toHaveText("1");
   expect(planner.altOwned.get("EB01-002:201")).toBe(1);
-  await expect(izo.locator("input.owned")).toHaveValue("2");
-  await expect(izo.locator(".alts-owned-note")).toHaveText("+1 alt · 3 total");
+  await expect(izo.locator(".owned-total")).toHaveText("3");
+  await expect(izo.locator(".alts-owned-note")).toHaveText("2 base · 1 alt");
   await expect(izo).toContainText("$17.49");
   await expect(totals).toContainText("$20.79");
   await expect(totals).toContainText("7");
 
   await izo.getByRole("button", { name: "Increase owned for Izo base art" }).click();
   await expect.poll(() => planner.owned.get("EB01-002")).toBe(3);
-  await expect(izo.locator("input.owned")).toHaveValue("3");
-  await expect(izo.locator(".alts-owned-note")).toHaveText("+1 alt · 4 total");
+  await expect(izo.locator(".owned-total")).toHaveText("4");
+  await expect(izo.locator(".alts-owned-note")).toHaveText("3 base · 1 alt");
   await expect(totals).toContainText("$22.04");
 
   await page.reload();
@@ -253,7 +254,7 @@ test("Show makes an alt the card's picture without changing counts, and the base
   await expect(izo.locator(".alt-art:not(.alt-art-base) .alt-shown-chip")).toHaveText("Shown");
   expect(planner.displayArt.get("EB01-002")).toBe(201);
   expect(planner.altOwned.get("EB01-002:201")).toBeUndefined();
-  await expect(izo.locator("input.owned")).toHaveValue("2");
+  await expect(izo.locator(".owned-total")).toHaveText("2");
   await expect(page.getByRole("list", { name: "Collection totals" })).toContainText("$5.80");
 
   await izo.getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true }).click();
@@ -267,18 +268,23 @@ test("Show makes an alt the card's picture without changing counts, and the base
   expect(issues, formatIssues(issues)).toEqual([]);
 });
 
-test("every card keeps the Owned stepper for its base art, with or without alt arts shown (#723, #1342)", async ({ page }) => {
+test("alt tiles shown make the Owned column a read-only total, alt arts off bring the stepper back (#723, #1380)", async ({ page }) => {
   const oden = page.locator(row("EB01-001"));
   await expect(oden.getByRole("textbox")).toHaveValue("1");
   await expect(oden.locator(".alt-art")).toHaveCount(0);
   const izo = page.locator(row("EB01-002"));
   await expect(izo.locator(".alt-art")).toHaveCount(2);
-  await expect(izo.getByRole("textbox")).toHaveValue("2");
+  await expect(izo.locator(".owned-total")).toHaveText("2");
+  await expect(izo.getByRole("img", { name: "2 owned in total" })).toBeVisible();
+  await expect(izo.getByRole("textbox")).toHaveCount(0);
+  await expect(izo.getByRole("button", { name: "Increase owned", exact: true })).toHaveCount(0);
+  await expect(izo.getByRole("button", { name: "Increase owned for Izo base art" })).toBeVisible();
 
   const toggle = page.getByRole("button", { name: /Filters/ });
   await expectStationary(toggle, () => toggle.click(), "Filters button");
   await page.getByRole("checkbox", { name: "Show alt arts" }).uncheck();
   await expect(izo.locator(".alt-art")).toHaveCount(0);
+  await expect(izo.locator(".owned-total")).toHaveCount(0);
   await expect(izo.getByRole("textbox")).toHaveValue("2");
   await expect(toggle).toContainText("1 on");
 });
@@ -291,11 +297,12 @@ test("the Grid layout shows the alt tiles, the Owned total and Show too (#723)",
   const altChip = izo.getByRole("button", { name: /\balts?\b/ });
   if (await altChip.isVisible()) await altChip.click();
   await expect(izo.locator(".grid-card-alts .alt-art")).toHaveCount(2);
-  await expect(izo.locator("input.owned")).toHaveValue("2");
+  await expect(izo.locator(".owned-total")).toHaveText("2");
   await expect(izo.locator("img.thumb").first()).toHaveAttribute("src", /101_400w/);
 
   await izo.getByRole("button", { name: "Increase owned for Izo (Alternate Art)", exact: true }).click();
-  await expect(izo.locator(".alts-owned-note")).toHaveText("+1 alt · 3 total");
+  await expect(izo.locator(".alts-owned-note")).toHaveText("2 base · 1 alt");
+  await expect(izo.locator(".owned-total")).toHaveText("3");
   await expect(page.getByRole("list", { name: "Collection totals" })).toContainText("$20.79");
   await expect(izo.locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);
   await izo.getByRole("button", { name: "Show Izo base art as the card's art" }).click();
@@ -339,7 +346,7 @@ test("the Grid tile shows the copies badge on the art, with name, id, price and 
   await page.getByRole("button", { name: "Grid", exact: true }).click();
   const izo = page.locator(".grid-card-wrap" + row("EB01-002"));
   await expect(izo.locator(".copies-badge")).toHaveText("×2");
-  await expect(izo.getByRole("img", { name: "2 owned" })).toBeVisible();
+  await expect(izo.getByRole("img", { name: "2 owned", exact: true })).toBeVisible();
   await expect(izo.locator(".grid-card-name")).toHaveText("Izo");
   await expect(izo.locator(".color-chip")).toHaveText(["Red"]);
   await expect(izo).toContainText("EB01-002");
