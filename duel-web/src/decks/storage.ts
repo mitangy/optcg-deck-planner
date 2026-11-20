@@ -8,6 +8,7 @@ import {
 import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
 import { BOT_META_DECKS } from "@optcg/rules/botMetaDecks";
 import { cardDataReady } from "../cards/cardData";
+import { MAX_DECK_NAME_LENGTH } from "./editDeck";
 
 const STORAGE_KEY = "optcg.duel.savedDecks.v1";
 const SELECTED_KEY = "optcg.duel.selectedDeckId.v1";
@@ -248,6 +249,23 @@ export function saveDeckResult(input: SaveDeckInput): { deck: SavedDeck; persist
   const persisted = writeAll(decks);
   emit({ kind: "upsert", deck: next });
   return { deck: next, persisted };
+}
+
+const COPY_SUFFIX = " (copy)";
+
+/**
+ * Saves a copy named "<name> (copy)" with the same Leader, cards and art picks. The copy is a fresh local deck:
+ * it never carries the planner link or the edited-locally flag, so it cannot overwrite or be synced as the original.
+ */
+export function duplicateDeck(id: string): SavedDeck | undefined {
+  const deck = getSavedDeck(id);
+  if (!deck) return undefined;
+  return saveDeck({
+    name: `${deck.name.slice(0, MAX_DECK_NAME_LENGTH - COPY_SUFFIX.length)}${COPY_SUFFIX}`,
+    leaderId: deck.leaderId,
+    cards: deck.cards,
+    artPrefs: deck.artPrefs,
+  });
 }
 
 export function setDeckArtPref(

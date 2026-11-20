@@ -14,6 +14,9 @@ import {
   listAtlasTypes,
   searchAtlas,
 } from "../cards/searchAtlas";
+import { capitalise, colourLabel } from "../cards/cardMeta";
+import { sharesColour } from "../decks/deckLegality";
+import { cardImageUrl, previewArtPath } from "@optcg/ui/cardArt";
 import { canUseEachArt, EACH_ART_ID, resolveCardImageUrl, resolveDeckArtChoice, setDeckArtChoice } from "../decks/artPrefs";
 import {
   addCard,
@@ -70,10 +73,13 @@ function StackCard({
     if (error) setEditError(error);
   }
 
-  const artOptions = [
-    { value: "", label: "Standard" },
-    ...alts.map((a) => ({ value: a.id, label: a.label })),
-    ...(canUseEachArt(defId) ? [{ value: EACH_ART_ID, label: "One of each art" }] : []),
+  const standardSrc = entry.imageUrl ?? previewArtPath(defId) ?? undefined;
+  const artOptions: { value: string; label: string; thumbs: (string | undefined)[] }[] = [
+    { value: "", label: "Standard", thumbs: [standardSrc] },
+    ...alts.map((a) => ({ value: a.id, label: a.label, thumbs: [a.imageUrl] })),
+    ...(canUseEachArt(defId)
+      ? [{ value: EACH_ART_ID, label: "One of each art", thumbs: [standardSrc, alts[0]?.imageUrl] }]
+      : []),
   ];
 
   return (
@@ -109,11 +115,6 @@ function StackCard({
                 className="deck-stack-img"
                 fallback={<div className="deck-stack-fallback">{defId}</div>}
               />
-              {editable ? null : (
-                <span className="deck-stack-badge" aria-label={`${count} copies`}>
-                  ×{count}
-                </span>
-              )}
             </div>
           </CardStack>
         </button>
@@ -170,8 +171,22 @@ function StackCard({
                       onChanged();
                     }}
                   >
-                    <span>{o.label}</span>
-                    <span aria-hidden>{selectedAlt === o.value ? "✓" : ""}</span>
+                    <span className="deck-art-thumbs" aria-hidden>
+                      {o.thumbs.map((src, i) => (
+                        <CardArt
+                          key={i}
+                          src={src ? cardImageUrl(src, "thumb") || src : undefined}
+                          defId={defId}
+                          className="deck-art-thumb"
+                          fallback={<span className="deck-art-thumb deck-art-thumb-empty" />}
+                          loading="lazy"
+                        />
+                      ))}
+                    </span>
+                    <span className="deck-art-menu-label">{o.label}</span>
+                    <span className="deck-art-menu-check" aria-hidden>
+                      {selectedAlt === o.value ? "✓" : ""}
+                    </span>
                   </button>
                 </MenuItem>
               ))}
@@ -202,6 +217,8 @@ type Props = {
   onArtChanged?: () => void;
   /** The "Replace with deck list" panel. On phones it opens from a button, so it is rendered as a plain panel there. */
   sideTop?: (panel: boolean) => ReactNode;
+  /** Copies the deck as an OPTCGSim code; shows a Copy list action beside the import tools. */
+  onCopyList?: () => void;
 };
 
 const FILTERS_OPEN_KEY = "optcg-duel:deck-filters-open";
@@ -227,9 +244,17 @@ export function countHiddenFilters(f: {
 
 type ToolPanel = "stats" | "replace" | null;
 
-export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
+export function DeckEditor({ deck, onChange, onArtChanged, sideTop, onCopyList }: Props) {
   const [query, setQuery] = useState("");
-  const [colors, setColors] = useState<string[]>([]);
+  const leaderColors = useMemo(() => [...lookupCard(deck.leaderId).colors], [deck.leaderId]);
+  const [colors, setColors] = useState<string[]>(leaderColors);
+  const [colorsFor, setColorsFor] = useState(deck.leaderId);
+  if (colorsFor !== deck.leaderId) {
+    setColorsFor(deck.leaderId);
+    setColors(leaderColors);
+  }
+  const showingLeaderColours =
+    leaderColors.length > 0 && colors.length === leaderColors.length && leaderColors.every((c) => colors.includes(c));
   const [types, setTypes] = useState<string[]>([]);
   const [attributes, setAttributes] = useState<string[]>([]);
   const [counter, setCounter] = useState("");
@@ -319,7 +344,7 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
 
   function clearFilters() {
     setQuery("");
-    setColors([]);
+    setColors(leaderColors);
     setTypes([]);
     setAttributes([]);
     setCounter("");
@@ -464,6 +489,14 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
         </p>
       ) : null}
 
+      {browsing && currentDeck.cards.length >= MAX_MAIN_DECK_SIZE ? (
+        <p className="deck-search-note meta" role="status">
+          Deck full ({MAX_MAIN_DECK_SIZE}/{MAX_MAIN_DECK_SIZE}). Remove a card to add another.
+        </p>
+      ) : showingLeaderColours ? (
+        <p className="deck-search-note meta">Showing your Leader's colours. Untick to see all.</p>
+      ) : null}
+
       {browsing ? (
         <ul className="deck-search-results">
           {results.length === 0 ? (
@@ -475,6 +508,7 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
                 resolveCardImageUrl(entry.id, currentDeck) ?? entry.imageUrl;
               const atCap = inDeck >= maxCopiesFor(entry.id);
               const deckFull = currentDeck.cards.length >= MAX_MAIN_DECK_SIZE;
+              const offColour = !sharesColour(leaderColors, entry.colors);
               return (
                 <li key={entry.id} className="deck-search-row">
                   <button
@@ -491,19 +525,20 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
                       <div className="deck-stack-id">
                         {entry.id}
                         {entry.attribute ? ` · ${entry.attribute}` : ""}
-                        {` · ${entry.type}`}
-                        {entry.colors.length ? ` · ${entry.colors.join("/")}` : ""}
-                        {entry.counter != null ? ` · +${entry.counter}` : ""}
-                        {` · cost ${entry.cost}`}
-                        {entry.power != null ? ` · ${entry.power}` : ""}
+                        {` · ${capitalise(entry.type)}`}
+                        {entry.colors.length ? ` · ${colourLabel(entry.colors)}` : ""}
+                        {` · Cost ${entry.cost}`}
+                        {entry.power != null ? ` · ${entry.power} power` : ""}
+                        {entry.counter != null ? ` · +${entry.counter} counter` : ""}
                         {inDeck > 0 ? ` · in deck ×${inDeck}` : ""}
                       </div>
+                      {offColour ? <div className="deck-search-reason">Not your Leader's colour</div> : null}
                     </div>
                   </button>
                   <button
                     type="button"
                     className="btn btn-primary deck-search-add"
-                    disabled={atCap || deckFull}
+                    disabled={atCap || deckFull || offColour}
                     onClick={() => onAdd(entry.id)}
                   >
                     Add
@@ -632,6 +667,11 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop }: Props) {
       <div className="deck-tools" role="group" aria-label="Deck tools">
         {deckStats ? toolButton("stats", "Deck stats") : null}
         {sideTop ? toolButton("replace", "Replace list") : null}
+        {onCopyList ? (
+          <button type="button" className="btn btn-secondary btn-sm deck-tool-btn" onClick={onCopyList}>
+            Copy list
+          </button>
+        ) : null}
       </div>
       {toolPanel === "stats" && deckStats ? <DeckStatsSection deck={currentDeck} panel /> : null}
       {toolPanel === "replace" ? sideTop?.(true) : null}
