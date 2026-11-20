@@ -36,6 +36,8 @@ test("Add cards shows a result row below the search and colours on a 1440x900 sc
   await page.getByRole("searchbox", { name: "Search" }).fill("luffy");
   const row = page.locator(".deck-add-cards .deck-search-row").first();
   await expect(row).toBeVisible();
+  // The Leader's colours are pre-ticked (#1386), so results already show before typing: wait for the search to land.
+  await expect(row).toContainText(/luffy/i);
   expect(await insideViewport(page, row)).toBe(true);
 });
 

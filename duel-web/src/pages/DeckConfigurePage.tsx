@@ -192,11 +192,21 @@ export function DeckConfigurePage() {
                   onCommit={(name) => onChangeDraft({ ...draft, name })}
                 />
               </h1>
-              <p className={blankName ? "meta error-text" : "meta"} role={blankName ? "alert" : undefined}>
-                {blankName
-                  ? BLANK_DECK_NAME_ERROR
-                  : deckSubtitle(deck.leaderId, deck.cards)}
-              </p>
+              <div className="deck-config-subline">
+                <p className={blankName ? "meta error-text" : "meta"} role={blankName ? "alert" : undefined}>
+                  {blankName ? BLANK_DECK_NAME_ERROR : deckSubtitle(deck.leaderId, deck.cards)}
+                </p>
+                {isStarterDeck(saved) ? (
+                  <p className="meta deck-starter-note" role="note">
+                    <span>
+                      <strong>Starter deck.</strong> Edits change the built-in list.
+                    </span>
+                    <button type="button" className="deck-starter-copy" onClick={onSaveCopy}>
+                      Save as a copy
+                    </button>
+                  </p>
+                ) : null}
+              </div>
             </>
           }
         >
@@ -218,6 +228,9 @@ export function DeckConfigurePage() {
                 Saved
               </span>
             )}
+            <button type="button" className="btn btn-secondary deck-header-copy" onClick={() => void copyList(deck)}>
+              Copy deck list
+            </button>
             <button
               type="button"
               className={`btn ${dirty ? "btn-secondary" : "btn-primary"} deck-play-btn`}
@@ -239,17 +252,6 @@ export function DeckConfigurePage() {
         </p>
         {saveErr ? <p className="error-text deck-config-notice">{saveErr}</p> : null}
         {notice ? <p className="meta deck-config-notice">{notice}</p> : null}
-        {isStarterDeck(saved) ? (
-          <div className="deck-starter-note" role="note">
-            <span>
-              <strong>Starter deck.</strong> Edits change the built-in list.
-            </span>
-            <button type="button" className="btn btn-secondary btn-sm" onClick={onSaveCopy}>
-              Save as a copy
-            </button>
-          </div>
-        ) : null}
-
         <DeckEditor
           deck={deck}
           onChange={onChangeDraft}

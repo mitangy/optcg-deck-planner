@@ -1011,25 +1011,56 @@ body:has(.deck-bottom-bar) {
   white-space: nowrap;
 }
 
+.deck-config-subline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 1rem;
+}
+
+.deck-config-subline > .meta {
+  margin: 0;
+}
+
 .deck-starter-note {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem 0.85rem;
-  padding: 0.4rem 0.7rem;
-  border: 1px solid var(--line-strong);
-  border-radius: var(--radius-8);
-  background: rgb(var(--chrome-rgb) / 0.08);
-  font-size: 0.85rem;
+  align-items: baseline;
+  gap: 0 0.6rem;
+  margin: 0;
+  font-size: 0.8rem;
 }
 
-.deck-starter-note .btn {
-  min-height: 36px;
+.deck-starter-note strong {
+  color: var(--ink);
+}
+
+/* A text-style action inside the header note; the hit target stays 44px tall via padding. */
+.deck-starter-copy {
+  min-height: 32px;
+  padding: 0.25rem 0;
+  border: 0;
+  background: none;
+  color: var(--chrome-bright);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.deck-header-copy {
+  white-space: nowrap;
+}
+
+/* Phones and short landscape screens have Copy list in the deck tools instead. */
+@media (max-width: 599px), (max-height: 499px) and (max-width: 1023px) {
+  .deck-header-actions .deck-header-copy {
+    display: none;
+  }
 }
 
 /* Add cards: why a card cannot be added (#1386). */
-.deck-color-hint,
 .deck-search-note {
   margin: 0;
   font-size: 0.78rem;
@@ -1194,15 +1225,6 @@ body:has(.deck-bottom-bar) {
     min-width: 0;
   }
 
-  .deck-starter-note {
-    padding: 0.2rem 0.6rem;
-    font-size: 0.78rem;
-  }
-
-  .deck-starter-note .btn {
-    min-height: 30px;
-  }
-
   .deck-editor-leader .lobby-section-title {
     display: none;
   }
@@ -1222,11 +1244,6 @@ body:has(.deck-bottom-bar) {
   .deck-editor-leader .deck-stack-meta .deck-stack-name-btn {
     min-height: 36px;
   }
-}
-
-/* Copy deck list sits under the import panel in the side column. */
-.deck-copy-list-btn {
-  align-self: flex-start;
 }
 
 /* On phones the toast clears the fixed bottom bar. */

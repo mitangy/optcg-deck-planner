@@ -253,6 +253,8 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop, onCopyList }
     setColorsFor(deck.leaderId);
     setColors(leaderColors);
   }
+  const showingLeaderColours =
+    leaderColors.length > 0 && colors.length === leaderColors.length && leaderColors.every((c) => colors.includes(c));
   const [types, setTypes] = useState<string[]>([]);
   const [attributes, setAttributes] = useState<string[]>([]);
   const [counter, setCounter] = useState("");
@@ -386,10 +388,6 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop, onCopyList }
           ))}
         </div>
 
-        {leaderColors.length > 0 && colors.length === leaderColors.length && leaderColors.every((c) => colors.includes(c)) ? (
-          <p className="deck-color-hint meta">Showing your Leader's colours. Untick to see all.</p>
-        ) : null}
-
         <div className="deck-search-actions">
           <button
             type="button"
@@ -495,6 +493,8 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop, onCopyList }
         <p className="deck-search-note meta" role="status">
           Deck full ({MAX_MAIN_DECK_SIZE}/{MAX_MAIN_DECK_SIZE}). Remove a card to add another.
         </p>
+      ) : showingLeaderColours ? (
+        <p className="deck-search-note meta">Showing your Leader's colours. Untick to see all.</p>
       ) : null}
 
       {browsing ? (
@@ -629,11 +629,6 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop, onCopyList }
       <div className="deck-editor-layout">
         <aside className="deck-editor-side">
           {sideTop?.(false)}
-          {onCopyList ? (
-            <button type="button" className="btn btn-secondary btn-sm deck-copy-list-btn" onClick={onCopyList}>
-              Copy deck list
-            </button>
-          ) : null}
           {deckStats ? <DeckStatsSection deck={currentDeck} /> : null}
           <details
             className="deck-config-section deck-collapsible deck-add-cards"
