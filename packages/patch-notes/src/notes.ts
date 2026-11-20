@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-20", app: "duel", pr: 1388, title: "Match history: easier to scan on any screen", text: "The Match history list now grows with the page text instead of getting crushed on big screens, and on wide screens each game fits one line. Every game shows both Leaders' art, a Ranked or Casual tag, the opponent's name on its own line and, below it, how it ended. The top shows your ranked and casual records, win percent, current streak and your last 10 results. Loading shows placeholder rows and a failed load has a Try again button. In a match log, Watch replay and Review game sit at the top, card names show their picture when you hover them, and Review with Log Pose opens the Log Pose panel." },
   { date: "2026-11-19", app: "planner", pr: 1380, title: "Owned shows your total when a card has alt arts", text: "Cards with alt arts show your total owned in the Owned column, with how many are base and how many are alt underneath. Change the counts on the art tiles." },
   { date: "2026-11-19", app: "planner", pr: 1379, title: "Shopping on phones: alt art copies in Compact view", text: "On a phone, the extra alt art copies under a card in Compact view no longer have the card picture covering their name and price." },
   { date: "2026-11-18", app: "duel", pr: 1372, title: "No spectating a match you are playing in", text: "You can't spectate a match you're playing in, not even a practice match. Opening its watch link now says why." },

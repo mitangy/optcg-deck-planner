@@ -274,6 +274,13 @@ module.exports = {
     { id: "e2e-don-chip-clicks-ignored", args: "demo-audit --project=desktop-1280", file: "duel-web/src/board/prompts/ChoicePrompt.tsx", from: "  const chip = target?.closest?.<HTMLElement>(\".don-strip .don-chip-btn[data-don-id]\");", to: "  const chip = null as HTMLElement | null;", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [desktop-1280]"] },
     { id: "e2e-don-chip-disabled", args: "demo-audit --project=phone-375", file: "duel-web/src/board/don/DonStrip.tsx", from: "      tabIndex={canDrag ? undefined : -1}\n", to: "      disabled={!canDrag}\n", kills: ["demo-audit.spec.ts > DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258) [phone-375]"] },
 
+    // Match history list sized in rem (#1388)
+    { id: "e2e-history1388-list-stays-narrow", args: "history-layout-1388 --project=desktop-1280", edits: [
+      { file: "duel-web/src/history/history.css", from: ".page.history-page {\n  max-width: 46rem;\n}", to: ".page.history-page {\n  max-width: 600px;\n}" },
+      { file: "duel-web/src/history/history.css", from: "    max-width: 68rem;", to: "    max-width: 600px;" },
+      { file: "duel-web/src/history/history.css", from: "    max-width: 72rem;", to: "    max-width: 600px;" },
+    ], kills: ["history-layout-1388.spec.ts > history rows are one height, keep leaders on one line and never scroll sideways at 1920x1080 (#1388) [desktop-1280]", "history-layout-1388.spec.ts > history rows are one height, keep leaders on one line and never scroll sideways at 2560x1440 (#1388) [desktop-1280]"] },
+
     // Match log: two turns per row on desktop, jump chips (#470)
     { id: "e2e-match-log-hands-not-beside", args: "match-log-layout --project=desktop-1280", file: "duel-web/src/history/history.css", from: "  .match-log-turn-body[data-hands] {\n    display: grid;", to: "  .match-log-turn-body[data-hands] {\n    display: block;", kills: ["match-log-layout.spec.ts > hands sit beside the turn's plays on desktop (#470) [desktop-1280]"] },
     { id: "e2e-match-log-chip-jumps-wrong-turn", args: "match-log-layout --project=phone-375", file: "duel-web/src/pages/MatchLogPage.tsx", from: "document.getElementById(`turn-${turn}`)?.scrollIntoView({ behavior", to: "document.getElementById(`turn-${turn + 1}`)?.scrollIntoView({ behavior", kills: ["match-log-layout.spec.ts > jump chips scroll to that turn (#470) [phone-375]"] },
