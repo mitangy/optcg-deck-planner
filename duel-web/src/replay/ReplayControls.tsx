@@ -74,6 +74,7 @@ export function ReplayControls({
   resultSlot = null,
   reserveRow = false,
   review = null,
+  startInReview = false,
 }: {
   state: ReplayControlsState;
   actions: ReplayControlsActions;
@@ -81,11 +82,13 @@ export function ReplayControls({
   resultSlot?: ReactNode;
   reserveRow?: boolean;
   review?: ReviewState | null;
+  /** Open the review panel as soon as the review is available (from /replay/:id?review=1). */
+  startInReview?: boolean;
 }) {
   const { step, total, turn, turns, playing, speed, revealAll, yourSeat, playerNames, branch } = state;
   const compact = !useMediaQuery(DESKTOP_BOARD_QUERY);
   const [moreOpen, setMoreOpen] = useState(false);
-  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(startInReview);
   const rootRef = useRef<HTMLDivElement>(null);
   const reviewBtnRef = useRef<HTMLButtonElement>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);

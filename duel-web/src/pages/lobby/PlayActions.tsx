@@ -26,7 +26,7 @@ export function PlayActions({ primary, disabled, onPrimary, onPlay }: { primary:
             key={card.mode}
             type="button"
             className="mode-tile"
-            aria-current={card.mode === primary.mode ? "true" : undefined}
+            aria-current={primary.remembered && card.mode === primary.mode ? "true" : undefined}
             disabled={disabled}
             onPointerEnter={prefetchBoard}
             onFocus={prefetchBoard}
@@ -34,6 +34,7 @@ export function PlayActions({ primary, disabled, onPrimary, onPlay }: { primary:
           >
             <span className="mode-tile-title">{card.title}</span>
             <span className="mode-tile-blurb">{card.short}</span>
+            {primary.remembered && card.mode === primary.mode ? <span className="mode-tile-tag">Last played</span> : null}
           </button>
         ))}
       </div>

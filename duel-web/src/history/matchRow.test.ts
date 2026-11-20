@@ -36,6 +36,11 @@ describe("match history rows", () => {
     expect(matchRow(entry({ has_replay: true }), cardName, now).replay).toBe(false);
   });
 
+  it("says whose match clock ran out in plain words (#1388)", () => {
+    expect(matchRow(entry({ won: false, reason: "match_timeout" }), cardName, now).how).toBe("Your match clock ran out");
+    expect(matchRow(entry({ won: true, reason: "match_timeout" }), cardName, now).how).toBe("Opponent's match clock ran out");
+  });
+
   it("says who conceded, left or took the last hit from your side (#244)", () => {
     expect(matchRow(entry({ won: false, reason: "concede" }), cardName, now).how).toBe("You conceded");
     expect(matchRow(entry({ won: true, reason: "concede" }), cardName, now).how).toBe("Opponent conceded");
@@ -64,6 +69,16 @@ describe("match history rows", () => {
   it("shows a game that never finished as cut off, with no Bounty change (#316)", () => {
     const row = matchRow(entry({ finished: false, won: false, reason: "unfinished", rating_before: 0, rating_after: 0 }), cardName, now);
     expect([row.outcome, row.how, row.bountyDelta]).toEqual(["Cut off", "Game didn't finish", null]);
+  });
+
+  it("tags a game Ranked or Casual in words (#1388)", () => {
+    expect(matchRow(entry({ ranked: true }), cardName, now).mode).toBe("Ranked");
+    expect(matchRow(entry({ ranked: false }), cardName, now).mode).toBe("Casual");
+  });
+
+  it("carries the opponent's Leader id for the art pair (#1388)", () => {
+    expect(matchRow(entry({}), cardName, now).opponentLeaderId).toBe("OP05-060");
+    expect(matchRow(entry({ opponent_leader_id: null }), cardName, now).opponentLeaderId).toBeNull();
   });
 
   it("dates recent games relative to now (#244)", () => {
