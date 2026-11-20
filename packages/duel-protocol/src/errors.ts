@@ -14,6 +14,9 @@ export const ERROR_CODES = [
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
+/** Shown when an account that holds a seat tries to spectate the same match (#1371). */
+export const SEATED_SPECTATOR_MESSAGE = "You're playing in this match, so you can't spectate it.";
+
 export class ProtocolError extends Error {
   readonly code: ErrorCode;
   constructor(message: string, code: ErrorCode = "bad_protocol") {

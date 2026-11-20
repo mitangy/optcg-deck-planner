@@ -125,6 +125,7 @@ export function CardTable({
     <OwnedCell
       owned={c.owned}
       altsOwned={c.alts_owned}
+      editedInTiles={hasAlts(c) && Boolean(onAltOwnedChange)}
       stepper={<OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />}
     />
   );

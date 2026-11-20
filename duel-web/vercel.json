@@ -105,6 +105,10 @@
       "dest": "/_app.html"
     },
     {
+      "src": "/profile/?",
+      "dest": "/_app.html"
+    },
+    {
       "src": "/leaderboard/?",
       "dest": "/leaderboard/index.html"
     },

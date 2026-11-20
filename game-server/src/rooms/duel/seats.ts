@@ -67,12 +67,6 @@ export class SeatRegistry {
     return this.ownerUids[seat] ?? slot.userId;
   }
 
-  /** Both seats belong to one account (practice, hotseat): nothing is hidden from it. */
-  sharedOwner(): boolean {
-    const a = this.controllerOf(0);
-    return a !== null && a === this.controllerOf(1);
-  }
-
   /** True for the account behind either seat, also while that seat is away: the slot stays until the grace ends. */
   holdsSeat(userId: number): boolean {
     return ([0, 1] as Seat[]).some((seat) => {

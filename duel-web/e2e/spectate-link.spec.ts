@@ -1,4 +1,5 @@
 import type { BrowserContext, Page } from "@playwright/test";
+import { SEATED_SPECTATOR_MESSAGE } from "@optcg/duel-protocol";
 import { test, expect, mintGameToken, FAKE_API, GAME_SERVER, RED_VANILLA } from "./fixtures";
 
 const NEAR_FAN = ".hand-fan:not(.hand-fan-top)";
@@ -7,7 +8,7 @@ const NEAR_HAND = `:is(.rail-hand-cards, .hand-row-inner, ${NEAR_FAN} .hand-fan-
 const FAR_HAND = `:is(${FAR_FAN} .hand-fan-cards .card-tile, .spec-far-cards .card-tile, .opp-fan-face, .opp-hand-face) >> visible=true`;
 const ENDED_MESSAGE = "That match has ended or the spectate link is wrong.";
 
-async function newWatcher(browser: import("@playwright/test").Browser, use: object): Promise<{ ctx: BrowserContext; page: Page }> {
+async function newWatcher(browser: import("@playwright/test").Browser, use: object, uid = 99): Promise<{ ctx: BrowserContext; page: Page }> {
   const ctx = await browser.newContext({ ...use, permissions: ["clipboard-read", "clipboard-write"] });
   const page = await ctx.newPage();
   await page.addInitScript(() => {
@@ -20,7 +21,7 @@ async function newWatcher(browser: import("@playwright/test").Browser, use: obje
     if (path === "/health") return route.fulfill({ json: { ok: true } });
     if (path === "/duel/guest-token") {
       return route.fulfill({
-        json: { token: mintGameToken(99, "watcher"), expires_at: 0, user_id: 99, email: "watcher@e2e.test", rating: 1000, games_played: 0 },
+        json: { token: mintGameToken(uid, "watcher"), expires_at: 0, user_id: uid, email: "watcher@e2e.test", rating: 1000, games_played: 0 },
       });
     }
     return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
@@ -96,6 +97,38 @@ test("a spectator who arrives before the match starts sees waiting, not an error
   await spec.waitForTimeout(800);
   await expect(spec.locator(".error-banner")).toHaveCount(0);
   await expect(spec).toHaveURL(/\/duel$/);
+  await ctx.close();
+});
+
+test("opening the watch link of a match you are seated in says so on the lobby, with no board (#1371)", async ({ page, browser }, info) => {
+  const created = page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
+  await page.route(`${FAKE_API}/**`, (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/health") return route.fulfill({ json: { ok: true } });
+    if (path === "/duel/guest-token") {
+      return route.fulfill({
+        json: { token: mintGameToken(1, "host"), expires_at: 0, user_id: 1, email: "host@e2e.test", rating: 1000, games_played: 0 },
+      });
+    }
+    return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
+  });
+  await page.goto("/");
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
+  await page.getByRole("button", { name: "Create room" }).click();
+  const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
+  const roomId = (body.room?.roomId ?? body.roomId)!;
+  await expect(page.locator(".room-invite-id")).toHaveText(roomId);
+
+  // Same account (uid 1) in a second browser: it already holds the seat.
+  const { ctx, page: spec } = await newWatcher(browser, info.project.use, 1);
+  await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
+  await expect(spec.getByText(SEATED_SPECTATOR_MESSAGE)).toBeVisible({ timeout: 30_000 });
+  // A phone sees it without scrolling.
+  await expect(spec.getByRole("alert").filter({ hasText: SEATED_SPECTATOR_MESSAGE })).toBeInViewport();
+  await expect(spec).toHaveURL(/\/$/);
+  await expect(spec.locator(".board-root")).toHaveCount(0);
+  await spec.screenshot({ path: info.outputPath("watch-own-match.png") });
+  if (process.env.SHOTS_DIR) await spec.screenshot({ path: `${process.env.SHOTS_DIR}/watch-own-match-${info.project.name}.png` });
   await ctx.close();
 });
 
