@@ -338,3 +338,26 @@
   font-family: var(--font-display);
 }
 
+
+/* What's new: the months rail hangs in the gutter left of the 600px page, so the reading column keeps its width. */
+.whats-new-page .wn-layout {
+  --wn-rail-w: 10.5rem;
+  --wn-rail-pull: calc(-1 * (var(--wn-rail-w) + 1.5rem));
+}
+
+/* Phones: the Home link shrinks to its arrow so the title has room. */
+@media (max-width: 600px) {
+  .whats-new-page .page-header .deck-config-back {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  .whats-new-page .page-header .deck-config-back .back-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
