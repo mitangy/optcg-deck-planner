@@ -7,7 +7,7 @@ import logging
 import re
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, Response
 from sqlalchemy import delete, func, or_, select
@@ -26,8 +26,10 @@ from app.core.config import Settings, get_settings
 from app.core.security import OpsToken
 from app.core.time import as_utc
 from app.core.db import get_db
+from app.duel.leaderboard import Record, board_as_of, current_board, ranked_records, window_board
 from app.duel.ratings import (
     INITIAL_RATING,
+    PROVISIONAL_GAMES,
     RANKED_PAIR_DAILY_LIMIT,
     RANKED_PAIR_WINDOW_HOURS,
     apply_elo,
@@ -553,25 +555,9 @@ def my_rating(
 ) -> DuelRatingOut:
     rating = _get_or_create_rating(db, user.id)
     db.commit()
-    seat0 = DuelMatch.seat0_user_id == user.id
-    seat1 = DuelMatch.seat1_user_id == user.id
-    wins = db.scalar(
-        select(func.count(DuelMatch.id)).where(
-            or_(
-                (seat0) & (DuelMatch.winner_seat == 0),
-                (seat1) & (DuelMatch.winner_seat == 1),
-            )
-        )
-    )
-    played = db.scalar(select(func.count(DuelMatch.id)).where(or_(seat0, seat1)))
-    rank = None
-    if rating.games_played > 0:
-        ahead = db.scalar(
-            select(func.count())
-            .select_from(DuelRating)
-            .where(DuelRating.games_played > 0, DuelRating.rating > rating.rating)
-        )
-        rank = 1 + (ahead or 0)
+    record = ranked_records(db, user_id=user.id).get(user.id, Record())
+    board = {row.user_id: row for row in current_board(db)}
+    mine = board.get(user.id)
     return DuelRatingOut(
         user_id=user.id,
         email=user.email,
@@ -579,9 +565,10 @@ def my_rating(
         username=user.username,
         rating=rating.rating,
         games_played=rating.games_played,
-        wins=wins or 0,
-        losses=(played or 0) - (wins or 0),
-        rank=rank,
+        wins=record.wins,
+        losses=record.losses,
+        rank=mine.rank if mine else None,
+        provisional=rating.games_played < PROVISIONAL_GAMES,
     )
 
 
@@ -670,25 +657,43 @@ def my_match_replay(
 def leaderboard(
     db: Annotated[Session, Depends(get_db)],
     limit: int = 20,
+    window: Literal["all", "week", "month"] = "all",
 ) -> DuelLeaderboardOut:
     limit = max(1, min(limit, 100))
-    rows = db.execute(
-        select(DuelRating, User)
-        .join(User, User.id == DuelRating.user_id)
-        .where(DuelRating.games_played > 0)
-        .order_by(DuelRating.rating.desc(), DuelRating.games_played.desc())
-        .limit(limit)
-    ).all()
-    entries = [
-        DuelLeaderboardEntryOut(
-            user_id=user.id,
-            name=duel_display_name(user),
-            username=user.username,
-            rating=rating.rating,
-            games_played=rating.games_played,
+    board = current_board(db)
+    by_user = {row.user_id: row for row in board}
+    if window == "all":
+        yesterday = board_as_of(db, datetime.now(timezone.utc) - timedelta(hours=24))
+        records = ranked_records(db)
+        shown = [(row.user_id, row.rank, None) for row in board[:limit]]
+    else:
+        since = datetime.now(timezone.utc) - timedelta(days=7 if window == "week" else 30)
+        records = ranked_records(db, since=since)
+        yesterday = {}
+        shown = [(uid, rank, records[uid].gain) for uid, rank in window_board(records)[:limit]]
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_([s[0] for s in shown]))).all()}
+    entries = []
+    for uid, rank, gain in shown:
+        user, row = users.get(uid), by_user.get(uid)
+        if user is None or row is None:
+            continue
+        before = yesterday.get(uid)
+        rec = records.get(uid, Record())
+        entries.append(
+            DuelLeaderboardEntryOut(
+                user_id=uid,
+                name=duel_display_name(user),
+                username=user.username,
+                rating=row.rating,
+                games_played=row.games_played,
+                rank=rank,
+                provisional=row.provisional,
+                wins=rec.wins,
+                losses=rec.losses,
+                rank_change=before - rank if window == "all" and before is not None else None,
+                bounty_change=gain,
+            )
         )
-        for rating, user in rows
-    ]
     return DuelLeaderboardOut(entries=entries)
 
 

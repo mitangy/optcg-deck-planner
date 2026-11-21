@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ensureTestDecks, saveDeck, validateImportedList } from "./storage";
+import { ensureDefaultDeck, ensureTestDecks, getSelectedDeckId, saveDeck, setSelectedDeckId, validateImportedList } from "./storage";
 
 describe("validateImportedList", () => {
   it("accepts curated ST01 list with leader", () => {
@@ -117,5 +117,22 @@ describe("ensureTestDecks", () => {
     const again = ensureTestDecks().find((d) => d.id === "test-op16-black");
     expect(again?.name).toBe("My Teach edit");
     expect(again?.cards).toHaveLength(10);
+  });
+
+  it("a new visitor starts on the clean-art OP13 Luffy starter (#1391)", () => {
+    stubLocalStorage();
+    const start = ensureDefaultDeck();
+    expect(start.id).toBe("starter-op13-luffy");
+    expect(start.name).toBe("Starter: OP13 Luffy");
+    expect(start.leaderId).toBe("OP13-001");
+    expect(start.cards).toHaveLength(50);
+    expect(getSelectedDeckId()).toBe("starter-op13-luffy");
+  });
+
+  it("a visitor who already picked a deck keeps it (#1391)", () => {
+    stubLocalStorage();
+    ensureTestDecks();
+    setSelectedDeckId("test-op17-red");
+    expect(ensureDefaultDeck().id).toBe("test-op17-red");
   });
 });

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
-import { lookupCard } from "../cards/atlas";
 import { DeckConfigHeader } from "../layout/DeckConfigHeader";
 import { deckEditorScope } from "../logPoseScopes";
 import { useLogPoseDeckEditor, useLogPosePage, type DeckEditor as LogPoseDeckEditor } from "@optcg/analyst-client";
@@ -12,18 +11,21 @@ import {
   BLANK_DECK_NAME_ERROR,
   isDeckDirty,
   MAX_DECK_NAME_LENGTH,
-  MAX_MAIN_DECK_SIZE,
   saveDeckDraft,
   type DeckDraft,
 } from "../decks/editDeck";
 import { useLeaveGuard } from "../decks/useLeaveGuard";
 import { pushDeckArtToPlanner } from "../decks/planner";
+import { deckSubtitle } from "../decks/deckLegality";
+import { isStarterDeck, saveDeckAsCopy } from "../decks/saveAsCopy";
 import {
+  ensureTestDecks,
   getSavedDeck,
   setSelectedDeckId,
   validateImportedList,
   type SavedDeck,
 } from "../decks/storage";
+import { useCopyDeckList, useToast } from "../decks/useCopyDeckList";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 
@@ -45,6 +47,8 @@ export function DeckConfigurePage() {
 
   const saved = useMemo(() => {
     void tick;
+    // Built-in starters are only seeded when the Decks list loads; a direct link must seed them too.
+    if (deckId?.startsWith("test-")) ensureTestDecks();
     return deckId ? getSavedDeck(deckId) : undefined;
   }, [deckId, tick, syncedDecks]);
   const draft: DeckDraft | null = saved ? (edits && edits.deckId === saved.id ? edits : saved) : null;
@@ -53,6 +57,9 @@ export function DeckConfigurePage() {
   const dirty = Boolean(saved && draft && isDeckDirty(saved, draft));
   const blankName = Boolean(draft && !draft.name.trim());
   const leave = useLeaveGuard(dirty);
+  const { say, toast } = useToast();
+  const { copyList, dialog: copyDialog } = useCopyDeckList(say);
+
   const draftRef = useRef(draft);
   draftRef.current = draft;
 
@@ -126,6 +133,23 @@ export function DeckConfigurePage() {
     setEdits(null);
   }
 
+  function onPlay() {
+    if (dirty && !commit(draft!)) return;
+    // The editor already made this deck the selected one when it opened.
+    leave.go("/", navigate);
+  }
+
+  function onSaveCopy() {
+    setSaveErr(null);
+    const { deck: copy, persisted } = saveDeckAsCopy(saved!, draft!);
+    if (!persisted) {
+      setSaveErr("Could not save a copy in this browser.");
+      return;
+    }
+    setEdits(null);
+    leave.go(`/decks/${copy.id}/configure`, navigate);
+  }
+
   function leaveTo(to: string, save: boolean) {
     if (save && !commit(draft!)) {
       leave.clear();
@@ -168,11 +192,21 @@ export function DeckConfigurePage() {
                   onCommit={(name) => onChangeDraft({ ...draft, name })}
                 />
               </h1>
-              <p className={blankName ? "meta error-text" : "meta"} role={blankName ? "alert" : undefined}>
-                {blankName
-                  ? BLANK_DECK_NAME_ERROR
-                  : `Leader ${lookupCard(deck.leaderId).name} · ${deck.cards.length}/${MAX_MAIN_DECK_SIZE} main`}
-              </p>
+              <div className="deck-config-subline">
+                <p className={blankName ? "meta error-text" : "meta"} role={blankName ? "alert" : undefined}>
+                  {blankName ? BLANK_DECK_NAME_ERROR : deckSubtitle(deck.leaderId, deck.cards)}
+                </p>
+                {isStarterDeck(saved) ? (
+                  <p className="meta deck-starter-note" role="note">
+                    <span>
+                      <strong>Starter deck.</strong> Edits change the built-in list.
+                    </span>
+                    <button type="button" className="deck-starter-copy" onClick={onSaveCopy}>
+                      Save as a copy
+                    </button>
+                  </p>
+                ) : null}
+              </div>
             </>
           }
         >
@@ -194,6 +228,17 @@ export function DeckConfigurePage() {
                 Saved
               </span>
             )}
+            <button type="button" className="btn btn-secondary deck-header-copy" onClick={() => void copyList(deck)}>
+              Copy deck list
+            </button>
+            <button
+              type="button"
+              className={`btn ${dirty ? "btn-secondary" : "btn-primary"} deck-play-btn`}
+              onClick={onPlay}
+              disabled={blankName}
+            >
+              Play <span aria-hidden>→</span>
+            </button>
             {deck.plannerDeckId ? (
               <span className="deck-planner-badge" title="Edits here and in the planner reach both">
                 Synced with planner
@@ -207,11 +252,11 @@ export function DeckConfigurePage() {
         </p>
         {saveErr ? <p className="error-text deck-config-notice">{saveErr}</p> : null}
         {notice ? <p className="meta deck-config-notice">{notice}</p> : null}
-
         <DeckEditor
           deck={deck}
           onChange={onChangeDraft}
           onArtChanged={onArtChanged}
+          onCopyList={() => void copyList(deck)}
           sideTop={(panel) => (
             <DeckImportPanel
               collapsible={!panel}
@@ -228,6 +273,8 @@ export function DeckConfigurePage() {
           )}
         />
       </div>
+      {toast}
+      {copyDialog}
 
       {leave.pending ? (
         <Dialog

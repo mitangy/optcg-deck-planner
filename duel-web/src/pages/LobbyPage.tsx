@@ -18,6 +18,8 @@ import { useAsyncResource } from "../lib/useAsyncResource";
 import { LogPoseTile } from "../home/LogPoseTile";
 import { OnlyOnDuel } from "../home/OnlyOnDuel";
 import { BrandMark } from "../BrandMark";
+import { useMediaQuery } from "../lib/useMediaQuery";
+import { RankedGate } from "./lobby/RankedGate";
 import { TopBounties } from "../home/TopBounties";
 import { VoyageCard } from "../home/VoyageCard";
 import { introDone, introVisible, markIntroDone } from "../home/intro";
@@ -77,6 +79,10 @@ export function LobbyPage() {
       sheet.setSheetOpen(true);
       window.history.replaceState(window.history.state, "", window.location.pathname);
     }
+    if (new URLSearchParams(window.location.search).get("play") === "ranked") {
+      sheet.openSheet("queue");
+      window.history.replaceState(window.history.state, "", window.location.pathname);
+    }
     warmDuelServices(getApiBaseUrl(), rememberedGameServerUrl() ?? serverUrl);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -98,8 +104,18 @@ export function LobbyPage() {
   const { busy, busyStatus, friendError, watchStarted, confirmSetup } = launch;
 
   const primary = primaryAction(lastMode, authMode === "google");
+  const [rankedGate, setRankedGate] = useState(false);
+  // Same breakpoint as the two-column home layout in uploads.css.
+  const twoColumns = useMediaQuery("(min-width: 1000px) and (min-height: 500px)");
+  const guestHome = authChecked && !authUser;
+  const showIntro = authChecked && introVisible(authMode, introClosed);
 
   function playFrom(mode: LastMode | "spectate", act: "start" | "sheet" = mode === "queue" ? "start" : "sheet") {
+    // Ranked keeps a Bounty and match history, which need an account (#1391).
+    if (mode === "queue" && authMode === "guest") {
+      setRankedGate(true);
+      return;
+    }
     if (act === "start") {
       if (!selectedDeck || (authMode === "dev" && !settings.devUserKey.trim())) {
         sheet.openSheet(mode);
@@ -130,12 +146,13 @@ export function LobbyPage() {
       <LobbyTopbar authMode={authMode} accountName={accountName} bounty={bounty} />
 
       <main className="home">
-        <div className="home-hero">
+        <div className="home-hero" data-state={!authChecked ? "pending" : guestHome ? "guest" : "member"}>
           <p className="home-kicker">One Piece Card Game</p>
           <h1 className="home-brand">
             <BrandMark className="home-brand-mark" />
             OPTCG Duel
           </h1>
+          <p className="home-tagline">Play the One Piece Card Game online. Free, in your browser.</p>
           <div className="home-rule" aria-hidden>
             <span />
           </div>
@@ -177,13 +194,11 @@ export function LobbyPage() {
           <LivePanel
             counts={liveCounts}
             onInvite={() => playFrom("create")}
-            onBot={() => playFrom("bot")}
-            onPractice={() => playFrom("hotseat")}
             disabled={busy || queueing}
           />
 
           {authChecked && !authUser ? (
-            <OnlyOnDuel deck={selectedDeck} onSpectate={() => playFrom("spectate")} disabled={busy || queueing} />
+            <OnlyOnDuel deck={selectedDeck} />
           ) : null}
           {authUser ? <ForYou games={games} live={liveCounts} onSpectate={() => playFrom("spectate")} disabled={busy || queueing} /> : null}
 
@@ -206,10 +221,12 @@ export function LobbyPage() {
             </div>
           ) : null}
 
-          {authChecked && introVisible(authMode, introClosed) ? <IntroStrip onDismiss={dismissIntro} /> : null}
+          {showIntro && !twoColumns ? <IntroStrip onDismiss={dismissIntro} /> : null}
         </div>
 
         <div className="home-side">
+          {/* Beside the play column on desktop so the right column is not just a list of cards (#1391). */}
+          {showIntro && twoColumns ? <IntroStrip onDismiss={dismissIntro} /> : null}
           <EventBanner />
           {busy && busyStatus && !sheet.sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
           <LogPoseTile deck={selectedDeck} />
@@ -238,8 +255,17 @@ export function LobbyPage() {
         busy={busy}
         busyStatus={busyStatus}
         queueing={queueing}
-        onConfirm={(mode: PlayMode) => void confirmSetup(mode)}
+        onConfirm={(mode: PlayMode) => (mode === "queue" && authMode === "guest" ? setRankedGate(true) : void confirmSetup(mode))}
       />
+      {rankedGate ? (
+        <RankedGate
+          onClose={() => setRankedGate(false)}
+          onBot={() => {
+            setRankedGate(false);
+            playFrom("bot");
+          }}
+        />
+      ) : null}
       <Suspense fallback={null}>
         <WhatsNewHost />
       </Suspense>

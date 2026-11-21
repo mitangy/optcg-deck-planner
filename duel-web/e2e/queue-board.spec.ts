@@ -1,6 +1,7 @@
 import { test, expect, RED_LEGAL, FAKE_API, signInAs, type Page } from "./fixtures";
 
 async function openRanked(page: Page) {
+  // Ranked needs an account; a guest gets a sign-in sheet instead (#1391), so every caller signs in first.
   await page.addInitScript((deck) => {
     if (sessionStorage.getItem("e2e-seeded")) return;
     sessionStorage.setItem("e2e-seeded", "1");
@@ -13,6 +14,7 @@ async function openRanked(page: Page) {
 }
 
 test("Find match opens the board while the queue searches", async ({ page, duel: _duel }) => {
+  await signInAs(page, { uid: 7, name: "Miko" });
   await openRanked(page);
   await expect(page).toHaveURL(/\/duel$/);
   const board = page.locator(".board-root.arena-pending");
@@ -25,7 +27,8 @@ test("Find match opens the board while the queue searches", async ({ page, duel:
 });
 
 test("a failed match request returns to the lobby and says why", async ({ page, duel: _duel }) => {
-  await page.route(`${FAKE_API}/duel/guest-token`, (route) =>
+  await signInAs(page, { uid: 7, name: "Miko" });
+  await page.route(`${FAKE_API}/duel/token`, (route) =>
     route.fulfill({ status: 503, json: { detail: "Token service down" } }),
   );
   await openRanked(page);
