@@ -19,6 +19,7 @@ import type { ActiveMatch } from "../../net/activeMatches";
 import { clearMatchResume } from "../../net/matchResume";
 import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../../state/DuelSession";
 import { claimMatchRoom, tournamentCreateOptions } from "../../tournaments/playLoop";
+import { clearActiveTournamentMatch, setActiveTournamentMatch } from "../../tournaments/activeTournamentMatch";
 import { playTournamentMatch } from "../../tournaments/tournamentApi";
 import type { useFriends } from "../../friends/FriendsPanel";
 import { readLobbyHandoff, useLobbyHandoffs, type TournamentPlay } from "./lobbyHandoff";
@@ -87,6 +88,7 @@ export function useMatchLaunchers(deps: {
     }
     setFriendError(null);
     clearMatchResume();
+    clearActiveTournamentMatch();
     startMatch(launch, fn);
     navigate("/duel", navOpts);
   }
@@ -174,6 +176,7 @@ export function useMatchLaunchers(deps: {
     }
     const launch = { status: `Playing ${tp.opponent}…`, leaderId: selectedDeck.leaderId, invite: false };
     runFriendAction(launch, async (gen) => {
+      setActiveTournamentMatch({ code: tp.code, matchId: tp.matchId });
       const claim = await claimMatchRoom(
         () => playTournamentMatch(tp.code, tp.matchId),
         (ms) => new Promise((r) => setTimeout(r, ms)),
@@ -265,6 +268,7 @@ export function useMatchLaunchers(deps: {
     setError(null);
     try {
       clearMatchResume();
+      clearActiveTournamentMatch();
       if (mode === "hotseat") {
         const wire = deckToWire(selectedDeck!);
         setSelectedDeckId(selectedDeck!.id);

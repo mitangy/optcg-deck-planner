@@ -45,6 +45,15 @@
     0 4px 14px rgba(0, 0, 0, 0.28);
 }
 
+/* Disabled gold would read as muddy dark gold with unreadable text; show a plain inert button instead. */
+.btn-primary:disabled {
+  opacity: 1;
+  color: var(--muted);
+  background: rgb(var(--panel-rgb) / 0.7);
+  border: 1px dashed var(--line);
+  box-shadow: none;
+}
+
 .btn-primary:not(:disabled):hover {
   filter: brightness(1.06);
   box-shadow:

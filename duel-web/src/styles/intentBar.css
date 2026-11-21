@@ -143,9 +143,16 @@
   display: flex;
   gap: var(--space-2);
 }
+.match-result-secondary {
+  flex-wrap: wrap;
+}
 .match-result-secondary > * {
   flex: 1 1 0;
   min-width: 0;
+}
+/* Tournament games: the way back gets its own full-width row above the quiet ones (#1385). */
+.match-result-secondary > .match-result-tournament {
+  flex: 1 1 100%;
 }
 .match-result-secondary .btn {
   box-sizing: border-box;

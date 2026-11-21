@@ -85,6 +85,7 @@ export type BoardOverlayLayersProps = {
   canReportPlayer: boolean;
   reportTargetFor: React.ComponentProps<typeof MatchResultView>["reportTargetFor"];
   onLeave: () => void;
+  onBackToTournament?: () => void;
 };
 
 // Prompts, the action dock, banners, drag visuals, the card popover and the match result over the board.
@@ -148,6 +149,7 @@ export function BoardOverlayLayers({
   canReportPlayer,
   reportTargetFor,
   onLeave,
+  onBackToTournament,
 }: BoardOverlayLayersProps) {
   return (
     <>
@@ -250,6 +252,7 @@ export function BoardOverlayLayers({
     canReportPlayer={canReportPlayer}
     reportTargetFor={reportTargetFor}
     onLeave={onLeave}
+    onBackToTournament={onBackToTournament}
   />
     </>
   );

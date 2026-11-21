@@ -6,12 +6,13 @@ import { googleLoginUrl } from "../net/api";
 import { TIMER_PRESET_OPTIONS, type TimerPreset } from "../home/timerPreset";
 import { ROUND_ROBIN_SIZES, SINGLE_ELIM_SIZES } from "./bracket";
 import { useTournaments, useWho } from "./hooks";
+import { groupTournaments } from "./groupTournaments";
 import { TournamentRow } from "./TournamentRow";
 import { createTournament, joinTournament, leaveTournament, type TournamentFormat } from "./tournamentApi";
 import "./tournaments.css";
 
 const FORMAT_OPTIONS = [
-  { value: "single_elim" as TournamentFormat, label: "Tournament (single elimination)" },
+  { value: "single_elim" as TournamentFormat, label: "Bracket (single elimination)" },
   { value: "round_robin" as TournamentFormat, label: "Round robin" },
 ];
 
@@ -90,6 +91,7 @@ export function TournamentsPage() {
   const { list, error, refresh } = useTournaments(who.status === "ready");
   const [busyId, setBusyId] = useState<number | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [showFinished, setShowFinished] = useState(false);
   const navigate = useNavigate();
 
   async function answer(code: string, id: number, accept: boolean) {
@@ -112,6 +114,7 @@ export function TournamentsPage() {
 
   const invites = (list ?? []).filter((t) => t.my_role === "invited" && t.status === "open");
   const rest = (list ?? []).filter((t) => !invites.includes(t));
+  const groups = groupTournaments(rest);
 
   return (
     <PageShell pageClass="tpage" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }} title="Tournaments">
@@ -162,11 +165,46 @@ export function TournamentsPage() {
             <section className="panel" aria-label="Your tournaments">
               <h2 className="panel-title">Your tournaments</h2>
               {rest.length > 0 ? (
-                <ul className="trow-list">
-                  {rest.map((t) => (
-                    <TournamentRow key={t.id} t={t} />
-                  ))}
-                </ul>
+                <>
+                  {(
+                    [
+                      ["Now", groups.now],
+                      ["Signing up", groups.signingUp],
+                    ] as const
+                  ).map(([label, items]) =>
+                    items.length > 0 ? (
+                      <div key={label} className="tgroup">
+                        <h3 className="tgroup-title">{label}</h3>
+                        <ul className="trow-list">
+                          {items.map((t) => (
+                            <TournamentRow key={t.id} t={t} />
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null,
+                  )}
+                  {groups.finished.length > 0 ? (
+                    <div className="tgroup">
+                      <button
+                        type="button"
+                        className="tgroup-toggle"
+                        aria-expanded={showFinished}
+                        aria-controls="tgroup-finished"
+                        onClick={() => setShowFinished((v) => !v)}
+                      >
+                        <span className="tgroup-caret" aria-hidden="true" />
+                        Finished ({groups.finished.length})
+                      </button>
+                      {showFinished ? (
+                        <ul id="tgroup-finished" className="trow-list">
+                          {groups.finished.map((t) => (
+                            <TournamentRow key={t.id} t={t} />
+                          ))}
+                        </ul>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </>
               ) : (
                 <p className="panel-copy tnote">{list ? "None yet. Create one, or open a link a friend sent you." : "Loading…"}</p>
               )}

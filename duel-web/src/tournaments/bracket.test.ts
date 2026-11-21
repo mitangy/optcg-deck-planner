@@ -1,11 +1,18 @@
 import { describe, expect, it } from "vitest";
 import type { Friend } from "../friends/friendsApi";
 import {
+  defaultPhoneRound,
+  feederMatches,
   formatLabel,
   groupByRound,
   invitableFriends,
   matchStatusLabel,
   myNextMatch,
+  offersPlay,
+  pendingFeederPlayers,
+  playLabel,
+  roundStartsOpen,
+  yourMatchState,
   opponentOf,
   roundLabel,
   startBlocker,
@@ -83,5 +90,68 @@ describe("tournament bracket helpers (#997)", () => {
     expect(matchStatusLabel(match({ id: 1, round: 1, slot: 0, status: "done", decided_by: "bye" }))).toBe("Bye");
     expect(matchStatusLabel(match({ id: 1, round: 1, slot: 0, status: "done", decided_by: "walkover" }))).toBe("Win awarded");
     expect(matchStatusLabel(match({ id: 1, round: 1, slot: 0, status: "ready", room_open: true }))).toBe("Room open");
+  });
+
+  it("tells whose room is open: the opponent's means join now, yours means rejoin (#1385)", () => {
+    expect(yourMatchState({ room_open: false, host_id: null }, 1)).toBe("ready");
+    expect(yourMatchState({ room_open: true, host_id: 2 }, 1)).toBe("opponent-waiting");
+    expect(yourMatchState({ room_open: true, host_id: 1 }, 1)).toBe("you-hosting");
+    expect(playLabel("opponent-waiting")).toBe("Join now");
+    expect(playLabel("you-hosting")).toBe("Rejoin room");
+    expect(playLabel("ready")).toBe("Play");
+  });
+
+  it("offers Play only on your next match, not on your other ready matches (#1385)", () => {
+    const a = match({ id: 1, round: 1, slot: 0, a: P(1), b: P(2), status: "ready" });
+    const b = match({ id: 2, round: 1, slot: 1, a: P(1), b: P(3), status: "ready" });
+    expect(offersPlay(a, a)).toBe(true);
+    expect(offersPlay(b, a)).toBe(false);
+    expect(offersPlay(b, null)).toBe(false);
+    expect(offersPlay({ ...a, status: "waiting" }, a)).toBe(false);
+  });
+
+  it("finds a match's two feeders by slot 2s and 2s+1 of the previous round (#1385)", () => {
+    const all = [
+      match({ id: 1, round: 1, slot: 0 }),
+      match({ id: 2, round: 1, slot: 1 }),
+      match({ id: 3, round: 1, slot: 2 }),
+      match({ id: 4, round: 1, slot: 3 }),
+      match({ id: 5, round: 2, slot: 0 }),
+      match({ id: 6, round: 2, slot: 1 }),
+    ];
+    expect(feederMatches(all, all[5]).map((m) => m.id)).toEqual([3, 4]);
+    expect(feederMatches(all, all[4]).map((m) => m.id)).toEqual([1, 2]);
+    expect(feederMatches(all, all[0])).toEqual([]);
+  });
+
+  it("names the winner-of pairing you are waiting on, from the feeder you did not come from (#1385)", () => {
+    const f1 = match({ id: 1, round: 1, slot: 0, a: P(1), b: P(2), winner_id: 1, status: "done" });
+    const f2 = match({ id: 2, round: 1, slot: 1, a: P(3), b: P(4), status: "ready" });
+    const mine = match({ id: 3, round: 2, slot: 0, a: P(1), status: "waiting" });
+    expect(pendingFeederPlayers([f1, f2, mine], mine, 1)?.map((p) => p.user_id)).toEqual([3, 4]);
+    expect(pendingFeederPlayers([f1, { ...f2, b: null }, mine], mine, 1)).toBeNull();
+    expect(pendingFeederPlayers([f1, { ...f2, winner_id: 3, status: "done" }, mine], mine, 1)).toBeNull();
+  });
+
+  it("opens the phone on your next match's round, else the latest ready round, else round 1 (#1385)", () => {
+    const m = (id: number, round: number, status: TournamentMatch["status"]) => match({ id, round, slot: 0, status });
+    expect(defaultPhoneRound([m(1, 1, "done"), m(2, 2, "ready")], { round: 1 })).toBe(1);
+    expect(defaultPhoneRound([m(1, 1, "ready"), m(2, 2, "ready"), m(3, 3, "waiting")], null)).toBe(2);
+    expect(defaultPhoneRound([m(1, 1, "waiting")], null)).toBe(1);
+    expect(defaultPhoneRound([m(1, 1, "done"), m(2, 2, "done")], null)).toBe(2);
+  });
+
+  it("starts a round-robin round collapsed only when all its matches are done (#1385)", () => {
+    const m = (status: TournamentMatch["status"]) => match({ id: 1, round: 1, slot: 0, status });
+    expect(roundStartsOpen([m("done"), m("done")])).toBe(false);
+    expect(roundStartsOpen([m("done"), m("ready")])).toBe(true);
+    expect(roundStartsOpen([m("waiting")])).toBe(true);
+  });
+
+  it("filters invitable friends by username in any case and lists online ones first (#1385)", () => {
+    const f = (id: number, username: string, status: Friend["status"]) => ({ user_id: id, username, status, room_id: null, ranked: false }) as Friend;
+    const list = [f(1, "Zed", "online"), f(2, "amy", "offline"), f(3, "Bob", "in_game"), f(4, "Abe", "offline")];
+    expect(invitableFriends(list, []).map((x) => x.username)).toEqual(["Bob", "Zed", "Abe", "amy"]);
+    expect(invitableFriends(list, [], " A ").map((x) => x.username)).toEqual(["Abe", "amy"]);
   });
 });

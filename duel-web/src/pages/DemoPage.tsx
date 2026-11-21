@@ -131,6 +131,7 @@ export function DemoPage() {
         }
         waiting={dice ? { status: "Rolling for turn order…", invite: null } : undefined}
         errorBanner={null}
+        onBackToTournament={params.has("tourney") ? () => undefined : undefined}
         matchOver={params.has("over") ? { winner: 1, reason: "leader_battle_at_zero_life" } : null}
         loadMatchRecord={params.has("over") && !params.has("guest") ? loadDemoRecord : undefined}
         rematch={

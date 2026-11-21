@@ -1,6 +1,9 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-21", app: "duel", pr: 1393, title: "Back to your tournament after a game", text: "After a tournament game, Match over has a Back to tournament button. On the tournament page, Your match now says when your opponent is already waiting in the room, with a Join now button, and a match still waiting says whose winner you play next." },
+  { date: "2026-11-21", app: "duel", pr: 1393, title: "A real tournament bracket", text: "The bracket now lines each match up with the two matches that feed it, with lines between rounds, and a 16-player bracket fits on a laptop screen. On a phone you see one round at a time with tabs, starting on the round with your match. Your own seat is marked You." },
+  { date: "2026-11-21", app: "duel", pr: 1393, title: "Clearer round robins and tournament list", text: "In a round robin only your next match has a Play button, and finished rounds fold away. The Tournaments list is grouped into Now, Signing up and Finished, shows full names on big screens, and says Play now when your match is ready. Organizers can search their friends to invite, and the page shows the timer." },
   { date: "2026-11-21", app: "planner", pr: 1374, title: "Sixteen more alt arts, and real pictures for the rest", text: "New alt arts are in the planner and the duel app for 12 OP18 cards (Karoo, Nico Robin, Franky, Mr.4 & Miss.MerryChristmas, Iceburg, Saint Gunko, Saint Killingham, Saint Sommers, Kaku, Kalifa and Rob Lucci), plus Special Arts for Edward.Newgate (OP17-040), Saint Gunko (OP18-084), Law & Bepo (ST24-004) and Charlotte Linlin (ST34-004). TCGPlayer now has pictures for every OP18 alt art we were waiting on, so the early scans are gone, including both Sleeptids alt arts.",
     cards: [
       { id: "OP17-040", name: "Edward.Newgate", image: "https://tcgplayer-cdn.tcgplayer.com/product/735252_400w.jpg", label: "Special Art" },

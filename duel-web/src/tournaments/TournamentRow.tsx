@@ -17,11 +17,15 @@ export function TournamentRow({ t }: { t: TournamentSummary }) {
         <span className="trow-text">
           <span className="trow-name">{t.name}</span>
           <span className="trow-meta">
-            {formatLabel(t)} · {t.players_joined} joined
+            {[...formatLabel(t).split(" · "), `${t.players_joined} joined`].map((part) => (
+              <span key={part} className="trow-meta-part">
+                {part}
+              </span>
+            ))}
           </span>
         </span>
         {ready ? (
-          <span className="tchip tchip-ready">Your match is ready</span>
+          <span className="tchip tchip-ready">Play now</span>
         ) : t.my_role === "invited" ? (
           <span className="tchip tchip-ready">Invited</span>
         ) : (

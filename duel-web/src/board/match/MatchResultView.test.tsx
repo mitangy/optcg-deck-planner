@@ -34,9 +34,12 @@ afterEach(() => {
   root = null;
   host = null;
   onLeave.mockClear();
+  onBack.mockClear();
 });
 
-function open(rematch: BoardRematch | undefined, spectating = false) {
+const onBack = vi.fn();
+
+function open(rematch: BoardRematch | undefined, spectating = false, tournament = false, isReplay = false) {
   act(() => root?.unmount());
   host?.remove();
   host = document.createElement("div");
@@ -49,7 +52,7 @@ function open(rematch: BoardRematch | undefined, spectating = false) {
         resultHidden={false}
         setResultHidden={() => {}}
         result={{ outcome: "loss", headline: "You lost", detail: "Your Leader took damage with 0 Life" } as never}
-        isReplay={false}
+        isReplay={isReplay}
         wide
         lp={false}
         matchOver={{ winner: 1, reason: "leader_battle_at_zero_life" } as never}
@@ -63,6 +66,7 @@ function open(rematch: BoardRematch | undefined, spectating = false) {
         canReportPlayer={false}
         reportTargetFor={() => null}
         onLeave={onLeave}
+        onBackToTournament={tournament ? onBack : undefined}
       />,
     ),
   );
@@ -99,5 +103,28 @@ describe("match over card has one gold button (#1343)", () => {
   it("has no gold button while you wait for the opponent's answer, and none for a spectator (#1343)", () => {
     expect(open(rematch(state({ requested: [true, false] }))).gold).toEqual([]);
     expect(open(rematch(state()), true).gold).toEqual([]);
+  });
+});
+
+describe("match over card in a tournament game (#1385)", () => {
+  it("Back to tournament is gold when there is no rematch to offer, Home goes quiet and still leaves (#1385)", () => {
+    const card = open(undefined, false, true);
+    expect(card.gold).toEqual(["Back to tournament"]);
+    expect(card.labels).toContain("Home");
+    expect(card.labels).not.toContain("Return home");
+    act(() => card.button("Back to tournament").click());
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(onLeave).not.toHaveBeenCalled();
+  });
+
+  it("the gold stays on the rematch offer and Back to tournament is secondary (#1385)", () => {
+    const card = open(rematch(state()), false, true);
+    expect(card.gold).toEqual(["Ask for a rematch"]);
+    expect(card.labels).toContain("Back to tournament");
+  });
+
+  it("a spectator or a replay never sees Back to tournament (#1385)", () => {
+    expect(open(undefined, true, true).labels).not.toContain("Back to tournament");
+    expect(open(undefined, false, true, true).labels).not.toContain("Back to tournament");
   });
 });
