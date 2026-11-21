@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-21", app: "duel", title: "Settings: the Your board preview fits phones", text: "The Your board preview in Settings now scales with its box, so on a phone the deck with your card back is no longer cut off and the DON!! cards and the deck both sit inside the frame." },
   { date: "2026-11-21", app: "duel", pr: 1393, title: "Back to your tournament after a game", text: "After a tournament game, Match over has a Back to tournament button. On the tournament page, Your match now says when your opponent is already waiting in the room, with a Join now button, and a match still waiting says whose winner you play next." },
   { date: "2026-11-21", app: "duel", pr: 1393, title: "A real tournament bracket", text: "The bracket now lines each match up with the two matches that feed it, with lines between rounds, and a 16-player bracket fits on a laptop screen. On a phone you see one round at a time with tabs, starting on the round with your match. Your own seat is marked You." },
   { date: "2026-11-21", app: "duel", pr: 1393, title: "Clearer round robins and tournament list", text: "In a round robin only your next match has a Play button, and finished rounds fold away. The Tournaments list is grouped into Now, Signing up and Finished, shows full names on big screens, and says Play now when your match is ready. Organizers can search their friends to invite, and the page shows the timer." },

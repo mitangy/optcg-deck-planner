@@ -1230,6 +1230,12 @@ module.exports = {
     { id: "e2e-settings-jump-no-appearance", args: "settings-groups --project=desktop-1280 -g \"Appearance\"", file: "duel-web/src/pages/SettingsPage.tsx", from: "  { id: \"appearance\", label: \"Appearance\" },\n", to: "", kills: [
       "settings-groups.spec.ts > desktop-1280x720 > Settings groups the look panels under Appearance and the jump links follow the new order (#496) [desktop-1280]",
     ] },
+    // The Appearance preview sizes its cards from its own box, so the DON!! fan and the deck stay inside the frame (#1407)
+    { id: "e2e-look-preview-cards-outgrow-frame", args: "look-preview-fit --project=phone-375", file: "duel-web/src/ui/settings.css", from: "--lp-card-h: min(58cqh, 20cqw);", to: "--lp-card-h: min(95cqh, 60cqw);", kills: [
+      "look-preview-fit.spec.ts > the Appearance preview keeps the DON!! fan and the deck inside the frame at phone-320x700 (#1407) [phone-375]",
+      "look-preview-fit.spec.ts > the Appearance preview keeps the DON!! fan and the deck inside the frame at phone-375x812 (#1407) [phone-375]",
+      "look-preview-fit.spec.ts > the Appearance preview keeps the DON!! fan and the deck inside the frame at phone-812x375-landscape (#1407) [phone-375]",
+    ] },
     // One-tap actions skip a pop-up with a single button, and answer an exactly-N pick on the Nth (#502)
     { id: "e2e-one-tap-hand-card-opens-popover", args: "one-tap --project=desktop-1280 -g \"plays a hand card\"", file: "duel-web/src/board/input/useBoardSelection.ts", from: "prefs.oneTapActions && handFilter !== idx && ", to: "false && ", kills: ["one-tap.spec.ts > one-tap plays a hand card whose pop-up is just Play (#502) [portrait] [desktop-1280]"] },
     { id: "e2e-one-tap-board-card-selects-only", args: "one-tap --project=desktop-1280 -g \"attacks at once\"", file: "duel-web/src/board/input/useBoardSelection.ts", from: "prefs.oneTapActions && view && selectedBoardId !== id && ", to: "false && view && selectedBoardId !== id && ", kills: ["one-tap.spec.ts > one-tap attacks at once when Attack is the card's only button (#502) [portrait] [desktop-1280]"] },
