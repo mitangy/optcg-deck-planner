@@ -13,8 +13,8 @@ const DECK_ID = "e2e-each-art";
 const DECKS_KEY = "optcg.duel.savedDecks.v1";
 const PREFS_KEY = "optcg.duel.artPrefs.v1";
 const STANDARD = /\/product\/733000_\d+w\.jpg$/;
-const ALT_2 = /OP18-093-2\.webp$/;
-const ALT_3 = /OP18-093-3\.webp$/;
+const ALT_2 = /\/product\/735246_\d+w\.jpg$/;
+const ALT_3 = /\/product\/735247_\d+w\.jpg$/;
 
 async function shot(page: Page, name: string, size: (typeof SIZES)[number]) {
   const dir = process.env.PR_SHOTS_DIR;
