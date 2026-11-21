@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { fetchLeaderboard, type LeaderboardEntry } from "../net/api";
-import { filterEntries, movement, provisionalDividerAt } from "./leaderboardModel";
+import { filterEntries, movement, notListedText, provisionalDividerAt } from "./leaderboardModel";
 
 const entry = (user_id: number, rank: number, over: Partial<LeaderboardEntry> = {}): LeaderboardEntry => ({
   user_id,
@@ -70,5 +70,17 @@ describe("fetchLeaderboard errors (#1387)", () => {
     });
     await fetchLeaderboard(100, "month");
     expect(url).toContain("window=month");
+  });
+});
+
+describe("Your bounty card when you are not in the fetched rows (#1400)", () => {
+  const board = (n: number) => Array.from({ length: n }, (_, i) => entry(i + 1, i + 1));
+
+  it("a full board says you are not in the top 100, not that you have no games (#1400)", () => {
+    expect(notListedText(board(100), 100, "this week")).toBe("Not in the top 100 this week");
+  });
+
+  it("a board with room left says no ranked games (#1400)", () => {
+    expect(notListedText(board(99), 100, "this week")).toBe("No ranked games this week");
   });
 });

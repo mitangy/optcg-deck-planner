@@ -73,12 +73,13 @@ function toBody(d: SavedDeck): AccountDeckBody {
   if (d.plannerArt) body.plannerArt = d.plannerArt;
   if (d.plannerDeckId !== undefined) body.plannerDeckId = d.plannerDeckId;
   if (d.editedLocally !== undefined) body.editedLocally = d.editedLocally;
+  if (d.noMerge !== undefined) body.noMerge = d.noMerge;
   return body;
 }
 
 function fromAccount(r: AccountDeck): SavedDeck | null {
   if (r.deleted || !r.deck) return null;
-  const { artPrefs, plannerArt, plannerDeckId, editedLocally, ...rest } = r.deck;
+  const { artPrefs, plannerArt, plannerDeckId, editedLocally, noMerge, ...rest } = r.deck;
   return {
     ...rest,
     id: r.id,
@@ -87,6 +88,7 @@ function fromAccount(r: AccountDeck): SavedDeck | null {
     ...(plannerArt ? { plannerArt } : {}),
     ...(plannerDeckId != null ? { plannerDeckId } : {}),
     ...(editedLocally != null ? { editedLocally } : {}),
+    ...(noMerge != null ? { noMerge } : {}),
   };
 }
 
