@@ -2,6 +2,7 @@
 const helpers = "packages/patch-notes/src/helpers.ts";
 const seen = "packages/patch-notes/src/lastSeen.ts";
 const notes = "packages/patch-notes/src/notes.ts";
+const list = "packages/patch-notes/src/WhatsNewList.tsx";
 const noteCards = "packages/patch-notes/src/NoteCards.tsx";
 module.exports = {
   cwd: "packages/patch-notes",
@@ -41,5 +42,36 @@ module.exports = {
     { id: "note-card-art-typo", file: notes, from: "product/733606_400w.jpg", to: "product/733660_400w.jpg", kills: ["every tagged card uses the catalog art for that id, with the matching alt label (#1367)"] },
     { id: "note-card-thumb-no-open", file: noteCards, from: "onClick={() => setOpen(card)}", to: "onClick={() => undefined}", kills: ["tapping a thumbnail opens the card enlarged (#1367)"] },
     { id: "note-card-page-link-always", file: noteCards, from: "{cardHref ? (\n                <a className=\"wn-zoom-link\" href={cardHref(open.id)}>", to: "{true ? (\n                <a className=\"wn-zoom-link\" href={cardHref?.(open.id) ?? `/cards/${open.id}`}>", kills: ["links to the card page only when the app gives a cardHref (#1367)"] },
+    // What's new browsing (#1390)
+    { id: "wn-initial-window-too-wide", file: helpers, from: "export const INITIAL_DAYS = 14;", to: "export const INITIAL_DAYS = 60;", kills: ["starts with the newest 14 days, then Show older adds the next days and counts what is left (#1390)"] },
+    { id: "wn-initial-window-too-narrow", file: helpers, from: "export const INITIAL_DAYS = 14;", to: "export const INITIAL_DAYS = 7;", kills: ["starts with the newest 14 days, then Show older adds the next days and counts what is left (#1390)"] },
+    { id: "wn-initial-min-notes-ignored", file: helpers, from: "export const INITIAL_MIN_NOTES = 20;", to: "export const INITIAL_MIN_NOTES = 1;", kills: ["shows at least 20 notes, whole days only, when the last 14 days are quiet (#1390)"] },
+    { id: "wn-initial-min-notes-too-many", file: helpers, from: "export const INITIAL_MIN_NOTES = 20;", to: "export const INITIAL_MIN_NOTES = 40;", kills: ["shows at least 20 notes, whole days only, when the last 14 days are quiet (#1390)"] },
+    { id: "wn-older-window-too-wide", file: helpers, from: "export const OLDER_DAYS = 30;", to: "export const OLDER_DAYS = 400;", kills: ["starts with the newest 14 days, then Show older adds the next days and counts what is left (#1390)"] },
+    { id: "wn-older-adds-no-day-across-gap", file: helpers, from: "return Math.max(n, shown + 1);", to: "return n;", kills: ["Show older always adds at least one day, even across a long gap (#1390)"] },
+    { id: "wn-month-jump-no-reveal", file: list, from: "    setRequested(Math.max(shownCount, groupCountThrough(groups, group.date)));\n", to: "", kills: ["lists the months and a pick reveals that month and scrolls to its first day (#1390)"] },
+    { id: "wn-month-jump-no-scroll", file: list, from: "    setJumpTo(group.date);\n", to: "", kills: ["lists the months and a pick reveals that month and scrolls to its first day (#1390)"] },
+    { id: "wn-new-read-after-marking-seen", file: list, from: "setUnseen(new Set(loadUnseen(app, undefined, all).map(noteKey)));", to: "markAllSeen(app, undefined, all);\n    setUnseen(new Set(loadUnseen(app, undefined, all).map(noteKey)));", kills: ["marks what is new, says how many, and still counts the visit as seen (#1390)"] },
+    { id: "wn-new-range-not-extended", file: list, from: "    if (oldestNew) shownCount = Math.max(shownCount, groupCountThrough(groups, oldestNew.date));\n", to: "", kills: ["new notes are on screen even when they are older than 14 days (#1390)"] },
+    { id: "wn-new-first-visit-shows-backlog", file: list, from: "setUnseen(new Set(loadUnseen(app, undefined, all).map(noteKey)));", to: "setUnseen(new Set(all.map(noteKey)));", kills: ["a first visit has no New marks (#1390)"] },
+    { id: "wn-topic-event-matches-inside-words", file: helpers, from: "const RANKED_WORDS = /\\b(ranked|tournaments?|bount(y|ies)|leaderboards?|ratings?|events?|seasons?)\\b/i;", to: "const RANKED_WORDS = /(ranked|tournaments?|bount(y|ies)|leaderboards?|ratings?|events?|seasons?)/i;", kills: ["works out topics from the words and lets a note name its own (#1390)"] },
+    { id: "wn-topic-override-ignored", file: helpers, from: "  if (note.topics) return [...note.topics];\n", to: "", kills: ["works out topics from the words and lets a note name its own (#1390)"] },
+    { id: "wn-topic-cards-field-ignored", file: helpers, from: "note.cards?.length || CARDS_TITLE", to: "CARDS_TITLE", kills: ["works out topics from the words and lets a note name its own (#1390)"] },
+    { id: "wn-chip-zero-match-shown", file: list, from: "TOPICS.filter((t) => notes.some((n) => topicsOf.get(n)?.includes(t)))", to: "[...TOPICS]", kills: ["a chip shows every match with a count, and only chips that match something appear (#1390)"] },
+    { id: "wn-search-ignores-card-names", file: helpers, from: "...(note.cards ?? []).flatMap((c) => [c.name, c.id])", to: "", kills: ["search matches card names and ids, ignoring case, and says when nothing matches (#1390)"] },
+    { id: "wn-search-case-sensitive", file: helpers, from: "hay.some((h) => h.toLowerCase().includes(q))", to: "hay.some((h) => h.includes(q))", kills: ["search matches card names and ids, ignoring case, and says when nothing matches (#1390)"] },
+    { id: "wn-filter-paginated", file: list, from: "  } else shownCount = groups.length;", to: "  } else shownCount = Math.min(shownCount, groups.length);", kills: ["a filter shows every match at once, with no Show older (#1390)"] },
+    { id: "wn-url-query-not-read", file: list, from: "    setQuery(url.query);\n", to: "", kills: ["a search or topic in the address applies on load (#1390)"] },
+    { id: "wn-url-topic-not-read", file: list, from: "    setTopic(url.topic);\n", to: "", kills: ["a search or topic in the address applies on load (#1390)"] },
+    { id: "wn-url-not-written", file: list, from: "    writeUrl(nextTopic, nextQuery);\n", to: "", kills: ["a chip shows every match with a count, and only chips that match something appear (#1390)", "search matches card names and ids, ignoring case, and says when nothing matches (#1390)"] },
+    { id: "wn-anchor-ignores-title", file: helpers, from: "-${slug(note.title)}`;\n}\n\nexport function monthKey", to: "`;\n}\n\nexport function monthKey", kills: ["every real note has its own anchor within each app's list (#1390)"] },
+    { id: "wn-link-target-not-revealed", file: list, from: "    if (targetNote) shownCount = Math.max(shownCount, groupCountThrough(groups, targetNote.date));\n", to: "", kills: ["a link to an old note opens the list far enough, scrolls to it and marks it (#1390)"] },
+    { id: "wn-link-target-not-scrolled", file: list, from: "    if (targetNote) document.getElementById(noteAnchor(targetNote))?.scrollIntoView?.({ block: \"start\" });\n", to: "", kills: ["a link to an old note opens the list far enough, scrolls to it and marks it (#1390)"] },
+    { id: "wn-copy-link-drops-anchor", file: list, from: "pathname}#${anchor}`", to: "pathname}`", kills: ["Copy link puts the note's address on the clipboard and says so (#1390)"] },
+    { id: "wn-copy-link-no-feedback", file: list, from: "    setCopied(true);\n", to: "", kills: ["Copy link puts the note's address on the clipboard and says so (#1390)"] },
+    { id: "wn-long-note-limit-too-low", file: list, from: "export const LONG_NOTE_CHARS = 260;", to: "export const LONG_NOTE_CHARS = 100;", kills: ["only notes over the limit fold, and More / Less toggles them (#1390)"] },
+    { id: "wn-long-note-never-folds", file: list, from: "export const LONG_NOTE_CHARS = 260;", to: "export const LONG_NOTE_CHARS = 100000;", kills: ["only notes over the limit fold, and More / Less toggles them (#1390)"] },
+    { id: "wn-long-note-search-match-stays-folded", file: list, from: "const forced = isTarget || expandedByDefault;", to: "const forced = isTarget;", kills: ["a search match shows the whole note (#1390)"] },
+    { id: "wn-long-note-more-not-expanded", file: list, from: "aria-expanded={open}", to: "aria-expanded={false}", kills: ["only notes over the limit fold, and More / Less toggles them (#1390)"] },
   ],
 };

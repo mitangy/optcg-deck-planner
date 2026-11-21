@@ -51,6 +51,8 @@ test("See all opens the public list with planner notes only, and the footer link
   await card(page).getByRole("link", { name: "See all" }).click();
   await expect(page).toHaveURL(/\/whats-new$/);
   await expect(page.getByRole("heading", { name: "What’s new", level: 1 })).toBeVisible();
+  // The list opens on the recent updates; a search reaches the older ones. "art" matches both apps' October 8 notes, so only the planner one may show (#1390).
+  await page.getByRole("searchbox", { name: "Search updates" }).fill("art");
   await expect(page.getByRole("heading", { name: "October 8, 2026" })).toBeVisible();
   await expect(page.getByText("Fairer deck price for alt arts")).toBeVisible();
   await expect(page.getByText("Choose your DON!! art")).toHaveCount(0);

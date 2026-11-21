@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import select
 from sqlalchemy.orm import sessionmaker
 
 from tests.db_support import make_bare_engine, make_test_engine, requires_postgres
@@ -695,7 +696,7 @@ def test_rating_me_counts_wins_losses_and_rank_431(client):
     _set_rating(SessionLocal, d, 1900, 0)
 
     body = c.get("/duel/rating/me").json()
-    assert body["wins"] == 2
+    assert body["wins"] == 1
     assert body["losses"] == 1
     assert body["rank"] == 2
     assert body["rating"] == 1100 and body["games_played"] == 2
@@ -719,6 +720,92 @@ def test_leaderboard_skips_players_with_no_games_431(client):
     _set_rating(SessionLocal, b, 1000, 1)
     ids = [e["user_id"] for e in c.get("/duel/leaderboard").json()["entries"]]
     assert ids == [b]
+
+
+def test_capped_ranked_games_do_not_count_toward_wins_losses_1387(client):
+    c, SessionLocal = client
+    me = c.post("/auth/dev-login").json()["id"]
+    (a,) = _players(c, "alice")
+    for i in range(4):
+        _ingest(c, f"cap{i}", me, a, 0)
+    body = c.get("/duel/rating/me").json()
+    assert body["games_played"] == 3
+    assert (body["wins"], body["losses"]) == (3, 0)
+
+
+def _age_matches(SessionLocal, match_id: str, hours: float) -> None:
+    with SessionLocal() as db:
+        row = db.scalar(select(DuelMatch).where(DuelMatch.match_id == match_id))
+        row.created_at = datetime.now(timezone.utc) - timedelta(hours=hours)
+        db.commit()
+
+
+def _players(c, *keys: str) -> list[int]:
+    return [c.post("/duel/dev-token", json={"user_key": k}).json()["user_id"] for k in keys]
+
+
+def test_tied_ratings_share_a_rank_and_rating_me_agrees_1387(client):
+    c, SessionLocal = client
+    me = c.post("/auth/dev-login").json()["id"]
+    a, b, d = _players(c, "alice", "bob", "dave")
+    _set_rating(SessionLocal, a, 1300, 12)
+    _set_rating(SessionLocal, b, 1300, 15)
+    _set_rating(SessionLocal, d, 1200, 20)
+    _set_rating(SessionLocal, me, 1200, 11)
+    entries = c.get("/duel/leaderboard").json()["entries"]
+    assert [(e["user_id"], e["rank"]) for e in entries] == [(b, 1), (a, 1), (d, 3), (me, 3)]
+    assert c.get("/duel/rating/me").json()["rank"] == 3
+
+
+def test_provisional_players_are_listed_after_settled_ones_1387(client):
+    c, SessionLocal = client
+    me = c.post("/auth/dev-login").json()["id"]
+    b, d = _players(c, "bob", "dave")
+    _set_rating(SessionLocal, me, 1900, 3)
+    _set_rating(SessionLocal, b, 1100, 10)
+    _set_rating(SessionLocal, d, 1000, 40)
+    entries = c.get("/duel/leaderboard").json()["entries"]
+    assert [(e["user_id"], e["rank"], e["provisional"]) for e in entries] == [
+        (b, 1, False),
+        (d, 2, False),
+        (me, 3, True),
+    ]
+    mine = c.get("/duel/rating/me").json()
+    assert (mine["rank"], mine["provisional"]) == (3, True)
+
+
+def test_week_board_ranks_by_gain_and_skips_players_with_no_games_in_it_1387(client):
+    c, SessionLocal = client
+    a, b, d = _players(c, "alice", "bob", "dave")
+    _ingest(c, "old", d, a, 0)
+    _age_matches(SessionLocal, "old", 24 * 10)
+    _ingest(c, "recent1", a, b, 1)
+    _ingest(c, "recent2", b, a, 0)
+    week = c.get("/duel/leaderboard?window=week").json()["entries"]
+    assert [(e["user_id"], e["rank"], e["wins"], e["losses"]) for e in week] == [(b, 1, 2, 0), (a, 2, 0, 2)]
+    assert week[0]["bounty_change"] > 0 > week[1]["bounty_change"]
+    assert d not in [e["user_id"] for e in week]
+    month = c.get("/duel/leaderboard?window=month").json()["entries"]
+    assert d in [e["user_id"] for e in month]
+
+
+def test_rank_change_shows_movement_since_yesterday_and_null_for_new_players_1387(client):
+    c, SessionLocal = client
+    a, b, d = _players(c, "alice", "bob", "dave")
+    _ingest(c, "y1", a, b, 0)
+    _age_matches(SessionLocal, "y1", 30)
+    # Yesterday alice led bob; today bob has overtaken her and dave is new.
+    _ingest(c, "t1", b, a, 0)
+    _ingest(c, "t2", b, a, 0)
+    _ingest(c, "t3", d, a, 0)
+    with SessionLocal() as db:
+        for uid, rating in ((a, 1000), (b, 1100), (d, 900)):
+            db.get(DuelRating, uid).rating = rating
+        db.commit()
+    by_id = {e["user_id"]: e for e in c.get("/duel/leaderboard").json()["entries"]}
+    assert by_id[b]["rank_change"] == 1 and by_id[b]["rank"] < by_id[a]["rank"]
+    assert by_id[a]["rank_change"] == -1
+    assert by_id[d]["rank_change"] is None
 
 
 def _live_user(c, key: str) -> int:

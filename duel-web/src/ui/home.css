@@ -65,6 +65,29 @@
   }
 }
 
+.home-tagline {
+  margin: 0;
+  max-width: 34rem;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* Auth not known yet: keep the room a guest's hero will take, so nothing jumps (#1391). */
+.home-hero[data-state="pending"] {
+  visibility: hidden;
+}
+
+/* Signed in: no banner, but the page keeps its h1 for screen readers (#1391). */
+.home-hero[data-state="member"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
 .home-rule {
   position: relative;
   width: min(200px, 60%);
@@ -152,7 +175,19 @@
 }
 
 .mode-tile[aria-current="true"] {
-  border-color: var(--line-strong);
+  border-color: var(--chrome);
+}
+
+.mode-tile-tag {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--chrome);
 }
 
 .mode-tile:focus-visible {

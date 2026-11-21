@@ -10,7 +10,8 @@
 }
 
 .wn-date {
-  margin: 0 0 0.5rem;
+  scroll-margin-top: 5rem;
+  margin: 0 0 0.75rem;
   padding-bottom: 0.35rem;
   border-bottom: 1px solid color-mix(in srgb, currentColor 16%, transparent);
   font-size: 0.85rem;
@@ -23,7 +24,7 @@
 .wn-notes {
   display: flex;
   flex-direction: column;
-  gap: 0.8rem;
+  gap: 1.25rem;
   margin: 0;
   padding: 0;
   list-style: none;
@@ -31,22 +32,177 @@
 
 .wn-note {
   min-width: 0;
+  /* A fixed edge, so a New note's accent bar never moves the text. */
+  padding-left: 0.75rem;
+  border-left: 3px solid transparent;
+  scroll-margin-top: 5rem;
+}
+
+.wn-note-new {
+  border-left-color: var(--ui-primary, currentColor);
+}
+
+.wn-head {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.25rem;
 }
 
 .wn-title {
   display: flex;
+  flex: 1 1 auto;
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0.15rem 0.6rem;
+  min-width: 0;
   margin: 0;
+  font-size: inherit;
   font-weight: 700;
+  line-height: inherit;
+}
+
+.wn-new {
+  padding: 0.05rem 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--ui-primary, currentColor);
+  color: var(--ui-on-primary, Canvas);
+  font-size: max(0.75rem, 12px);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.wn-new-summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+.wn-copy {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 2rem;
+  height: 2rem;
+  margin: -0.25rem 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: color-mix(in srgb, currentColor 60%, transparent);
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+.wn-copy:hover {
+  color: inherit;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.wn-copy:focus-visible,
+.wn-chip:focus-visible,
+.wn-more:focus-visible,
+.wn-older:focus-visible,
+.wn-rail-btn:focus-visible,
+.wn-search input:focus-visible {
+  outline: 2px solid var(--ui-primary, currentColor);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .wn-copy {
+    width: 44px;
+    height: 44px;
+    margin: -0.75rem -0.75rem 0 0;
+  }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .wn-copy {
+    opacity: 0;
+  }
+  .wn-note:hover .wn-copy,
+  .wn-note:focus-within .wn-copy,
+  .wn-copy:focus-visible {
+    opacity: 1;
+  }
+}
+
+/* Inline "Link copied", placed over the gap beside the button so nothing reflows. */
+.wn-copied {
+  position: absolute;
+  top: 0;
+  right: 2.25rem;
+  font-size: max(0.75rem, 12px);
+  color: color-mix(in srgb, currentColor 75%, transparent);
+  pointer-events: none;
+}
+
+@media (pointer: coarse) {
+  .wn-copied {
+    right: 2.75rem;
+  }
+}
+
+.wn-note-target {
+  background: color-mix(in srgb, var(--ui-primary, currentColor) 8%, transparent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wn-note-target {
+    background: none;
+    animation: wn-target 2.4s ease-out;
+  }
+}
+
+@keyframes wn-target {
+  from {
+    background: color-mix(in srgb, var(--ui-primary, currentColor) 22%, transparent);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.wn-text-clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.wn-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .wn-more {
+    min-height: 44px;
+  }
 }
 
 .wn-tag {
   padding: 0.05rem 0.45rem;
   border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
   border-radius: var(--radius-pill);
-  font-size: 0.68rem;
+  font-size: max(0.75rem, 12px);
   font-weight: 600;
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -55,6 +211,7 @@
 
 .wn-text {
   margin: 0.15rem 0 0;
+  min-width: 0;
   color: color-mix(in srgb, currentColor 82%, transparent);
 }
 
@@ -65,6 +222,177 @@
 
 .wn-empty {
   color: color-mix(in srgb, currentColor 72%, transparent);
+}
+
+.wn-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The months rail sits left of the reading column on wide screens; below that a select does the job. */
+.wn-layout {
+  min-width: 0;
+}
+
+.wn-main {
+  max-width: 68ch;
+  min-width: 0;
+}
+
+.wn-rail {
+  display: none;
+}
+
+.wn-month-select {
+  flex: 0 0 100%;
+  min-width: 0;
+}
+
+@media (min-width: 1100px) {
+  .wn-layout {
+    display: grid;
+    grid-template-columns: var(--wn-rail-w, 10.5rem) minmax(0, 68ch);
+    column-gap: 1.5rem;
+    margin-left: var(--wn-rail-pull, 0px);
+  }
+  .wn-rail {
+    display: block;
+    position: sticky;
+    top: 5.5rem;
+    align-self: start;
+    max-height: calc(100dvh - 7rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+  .wn-month-select {
+    display: none;
+  }
+}
+
+.wn-rail-title {
+  margin: 0 0 0.35rem;
+  font-size: max(0.75rem, 12px);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, currentColor 65%, transparent);
+}
+
+.wn-rail ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wn-rail-btn {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2rem;
+  padding: 0.3rem 0.5rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: none;
+  color: color-mix(in srgb, currentColor 80%, transparent);
+  font: inherit;
+  font-size: 0.88rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wn-rail-btn:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit;
+}
+
+.wn-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0 0 1rem;
+}
+
+.wn-search {
+  display: block;
+  flex: 1 1 100%;
+  min-width: 0;
+}
+
+.wn-search input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--ui-line, color-mix(in srgb, currentColor 28%, transparent));
+  border-radius: var(--radius-10, 0.5rem);
+  background: var(--ui-field-bg, transparent);
+  color: inherit;
+  /* 16px stops iOS zooming into the field. */
+  font: inherit;
+  font-size: max(1rem, 16px);
+}
+
+.wn-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.wn-chip {
+  min-height: 2.25rem;
+  padding: 0.25rem 0.85rem;
+  border: 1px solid var(--ui-line, color-mix(in srgb, currentColor 28%, transparent));
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.88rem;
+  cursor: pointer;
+}
+
+.wn-chip[aria-pressed="true"] {
+  border-color: var(--ui-primary, currentColor);
+  background: var(--ui-primary, currentColor);
+  color: var(--ui-on-primary, Canvas);
+  font-weight: 700;
+}
+
+@media (pointer: coarse) {
+  .wn-chip {
+    min-height: 44px;
+  }
+}
+
+.wn-count {
+  margin: 0 0 0.75rem;
+  font-size: 0.88rem;
+  color: color-mix(in srgb, currentColor 72%, transparent);
+}
+
+.wn-older {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  margin: 0.5rem 0 1rem;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--ui-line, color-mix(in srgb, currentColor 28%, transparent));
+  border-radius: var(--radius-10, 0.5rem);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.wn-older:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
 }
 
 .wn-card {

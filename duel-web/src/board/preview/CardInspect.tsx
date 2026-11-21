@@ -10,6 +10,7 @@ import {
   type SavedDeck,
 } from "../../decks/storage";
 import { lookupCard } from "../../cards/atlas";
+import { capitalise, colourLabel } from "../../cards/cardMeta";
 import { isPlaceholderArt } from "@optcg/ui/cardArt";
 import { useArtFallback } from "../../cards/useArtFallback";
 import {
@@ -175,7 +176,7 @@ export function CardInspect({
         </div>
         <div className="card-inspect-meta">
           <p className="card-inspect-id">
-            {entry.id} · {entry.type} · {entry.colors.join("/")} · cost {entry.cost}
+            {entry.id} · {capitalise(entry.type)} · {colourLabel(entry.colors)} · Cost {entry.cost}
             {entry.power != null ? ` · ${entry.power} power` : ""}
             {(() => {
               const cv = counterValueFor(entry);
