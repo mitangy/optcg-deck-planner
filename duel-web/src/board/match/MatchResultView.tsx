@@ -36,6 +36,7 @@ export function MatchResultView({
   canReportPlayer,
   reportTargetFor,
   onLeave,
+  onBackToTournament,
 }: {
   over: boolean;
   resultHidden: boolean;
@@ -55,12 +56,16 @@ export function MatchResultView({
   canReportPlayer: boolean;
   reportTargetFor: (source: "match" | "spectate" | "postmatch") => ReturnType<typeof matchReportTarget>;
   onLeave: () => void;
+  /** Set for a tournament game: leaves the room and goes back to the bracket. */
+  onBackToTournament?: () => void;
 }) {
   const facts = useMatchOverFacts(over ? matchId : null, view.turnNumber, spectating ? undefined : loadMatchRecord);
   const offersRematch = rematch != null && !spectating;
   // Gold goes to the rematch offer; with none (or no rematch possible) Return home takes it. Spectators have no gold button.
   const stage = rematchStage(offersRematch ? rematch.state : null, boardSeat, rematch?.autoAccept);
-  const homePrimary = !spectating && (stage === "none" || stage === "left");
+  const backToTournament = !spectating && !isReplay ? onBackToTournament : undefined;
+  const backPrimary = backToTournament != null && (stage === "none" || stage === "left");
+  const homePrimary = !spectating && !backToTournament && (stage === "none" || stage === "left");
   return (
     <>
       {over && resultHidden && !(isReplay && !(wide && !lp)) ? (
@@ -106,6 +111,15 @@ export function MatchResultView({
             />
           ) : null}
           <div className="match-result-secondary">
+            {backToTournament ? (
+              <button
+                type="button"
+                className={`btn ${backPrimary ? "btn-primary" : "btn-secondary"} match-result-tournament`}
+                onClick={backToTournament}
+              >
+                Back to tournament
+              </button>
+            ) : null}
             <ReviewGameSlot facts={facts} enabled={!spectating && loadMatchRecord != null} />
             <button type="button" className="btn btn-secondary match-result-board" onClick={() => setResultHidden(true)}>
               View board
