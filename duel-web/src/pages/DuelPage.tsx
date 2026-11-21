@@ -85,7 +85,7 @@ export function DuelPage() {
 
   const spectating = role === "spectator" || Boolean(view?.spectator);
   const chrome = duelPageChrome({ vsBot, spectating, rating });
-  const tournamentCode = tournamentReturnFor(getActiveTournamentMatch(), { spectating, isReplay: false });
+  const tournamentCode = tournamentReturnFor(getActiveTournamentMatch(), { spectating, isReplay: false, roomId: matchId });
   const rolling = !view && !(launching && launch) && !resuming && Boolean(dice);
   const waiting: BoardWaiting | undefined = view
     ? undefined
