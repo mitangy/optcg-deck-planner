@@ -87,3 +87,10 @@
   font-size: 0.78rem;
   line-height: 1.35;
 }
+
+/* Past-season meta (dates · reset · players) wraps on phones instead of clipping. */
+.adm-season-past .adm-rows-main small {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}

@@ -160,13 +160,13 @@ export function SeasonsTab({ data, onChanged }: { data: AdminSeasons; onChanged:
         {past.length === 0 ? (
           <p className="panel-copy adm-muted">No season has ended yet.</p>
         ) : (
-          <ul className="adm-rows">
+          <ul className="adm-rows adm-season-past">
             {past.map((s) => (
               <li key={s.number}>
                 <span className="adm-rows-main">
                   <b>{s.name}</b>
                   <small>
-                    {seasonDate(s.started_at ?? s.ended_at)} to {seasonDate(s.ended_at)} · {s.reset_mode ?? "no"} reset · {s.players} {s.players === 1 ? "player" : "players"}
+                    {s.started_at ? seasonDate(s.started_at) : "Launch"} to {seasonDate(s.ended_at)} · {s.reset_mode ?? "no"} reset · {s.players} {s.players === 1 ? "player" : "players"}
                   </small>
                 </span>
                 <Link className="btn btn-secondary btn-sm" to={`/leaderboard?season=${s.number}`}>
