@@ -2002,5 +2002,9 @@ module.exports = {
     {"id": "alerts1360-clean-keeps-reprint", "file": "backend/app/planner/price_alerts.py", "from": "    name = re.sub(r\"\\s*\\(Reprint\\)\\s*$\", \"\", name, flags=re.IGNORECASE)\n", "to": "", "kills": ["test_clean_card_name_drops_the_id_suffix_and_reprint_but_keeps_numbers_1360"], "args": "tests/test_price_alerts.py"},
     {"id": "alerts1360-clean-drops-numbers", "file": "backend/app/planner/price_alerts.py", "from": "    return name.strip() or card_name\n", "to": "    return re.sub(r\"\\s*\\(\\d+\\)\", \"\", name).strip() or card_name\n", "kills": ["test_clean_card_name_drops_the_id_suffix_and_reprint_but_keeps_numbers_1360"], "args": "tests/test_price_alerts.py"},
     {"id": "alerts1360-title-uses-raw-art-name", "file": "backend/app/planner/price_alerts.py", "from": "    return f\"{name} · {short_art_name(art_name, card_name, card_id)}\"", "to": "    return art_name", "kills": ["test_notification_title_names_the_card_and_short_art_1360"], "args": "tests/test_price_alerts.py"},
+    // Duplicated decks survive the first-upload dedupe (#1400),
+    {"id": "dup1400-uploaded-copy-merged", "file": "backend/app/planner/deck_link.py", "from": "    if body.get(\"noMerge\"):\n        return None\n", "to": "", "kills": ["test_a_duplicated_deck_uploaded_after_its_original_is_kept_too_1400"], "args": "tests/test_deck_link.py"},
+    {"id": "dup1400-copy-is-merge-target", "file": "backend/app/planner/deck_link.py", "from": "            or other_body.get(\"noMerge\")\n", "to": "", "kills": ["test_a_duplicated_deck_is_not_merged_on_bulk_upload_1400"], "args": "tests/test_deck_link.py"},
+    {"id": "dup1400-schema-drops-flag", "file": "backend/app/duel/schemas.py", "from": "    noMerge: bool | None = None\n", "to": "", "kills": ["test_a_duplicated_deck_is_not_merged_on_bulk_upload_1400", "test_a_duplicated_deck_uploaded_after_its_original_is_kept_too_1400"], "args": "tests/test_deck_link.py"},
   ],
 };

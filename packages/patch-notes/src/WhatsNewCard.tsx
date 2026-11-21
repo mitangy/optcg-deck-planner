@@ -34,6 +34,7 @@ export function WhatsNewCard({
   const [open, setOpen] = useState(true);
   if (!open || !all || !unseen || unseen.length === 0) return null;
 
+  // See all only closes the card: the page it opens records the visit after it has marked what is new.
   const dismiss = () => {
     markAllSeen(app, undefined, all);
     setOpen(false);
@@ -55,7 +56,7 @@ export function WhatsNewCard({
       </ul>
       {more > 0 ? <p className="wn-card-more">+{more} more</p> : null}
       <div className="wn-card-actions">
-        <Link to={to} className="wn-card-link" onClick={dismiss}>
+        <Link to={to} className="wn-card-link" onClick={() => setOpen(false)}>
           See all
         </Link>
         <button type="button" className="wn-card-dismiss" onClick={dismiss}>
