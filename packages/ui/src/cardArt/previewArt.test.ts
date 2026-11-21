@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
-// Every card currently has official art, so the card preview list can be empty: use a fixed one.
+// Every card and alt currently has official art, so both preview lists can be empty: use fixed ones.
 vi.mock("./previewArt.json", () => ({ default: ["OP18-003", "OP18-031"] }));
+vi.mock("./previewArtAlts.json", () => ({ default: [734013] }));
 
 import { cardArtChain } from "./cardImage";
 import { previewArtUrl } from "./previewArt";
