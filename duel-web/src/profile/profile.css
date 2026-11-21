@@ -111,3 +111,46 @@
   gap: var(--space-3);
   flex-wrap: wrap;
 }
+
+.profile-seasons {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.profile-seasons li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 3.5rem auto 4rem;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  border-bottom: 1px solid var(--line);
+}
+
+.profile-seasons li:last-child {
+  border-bottom: 0;
+}
+
+.profile-season-name {
+  text-decoration: none;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.profile-season-rank,
+.profile-season-record {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+
+.profile-season-rank {
+  color: var(--ink);
+  font-weight: 700;
+}

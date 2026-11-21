@@ -26,6 +26,8 @@ from app.core.config import Settings, get_settings
 from app.core.security import OpsToken
 from app.core.time import as_utc
 from app.core.db import get_db
+from app.duel.seasons import current_season, ended_seasons, latest_since
+from app.duel.models import DuelSeason, DuelSeasonStanding
 from app.duel.leaderboard import Record, board_as_of, current_board, ranked_records, window_board
 from app.duel.ratings import (
     INITIAL_RATING,
@@ -69,6 +71,7 @@ from app.duel.schemas import (
     DuelDevTokenIn,
     DuelGuestTokenIn,
     DuelLeaderboardEntryOut,
+    DuelEndedSeasonOut,
     DuelLeaderboardOut,
     DuelLiveOut,
     DuelMatchDetailOut,
@@ -77,7 +80,11 @@ from app.duel.schemas import (
     DuelMatchOut,
     DuelMatchProgressIngest,
     DuelMatchReplayOut,
+    DuelMySeasonOut,
     DuelRatingOut,
+    DuelSeasonBoardOut,
+    DuelSeasonRefOut,
+    DuelSeasonsOut,
     DuelSoloGameIngest,
     DuelTokenOut,
     GameServerPoolIn,
@@ -555,7 +562,8 @@ def my_rating(
 ) -> DuelRatingOut:
     rating = _get_or_create_rating(db, user.id)
     db.commit()
-    record = ranked_records(db, user_id=user.id).get(user.id, Record())
+    season = current_season(db)
+    record = ranked_records(db, since=season.started_at, user_id=user.id).get(user.id, Record())
     board = {row.user_id: row for row in current_board(db)}
     mine = board.get(user.id)
     return DuelRatingOut(
@@ -660,15 +668,16 @@ def leaderboard(
     window: Literal["all", "week", "month"] = "all",
 ) -> DuelLeaderboardOut:
     limit = max(1, min(limit, 100))
+    season = current_season(db)
     board = current_board(db)
     by_user = {row.user_id: row for row in board}
     if window == "all":
-        yesterday = board_as_of(db, datetime.now(timezone.utc) - timedelta(hours=24))
-        records = ranked_records(db)
+        yesterday = board_as_of(db, datetime.now(timezone.utc) - timedelta(hours=24), since=season.started_at)
+        records = ranked_records(db, since=season.started_at)
         shown = [(row.user_id, row.rank, None) for row in board[:limit]]
     else:
-        since = datetime.now(timezone.utc) - timedelta(days=7 if window == "week" else 30)
-        records = ranked_records(db, since=since)
+        window_start = datetime.now(timezone.utc) - timedelta(days=7 if window == "week" else 30)
+        records = ranked_records(db, since=latest_since(window_start, season.started_at))
         yesterday = {}
         shown = [(uid, rank, records[uid].gain) for uid, rank in window_board(records)[:limit]]
     users = {u.id: u for u in db.scalars(select(User).where(User.id.in_([s[0] for s in shown]))).all()}
@@ -694,7 +703,84 @@ def leaderboard(
                 bounty_change=gain,
             )
         )
-    return DuelLeaderboardOut(entries=entries)
+    return DuelLeaderboardOut(
+        entries=entries,
+        season=DuelSeasonRefOut(number=season.number, name=season.name, started_at=season.started_at),
+    )
+
+
+def _ended_out(season: DuelSeason, players: int) -> DuelEndedSeasonOut:
+    return DuelEndedSeasonOut(
+        number=season.number, name=season.name, started_at=season.started_at, ended_at=season.ended_at, players=players
+    )
+
+
+@router.get("/seasons", response_model=DuelSeasonsOut)
+def seasons(db: Annotated[Session, Depends(get_db)]) -> DuelSeasonsOut:
+    """The running ranked season and every ended one, newest first (#1405)."""
+    now = current_season(db)
+    return DuelSeasonsOut(
+        current=DuelSeasonRefOut(number=now.number, name=now.name, started_at=now.started_at),
+        past=[_ended_out(s, players) for s, players in ended_seasons(db)],
+    )
+
+
+@router.get("/seasons/me", response_model=list[DuelMySeasonOut])
+def my_seasons(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> list[DuelMySeasonOut]:
+    """The signed-in player's final line in each ended season, newest first."""
+    rows = db.execute(
+        select(DuelSeason, DuelSeasonStanding)
+        .join(DuelSeasonStanding, DuelSeasonStanding.season_id == DuelSeason.id)
+        .where(DuelSeasonStanding.user_id == user.id)
+        .order_by(DuelSeason.number.desc())
+    ).all()
+    return [
+        DuelMySeasonOut(
+            number=s.number, name=s.name, rank=st.rank, rating=st.rating,
+            wins=st.wins, losses=st.losses, provisional=st.provisional,
+        )
+        for s, st in rows
+    ]
+
+
+@router.get("/seasons/{number}/leaderboard", response_model=DuelSeasonBoardOut)
+def season_leaderboard(
+    number: int,
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = 20,
+) -> DuelSeasonBoardOut:
+    """Final standings of an ended season."""
+    limit = max(1, min(limit, 100))
+    season = db.scalar(select(DuelSeason).where(DuelSeason.number == number, DuelSeason.ended_at.is_not(None)))
+    if season is None:
+        raise HTTPException(status_code=404, detail="Season not found")
+    standings = db.scalars(
+        select(DuelSeasonStanding)
+        .where(DuelSeasonStanding.season_id == season.id)
+        .order_by(DuelSeasonStanding.rank, DuelSeasonStanding.rating.desc(), DuelSeasonStanding.user_id)
+        .limit(limit)
+    ).all()
+    players = db.scalar(select(func.count()).select_from(DuelSeasonStanding).where(DuelSeasonStanding.season_id == season.id)) or 0
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_([st.user_id for st in standings])))}
+    entries = [
+        DuelLeaderboardEntryOut(
+            user_id=st.user_id,
+            name=duel_display_name(users[st.user_id]),
+            username=users[st.user_id].username,
+            rating=st.rating,
+            games_played=st.games_played,
+            rank=st.rank,
+            provisional=st.provisional,
+            wins=st.wins,
+            losses=st.losses,
+        )
+        for st in standings
+        if st.user_id in users
+    ]
+    return DuelSeasonBoardOut(season=_ended_out(season, int(players)), entries=entries)
 
 
 LIVE_CACHE_S = 30.0

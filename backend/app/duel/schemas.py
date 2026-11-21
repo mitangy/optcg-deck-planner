@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
@@ -169,8 +170,45 @@ class DuelLeaderboardEntryOut(BaseModel):
     bounty_change: int | None = None
 
 
+class DuelSeasonRefOut(BaseModel):
+    """The season a board belongs to. started_at is null for Season 1 (it began before launch)."""
+
+    number: int
+    name: str
+    started_at: datetime | None = None
+
+
 class DuelLeaderboardOut(BaseModel):
     entries: list[DuelLeaderboardEntryOut]
+    season: DuelSeasonRefOut
+
+
+class DuelEndedSeasonOut(BaseModel):
+    number: int
+    name: str
+    started_at: datetime | None = None
+    ended_at: datetime
+    players: int
+
+
+class DuelSeasonsOut(BaseModel):
+    current: DuelSeasonRefOut
+    past: list[DuelEndedSeasonOut]
+
+
+class DuelSeasonBoardOut(BaseModel):
+    season: DuelEndedSeasonOut
+    entries: list[DuelLeaderboardEntryOut]
+
+
+class DuelMySeasonOut(BaseModel):
+    number: int
+    name: str
+    rank: int
+    rating: int
+    wins: int
+    losses: int
+    provisional: bool
 
 
 class CardReportIn(BaseModel):

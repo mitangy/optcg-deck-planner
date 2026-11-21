@@ -485,6 +485,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/seasons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Seasons
+         * @description The current ranked season, what a reset would do to the top players, and past seasons (#1405).
+         */
+        get: operations["seasons_admin_seasons_get"];
+        put?: never;
+        /**
+         * Start Season
+         * @description End the current season and reset Bounty. `confirm` must be the current season's name, which also stops a double submit:
+         *     after the first call the current name is the new season's, so the repeat no longer matches (#1405).
+         */
+        post: operations["start_season_admin_seasons_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/sync-catalog": {
         parameters: {
             query?: never;
@@ -2519,6 +2544,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/duel/seasons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Seasons
+         * @description The running ranked season and every ended one, newest first (#1405).
+         */
+        get: operations["seasons_duel_seasons_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/duel/seasons/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Seasons
+         * @description The signed-in player's final line in each ended season, newest first.
+         */
+        get: operations["my_seasons_duel_seasons_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/duel/seasons/{number}/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Season Leaderboard
+         * @description Final standings of an ended season.
+         */
+        get: operations["season_leaderboard_duel_seasons__number__leaderboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/duel/settings": {
         parameters: {
             query?: never;
@@ -4256,6 +4341,81 @@ export interface components {
             /** Reports */
             reports: components["schemas"]["ReportRow"][];
         };
+        /** AdminSeasonCurrent */
+        AdminSeasonCurrent: {
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Players */
+            players: number;
+            /** Started At */
+            started_at?: string | null;
+        };
+        /** AdminSeasonPast */
+        AdminSeasonPast: {
+            /**
+             * Ended At
+             * Format: date-time
+             */
+            ended_at: string;
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Players */
+            players: number;
+            /** Reset Mode */
+            reset_mode?: string | null;
+            /** Started At */
+            started_at?: string | null;
+        };
+        /** AdminSeasonPreviewRow */
+        AdminSeasonPreviewRow: {
+            /** Games */
+            games: number;
+            /** Hard After */
+            hard_after: number;
+            /** Name */
+            name: string;
+            /** Rank */
+            rank: number;
+            /** Rating */
+            rating: number;
+            /** Soft After */
+            soft_after: number;
+            /** User Id */
+            user_id: number;
+        };
+        /** AdminSeasonStartIn */
+        AdminSeasonStartIn: {
+            /** Confirm */
+            confirm: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "soft" | "hard";
+            /** Name */
+            name?: string | null;
+        };
+        /** AdminSeasonStarted */
+        AdminSeasonStarted: {
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Started At */
+            started_at?: string | null;
+        };
+        /** AdminSeasons */
+        AdminSeasons: {
+            current: components["schemas"]["AdminSeasonCurrent"];
+            /** Past */
+            past: components["schemas"]["AdminSeasonPast"][];
+            /** Preview */
+            preview: components["schemas"]["AdminSeasonPreviewRow"][];
+        };
         /** AdminUser */
         AdminUser: {
             /** Ban Reason */
@@ -5826,6 +5986,22 @@ export interface components {
             /** User Key */
             user_key: string;
         };
+        /** DuelEndedSeasonOut */
+        DuelEndedSeasonOut: {
+            /**
+             * Ended At
+             * Format: date-time
+             */
+            ended_at: string;
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Players */
+            players: number;
+            /** Started At */
+            started_at?: string | null;
+        };
         /**
          * DuelGuestTokenIn
          * @description Mint a game token for a stable browser guest id (always available).
@@ -5887,6 +6063,7 @@ export interface components {
         DuelLeaderboardOut: {
             /** Entries */
             entries: components["schemas"]["DuelLeaderboardEntryOut"][];
+            season: components["schemas"]["DuelSeasonRefOut"];
         };
         /**
          * DuelLiveOut
@@ -6073,6 +6250,23 @@ export interface components {
             /** Your Seat */
             your_seat: number;
         };
+        /** DuelMySeasonOut */
+        DuelMySeasonOut: {
+            /** Losses */
+            losses: number;
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Provisional */
+            provisional: boolean;
+            /** Rank */
+            rank: number;
+            /** Rating */
+            rating: number;
+            /** Wins */
+            wins: number;
+        };
         /** DuelPresenceEntry */
         DuelPresenceEntry: {
             /**
@@ -6138,6 +6332,30 @@ export interface components {
              * @default 0
              */
             wins: number;
+        };
+        /** DuelSeasonBoardOut */
+        DuelSeasonBoardOut: {
+            /** Entries */
+            entries: components["schemas"]["DuelLeaderboardEntryOut"][];
+            season: components["schemas"]["DuelEndedSeasonOut"];
+        };
+        /**
+         * DuelSeasonRefOut
+         * @description The season a board belongs to. started_at is null for Season 1 (it began before launch).
+         */
+        DuelSeasonRefOut: {
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Started At */
+            started_at?: string | null;
+        };
+        /** DuelSeasonsOut */
+        DuelSeasonsOut: {
+            current: components["schemas"]["DuelSeasonRefOut"];
+            /** Past */
+            past: components["schemas"]["DuelEndedSeasonOut"][];
         };
         /** DuelSettingsIn */
         DuelSettingsIn: {
@@ -10467,6 +10685,59 @@ export interface operations {
             };
         };
     };
+    seasons_admin_seasons_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSeasons"];
+                };
+            };
+        };
+    };
+    start_season_admin_seasons_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSeasonStartIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSeasonStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_sync_catalog_admin_sync_catalog_post: {
         parameters: {
             query?: never;
@@ -14334,6 +14605,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlayerReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    seasons_duel_seasons_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuelSeasonsOut"];
+                };
+            };
+        };
+    };
+    my_seasons_duel_seasons_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuelMySeasonOut"][];
+                };
+            };
+        };
+    };
+    season_leaderboard_duel_seasons__number__leaderboard_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuelSeasonBoardOut"];
                 };
             };
             /** @description Validation Error */

@@ -230,6 +230,37 @@ export async function fetchLeaderboard(limit = 5, window: "all" | "week" | "mont
   }
 }
 
+export type SeasonRef = Schemas["DuelSeasonRefOut"];
+export type PastSeason = Schemas["DuelEndedSeasonOut"];
+export type SeasonList = Schemas["DuelSeasonsOut"];
+export type SeasonFinish = Schemas["DuelMySeasonOut"];
+
+/** The running season and the ended ones. Null when it cannot be loaded, so the page simply goes without a season picker. */
+export async function fetchSeasons(): Promise<SeasonList | null> {
+  try {
+    return await apiCall<SeasonList>("/duel/seasons");
+  } catch (e) {
+    if (isHttpError(e)) return null;
+    throw e;
+  }
+}
+
+/** Final standings of an ended season. A failed load throws so the page can offer Try again. */
+export async function fetchSeasonBoard(number: number, limit = 5): Promise<LeaderboardEntry[]> {
+  const body = await apiCall<Schemas["DuelSeasonBoardOut"]>(`/duel/seasons/${number}/leaderboard?limit=${limit}`);
+  return body.entries;
+}
+
+/** The signed-in player's final line in each ended season, newest first; empty when there is none or it cannot be loaded. */
+export async function fetchMySeasons(): Promise<SeasonFinish[]> {
+  try {
+    return await apiCall<SeasonFinish[]>("/duel/seasons/me");
+  } catch (e) {
+    if (isHttpError(e)) return [];
+    throw e;
+  }
+}
+
 export type RatingMe = {
   user_id: number;
   email: string;

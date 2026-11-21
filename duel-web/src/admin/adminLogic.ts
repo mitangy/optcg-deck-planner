@@ -1,10 +1,11 @@
 import { formatMoney } from "@optcg/card-core";
 import type { AdminEvent, AdminEventSummary, EventFields, EventFormat, EventPrizeMethod, SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role, GameCounts, GameMode, AdminUserDetail, AdminUserMatch } from "./adminApi";
 
-export type AdminTab = "players" | "bots" | "traffic" | "hosting" | "event" | "reports" | "uploads" | "users";
+export type AdminTab = "players" | "seasons" | "bots" | "traffic" | "hosting" | "event" | "reports" | "uploads" | "users";
 
 export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "players", label: "Players" },
+  { id: "seasons", label: "Seasons" },
   { id: "bots", label: "Bots & Log Pose" },
   { id: "traffic", label: "Traffic" },
   { id: "hosting", label: "Hosting" },
@@ -18,6 +19,11 @@ export function tabsForRole(role: Role | undefined | null): readonly { id: Admin
   if (role === "admin") return ADMIN_TABS;
   if (role === "moderator") return ADMIN_TABS.filter((t) => t.id === "reports" || t.id === "uploads" || t.id === "users");
   return [];
+}
+
+/** The Start button of the new-season dialog: enabled only once the current season's name is typed exactly (the server checks it too). */
+export function canStartSeason(typed: string, currentName: string): boolean {
+  return currentName !== "" && typed.trim() === currentName;
 }
 
 export function isStaff(role: Role | undefined | null): boolean {
