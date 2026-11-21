@@ -624,8 +624,41 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
   font-weight: 400;
 }
 
-.gameplay-toggle .field-hint {
-  padding-left: 1.6rem;
+/* One 44px+ hit target: the label and its hint sit inside the same <label> (#1389). */
+.gameplay-toggle .switch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-height: 44px;
+  padding: 0.35rem 0;
+  min-width: 0;
+}
+
+.gameplay-toggle .switch-row input {
+  flex: none;
+  width: 1.3rem;
+  height: 1.3rem;
+  /* Centre on the label's first line (0.85rem at 1.4). */
+  margin: 0;
+}
+
+.switch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.switch-label {
+  line-height: 1.4;
+}
+
+.gameplay-toggle .switch-hint {
+  margin: 0;
+}
+
+.gameplay-toggle .field-note {
+  margin: 0 0 0.35rem 1.95rem;
 }
 
 .hud-settings-btn,
@@ -674,7 +707,8 @@ body:has(.match-menu, .lp-overlay) .attack-overlay:not(.attack-aim) {
   cursor: pointer;
 }
 
-.gameplay-toggle .switch:has(input:disabled) {
+.gameplay-toggle .switch:has(input:disabled),
+.gameplay-toggle .switch-row:has(input:disabled) {
   opacity: 0.55;
   cursor: not-allowed;
 }
