@@ -6,18 +6,18 @@
 # 0.x packages are capped at the next minor, 1.x+ at the next major, and
 # SQLAlchemy at the next minor (2.1 changed the default Postgres driver).
 # Raise a cap deliberately, after the backend tests pass on the new version.
-fastapi>=0.162.0,<0.163
+fastapi>=0.165.0,<0.166
 uvicorn[standard]>=0.32.0,<0.55
-sqlalchemy>=2.1.8,<2.2
+sqlalchemy>=2.1.9,<2.2
 # Schema migrations (backend/migrations).
 alembic>=1.16.5,<2
 psycopg2-binary>=2.9.10,<3
-pydantic>=2.14.2,<3
-pydantic-settings>=2.16.2,<3
-authlib>=1.9.4,<2
+pydantic>=2.14.3,<3
+pydantic-settings>=2.16.3,<3
+authlib>=1.9.9,<2
 httpx>=0.28.0,<0.29
 itsdangerous>=2.2.0,<3
-python-multipart>=0.0.33,<0.1
+python-multipart>=0.0.34,<0.1
 # Optional shared state (rate limits, presence, live-game progress) when REDIS_URL is set.
 redis>=8.1.0,<9
 # Retries for flaky upstream HTTP (TCGCSV catalog sync).
@@ -25,4 +25,4 @@ tenacity>=9.1.2,<10
 # C++ edit-distance for fuzzy card-name search.
 rapidfuzz>=3.14.0,<4
 # TTL caches (meta decks, recent sales).
-cachetools>=8.0.0,<9
+cachetools>=8.0.2,<9
