@@ -1,0 +1,138 @@
+@import "tailwindcss";
+
+/*
+ * The apps' own palettes, exposed to Tailwind as theme tokens so utilities read
+ * bg-parchment, text-ink, bg-sea-night, text-chrome... (no shadcn/Radix defaults).
+ * Planner = "chart room" parchment + deep-sea + straw-hat gold.
+ * Duel    = "Night Sea" navy arena + chrome gold.
+ */
+@theme {
+  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-body: "IBM Plex Sans", system-ui, sans-serif;
+  --font-duel: "Sora", system-ui, sans-serif;
+
+  /* Planner (light) */
+  --color-parchment: #f3ecdf;
+  --color-parchment-deep: #e8dcc6;
+  --color-paper: #fffbf3;
+  --color-paper-sunk: #f8f1e4;
+  --color-rule: #ddd0b8;
+  --color-rule-strong: #c9b793;
+  --color-ink: #17252e;
+  --color-muted: #4b565c;
+  --color-sea: #1d5566;
+  --color-sea-ink: #123a47;
+  --color-sea-night: #16303b;
+  --color-sea-night-deep: #10242d;
+  --color-gold: #c4912f;
+  --color-gold-bright: #e2b458;
+  --color-gold-soft: #f6e8c6;
+  --color-gold-ink: #7a5614;
+  --color-luffy: #a8322a;
+  --color-ok: #2f6b3a;
+  --color-ok-soft: #e4efe4;
+  --color-warn: #b85f16;
+
+  /* Duel (dark arena) */
+  --color-arena-abyss: #050b10;
+  --color-arena-deep: #0b1720;
+  --color-arena-mid: #11212d;
+  --color-arena-panel: #172a38;
+  --color-arena-raised: #1d3344;
+  --color-mat: #12303d;
+  --color-mat-low: #0e2230;
+  --color-mat-foe: #1a2530;
+  --color-mat-foe-low: #121c25;
+  --color-chrome: #d2a54d;
+  --color-chrome-bright: #f0dca8;
+  --color-chrome-dim: #8c7342;
+  --color-bone: #f1e9d6;
+  --color-haze: #95a4ad;
+  --color-tide: #2f6f86;
+  --color-tide-bright: #7fb6d6;
+  --color-crimson: #b2372f;
+  --color-crimson-bright: #d24a3f;
+  --color-jade: #3f8a5f;
+
+  --shadow-paper: 0 1px 2px rgb(23 37 46 / 0.05), 0 10px 28px rgb(23 37 46 / 0.07);
+  --shadow-lift: 0 2px 4px rgb(23 37 46 / 0.06), 0 16px 36px rgb(23 37 46 / 0.12);
+  --shadow-chrome: inset 0 1px 0 rgb(255 250 230 / 0.55), 0 1px 0 rgb(90 60 10 / 0.6), 0 6px 16px rgb(0 0 0 / 0.35);
+}
+
+/* Page chrome rules from CLAUDE.md: no sideways scroll, dvh, matching overscroll. */
+html, body, #root { overflow-x: clip; min-height: 100dvh; }
+html[data-app="planner"], html[data-app="planner"] body {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200' fill='none' stroke='%2316303b' stroke-opacity='.075'%3E%3Ccircle cx='100' cy='100' r='92'/%3E%3Ccircle cx='100' cy='100' r='70' stroke-dasharray='2 5'/%3E%3Ccircle cx='100' cy='100' r='22'/%3E%3Cpath d='M100 4v192M4 100h192M32 32l136 136M168 32L32 168'/%3E%3C/svg%3E") right -140px top -120px / 520px 520px no-repeat,
+    linear-gradient(180deg, #f6f0e5 0%, var(--color-parchment) 40%, var(--color-parchment-deep) 100%) fixed;
+  background-color: var(--color-parchment);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+html[data-app="duel"], html[data-app="duel"] body {
+  background:
+    radial-gradient(1200px 600px at 50% -10%, #1f4a5c55, transparent 70%),
+    radial-gradient(900px 500px at 50% 110%, #4a321444, transparent 70%),
+    var(--color-arena-deep);
+  background-color: var(--color-arena-deep);
+  color: var(--color-bone);
+  font-family: var(--font-duel);
+}
+
+/* Reusable component classes, so screens don't repeat long utility strings. */
+@layer components {
+  .btn-chrome {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold text-[#1d1406]
+      bg-linear-to-b from-[#e6bd62] to-[#c7963d] shadow-chrome transition hover:brightness-110 active:translate-y-px
+      focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-chrome-bright;
+  }
+  .btn-ghost-duel {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-chrome/35 bg-arena-raised/60 px-3.5 py-2
+      text-sm font-semibold text-bone transition hover:border-chrome/70 hover:bg-arena-raised;
+  }
+  .btn-sea {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg bg-sea px-3.5 py-2 text-sm font-semibold text-[#fffaf0]
+      shadow-sm transition hover:bg-sea-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold;
+  }
+  .btn-paper {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border border-rule-strong bg-paper px-3 py-1.5 text-sm
+      font-medium text-ink transition hover:border-gold hover:bg-gold-soft/60;
+  }
+  .panel-paper { @apply rounded-xl border border-rule bg-paper shadow-paper; }
+  .panel-duel  { @apply rounded-xl border border-chrome/20 bg-arena-panel/85 shadow-[0_10px_30px_rgb(0_0_0/0.35)] backdrop-blur; }
+  .label-caps  { @apply text-[11px] font-semibold uppercase tracking-[0.12em]; }
+}
+
+/* ===== Planner-only classes (planner worker) ===== */
+@layer components {
+  .planner-topbar {
+    @apply bg-sea-night text-[#efe6d2] border-b-4 border-double border-gold/70;
+    background-image: linear-gradient(180deg, #1b3a48 0%, var(--color-sea-night) 100%);
+  }
+  .planner-nav-link { @apply relative whitespace-nowrap px-2 py-2 text-sm font-medium text-[#cfdadd] sm:px-2.5 sm:text-[15px] transition-colors hover:text-white; }
+  .planner-nav-link[aria-current="page"] { @apply text-gold-bright after:absolute after:inset-x-2.5 after:-bottom-px after:h-0.5 after:rounded-full after:bg-gold-bright; }
+  .planner-field {
+    @apply w-full rounded-lg border border-rule-strong bg-paper px-3.5 py-2 text-sm text-ink placeholder:text-muted/70
+      focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-sea;
+  }
+  .planner-menu { @apply z-30 w-56 rounded-xl border border-rule-strong bg-paper p-1.5 shadow-lift [--anchor-gap:6px] focus:outline-none; }
+  .planner-menu-item { @apply flex w-full cursor-pointer items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm text-ink data-focus:bg-gold-soft; }
+}
+
+/* ==== DUEL (arena) additions: appended by the duel worker ==== */
+/* Phone landscape and other short windows: the board swaps to a side-column layout. */
+@custom-variant short (@media (max-height: 520px));
+@theme {
+  --animate-tide: tide 7s ease-in-out infinite;
+  @keyframes tide { 0%,100% { background-position: 0 0; } 50% { background-position: 40px 0; } }
+}
+@layer components {
+  /* Subtle sea-wave texture used on the duel page background and mats. */
+  .waves {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='24' viewBox='0 0 80 24' fill='none' stroke='%237fb6d6' stroke-opacity='.07'%3E%3Cpath d='M0 12c10-8 20-8 40 0s30 8 40 0'/%3E%3C/svg%3E");
+  }
+  .tab-link { @apply rounded-lg px-3 py-2 text-sm font-semibold text-haze transition hover:bg-arena-raised/70 hover:text-bone aria-[current=page]:text-chrome-bright; }
+  .field-duel { @apply w-full rounded-lg border border-chrome/25 bg-arena-abyss/60 px-3 py-2 text-sm text-bone placeholder:text-haze/70 focus:border-chrome focus:outline-none focus:ring-2 focus:ring-chrome/30; }
+  .menu-panel { @apply z-50 min-w-44 origin-top-right rounded-xl border border-chrome/25 bg-arena-panel p-1 shadow-[0_18px_40px_rgb(0_0_0/0.55)] outline-none transition duration-100 data-closed:scale-95 data-closed:opacity-0; }
+  .menu-item { @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-bone data-focus:bg-arena-raised data-focus:text-chrome-bright; }
+}

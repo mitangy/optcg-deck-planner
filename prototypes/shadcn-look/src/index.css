@@ -1,0 +1,203 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--app-font-heading);
+    --font-sans: var(--app-font);
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+/* ============================================================
+ * Prototype skins. Screens use only shadcn tokens (bg-card, text-muted-foreground,
+ * bg-primary ...), so the SAME components render in two looks:
+ *   ?skin=stock -> shadcn defaults (neutral light for planner, .dark for duel)
+ *   default     -> "ours": shadcn variables remapped to the apps' One Piece palettes
+ * Duel screens always get .dark on <html>.
+ * ============================================================ */
+html[data-skin="ours"] {
+  --app-font: "IBM Plex Sans", system-ui, sans-serif;
+  --app-font-heading: "Fraunces", Georgia, serif;
+  --background: #f3ecdf;
+  --foreground: #17252e;
+  --card: #fffbf3;
+  --card-foreground: #17252e;
+  --popover: #fffbf3;
+  --popover-foreground: #17252e;
+  --primary: #1d5566;
+  --primary-foreground: #fffaf0;
+  --secondary: #f6e8c6;
+  --secondary-foreground: #7a5614;
+  --muted: #f8f1e4;
+  --muted-foreground: #4b565c;
+  --accent: #f6e8c6;
+  --accent-foreground: #17252e;
+  --destructive: #a8322a;
+  --border: #ddd0b8;
+  --input: #c9b793;
+  --ring: #c4912f;
+  --chart-1: #1d5566;
+  --chart-2: #c4912f;
+  --chart-3: #6b4c9a;
+  --chart-4: #2f6b3a;
+  --chart-5: #a8322a;
+  --radius: 0.75rem;
+}
+html[data-skin="ours"].dark {
+  --app-font: "Sora", system-ui, sans-serif;
+  --background: #0b1720;
+  --foreground: #f1e9d6;
+  --card: #172a38;
+  --card-foreground: #f1e9d6;
+  --popover: #1d3344;
+  --popover-foreground: #f1e9d6;
+  --primary: #d2a54d;
+  --primary-foreground: #1d1406;
+  --secondary: #1d3344;
+  --secondary-foreground: #f0dca8;
+  --muted: #11212d;
+  --muted-foreground: #95a4ad;
+  --accent: #1d3344;
+  --accent-foreground: #f0dca8;
+  --destructive: #d24a3f;
+  --border: rgb(210 165 77 / 0.22);
+  --input: rgb(210 165 77 / 0.3);
+  --ring: #f0dca8;
+  --chart-1: #d2a54d;
+  --chart-2: #7fb6d6;
+  --chart-3: #d24a3f;
+  --chart-4: #3f8a5f;
+  --chart-5: #95a4ad;
+}
+/* Game-board-only tokens (mats), also skin-aware. */
+:root { --app-font: 'Geist Variable', sans-serif; --app-font-heading: var(--app-font); }
+:root { --mat: oklch(0.97 0 0); --mat-foe: oklch(0.94 0 0); }
+.dark { --mat: oklch(0.22 0 0); --mat-foe: oklch(0.19 0 0); }
+html[data-skin="ours"].dark { --mat: #12303d; --mat-foe: #1a2530; }
+@theme inline { --color-mat: var(--mat); --color-mat-foe: var(--mat-foe); }
+
+html, body, #root { overflow-x: clip; min-height: 100dvh; }
+html { background: var(--background); }
+
+/* ---- duel board block (DuelBoard.tsx): phone-landscape variant = short windows ---- */
+@custom-variant short (@media (max-height: 520px));
