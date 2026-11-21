@@ -22,11 +22,11 @@ async function open(page: Page, path: string): Promise<void> {
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
   }, [{ id: "e2e-you", name: "E2E You", ...LONG_DECK, updatedAt: 1 }]);
   await page.goto(path);
-  await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
 }
 
 const stuckBar = (page: Page) =>
-  page.getByRole("button", { name: "Menu" }).evaluate((btn) => {
+  page.getByRole("button", { name: "Menu", exact: true }).evaluate((btn) => {
     for (let el = btn.parentElement; el; el = el!.parentElement) {
       if (getComputedStyle(el).position !== "sticky") continue;
       const r = el.getBoundingClientRect();
@@ -65,9 +65,10 @@ async function noSidewaysScroll(page: Page): Promise<void> {
 for (const path of ["/settings", "/whats-new", "/decks/e2e-you/configure"]) {
   test(`page header stays at the top while scrolling on ${path} (#510)`, async ({ page }) => {
     await open(page, path);
-    const button = page.getByRole("button", { name: "Menu" });
+    const button = page.getByRole("button", { name: "Menu", exact: true });
+    // Lazy content (the What's new notes) can land after the header paints, so wait for the page to grow.
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight), { message: "page is long enough to scroll" }).toBeGreaterThan(page.viewportSize()!.height + 400);
     const rest = (await button.boundingBox())!;
-    expect((await page.evaluate(() => document.documentElement.scrollHeight)) > page.viewportSize()!.height + 400, "page is long enough to scroll").toBe(true);
 
     await scrollSettled(page, 400);
     const bar = (await stuckBar(page))!;

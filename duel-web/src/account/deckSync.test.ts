@@ -177,12 +177,12 @@ describe("deck sync (#619)", () => {
     setSelectedDeckId("theirs");
     clearAccountDecks();
     const ids = listSavedDecks().map((d) => d.id).sort();
-    expect(ids).toEqual(["test-op16-black", "test-op17-red"]);
+    expect(ids).toEqual(["starter-op13-luffy", "test-op16-black", "test-op17-red"]);
     expect(getSelectedDeckId()).not.toBe("theirs");
     api.fetchAccountDecks.mockResolvedValue({ decks: [] });
     api.putAccountDecks.mockClear();
     await syncDecks(8);
-    expect(api.putAccountDecks.mock.calls[0][0].map((d: { id: string }) => d.id).sort()).toEqual(["test-op16-black", "test-op17-red"]);
+    expect(api.putAccountDecks.mock.calls[0][0].map((d: { id: string }) => d.id).sort()).toEqual(["starter-op13-luffy", "test-op16-black", "test-op17-red"]);
   });
 
   it("a deck deleted before sync starts stays deleted (#624)", async () => {

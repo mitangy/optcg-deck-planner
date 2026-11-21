@@ -207,7 +207,8 @@
 
 @media (min-width: 1000px) and (min-height: 500px) {
   .home {
-    max-width: 1100px;
+    /* Scales with the root font size, which grows with the window, so wide screens keep the same line lengths (#1391). */
+    max-width: 63rem;
     display: grid;
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
     column-gap: 2.5rem;
@@ -217,7 +218,23 @@
   }
 
   .home-hero {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: baseline;
+    column-gap: 1rem;
+    row-gap: 0;
+    text-align: left;
+  }
+
+  .home-kicker,
+  .home-rule {
     display: none;
+  }
+
+  .home-brand {
+    font-size: 1.7rem;
   }
 
   .home-version {
@@ -277,7 +294,24 @@
   }
 
   .home-hero {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: baseline;
+    column-gap: 0.75rem;
+  }
+
+  .home-kicker,
+  .home-rule {
     display: none;
+  }
+
+  .home-brand {
+    font-size: 1.3rem;
+  }
+
+  .home-tagline {
+    font-size: max(12px, 0.8rem);
   }
 
   .home-primary {
@@ -302,7 +336,6 @@
     flex: 1 1 0;
   }
 
-  .home-primary > .live-empty,
   .home-primary > .live-pill {
     order: 3;
   }

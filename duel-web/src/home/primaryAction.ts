@@ -5,6 +5,8 @@ export type PrimaryAction = {
   act: "start" | "sheet";
   title: string;
   subline: string;
+  /** True when `mode` is the one the player last used (the button says "Last played"). */
+  remembered: boolean;
 };
 
 const TITLE: Record<LastMode, string> = {
@@ -29,5 +31,6 @@ export function primaryAction(remembered: LastMode | null, signedIn: boolean): P
     act: usable && mode === "queue" ? "start" : "sheet",
     title: TITLE[mode],
     subline: usable ? "Last played" : DESCRIPTION[mode],
+    remembered: usable,
   };
 }

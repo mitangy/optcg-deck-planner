@@ -166,6 +166,21 @@
   background: rgb(var(--chrome-rgb) / 0.1);
 }
 
+.bounty-row.me:not(.pinned) .bounty-name {
+  flex: 0 1 auto;
+}
+
+.bounty-you {
+  margin-right: auto;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid rgb(var(--chrome-rgb) / 0.55);
+  border-radius: var(--radius-pill);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--chrome-bright);
+}
+
 .bounty-row.pinned {
   border-top: 1px dashed var(--line-strong);
 }
@@ -262,7 +277,7 @@
 }
 
 .icon-btn-label {
-  font-size: 0.6rem;
+  font-size: max(12px, 0.6rem);
   line-height: 1;
   color: var(--muted);
 }
@@ -338,3 +353,26 @@
   font-family: var(--font-display);
 }
 
+
+/* What's new: the months rail hangs in the gutter left of the 600px page, so the reading column keeps its width. */
+.whats-new-page .wn-layout {
+  --wn-rail-w: 10.5rem;
+  --wn-rail-pull: calc(-1 * (var(--wn-rail-w) + 1.5rem));
+}
+
+/* Phones: the Home link shrinks to its arrow so the title has room. */
+@media (max-width: 600px) {
+  .whats-new-page .page-header .deck-config-back {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  .whats-new-page .page-header .deck-config-back .back-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

@@ -44,7 +44,7 @@ test("the Decks page says decks sync with the planner and offers no planner colu
   await expect(note).toBeVisible();
   await expect(page.getByRole("heading", { name: "From your planner" })).toHaveCount(0);
   await page.getByRole("button", { name: "Actions for Red Alt" }).click();
-  await expect(page.getByRole("menuitem", { name: "Play with this deck" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Copy deck list" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Add to planner" })).toHaveCount(0);
   await page.keyboard.press("Escape");
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);

@@ -111,7 +111,7 @@ describe("Leave-page confirm on the shared Dialog", () => {
     expect(document.activeElement?.textContent).toBe("Save");
     await press("Escape");
     expect(modal()).toBeNull();
-    expect(document.body.textContent).toContain("Leader Monkey.D.Luffy");
+    expect(document.body.textContent).toContain("Monkey.D.Luffy · 1 card short");
   });
 
   it("a click outside the dialog keeps editing, a click inside does not (#710)", async () => {

@@ -6,7 +6,9 @@ import {
   registerAtlasStub,
 } from "../cards/atlas";
 import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
+import { BOT_META_DECKS } from "@optcg/rules/botMetaDecks";
 import { cardDataReady } from "../cards/cardData";
+import { MAX_DECK_NAME_LENGTH } from "./editDeck";
 
 const STORAGE_KEY = "optcg.duel.savedDecks.v1";
 const SELECTED_KEY = "optcg.duel.selectedDeckId.v1";
@@ -247,6 +249,23 @@ export function saveDeckResult(input: SaveDeckInput): { deck: SavedDeck; persist
   const persisted = writeAll(decks);
   emit({ kind: "upsert", deck: next });
   return { deck: next, persisted };
+}
+
+const COPY_SUFFIX = " (copy)";
+
+/**
+ * Saves a copy named "<name> (copy)" with the same Leader, cards and art picks. The copy is a fresh local deck:
+ * it never carries the planner link or the edited-locally flag, so it cannot overwrite or be synced as the original.
+ */
+export function duplicateDeck(id: string): SavedDeck | undefined {
+  const deck = getSavedDeck(id);
+  if (!deck) return undefined;
+  return saveDeck({
+    name: `${deck.name.slice(0, MAX_DECK_NAME_LENGTH - COPY_SUFFIX.length)}${COPY_SUFFIX}`,
+    leaderId: deck.leaderId,
+    cards: deck.cards,
+    artPrefs: deck.artPrefs,
+  });
 }
 
 export function setDeckArtPref(
@@ -535,7 +554,17 @@ function ensureSeedDeck(id: string, name: string, list: string, legacyName: stri
   return seed;
 }
 
+/** The clean-art starter new guests land on: the OP13-001 Luffy entry of the bot meta decks (#1391). */
+function luffyStarterList(): string {
+  const meta = BOT_META_DECKS.find((d) => d.leaderId === "OP13-001");
+  if (!meta) throw new Error("Seed deck starter-op13-luffy: OP13-001 missing from BOT_META_DECKS");
+  const counts = new Map<string, number>([[meta.leaderId, 1]]);
+  for (const id of meta.deck) counts.set(id, (counts.get(id) ?? 0) + 1);
+  return [...counts].map(([id, n]) => `${n}x${id}`).join("\n");
+}
+
 export function ensureTestDecks(): SavedDeck[] {
+  const luffy = ensureSeedDeck("starter-op13-luffy", "Starter: OP13 Luffy", luffyStarterList(), "Starter: OP13 Luffy");
   const a = ensureSeedDeck("test-op17-red", "Starter: OP17 Red", TEST_OP17_LIST, "Test OP17 red");
   const b = ensureSeedDeck(
     "test-op16-black",
@@ -543,5 +572,5 @@ export function ensureTestDecks(): SavedDeck[] {
     TEST_OP16_LIST,
     "Test OP16 Teach (black/yellow)",
   );
-  return [a, b];
+  return [luffy, a, b];
 }

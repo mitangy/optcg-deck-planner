@@ -41,6 +41,12 @@ describe("group buy header actions (#1361)", () => {
     expect(groupBuyActions("completed", true, false, false).more).toEqual(["delete"]);
   });
 
+  it("an ordered pool keeps Undo Mark purchased for the host after a partial purchase (#1375)", () => {
+    expect(groupBuyActions("ordered", true, true, true).more).toEqual(["undo-purchase", "delete"]);
+    expect(groupBuyActions("ordered", true, true, false).more).toEqual(["delete"]);
+    expect(groupBuyActions("ordered", false, true, true).more).toEqual(["leave"]);
+  });
+
   it("the summary shows the cards figure while open and the grand total afterwards, once (#1361)", () => {
     const d = { host_name: "Nami", member_count: 3, unique_cards: 61, cards_still_needed: 200, remaining_market: 687.95, grand_total: 451.17 };
     expect(summaryParts({ ...d, status: "open" })).toMatchObject({ moneyLabel: "Cards", money: 687.95 });
