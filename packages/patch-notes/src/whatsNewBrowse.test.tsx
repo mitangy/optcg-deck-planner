@@ -120,6 +120,14 @@ describe("New since your last visit (#1390)", () => {
     expect(localStorage.getItem(lastSeenKey("duel"))).toBe("2026-11-20");
   });
 
+  it("marks only the unseen note when one PR has notes on several days (#1401)", async () => {
+    const sameLabel = [note("2026-11-21", "after", { app: "planner", pr: 1374 }), note("2026-11-19", "before", { app: "planner", pr: 1374 })];
+    localStorage.setItem(lastSeenKey("planner"), "2026-11-20");
+    const el = await mount(<WhatsNewFeed app="planner" notes={sameLabel} />);
+    expect([...el.querySelectorAll(".wn-note-new")].map((n) => n.querySelector(".wn-title span")?.textContent)).toEqual(["after"]);
+    expect(el.querySelector(".wn-new-summary")?.textContent).toContain("1 new since your last visit");
+  });
+
   it("a first visit has no New marks (#1390)", async () => {
     const el = await mount(<WhatsNewFeed app="duel" notes={notes} />);
     expect(el.querySelector(".wn-note-new")).toBeNull();

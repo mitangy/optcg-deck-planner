@@ -11,7 +11,6 @@ import {
   matchesQuery,
   monthKey,
   noteAnchor,
-  noteKey,
   noteTopics,
   notesFor,
   olderGroupCount,
@@ -131,13 +130,13 @@ export function WhatsNewList({
   notes,
   className,
   cardHref,
-  unseenKeys,
+  unseen,
 }: {
   notes: readonly PatchNote[];
   className?: string;
   cardHref?: (id: string) => string;
-  /** `noteKey`s of the notes that changed since the last visit. */
-  unseenKeys?: ReadonlySet<string>;
+  /** The notes that changed since the last visit, by identity: one PR can have notes on several days. */
+  unseen?: ReadonlySet<PatchNote>;
 }) {
   const [topic, setTopic] = useState<TopicFilter>("all");
   const [query, setQuery] = useState("");
@@ -164,7 +163,7 @@ export function WhatsNewList({
   );
   const groups = useMemo(() => (active ? groupByDate(listed) : everyGroup), [active, listed, everyGroup]);
 
-  const newNotes = useMemo(() => (unseenKeys && unseenKeys.size > 0 ? notes.filter((n) => unseenKeys.has(noteKey(n))) : []), [notes, unseenKeys]);
+  const newNotes = useMemo(() => (unseen && unseen.size > 0 ? notes.filter((n) => unseen.has(n)) : []), [notes, unseen]);
   const targetNote = useMemo(() => (targetId ? notes.find((n) => noteAnchor(n) === targetId) : undefined), [notes, targetId]);
 
   // The first screen always holds every new note and the note a link points at.
@@ -274,7 +273,7 @@ export function WhatsNewList({
                     <NoteItem
                       key={`${note.date}-${note.title}`}
                       note={note}
-                      isNew={unseenKeys?.has(noteKey(note)) ?? false}
+                      isNew={unseen?.has(note) ?? false}
                       isTarget={targetNote === note}
                       expandedByDefault={trimmed !== ""}
                       cardHref={cardHref}
@@ -309,17 +308,17 @@ export function WhatsNewFeed({
   const fetched = usePatchNotes();
   const all = notes ?? fetched;
   // What changed since the last visit is read once, before this visit marks everything seen.
-  const [unseen, setUnseen] = useState<ReadonlySet<string> | null>(null);
+  const [unseen, setUnseen] = useState<ReadonlySet<PatchNote> | null>(null);
   const captured = useRef(false);
   useEffect(() => {
     if (!all || captured.current) return;
     captured.current = true;
-    setUnseen(new Set(loadUnseen(app, undefined, all).map(noteKey)));
+    setUnseen(new Set(loadUnseen(app, undefined, all)));
   }, [app, all]);
   useEffect(() => {
     if (all) markAllSeen(app, undefined, all);
   }, [app, all]);
   const mine = useMemo(() => (all ? notesFor(app, all) : null), [app, all]);
   if (!mine) return <div className="wn-loading" aria-busy="true" />;
-  return <WhatsNewList notes={mine} className={className} cardHref={cardHref} unseenKeys={unseen ?? undefined} />;
+  return <WhatsNewList notes={mine} className={className} cardHref={cardHref} unseen={unseen ?? undefined} />;
 }
