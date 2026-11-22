@@ -3,6 +3,7 @@ const helpers = "packages/patch-notes/src/helpers.ts";
 const seen = "packages/patch-notes/src/lastSeen.ts";
 const notes = "packages/patch-notes/src/notes.ts";
 const list = "packages/patch-notes/src/WhatsNewList.tsx";
+const card = "packages/patch-notes/src/WhatsNewCard.tsx";
 const noteCards = "packages/patch-notes/src/NoteCards.tsx";
 module.exports = {
   cwd: "packages/patch-notes",
@@ -51,9 +52,9 @@ module.exports = {
     { id: "wn-older-adds-no-day-across-gap", file: helpers, from: "return Math.max(n, shown + 1);", to: "return n;", kills: ["Show older always adds at least one day, even across a long gap (#1390)"] },
     { id: "wn-month-jump-no-reveal", file: list, from: "    setRequested(Math.max(shownCount, groupCountThrough(groups, group.date)));\n", to: "", kills: ["lists the months and a pick reveals that month and scrolls to its first day (#1390)"] },
     { id: "wn-month-jump-no-scroll", file: list, from: "    setJumpTo(group.date);\n", to: "", kills: ["lists the months and a pick reveals that month and scrolls to its first day (#1390)"] },
-    { id: "wn-new-read-after-marking-seen", file: list, from: "setUnseen(new Set(loadUnseen(app, undefined, all).map(noteKey)));", to: "markAllSeen(app, undefined, all);\n    setUnseen(new Set(loadUnseen(app, undefined, all).map(noteKey)));", kills: ["marks what is new, says how many, and still counts the visit as seen (#1390)"] },
+    { id: "wn-new-read-after-marking-seen", file: list, from: "setUnseen(new Set(loadUnseen(app, undefined, all)));", to: "markAllSeen(app, undefined, all);\n    setUnseen(new Set(loadUnseen(app, undefined, all)));", kills: ["marks what is new, says how many, and still counts the visit as seen (#1390)"] },
     { id: "wn-new-range-not-extended", file: list, from: "    if (oldestNew) shownCount = Math.max(shownCount, groupCountThrough(groups, oldestNew.date));\n", to: "", kills: ["new notes are on screen even when they are older than 14 days (#1390)"] },
-    { id: "wn-new-first-visit-shows-backlog", file: list, from: "setUnseen(new Set(loadUnseen(app, undefined, all).map(noteKey)));", to: "setUnseen(new Set(all.map(noteKey)));", kills: ["a first visit has no New marks (#1390)"] },
+    { id: "wn-new-first-visit-shows-backlog", file: list, from: "setUnseen(new Set(loadUnseen(app, undefined, all)));", to: "setUnseen(new Set(all));", kills: ["a first visit has no New marks (#1390)"] },
     { id: "wn-topic-event-matches-inside-words", file: helpers, from: "const RANKED_WORDS = /\\b(ranked|tournaments?|bount(y|ies)|leaderboards?|ratings?|events?|seasons?)\\b/i;", to: "const RANKED_WORDS = /(ranked|tournaments?|bount(y|ies)|leaderboards?|ratings?|events?|seasons?)/i;", kills: ["works out topics from the words and lets a note name its own (#1390)"] },
     { id: "wn-topic-override-ignored", file: helpers, from: "  if (note.topics) return [...note.topics];\n", to: "", kills: ["works out topics from the words and lets a note name its own (#1390)"] },
     { id: "wn-topic-cards-field-ignored", file: helpers, from: "note.cards?.length || CARDS_TITLE", to: "CARDS_TITLE", kills: ["works out topics from the words and lets a note name its own (#1390)"] },
@@ -73,5 +74,11 @@ module.exports = {
     { id: "wn-long-note-never-folds", file: list, from: "export const LONG_NOTE_CHARS = 260;", to: "export const LONG_NOTE_CHARS = 100000;", kills: ["only notes over the limit fold, and More / Less toggles them (#1390)"] },
     { id: "wn-long-note-search-match-stays-folded", file: list, from: "const forced = isTarget || expandedByDefault;", to: "const forced = isTarget;", kills: ["a search match shows the whole note (#1390)"] },
     { id: "wn-long-note-more-not-expanded", file: list, from: "aria-expanded={open}", to: "aria-expanded={false}", kills: ["only notes over the limit fold, and More / Less toggles them (#1390)"] },
+    // #1401: New marks per note, and See all leaves the notes unseen for the page
+    { id: "wn1401-new-marks-by-pr", edits: [
+      { file: list, from: "notes.filter((n) => unseen.has(n))", to: "notes.filter((n) => [...unseen].some((u) => u.pr === n.pr))" },
+      { file: list, from: "unseen?.has(note) ?? false", to: "unseen ? [...unseen].some((u) => u.pr === note.pr) : false" },
+    ], kills: ["marks only the unseen note when one PR has notes on several days (#1401)"] },
+    { id: "wn1401-see-all-marks-seen", file: card, from: "onClick={() => setOpen(false)}>\n          See all", to: "onClick={dismiss}>\n          See all", kills: ["See all closes the card without marking anything seen (#1401)"] },
   ],
 };

@@ -21,6 +21,7 @@ describe("saving a starter deck as a copy (#1386)", () => {
     expect(deck.name).toBe("Starter: OP17 Red (copy)");
     expect(deck.cards).toEqual(["ST01-006", "ST01-007"]);
     expect(deck.plannerDeckId).toBeUndefined();
+    expect(deck.noMerge).toBe(true);
     expect(deck.artPrefs).toEqual({ "ST01-006": "alt1", "ST01-007": "alt2" });
     expect(getSavedDeck(source.id)?.cards).toEqual(["ST01-006", "ST01-006"]);
     expect(listSavedDecks()).toHaveLength(2);

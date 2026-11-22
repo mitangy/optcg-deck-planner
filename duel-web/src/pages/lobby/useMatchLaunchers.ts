@@ -176,7 +176,6 @@ export function useMatchLaunchers(deps: {
     }
     const launch = { status: `Playing ${tp.opponent}…`, leaderId: selectedDeck.leaderId, invite: false };
     runFriendAction(launch, async (gen) => {
-      setActiveTournamentMatch({ code: tp.code, matchId: tp.matchId });
       const claim = await claimMatchRoom(
         () => playTournamentMatch(tp.code, tp.matchId),
         (ms) => new Promise((r) => setTimeout(r, ms)),
@@ -185,6 +184,7 @@ export function useMatchLaunchers(deps: {
       const wire = deckToWire(await freshDeck(selectedDeck));
       if (claim.action === "join") {
         await connect({ ...opts, serverUrl: roomServerUrl(opts.serverUrl, claim.server_url), roomId: claim.room_id, deck: wire }, gen);
+        setActiveTournamentMatch({ code: tp.code, matchId: tp.matchId, roomId: claim.room_id });
         return;
       }
       await connect({
@@ -194,6 +194,7 @@ export function useMatchLaunchers(deps: {
         createOptions: tournamentCreateOptions(wire, timerFromPreset(tp.timer), claim.ticket),
       }, gen);
       if (client.roomId) {
+        setActiveTournamentMatch({ code: tp.code, matchId: tp.matchId, roomId: client.roomId });
         await playTournamentMatch(tp.code, tp.matchId, { room_id: client.roomId, server_url: client.serverUrl }).catch(() => undefined);
       }
     });

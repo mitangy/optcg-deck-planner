@@ -5775,6 +5775,8 @@ export interface components {
             leaderId: string;
             /** Name */
             name: string;
+            /** Nomerge */
+            noMerge?: boolean | null;
             /** Plannerart */
             plannerArt?: {
                 [key: string]: string;
