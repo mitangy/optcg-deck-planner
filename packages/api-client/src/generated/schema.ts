@@ -2924,6 +2924,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/group-buys/{group_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Group Buy
+         * @description Finish the buy; copies that never arrived stay on members' Shopping lists.
+         */
+        post: operations["close_group_buy_group_buys__group_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/group-buys/{group_id}/complete": {
         parameters: {
             query?: never;
@@ -3068,6 +3088,101 @@ export interface paths {
          * @description Update order notes, shipping cost, and shipping split (host).
          */
         patch: operations["patch_group_buy_order_group_buys__group_id__order_patch"];
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Group Buy Order
+         * @description Add one seller package (host). The first one moves locked -> ordered; Owned is untouched.
+         */
+        post: operations["post_group_buy_order_group_buys__group_id__orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Group Buy Order
+         * @description Match a pasted order and show who its copies would go to; saves nothing.
+         */
+        post: operations["preview_group_buy_order_group_buys__group_id__orders_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Group Buy Order */
+        delete: operations["delete_group_buy_order_group_buys__group_id__orders__order_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Group Buy Order Details */
+        patch: operations["patch_group_buy_order_details_group_buys__group_id__orders__order_id__patch"];
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/{order_id}/arrival": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Group Buy Order Arrival
+         * @description Set how many copies of each line arrived (or all); members' Owned follows.
+         */
+        put: operations["put_group_buy_order_arrival_group_buys__group_id__orders__order_id__arrival_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/{order_id}/arrival/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo Group Buy Order Arrival */
+        post: operations["undo_group_buy_order_arrival_group_buys__group_id__orders__order_id__arrival_undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/group-buys/{group_id}/public": {
@@ -6970,6 +7085,30 @@ export interface components {
             /** Pool Url */
             pool_url?: string | null;
         };
+        /** GroupBuyArrivalLineIn */
+        GroupBuyArrivalLineIn: {
+            /** Line Id */
+            line_id: number;
+            /** Qty Arrived */
+            qty_arrived: number;
+        };
+        /** GroupBuyArrivalUndo */
+        GroupBuyArrivalUndo: {
+            /** Expected Version */
+            expected_version: number;
+        };
+        /** GroupBuyArrivalUpdate */
+        GroupBuyArrivalUpdate: {
+            /**
+             * All
+             * @default false
+             */
+            all: boolean;
+            /** Expected Version */
+            expected_version: number;
+            /** Lines */
+            lines?: components["schemas"]["GroupBuyArrivalLineIn"][] | null;
+        };
         /** GroupBuyArtWantOut */
         GroupBuyArtWantOut: {
             /** Product Id */
@@ -7061,6 +7200,11 @@ export interface components {
             order_notes: string;
             /** Ordered At */
             ordered_at?: string | null;
+            /**
+             * Orders
+             * @default []
+             */
+            orders: components["schemas"]["GroupBuyOrderOut"][];
             /** Public Path */
             public_path?: string | null;
             /**
@@ -7147,6 +7291,11 @@ export interface components {
              */
             alt_arts: components["schemas"]["PrintingView"][];
             /**
+             * Arrived
+             * @default 0
+             */
+            arrived: number;
+            /**
              * Art Wants
              * @default []
              */
@@ -7177,10 +7326,20 @@ export interface components {
              * @default
              */
             image_url: string;
+            /**
+             * In Order
+             * @default 0
+             */
+            in_order: number;
             /** Market Price */
             market_price?: number | null;
             /** Members */
             members: components["schemas"]["GroupBuyMemberQtyOut"][];
+            /**
+             * My Arrived
+             * @default 0
+             */
+            my_arrived: number;
             /**
              * My Deck Qty
              * @default 0
@@ -7197,6 +7356,11 @@ export interface components {
              */
             my_extras: components["schemas"]["GroupBuyMyExtraOut"][];
             /**
+             * My In Order
+             * @default 0
+             */
+            my_in_order: number;
+            /**
              * My Is Custom
              * @default false
              */
@@ -7206,6 +7370,11 @@ export interface components {
              * @default 0
              */
             my_need: number;
+            /**
+             * My Not Ordered
+             * @default 0
+             */
+            my_not_ordered: number;
             /**
              * My Qty
              * @default 0
@@ -7223,6 +7392,11 @@ export interface components {
             my_used_in: string[];
             /** Name */
             name: string;
+            /**
+             * Not Ordered
+             * @default 0
+             */
+            not_ordered: number;
             /** Preferred Market Price */
             preferred_market_price?: number | null;
             /** Preferred Product Id */
@@ -7340,6 +7514,197 @@ export interface components {
              * @default 0
              */
             wanted: number;
+        };
+        /** GroupBuyOrderAdded */
+        GroupBuyOrderAdded: {
+            detail: components["schemas"]["GroupBuyDetail"];
+            /** Order Id */
+            order_id: number;
+            /**
+             * Unmatched
+             * @default []
+             */
+            unmatched: components["schemas"]["GroupBuyReceiptUnmatchedOut"][];
+        };
+        /** GroupBuyOrderAllocationOut */
+        GroupBuyOrderAllocationOut: {
+            /** Display Name */
+            display_name: string;
+            /** Qty */
+            qty: number;
+            /** Qty Arrived */
+            qty_arrived: number;
+            /** User Id */
+            user_id: number;
+        };
+        /** GroupBuyOrderCreate */
+        GroupBuyOrderCreate: {
+            /** Lines */
+            lines?: components["schemas"]["GroupBuyOrderLineIn"][] | null;
+            /**
+             * Mark Arrived
+             * @default false
+             */
+            mark_arrived: boolean;
+            /**
+             * Order Number
+             * @default
+             */
+            order_number: string;
+            /**
+             * Receipt Text
+             * @default
+             */
+            receipt_text: string;
+            /**
+             * Seller Name
+             * @default
+             */
+            seller_name: string;
+            /**
+             * Tracking Url
+             * @default
+             */
+            tracking_url: string;
+        };
+        /** GroupBuyOrderLineIn */
+        GroupBuyOrderLineIn: {
+            /** Card Id */
+            card_id: string;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+        };
+        /** GroupBuyOrderLineOut */
+        GroupBuyOrderLineOut: {
+            /**
+             * Allocations
+             * @default []
+             */
+            allocations: components["schemas"]["GroupBuyOrderAllocationOut"][];
+            /** Card Id */
+            card_id: string;
+            /** Id */
+            id: number;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty Arrived */
+            qty_arrived: number;
+            /**
+             * Qty Extra
+             * @default 0
+             */
+            qty_extra: number;
+            /** Qty Ordered */
+            qty_ordered: number;
+        };
+        /** GroupBuyOrderOut */
+        GroupBuyOrderOut: {
+            /** Arrived At */
+            arrived_at?: string | null;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: number;
+            /**
+             * Lines
+             * @default []
+             */
+            lines: components["schemas"]["GroupBuyOrderLineOut"][];
+            /**
+             * Order Number
+             * @default
+             */
+            order_number: string;
+            /** Qty Allocated */
+            qty_allocated: number;
+            /** Qty Arrived */
+            qty_arrived: number;
+            /** Qty Extra */
+            qty_extra: number;
+            /** Qty Ordered */
+            qty_ordered: number;
+            /**
+             * Receipt Text
+             * @default
+             */
+            receipt_text: string;
+            /**
+             * Seller Name
+             * @default
+             */
+            seller_name: string;
+            /** Status */
+            status: string;
+            /**
+             * Tracking Url
+             * @default
+             */
+            tracking_url: string;
+            /** Version */
+            version: number;
+        };
+        /** GroupBuyOrderPatch */
+        GroupBuyOrderPatch: {
+            /** Expected Version */
+            expected_version?: number | null;
+            /** Order Number */
+            order_number?: string | null;
+            /** Seller Name */
+            seller_name?: string | null;
+            /** Tracking Url */
+            tracking_url?: string | null;
+        };
+        /** GroupBuyOrderPreview */
+        GroupBuyOrderPreview: {
+            /** Lines */
+            lines: components["schemas"]["GroupBuyOrderPreviewLine"][];
+            /** Unmatched */
+            unmatched: components["schemas"]["GroupBuyReceiptUnmatchedOut"][];
+        };
+        /** GroupBuyOrderPreviewAllocation */
+        GroupBuyOrderPreviewAllocation: {
+            /** Display Name */
+            display_name: string;
+            /** Qty */
+            qty: number;
+            /** User Id */
+            user_id: number;
+        };
+        /** GroupBuyOrderPreviewLine */
+        GroupBuyOrderPreviewLine: {
+            /**
+             * Allocations
+             * @default []
+             */
+            allocations: components["schemas"]["GroupBuyOrderPreviewAllocation"][];
+            /** Card Id */
+            card_id: string;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+            /**
+             * Qty Extra
+             * @default 0
+             */
+            qty_extra: number;
+        };
+        /** GroupBuyOrderPreviewRequest */
+        GroupBuyOrderPreviewRequest: {
+            /** Receipt Text */
+            receipt_text: string;
         };
         /** GroupBuyOrderUpdate */
         GroupBuyOrderUpdate: {
@@ -15127,6 +15492,37 @@ export interface operations {
             };
         };
     };
+    close_group_buy_group_buys__group_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     complete_group_buy_group_buys__group_id__complete_post: {
         parameters: {
             query?: never;
@@ -15401,6 +15797,216 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["GroupBuyOrderUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_group_buy_order_group_buys__group_id__orders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderAdded"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_group_buy_order_group_buys__group_id__orders_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_group_buy_order_group_buys__group_id__orders__order_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_group_buy_order_details_group_buys__group_id__orders__order_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_group_buy_order_arrival_group_buys__group_id__orders__order_id__arrival_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyArrivalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_group_buy_order_arrival_group_buys__group_id__orders__order_id__arrival_undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyArrivalUndo"];
             };
         };
         responses: {

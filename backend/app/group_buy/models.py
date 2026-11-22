@@ -9,12 +9,14 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     false,
     func,
+    text,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -65,6 +67,9 @@ class GroupBuy(Base):
     )
     receipt_applies: Mapped[list[GroupBuyReceiptApply]] = relationship(
         back_populates="group_buy", cascade="all, delete-orphan"
+    )
+    orders: Mapped[list[GroupBuyOrder]] = relationship(
+        back_populates="group_buy", cascade="all, delete-orphan", order_by="GroupBuyOrder.id"
     )
 
 
@@ -182,6 +187,9 @@ class GroupBuyReceiptApply(Base):
     )
     status_before: Mapped[str] = mapped_column(String(32), default=GroupBuyStatus.ORDERED)
     set_ordered_at: Mapped[int] = mapped_column(Integer, default=0)
+    order_id: Mapped[int | None] = mapped_column(
+        ForeignKey("group_buy_orders.id"), nullable=True, index=True
+    )
     applied_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -205,3 +213,81 @@ class GroupBuyReceiptApplyLine(Base):
     qty: Mapped[int] = mapped_column(Integer, default=0)
 
     apply: Mapped[GroupBuyReceiptApply] = relationship(back_populates="lines")
+
+
+class GroupBuyOrder(Base):
+    """One seller package. Owned counts move only when copies arrive (see GroupBuyReceiptApply.order_id)."""
+
+    __tablename__ = "group_buy_orders"
+    __table_args__ = (
+        Index(
+            "uq_group_buy_order_number",
+            "group_buy_id",
+            "order_number",
+            unique=True,
+            sqlite_where=text("order_number <> ''"),
+            postgresql_where=text("order_number <> ''"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_buy_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
+    )
+    order_number: Mapped[str] = mapped_column(String(200), default="")
+    seller_name: Mapped[str] = mapped_column(String(200), default="")
+    tracking_url: Mapped[str] = mapped_column(String(1000), default="")
+    receipt_text: Mapped[str] = mapped_column(Text, default="")
+    created_by_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    arrived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    version: Mapped[int] = mapped_column(Integer, default=1)
+
+    group_buy: Mapped[GroupBuy] = relationship(back_populates="orders")
+    lines: Mapped[list[GroupBuyOrderLine]] = relationship(
+        back_populates="order", cascade="all, delete-orphan", order_by="GroupBuyOrderLine.id"
+    )
+
+
+class GroupBuyOrderLine(Base):
+    __tablename__ = "group_buy_order_lines"
+    __table_args__ = (
+        UniqueConstraint("order_id", "card_id", "product_id", name="uq_group_buy_order_line"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buy_orders.id", ondelete="CASCADE"), index=True
+    )
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    # NULL = the standard art (Owned); a product id = that alternate printing (OwnedPrinting).
+    product_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    qty_ordered: Mapped[int] = mapped_column(Integer, default=0)
+
+    order: Mapped[GroupBuyOrder] = relationship(back_populates="lines")
+    allocations: Mapped[list[GroupBuyOrderAllocation]] = relationship(
+        back_populates="line", cascade="all, delete-orphan", order_by="GroupBuyOrderAllocation.id"
+    )
+
+
+class GroupBuyOrderAllocation(Base):
+    """Which member each ordered copy is for, fixed when the order is added."""
+
+    __tablename__ = "group_buy_order_allocations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_line_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buy_order_lines.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+    qty_arrived: Mapped[int] = mapped_column(Integer, default=0)
+
+    line: Mapped[GroupBuyOrderLine] = relationship(back_populates="allocations")

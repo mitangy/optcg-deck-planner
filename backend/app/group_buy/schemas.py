@@ -103,6 +103,50 @@ class GroupBuyLineOut(BaseModel):
     my_used_in: list[str] = []
     my_deck_qty: int = 0
     my_extras: list[GroupBuyMyExtraOut] = []
+    # Copies of this card already in a seller order / arrived / not in any order yet (#1418).
+    in_order: int = 0
+    arrived: int = 0
+    not_ordered: int = 0
+    my_in_order: int = 0
+    my_arrived: int = 0
+    my_not_ordered: int = 0
+
+
+class GroupBuyOrderAllocationOut(BaseModel):
+    user_id: int
+    display_name: str
+    qty: int
+    qty_arrived: int
+
+
+class GroupBuyOrderLineOut(BaseModel):
+    id: int
+    card_id: str
+    name: str = ""
+    product_id: int | None = None
+    qty_ordered: int
+    qty_arrived: int
+    # Ordered copies nobody's snapshot still needed; they cannot be tracked per member.
+    qty_extra: int = 0
+    allocations: list[GroupBuyOrderAllocationOut] = []
+
+
+class GroupBuyOrderOut(BaseModel):
+    id: int
+    seller_name: str = ""
+    status: str
+    qty_ordered: int
+    qty_allocated: int
+    qty_arrived: int
+    qty_extra: int
+    arrived_at: str | None = None
+    created_at: str
+    version: int
+    # Host only: members and the invite-link view get blanks.
+    order_number: str = ""
+    tracking_url: str = ""
+    receipt_text: str = ""
+    lines: list[GroupBuyOrderLineOut] = []
 
 
 class GroupBuySummary(BaseModel):
@@ -139,6 +183,7 @@ class GroupBuyDetail(GroupBuySummary):
     has_receipt: bool = False
     can_undo_purchase: bool = False
     read_only: bool = False
+    orders: list[GroupBuyOrderOut] = []
 
 
 class GroupBuyInvitePreview(BaseModel):
@@ -197,3 +242,70 @@ class GroupBuyReceiptMatchReport(BaseModel):
     summary: dict[str, int]
     can_apply_full: bool
     can_apply_partial: bool
+
+
+class GroupBuyOrderLineIn(BaseModel):
+    card_id: str = Field(min_length=1, max_length=32)
+    product_id: int | None = None
+    qty: int = Field(ge=1, le=999)
+
+
+class GroupBuyOrderCreate(BaseModel):
+    order_number: str = Field(default="", max_length=200)
+    seller_name: str = Field(default="", max_length=200)
+    tracking_url: str = Field(default="", max_length=1000)
+    receipt_text: str = Field(default="", max_length=200_000)
+    lines: list[GroupBuyOrderLineIn] | None = None
+    mark_arrived: bool = False
+
+
+class GroupBuyOrderPatch(BaseModel):
+    order_number: str | None = Field(default=None, max_length=200)
+    seller_name: str | None = Field(default=None, max_length=200)
+    tracking_url: str | None = Field(default=None, max_length=1000)
+    expected_version: int | None = None
+
+
+class GroupBuyOrderPreviewRequest(BaseModel):
+    receipt_text: str = Field(min_length=1, max_length=200_000)
+
+
+class GroupBuyArrivalLineIn(BaseModel):
+    line_id: int
+    qty_arrived: int = Field(ge=0, le=999)
+
+
+class GroupBuyArrivalUpdate(BaseModel):
+    expected_version: int
+    all: bool = False
+    lines: list[GroupBuyArrivalLineIn] | None = None
+
+
+class GroupBuyArrivalUndo(BaseModel):
+    expected_version: int
+
+
+class GroupBuyOrderPreviewAllocation(BaseModel):
+    user_id: int
+    display_name: str
+    qty: int
+
+
+class GroupBuyOrderPreviewLine(BaseModel):
+    card_id: str
+    name: str = ""
+    product_id: int | None = None
+    qty: int
+    allocations: list[GroupBuyOrderPreviewAllocation] = []
+    qty_extra: int = 0
+
+
+class GroupBuyOrderPreview(BaseModel):
+    lines: list[GroupBuyOrderPreviewLine]
+    unmatched: list[GroupBuyReceiptUnmatchedOut]
+
+
+class GroupBuyOrderAdded(BaseModel):
+    order_id: int
+    unmatched: list[GroupBuyReceiptUnmatchedOut] = []
+    detail: GroupBuyDetail
