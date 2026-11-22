@@ -31,6 +31,8 @@ export type DuelSettings = {
   colorMode: ColorMode;
   donArt: number | null;
   profileCard: string;
+  /** Alt art id of the profile card; "" is the base art. */
+  profileArt: string;
 
   endTurnConfirm: EndTurnConfirm;
   responseStops: ResponseStops;
@@ -104,6 +106,7 @@ const DEFAULTS: DuelSettings = {
   colorMode: "dark",
   donArt: null,
   profileCard: "",
+  profileArt: "",
   endTurnConfirm: "actions",
   responseStops: "always",
   screenOrientation: "auto",

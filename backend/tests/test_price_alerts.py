@@ -686,3 +686,67 @@ def test_notification_title_names_the_card_and_short_art_1360(db, outbox):
         "Gol.D.Roger · SP · Wanted Poster is now $205.00",
     ]
     assert "Gol.D.Roger · SP · Wanted Poster: $205.00" in outbox.sent[0]["text"]
+
+
+def _fire_then_wobble(db, outbox, *, direction, target, hit, wobble):
+    user = _seed(db, base=hit)
+    alert = _alert(db, user, target=target, direction=direction)
+    assert price_alerts.check_alerts(db, LATER)["fired"] == 1
+    _set_price(db, base=wobble)
+    price_alerts.check_alerts(db, LATER)
+    db.refresh(alert)
+    return user, alert
+
+
+def test_below_alert_does_not_fire_twice_when_the_price_wobbles_around_the_target_1416(db, outbox):
+    user, alert = _fire_then_wobble(db, outbox, direction="below", target=350.0, hit=347.62, wobble=351.72)
+    assert alert.armed is False
+
+    _set_price(db, base=347.62)
+
+    assert price_alerts.check_alerts(db, LATER)["fired"] == 0
+    assert len(_inbox(db, user)) == 1 and len(outbox.sent) == 1
+
+
+def test_below_alert_fires_again_after_the_price_clearly_recovers_1416(db, outbox):
+    user, alert = _fire_then_wobble(db, outbox, direction="below", target=350.0, hit=347.62, wobble=370.0)
+    assert alert.armed is True
+
+    _set_price(db, base=340.0)
+
+    assert price_alerts.check_alerts(db, LATER)["fired"] == 1
+    assert len(_inbox(db, user)) == 2
+
+
+def test_above_alert_does_not_fire_twice_when_the_price_wobbles_around_the_target_1416(db, outbox):
+    user, alert = _fire_then_wobble(db, outbox, direction="above", target=400.0, hit=403.14, wobble=399.94)
+    assert alert.armed is False
+
+    _set_price(db, base=403.14)
+
+    assert price_alerts.check_alerts(db, LATER)["fired"] == 0
+    assert len(_inbox(db, user)) == 1 and len(outbox.sent) == 1
+
+
+def test_notifications_list_shows_old_stored_price_alert_titles_in_the_short_format_1416(client):
+    c, SessionLocal = client
+    _catalog(SessionLocal, base=5.0, alt=3.0)
+    uid = _login(c, SessionLocal, "a@x.test")
+    with SessionLocal() as s:
+        s.add(Notification(user_id=uid, kind="price_alert", title="Luffy (Alt) is now $3.00",
+                           card_id=LUFFY, product_id=ALT, price=3.0))
+        s.add(Notification(user_id=uid, kind="price_alert", title="Luffy (OP01-001) is now $5.00",
+                           card_id=LUFFY, product_id=0, price=5.0))
+        s.add(Notification(user_id=uid, kind="price_alert", title="Gone Card is now $9.00",
+                           card_id="OP99-999", product_id=0, price=9.0))
+        s.commit()
+
+    titles = {n["card_id"] + str(n["product_id"]): n["title"] for n in c.get("/notifications").json()["items"]}
+
+    assert titles[LUFFY + str(ALT)] == "Luffy · Alt is now $3.00"
+    assert titles[LUFFY + "0"] == "Luffy is now $5.00"
+    assert titles["OP99-9990"] == "Gone Card is now $9.00"
+
+
+def test_short_art_name_drops_the_card_name_when_the_card_name_carries_a_number_1416():
+    assert price_alerts.short_art_name("Nami (OP11-041) (Heroine Leader)", "Nami (041)", "OP11-041") == "Heroine Leader"

@@ -40,7 +40,9 @@ export function cleanCardName(cardName: string, cardId = ""): string {
 export function shortArtName(artName: string, cardName: string, cardId = ""): string {
   if (artName === "Base") return "Base art";
   let rest = artName;
-  for (const token of [cardName, cleanCardName(cardName, cardId), cardId]) {
+  const base = cleanCardName(cardName, cardId);
+  const numberless = base.replace(/\s*\(\d{1,3}\)\s*$/, ""); // "Nami (041)" -> "Nami" (#1416)
+  for (const token of [cardName, base, numberless, cardId]) {
     if (token) rest = rest.replace(new RegExp(escapeRe(token), "gi"), " ");
   }
   rest = rest.replace(/\(\s*\d{1,3}\s*\)/g, " ");
