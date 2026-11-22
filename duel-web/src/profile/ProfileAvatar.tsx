@@ -1,4 +1,4 @@
-import { resolveCardImageUrl } from "../decks/artPrefs";
+import { profileArtUrl } from "./profileArt";
 import { useArtFallback } from "../cards/useArtFallback";
 import "./profile.css";
 
@@ -10,9 +10,9 @@ function hueFor(name: string): number {
   return HUES[h % HUES.length];
 }
 
-/** A card's art cropped to a circle (toward the top, where the face is), or the first letter of the name when none is chosen. */
-export function ProfileAvatar({ cardId, name, size }: { cardId: string; name: string; size?: number }) {
-  const { src, fail } = useArtFallback(cardId ? resolveCardImageUrl(cardId, { size: "thumb" }) : null, cardId || null);
+/** A card's art cropped to a circle (toward the top, where the face is), or the first letter of the name when none is chosen. Shows the base art unless `artId` names one of its alt arts; never follows in-game deck art prefs. */
+export function ProfileAvatar({ cardId, name, size, artId }: { cardId: string; name: string; size?: number; artId?: string }) {
+  const { src, fail } = useArtFallback(cardId ? profileArtUrl(cardId, artId ?? "", "thumb") : null, cardId || null);
   const style = size ? { width: size, height: size, fontSize: size * 0.46 } : undefined;
   if (cardId && src) {
     return (
