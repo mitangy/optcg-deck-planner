@@ -120,6 +120,10 @@ describe("short art and card names (#1360)", () => {
     expect(shortArtName("Base", "Luffy", "OP01-001")).toBe("Base art");
   });
 
+  it("shortArtName drops the card name when the card name carries a number like (041) (#1416)", () => {
+    expect(shortArtName("Nami (OP11-041) (Heroine Leader)", "Nami (041)", "OP11-041")).toBe("Heroine Leader");
+  });
+
   it("falls back to the raw name when stripping leaves nothing (#1360)", () => {
     expect(shortArtName("Luffy - OP01-001", "Luffy", "OP01-001")).toBe("Luffy - OP01-001");
   });

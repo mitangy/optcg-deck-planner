@@ -746,3 +746,7 @@ def test_notifications_list_shows_old_stored_price_alert_titles_in_the_short_for
     assert titles[LUFFY + str(ALT)] == "Luffy · Alt is now $3.00"
     assert titles[LUFFY + "0"] == "Luffy is now $5.00"
     assert titles["OP99-9990"] == "Gone Card is now $9.00"
+
+
+def test_short_art_name_drops_the_card_name_when_the_card_name_carries_a_number_1416():
+    assert price_alerts.short_art_name("Nami (OP11-041) (Heroine Leader)", "Nami (041)", "OP11-041") == "Heroine Leader"

@@ -80,7 +80,8 @@ def short_art_name(art_name: str, card_name: str, card_id: str = "") -> str:
         return "Base art"
     rest = art_name
     base = clean_card_name(card_name, card_id)
-    for token in (card_name, base, card_id):
+    numberless = re.sub(r"\s*\(\d{1,3}\)\s*$", "", base)  # "Nami (041)" -> "Nami" (#1416)
+    for token in (card_name, base, numberless, card_id):
         if token:
             rest = re.sub(re.escape(token), " ", rest, flags=re.IGNORECASE)
     rest = re.sub(r"\(\s*\d{1,3}\s*\)", " ", rest)
