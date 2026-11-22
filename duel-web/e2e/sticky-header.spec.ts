@@ -97,9 +97,14 @@ test("a Settings jump link lands a section below the header (#510)", async ({ pa
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
   await scrollSettled(page, await page.evaluate(() => window.scrollY));
   const bar = (await stuckBar(page))!;
-  const top = await page.evaluate(() => document.getElementById("appearance")!.getBoundingClientRect().top);
-  expect(top, "the section is not hidden under the header").toBeGreaterThanOrEqual(bar.bottom);
-  expect(top, "and sits right below it").toBeLessThan(bar.bottom + 40);
+  const { top, navBottom } = await page.evaluate(() => ({
+    top: document.getElementById("appearance")!.getBoundingClientRect().top,
+    // The section bar sticks under the header since #1389, so the section lands below both.
+    navBottom: document.querySelector(".settings-jump-bar")!.getBoundingClientRect().bottom,
+  }));
+  expect(navBottom, "the section bar is stuck under the header (#1389)").toBeGreaterThanOrEqual(bar.bottom);
+  expect(top, "the section is not hidden under the header or the section bar").toBeGreaterThanOrEqual(navBottom);
+  expect(top, "and sits right below them").toBeLessThan(navBottom + 40);
 });
 
 test("the deck editor's card search column stays below the header (#510)", async ({ page }, testInfo) => {

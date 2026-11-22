@@ -128,7 +128,6 @@
   display: flex;
   flex-wrap: nowrap;
   gap: 0.3rem;
-  margin: 0 0 0.75rem;
   /* One row: the chips scroll sideways on a narrow screen instead of wrapping. */
   overflow-x: auto;
   scrollbar-width: none;
@@ -156,6 +155,12 @@
   color: var(--muted);
   font-size: 0.8rem;
   text-decoration: none;
+}
+
+.settings-jump a[aria-current="true"] {
+  color: var(--ink);
+  border-color: var(--chrome);
+  background: rgb(var(--chrome-rgb) / 0.12);
 }
 
 .panel[id] {
