@@ -23,6 +23,8 @@ export type SavedDeck = {
   plannerArt?: Record<string, string>;
   plannerDeckId?: number;
   editedLocally?: boolean;
+  /** Marks a deliberate copy so account sync never merges it into an identical deck (#1400). */
+  noMerge?: boolean;
   updatedAt: number;
 };
 
@@ -212,6 +214,7 @@ type SaveDeckInput = {
   plannerArt?: Record<string, string>;
   plannerDeckId?: number;
   editedLocally?: boolean;
+  noMerge?: boolean;
 };
 
 /**
@@ -241,6 +244,7 @@ export function saveDeckResult(input: SaveDeckInput): { deck: SavedDeck; persist
     plannerArt,
     plannerDeckId: input.plannerDeckId ?? existing?.plannerDeckId,
     editedLocally: input.editedLocally ?? existing?.editedLocally,
+    noMerge: input.noMerge ?? existing?.noMerge,
     updatedAt: Date.now(),
   };
   const idx = decks.findIndex((d) => d.id === id);
@@ -261,6 +265,7 @@ export function duplicateDeck(id: string): SavedDeck | undefined {
   const deck = getSavedDeck(id);
   if (!deck) return undefined;
   return saveDeck({
+    noMerge: true,
     name: `${deck.name.slice(0, MAX_DECK_NAME_LENGTH - COPY_SUFFIX.length)}${COPY_SUFFIX}`,
     leaderId: deck.leaderId,
     cards: deck.cards,

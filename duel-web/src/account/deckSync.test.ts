@@ -95,6 +95,14 @@ describe("deck sync (#619)", () => {
     expect(api.putAccountDeck.mock.calls[0][1].plannerArt).toEqual({ "OP09-118": "p2" });
   });
 
+  it("sends the no-merge flag of a copied deck so the account keeps it (#1400)", async () => {
+    api.fetchAccountDecks.mockResolvedValue({ decks: [] });
+    await syncDecks(7);
+    saveDeck({ id: "cp", name: "X (copy)", leaderId: "ST01-001", cards: [], noMerge: true });
+    await flushDeckSync();
+    expect(api.putAccountDeck.mock.calls[0][1].noMerge).toBe(true);
+  });
+
   it("adopts the planner art map of a newer account copy (#1003)", async () => {
     api.fetchAccountDecks.mockResolvedValue({ decks: [] });
     await syncDecks(7);
