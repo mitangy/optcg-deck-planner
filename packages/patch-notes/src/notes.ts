@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-22", app: "planner", pr: 1419, title: "Group buy receipts credit alt arts", text: "When the host marks a group buy purchased, alt-art copies on the receipt now land as that art in the collection of the member who wanted it, and standard copies go to everyone else. Undoing the purchase takes them back. The order number and notes are no longer shown to people who only have the invite link." },
   { date: "2026-11-22", app: "planner", pr: 1417, title: "Price alerts ping once per drop", text: "Price alerts no longer ping you twice for the same drop when the price wobbles around your target, and all alerts in the bell use the same short card name." },
   { date: "2026-11-21", app: "duel", pr: 1393, title: "Back to your tournament after a game", text: "After a tournament game, Match over has a Back to tournament button. On the tournament page, Your match now says when your opponent is already waiting in the room, with a Join now button, and a match still waiting says whose winner you play next." },
   { date: "2026-11-21", app: "duel", pr: 1393, title: "A real tournament bracket", text: "The bracket now lines each match up with the two matches that feed it, with lines between rounds, and a 16-player bracket fits on a laptop screen. On a phone you see one round at a time with tabs, starting on the round with your match. Your own seat is marked You." },

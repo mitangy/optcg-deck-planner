@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from urllib.parse import urlencode
 
 from sqlalchemy import case, delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import Forbidden, Invalid, NotFound
@@ -23,7 +24,7 @@ from app.group_buy.models import (
     GroupBuyReceiptApplyLine,
     GroupBuySnapshotLine,
 )
-from app.planner.models import CatalogCard, CatalogPrinting, Owned
+from app.planner.models import CatalogCard, CatalogPrinting, Owned, OwnedPrinting
 from app.group_buy.schemas import (
     GroupBuyDetail,
     GroupBuyExport,
@@ -40,7 +41,11 @@ from app.group_buy.schemas import (
     GroupBuySummary,
 )
 from app.planner.schemas import GroupBuyArtWantOut
-from app.group_buy.receipt import aggregate_receipt_matches, parse_tcgplayer_receipt
+from app.group_buy.receipt import (
+    AggregatedReceiptCard,
+    aggregate_receipt_matches,
+    parse_tcgplayer_receipt,
+)
 from app.planner import shopping as shopping_svc
 from app.planner import catalog_repo
 from app.planner.owned import increment_owned
@@ -669,6 +674,7 @@ def _detail_from_group(
                 total_owed=settle.total_owed if settle else 0.0,
             )
         )
+    # Members need the order id and payment notes to pay the host; the invite-link view is open to anyone.
     receipt_text = "" if read_only else (group.receipt_text or "")
     return GroupBuyDetail(
         **_summary_fields(group, user, lines),
@@ -676,8 +682,8 @@ def _detail_from_group(
         lines=lines,
         locked_at=group.locked_at.isoformat() if group.locked_at else None,
         ordered_at=group.ordered_at.isoformat() if group.ordered_at else None,
-        external_order_id=group.external_order_id or "",
-        order_notes=group.order_notes or "",
+        external_order_id="" if read_only else (group.external_order_id or ""),
+        order_notes="" if read_only else (group.order_notes or ""),
         shipping_cost=shipping_cost,
         shipping_split=group.shipping_split or "equal",
         tax_cost=tax_cost,
@@ -1106,6 +1112,57 @@ def _subtract_owned(db: Session, user_id: int, card_id: str, delta: int) -> None
     )
 
 
+def _add_alt_owned(db: Session, user_id: int, card_id: str, product_id: int, delta: int) -> None:
+    """Credit copies of one alternate printing (``OwnedPrinting`` holds alts apart from ``Owned``)."""
+    if delta <= 0:
+        return
+    key = (OwnedPrinting.user_id == user_id, OwnedPrinting.card_id == card_id,
+           OwnedPrinting.product_id == product_id)
+    bump = (
+        update(OwnedPrinting)
+        .where(*key)
+        .values(qty=OwnedPrinting.qty + delta)
+        .execution_options(synchronize_session="fetch")
+    )
+    if db.execute(bump).rowcount:
+        return
+    try:
+        with db.begin_nested():
+            db.add(OwnedPrinting(user_id=user_id, card_id=card_id, product_id=product_id, qty=delta))
+    except IntegrityError:
+        db.execute(bump)
+
+
+def _subtract_alt_owned(db: Session, user_id: int, card_id: str, product_id: int, delta: int) -> None:
+    if delta <= 0:
+        return
+    key = (OwnedPrinting.user_id == user_id, OwnedPrinting.card_id == card_id,
+           OwnedPrinting.product_id == product_id)
+    db.execute(
+        update(OwnedPrinting)
+        .where(*key)
+        .values(qty=case((OwnedPrinting.qty > delta, OwnedPrinting.qty - delta), else_=0))
+        .execution_options(synchronize_session="fetch")
+    )
+    # A zero row is the same as no row (set_alt_owned deletes at 0).
+    db.execute(delete(OwnedPrinting).where(*key, OwnedPrinting.qty <= 0))
+
+
+def _is_alt_printing(db: Session, card_id: str, product_id: int | None) -> bool:
+    if product_id is None:
+        return False
+    return (
+        db.scalar(
+            select(CatalogPrinting.id).where(
+                CatalogPrinting.card_id == card_id,
+                CatalogPrinting.product_id == product_id,
+                CatalogPrinting.is_special == 1,
+            )
+        )
+        is not None
+    )
+
+
 def _apply_order_fields(group: GroupBuy, body: GroupBuyOrderUpdate) -> None:
     if body.external_order_id is not None:
         group.external_order_id = body.external_order_id.strip()[:200]
@@ -1337,7 +1394,12 @@ def build_receipt_match_report(
 ) -> GroupBuyReceiptMatchReport:
     group = _get_group(db, group_id)
     _require_member(group, user)
+    return _match_report(db, group, receipt_text)[0]
 
+
+def _match_report(
+    db: Session, group: GroupBuy, receipt_text: str
+) -> tuple[GroupBuyReceiptMatchReport, list[AggregatedReceiptCard]]:
     parsed = parse_tcgplayer_receipt(receipt_text)
     matched, unmatched_lines = aggregate_receipt_matches(db, parsed)
     pool = _pool_qty_by_card_db(db, group)
@@ -1426,29 +1488,73 @@ def build_receipt_match_report(
     )
     can_partial = counts["staged_copies"] > 0
 
-    return GroupBuyReceiptMatchReport(
+    report = GroupBuyReceiptMatchReport(
         lines=lines_out,
         unmatched=unmatched_out,
         summary=counts,
         can_apply_full=can_full,
         can_apply_partial=can_partial,
     )
+    return report, matched
 
 
-def _allocate_across_snapshot(
-    snapshot_rows: list[GroupBuySnapshotLine],
-    apply_qty: int,
-) -> list[tuple[GroupBuySnapshotLine, int]]:
-    remaining = apply_qty
-    out: list[tuple[GroupBuySnapshotLine, int]] = []
-    for row in sorted(snapshot_rows, key=lambda r: (r.id or 0)):
-        if remaining <= 0:
-            break
-        take = min(int(row.qty), remaining)
-        if take <= 0:
-            continue
-        out.append((row, take))
-        remaining -= take
+def _split_alt_copies(
+    db: Session,
+    group: GroupBuy,
+    rows: list[GroupBuySnapshotLine],
+    staged_qty: int,
+    alt_copies: dict[int, int],
+    memo: dict,
+) -> dict[int, tuple[dict[int, int], int]]:
+    """Per snapshot row id: (alt copies by product id, standard copies) out of ``staged_qty``.
+
+    Alt copies go first to members whose current alt wants include that art, then to
+    the rest in snapshot order; standard copies fill what is left, also in snapshot order.
+    """
+    ordered = sorted(rows, key=lambda r: (r.id or 0))
+    room = {r.id: int(r.qty) for r in ordered}
+    alts: dict[int, dict[int, int]] = {r.id: {} for r in ordered}
+    wants: dict[int, dict[int, int]] = {}
+    if alt_copies:
+        skips = _extra_skip_map(group)
+        members = {m.user_id: m for m in group.members}
+        for r in ordered:
+            member = members.get(r.user_id)
+            shop = _member_shopping(db, member, memo) if member is not None else None
+            item = next(
+                (i for i in (shop.items if shop else []) if i.card_id.upper() == r.card_id.upper()),
+                None,
+            )
+            inputs = (
+                _member_alt_inputs(item, _card_skips(skips, r.user_id, r.card_id), int(r.qty))
+                if item is not None
+                else []
+            )
+            wants[r.id] = {pid: left for pid, left, _price in inputs}
+    left_to_place = staged_qty
+    for pid, qty in sorted(alt_copies.items()):
+        n = min(qty, left_to_place)
+        for wanters_only in (True, False):
+            for r in ordered:
+                if n <= 0:
+                    break
+                cap = room[r.id]
+                if wanters_only:
+                    cap = min(cap, wants[r.id].get(pid, 0))
+                take = min(cap, n)
+                if take <= 0:
+                    continue
+                alts[r.id][pid] = alts[r.id].get(pid, 0) + take
+                room[r.id] -= take
+                wants[r.id][pid] = wants[r.id].get(pid, 0) - take
+                n -= take
+                left_to_place -= take
+    std_left = left_to_place
+    out: dict[int, tuple[dict[int, int], int]] = {}
+    for r in ordered:
+        std = min(room[r.id], std_left)
+        std_left -= std
+        out[r.id] = (alts[r.id], std)
     return out
 
 
@@ -1470,7 +1576,8 @@ def apply_receipt_to_group_buy(
     cleaned_receipt = (body.receipt_text or "").strip()[:200_000]
     group.receipt_text = cleaned_receipt
 
-    report = build_receipt_match_report(db, user, group_id, cleaned_receipt)
+    report, matched = _match_report(db, group, cleaned_receipt)
+    alt_copies = {m.card_id.upper(): m.alt_copies for m in matched}
     if not report.can_apply_partial:
         raise Invalid("No receipt lines matched cards in this group buy")
 
@@ -1527,20 +1634,35 @@ def apply_receipt_to_group_buy(
         by_card.setdefault(row.card_id.upper(), []).append(row)
 
     applied_any = False
+    shopping_memo: dict = {}
     for line in staged_lines:
         rows = by_card.get(line.card_id, [])
-        allocations = _allocate_across_snapshot(rows, line.staged_qty)
-        for snap, take in allocations:
-            _add_owned(db, snap.user_id, snap.card_id, take)
-            db.add(
-                GroupBuyReceiptApplyLine(
-                    apply_id=apply_event.id,
-                    user_id=snap.user_id,
-                    card_id=snap.card_id.upper().strip(),
-                    product_id=snap.product_id,
-                    qty=take,
+        split = _split_alt_copies(
+            db, group, rows, line.staged_qty, alt_copies.get(line.card_id, {}), shopping_memo
+        )
+        for snap in sorted(rows, key=lambda r: (r.id or 0)):
+            alts, standard = split[snap.id]
+            credits = [(pid, n) for pid, n in alts.items() if n > 0]
+            if standard > 0:
+                credits.append((None, standard))
+            take = 0
+            for pid, n in credits:
+                if pid is None:
+                    _add_owned(db, snap.user_id, snap.card_id, n)
+                else:
+                    _add_alt_owned(db, snap.user_id, snap.card_id.upper().strip(), pid, n)
+                db.add(
+                    GroupBuyReceiptApplyLine(
+                        apply_id=apply_event.id,
+                        user_id=snap.user_id,
+                        card_id=snap.card_id.upper().strip(),
+                        product_id=snap.product_id if pid is None else pid,
+                        qty=n,
+                    )
                 )
-            )
+                take += n
+            if take <= 0:
+                continue
             snap.qty = int(snap.qty) - take
             applied_any = True
             if snap.qty <= 0:
@@ -1582,7 +1704,11 @@ def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyD
         qty = int(line.qty)
         if qty <= 0:
             continue
-        _subtract_owned(db, line.user_id, card_id, qty)
+        is_alt = _is_alt_printing(db, card_id, line.product_id)
+        if is_alt:
+            _subtract_alt_owned(db, line.user_id, card_id, line.product_id, qty)
+        else:
+            _subtract_owned(db, line.user_id, card_id, qty)
         existing = next(
             (
                 row
@@ -1593,7 +1719,7 @@ def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyD
         )
         if existing is not None:
             existing.qty = int(existing.qty) + qty
-            if existing.product_id is None and line.product_id is not None:
+            if existing.product_id is None and line.product_id is not None and not is_alt:
                 existing.product_id = line.product_id
         else:
             group.snapshot_lines.append(
@@ -1602,7 +1728,7 @@ def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyD
                     user_id=line.user_id,
                     card_id=card_id,
                     qty=qty,
-                    product_id=line.product_id,
+                    product_id=None if is_alt else line.product_id,
                 )
             )
 

@@ -5,7 +5,8 @@ import pytest
 from sqlalchemy import select, update
 
 from app.group_buy import service as group_buy
-from app.planner.models import Owned
+from app.planner import decks as deck_svc
+from app.planner.models import Owned, OwnedPrinting
 from app.group_buy.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
 from app.group_buy.receipt import parse_tcgplayer_receipt
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
@@ -382,3 +383,74 @@ def test_receipt_owned_increment_does_not_overwrite_a_concurrent_change_1346(db)
 
     group_buy.undo_last_receipt_apply(db, host, created.id)
     assert _owned(db, host.id, "OP01-001") == 5
+
+
+ALT_RECEIPT_1419 = (
+    "Qty\tDescription\n"
+    "1\tOne Piece Card Game - Test Set - Luffy (OP01-001) (Parallel) - Near Mint\n"
+    "3\tOne Piece Card Game - Test Set - Luffy (OP01-001) - Near Mint"
+)
+
+
+def _alt_owned(db, user_id: int, card_id: str, product_id: int) -> int:
+    row = db.scalar(
+        select(OwnedPrinting).where(
+            OwnedPrinting.user_id == user_id,
+            OwnedPrinting.card_id == card_id,
+            OwnedPrinting.product_id == product_id,
+        )
+    )
+    return int(row.qty) if row else 0
+
+
+def _ordered_group_1419(db):
+    """Host first by snapshot row id, friend (the only one wanting the 1009 alt) second."""
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1001, market=2.5)
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1009, market=9.0, special=True)
+    host = make_user(db, email="host@example.com", name="Host", sub="sub-host")
+    friend = make_user(db, email="friend@example.com", name="Friend", sub="sub-friend")
+    add_deck_with_cards(db, host, "Host Deck", {"OP01-001": 2})
+    friend_deck = add_deck_with_cards(db, friend, "Friend Deck", {"OP01-001": 2})
+    set_owned(db, host, "OP01-001", 0)
+    set_owned(db, friend, "OP01-001", 0)
+    deck_svc.set_deck_card_printing(db, friend, friend_deck.id, "OP01-001", 1009, 1)
+
+    created = group_buy.create_group_buy(db, host, "Alt buy")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(db, host, created.id, None)
+    return host, friend, created
+
+
+def test_receipt_alt_copy_goes_to_the_member_who_wants_that_art_1419(db):
+    host, friend, created = _ordered_group_1419(db)
+
+    done = group_buy.apply_receipt_to_group_buy(
+        db,
+        host,
+        created.id,
+        GroupBuyReceiptApplyRequest(receipt_text=ALT_RECEIPT_1419, allow_partial=False),
+    )
+
+    assert done.status == "completed"
+    assert _alt_owned(db, friend.id, "OP01-001", 1009) == 1
+    assert _alt_owned(db, host.id, "OP01-001", 1009) == 0
+    assert _owned(db, friend.id, "OP01-001") == 1
+    assert _owned(db, host.id, "OP01-001") == 2
+
+
+def test_undo_receipt_with_an_alt_copy_takes_the_alt_back_too_1419(db):
+    host, friend, created = _ordered_group_1419(db)
+    group_buy.apply_receipt_to_group_buy(
+        db,
+        host,
+        created.id,
+        GroupBuyReceiptApplyRequest(receipt_text=ALT_RECEIPT_1419, allow_partial=False),
+    )
+
+    undone = group_buy.undo_last_receipt_apply(db, host, created.id)
+
+    assert _alt_owned(db, friend.id, "OP01-001", 1009) == 0
+    assert _owned(db, friend.id, "OP01-001") == 0
+    assert _owned(db, host.id, "OP01-001") == 0
+    assert {l.card_id: l.total_qty for l in undone.lines} == {"OP01-001": 4}
