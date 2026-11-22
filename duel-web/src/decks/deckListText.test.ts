@@ -47,6 +47,8 @@ describe("deck list copy and duplicate (#1386)", () => {
     expect(copy.artPrefs).toEqual({ "ST01-003": "ST01-003_p1" });
     expect(copy.plannerDeckId).toBeUndefined();
     expect(copy.editedLocally).toBeUndefined();
+    expect(copy.noMerge).toBe(true);
+    expect(orig.noMerge).toBeUndefined();
     expect(getSavedDeck(copy.id)?.plannerDeckId).toBeUndefined();
     expect(getSavedDeck(orig.id)?.plannerDeckId).toBe(77);
   });

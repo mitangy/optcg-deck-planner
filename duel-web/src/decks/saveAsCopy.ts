@@ -15,5 +15,6 @@ export function saveDeckAsCopy(source: SavedDeck, draft: DeckDraft): { deck: Sav
     leaderId: draft.leaderId,
     cards: draft.cards,
     artPrefs,
+    noMerge: true,
   });
 }

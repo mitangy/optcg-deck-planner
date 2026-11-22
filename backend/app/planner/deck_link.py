@@ -261,6 +261,8 @@ def find_duplicate_survivor(
 ) -> DuelSavedDeck | None:
     if deck_id.startswith(SEED_PREFIX) or body.get("plannerDeckId") is not None:
         return None
+    if body.get("noMerge"):
+        return None
     leader = str(body.get("leaderId") or "").strip().upper()
     if not leader:
         return None
@@ -271,6 +273,7 @@ def find_duplicate_survivor(
             other_body is None
             or other.deck_id == deck_id
             or _is_seed(other)
+            or other_body.get("noMerge")
             or other.planner_deck_id is None
             or str(other_body.get("leaderId") or "").strip().upper() != leader
             or _duel_main(other_body) != key
