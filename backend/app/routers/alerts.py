@@ -13,7 +13,7 @@ from app.core.auth import get_current_user
 from app.core.db import get_db
 from app.core.models import User
 from app.planner.models import CatalogCard, CatalogPrinting, Notification, PriceAlert
-from app.planner.price_alerts import condition_met, current_price, current_prices
+from app.planner.price_alerts import _names, alert_title, condition_met, current_price, current_prices
 from app.core.rate_limit import RateLimiter
 from app.planner.schemas import (
     NotificationList,
@@ -221,7 +221,18 @@ def list_notifications(user: CurrentUser, db: DB, limit: Annotated[int, Query(ge
         .order_by(Notification.created_at.desc(), Notification.id.desc())
         .limit(limit)
     ).all()
-    return NotificationList(items=[NotificationOut.model_validate(r) for r in rows], unread=_unread(db, user))
+    items = [NotificationOut.model_validate(r) for r in rows]
+    # Old rows stored a different title format; rebuild so every price alert reads the same (#1416).
+    priced = [i for i in items if i.kind == "price_alert" and i.card_id and i.price is not None]
+    if priced:
+        pairs = {(i.card_id, i.product_id or 0) for i in priced}
+        known = set(db.scalars(select(CatalogCard.card_id).where(CatalogCard.card_id.in_({c for c, _ in pairs}))))
+        names = _names(db, pairs)
+        for i in priced:
+            if i.card_id in known:
+                card_name, art_name, _url = names[(i.card_id, i.product_id or 0)]
+                i.title = alert_title(card_name, art_name, i.card_id, i.price)
+    return NotificationList(items=items, unread=_unread(db, user))
 
 
 @router.post("/notifications/read")

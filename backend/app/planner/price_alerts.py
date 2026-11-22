@@ -21,6 +21,10 @@ log = logging.getLogger("uvicorn.error")
 
 MAX_NOTIFICATIONS_PER_USER = 100
 ALERTS_LINK = "/alerts"
+# Re-arm hysteresis (#1416): two price sources disagree by a few cents to a few dollars, so an
+# alert only re-arms once the price is clearly back past the target by this margin.
+REARM_MARGIN = 0.03
+REARM_MIN_MARGIN = 0.25
 
 
 def condition_met(direction: str, price: float | None, target: float) -> bool:
@@ -29,6 +33,14 @@ def condition_met(direction: str, price: float | None, target: float) -> bool:
     if direction == "above":
         return price >= target
     return price <= target
+
+
+def recovered(direction: str, price: float, target: float) -> bool:
+    """True when the price is clearly back on the wrong side of the target, so the alert may re-arm."""
+    margin = max(target * REARM_MARGIN, REARM_MIN_MARGIN)
+    if direction == "above":
+        return price < target - margin
+    return price > target + margin
 
 
 def current_prices(db: Session, pairs: set[tuple[str, int]]) -> dict[tuple[str, int], float | None]:
@@ -88,6 +100,10 @@ def _label(card_name: str, art_name: str, card_id: str = "") -> str:
 
 def _money(value: float) -> str:
     return f"${value:,.2f}"
+
+
+def alert_title(card_name: str, art_name: str, card_id: str, price: float) -> str:
+    return f"{_label(card_name, art_name, card_id)} is now {_money(price)}"
 
 
 @dataclass
@@ -202,12 +218,11 @@ def check_alerts(db: Session, now: datetime | None = None) -> dict:
             )
             if alert.notify_app:
                 word = "under" if alert.direction == "below" else "over"
-                label = _label(card_name, art_name, alert.card_id)
                 db.add(
                     Notification(
                         user_id=alert.user_id,
                         kind="price_alert",
-                        title=f"{label} is now {_money(price)}",
+                        title=alert_title(card_name, art_name, alert.card_id, price),
                         body=f"Your target was {word} {_money(alert.target_price)}.",
                         card_id=alert.card_id,
                         product_id=alert.product_id,
@@ -220,7 +235,7 @@ def check_alerts(db: Session, now: datetime | None = None) -> dict:
                 _prune(db, alert.user_id)
             if alert.notify_email:
                 emails[alert.user_id].append(fired)
-        elif not met and not alert.armed:
+        elif not alert.armed and recovered(alert.direction, price, alert.target_price):
             alert.armed = True
     db.commit()
 
