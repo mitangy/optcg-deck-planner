@@ -131,8 +131,8 @@ test("Host uploads the Order History saved as PDF and gets the same list (#1433)
   await planner.open(`/group-buys/${GB}`);
   await page.getByTestId("gb-add-order").click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText("Saved the Order History page as a PDF? Upload it.")).toBeVisible();
-  await dialog.getByLabel("Order History PDF").setInputFiles({ name: "orders.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7 test") });
+  await expect(dialog.getByText("Saved the Order History pages as PDFs? Upload them (one per page).")).toBeVisible();
+  await dialog.getByLabel("Order History PDFs").setInputFiles({ name: "orders.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7 test") });
 
   await expect(dialog.getByRole("heading", { name: "Found 4 orders, 2 selected" })).toBeVisible();
   await expect(dialog.getByText("Read orders.pdf")).toBeVisible();
@@ -148,10 +148,85 @@ test("A PDF the server cannot read says so and keeps the dialog usable (#1433)",
   await planner.open(`/group-buys/${GB}`);
   await page.getByTestId("gb-add-order").click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Order History PDF").setInputFiles({ name: "orders.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7 bad") });
+  await dialog.getByLabel("Order History PDFs").setInputFiles({ name: "orders.pdf", mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7 bad") });
 
   await expect(dialog.getByRole("alert").filter({ hasText: "Couldn't read that PDF" })).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Upload PDF" })).toBeEnabled();
+  await expect(dialog.getByRole("button", { name: "Upload PDFs" })).toBeEnabled();
+  await expect(dialog.locator("textarea")).toBeVisible();
+});
+
+const T1 = `${PAGE}ORDER DATE\nNovember 17, 2026\nORDER NUMBER\n${C}\n`;
+const T2 = `${T1}ORDER DATE\nNovember 18, 2026\nORDER NUMBER\n${D}\n`;
+const pdfFile = (name: string) => ({ name, mimeType: "application/pdf", buffer: Buffer.from("%PDF-1.7 test") });
+
+test("Host uploads several PDF pages at once and later ones add to the list (#1437)", async ({ page, planner }, testInfo) => {
+  const uploads: string[] = [];
+  const imported: unknown[] = [];
+  await page.route(`**/api/group-buys/${GB}`, (r) => r.fulfill({ json: detail(0) }));
+  await page.route(`**/api/group-buys/${GB}/orders/history/pdf`, (r) => {
+    const body = r.request().postData() ?? "";
+    uploads.push(body);
+    const first = uploads.length === 1;
+    return r.fulfill({ json: first ? { text: T1, orders: [PREVIEW.orders[0], PREVIEW.orders[2]] } : { text: T2, orders: [PREVIEW.orders[0], PREVIEW.orders[2], PREVIEW.orders[3]] } });
+  });
+  await page.route(`**/api/group-buys/${GB}/orders/history/import`, (r) => {
+    imported.push(r.request().postDataJSON());
+    return r.fulfill({ json: { order_ids: [10, 11], unmatched: [], detail: detail(2) } });
+  });
+
+  await planner.open(`/group-buys/${GB}`);
+  await page.getByTestId("gb-add-order").click();
+  const dialog = page.getByRole("dialog");
+  const input = dialog.getByLabel("Order History PDFs");
+  await expect(input).toHaveAttribute("multiple", "");
+  await input.setInputFiles([pdfFile("Order History page 1 of 3 - TCGplayer.pdf"), pdfFile("Order History page 2 of 3 - TCGplayer.pdf")]);
+
+  await expect(dialog.getByRole("heading", { name: "Found 2 orders, 1 selected" })).toBeVisible();
+  await expect(dialog.getByText("Read Order History page 1 of 3 - TCGplayer.pdf, Order History page 2 of 3 - TCGplayer.pdf")).toBeVisible();
+  expect(uploads[0]).toContain('filename="Order History page 1 of 3 - TCGplayer.pdf"');
+  expect(uploads[0]).toContain('filename="Order History page 2 of 3 - TCGplayer.pdf"');
+  expect(uploads[0]).not.toContain('name="text"');
+
+  // Change the choices, then add a third page: the choices stay, the new order starts ticked.
+  const cards = dialog.getByTestId("gb-history-order");
+  await cards.nth(0).getByRole("checkbox").uncheck();
+  await cards.nth(1).getByRole("checkbox").check();
+  await input.setInputFiles(pdfFile("page3.pdf"));
+
+  await expect(dialog.getByRole("heading", { name: "Found 3 orders, 2 selected" })).toBeVisible();
+  await expect(cards).toHaveCount(3);
+  await expect(cards.nth(0).getByRole("checkbox")).not.toBeChecked();
+  await expect(cards.nth(1).getByRole("checkbox")).toBeChecked();
+  await expect(cards.nth(2).getByRole("checkbox")).toBeChecked();
+  await expect(dialog.getByText(/, page3\.pdf$/)).toBeVisible();
+  expect(uploads[1]).toContain('filename="page3.pdf"');
+  expect(uploads[1]).toContain('name="text"');
+  expect(uploads[1]).toContain(`ORDER NUMBER\r\n${C}`);
+  await shot(page, "order-history-two-uploads", testInfo.project.name);
+
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
+  const overflow = await dialog.evaluate((el) => Math.max(...[...el.querySelectorAll("*")].map((n) => n.getBoundingClientRect().right - el.getBoundingClientRect().right)));
+  expect(overflow).toBeLessThanOrEqual(1);
+
+  await dialog.getByRole("button", { name: "Add 2 orders" }).click();
+  await expect(page.getByTestId("gb-order")).toHaveCount(2);
+  expect(imported).toEqual([{ text: T2, order_numbers: [C, D] }]);
+});
+
+test("Start over clears the uploaded pages and their list (#1437)", async ({ page, planner }) => {
+  await page.route(`**/api/group-buys/${GB}`, (r) => r.fulfill({ json: detail(0) }));
+  await page.route(`**/api/group-buys/${GB}/orders/history/pdf`, (r) => r.fulfill({ json: { ...PREVIEW, text: PDF_TEXT } }));
+  await planner.open(`/group-buys/${GB}`);
+  await page.getByTestId("gb-add-order").click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Order History PDFs").setInputFiles(pdfFile("page1.pdf"));
+  await expect(dialog.getByRole("heading", { name: "Found 4 orders, 2 selected" })).toBeVisible();
+
+  await dialog.getByRole("button", { name: "Start over" }).click();
+
+  await expect(dialog.getByTestId("gb-history-preview")).toHaveCount(0);
+  await expect(dialog.getByText("Read page1.pdf")).toHaveCount(0);
+  await expect(dialog.getByRole("button", { name: "Start over" })).toHaveCount(0);
   await expect(dialog.locator("textarea")).toBeVisible();
 });
 

@@ -6,7 +6,7 @@ import { qk } from "../../cache/queryKeys";
 import { useGroupBuyListNarrow } from "../../hooks/useGroupBuyListNarrow";
 import { CardThumb } from "../../ui/CardThumb";
 import { HistoryOrders } from "./HistoryOrders";
-import { addOrdersLabel, historyCopies, looksLikeOrderHistory, pickableLines, pickedHistoryNumbers, pickedOrderLines, startingHistorySelection, startingPicks } from "./groupBuyOrders";
+import { addOrdersLabel, carryHistorySelection, historyCopies, looksLikeOrderHistory, pickableLines, pickedHistoryNumbers, pickedOrderLines, startingHistorySelection, startingPicks } from "./groupBuyOrders";
 import { PreviewResult } from "./OrderPreview";
 import { lineArtUrl } from "./useGroupBuyLines";
 
@@ -107,7 +107,7 @@ export function AddOrderDialog({
   const [arrivedNow, setArrivedNow] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [pdf, setPdf] = useState<{ name: string; preview: GroupBuyOrderHistoryPreview } | null>(null);
+  const [pdf, setPdf] = useState<{ names: string[]; preview: GroupBuyOrderHistoryPreview } | null>(null);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [picked, setPicked] = useState<{ source: GroupBuyOrderHistoryPreview; set: Set<string> } | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -131,10 +131,12 @@ export function AddOrderDialog({
   const pickedNumbers = historyPreview ? pickedHistoryNumbers(historyPreview.orders, selection) : [];
 
   const readPdf = useMutation({
-    mutationFn: (file: File) => api.previewGroupBuyOrderHistoryPdf(groupId, file),
-    onSuccess: (res, file) => {
+    // The text already loaded (earlier uploads or a pasted page) goes along so the list grows.
+    mutationFn: (files: File[]) => api.previewGroupBuyOrderHistoryPdf(groupId, files, pdf ? pdf.preview.text : looksLikeOrderHistory(pasteText) ? paste : undefined),
+    onSuccess: (res, files) => {
       setPdfError(null);
-      setPdf({ name: file.name, preview: res });
+      setPicked({ source: res, set: carryHistorySelection(historyPreview?.orders ?? [], selection, res.orders) });
+      setPdf({ names: [...(pdf?.names ?? []), ...files.map((f) => f.name)], preview: res });
     },
     onError: (e: Error) => setPdfError(e.message),
   });
@@ -289,25 +291,47 @@ export function AddOrderDialog({
                 <input
                   ref={fileInput}
                   type="file"
+                  multiple
                   accept="application/pdf,.pdf"
                   className="gb-file-input"
-                  aria-label="Order History PDF"
+                  aria-label="Order History PDFs"
                   tabIndex={-1}
                   onChange={(e) => {
-                    const file = e.target.files?.[0];
+                    const files = Array.from(e.target.files ?? []);
                     e.target.value = "";
-                    if (file) {
+                    if (files.length > 0) {
                       setPdfError(null);
-                      readPdf.mutate(file);
+                      readPdf.mutate(files);
                     }
                   }}
                 />
-                <span className="muted gb-upload-text">Saved the Order History page as a PDF? Upload it.</span>
+                <span className="muted gb-upload-text">Saved the Order History pages as PDFs? Upload them (one per page).</span>
                 <button type="button" className="btn secondary gb-upload-btn" disabled={readPdf.isPending} onClick={() => fileInput.current?.click()}>
-                  Upload PDF
+                  Upload PDFs
                 </button>
                 <p className="muted gb-upload-status" aria-live="polite" role={pdfError ? "alert" : undefined}>
-                  {readPdf.isPending ? "Reading the PDF…" : pdfError ? <span className="error">{pdfError}</span> : pdf ? `Read ${pdf.name}` : ""}
+                  {readPdf.isPending ? (
+                    "Reading the PDFs…"
+                  ) : pdfError ? (
+                    <span className="error">{pdfError}</span>
+                  ) : pdf ? (
+                    <>
+                      <span className="gb-upload-names">Read {pdf.names.join(", ")}</span>{" "}
+                      <button
+                        type="button"
+                        className="gb-link-btn"
+                        onClick={() => {
+                          setPdf(null);
+                          setPicked(null);
+                          setPdfError(null);
+                        }}
+                      >
+                        Start over
+                      </button>
+                    </>
+                  ) : (
+                    ""
+                  )}
                 </p>
               </div>
             )}
@@ -341,7 +365,7 @@ export function AddOrderDialog({
                   />
                 ) : (
                   <p className="muted gb-preview-wait">
-                    {readPdf.isPending ? "Reading the PDF…" : historyQ.isError ? (historyQ.error as Error).message : "Matching your orders…"}
+                    {readPdf.isPending ? "Reading the PDFs…" : historyQ.isError ? (historyQ.error as Error).message : "Matching your orders…"}
                   </p>
                 )}
               </div>

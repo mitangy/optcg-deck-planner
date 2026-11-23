@@ -167,6 +167,23 @@ export function startingHistorySelection(orders: GroupBuyHistoryOrder[]): string
     .map((o) => o.order_number);
 }
 
+/**
+ * After more pages are added to the list: orders already on screen keep their tick (or untick),
+ * orders that are new get the starting rule.
+ */
+export function carryHistorySelection(
+  before: GroupBuyHistoryOrder[],
+  selected: ReadonlySet<string>,
+  after: GroupBuyHistoryOrder[],
+): Set<string> {
+  const seen = new Set(before.map((o) => o.order_number));
+  const next = new Set<string>();
+  for (const o of addableHistoryOrders(after)) {
+    if (seen.has(o.order_number) ? selected.has(o.order_number) : o.in_group_buy) next.add(o.order_number);
+  }
+  return next;
+}
+
 /** The picked numbers in page order, so the import adds them the way the page lists them. */
 export function pickedHistoryNumbers(orders: GroupBuyHistoryOrder[], picked: ReadonlySet<string>): string[] {
   return addableHistoryOrders(orders)
