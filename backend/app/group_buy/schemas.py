@@ -1,6 +1,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.planner.schemas import GroupBuyArtWantOut, PrintingView
@@ -51,6 +53,22 @@ class GroupBuyMemberOut(BaseModel):
     shipping_share: float = 0.0
     tax_share: float = 0.0
     total_owed: float = 0.0
+    # Hand-off (#1418): host and the member themselves only; blank for everyone else and the invite view.
+    handoff_status: str = ""
+    handoff_tracking_url: str = ""
+    handoff_note: str = ""
+    qty_handed: int = 0
+    # This member's arrived copies minus the ones already handed over or shipped.
+    ready_to_hand_over: int = 0
+    paid: bool = False
+
+
+class GroupBuyHandoffUpdate(BaseModel):
+    status: Literal["waiting", "shipped", "handed_over"] | None = None
+    tracking_url: str | None = Field(default=None, max_length=1000)
+    note: str | None = Field(default=None, max_length=300)
+    qty_handed: int | None = Field(default=None, ge=0, le=9999)
+    paid: bool | None = None
 
 
 class GroupBuyMemberQtyOut(BaseModel):
