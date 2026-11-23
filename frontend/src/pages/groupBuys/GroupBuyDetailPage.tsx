@@ -34,7 +34,7 @@ import { cardStatus, notOrderedCopies, packageCounts, sellersOnTheWay } from "./
 import { useGroupBuyOrders } from "./useGroupBuyOrders";
 import { CollapsibleDrawer } from "../../ui/cardListControls";
 import { groupBuyActions, stepHint, stepLabel, summaryParts, type GroupBuyActionKey } from "./groupBuyActions";
-import { ArtWantChips, SkippedBadge } from "./memberParts";
+import { ArtWantChips, SkippedBadge, boughtAltRow } from "./memberParts";
 import { SHIPPING_SPLIT_LABELS, ShippingSplit } from "./shipping";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_CARDS_KEY, COLSORT_GB_OWE_KEY } from "../../storage/keys";
@@ -343,6 +343,7 @@ export function GroupBuyDetailPage() {
     setQty.isPending || clearQty.isPending || syncQty.isPending || setExtraSkip.isPending;
 
   const groupBuyAltRow = (line: GroupBuyLine) => {
+    if (line.bought_arts?.length) return boughtAltRow(line);
     const alts = line.alt_arts ?? [];
     const canEditWants = detail?.status === "open" && (line.my_need ?? 0) > 0;
     const baseCount = myArtSplit(line).base;

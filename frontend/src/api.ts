@@ -344,6 +344,17 @@ export type GroupBuyMyExtra = {
   skipped: number;
 };
 
+/** One art of a card that is in a seller order; product_id null is the base art (#1443). */
+export type GroupBuyBoughtArt = {
+  product_id: number | null;
+  name: string;
+  qty: number;
+  my_qty: number;
+  /** Per copy: what was paid when `paid`, otherwise that art's market price. */
+  unit_price: number | null;
+  paid: boolean;
+};
+
 export type GroupBuyLine = {
   card_id: string;
   name: string;
@@ -364,6 +375,10 @@ export type GroupBuyLine = {
   alt_arts: PrintingView[];
   art_wants?: GroupBuyArtWant[];
   display_art?: number | null;
+  /** Arts already in a seller order; the row is pinned to these, not to live Shopping picks (#1443). */
+  bought_arts?: GroupBuyBoughtArt[];
+  /** Price per bought copy; null while any bought art has no price. */
+  bought_each?: number | null;
   my_qty: number;
   my_suggested_qty: number;
   my_is_custom: boolean;
@@ -394,6 +409,8 @@ export type GroupBuyOrderLine = {
   qty_ordered: number;
   qty_arrived: number;
   qty_extra: number;
+  /** Price paid per copy when the Order History import had one (#1443). */
+  unit_price?: number | null;
   allocations: GroupBuyOrderAllocation[];
 };
 

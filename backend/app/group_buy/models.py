@@ -277,6 +277,8 @@ class GroupBuyOrderLine(Base):
     # NULL = the standard art (Owned); a product id = that alternate printing (OwnedPrinting).
     product_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     qty_ordered: Mapped[int] = mapped_column(Integer, default=0)
+    # What each copy cost on the receipt (Order History import); NULL when the import had no price (#1443).
+    unit_price: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     order: Mapped[GroupBuyOrder] = relationship(back_populates="lines")
     allocations: Mapped[list[GroupBuyOrderAllocation]] = relationship(

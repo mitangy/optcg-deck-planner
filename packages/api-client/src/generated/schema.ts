@@ -7471,6 +7471,33 @@ export interface components {
             /** User Id */
             user_id: number;
         };
+        /**
+         * GroupBuyBoughtArtOut
+         * @description One art of a card that is in a seller order (#1443). ``product_id`` None is the base art.
+         */
+        GroupBuyBoughtArtOut: {
+            /**
+             * My Qty
+             * @default 0
+             */
+            my_qty: number;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Paid
+             * @default false
+             */
+            paid: boolean;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
         /** GroupBuyContributionUpdate */
         GroupBuyContributionUpdate: {
             /** Deck Ids */
@@ -7710,6 +7737,13 @@ export interface components {
              * @default
              */
             base_image_url: string;
+            /**
+             * Bought Arts
+             * @default []
+             */
+            bought_arts: components["schemas"]["GroupBuyBoughtArtOut"][];
+            /** Bought Each */
+            bought_each?: number | null;
             /** Card Id */
             card_id: string;
             /**
@@ -8090,6 +8124,8 @@ export interface components {
             qty_extra: number;
             /** Qty Ordered */
             qty_ordered: number;
+            /** Unit Price */
+            unit_price?: number | null;
         };
         /** GroupBuyOrderLinesUpdate */
         GroupBuyOrderLinesUpdate: {
