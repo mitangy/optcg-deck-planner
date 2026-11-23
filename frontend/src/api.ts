@@ -199,6 +199,8 @@ export type ShoppingItem = {
   extra_qty?: number;
   deck_need?: number;
   collector_wants?: CollectorLine[];
+  in_group_buy?: number;
+  group_buys?: { group_buy_id: number; title: string; qty: number; ordered: boolean }[];
 };
 
 export type RecentSale = {
