@@ -736,3 +736,27 @@ def test_resetting_the_invite_link_retires_the_old_token_1346(db, two_players):
             call(db, friend, old) if call is group_buy.join_group_buy else call(db, old)
     assert group_buy.invite_preview(db, reset.invite_token).title == "Reset"
     assert group_buy.join_group_buy(db, friend, reset.invite_token).id == created.id
+
+
+def test_invite_link_view_hides_order_id_and_notes_but_members_still_see_them_1419(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Private order")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(
+        db,
+        host,
+        created.id,
+        GroupBuyOrderUpdate(external_order_id="TCG-123456", order_notes="Pay me on Venmo"),
+    )
+
+    for seen in (
+        group_buy.get_group_buy(db, host, created.id),
+        group_buy.get_group_buy(db, friend, created.id),
+    ):
+        assert seen.external_order_id == "TCG-123456"
+        assert seen.order_notes == "Pay me on Venmo"
+
+    public = group_buy.public_group_buy_view(db, created.invite_token)
+    assert public.external_order_id == ""
+    assert public.order_notes == ""

@@ -77,6 +77,8 @@ class AggregatedReceiptCard:
     confidence: str
     descriptions: list[str] = field(default_factory=list)
     is_special: bool = False
+    # Copies of each alternate printing on the receipt, so the art survives the per-card total.
+    alt_copies: dict[int, int] = field(default_factory=dict)
 
 
 def _normalize_key(value: str) -> str:
@@ -348,7 +350,9 @@ def aggregate_receipt_matches(
                 descriptions=[line.raw_description],
                 is_special=hit.is_special,
             )
+            entry = by_card[hit.card_id]
         else:
+            entry = existing
             existing.qty += line.qty
             existing.descriptions.append(line.raw_description)
             if hit.confidence == "exact_id" and existing.confidence != "exact_id":
@@ -359,4 +363,6 @@ def aggregate_receipt_matches(
                 existing.is_special = True
                 existing.product_id = hit.product_id or existing.product_id
                 existing.name = hit.name
+        if hit.is_special and hit.product_id is not None:
+            entry.alt_copies[hit.product_id] = entry.alt_copies.get(hit.product_id, 0) + line.qty
     return list(by_card.values()), unmatched

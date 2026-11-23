@@ -74,3 +74,11 @@ class TournamentMatchStatus(StrEnum):
     WAITING = "waiting"
     READY = "ready"
     DONE = "done"
+
+
+class GroupBuyOrderStatus(StrEnum):
+    """Derived from the arrived counts, never stored."""
+
+    ON_THE_WAY = "on_the_way"
+    PARTIAL = "partial"
+    ARRIVED = "arrived"

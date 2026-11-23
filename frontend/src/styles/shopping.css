@@ -1797,3 +1797,14 @@ body:has(.lp-compass) .buy-dock {
     white-space: nowrap;
   }
 }
+
+tr.covered td,
+.mobile-card.covered,
+.grid-card.covered {
+  background: var(--card);
+}
+
+.mobile-card.covered,
+.grid-card.covered {
+  border-color: var(--gold);
+}

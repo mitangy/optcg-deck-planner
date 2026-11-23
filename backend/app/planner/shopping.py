@@ -7,6 +7,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import NotFound
+from app.core.statuses import GroupBuyStatus
+from app.group_buy.models import GroupBuy, GroupBuyMember
 from app.planner.domain import (
     parse_cost,
 )
@@ -19,7 +21,13 @@ from app.planner.catalog_repo import (
     owned_map,
     primary_product_ids,
 )
-from app.planner.schemas import CollectorLine, LeaderNeed, ShoppingItem, ShoppingResponse
+from app.planner.schemas import (
+    CollectorLine,
+    LeaderNeed,
+    ShoppingGroupBuyRef,
+    ShoppingItem,
+    ShoppingResponse,
+)
 from app.planner.printings import (
     _alts_owned_total,
     _apply_alt_want_clamp_to_rows,
@@ -66,6 +74,66 @@ def remaining_cost_for_buys(buys: list[tuple[int | None, int, float | None]]) ->
             return None
         total += qty * price
     return round(total, 2)
+
+
+def in_group_buy_map(
+    db: Session, user_id: int, exclude_group_buy_id: int | None = None
+) -> tuple[dict[str, list[ShoppingGroupBuyRef]], dict[str, dict[int, int]]]:
+    """Copies the user is still waiting on from locked or ordered group buys (#1418).
+
+    Per card: the snapshot copies they are buying minus the ones that arrived, and per alt
+    product the part of that already allocated to an order as that art. Arrivals are credited
+    to Owned, so only what has not arrived yet is held back. Closed buys hold nothing back.
+    ``exclude_group_buy_id`` keeps a group buy's own views from being reduced by itself.
+    """
+    groups = db.scalars(
+        select(GroupBuy)
+        .join(GroupBuyMember, GroupBuyMember.group_buy_id == GroupBuy.id)
+        .where(
+            GroupBuyMember.user_id == user_id,
+            GroupBuy.status.in_([GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED]),
+        )
+        .order_by(GroupBuy.id)
+    ).all()
+    refs: dict[str, list[ShoppingGroupBuyRef]] = defaultdict(list)
+    alt_transit: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+    for group in groups:
+        if group.id == exclude_group_buy_id:
+            continue
+        wanted: dict[str, int] = defaultdict(int)
+        for line in group.snapshot_lines:
+            if line.user_id == user_id:
+                wanted[line.card_id.upper()] += int(line.qty)
+        arrived: dict[str, int] = defaultdict(int)
+        in_alt: dict[str, dict[int, int]] = defaultdict(lambda: defaultdict(int))
+        for order in group.orders:
+            for line in order.lines:
+                for alloc in line.allocations:
+                    if alloc.user_id != user_id:
+                        continue
+                    card_id = line.card_id.upper()
+                    arrived[card_id] += int(alloc.qty_arrived)
+                    if line.product_id is not None:
+                        in_alt[card_id][line.product_id] += int(alloc.qty) - int(alloc.qty_arrived)
+        for card_id, qty in wanted.items():
+            left = max(0, qty - arrived[card_id])
+            if left <= 0:
+                continue
+            refs[card_id].append(
+                ShoppingGroupBuyRef(
+                    group_buy_id=group.id,
+                    title=group.title,
+                    qty=left,
+                    ordered=group.status == GroupBuyStatus.ORDERED,
+                )
+            )
+            room = left
+            for pid, n in sorted(in_alt[card_id].items()):
+                take = min(max(0, n), room)
+                if take > 0:
+                    alt_transit[card_id][pid] += take
+                    room -= take
+    return refs, alt_transit
 
 
 def _selected_decks(db: Session, user: User, deck_ids: list[int] | None) -> list[Deck]:
@@ -206,6 +274,7 @@ def shopping_list(
     include_extras: bool = True,
     include_collector: bool = True,
     show_collector: bool = True,
+    exclude_group_buy_id: int | None = None,
 ) -> ShoppingResponse:
     """Master shopping list for a user.
 
@@ -228,6 +297,11 @@ def shopping_list(
     ``deck_ids=[]`` means no decks (#1208): the list is only added cards and Extra copies.
     ``show_collector`` False (#1184) hides Extra copies from the list and totals but,
     unlike ``include_collector``, keeps that reserve, so the decks' Still need is unchanged.
+
+    Copies still to arrive from the user's locked or ordered group buys (#1418) come off
+    Still need so nobody buys them twice; alt copies already in an order come off that alt's
+    want, the rest off the total (standard last). ``exclude_group_buy_id`` is for a group
+    buy's own views, which must not count its own copies as already covered.
     """
     decks = _selected_decks(db, user, deck_ids)
     sum_leaders = bool(getattr(user, "sum_across_leaders", False))
@@ -282,6 +356,7 @@ def shopping_list(
         catalog=catalog,
         primary_ids=product_ids,
     )
+    in_buys, alt_transit = in_group_buy_map(db, user.id, exclude_group_buy_id)
     items: list[ShoppingItem] = []
     cards_still = 0
     remaining = 0.0
@@ -290,13 +365,21 @@ def shopping_list(
         qty_need = need[card_id]
         qty_owned = owned.get(card_id, 0)
         qty_alts = _alts_owned_total(deck_alt_owned, card_id)
-        still = max(0, qty_need - qty_owned - qty_alts)
+        buy_refs = in_buys.get(card_id, [])
+        in_buy = sum(r.qty for r in buy_refs)
+        still = max(0, qty_need - qty_owned - qty_alts - in_buy)
         cat = catalog.get(card_id)
         market = cat.market_price if cat else None
         card_alts = alts.get(card_id, [])
+        transit = alt_transit.get(card_id, {})
         buys = allocate_still_need_buys(
             still,
-            deck_alt_buy_inputs(card_alts, deck_alt_owned.get(card_id, {})),
+            [
+                (pid, left - transit.get(pid, 0), price)
+                for pid, left, price in deck_alt_buy_inputs(
+                    card_alts, deck_alt_owned.get(card_id, {})
+                )
+            ],
             standard_product_id=product_ids.get(card_id),
             standard_price=market,
         )
@@ -375,6 +458,8 @@ def shopping_list(
                 extra_qty=extras.get(card_id, 0),
                 deck_need=deck_need.get(card_id, 0),
                 collector_wants=collector_lines,
+                in_group_buy=in_buy,
+                group_buys=buy_refs,
             )
         )
     return ShoppingResponse(
