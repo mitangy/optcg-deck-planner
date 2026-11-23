@@ -616,3 +616,47 @@ def test_only_the_host_can_replace_items_and_something_must_be_sent_1418(db):
         _set_lines(db, friend, gid, order, receipt_text=_receipt(std=1))
     with pytest.raises(Invalid):
         _set_lines(db, host, gid, order)
+
+
+def _missing(detail):
+    """(name, art or 0 for standard, qty) of every not-ordered copy on the first line."""
+    return sorted(
+        (m.display_name, m.product_id or 0, m.qty) for m in detail.lines[0].not_ordered_members
+    )
+
+
+def test_a_card_part_in_an_order_lists_who_is_still_missing_copies_and_which_art_1439(db):
+    """(#1439) Host needs 2 standard, Friend needs 1 alt (1009) + 1 standard."""
+    host, friend, gid = _locked_group(db)
+    assert _missing(group_buy.get_group_buy(db, friend, gid)) == []
+
+    _add(db, host, gid, std=1)
+    seen = group_buy.get_group_buy(db, friend, gid)
+
+    assert seen.lines[0].not_ordered == 3
+    assert _missing(seen) == [("Friend", 0, 1), ("Friend", 1009, 1), ("Host", 0, 1)]
+
+    _add(db, host, gid, alt=1)
+    seen = group_buy.get_group_buy(db, friend, gid)
+
+    assert seen.lines[0].not_ordered == 2
+    assert _missing(seen) == [("Friend", 0, 1), ("Host", 0, 1)]
+
+
+def test_the_not_ordered_members_add_up_to_the_not_ordered_count_1439(db):
+    host, friend, gid = _locked_group(db)
+    _add(db, host, gid, alt=1, std=2)
+    line = group_buy.get_group_buy(db, host, gid).lines[0]
+
+    assert line.not_ordered == 1
+    assert sum(m.qty for m in line.not_ordered_members) == line.not_ordered
+
+
+def test_the_public_view_names_not_ordered_members_like_everything_else_1439(db):
+    host, friend, gid = _locked_group(db)
+    _add(db, host, gid, std=1)
+    token = group_buy.get_group_buy(db, host, gid).invite_token
+
+    public = group_buy.public_group_buy_view(db, token).lines[0]
+
+    assert {m.display_name for m in public.not_ordered_members} == {"Host", "Member 1"}

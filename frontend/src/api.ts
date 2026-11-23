@@ -333,6 +333,9 @@ export type GroupBuyOrderUpdate = {
 
 export type GroupBuyArtWant = { product_id: number; user_id: number; qty: number };
 
+/** Not-ordered copies of one card a member has no seller order for; product_id null is the standard art (#1439). */
+export type GroupBuyNotOrderedMember = { user_id: number; display_name: string; qty: number; product_id?: number | null };
+
 export type GroupBuyMyExtra = {
   product_id: number;
   name: string;
@@ -376,6 +379,7 @@ export type GroupBuyLine = {
   my_in_order?: number;
   my_arrived?: number;
   my_not_ordered?: number;
+  not_ordered_members?: GroupBuyNotOrderedMember[];
 };
 
 export type GroupBuyOrderStatus = "on_the_way" | "partial" | "arrived";

@@ -36,6 +36,7 @@ from app.group_buy.schemas import (
     GroupBuyExport,
     GroupBuyInvitePreview,
     GroupBuyLineOut,
+    GroupBuyNotOrderedMemberOut,
     GroupBuyMemberOut,
     GroupBuyMemberQtyOut,
     GroupBuyMyExtraOut,
@@ -111,6 +112,8 @@ def _anonymize_detail(detail: GroupBuyDetail, group: GroupBuy) -> GroupBuyDetail
         member.display_name = names.get(member.user_id, "Member")
     for line in detail.lines:
         for member in line.members:
+            member.display_name = names.get(member.user_id, "Member")
+        for member in line.not_ordered_members:
             member.display_name = names.get(member.user_id, "Member")
     for order in detail.orders:
         for order_line in order.lines:
@@ -354,6 +357,49 @@ def _allocation_stats(group: GroupBuy) -> dict[str, dict[int, tuple[int, int]]]:
     return out
 
 
+def _allocated_by_user_card_art(group: GroupBuy) -> dict[tuple[int, str], dict[int | None, int]]:
+    """(user id, card id) -> art (None is the standard art) -> copies allocated in orders."""
+    out: dict[tuple[int, str], dict[int | None, int]] = {}
+    for order in group.orders:
+        for line in order.lines:
+            for alloc in line.allocations:
+                arts = out.setdefault((alloc.user_id, line.card_id.upper()), {})
+                arts[line.product_id] = arts.get(line.product_id, 0) + int(alloc.qty)
+    return out
+
+
+def _member_not_ordered(
+    member: MergedMemberQty,
+    wants: dict[int, int],
+    placed: dict[int | None, int],
+    *,
+    in_order: int,
+    unordered_only: bool,
+) -> list[GroupBuyNotOrderedMemberOut]:
+    """Per art, the copies this member has no order for: what they buy minus what orders hold.
+
+    Alt arts they asked for come first (minus the copies of that art already placed); the rest is standard.
+    """
+    left = member.qty if unordered_only else max(0, member.qty - in_order)
+    out: list[GroupBuyNotOrderedMemberOut] = []
+    for pid, want in sorted(wants.items()):
+        missing = min(left, want if unordered_only else max(0, want - placed.get(pid, 0)))
+        if missing > 0:
+            out.append(
+                GroupBuyNotOrderedMemberOut(
+                    user_id=member.user_id, display_name=member.display_name, qty=missing, product_id=pid
+                )
+            )
+            left -= missing
+    if left > 0:
+        out.append(
+            GroupBuyNotOrderedMemberOut(
+                user_id=member.user_id, display_name=member.display_name, qty=left, product_id=None
+            )
+        )
+    return out
+
+
 def _member_needs_locked(group: GroupBuy, *, unordered_only: bool = False) -> list[MemberNeed]:
     """Frozen needs. By default the whole snapshot (what each member is buying in this group buy,
     which money is settled on); ``unordered_only`` takes off copies already in a seller order."""
@@ -479,6 +525,7 @@ def _build_lines(
     merged = merge_member_needs(needs)
     card_ids = {line.card_id for line in merged} | set(zero_customs)
     order_stats = _allocation_stats(group)
+    order_arts = _allocated_by_user_card_art(group)
 
     viewer_wants: dict[str, dict[int, int]] = {}
     viewer_need: dict[str, int] = {}
@@ -556,6 +603,8 @@ def _build_lines(
         priced_ok = True
         any_buy = False
         art_wants: list[GroupBuyArtWantOut] = []
+        not_ordered_members: list[GroupBuyNotOrderedMemberOut] = []
+        per_user = order_stats.get(card_id.upper(), {})
         for mem in members:
             if mem.qty <= 0:
                 continue
@@ -572,6 +621,16 @@ def _build_lines(
                 for pid, qty, _price in buys
                 if pid and qty > 0
             )
+            if group.orders or unordered_only:
+                not_ordered_members.extend(
+                    _member_not_ordered(
+                        mem,
+                        {pid: qty for pid, qty, _price in buys if pid and qty > 0 and pid != preferred_product_id},
+                        order_arts.get((mem.user_id, card_id.upper()), {}),
+                        in_order=per_user.get(mem.user_id, (0, 0))[0],
+                        unordered_only=unordered_only,
+                    )
+                )
             cost = shopping_svc.remaining_cost_for_buys(buys)
             bucket = member_totals.setdefault(mem.user_id, [0, 0.0])
             bucket[0] += mem.qty
@@ -597,7 +656,6 @@ def _build_lines(
         my_qty = mine.qty if mine else 0
         my_is_custom = mine.is_custom if mine else False
         my_item = viewer_items.get(card_id)
-        per_user = order_stats.get(card_id.upper(), {})
         in_order = sum(q for q, _ in per_user.values())
         my_in_order, my_arrived = per_user.get(viewer_user_id, (0, 0))
         my_extras = (
@@ -648,6 +706,7 @@ def _build_lines(
                 my_in_order=my_in_order,
                 my_arrived=my_arrived,
                 my_not_ordered=my_qty if unordered_only else max(0, my_qty - my_in_order),
+                not_ordered_members=not_ordered_members,
             )
         )
 
