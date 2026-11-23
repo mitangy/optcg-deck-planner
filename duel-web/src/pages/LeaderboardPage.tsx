@@ -9,7 +9,7 @@ import { ensureAuth } from "../auth/session";
 import { fetchFriends } from "../friends/friendsApi";
 import { fetchLeaderboard, fetchRatingMe, fetchSeasonBoard, fetchSeasons, googleLoginUrl, type LeaderboardEntry, type RatingMe } from "../net/api";
 import { seasonDate } from "../lib/seasonDate";
-import { WINDOWS, filterEntries, movement, pastSeasonFromParam, provisionalDividerAt, seasonOptions, type BoardWindow } from "./leaderboardModel";
+import { WINDOWS, filterEntries, movement, notListedText, pastSeasonFromParam, provisionalDividerAt, seasonOptions, type BoardWindow } from "./leaderboardModel";
 
 const LIMIT = 100;
 const PROVISIONAL_GAMES = 10;
@@ -346,7 +346,7 @@ function YourBounty({
       </>
     );
   } else if (entries) {
-    body = <p className="leaderboard-you-text">No ranked games {span}</p>;
+    body = <p className="leaderboard-you-text">{notListedText(entries, LIMIT, span)}</p>;
   } else {
     body = <p className="leaderboard-you-text">&nbsp;</p>;
   }

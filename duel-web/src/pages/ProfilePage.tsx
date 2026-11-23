@@ -23,8 +23,9 @@ function cardLabel(id: string): string {
 }
 
 function PicturePanel({ name }: { name: string }) {
-  const { profileCard } = useDuelSettings();
+  const { profileCard, profileArt } = useDuelSettings();
   const [query, setQuery] = useState("");
+  const [artOpen, setArtOpen] = useState(false);
   const q = query.trim().toLowerCase();
   const leaders = useMemo(() => listAtlasLeaders(), []);
   const results = useMemo(() => {
@@ -32,6 +33,19 @@ function PicturePanel({ name }: { name: string }) {
     const hits = q ? pool.filter((id) => `${lookupCard(id).name}\n${id}`.toLowerCase().includes(q)) : pool;
     return hits.slice(0, MAX_RESULTS);
   }, [q, leaders]);
+  const alts = profileCard ? (lookupCard(profileCard).altArts ?? []) : [];
+  const chosenAlt = alts.find((a) => a.id === profileArt);
+  const choosingArt = artOpen && alts.length > 0;
+
+  const pickCard = (id: string) => {
+    updateSettings({ profileCard: id, profileArt: "" });
+    setArtOpen((lookupCard(id).altArts?.length ?? 0) > 0);
+  };
+  const pickArt = (id: string) => updateSettings({ profileArt: id });
+  const removePicture = () => {
+    updateSettings({ profileCard: "", profileArt: "" });
+    setArtOpen(false);
+  };
 
   return (
     <section className="panel" aria-labelledby="profile-picture-title">
@@ -48,19 +62,47 @@ function PicturePanel({ name }: { name: string }) {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
-        <button
-          type="button"
-          className="btn btn-secondary"
-          disabled={!profileCard}
-          onClick={() => updateSettings({ profileCard: "" })}
-        >
+        <button type="button" className="btn btn-secondary" disabled={!profileCard} onClick={removePicture}>
           Remove picture
         </button>
+        {profileCard && alts.length > 0 && !choosingArt ? (
+          <button type="button" className="btn btn-secondary" onClick={() => setArtOpen(true)}>
+            Change art
+          </button>
+        ) : null}
       </div>
       <p className="field-hint" role="status">
-        {profileCard ? `Using ${cardLabel(profileCard)}.` : "No picture set. Pick a card below."}
+        {profileCard
+          ? `Using ${cardLabel(profileCard)}, ${chosenAlt ? chosenAlt.label : "base art"}.`
+          : "No picture set. Pick a card below."}
       </p>
-      {results.length === 0 ? (
+      {choosingArt ? (
+        <>
+          <div className="profile-art-head">
+            <h3 className="profile-art-title">Choose art for {cardLabel(profileCard)}</h3>
+            <button type="button" className="btn btn-secondary" onClick={() => setArtOpen(false)}>
+              Back to cards
+            </button>
+          </div>
+          <ul className="profile-pick-grid profile-art-grid">
+            {[{ id: "", label: "Base" }, ...alts].map((art) => (
+              <li key={art.id || "base"} className="profile-art-tile">
+                <button
+                  type="button"
+                  className="profile-pick"
+                  aria-pressed={art.id === (chosenAlt?.id ?? "")}
+                  aria-label={art.label}
+                  title={art.label}
+                  onClick={() => pickArt(art.id)}
+                >
+                  <ProfileAvatar cardId={profileCard} artId={art.id} name={name} />
+                </button>
+                <span className="profile-art-caption" aria-hidden>{art.label}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : results.length === 0 ? (
         <p className="field-hint">No cards match “{query.trim()}”.</p>
       ) : (
         <ul className="profile-pick-grid">
@@ -72,7 +114,7 @@ function PicturePanel({ name }: { name: string }) {
                 aria-pressed={id === profileCard}
                 aria-label={cardLabel(id)}
                 title={cardLabel(id)}
-                onClick={() => updateSettings({ profileCard: id })}
+                onClick={() => pickCard(id)}
               >
                 <ProfileAvatar cardId={id} name={name} />
               </button>
@@ -137,7 +179,7 @@ function PastSeasonsPanel() {
 
 export function ProfilePage() {
   const authUser = useAuthUser();
-  const { profileCard } = useDuelSettings();
+  const { profileCard, profileArt } = useDuelSettings();
   const rating = useAsyncResource(() => fetchRatingMe(), [authUser?.id], authUser != null);
   const bounty = rating.status === "ready" && rating.data ? rating.data.rating : null;
   const name = authUser ? authUser.username || authUser.email : "Guest";
@@ -145,7 +187,7 @@ export function ProfilePage() {
   return (
     <PageShell pageClass="page-narrow" back={{ to: "/", label: "Home", ariaLabel: "Back to home" }} title="Profile">
       <section className="panel profile-head">
-        <ProfileAvatar cardId={profileCard} name={name} size={72} />
+        <ProfileAvatar cardId={profileCard} artId={profileArt} name={name} size={72} />
         <div className="profile-head-text">
           <h2 className="profile-name">{name}</h2>
           {authUser?.username ? <p className="profile-email">{authUser.email}</p> : null}

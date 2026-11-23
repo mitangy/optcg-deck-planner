@@ -19,6 +19,11 @@ export function movement(change: number | null | undefined): Movement | null {
   return null;
 }
 
+/** What the Your bounty card says when the player is not in the fetched rows. A full board only shows the top `limit`, so they may still be ranked below it (#1400). */
+export function notListedText(entries: readonly LeaderboardEntry[], limit: number, span: string): string {
+  return entries.length >= limit ? `Not in the top ${limit} ${span}` : `No ranked games ${span}`;
+}
+
 /** Keeps the server's ranks: only hides rows. */
 export function filterEntries(
   entries: readonly LeaderboardEntry[],

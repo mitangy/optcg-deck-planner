@@ -258,6 +258,8 @@ class DuelDeckBody(BaseModel):
     plannerArt: dict[str, str] | None = None
     plannerDeckId: int | None = None
     editedLocally: bool | None = None
+    # Set on a deliberate copy of a deck so the first-upload dedupe (#1027) never merges it with its twin (#1400).
+    noMerge: bool | None = None
 
 
 class DuelDeckPut(BaseModel):

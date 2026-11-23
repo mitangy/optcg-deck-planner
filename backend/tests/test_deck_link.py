@@ -472,6 +472,36 @@ def test_the_bulk_first_sign_in_upload_also_drops_an_identical_guest_deck_1027(c
     assert len(_planner_decks(S, uid)) == 2
 
 
+def test_a_duplicated_deck_is_not_merged_on_bulk_upload_1400(client):
+    c, S = client
+    uid = _user(S)
+    c = _as(c, uid)
+    same = ["OP01-016"] * 50
+    items = [
+        {"id": "copy", "updatedAt": 200, "deck": _duel("X (copy)", cards=same, noMerge=True)},
+        {"id": "orig", "updatedAt": 100, "deck": _duel("X", cards=same)},
+    ]
+    res = c.put("/duel/decks", json={"decks": items})
+    assert res.status_code == 200, res.text
+    out = {d["id"]: d for d in res.json()["decks"]}
+    assert (out["orig"]["deleted"], out["orig"]["mergedInto"]) == (False, None)
+    assert (out["copy"]["deleted"], out["copy"]["mergedInto"]) == (False, None)
+    assert out["copy"]["deck"]["noMerge"] is True
+    assert len(_planner_decks(S, uid)) == 2
+    assert [r.deleted for r in _duel_rows(S, uid)] == [False, False]
+
+
+def test_a_duplicated_deck_uploaded_after_its_original_is_kept_too_1400(client):
+    c, S = client
+    uid = _user(S)
+    c = _as(c, uid)
+    same = ["OP01-016"] * 50
+    assert _bulk(c, "orig", 100, _duel("X", cards=same))["deleted"] is False
+    copy = _bulk(c, "copy", 200, _duel("X (copy)", cards=same, noMerge=True))
+    assert (copy["deleted"], copy["mergedInto"]) == (False, None)
+    assert len(_planner_decks(S, uid)) == 2
+
+
 def test_a_guest_deck_that_differs_is_created_normally_1027(client):
     c, S = client
     uid = _user(S)
