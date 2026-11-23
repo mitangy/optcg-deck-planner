@@ -265,3 +265,35 @@ describe("legal intents in the counter step", () => {
     expect(intents.filter((i) => i.type === "counter_event")).toEqual([{ type: "counter_event", handIndex: hand.indexOf(REPEL) }]);
   });
 });
+
+describe("Stage cards as hand counters (#1421)", () => {
+  const FRANKY = "OP18-021";
+  const SUNNY = "OP18-075";
+
+  function stageCounterStep(defenderLeader: string): Harness {
+    const h = new Harness({ leaders: ["ST01-001", defenderLeader] });
+    h.hand(1, SUNNY);
+    h.attack(h.state.players[0].leader, "leader");
+    h.act(1, { type: "pass_block" });
+    expect(h.state.phase).toBe("counter");
+    return h;
+  }
+
+  it("a Stage in hand counters for +3000 under Franky OP18-021 (#1421)", () => {
+    const h = stageCounterStep(FRANKY);
+    expect(h.legal(1)).toContainEqual({ type: "counter_from_hand", handIndex: 0 });
+    expect(h.view(1).you.hand[0]!.counter).toBe(3000);
+    const life = h.state.players[1].life.length;
+    h.act(1, { type: "counter_from_hand", handIndex: 0 });
+    expect(h.state.players[1].hand).toHaveLength(0);
+    expect(h.state.players[1].trash).toContain(SUNNY);
+    h.act(1, { type: "pass_counter" });
+    expect(h.state.players[1].life.length).toBe(life);
+  });
+
+  it("a Stage in hand is not a counter without a Stage-counter Leader (#1421)", () => {
+    const h = stageCounterStep("ST01-001");
+    expect(h.legal(1).filter((i) => i.type === "counter_from_hand")).toEqual([]);
+    expect(h.try(1, { type: "counter_from_hand", handIndex: 0 }).ok).toBe(false);
+  });
+});
