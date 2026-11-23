@@ -21,6 +21,7 @@ from app.group_buy.schemas import (
     GroupBuyInvitePreview,
     GroupBuyOrderAdded,
     GroupBuyOrderCreate,
+    GroupBuyOrderLinesUpdate,
     GroupBuyOrderPatch,
     GroupBuyOrderPreview,
     GroupBuyOrderPreviewRequest,
@@ -236,6 +237,18 @@ def patch_group_buy_order_details(
     db: Annotated[Session, Depends(get_db)],
 ):
     return group_buy.update_order_details(db, user, group_id, order_id, body)
+
+
+@router.put("/group-buys/{group_id}/orders/{order_id}/lines", response_model=GroupBuyOrderAdded)
+def put_group_buy_order_lines(
+    group_id: int,
+    order_id: int,
+    body: GroupBuyOrderLinesUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Replace an order's cards (host) while nothing in it has arrived; allocation is redone."""
+    return group_buy.set_order_lines(db, user, group_id, order_id, body)
 
 
 @router.delete("/group-buys/{group_id}/orders/{order_id}", response_model=GroupBuyDetail)

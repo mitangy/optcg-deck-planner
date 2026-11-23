@@ -12,6 +12,7 @@ import {
   packageCounts,
   pickableLines,
   pickedOrderLines,
+  startingPicks,
   progressLabels,
   sellersOnTheWay,
 } from "./groupBuyOrders";
@@ -154,5 +155,24 @@ describe("Pick cards by hand (#1418)", () => {
     const withAlt = line({ alt_arts: [{ product_id: 9, name: "Manga" } as never] });
     expect(artLabel(withAlt, 9)).toBe("Manga");
     expect(artLabel(withAlt, null)).toBe("Base");
+  });
+});
+
+describe("Edit order items (#1418)", () => {
+  const lines = [line({ card_id: "OP01-001", not_ordered: 1 }), line({ card_id: "OP01-002", not_ordered: 0 })];
+  const o = order({ lines: [orderLine(1, "OP01-001", [[1, 2, 0]]), orderLine(2, "OP01-002", [[1, 1, 0]], { qty_extra: 1, qty_ordered: 2 })] });
+
+  it("the order's own copies are available to it again, on top of the copies not in any order (#1418)", () => {
+    expect(pickableLines(lines, o).map((l) => [l.card_id, l.not_ordered])).toEqual([["OP01-001", 3], ["OP01-002", 1]]);
+    expect(pickableLines(lines).map((l) => l.card_id)).toEqual(["OP01-001"]);
+  });
+
+  it("the checklist starts from what the order holds, not from everything still to order (#1418)", () => {
+    expect(startingPicks(lines, o)).toEqual({ "OP01-001": 2, "OP01-002": 1 });
+    expect(startingPicks(lines)).toEqual({ "OP01-001": 1 });
+  });
+
+  it("Save sends the edited order's picks up to what it can take (#1418)", () => {
+    expect(pickedOrderLines(lines, { "OP01-001": 9, "OP01-002": 0 }, o)).toEqual([{ card_id: "OP01-001", qty: 3 }]);
   });
 });

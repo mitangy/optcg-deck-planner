@@ -266,6 +266,12 @@ class GroupBuyOrderPatch(BaseModel):
     expected_version: int | None = None
 
 
+class GroupBuyOrderLinesUpdate(BaseModel):
+    expected_version: int | None = None
+    receipt_text: str = Field(default="", max_length=200_000)
+    lines: list[GroupBuyOrderLineIn] | None = None
+
+
 class GroupBuyOrderPreviewRequest(BaseModel):
     receipt_text: str = Field(min_length=1, max_length=200_000)
 

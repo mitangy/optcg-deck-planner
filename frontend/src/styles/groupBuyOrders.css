@@ -224,6 +224,7 @@
 }
 
 .gb-order-actions {
+  margin-top: auto;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

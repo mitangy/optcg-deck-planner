@@ -42,6 +42,7 @@ from app.group_buy.schemas import (
     GroupBuyOrderAdded,
     GroupBuyOrderAllocationOut,
     GroupBuyOrderCreate,
+    GroupBuyOrderLinesUpdate,
     GroupBuyOrderLineOut,
     GroupBuyOrderOut,
     GroupBuyOrderPatch,
@@ -1930,14 +1931,18 @@ def _create_order(
         version=1,
     )
     group.orders.append(order)
+    _fill_order_lines(order, copies, plan)
+    db.flush()
+    return order, status_before, set_ordered_at
+
+
+def _fill_order_lines(order: GroupBuyOrder, copies: Copies, plan) -> None:
     for card_id, arts in sorted(copies.items()):
         for art, qty in sorted(arts.items(), key=_art_order):
             line = GroupBuyOrderLine(card_id=card_id, product_id=art, qty_ordered=qty)
             order.lines.append(line)
             for uid, n in plan.get(card_id, {}).get(art, []):
                 line.allocations.append(GroupBuyOrderAllocation(user_id=uid, qty=n, qty_arrived=0))
-    db.flush()
-    return order, status_before, set_ordered_at
 
 
 def add_order(
@@ -1972,6 +1977,40 @@ def add_order(
     )
     if body.mark_arrived:
         _set_arrival(db, group, order, user, None, status_before, set_ordered_at)
+    _refresh_status(group)
+    db.commit()
+    return GroupBuyOrderAdded(
+        order_id=order.id, unmatched=unmatched, detail=get_group_buy(db, user, group_id)
+    )
+
+
+def set_order_lines(
+    db: Session, user: User, group_id: int, order_id: int, body: GroupBuyOrderLinesUpdate
+) -> GroupBuyOrderAdded:
+    """Replace what an order holds. Only while nothing in it arrived, so no Owned credit has to move."""
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    order = _get_order(group, order_id)
+    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
+        raise Forbidden("This group buy was closed")
+    _check_version(order, body.expected_version)
+    if _order_totals(order)[2] > 0 or any(a.order_id == order.id for a in group.receipt_applies):
+        raise Conflict("Undo this order's arrivals before changing its items")
+    receipt_text = body.receipt_text.strip()
+    unmatched: list[GroupBuyReceiptUnmatchedOut] = []
+    if body.lines:
+        copies = _copies_from_lines(db, body.lines)
+    elif receipt_text:
+        copies, unmatched = _copies_from_receipt(db, receipt_text)
+    else:
+        raise Invalid("Paste the order or pick cards")
+    # Drop this order's own lines first so its copies count as not ordered while allocation reruns.
+    order.lines.clear()
+    db.flush()
+    _fill_order_lines(order, copies, _plan_allocation(db, group, copies))
+    if receipt_text and not body.lines:
+        order.receipt_text = receipt_text
+    _touch(order)
     _refresh_status(group)
     db.commit()
     return GroupBuyOrderAdded(

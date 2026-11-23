@@ -50,7 +50,7 @@ function OrderThumbs({ order, lines }: { order: GroupBuyOrder; lines: GroupBuyLi
   const byCard = new Map(lines.map((l) => [l.card_id, l]));
   const shown = order.lines.slice(0, MAX_THUMBS);
   const more = order.lines.length - shown.length;
-  if (order.lines.length === 0) return <p className="muted gb-order-empty">No cards in this order.</p>;
+  if (order.lines.length === 0) return <p className="muted gb-order-empty">No cards in this order yet.</p>;
   return (
     <div className="gb-order-thumbs">
       {shown.map((l) => (
@@ -75,6 +75,7 @@ function OrderCard({
   onCheck,
   onUndo,
   onDelete,
+  onEdit,
 }: {
   order: GroupBuyOrder;
   index: number;
@@ -86,12 +87,14 @@ function OrderCard({
   onCheck: (o: GroupBuyOrder) => void;
   onUndo: (o: GroupBuyOrder) => void;
   onDelete: (o: GroupBuyOrder) => void;
+  onEdit: (o: GroupBuyOrder) => void;
 }) {
   const chip = orderChip(order);
   const [copied, setCopied] = useState(false);
   const arrivedAny = order.qty_arrived > 0;
   const manage = isHost && canEdit;
   const menuItems = [
+    { key: "edit", label: "Edit order", run: () => onEdit(order), danger: false },
     arrivedAny ? { key: "undo", label: "Undo arrival", run: () => onUndo(order), danger: false } : null,
     !arrivedAny ? { key: "delete", label: "Delete order", run: () => onDelete(order), danger: true } : null,
   ].filter((x): x is NonNullable<typeof x> => x !== null);
@@ -123,6 +126,11 @@ function OrderCard({
       </p>
       <OrderThumbs order={order} lines={lines} />
       <div className="gb-order-actions">
+        {manage && order.lines.length === 0 ? (
+          <button type="button" className="btn primary" disabled={busy} onClick={() => onEdit(order)}>
+            Add items
+          </button>
+        ) : null}
         {manage && order.status !== "arrived" && order.lines.length > 0 ? (
           <>
             <button type="button" className="btn primary" disabled={busy} onClick={() => onMarkArrived(order)}>
@@ -193,6 +201,7 @@ export function PackagesSection({
   onCheck,
   onUndo,
   onDelete,
+  onEdit,
 }: {
   detail: GroupBuyDetail;
   canEdit: boolean;
@@ -202,6 +211,7 @@ export function PackagesSection({
   onCheck: (o: GroupBuyOrder) => void;
   onUndo: (o: GroupBuyOrder) => void;
   onDelete: (o: GroupBuyOrder) => void;
+  onEdit: (o: GroupBuyOrder) => void;
 }) {
   const orders = detail.orders ?? [];
   const counts = packageCounts(detail.lines);
@@ -245,6 +255,7 @@ export function PackagesSection({
                   onCheck={onCheck}
                   onUndo={onUndo}
                   onDelete={onDelete}
+                  onEdit={onEdit}
                 />
               ))}
             </ul>

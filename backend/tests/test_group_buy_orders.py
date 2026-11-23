@@ -14,6 +14,8 @@ from app.group_buy.schemas import (
     GroupBuyArrivalUndo,
     GroupBuyArrivalUpdate,
     GroupBuyOrderCreate,
+    GroupBuyOrderLineIn,
+    GroupBuyOrderLinesUpdate,
     GroupBuyOrderUpdate,
     GroupBuyOrderPatch,
     GroupBuyReceiptApplyRequest,
@@ -540,3 +542,77 @@ def test_receipt_undo_only_takes_back_arrivals_of_an_order_added_on_purpose_1418
     assert _owned(db, host.id) == 0 and _owned(db, friend.id) == 0
     assert [(o.status, o.qty_arrived) for o in undone.orders] == [("on_the_way", 0)]
     assert undone.status == "ordered"
+
+
+def _set_lines(db, host, gid, order, **kw):
+    return group_buy.set_order_lines(
+        db, host, gid, order.id, GroupBuyOrderLinesUpdate(expected_version=order.version, **kw)
+    )
+
+
+def test_an_order_saved_with_only_a_number_can_get_its_items_later_1418(db):
+    host, _friend, gid = _locked_group(db)
+    added = group_buy.add_order(db, host, gid, GroupBuyOrderCreate(order_number="A-1"))
+    order = _order(added.detail, added.order_id)
+    assert order.lines == [] and group_buy.export_tcgplayer(db, host, gid).copy_count == 4
+
+    result = _set_lines(db, host, gid, order, receipt_text=_receipt(alt=1, std=3))
+
+    after = _order(result.detail, order.id)
+    assert after.qty_ordered == 4 and after.qty_allocated == 4 and after.version == order.version + 1
+    assert group_buy.export_tcgplayer(db, host, gid).copy_count == 0
+
+
+def test_replacing_an_orders_items_redoes_allocation_around_the_other_orders_1418(db):
+    host, _friend, gid = _locked_group(db)
+    _add(db, host, gid, std=2)
+    second = _add(db, host, gid, std=1)
+    order = _order(second.detail, second.order_id)
+
+    result = _set_lines(db, host, gid, order, receipt_text=_receipt(std=3))
+
+    after = _order(result.detail, order.id)
+    # 4 copies are needed in all and 2 already sit in the first order: only 2 are left to allocate.
+    assert (after.qty_ordered, after.qty_allocated, after.qty_extra) == (3, 2, 1)
+
+
+def test_replacing_items_can_pick_cards_by_hand_1418(db):
+    host, _friend, gid = _locked_group(db)
+    added = _add(db, host, gid, std=1)
+    order = _order(added.detail, added.order_id)
+
+    result = _set_lines(db, host, gid, order, lines=[GroupBuyOrderLineIn(card_id="OP01-001", qty=2)])
+
+    assert _order(result.detail, order.id).qty_ordered == 2
+
+
+def test_items_cannot_change_once_anything_in_the_order_arrived_1418(db):
+    host, _friend, gid = _locked_group(db)
+    added = _add(db, host, gid, std=2, arrived=True)
+    order = _order(added.detail, added.order_id)
+
+    with pytest.raises(Conflict):
+        _set_lines(db, host, gid, order, receipt_text=_receipt(std=1))
+
+    assert _order(group_buy.get_group_buy(db, host, gid), order.id).qty_ordered == 2
+
+
+def test_a_stale_version_cannot_replace_items_1418(db):
+    host, _friend, gid = _locked_group(db)
+    added = _add(db, host, gid, std=2)
+    order = _order(added.detail, added.order_id)
+    _set_lines(db, host, gid, order, receipt_text=_receipt(std=1))
+
+    with pytest.raises(Conflict):
+        _set_lines(db, host, gid, order, receipt_text=_receipt(std=2))
+
+
+def test_only_the_host_can_replace_items_and_something_must_be_sent_1418(db):
+    host, friend, gid = _locked_group(db)
+    added = _add(db, host, gid, std=1)
+    order = _order(added.detail, added.order_id)
+
+    with pytest.raises(Forbidden):
+        _set_lines(db, friend, gid, order, receipt_text=_receipt(std=1))
+    with pytest.raises(Invalid):
+        _set_lines(db, host, gid, order)

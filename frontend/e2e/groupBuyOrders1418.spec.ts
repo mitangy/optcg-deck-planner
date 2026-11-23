@@ -73,6 +73,30 @@ test("Host adds a pasted order, sees the match first, then marks the package arr
   await expect(page.getByTestId("gb-packages")).toContainText("3 arrived");
 });
 
+test("An order saved without items gets them later through Add items (#1418)", async ({ page, planner }) => {
+  const empty = detail([{ id: 5, seller: "Grand Line", number: "ABCDE-12345", arrived: false }]);
+  empty.orders[0].lines = [];
+  empty.orders[0].qty_ordered = 0;
+  let full = false;
+  const puts: unknown[] = [];
+  await page.route(`**/api/group-buys/${GB}`, (r) => r.fulfill({ json: full ? detail([{ id: 5, seller: "Grand Line", number: "ABCDE-12345", arrived: false }]) : empty }));
+  await page.route(`**/api/group-buys/${GB}/orders/5/lines`, (r) => {
+    puts.push(r.request().postDataJSON());
+    full = true;
+    return r.fulfill({ json: { order_id: 5, unmatched: [], detail: detail([{ id: 5, seller: "Grand Line", number: "ABCDE-12345", arrived: false }]) } });
+  });
+  await planner.open(`/group-buys/${GB}`);
+  const card = page.getByTestId("gb-order");
+  await expect(card).toContainText("No cards in this order yet");
+  await card.getByRole("button", { name: "Add items" }).click();
+  const dialog = page.getByRole("dialog", { name: /Edit order/ });
+  await expect(dialog.getByLabel("Order number")).toHaveValue("ABCDE-12345");
+  await dialog.locator("textarea").fill("Qty\tDescription\n3\tLuffy");
+  await dialog.getByRole("button", { name: /^Save changes/ }).click();
+  await expect(card).toContainText("0 of 3 copies arrived");
+  expect(puts).toEqual([{ expected_version: 1, receipt_text: "Qty\tDescription\n3\tLuffy" }]);
+});
+
 test("A member sees one line per package and no host buttons, and nothing scrolls sideways at 375px (#1418)", async ({ page, planner }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-1200", "sets its own viewport");
   await page.setViewportSize({ width: 375, height: 812 });

@@ -50,6 +50,7 @@ export function GroupBuyDetailPage() {
   const [density, setDensity] = useListDensity("groupBuy");
   const [addOpen, setAddOpen] = useState(false);
   const [checkOrderId, setCheckOrderId] = useState<number | null>(null);
+  const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [cardsOpenPick, setCardsOpenPick] = useState<boolean | null>(null);
   const [showExcluded, setShowExcluded] = useState(false);
   const unavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
@@ -445,6 +446,7 @@ export function GroupBuyDetailPage() {
   const everythingArrived = detail.status === "completed" && notOrderedCopies(detail) === 0;
   const canEditArrival = detail.status === "ordered" || everythingArrived;
   const checkOrder = orders.find((o) => o.id === checkOrderId) ?? null;
+  const editOrder = orders.find((o) => o.id === editOrderId) ?? null;
   const meId = meQ.data?.id;
   // The long list folds away for the host once packages are being tracked; members and open/locked groups see it.
   const cardsOpen = cardsOpenPick ?? !(detail.is_host && inOrderedPhase && orders.length > 0);
@@ -556,6 +558,23 @@ export function GroupBuyDetailPage() {
           }}
         />
       ) : null}
+      {editOrder ? (
+        <AddOrderDialog
+          key={editOrder.version}
+          groupId={groupId}
+          detail={detail}
+          order={editOrder}
+          onClose={() => setEditOrderId(null)}
+          onAdded={async (d, info) => {
+            await orderOps.accept(d, false);
+            setEditOrderId(null);
+            setMsg(
+              "Order updated." +
+                (info.unmatched ? ` ${info.unmatched} ${info.unmatched === 1 ? "line was" : "lines were"} not in this buy and left out.` : ""),
+            );
+          }}
+        />
+      ) : null}
       {checkOrder ? (
         <CheckItemsDialog
           key={checkOrder.version}
@@ -658,6 +677,10 @@ export function GroupBuyDetailPage() {
           canEdit={canEditArrival}
           busy={orderBusy}
           onAddOrder={() => setAddOpen(true)}
+          onEdit={(o) => {
+            setMsg(null);
+            setEditOrderId(o.id);
+          }}
           onMarkArrived={(o) => orderOps.markArrived.mutate(o)}
           onCheck={(o) => {
             setMsg(null);

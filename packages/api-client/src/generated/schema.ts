@@ -3185,6 +3185,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/group-buys/{group_id}/orders/{order_id}/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Group Buy Order Lines
+         * @description Replace an order's cards (host) while nothing in it has arrived; allocation is redone.
+         */
+        put: operations["put_group_buy_order_lines_group_buys__group_id__orders__order_id__lines_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/group-buys/{group_id}/public": {
         parameters: {
             query?: never;
@@ -7603,6 +7623,18 @@ export interface components {
             qty_extra: number;
             /** Qty Ordered */
             qty_ordered: number;
+        };
+        /** GroupBuyOrderLinesUpdate */
+        GroupBuyOrderLinesUpdate: {
+            /** Expected Version */
+            expected_version?: number | null;
+            /** Lines */
+            lines?: components["schemas"]["GroupBuyOrderLineIn"][] | null;
+            /**
+             * Receipt Text
+             * @default
+             */
+            receipt_text: string;
         };
         /** GroupBuyOrderOut */
         GroupBuyOrderOut: {
@@ -16044,6 +16076,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_group_buy_order_lines_group_buys__group_id__orders__order_id__lines_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderLinesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderAdded"];
                 };
             };
             /** @description Validation Error */

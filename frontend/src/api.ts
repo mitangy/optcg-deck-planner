@@ -906,6 +906,22 @@ export const api = {
       body: JSON.stringify({ receipt_text: text }),
       timeoutMs: LONG_TIMEOUT_MS,
     }),
+  setGroupBuyOrderLines: (
+    id: number,
+    orderId: number,
+    body: { expected_version: number; receipt_text?: string; lines?: { card_id: string; qty: number }[] },
+  ) =>
+    request<{ order_id: number; unmatched: GroupBuyReceiptUnmatched[]; detail: GroupBuyDetail }>(`/group-buys/${id}/orders/${orderId}/lines`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+      timeoutMs: LONG_TIMEOUT_MS,
+    }),
+  updateGroupBuyOrderDetails: (
+    id: number,
+    orderId: number,
+    body: { expected_version: number; order_number?: string; seller_name?: string; tracking_url?: string },
+  ) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/orders/${orderId}`, { method: "PATCH", body: JSON.stringify(body) }),
   deleteGroupBuyOrder: (id: number, orderId: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/orders/${orderId}`, { method: "DELETE" }),
   setGroupBuyOrderArrival: (

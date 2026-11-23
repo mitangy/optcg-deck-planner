@@ -1,11 +1,11 @@
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
-import { api, type GroupBuyDetail, type GroupBuyLine, type GroupBuyOrderPreview } from "../../api";
+import { api, type GroupBuyDetail, type GroupBuyLine, type GroupBuyOrder, type GroupBuyOrderPreview } from "../../api";
 import { qk } from "../../cache/queryKeys";
 import { useGroupBuyListNarrow } from "../../hooks/useGroupBuyListNarrow";
 import { CardThumb } from "../../ui/CardThumb";
-import { artLabel, pickableLines, pickedOrderLines } from "./groupBuyOrders";
+import { artLabel, pickableLines, pickedOrderLines, startingPicks } from "./groupBuyOrders";
 import { lineArtUrl } from "./useGroupBuyLines";
 
 const PREVIEW_DELAY_MS = 450;
@@ -96,15 +96,14 @@ function PreviewResult({ preview, lines, narrow }: { preview: GroupBuyOrderPrevi
 }
 
 function CardPicker({
-  lines,
+  pickable,
   picks,
   onChange,
 }: {
-  lines: GroupBuyLine[];
+  pickable: GroupBuyLine[];
   picks: Record<string, number>;
   onChange: (next: Record<string, number>) => void;
 }) {
-  const pickable = pickableLines(lines);
   const allOn = pickable.every((l) => (picks[l.card_id] ?? 0) > 0);
   const setAll = (on: boolean) => onChange(Object.fromEntries(pickable.map((l) => [l.card_id, on ? (l.not_ordered ?? 0) : 0])));
   if (pickable.length === 0) return <p className="muted">Every copy is already in an order.</p>;
@@ -156,21 +155,26 @@ function CardPicker({
   );
 }
 
+/** Adds an order, or with `order` edits one: number, seller, tracking, and its items while nothing in it has arrived. */
 export function AddOrderDialog({
   groupId,
   detail,
+  order,
   onClose,
   onAdded,
 }: {
   groupId: number;
   detail: GroupBuyDetail;
+  order?: GroupBuyOrder;
   onClose: () => void;
-  onAdded: (d: GroupBuyDetail, info: { copies: number; unmatched: number; arrived: boolean }) => void;
+  onAdded: (d: GroupBuyDetail, info: { copies: number; unmatched: number; arrived: boolean; edited: boolean }) => void;
 }) {
   const narrow = useGroupBuyListNarrow();
-  const [orderNumber, setOrderNumber] = useState("");
-  const [seller, setSeller] = useState("");
-  const [tracking, setTracking] = useState("");
+  const itemsLocked = Boolean(order && order.qty_arrived > 0);
+  const [orderNumber, setOrderNumber] = useState(order?.order_number ?? "");
+  const [seller, setSeller] = useState(order?.seller_name ?? "");
+  const [tracking, setTracking] = useState(order?.tracking_url ?? "");
+  const [itemsTouched, setItemsTouched] = useState(false);
   const [paste, setPaste] = useState("");
   const [manual, setManual] = useState(false);
   const [picks, setPicks] = useState<Record<string, number>>({});
@@ -189,35 +193,73 @@ export function AddOrderDialog({
   });
   const preview = !manual && pasteText && settled ? previewQ.data : undefined;
 
-  const pickedLines = useMemo(() => pickedOrderLines(detail.lines, picks), [detail.lines, picks]);
+  const pickable = useMemo(() => pickableLines(detail.lines, order), [detail.lines, order]);
+  const pickedLines = useMemo(() => pickedOrderLines(detail.lines, picks, order), [detail.lines, picks, order]);
   const pickedCopies = pickedLines.reduce((s, l) => s + l.qty, 0);
   const matchedCopies = preview ? preview.lines.reduce((s, l) => s + l.qty, 0) : 0;
   const copies = manual ? pickedCopies : matchedCopies;
 
   const startManual = () => {
-    setPicks(Object.fromEntries(pickableLines(detail.lines).map((l) => [l.card_id, l.not_ordered ?? 0])));
+    setPicks(startingPicks(detail.lines, order));
     setManual(true);
   };
 
+  const hasItems = manual ? pickedCopies > 0 && (!order || itemsTouched) : pasteText.length > 0;
+
   const save = useMutation({
-    mutationFn: () =>
-      api.addGroupBuyOrder(groupId, {
-        order_number: orderNumber.trim(),
-        seller_name: seller.trim(),
-        tracking_url: tracking.trim(),
-        mark_arrived: arrivedNow,
-        ...(manual ? { lines: pickedLines } : pasteText ? { receipt_text: paste } : {}),
-      }),
-    onSuccess: (res) => onAdded(res.detail, { copies, unmatched: res.unmatched.length, arrived: arrivedNow }),
+    mutationFn: async () => {
+      if (!order) {
+        const res = await api.addGroupBuyOrder(groupId, {
+          order_number: orderNumber.trim(),
+          seller_name: seller.trim(),
+          tracking_url: tracking.trim(),
+          mark_arrived: arrivedNow,
+          ...(manual ? { lines: pickedLines } : pasteText ? { receipt_text: paste } : {}),
+        });
+        return { detail: res.detail, unmatched: res.unmatched.length };
+      }
+      // Details first (PATCH bumps the version), then the items against that new version.
+      let version = order.version;
+      let latest: GroupBuyDetail | null = null;
+      const detailsChanged =
+        orderNumber.trim() !== order.order_number || seller.trim() !== order.seller_name || tracking.trim() !== order.tracking_url;
+      if (detailsChanged) {
+        latest = await api.updateGroupBuyOrderDetails(groupId, order.id, {
+          expected_version: version,
+          order_number: orderNumber.trim(),
+          seller_name: seller.trim(),
+          tracking_url: tracking.trim(),
+        });
+        version = latest.orders?.find((o) => o.id === order.id)?.version ?? version + 1;
+      }
+      let unmatched = 0;
+      if (hasItems && !itemsLocked) {
+        const res = await api.setGroupBuyOrderLines(groupId, order.id, {
+          expected_version: version,
+          ...(manual ? { lines: pickedLines } : { receipt_text: paste }),
+        });
+        latest = res.detail;
+        unmatched = res.unmatched.length;
+      }
+      return { detail: latest ?? detail, unmatched };
+    },
+    onSuccess: (res) => onAdded(res.detail, { copies, unmatched: res.unmatched, arrived: arrivedNow, edited: Boolean(order) }),
     onError: (e: Error) => setError(e.message),
   });
 
-  const hasItems = manual ? pickedCopies > 0 : pasteText.length > 0;
-  const canSave = !save.isPending && (orderNumber.trim().length > 0 || hasItems);
-  const saveLabel = save.isPending ? "Saving…" : copies > 0 ? `Save order · ${copies} ${copies === 1 ? "copy" : "copies"}` : "Save order";
+  const canSave = !save.isPending && (orderNumber.trim().length > 0 || hasItems || Boolean(order));
+  const saveLabel = save.isPending
+    ? "Saving…"
+    : order
+      ? copies > 0 && hasItems
+        ? `Save changes · ${copies} ${copies === 1 ? "copy" : "copies"}`
+        : "Save changes"
+      : copies > 0
+        ? `Save order · ${copies} ${copies === 1 ? "copy" : "copies"}`
+        : "Save order";
 
   return (
-    <Dialog open onClose={onClose} className="gb-dialog gb-dialog-full" panelClassName="gb-dialog-panel" label="Add order" closeOnOutsideClick={false}>
+    <Dialog open onClose={onClose} className="gb-dialog gb-dialog-full" panelClassName="gb-dialog-panel" label={order ? "Edit order" : "Add order"} closeOnOutsideClick={false}>
       <form
         className="gb-dialog-form"
         onSubmit={(e) => {
@@ -230,7 +272,7 @@ export function AddOrderDialog({
       >
         <div className="gb-dialog-head">
           <DialogTitle as="h2" className="gb-dialog-title">
-            Add a TCGplayer order
+            {order ? "Edit order" : "Add a TCGplayer order"}
           </DialogTitle>
           <button type="button" className="ghost gb-dialog-x" aria-label="Close" onClick={onClose}>
             ✕
@@ -256,7 +298,7 @@ export function AddOrderDialog({
                 <input type="text" inputMode="url" value={tracking} maxLength={1000} autoComplete="off" onChange={(e) => setTracking(e.target.value)} placeholder="https://tools.usps.com/…" />
               </label>
             </div>
-            {manual ? null : (
+            {manual || itemsLocked ? null : (
               <label className="gb-paste">
                 <span>
                   Paste the order's items <span className="muted">(whole page or email is fine)</span>
@@ -271,13 +313,24 @@ export function AddOrderDialog({
                 />
               </label>
             )}
-            <button type="button" className="gb-link-btn gb-mode-toggle" onClick={() => (manual ? setManual(false) : startManual())}>
-              {manual ? "Paste an order instead" : "Pick cards by hand instead"}
-            </button>
+            {itemsLocked ? null : (
+              <button type="button" className="gb-link-btn gb-mode-toggle" onClick={() => (manual ? setManual(false) : startManual())}>
+                {manual ? "Paste an order instead" : "Pick cards by hand instead"}
+              </button>
+            )}
           </div>
           <div className="gb-add-right">
-            {manual ? (
-              <CardPicker lines={detail.lines} picks={picks} onChange={setPicks} />
+            {itemsLocked ? (
+              <p className="muted">Some of this order has arrived. Undo its arrival to change what is in it.</p>
+            ) : manual ? (
+              <CardPicker
+                pickable={pickable}
+                picks={picks}
+                onChange={(next) => {
+                  setItemsTouched(true);
+                  setPicks(next);
+                }}
+              />
             ) : (
               <div className="gb-preview-slot" aria-live="polite">
                 {preview ? (
@@ -293,12 +346,14 @@ export function AddOrderDialog({
         </div>
 
         <div className="gb-dialog-foot">
-          <label className="gb-check">
-            <input type="checkbox" checked={arrivedNow} onChange={(e) => setArrivedNow(e.target.checked)} />
-            <span>
-              All arrived now <span className="muted">(adds the copies to Owned)</span>
-            </span>
-          </label>
+          {order ? null : (
+            <label className="gb-check">
+              <input type="checkbox" checked={arrivedNow} onChange={(e) => setArrivedNow(e.target.checked)} />
+              <span>
+                All arrived now <span className="muted">(adds the copies to Owned)</span>
+              </span>
+            </label>
+          )}
           <p className="error gb-dialog-error" role="alert">
             {error}
           </p>

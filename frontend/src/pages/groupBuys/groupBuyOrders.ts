@@ -103,15 +103,32 @@ export function arrivalPayload(order: GroupBuyOrder, draft: Record<number, numbe
   };
 }
 
-/** Cards a hand-picked order can take: the ones with copies not in any order yet. */
-export function pickableLines(lines: GroupBuyLine[]): GroupBuyLine[] {
-  return lines.filter((l) => (l.not_ordered ?? 0) > 0);
+/** Copies of each card this order already holds for members, which editing the order frees up again. */
+function ownAllocated(order: GroupBuyOrder | undefined, cardId: string): number {
+  return (order?.lines ?? []).filter((l) => l.card_id === cardId).reduce((s, l) => s + lineAllocated(l), 0);
 }
 
-export function pickedOrderLines(lines: GroupBuyLine[], qtyByCard: Record<string, number>) {
-  return pickableLines(lines)
+/** Cards a hand-picked order can take: the ones with copies not in any order yet (plus the edited order's own copies). */
+export function pickableLines(lines: GroupBuyLine[], order?: GroupBuyOrder): GroupBuyLine[] {
+  return lines
+    .map((l) => ({ ...l, not_ordered: (l.not_ordered ?? 0) + ownAllocated(order, l.card_id) }))
+    .filter((l) => l.not_ordered > 0);
+}
+
+export function pickedOrderLines(lines: GroupBuyLine[], qtyByCard: Record<string, number>, order?: GroupBuyOrder) {
+  return pickableLines(lines, order)
     .map((l) => ({ card_id: l.card_id, qty: Math.min(qtyByCard[l.card_id] ?? 0, l.not_ordered ?? 0) }))
     .filter((l) => l.qty > 0);
+}
+
+/** The checklist's starting counts: everything still to order, or for an edited order what it holds now. */
+export function startingPicks(lines: GroupBuyLine[], order?: GroupBuyOrder): Record<string, number> {
+  return Object.fromEntries(
+    pickableLines(lines, order).map((l) => {
+      const held = (order?.lines ?? []).filter((o) => o.card_id === l.card_id).reduce((s, o) => s + o.qty_ordered, 0);
+      return [l.card_id, order ? Math.min(held, l.not_ordered ?? 0) : (l.not_ordered ?? 0)];
+    }),
+  );
 }
 
 /** The art an order line shows: the alt it was bought as, else the card's usual art. */
