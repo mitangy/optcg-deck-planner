@@ -81,7 +81,7 @@ export type ErrorOutcome = { kind: "ignore" } | { kind: "banner"; text: string }
 
 export function classifyServerError(
   err: Pick<ErrorMessage, "code" | "message">,
-  state: Pick<MatchState, "view" | "mode">,
+  state: Pick<MatchState, "view" | "mode"> & Partial<Pick<MatchState, "matchOver">>,
   connectRole: "player" | "spectator",
 ): ErrorOutcome {
   if (isSeatReservationExpiredError(err.message)) return { kind: "ignore" };
@@ -89,6 +89,8 @@ export function classifyServerError(
   if (err.code === "stale_intent") return { kind: "ignore" };
   if (state.mode === "hotseat") return { kind: "banner", text: `${err.code}: ${err.message}` };
   if (err.code === "match_not_ready" && !state.view) return { kind: "ignore" };
+  // The opponent left after match over, so a rematch can't start; the code is noise to a player.
+  if (err.code === "match_not_ready" && state.matchOver) return { kind: "banner", text: err.message };
   if (err.code === "room_full" && connectRole === "spectator") return { kind: "reset", text: SPECTATOR_CAP_MESSAGE };
   // Ranked opponent never arrived and the room closed: back to the lobby with the reason
   // instead of "Waiting for opponent…" forever.

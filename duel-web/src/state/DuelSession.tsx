@@ -518,6 +518,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         setLaunching(false);
         setLaunch(null);
         resetMatch();
+        // A voluntary leave must not carry a banner (e.g. a failed rematch) to the home page.
+        dispatch({ type: "setError", message: null });
       },
       clearError() {
         dispatch({ type: "setError", message: null });

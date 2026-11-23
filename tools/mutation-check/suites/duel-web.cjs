@@ -2884,5 +2884,7 @@ module.exports = {
     {"id": "dup1400-sync-drops-flag", "file": "duel-web/src/account/deckSync.ts", "from": "  if (d.noMerge !== undefined) body.noMerge = d.noMerge;\n", "to": "", "kills": ["sends the no-merge flag of a copied deck so the account keeps it (#1400)"], "args": "src/account/deckSync.test.ts"},
     // Your bounty when not in the fetched rows (#1400),
     {"id": "lb1400-full-board-says-no-games", "file": "duel-web/src/pages/leaderboardModel.ts", "from": "return entries.length >= limit ?", "to": "return false ?", "kills": ["a full board says you are not in the top 100, not that you have no games (#1400)"], "args": "src/pages/leaderboard1387.test.ts"},
+    {"id": "leave1432-banner-kept", "file": "duel-web/src/state/DuelSession.tsx", "from": "        dispatch({ type: \"setError\", message: null });\n      },\n      clearError", "to": "      },\n      clearError", "kills": ["leaving after a rematch error clears the banner so the home page shows none (#1432)"], "args": "src/state/DuelSession.test.tsx"},
+    {"id": "notready1432-code-kept", "file": "duel-web/src/state/matchStore.ts", "from": "if (err.code === \"match_not_ready\" && state.matchOver) return { kind: \"banner\", text: err.message };", "to": "", "kills": ["match_not_ready after the match is over reads as plain text without the code (#1432)"], "args": "src/state/matchStore.test.ts"},
   ],
 };

@@ -97,6 +97,16 @@ describe("server errors", () => {
     ).toBe("banner");
   });
 
+  it("match_not_ready after the match is over reads as plain text without the code (#1432)", () => {
+    const err = { code: "match_not_ready", message: "Rematch isn't available right now" };
+    const over = { view: viewOf(0), mode: "online", matchOver: {} as NonNullable<MatchState["matchOver"]> } as const;
+    expect(classifyServerError(err, over, "player")).toEqual({ kind: "banner", text: "Rematch isn't available right now" });
+    expect(classifyServerError(err, { view: viewOf(0), mode: "online", matchOver: null }, "player")).toEqual({
+      kind: "banner",
+      text: "match_not_ready: Rematch isn't available right now",
+    });
+  });
+
   it("a full spectator list and an opponent no-show end the match locally with the reason", () => {
     expect(classifyServerError({ code: "room_full", message: "x" }, view, "spectator")).toEqual({
       kind: "reset",
