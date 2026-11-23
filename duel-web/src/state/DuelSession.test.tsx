@@ -1,3 +1,4 @@
+import { useContext } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -51,6 +52,7 @@ vi.stubGlobal("sessionStorage", memoryStorage());
 
 const { DuelSessionProvider, useDuelSession } = await import("./DuelSession");
 const { rememberAssignedGameServer } = await import("../net/gameServer");
+const { MatchStoreContext } = await import("./useMatch");
 
 function mountSession(): ReturnType<typeof useDuelSession> {
   let session: ReturnType<typeof useDuelSession> | null = null;
@@ -80,5 +82,26 @@ describe("match resume across game server pools", () => {
     void after.tryResumeFromStorage();
     await vi.waitFor(() => expect(sdkReconnect).toHaveBeenCalledWith("room-1:tok2"));
     expect(sdkClientUrls).toEqual(["https://pool-a.example"]);
+  });
+});
+
+describe("leaving a match", () => {
+  it("leaving after a rematch error clears the banner so the home page shows none (#1432)", async () => {
+    let session: ReturnType<typeof useDuelSession> | null = null;
+    let store: import("./matchStore").MatchStore | null = null;
+    function Grab() {
+      session = useDuelSession();
+      store = useContext(MatchStoreContext);
+      return null;
+    }
+    renderToStaticMarkup(
+      <DuelSessionProvider>
+        <Grab />
+      </DuelSessionProvider>,
+    );
+    store!.dispatch({ type: "setError", message: "match_not_ready: Rematch isn't available right now" });
+    expect(store!.getSnapshot().errorBanner).not.toBeNull();
+    await session!.leave();
+    expect(store!.getSnapshot().errorBanner).toBeNull();
   });
 });
