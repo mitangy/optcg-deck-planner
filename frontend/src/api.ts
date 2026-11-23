@@ -306,6 +306,21 @@ export type GroupBuyMember = {
   shipping_share?: number;
   tax_share?: number;
   total_owed?: number;
+  /** Hand-off: filled for the host and for the member themselves, blank for everyone else. */
+  handoff_status?: "" | "waiting" | "shipped" | "handed_over" | "received" | string;
+  handoff_tracking_url?: string;
+  handoff_note?: string;
+  qty_handed?: number;
+  ready_to_hand_over?: number;
+  paid?: boolean;
+};
+
+export type GroupBuyHandoffUpdate = {
+  status?: "waiting" | "shipped" | "handed_over";
+  tracking_url?: string;
+  note?: string;
+  qty_handed?: number;
+  paid?: boolean;
 };
 
 export type GroupBuyOrderUpdate = {
@@ -416,6 +431,21 @@ export type GroupBuyOrderPreview = {
   }[];
   unmatched: GroupBuyReceiptUnmatched[];
 };
+
+export type GroupBuyHistoryOrder = {
+  order_number: string;
+  order_date: string;
+  seller_name: string;
+  tracking_number: string;
+  tracking_url: string;
+  already_added: boolean;
+  in_group_buy: boolean;
+  lines: GroupBuyOrderPreview["lines"];
+  unmatched: GroupBuyReceiptUnmatched[];
+};
+
+/** `text` is set for a PDF upload, so the page text can go back to the import call. */
+export type GroupBuyOrderHistoryPreview = { orders: GroupBuyHistoryOrder[]; text: string };
 
 export type GroupBuySummary = {
   id: number;
@@ -906,6 +936,26 @@ export const api = {
       body: JSON.stringify({ receipt_text: text }),
       timeoutMs: LONG_TIMEOUT_MS,
     }),
+  previewGroupBuyOrderHistory: (id: number, text: string) =>
+    request<GroupBuyOrderHistoryPreview>(`/group-buys/${id}/orders/history/preview`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+      timeoutMs: LONG_TIMEOUT_MS,
+    }),
+  previewGroupBuyOrderHistoryPdf: (id: number, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<GroupBuyOrderHistoryPreview>(`/group-buys/${id}/orders/history/pdf`, {
+      method: "POST",
+      body,
+      timeoutMs: LONG_TIMEOUT_MS,
+    });
+  },
+  importGroupBuyOrderHistory: (id: number, text: string, order_numbers: string[]) =>
+    request<{ order_ids: number[]; unmatched: GroupBuyReceiptUnmatched[]; detail: GroupBuyDetail }>(
+      `/group-buys/${id}/orders/history/import`,
+      { method: "POST", body: JSON.stringify({ text, order_numbers }), timeoutMs: LONG_TIMEOUT_MS },
+    ),
   setGroupBuyOrderLines: (
     id: number,
     orderId: number,
@@ -938,6 +988,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ expected_version }),
     }),
+  setGroupBuyHandoff: (id: number, userId: number, body: GroupBuyHandoffUpdate) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/handoffs/${userId}`, { method: "PUT", body: JSON.stringify(body) }),
+  confirmGroupBuyHandoffReceived: (id: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/handoffs/me/received`, { method: "POST" }),
   closeGroupBuy: (id: number) => request<GroupBuyDetail>(`/group-buys/${id}/close`, { method: "POST" }),
   setGroupBuyQty: (id: number, cardId: string, qty: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/quantities/${encodeURIComponent(cardId)}`, {

@@ -44,7 +44,9 @@ export function createRequest({ baseUrl, defaultTimeoutMs }: CreateRequestConfig
     const { timeoutMs = defaultTimeoutMs, fetchImpl = fetch, json, fallback, ...fetchInit } = init ?? {};
     const headers = headerRecord(fetchInit.headers);
     if (json !== undefined) fetchInit.body = JSON.stringify(json);
-    if (fetchInit.body) {
+    // A FormData body sets its own multipart Content-Type (with the boundary); forcing JSON would break the upload.
+    const isForm = typeof FormData !== "undefined" && fetchInit.body instanceof FormData;
+    if (fetchInit.body && !isForm) {
       const hasType = Object.keys(headers).some((k) => k.toLowerCase() === "content-type");
       if (!hasType) headers["Content-Type"] = "application/json";
     }

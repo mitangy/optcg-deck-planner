@@ -575,6 +575,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     // during the seat-1 join window). Only skip once the match is over.
     if (game.matchOverSent) {
       this.clearSeat(client.sessionId);
+      this.rematch.broadcast();
       return;
     }
 

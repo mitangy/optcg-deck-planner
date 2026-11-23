@@ -1,0 +1,391 @@
+Orders Placed in    Last 30 Days
+Contact Seller  Rate Transaction
+Contact Seller  Rate Transaction
+
+1
+Store Credit: $0.00
+Order History
+Viewing 1 - 10 of 20 order(s) placed in the last 30 days
+ORDER DATE
+November 16, 2026  
+CHANNEL
+TCG Marketplace  
+ORDER NUMBER
+A0000000-B00000-C0000
+ORDER SUMMARY
+Quantity: 1
+Subtotal: $29.00
+Shipping: $3.99
+Sales Tax (CA): $2.83
+Total: $35.82
+ SHIP TO
+Sample Buyer
+100 Example Street
+Apt 1
+Springfield, CA 90002
+US
+ BILL TO
+Sample Buyer
+200 Sample Avenue
+Springfield, CA 90001
+US
+ SHIPPED AND SOLD BY
+Sample Seller A
+ SHIPPED WITH TRACKING:
+1Z999AA10123456780
+Standard (est.delivery by
+December 01, 2026) - $3.99
+ITEMS DETAILS PRICE QUANTITY
+Shanks (022) (Alternate Art)
+The World's Strongest Warriors
+Rarity: SR
+Condition: Near Mint Foil $29.00 1
+ORDER DATE
+November 15, 2026  
+CHANNEL
+TCG Marketplace  
+ORDER NUMBER
+A0000001-B00001-C0001
+ORDER SUMMARY
+Quantity: 2
+Subtotal: $4.00
+Shipping: $1.49
+Sales Tax (CA): $0.39
+Total: $5.88
+ SHIP TO
+Sample Buyer
+100 Example Street
+Apt 1
+Springfield, CA 90002
+US
+ BILL TO
+Sample Buyer
+200 Sample Avenue
+Springfield, CA 90001
+US
+ SHIPPED AND SOLD BY
+Sample Seller B
+ SHIPPED WITH TRACKING:
+9400100000000000000001
+Standard (est.delivery by
+December 01, 2026) - $1.49
+ITEMS DETAILS PRICE QUANTITY
+DON!! Card (Alternate Art)
+Extra Booster: One Piece Heroines
+Edition Vol. 2
+Rarity: DON!!
+Condition: Near Mint Foil $2.00 2
+Enter an Order Number or Product Name  Search
+Contact Seller  Rate Transaction
+Contact Seller  Rate Transaction
+Contact Seller  Rate Transaction
+ORDER DATE
+November 15, 2026  
+CHANNEL
+TCG Marketplace  
+ORDER NUMBER
+A0000002-B00002-C0002
+ORDER SUMMARY
+Quantity: 3
+Subtotal: $5.49
+Shipping: $0.00
+Sales Tax (CA): $0.53
+Total: $6.02
+ SHIP TO
+Sample Buyer
+100 Example Street
+Apt 1
+Springfield, CA 90002
+US
+ BILL TO
+Sample Buyer
+200 Sample Avenue
+Springfield, CA 90001
+US
+ SHIPPED AND SOLD BY
+Sample Seller C
+ SHIPPED WITH TRACKING:
+9400100000000000000002
+Standard (est.delivery by
+December 01, 2026) - $0.00
+ITEMS DETAILS PRICE QUANTITY
+DON!! Card (Bonney)
+Premium Booster -The Best- Vol. 2
+Rarity: DON!!
+Condition: Near Mint $1.83 3
+ORDER DATE
+November 15, 2026  
+CHANNEL
+TCG Marketplace  
+ORDER NUMBER
+A0000003-B00003-C0003
+ORDER SUMMARY
+Quantity: 2
+Subtotal: $2.12
+Shipping: $1.49
+Sales Tax (CA): $0.21
+Total: $3.82
+ SHIP TO
+Sample Buyer
+100 Example Street
+Apt 1
+Springfield, CA 90002
+US
+ BILL TO
+Sample Buyer
+200 Sample Avenue
+Springfield, CA 90001
+US
+ SHIPPED AND SOLD BY
+Sample Seller D
+ SHIPPED WITHOUT TRACKING
+Standard (est.delivery by
+December 01, 2026) - $1.49
+ITEMS DETAILS PRICE QUANTITY
+DON!! Card
+Extra Booster: One Piece Heroines
+Edition Vol. 2
+Rarity: DON!!
+Condition: Near Mint Foil $0.89 1
+DON!! Card (Alternate Art)
+Extra Booster: One Piece Heroines
+Edition Vol. 2
+Rarity: DON!!
+Condition: Near Mint Foil $1.23 1
+ORDER DATE
+November 15, 2026  
+CHANNEL
+TCG Marketplace  
+ORDER NUMBER
+A0000004-B00004-C0004
+Contact Seller  Rate Transaction
+Contact Seller  Rate Transaction
+ORDER SUMMARY
+Quantity: 3
+Subtotal: $48.63
+Shipping: $1.22
+Sales Tax (CA): $4.75
+Total: $54.60
+ SHIP TO
+Sample Buyer
+100 Example Street
+Apt 1
+Springfield, CA 90002
+US
+ BILL TO
+Sample Buyer
+200 Sample Avenue
+Springfield, CA 90001
+US
+ SHIPPED AND SOLD BY
+Sample Seller E
+ SHIPPED WITHOUT TRACKING
+Standard (est.delivery by
+December 01, 2026) - $1.22
+ITEMS DETAILS PRICE QUANTITY
+Rocks.D.Xebec (118) (Alternate Art)
+The World's Strongest Warriors
+Rarity: SEC
+Condition: Near Mint Foil $22.45 2
+Shanks (022)
+The World's Strongest Warriors
+Rarity: SR
+Condition: Near Mint Foil $3.73 1
+ORDER DATE
+November 15, 2026  
+CHANNEL
+TCG Marketplace  
+ORDER NUMBER
+A0000005-B00005-C0005
+ORDER SUMMARY
+Quantity: 2
+Subtotal: $8.67
+Shipping: $0.00
+Sales Tax (CA): $0.85
+Total: $9.52
+ SHIP TO
+Sample Buyer
+100 Example Street
+Apt 1
+Springfield, CA 90002
+US
+ BILL TO
+Sample Buyer
+200 Sample Avenue
+Springfield, CA 90001
+US
+ SHIPPED AND SOLD BY
+Sample Seller F
+ SHIPPED WITHOUT TRACKING
+Standard (est.delivery by
+December 01, 2026) - $0.00
+ITEMS DETAILS PRICE QUANTITY
+Charlotte Linlin (112)
+The World's Strongest Warriors
+Rarity: SR
+Condition: Near Mint Foil $1.59 1
+Shiki (048) (Alternate Art)
+The World's Strongest Warriors
+Rarity: SR
+Condition: Near Mint Foil $7.08 1
+ORDER DATE
+November 15, 2026  
+CHANNEL
+TCG Marketplace  
+ORDER NUMBER
+A0000006-B00006-C0006
+Contact Seller  Rate Transaction
+Contact Seller  Rate Transaction
+ORDER SUMMARY
+Quantity: 2
+Subtotal: $2.23
+Shipping: $1.49
+Sales Tax (CA): $0.22
+Total: $3.94
+ SHIP TO
+Sample Buyer
+100 Example Street
+Apt 1
+Springfield, CA 90002
+US
+ BILL TO
+Sample Buyer
+200 Sample Avenue
+Springfield, CA 90001
+US
+ SHIPPED AND SOLD BY
+Sample Seller G
+ SHIPPED WITH TRACKING:
+9400100000000000000003
+Standard (est.delivery by
+December 01, 2026) - $1.49
+ITEMS DETAILS PRICE QUANTITY
+DON!! Card
+Extra Booster: One Piece Heroines
+Edition Vol. 2
+Rarity: DON!!
+Condition: Near Mint Foil $0.98 1
+DON!! Card (Alternate Art)
+Extra Booster: One Piece Heroines
+Edition Vol. 2
+Rarity: DON!!
+Condition: Near Mint Foil $1.25 1
+ORDER DATE
+November 15, 2026  
+CHANNEL
+TCG Marketplace  
+ORDER NUMBER
+A0000007-B00007-C0007
+ORDER SUMMARY
+Quantity: 3
+Subtotal: $31.02
+Shipping: $1.05
+Sales Tax (CA): $3.03
+Total: $35.10
+ SHIP TO
+Sample Buyer
+100 Example Street
+Apt 1
+Springfield, CA 90002
+US
+ BILL TO
+Sample Buyer
+200 Sample Avenue
+Springfield, CA 90001
+US
+ SHIPPED AND SOLD BY
+Sample Seller H
+ SHIPPED WITH TRACKING:
+9400100000000000000004
+Standard (est.delivery by
+December 01, 2026) - $1.05
+ITEMS DETAILS PRICE QUANTITY
+Trafalgar Law
+Carrying On His Will
+Rarity: R
+Condition: Near Mint Foil $1.65 1
+DON!! Card (Alternate Art)
+Extra Booster: One Piece Heroines
+Edition Vol. 2
+Rarity: DON!!
+Condition: Near Mint Foil $1.54 1
+Rocks.D.Xebec (039) (Alternate Art)
+The World's Strongest Warriors
+Rarity: L
+Condition: Near Mint Foil $27.83 1
+ORDER DATE
+November 15, 2026  
+CHANNEL
+TCG Marketplace  
+ORDER NUMBER
+A0000008-B00008-C0008
+Contact Seller  Rate Transaction
+ORDER SUMMARY
+Quantity: 2
+Subtotal: $2.65
+Shipping: $1.49
+Sales Tax (CA): $0.27
+Total: $4.41
+ SHIP TO
+Sample Buyer
+100 Example Street
+Apt 1
+Springfield, CA 90002
+US
+ BILL TO
+Sample Buyer
+200 Sample Avenue
+Springfield, CA 90001
+US
+ SHIPPED AND SOLD BY
+Sample Seller I
+ SHIPPED WITH TRACKING:
+9400100000000000000005
+Standard (est.delivery by
+December 01, 2026) - $1.49
+ITEMS DETAILS PRICE QUANTITY
+DON!! Card (Alternate Art)
+Extra Booster: One Piece Heroines
+Edition Vol. 2
+Rarity: DON!!
+Condition: Near Mint Foil $1.23 1
+DON!! Card (Bonney)
+Premium Booster -The Best- Vol. 2
+Rarity: DON!!
+Condition: Near Mint $1.42 1
+ORDER DATE
+November 15, 2026  
+CHANNEL
+TCG Marketplace  
+ORDER NUMBER
+A0000009-B00009-C0009
+ORDER SUMMARY
+Quantity: 1
+Subtotal: $15.09
+Shipping: $0.00
+Sales Tax (CA): $1.48
+Total: $16.57
+ SHIP TO
+Sample Buyer
+100 Example Street
+Apt 1
+Springfield, CA 90002
+US
+ BILL TO
+Sample Buyer
+200 Sample Avenue
+Springfield, CA 90001
+US
+ SHIPPED AND SOLD BY
+Sample Seller J
+ SHIPPED WITH TRACKING:
+9400100000000000000006
+Standard (est.delivery by
+December 01, 2026) - $0.00
+ITEMS DETAILS PRICE QUANTITY
+Gloriosa (Alternate Art)
+The World's Strongest Warriors
+Rarity: SR
+Condition: Near Mint Foil $15.09 1
+FIRST 12 LAST
+ 

@@ -1,0 +1,93 @@
+Order History
+Orders Placed in	Last 30 Days
+Store Credit: $0.00
+Viewing 1 - 3 of 3 order(s) placed in the last 30 days
+ORDER DATE	CHANNEL	ORDER NUMBER	Contact Seller	Rate Transaction
+November 20, 2026	TCG Marketplace	8F3A21C0-77C1A0-1B3E4
+ORDER SUMMARY
+Quantity: 3
+Subtotal: $14.00
+Shipping: $3.99
+Sales Tax (CA): $0.00
+Total: $14.00
+SHIP TO
+Test Buyer
+12 Example Street
+Apt 4
+Springfield, CA 90002
+US
+BILL TO
+Test Buyer
+34 Sample Road
+Springfield, CA 90001
+US
+SHIPPED AND SOLD BY	Grand Line Singles
+SHIPPED WITH TRACKING:	1Z999AA10123456784
+Standard (est.delivery by December 01, 2026) - $3.99
+ITEMS	DETAILS	PRICE	QUANTITY
+Monkey D. Luffy (001) (Parallel)
+Test Set	Rarity: SR
+Condition: Near Mint Foil	$9.00	1
+Monkey D. Luffy (001)
+Test Set	Rarity: R
+Condition: Near Mint	$2.50	2
+Contact Seller	Rate Transaction
+ORDER DATE	CHANNEL	ORDER NUMBER	Contact Seller	Rate Transaction
+November 18, 2026	TCG Marketplace	0C4D5E6F-A1B2C3-D4E5F
+ORDER SUMMARY
+Quantity: 2
+Subtotal: $5.00
+Shipping: $1.49
+Sales Tax (CA): $0.00
+Total: $5.00
+SHIP TO
+Test Buyer
+12 Example Street
+Apt 4
+Springfield, CA 90002
+US
+BILL TO
+Test Buyer
+34 Sample Road
+Springfield, CA 90001
+US
+SHIPPED AND SOLD BY	Thousand Sunny Cards
+SHIPPED WITH TRACKING:	9400100000000000000042
+Standard (est.delivery by December 01, 2026) - $1.49
+ITEMS	DETAILS	PRICE	QUANTITY
+Roronoa Zoro (025)
+Test Set Extra Booster Vol. 3	Rarity: SR
+Condition: Lightly Played	$4.00	1
+Mystery Promo Card
+Some Promo Set	Rarity: P
+Condition: Near Mint	$1.00	1
+Enter an Order Number or Product Name	Search
+ORDER DATE	CHANNEL	ORDER NUMBER	Contact Seller	Rate Transaction
+November 17, 2026	TCG Marketplace	FFEEDDCC-BBAA99-88776
+ORDER SUMMARY
+Quantity: 4
+Subtotal: $1.00
+Shipping: $0.99
+Sales Tax (CA): $0.00
+Total: $1.00
+SHIP TO
+Test Buyer
+12 Example Street
+Apt 4
+Springfield, CA 90002
+US
+BILL TO
+Test Buyer
+34 Sample Road
+Springfield, CA 90001
+US
+SHIPPED AND SOLD BY	Merry Go Marketplace
+SHIPPED WITHOUT TRACKING
+Standard (est.delivery by December 01, 2026) - $0.99
+ITEMS	DETAILS	PRICE	QUANTITY
+Nami (016)
+Test Set	Rarity: C
+Condition: Near Mint
+$0.25
+4
+FIRST 1 LAST

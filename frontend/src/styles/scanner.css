@@ -36,6 +36,11 @@ button.ghost.scan-open:hover {
   backdrop-filter: blur(2px);
 }
 
+/* Opened from inside another dialog (Check items), whose z-index is --z-modal. */
+.scan-backdrop.scan-over-modal {
+  z-index: calc(var(--z-modal) + 1);
+}
+
 .scan-dialog {
   width: min(30rem, 100%);
   max-height: min(44rem, 100dvh - 2rem);

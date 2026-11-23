@@ -28,6 +28,7 @@ export const qk = {
     all: () => ["group-buy"] as const,
     detail: (groupId: number) => ["group-buy", groupId] as const,
     orderPreview: (groupId: number, text: string) => ["group-buy-order-preview", groupId, text] as const,
+    orderHistoryPreview: (groupId: number, text: string) => ["group-buy-order-history-preview", groupId, text] as const,
     invite: (token: string) => ["group-buy-invite", token] as const,
     publicView: (token: string) => ["public-group-buy", token] as const,
   },

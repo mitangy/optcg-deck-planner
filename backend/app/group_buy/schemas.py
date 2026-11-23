@@ -1,6 +1,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 from app.planner.schemas import GroupBuyArtWantOut, PrintingView
@@ -51,6 +53,22 @@ class GroupBuyMemberOut(BaseModel):
     shipping_share: float = 0.0
     tax_share: float = 0.0
     total_owed: float = 0.0
+    # Hand-off (#1418): host and the member themselves only; blank for everyone else and the invite view.
+    handoff_status: str = ""
+    handoff_tracking_url: str = ""
+    handoff_note: str = ""
+    qty_handed: int = 0
+    # This member's arrived copies minus the ones already handed over or shipped.
+    ready_to_hand_over: int = 0
+    paid: bool = False
+
+
+class GroupBuyHandoffUpdate(BaseModel):
+    status: Literal["waiting", "shipped", "handed_over"] | None = None
+    tracking_url: str | None = Field(default=None, max_length=1000)
+    note: str | None = Field(default=None, max_length=300)
+    qty_handed: int | None = Field(default=None, ge=0, le=9999)
+    paid: bool | None = None
 
 
 class GroupBuyMemberQtyOut(BaseModel):
@@ -309,6 +327,41 @@ class GroupBuyOrderPreviewLine(BaseModel):
 class GroupBuyOrderPreview(BaseModel):
     lines: list[GroupBuyOrderPreviewLine]
     unmatched: list[GroupBuyReceiptUnmatchedOut]
+
+
+class GroupBuyOrderHistoryRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=400_000)
+
+
+class GroupBuyOrderHistoryImport(BaseModel):
+    text: str = Field(min_length=1, max_length=400_000)
+    order_numbers: list[str] = Field(min_length=1, max_length=200)
+
+
+class GroupBuyHistoryOrderPreview(BaseModel):
+    order_number: str
+    order_date: str = ""
+    seller_name: str = ""
+    tracking_number: str = ""
+    tracking_url: str = ""
+    # Already on this group buy: it cannot be added again.
+    already_added: bool = False
+    # At least one matched card is in this group buy; the rest of the page is usually other purchases.
+    in_group_buy: bool = False
+    lines: list[GroupBuyOrderPreviewLine]
+    unmatched: list[GroupBuyReceiptUnmatchedOut]
+
+
+class GroupBuyOrderHistoryPreview(BaseModel):
+    orders: list[GroupBuyHistoryOrderPreview]
+    # Set by the PDF endpoint so the client can send the text back to import.
+    text: str = ""
+
+
+class GroupBuyOrderHistoryImported(BaseModel):
+    order_ids: list[int]
+    unmatched: list[GroupBuyReceiptUnmatchedOut] = []
+    detail: GroupBuyDetail
 
 
 class GroupBuyOrderAdded(BaseModel):

@@ -28,6 +28,8 @@ import { CheckItemsDialog } from "./CheckItemsDialog";
 import { NotInOrderPanel } from "./NotInOrderPanel";
 import { PackagesSection, StatusChip } from "./PackagesSection";
 import { YourCards } from "./YourCards";
+import { HandoffPanel } from "./HandoffPanel";
+import { MyHandoff } from "./MyHandoff";
 import { cardStatus, notOrderedCopies, packageCounts, sellersOnTheWay } from "./groupBuyOrders";
 import { useGroupBuyOrders } from "./useGroupBuyOrders";
 import { CollapsibleDrawer } from "../../ui/cardListControls";
@@ -50,6 +52,7 @@ export function GroupBuyDetailPage() {
   const [density, setDensity] = useListDensity("groupBuy");
   const [addOpen, setAddOpen] = useState(false);
   const [checkOrderId, setCheckOrderId] = useState<number | null>(null);
+  const [scanOnOpen, setScanOnOpen] = useState(false);
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [cardsOpenPick, setCardsOpenPick] = useState<boolean | null>(null);
   const [showExcluded, setShowExcluded] = useState(false);
@@ -551,8 +554,9 @@ export function GroupBuyDetailPage() {
           onAdded={async (d, info) => {
             await orderOps.accept(d, info.arrived);
             setAddOpen(false);
+            const added = info.orders ?? 1;
             setMsg(
-              `Order added${info.copies ? ` · ${info.copies} ${info.copies === 1 ? "copy" : "copies"}` : ""}${info.arrived ? ", marked arrived" : ""}.` +
+              `${added === 1 ? "Order" : `${added} orders`} added${info.copies ? ` · ${info.copies} ${info.copies === 1 ? "copy" : "copies"}` : ""}${info.arrived ? ", marked arrived" : ""}.` +
                 (info.unmatched ? ` ${info.unmatched} ${info.unmatched === 1 ? "line was" : "lines were"} not in this buy and left out.` : ""),
             );
           }}
@@ -582,6 +586,8 @@ export function GroupBuyDetailPage() {
           index={orders.indexOf(checkOrder)}
           lines={detail.lines}
           members={members}
+          orders={orders}
+          startScanning={scanOnOpen}
           saving={orderOps.saveArrival.isPending}
           error={orderOps.saveArrival.isError ? (orderOps.saveArrival.error as Error).message : null}
           onSave={(draft) =>
@@ -669,7 +675,12 @@ export function GroupBuyDetailPage() {
         </p>
       )}
 
-      {showPackages && !detail.is_host && inOrderedPhase ? <YourCards detail={detail} userId={meId} /> : null}
+      {showPackages && !detail.is_host && inOrderedPhase ? (
+        <>
+          <MyHandoff detail={detail} userId={meId} onMessage={setMsg} />
+          <YourCards detail={detail} userId={meId} />
+        </>
+      ) : null}
 
       {showPackages ? (
         <PackagesSection
@@ -684,6 +695,12 @@ export function GroupBuyDetailPage() {
           onMarkArrived={(o) => orderOps.markArrived.mutate(o)}
           onCheck={(o) => {
             setMsg(null);
+            setScanOnOpen(false);
+            setCheckOrderId(o.id);
+          }}
+          onScan={(o) => {
+            setMsg(null);
+            setScanOnOpen(true);
             setCheckOrderId(o.id);
           }}
           onUndo={async (o) => {
@@ -722,6 +739,8 @@ export function GroupBuyDetailPage() {
           }}
         />
       ) : null}
+
+      {detail.is_host && inOrderedPhase ? <HandoffPanel detail={detail} onMessage={setMsg} /> : null}
 
       {showPackages && detail.is_host && inOrderedPhase ? (
         <div className="gb-yourcards-fold">

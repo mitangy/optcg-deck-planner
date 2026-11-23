@@ -52,6 +52,12 @@ export function GroupBuyMembersList({ detail }: { detail: GroupBuyDetail }) {
                     <span>
                       owes <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
                     </span>
+                    {m.role !== "host" && m.handoff_status ? (
+                      <span className={`gb-paid-tag${m.paid ? " on" : ""}`}>
+                        <span aria-hidden="true">{m.paid ? "✓ " : "○ "}</span>
+                        {m.paid ? "Paid" : "Not paid"}
+                      </span>
+                    ) : null}
                   </>
                 ) : null}
               </span>

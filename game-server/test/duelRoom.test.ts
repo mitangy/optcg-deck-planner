@@ -2158,6 +2158,15 @@ describe("DuelRoom", () => {
     await c1.leave(true);
   });
 
+  it("rematch: when the opponent's connection drops after match over, the other player's rematch closes (#1432)", async () => {
+    const { c0, c1, rematch } = await rematchRoom(46);
+    assert.equal(rematch.at(-1)!.available, true);
+    // Non-consented leave goes through onDrop (a dropped connection), not onLeave.
+    void c1.leave(false);
+    await waitUntil(() => rematch.at(-1)!.available === false, 5000);
+    await c0.leave(true);
+  });
+
   it("rematch: a deck with unknown cards is refused (#479)", async () => {
     const { c0, c1, bags, rematch } = await rematchRoom(45);
     const badDeck = { leaderId: "ST01-001", deck: Array.from({ length: 50 }, () => "ZZ99-999") };
