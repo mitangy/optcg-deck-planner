@@ -46,6 +46,12 @@ describe("skip the block by dragging a Counter (#300)", () => {
     expect(counterAfterBlock({ id: "d", defId: "ST01-016" }, 5)).toBe(false);
   });
 
+  it("offers a Stage in hand only when it carries a Counter, as under Franky OP18-021 (#1421)", () => {
+    expect(counterAfterBlock({ id: "s", defId: "OP18-075", counter: 3000 }, 0)).toBe(true);
+    expect(counterAfterBlock({ id: "s", defId: "OP18-075" }, 0)).toBe(false);
+    expect(counterAfterBlock({ id: "s", defId: "OP18-075", counter: 0 }, 0)).toBe(false);
+  });
+
   it("waits out the block step, then plays the dragged card by id in the counter step", () => {
     const hand = [
       { id: "y-h1", defId: "ST01-006" },
