@@ -57,7 +57,13 @@ def reset_rating(rating: int, mode: ResetMode) -> int:
     return INITIAL_RATING + (half if diff >= 0 else -half)
 
 
-def start_new_season(db: Session, mode: ResetMode, name: str | None, actor_id: int | None) -> DuelSeason:
+class StaleSeason(Exception):
+    """The open season is no longer the one the caller confirmed: another request already ended it (#1427)."""
+
+
+def start_new_season(
+    db: Session, mode: ResetMode, name: str | None, actor_id: int | None, expected_number: int | None = None
+) -> DuelSeason:
     # Same lock order as match ingest (ascending user id), so a game finishing mid-reset waits instead of deadlocking.
     rated_ids = list(db.scalars(select(DuelRating.user_id).order_by(DuelRating.user_id)))
     if rated_ids:
@@ -68,6 +74,10 @@ def start_new_season(db: Session, mode: ResetMode, name: str | None, actor_id: i
         ending = DuelSeason(number=1, name=default_name(1), started_at=None)
         db.add(ending)
         db.flush()
+    # Re-check under the locks: a concurrent request may have ended the season we confirmed (#1427).
+    if expected_number is not None and ending.number != expected_number:
+        db.rollback()
+        raise StaleSeason()
     now = datetime.now(timezone.utc)
     started = as_utc_or_none(ending.started_at)
 

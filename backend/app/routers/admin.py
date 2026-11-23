@@ -68,7 +68,7 @@ from app.duel.models import (
 from app.planner.models import Deck, Owned
 from app.social.models import DuelLobbySeen, Friendship
 from app.duel.leaderboard import current_board
-from app.duel.seasons import current_season, ended_seasons, reset_rating, start_new_season
+from app.duel.seasons import StaleSeason, current_season, ended_seasons, reset_rating, start_new_season
 from app.duel.moderation import REASON_MAX, restore_cosmetic, take_down_cosmetic
 from app.usernames import duel_display_name
 from app.roles import ASSIGNABLE_ROLES, STAFF_ROLES, can_ban, can_delete, can_set_role, is_admin
@@ -1142,5 +1142,8 @@ def start_season(body: AdminSeasonStartIn, actor: Admin, db: DB) -> dict:
     season = current_season(db)
     if body.confirm != season.name:
         raise HTTPException(status_code=400, detail=f"Type {season.name} to confirm")
-    fresh = start_new_season(db, body.mode, body.name, actor.id)
+    try:
+        fresh = start_new_season(db, body.mode, body.name, actor.id, expected_number=season.number)
+    except StaleSeason:
+        raise HTTPException(status_code=409, detail="That season was already ended. Reload and check the current season")
     return {"number": fresh.number, "name": fresh.name, "started_at": fresh.started_at}

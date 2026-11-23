@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 
+import pytest
+
 from app.core.models import User
 from app.duel.leaderboard import board_as_of
 from app.duel.models import DuelMatch, DuelRating, DuelSeason, DuelSeasonStanding
-from app.duel.seasons import start_new_season
+from app.duel.seasons import StaleSeason, start_new_season
 from tests.test_admin import ADMIN_EMAIL, api, login, mk  # noqa: F401  (api is a fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)
 
@@ -243,3 +245,27 @@ def test_placement_games_use_the_provisional_k_factor_again_after_a_reset_1405(c
     assert r.status_code == 200, r.text
     # K 40 for a player with fewer than 10 games: an even game moves 20 points (settled K 24 would be 12).
     assert (r.json()["seat0_rating_after"], r.json()["seat1_rating_after"]) == (1020, 980)
+
+
+def test_a_stale_confirm_does_not_reset_twice_1427(client):
+    _, S = client
+    high, low, mid = three_players(S)
+    with S() as db:
+        assert start_new_season(db, "soft", None, None, expected_number=1).number == 2
+    after_first = ratings_of(S)
+    assert after_first == {high: (1201, 0), low: (899, 0), mid: (1000, 0)}
+    # The second concurrent request passed its check against season 1, then waited on the locks.
+    with S() as db:
+        with pytest.raises(StaleSeason):
+            start_new_season(db, "soft", None, None, expected_number=1)
+    assert ratings_of(S) == after_first
+    with S() as db:
+        assert [s.number for s in db.query(DuelSeason).order_by(DuelSeason.number)] == [1, 2]
+        assert db.query(DuelSeason).filter_by(number=2).one().ended_at is None
+        assert db.query(DuelSeasonStanding).filter_by(season_id=db.query(DuelSeason).filter_by(number=2).one().id).count() == 0
+
+
+def test_the_expected_season_also_works_with_no_rated_players_1427(client):
+    _, S = client
+    with S() as db:
+        assert start_new_season(db, "soft", None, None, expected_number=1).number == 2

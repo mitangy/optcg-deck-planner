@@ -2107,5 +2107,7 @@ module.exports = {
     {"id": "dup1400-uploaded-copy-merged", "file": "backend/app/planner/deck_link.py", "from": "    if body.get(\"noMerge\"):\n        return None\n", "to": "", "kills": ["test_a_duplicated_deck_uploaded_after_its_original_is_kept_too_1400"], "args": "tests/test_deck_link.py"},
     {"id": "dup1400-copy-is-merge-target", "file": "backend/app/planner/deck_link.py", "from": "            or other_body.get(\"noMerge\")\n", "to": "", "kills": ["test_a_duplicated_deck_is_not_merged_on_bulk_upload_1400"], "args": "tests/test_deck_link.py"},
     {"id": "dup1400-schema-drops-flag", "file": "backend/app/duel/schemas.py", "from": "    noMerge: bool | None = None\n", "to": "", "kills": ["test_a_duplicated_deck_is_not_merged_on_bulk_upload_1400", "test_a_duplicated_deck_uploaded_after_its_original_is_kept_too_1400"], "args": "tests/test_deck_link.py"},
+    // Starting a season twice at once (#1427)
+    {"id": "season1427-no-recheck-after-lock", "file": "backend/app/duel/seasons.py", "from": "    if expected_number is not None and ending.number != expected_number:\n        db.rollback()\n        raise StaleSeason()\n", "to": "", "kills": ["test_a_stale_confirm_does_not_reset_twice_1427"], "args": "tests/test_duel_seasons.py"},
   ],
 };
