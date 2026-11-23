@@ -7,7 +7,7 @@ const MINOZEBRA = "OP03-068"; // vanilla 5000-power [Banish] Character
 const LIFE = ["ST01-004", "ST01-005", "ST01-006"] as const;
 
 describe("Banish trashes the Life card (R1)", () => {
-  it("OP03-068 Minozebra's Banish hit sends the top Life card to the trash, not to the hand (#PRNUM)", () => {
+  it("OP03-068 Minozebra's Banish hit sends the top Life card to the trash, not to the hand (#1425)", () => {
     const h = new Harness();
     h.life(1, ...LIFE);
     const [attacker] = h.field(0, MINOZEBRA);
@@ -34,7 +34,7 @@ describe("reordering Life without the top-or-bottom option (R2)", () => {
   }
   const lifeOf = (h: Harness) => h.state.players[1].life;
 
-  it("ST13-017 Flame Dragon King rejects a bottom placement and leaves the Life order unchanged (#PRNUM)", () => {
+  it("ST13-017 Flame Dragon King rejects a bottom placement and leaves the Life order unchanged (#1425)", () => {
     const h = flameDragonKing();
     const r = h.try(1, { type: "resolve_pending_choice", accept: true, orderedOptionIds: ["o0", "o1", "o2"], topOptionIds: ["o0", "o1", "o2"] });
     expect(r.ok).toBe(false);
@@ -43,7 +43,7 @@ describe("reordering Life without the top-or-bottom option (R2)", () => {
     expect(lifeOf(h)).toEqual([...LIFE]);
   });
 
-  it("ST13-017 Flame Dragon King accepts a plain order and puts the Life cards back in that order (#PRNUM)", () => {
+  it("ST13-017 Flame Dragon King accepts a plain order and puts the Life cards back in that order (#1425)", () => {
     const h = flameDragonKing();
     h.act(1, { type: "resolve_pending_choice", accept: true, orderedOptionIds: ["o2", "o0", "o1"] });
     expect(h.choice).toBeUndefined();
