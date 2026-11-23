@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun, EventFlag } from "./adminApi";
-import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, spendText, formatCount, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel, nextUserSort, firstSortDir, parseUserSort } from "./adminLogic";
+import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, spendText, formatCount, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, canStartSeason, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel, nextUserSort, firstSortDir, parseUserSort } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -9,9 +9,26 @@ const facts = (run_at: string, wrongPerReview: number, over: Partial<EvalRun> = 
   ...run(run_at, 0), suite: "review_facts", correct: null, total: null, metric_name: "Wrong claims per review", metric_value: wrongPerReview, lower_is_better: true, ...over,
 });
 
+describe("start a new season (#1405)", () => {
+  it("enables Start only when the current season's name is typed exactly, ignoring stray spaces around it", () => {
+    expect(canStartSeason("Season 1", "Season 1")).toBe(true);
+    expect(canStartSeason("  Season 1 ", "Season 1")).toBe(true);
+    expect(canStartSeason("", "Season 1")).toBe(false);
+    expect(canStartSeason("season 1", "Season 1")).toBe(false);
+    expect(canStartSeason("Season 2", "Season 1")).toBe(false);
+    expect(canStartSeason("Season", "Season 1")).toBe(false);
+    expect(canStartSeason("", "")).toBe(false);
+  });
+
+  it("gives the Seasons tab to the admin only", () => {
+    expect(tabsForRole("admin").some((t) => t.id === "seasons")).toBe(true);
+    expect(tabsForRole("moderator").some((t) => t.id === "seasons")).toBe(false);
+  });
+});
+
 describe("admin tabs per role (#667)", () => {
-  it("shows the admin all seven tabs, a moderator Reports, Uploads then Users, and anyone else none (#667, #812)", () => {
-    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "bots", "traffic", "hosting", "event", "reports", "uploads", "users"]);
+  it("shows the admin every tab (Seasons included), a moderator Reports, Uploads then Users, and anyone else none (#667, #812)", () => {
+    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "seasons", "bots", "traffic", "hosting", "event", "reports", "uploads", "users"]);
     expect(tabsForRole("moderator").map((t) => t.id)).toEqual(["reports", "uploads", "users"]);
     expect(tabsForRole("user")).toEqual([]);
     expect(tabsForRole(undefined)).toEqual([]);

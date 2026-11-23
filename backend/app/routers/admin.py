@@ -19,6 +19,12 @@ from app.admin.schemas import (
     AdminFeedback,
     AdminMe,
     AdminOverview,
+    AdminSeasonPast,
+    AdminSeasonPreviewRow,
+    AdminSeasonStartIn,
+    AdminSeasonStarted,
+    AdminSeasons,
+    AdminSeasonCurrent,
     AdminReports,
     AdminUser,
     AdminUserDetail,
@@ -61,6 +67,8 @@ from app.duel.models import (
 )
 from app.planner.models import Deck, Owned
 from app.social.models import DuelLobbySeen, Friendship
+from app.duel.leaderboard import current_board
+from app.duel.seasons import current_season, ended_seasons, reset_rating, start_new_season
 from app.duel.moderation import REASON_MAX, restore_cosmetic, take_down_cosmetic
 from app.usernames import duel_display_name
 from app.roles import ASSIGNABLE_ROLES, STAFF_ROLES, can_ban, can_delete, can_set_role, is_admin
@@ -1091,3 +1099,48 @@ def restore_taken_down_cosmetic(cosmetic_id: int, _: Admin, db: DB) -> dict:
         "id": cosmetic.id, "user_id": cosmetic.user_id, "kind": cosmetic.kind, "taken_down": False,
         **_cosmetic_rows(db, [cosmetic])[0],
     }
+
+
+PREVIEW_ROWS = 20
+
+
+@router.get("/seasons", response_model=AdminSeasons)
+def seasons(_: Admin, db: DB) -> dict:
+    """The current ranked season, what a reset would do to the top players, and past seasons (#1405)."""
+    season = current_season(db)
+    board = current_board(db)
+    top = board[:PREVIEW_ROWS]
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_([r.user_id for r in top])))}
+    return {
+        "current": {"number": season.number, "name": season.name, "started_at": season.started_at, "players": len(board)},
+        "preview": [
+            {
+                "user_id": r.user_id,
+                "name": duel_display_name(users[r.user_id]) if r.user_id in users else "Player",
+                "rank": r.rank,
+                "rating": r.rating,
+                "soft_after": reset_rating(r.rating, "soft"),
+                "hard_after": reset_rating(r.rating, "hard"),
+                "games": r.games_played,
+            }
+            for r in top
+        ],
+        "past": [
+            {
+                "number": s.number, "name": s.name, "started_at": s.started_at, "ended_at": s.ended_at,
+                "reset_mode": s.reset_mode, "players": players,
+            }
+            for s, players in ended_seasons(db)
+        ],
+    }
+
+
+@router.post("/seasons", response_model=AdminSeasonStarted)
+def start_season(body: AdminSeasonStartIn, actor: Admin, db: DB) -> dict:
+    """End the current season and reset Bounty. `confirm` must be the current season's name, which also stops a double submit:
+    after the first call the current name is the new season's, so the repeat no longer matches (#1405)."""
+    season = current_season(db)
+    if body.confirm != season.name:
+        raise HTTPException(status_code=400, detail=f"Type {season.name} to confirm")
+    fresh = start_new_season(db, body.mode, body.name, actor.id)
+    return {"number": fresh.number, "name": fresh.name, "started_at": fresh.started_at}

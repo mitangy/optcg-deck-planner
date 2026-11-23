@@ -42,6 +42,43 @@ class DuelRating(Base):
     )
 
 
+class DuelSeason(Base):
+    """A ranked season (#1405). No rows yet means Season 1, which began before launch (started_at None)."""
+
+    __tablename__ = "duel_seasons"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    number: Mapped[int] = mapped_column(Integer, unique=True)
+    name: Mapped[str] = mapped_column(String(64))
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # The reset used when this season ended: "soft" or "hard".
+    reset_mode: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    ended_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+
+class DuelSeasonStanding(Base):
+    """One player's final line in an ended season."""
+
+    __tablename__ = "duel_season_standings"
+
+    season_id: Mapped[int] = mapped_column(
+        ForeignKey("duel_seasons.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    rank: Mapped[int] = mapped_column(Integer)
+    rating: Mapped[int] = mapped_column(Integer)
+    games_played: Mapped[int] = mapped_column(Integer)
+    provisional: Mapped[bool] = mapped_column(Boolean)
+    wins: Mapped[int] = mapped_column(Integer, default=0)
+    losses: Mapped[int] = mapped_column(Integer, default=0)
+    rating_after_reset: Mapped[int] = mapped_column(Integer)
+
+
 class DuelMatch(Base):
     __tablename__ = "duel_matches"
 
