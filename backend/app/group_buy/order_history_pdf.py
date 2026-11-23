@@ -12,6 +12,8 @@ from app.core.errors import Invalid
 MAX_PDF_BYTES = 5 * 1024 * 1024
 MAX_PDF_PAGES = 30
 MAX_TEXT_CHARS = 400_000
+# TCGplayer shows 10 orders per Order History page: one PDF each (#1437).
+MAX_HISTORY_PDFS = 10
 
 
 def extract_order_history_text(data: bytes) -> str:

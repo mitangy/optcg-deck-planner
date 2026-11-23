@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GroupBuyHistoryOrder } from "../../api";
-import { addOrdersLabel, historyCopies, historyHeading, looksLikeOrderHistory, pickedHistoryNumbers, startingHistorySelection } from "./groupBuyOrders";
+import { addOrdersLabel, carryHistorySelection, historyCopies, historyHeading, looksLikeOrderHistory, pickedHistoryNumbers, startingHistorySelection } from "./groupBuyOrders";
 
 const order = (number: string, over: Partial<GroupBuyHistoryOrder> = {}, qtys: number[] = [1]): GroupBuyHistoryOrder => ({
   order_number: number,
@@ -55,5 +55,21 @@ describe("Order History selection (#1433)", () => {
     expect(historyHeading(1, 1)).toBe("Found 1 order, 1 selected");
     expect(addOrdersLabel(7)).toBe("Add 7 orders");
     expect(addOrdersLabel(1)).toBe("Add 1 order");
+  });
+});
+
+describe("Order History selection after more pages are uploaded (#1437)", () => {
+  const before = [order("A1"), order("A2"), order("A3", { in_group_buy: false })];
+  const after = [...before, order("A4"), order("A5", { in_group_buy: false }), order("A6", { already_added: true })];
+
+  it("keeps the ticks and unticks of orders already listed and starts new ones by the usual rule", () => {
+    // The host unticked A1 and ticked A3 (not part of this buy); A2 stayed ticked.
+    const carried = carryHistorySelection(before, new Set(["A2", "A3"]), after);
+
+    expect([...carried].sort()).toEqual(["A2", "A3", "A4"]);
+  });
+
+  it("never ticks an order that is already added", () => {
+    expect(carryHistorySelection(before, new Set(["A1", "A6"]), [...after, order("A7", { already_added: true })]).has("A6")).toBe(false);
   });
 });

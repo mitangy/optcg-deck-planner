@@ -3,13 +3,19 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.core.db import get_db
+from app.core.errors import Invalid
 from app.group_buy import service as group_buy
-from app.group_buy.order_history_pdf import MAX_PDF_BYTES, extract_order_history_text
+from app.group_buy.order_history_pdf import (
+    MAX_HISTORY_PDFS,
+    MAX_PDF_BYTES,
+    MAX_TEXT_CHARS,
+    extract_order_history_text,
+)
 from app.core.models import User
 from app.group_buy.schemas import (
     GroupBuyArrivalUndo,
@@ -254,13 +260,27 @@ def preview_group_buy_order_history_pdf(
     group_id: int,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
-    file: Annotated[UploadFile, File()],
+    files: Annotated[list[UploadFile], File()],
+    text: Annotated[str, Form()] = "",
 ):
-    """Same as the paste preview for an Order History page saved as PDF; returns the text to import with."""
-    data = file.file.read(MAX_PDF_BYTES + 1)
-    text = extract_order_history_text(data)
-    preview = group_buy.preview_order_history(db, user, group_id, text)
-    preview.text = text
+    """Same as the paste preview for Order History pages saved as PDF (one per page, #1437).
+
+    `text` is what the dialog already holds; each file's text is added after it, so the list grows.
+    Returns the combined text to import with."""
+    if len(files) > MAX_HISTORY_PDFS:
+        raise Invalid(f"Upload at most {MAX_HISTORY_PDFS} PDFs at once")
+    parts = [text.strip()] if text.strip() else []
+    for upload in files:
+        name = upload.filename or "PDF"
+        try:
+            parts.append(extract_order_history_text(upload.file.read(MAX_PDF_BYTES + 1)))
+        except Invalid as exc:
+            raise Invalid(f"{name}: {exc.detail}") from exc
+    combined = "\n".join(parts)
+    if len(combined) > MAX_TEXT_CHARS:
+        raise Invalid("Those pages have too much text together")
+    preview = group_buy.preview_order_history(db, user, group_id, combined)
+    preview.text = combined
     return preview
 
 

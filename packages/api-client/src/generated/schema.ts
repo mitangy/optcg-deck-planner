@@ -3266,7 +3266,10 @@ export interface paths {
         put?: never;
         /**
          * Preview Group Buy Order History Pdf
-         * @description Same as the paste preview for an Order History page saved as PDF; returns the text to import with.
+         * @description Same as the paste preview for Order History pages saved as PDF (one per page, #1437).
+         *
+         *     `text` is what the dialog already holds; each file's text is added after it, so the list grows.
+         *     Returns the combined text to import with.
          */
         post: operations["preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post"];
         delete?: never;
@@ -5415,8 +5418,13 @@ export interface components {
         };
         /** Body_preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post */
         Body_preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post: {
-            /** File */
-            file: string;
+            /** Files */
+            files: string[];
+            /**
+             * Text
+             * @default
+             */
+            text: string;
         };
         /** BotBatchOut */
         BotBatchOut: {

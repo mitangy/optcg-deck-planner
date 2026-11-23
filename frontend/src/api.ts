@@ -942,9 +942,10 @@ export const api = {
       body: JSON.stringify({ text }),
       timeoutMs: LONG_TIMEOUT_MS,
     }),
-  previewGroupBuyOrderHistoryPdf: (id: number, file: File) => {
+  previewGroupBuyOrderHistoryPdf: (id: number, files: File[], text?: string) => {
     const body = new FormData();
-    body.append("file", file);
+    for (const file of files) body.append("files", file);
+    if (text) body.append("text", text);
     return request<GroupBuyOrderHistoryPreview>(`/group-buys/${id}/orders/history/pdf`, {
       method: "POST",
       body,

@@ -5,6 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.group_buy.order_history_pdf import MAX_TEXT_CHARS
 from app.planner.schemas import GroupBuyArtWantOut, PrintingView
 
 
@@ -330,11 +331,11 @@ class GroupBuyOrderPreview(BaseModel):
 
 
 class GroupBuyOrderHistoryRequest(BaseModel):
-    text: str = Field(min_length=1, max_length=400_000)
+    text: str = Field(min_length=1, max_length=MAX_TEXT_CHARS)
 
 
 class GroupBuyOrderHistoryImport(BaseModel):
-    text: str = Field(min_length=1, max_length=400_000)
+    text: str = Field(min_length=1, max_length=MAX_TEXT_CHARS)
     order_numbers: list[str] = Field(min_length=1, max_length=200)
 
 

@@ -13,7 +13,7 @@ from app.core.errors import Forbidden, Invalid
 from app.core.models import User
 from app.group_buy import service as group_buy
 from app.group_buy.models import GroupBuyOrder
-from app.group_buy.order_history_pdf import extract_order_history_text
+from app.group_buy.order_history_pdf import MAX_TEXT_CHARS, extract_order_history_text
 from app.group_buy.receipt import (
     looks_like_order_history,
     parse_order_history,
@@ -28,6 +28,7 @@ FIXTURES = Path(__file__).parent / "fixtures"
 PDF_TEXT = (FIXTURES / "tcgplayer_order_history_pdf.txt").read_text(encoding="utf-8")
 PASTE_TEXT = (FIXTURES / "tcgplayer_order_history_paste.txt").read_text(encoding="utf-8")
 SAMPLE_PDF = FIXTURES / "tcgplayer_order_history_sample.pdf"
+PAGE2_PDF = FIXTURES / "tcgplayer_order_history_sample_page2.pdf"
 
 LUFFY_ORDER = "8F3A21C0-77C1A0-1B3E4"
 ZORO_ORDER = "0C4D5E6F-A1B2C3-D4E5F"
@@ -371,7 +372,7 @@ def test_a_saved_pdf_page_is_read_previewed_and_imported_1433(client):
     pdf = SAMPLE_PDF.read_bytes()
 
     res = as_user(c, host).post(
-        f"/group-buys/{gid}/orders/history/pdf", files={"file": ("orders.pdf", pdf, "application/pdf")}
+        f"/group-buys/{gid}/orders/history/pdf", files=[("files", ("orders.pdf", pdf, "application/pdf"))]
     )
 
     assert res.status_code == 200, res.text
@@ -396,11 +397,11 @@ def test_a_pdf_upload_is_refused_for_non_hosts_and_bad_files_1433(client):
     assert as_user(c, host).post(f"/group-buys/{gid}/lock").status_code == 200
     url = f"/group-buys/{gid}/orders/history/pdf"
 
-    not_pdf = as_user(c, host).post(url, files={"file": ("orders.pdf", b"just some text", "application/pdf")})
-    broken = as_user(c, host).post(url, files={"file": ("orders.pdf", b"%PDF-1.7\nnot really", "application/pdf")})
-    non_host = as_user(c, friend).post(url, files={"file": ("o.pdf", SAMPLE_PDF.read_bytes(), "application/pdf")})
+    not_pdf = as_user(c, host).post(url, files=[("files", ("orders.pdf", b"just some text", "application/pdf"))])
+    broken = as_user(c, host).post(url, files=[("files", ("orders.pdf", b"%PDF-1.7\nnot really", "application/pdf"))])
+    non_host = as_user(c, friend).post(url, files=[("files", ("o.pdf", SAMPLE_PDF.read_bytes(), "application/pdf"))])
 
-    assert not_pdf.status_code == 400 and "not a PDF" in not_pdf.json()["detail"]
+    assert not_pdf.status_code == 400 and "orders.pdf: That file is not a PDF" in not_pdf.json()["detail"]
     assert broken.status_code == 400 and "Couldn't read that PDF" in broken.json()["detail"]
     assert non_host.status_code == 403
 
@@ -414,3 +415,108 @@ def test_a_pdf_over_the_size_or_page_limit_is_refused_1433():
         extract_order_history_text(_blank_pdf(2))
     with pytest.raises(Invalid, match="Couldn't read that PDF"):
         extract_order_history_text(b"%PDF-1.7\nnot really")
+
+
+# --- several PDFs at once (#1437) ---------------------------------------------------------------
+
+
+def _upload(c, user, gid, pdfs, text=None):
+    files = [("files", (name, data, "application/pdf")) for name, data in pdfs]
+    return as_user(c, user).post(
+        f"/group-buys/{gid}/orders/history/pdf", files=files, data={"text": text} if text is not None else None
+    )
+
+
+def _locked_group(c, S):
+    host, _friend, gid = _http_group(S)
+    assert as_user(c, host).post(f"/group-buys/{gid}/lock").status_code == 200
+    return host, gid
+
+
+def _numbers(res):
+    return [o["order_number"] for o in res.json()["orders"]]
+
+
+def test_two_different_pdfs_give_the_union_of_their_orders_1437(client):
+    c, S = client
+    host, gid = _locked_group(c, S)
+
+    res = _upload(c, host, gid, [("page1.pdf", SAMPLE_PDF.read_bytes()), ("page2.pdf", PAGE2_PDF.read_bytes())])
+
+    assert res.status_code == 200, res.text
+    assert _numbers(res) == [LUFFY_ORDER, ZORO_ORDER, NAMI_ORDER]
+    assert {LUFFY_ORDER, NAMI_ORDER} <= set(_by_number(res.json()["text"]))
+
+
+def test_the_same_pdf_twice_lists_each_order_once_1437(client):
+    c, S = client
+    host, gid = _locked_group(c, S)
+    pdf = SAMPLE_PDF.read_bytes()
+
+    res = _upload(c, host, gid, [("a.pdf", pdf), ("b.pdf", pdf)])
+
+    assert res.status_code == 200, res.text
+    assert _numbers(res) == [LUFFY_ORDER, ZORO_ORDER]
+
+
+def test_the_same_order_in_two_files_shows_once_with_the_first_files_items_1437(client):
+    c, S = client
+    host, gid = _locked_group(c, S)
+    first = _page((LUFFY_ORDER, 2))
+    again = _page((LUFFY_ORDER, 7), ("11223344-556677-88990", 1))
+    # Plain-text "PDFs" are not PDFs, so go through the text field the dialog sends back.
+    res = _upload(c, host, gid, [("p.pdf", PAGE2_PDF.read_bytes())], text=first + "\n" + again)
+
+    assert res.status_code == 200, res.text
+    assert _numbers(res) == [LUFFY_ORDER, "11223344-556677-88990", NAMI_ORDER]
+    luffy = next(o for o in res.json()["orders"] if o["order_number"] == LUFFY_ORDER)
+    assert sum(line["qty"] for line in luffy["lines"]) == 2
+
+
+def test_text_already_in_the_dialog_is_kept_when_a_file_is_added_1437(client):
+    c, S = client
+    host, gid = _locked_group(c, S)
+
+    res = _upload(c, host, gid, [("page2.pdf", PAGE2_PDF.read_bytes())], text=PDF_TEXT)
+
+    assert res.status_code == 200, res.text
+    assert _numbers(res) == [f"A000000{i}-B0000{i}-C000{i}" for i in range(10)] + [NAMI_ORDER]
+    assert res.json()["text"].startswith(PDF_TEXT.strip()) and res.json()["text"].endswith("FIRST 1 LAST")
+
+
+def test_more_than_ten_pdfs_at_once_are_refused_1437(client):
+    c, S = client
+    host, gid = _locked_group(c, S)
+    pdf = SAMPLE_PDF.read_bytes()
+
+    ten = _upload(c, host, gid, [(f"p{i}.pdf", pdf) for i in range(10)])
+    eleven = _upload(c, host, gid, [(f"p{i}.pdf", pdf) for i in range(11)])
+
+    assert ten.status_code == 200, ten.text
+    assert eleven.status_code == 400
+    assert eleven.json()["detail"] == "Upload at most 10 PDFs at once"
+
+
+def test_a_bad_file_in_the_batch_is_named_1437(client):
+    c, S = client
+    host, gid = _locked_group(c, S)
+
+    res = _upload(
+        c,
+        host,
+        gid,
+        [("page1.pdf", SAMPLE_PDF.read_bytes()), ("page2.pdf", b"just some text"), ("page3.pdf", PAGE2_PDF.read_bytes())],
+    )
+
+    assert res.status_code == 400
+    assert res.json()["detail"] == "page2.pdf: That file is not a PDF"
+
+
+def test_pages_that_are_too_long_together_are_refused_1437(client):
+    c, S = client
+    host, gid = _locked_group(c, S)
+
+    res = _upload(c, host, gid, [("page2.pdf", PAGE2_PDF.read_bytes())], text="x" * MAX_TEXT_CHARS)
+
+    assert res.status_code == 400
+    assert "too much text" in res.json()["detail"]
