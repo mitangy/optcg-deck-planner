@@ -14,7 +14,6 @@ export function CheckItemsDialog({
   lines,
   members,
   orders = [],
-  startScanning = false,
   saving,
   error,
   onSave,
@@ -26,8 +25,6 @@ export function CheckItemsDialog({
   members: GroupBuyMember[];
   /** All orders of the group buy, so a scanned card can point at the order that holds it. */
   orders?: GroupBuyOrder[];
-  /** Open the scanner straight away (the order card's Scan cards button). */
-  startScanning?: boolean;
   saving: boolean;
   error: string | null;
   onSave: (draft: Record<number, number>) => void;
@@ -35,7 +32,7 @@ export function CheckItemsDialog({
 }) {
   const [recv, setRecv] = useState<ScanReceiveState>(() => ({ draft: arrivalDraft(order), notInOrder: [] }));
   const recvRef = useRef(recv);
-  const [scanning, setScanning] = useState(startScanning && orderMissing(order) > 0);
+  const [scanning, setScanning] = useState(false);
   const [flash, setFlash] = useState<{ ids: number[]; n: number }>({ ids: [], n: 0 });
   const draft = recv.draft;
   const update = (next: ScanReceiveState) => {

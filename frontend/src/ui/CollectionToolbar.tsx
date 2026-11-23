@@ -86,6 +86,39 @@ export function ColorFilterChips({
   );
 }
 
+export type PillOption = { value: string; label: string; count?: number };
+
+/** Single-choice pills (the card type row, the group buy package status). A count, when given, sits after the label. */
+export function PillFilter({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  options: PillOption[];
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="type-filter" role="group" aria-label={ariaLabel}>
+      {options.map((o) => (
+        <button
+          key={o.value || "all"}
+          type="button"
+          className={`type-chip${value === o.value ? " on" : ""}`}
+          aria-pressed={value === o.value}
+          aria-label={o.count === undefined ? undefined : `${o.label} (${o.count})`}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+          {o.count === undefined ? null : <span className="type-chip-n" aria-hidden="true">{o.count}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function TypeFilterChips({
   types,
   value,
@@ -95,22 +128,8 @@ export function TypeFilterChips({
   value: string;
   onChange: (type: string) => void;
 }) {
-  const options = ["", ...types];
-  return (
-    <div className="type-filter" role="group" aria-label="Card type">
-      {options.map((t) => (
-        <button
-          key={t || "all"}
-          type="button"
-          className={`type-chip${value === t ? " on" : ""}`}
-          aria-pressed={value === t}
-          onClick={() => onChange(t)}
-        >
-          {t || "All"}
-        </button>
-      ))}
-    </div>
-  );
+  const options = ["", ...types].map((t) => ({ value: t, label: t || "All" }));
+  return <PillFilter options={options} value={value} onChange={onChange} ariaLabel="Card type" />;
 }
 
 export function CollectionFilterMenu({

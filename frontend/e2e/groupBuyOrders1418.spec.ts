@@ -70,7 +70,7 @@ test("Host adds a pasted order, sees the match first, then marks the package arr
 
   await card.getByRole("button", { name: "Mark arrived" }).click();
   await expect(card).toContainText("Arrived");
-  await expect(page.getByTestId("gb-packages")).toContainText("3 arrived");
+  await expect(page.getByTestId("gb-packages")).toContainText("3 of 3 copies arrived");
 });
 
 test("An order saved without items gets them later through Add items (#1418)", async ({ page, planner }) => {
@@ -93,7 +93,7 @@ test("An order saved without items gets them later through Add items (#1418)", a
   await expect(dialog.getByLabel("Order number")).toHaveValue("ABCDE-12345");
   await dialog.locator("textarea").fill("Qty\tDescription\n3\tLuffy");
   await dialog.getByRole("button", { name: /^Save changes/ }).click();
-  await expect(card).toContainText("0 of 3 copies arrived");
+  await expect(card).toContainText("0 of 3 arrived");
   expect(puts).toEqual([{ expected_version: 1, receipt_text: "Qty\tDescription\n3\tLuffy" }]);
 });
 

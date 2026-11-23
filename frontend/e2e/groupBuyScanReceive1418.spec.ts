@@ -43,7 +43,8 @@ test("Scan cards fills Check items, lists extras with the other order, and saves
     const item = (cardId: string) => ({ quad, thumbUrl: "", cardId, inliers: 40, runnerUp: 5, confidence: "sure" });
     (window as unknown as Record<string, unknown>).__optcgTestMatchAll = async () => [item("OP01-001"), item("OP01-001"), item("OP01-001"), item("OP02-002")];
   });
-  await page.getByTestId("gb-order").first().getByRole("button", { name: "Scan cards" }).click();
+  await page.getByTestId("gb-order").first().getByRole("button", { name: "Check items" }).click();
+  await page.getByRole("dialog", { name: "Check items" }).getByRole("button", { name: "Scan cards" }).click();
   const scanner = page.getByRole("dialog", { name: "Scan cards" });
   const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
   await scanner.locator('input[type="file"]').last().setInputFiles({ name: "cards.png", mimeType: "image/png", buffer: png });

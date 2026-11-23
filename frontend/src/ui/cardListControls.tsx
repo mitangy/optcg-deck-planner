@@ -272,6 +272,49 @@ export function SortMenu({
   );
 }
 
+/** A sort with one choice (a radio list), in the same button and popover as the card Sort. */
+export function ChoiceSortMenu<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (next: T) => void;
+}) {
+  const name = useId();
+  const current = options.find((o) => o.value === value) ?? options[0];
+  return (
+    <Popover as="div" className="sort-menu sort-menu-choice">
+      <PopoverButton type="button" className="sort-menu-btn" aria-label={`Sort: ${current.label}`}>
+        Sort<span className="sort-menu-summary">: {current.label}</span>
+      </PopoverButton>
+      <PopoverPanel anchor={{ to: "bottom end", gap: 6, padding: 8 }} className="sort-menu-panel" role="dialog" aria-label="Sort order">
+        {({ close }) => (
+          <ul className="sort-menu-list">
+            {options.map((o) => (
+              <li key={o.value} className="sort-menu-item">
+                <label>
+                  <input
+                    type="radio"
+                    name={name}
+                    checked={o.value === value}
+                    onChange={() => {
+                      onChange(o.value);
+                      close();
+                    }}
+                  />
+                  <span>{o.label}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PopoverPanel>
+    </Popover>
+  );
+}
+
 export function matchesCardSearch(
   card: {
     card_id: string;
@@ -416,11 +459,14 @@ export function CardSearchInput({
   placeholder = "Search name, ID, color…",
   label = "Search cards",
   icon = false,
+  title,
 }: {
   value: string;
   onChange: (next: string) => void;
   placeholder?: string;
   label?: string;
+  /** Tooltip for the box, e.g. what the search looks at. */
+  title?: string;
   /** true or "search" draws a magnifier, "filter" a funnel (for inputs that narrow the list below them). */
   icon?: boolean | "search" | "filter";
 }) {
@@ -447,6 +493,7 @@ export function CardSearchInput({
         type="search"
         className="card-search-input"
         placeholder={placeholder}
+        title={title}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete="off"

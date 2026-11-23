@@ -196,6 +196,12 @@
   cursor: pointer;
 }
 
+.type-chip-n {
+  margin-left: 0.35em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
 .type-chip:hover {
   border-color: var(--gold);
 }

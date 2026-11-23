@@ -46,6 +46,8 @@ export const ALERTS_ADD_OPEN_KEY = "optcg_alerts_add_open";
 
 export const SETTLEMENT_OPEN_KEY = "optcg_group_buy_settlement_open";
 // v2: the old key mostly holds "open" (the drawer used to start open), which would keep it open.
+/** The Packages sort on a group buy: one choice, saved per device (#1441). */
+export const GB_PACKAGE_SORT_KEY = "optcg_group_buy_package_sort";
 export const MEMBERS_OPEN_KEY = "optcg_group_buy_members_open_v2";
 
 export const COLSORT_GB_CARDS_KEY = "optcg_colsort_gb_cards";

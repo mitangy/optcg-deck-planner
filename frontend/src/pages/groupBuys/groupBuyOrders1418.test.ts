@@ -48,8 +48,8 @@ describe("package progress (#1418)", () => {
     expect(packageCounts(lines, true)).toEqual({ arrived: 3, onTheWay: 1, notOrdered: 2 });
   });
 
-  it("the progress words list arrived, on the way and not in an order yet, in that order (#1418)", () => {
-    expect(progressLabels({ arrived: 2, onTheWay: 5, notOrdered: 0 })).toEqual(["2 arrived", "5 on the way", "0 not in an order yet"]);
+  it("the progress line counts copies: arrived of the total, on the way and not in an order yet, in that order (#1418)", () => {
+    expect(progressLabels({ arrived: 2, onTheWay: 5, notOrdered: 0 })).toEqual(["2 of 7 copies arrived", "5 on the way", "0 not in an order yet"]);
   });
 
   it("not-ordered copies add up across cards (#1418)", () => {

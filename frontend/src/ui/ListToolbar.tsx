@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from "react";
 import { useMediaQuery } from "@optcg/ui/hooks";
 import { CardSearchInput, SortMenu } from "./cardListControls";
 import { CardLayoutToggle, DensityToggle, type CardLayout, type ListDensity } from "./CardLayout";
-import { CollectionFilterMenu, ColorFilterChips, TypeFilterChips } from "./CollectionToolbar";
+import { CollectionFilterMenu, ColorFilterChips, PillFilter, TypeFilterChips, type PillOption } from "./CollectionToolbar";
 
 /** Phones and short landscape screens: colour dots and type chips share one row that scrolls sideways. */
 export const CHIP_SCROLL_QUERY = "(max-width: 640px), (max-height: 500px) and (orientation: landscape)";
@@ -30,32 +30,41 @@ export function ListToolbar({
   extras,
 }: {
   className?: string;
-  search: { value: string; onChange: (next: string) => void; placeholder?: string; label?: string; icon?: boolean | "search" | "filter" };
+  search: { value: string; onChange: (next: string) => void; placeholder?: string; label?: string; title?: string; icon?: boolean | "search" | "filter" };
   colors?: { selected: string[]; onToggle: (color: string) => void; onClear: () => void };
-  types?: { types: string[]; value: string; onChange: (type: string) => void };
-  sort: SortMenuProps;
-  filters: ReactNode;
+  /** Pills. `options` (labels with counts) and `ariaLabel` replace the card types for other pages. */
+  types?: { types: string[]; value: string; onChange: (type: string) => void; options?: PillOption[]; ariaLabel?: string };
+  /** The card Sort. Pages with their own sort pass it as `extras` instead. */
+  sort?: SortMenuProps;
+  filters?: ReactNode;
   filterBadge?: number;
   filterLabel?: string;
-  layout: CardLayout;
-  onLayout: (next: CardLayout) => void;
+  layout?: CardLayout;
+  onLayout?: (next: CardLayout) => void;
   density?: ListDensity;
   onDensity?: (next: ListDensity) => void;
   extras?: ReactNode;
 }) {
   const chipScroll = useMediaQuery(CHIP_SCROLL_QUERY);
   const colorChips = colors ? <ColorFilterChips selected={colors.selected} onToggle={colors.onToggle} onClear={colors.onClear} /> : null;
-  const typeChips = types && types.types.length > 0 ? <TypeFilterChips {...types} /> : null;
+  const typeChips = types?.options ? (
+    <PillFilter options={types.options} value={types.value} onChange={types.onChange} ariaLabel={types.ariaLabel ?? "Filter"} />
+  ) : types && types.types.length > 0 ? (
+    <TypeFilterChips {...types} />
+  ) : null;
   const oneRow = !colorChips && !typeChips;
-  const tools = (
+  const hasTools = Boolean(sort || filters || (layout && onLayout));
+  const tools = !hasTools ? null : (
     <div className="collection-toolbar-tools">
-      <SortMenu {...sort} />
-      <CollectionFilterMenu badge={filterBadge} label={filterLabel}>
-        {filters}
-      </CollectionFilterMenu>
-      <CardLayoutToggle layout={layout} onChange={onLayout} icons />
+      {sort ? <SortMenu {...sort} /> : null}
+      {filters ? (
+        <CollectionFilterMenu badge={filterBadge} label={filterLabel}>
+          {filters}
+        </CollectionFilterMenu>
+      ) : null}
+      {layout && onLayout ? <CardLayoutToggle layout={layout} onChange={onLayout} icons /> : null}
       {/* Kept (just hidden) in Grid, so switching layouts never moves the List/Grid switch. */}
-      {density && onDensity ? <DensityToggle density={density} onChange={onDensity} hidden={layout !== "list"} /> : null}
+      {layout && density && onDensity ? <DensityToggle density={density} onChange={onDensity} hidden={layout !== "list"} /> : null}
     </div>
   );
   return (
