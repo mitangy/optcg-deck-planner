@@ -23,7 +23,7 @@ afterEach(() => {
   host?.remove();
   root = null;
   host = null;
-  updateSettings({ profileCard: "" });
+  updateSettings({ profileCard: "", profileArt: "" });
 });
 
 function render() {
@@ -50,5 +50,15 @@ describe("account chip", () => {
     const chip = render();
     expect(chip.querySelector(".profile-avatar")).not.toBeNull();
     expect(chip.querySelector(".account-dot")).toBeNull();
+  });
+
+  it("shows the chosen alt art, not the base, when the picture has one (#1406)", () => {
+    updateSettings({ profileCard: "EB01-021", profileArt: "" });
+    const base = render().querySelector("img")!.getAttribute("src");
+    act(() => root!.unmount());
+    host!.remove();
+    updateSettings({ profileArt: "p2" });
+    const alt = render().querySelector("img")!.getAttribute("src");
+    expect(alt).not.toBe(base);
   });
 });

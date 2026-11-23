@@ -79,6 +79,7 @@ export type AccountDeckBody = {
   plannerArt?: Record<string, string>;
   plannerDeckId?: number;
   editedLocally?: boolean;
+  noMerge?: boolean;
 };
 
 export type AccountDeck = {

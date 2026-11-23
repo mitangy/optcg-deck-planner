@@ -2074,5 +2074,9 @@ module.exports = {
     {"id": "gb1418-shopping-closed-buy-still-held-back", "file": "backend/app/planner/shopping.py", "from": "GroupBuy.status.in_([GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED]),", "to": "GroupBuy.status.in_([GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED]),", "kills": ["test_leftovers_of_a_closed_buy_return_to_shopping_1418"], "args": "tests/test_group_buy_shopping.py"},
     {"id": "gb1418-shopping-alt-transit-ignored", "file": "backend/app/planner/shopping.py", "from": "(pid, left - transit.get(pid, 0), price)", "to": "(pid, left, price)", "kills": ["test_an_alt_copy_in_transit_reduces_the_alt_want_not_the_standard_1418"], "args": "tests/test_group_buy_shopping.py"},
     {"id": "gb1418-shopping-locked-buy-reduces-itself", "file": "backend/app/group_buy/service.py", "from": "        exclude_group_buy_id=member.group_buy_id,\n", "to": "", "kills": ["test_the_locked_buys_own_lines_are_not_reduced_by_itself_1418"], "args": "tests/test_group_buy_shopping.py"},
+    // Duplicated decks survive the first-upload dedupe (#1400),
+    {"id": "dup1400-uploaded-copy-merged", "file": "backend/app/planner/deck_link.py", "from": "    if body.get(\"noMerge\"):\n        return None\n", "to": "", "kills": ["test_a_duplicated_deck_uploaded_after_its_original_is_kept_too_1400"], "args": "tests/test_deck_link.py"},
+    {"id": "dup1400-copy-is-merge-target", "file": "backend/app/planner/deck_link.py", "from": "            or other_body.get(\"noMerge\")\n", "to": "", "kills": ["test_a_duplicated_deck_is_not_merged_on_bulk_upload_1400"], "args": "tests/test_deck_link.py"},
+    {"id": "dup1400-schema-drops-flag", "file": "backend/app/duel/schemas.py", "from": "    noMerge: bool | None = None\n", "to": "", "kills": ["test_a_duplicated_deck_is_not_merged_on_bulk_upload_1400", "test_a_duplicated_deck_uploaded_after_its_original_is_kept_too_1400"], "args": "tests/test_deck_link.py"},
   ],
 };
