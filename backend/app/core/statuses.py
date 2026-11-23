@@ -11,6 +11,13 @@ class GroupBuyStatus(StrEnum):
     COMPLETED = "completed"
 
 
+class HandoffStatus(StrEnum):
+    WAITING = "waiting"
+    SHIPPED = "shipped"
+    HANDED_OVER = "handed_over"
+    RECEIVED = "received"
+
+
 class ReceiptLineStatus(StrEnum):
     MISSING = "missing"
     EXACT = "exact"

@@ -12,13 +12,14 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import Conflict, Forbidden, Invalid, NotFound
-from app.core.statuses import GroupBuyOrderStatus, GroupBuyStatus, ReceiptLineStatus
+from app.core.statuses import GroupBuyOrderStatus, GroupBuyStatus, HandoffStatus, ReceiptLineStatus
 from app.group_buy.merge import MemberNeed, MergedMemberQty, merge_member_needs
 from app.group_buy.settlement import SHIPPING_SPLIT_MODES, build_settlements, round_money
 from app.core.models import User
 from app.group_buy.models import (
     GroupBuy,
     GroupBuyExtraSkip,
+    GroupBuyHandoff,
     GroupBuyMember,
     GroupBuyOrder,
     GroupBuyOrderAllocation,
@@ -30,6 +31,7 @@ from app.group_buy.models import (
 )
 from app.planner.models import CatalogCard, CatalogPrinting, Owned, OwnedPrinting
 from app.group_buy.schemas import (
+    GroupBuyHandoffUpdate,
     GroupBuyDetail,
     GroupBuyExport,
     GroupBuyInvitePreview,
@@ -153,6 +155,7 @@ def _get_group(db: Session, group_id: int, *, lock: bool = False) -> GroupBuy:
             selectinload(GroupBuy.qty_overrides),
             selectinload(GroupBuy.extra_skips),
             selectinload(GroupBuy.receipt_applies).selectinload(GroupBuyReceiptApply.lines),
+            selectinload(GroupBuy.handoffs),
             selectinload(GroupBuy.orders)
             .selectinload(GroupBuyOrder.lines)
             .selectinload(GroupBuyOrderLine.allocations),
@@ -678,6 +681,41 @@ def _summary_fields(
     }
 
 
+def _arrived_by_user(group: GroupBuy) -> dict[int, int]:
+    out: dict[int, int] = {}
+    for order in group.orders:
+        for line in order.lines:
+            for alloc in line.allocations:
+                out[alloc.user_id] = out.get(alloc.user_id, 0) + int(alloc.qty_arrived)
+    return out
+
+
+def _handoff_fields(
+    group: GroupBuy,
+    member: GroupBuyMember,
+    row: GroupBuyHandoff | None,
+    arrived: int,
+    viewer: User | None,
+    read_only: bool,
+) -> dict:
+    """The host already holds their own cards, so their hand-off is always received."""
+    if read_only or viewer is None:
+        return {}
+    if viewer.id != group.host_user_id and viewer.id != member.user_id:
+        return {}
+    if member.user_id == group.host_user_id:
+        return {"handoff_status": HandoffStatus.RECEIVED, "paid": True}
+    handed = int(row.qty_handed) if row else 0
+    return {
+        "handoff_status": row.status if row else HandoffStatus.WAITING,
+        "handoff_tracking_url": row.tracking_url if row else "",
+        "handoff_note": row.note if row else "",
+        "qty_handed": handed,
+        "ready_to_hand_over": max(0, arrived - handed),
+        "paid": bool(row.paid) if row else False,
+    }
+
+
 def _detail_from_group(
     db: Session,
     group: GroupBuy,
@@ -707,6 +745,8 @@ def _detail_from_group(
     shipping_cost = round_money(float(group.shipping_cost or 0.0))
     tax_cost = round_money(float(group.tax_cost or 0.0))
 
+    arrived_by_user = _arrived_by_user(group)
+    handoffs = {h.user_id: h for h in group.handoffs}
     members_out: list[GroupBuyMemberOut] = []
     for member in sorted(
         group.members,
@@ -733,6 +773,14 @@ def _detail_from_group(
                 shipping_share=settle.shipping_share if settle else 0.0,
                 tax_share=settle.tax_share if settle else 0.0,
                 total_owed=settle.total_owed if settle else 0.0,
+                **_handoff_fields(
+                    group,
+                    member,
+                    handoffs.get(member.user_id),
+                    arrived_by_user.get(member.user_id, 0),
+                    user,
+                    read_only,
+                ),
             )
         )
     # Members need the order id and payment notes to pay the host; the invite-link view is open to anyone.
@@ -920,6 +968,7 @@ def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
             selectinload(GroupBuy.snapshot_lines),
             selectinload(GroupBuy.qty_overrides),
             selectinload(GroupBuy.receipt_applies).selectinload(GroupBuyReceiptApply.lines),
+            selectinload(GroupBuy.handoffs),
             selectinload(GroupBuy.orders)
             .selectinload(GroupBuyOrder.lines)
             .selectinload(GroupBuyOrderLine.allocations),
@@ -2215,6 +2264,79 @@ def close_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     if group.status != GroupBuyStatus.ORDERED:
         raise Forbidden("Add an order before closing the group buy")
     group.status = GroupBuyStatus.COMPLETED
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+# --- Hand-off: getting each member's arrived cards to them (#1418) ---------------------------
+
+
+def _handoff_row(db: Session, group: GroupBuy, user_id: int) -> GroupBuyHandoff:
+    for row in group.handoffs:
+        if row.user_id == user_id:
+            return row
+    row = GroupBuyHandoff(group_buy_id=group.id, user_id=user_id)
+    row.status, row.tracking_url, row.note, row.qty_handed, row.paid = (
+        HandoffStatus.WAITING,
+        "",
+        "",
+        0,
+        False,
+    )
+    db.add(row)
+    group.handoffs.append(row)
+    return row
+
+
+def _require_handoff_phase(group: GroupBuy) -> None:
+    if group.status not in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
+        raise Invalid("Hand-off starts once the group buy is ordered")
+
+
+def set_handoff(
+    db: Session, user: User, group_id: int, member_id: int, body: GroupBuyHandoffUpdate
+) -> GroupBuyDetail:
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    _require_handoff_phase(group)
+    if member_id == group.host_user_id:
+        raise Invalid("The host already has their own cards")
+    if not any(m.user_id == member_id for m in group.members):
+        raise NotFound("Member not found")
+    # Validate before the row exists: a refused request must not leave a pending one in the session.
+    tracking = None if body.tracking_url is None else _clean_tracking_url(body.tracking_url)
+    row = _handoff_row(db, group, member_id)
+    if body.status is not None:
+        row.status = body.status
+        if body.status == HandoffStatus.WAITING:
+            row.qty_handed = 0
+            row.tracking_url = ""
+        elif body.qty_handed is None:
+            row.qty_handed = _arrived_by_user(group).get(member_id, 0)
+    if body.qty_handed is not None:
+        row.qty_handed = body.qty_handed
+    if tracking is not None:
+        row.tracking_url = tracking
+    if body.note is not None:
+        row.note = body.note.strip()
+    if body.paid is not None:
+        row.paid = body.paid
+    row.updated_at = _now()
+    row.updated_by_user_id = user.id
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def confirm_handoff_received(db: Session, user: User, group_id: int) -> GroupBuyDetail:
+    group = _get_group(db, group_id, lock=True)
+    _require_member(group, user)
+    _require_handoff_phase(group)
+    row = next((h for h in group.handoffs if h.user_id == user.id), None)
+    if row is None or row.status not in (HandoffStatus.SHIPPED, HandoffStatus.HANDED_OVER):
+        raise Invalid("Nothing has been shipped or handed over to you yet")
+    row.status = HandoffStatus.RECEIVED
+    row.updated_at = _now()
+    row.updated_by_user_id = user.id
     db.commit()
     return get_group_buy(db, user, group_id)
 

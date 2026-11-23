@@ -71,6 +71,9 @@ class GroupBuy(Base):
     orders: Mapped[list[GroupBuyOrder]] = relationship(
         back_populates="group_buy", cascade="all, delete-orphan", order_by="GroupBuyOrder.id"
     )
+    handoffs: Mapped[list[GroupBuyHandoff]] = relationship(
+        back_populates="group_buy", cascade="all, delete-orphan"
+    )
 
 
 class GroupBuyMember(Base):
@@ -295,3 +298,30 @@ class GroupBuyOrderAllocation(Base):
     qty_arrived: Mapped[int] = mapped_column(Integer, default=0)
 
     line: Mapped[GroupBuyOrderLine] = relationship(back_populates="allocations")
+
+
+class GroupBuyHandoff(Base):
+    """Getting one member's arrived cards from the host to them (#1418). No row means waiting."""
+
+    __tablename__ = "group_buy_handoffs"
+    __table_args__ = (UniqueConstraint("group_buy_id", "user_id", name="uq_group_buy_handoff"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_buy_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="waiting")
+    tracking_url: Mapped[str] = mapped_column(String(1000), default="")
+    note: Mapped[str] = mapped_column(String(300), default="")
+    # Copies the host has already covered (shipped or handed over) for this member.
+    qty_handed: Mapped[int] = mapped_column(Integer, default=0)
+    paid: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    group_buy: Mapped[GroupBuy] = relationship(back_populates="handoffs")

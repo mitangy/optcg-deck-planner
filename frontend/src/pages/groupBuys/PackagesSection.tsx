@@ -7,6 +7,7 @@ import { MoreIcon } from "../../ui/HeadPopover";
 import {
   countsTotal,
   orderChip,
+  orderMissing,
   orderLineArt,
   orderTitle,
   packageCounts,
@@ -112,6 +113,7 @@ function OrderCard({
   busy,
   onMarkArrived,
   onCheck,
+  onScan,
   onUndo,
   onDelete,
   onEdit,
@@ -124,6 +126,7 @@ function OrderCard({
   busy: boolean;
   onMarkArrived: (o: GroupBuyOrder) => void;
   onCheck: (o: GroupBuyOrder) => void;
+  onScan: (o: GroupBuyOrder) => void;
   onUndo: (o: GroupBuyOrder) => void;
   onDelete: (o: GroupBuyOrder) => void;
   onEdit: (o: GroupBuyOrder) => void;
@@ -246,6 +249,16 @@ function OrderCard({
             </button>
           </>
         ) : null}
+        {manage && order.lines.length > 0 && orderMissing(order) > 0 ? (
+          <button
+            type="button"
+            className="btn secondary"
+            disabled={busy}
+            onClick={() => onScan(order)}
+          >
+            Scan cards
+          </button>
+        ) : null}
         {manage && order.status === "arrived" && order.lines.length > 0 ? (
           <button
             type="button"
@@ -307,6 +320,7 @@ export function PackagesSection({
   onAddOrder,
   onMarkArrived,
   onCheck,
+  onScan,
   onUndo,
   onDelete,
   onEdit,
@@ -317,6 +331,7 @@ export function PackagesSection({
   onAddOrder: () => void;
   onMarkArrived: (o: GroupBuyOrder) => void;
   onCheck: (o: GroupBuyOrder) => void;
+  onScan: (o: GroupBuyOrder) => void;
   onUndo: (o: GroupBuyOrder) => void;
   onDelete: (o: GroupBuyOrder) => void;
   onEdit: (o: GroupBuyOrder) => void;
@@ -372,6 +387,7 @@ export function PackagesSection({
                   busy={busy}
                   onMarkArrived={onMarkArrived}
                   onCheck={onCheck}
+                  onScan={onScan}
                   onUndo={onUndo}
                   onDelete={onDelete}
                   onEdit={onEdit}
