@@ -33,6 +33,19 @@ class User(Base):
     ban_reason: Mapped[str | None] = mapped_column(String(200), nullable=True)
     banned_by: Mapped[int | None] = mapped_column(Integer, nullable=True)
     signup_source: Mapped[str | None] = mapped_column(Text, nullable=True, default=None)
+    # Set for a group buy's "not on the app" member (#1445): the group buy the row belongs to. These
+    # rows hold a name and nothing else; nobody signs in as one and they are left out of user lists.
+    placeholder_group_buy_id: Mapped[int | None] = mapped_column(
+        ForeignKey(
+            "group_buys.id",
+            ondelete="CASCADE",
+            use_alter=True,
+            name="fk_users_placeholder_group_buy_id",
+        ),
+        nullable=True,
+        index=True,
+        default=None,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -42,6 +55,10 @@ class User(Base):
     shopping_extras: Mapped[list[ShoppingExtra]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+
+
+def is_placeholder_user(user: User) -> bool:
+    return user.placeholder_group_buy_id is not None
 
 
 # Case-insensitive uniqueness for usernames (NULLs allowed on SQLite + Postgres).

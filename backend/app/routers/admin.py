@@ -482,7 +482,7 @@ def list_users(
     with an unknown source always last; ranked/friends/private/bot/practice = that mode's game count. Every sort
     breaks ties by id ascending so a page boundary never repeats or drops a row.
     """
-    where = []
+    where = [User.placeholder_group_buy_id.is_(None)]
     if not include_guests:
         where.append(~is_guest())
     q = q.strip().lower()

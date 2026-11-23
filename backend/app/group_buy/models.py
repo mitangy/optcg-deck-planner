@@ -49,7 +49,7 @@ class GroupBuy(Base):
     receipt_text: Mapped[str] = mapped_column(Text, default="")
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
-    host: Mapped[User] = relationship()
+    host: Mapped[User] = relationship(foreign_keys=[host_user_id])
     members: Mapped[list[GroupBuyMember]] = relationship(
         back_populates="group_buy", cascade="all, delete-orphan"
     )

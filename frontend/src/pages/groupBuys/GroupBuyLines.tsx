@@ -28,6 +28,7 @@ export function GroupBuyLines({
   cardsSort,
   onCardsSort,
   renderBuyEditor,
+  buyLabel = "Your buy",
   renderAltRow,
   renderStatus,
   altsOf = (line) => line.alt_arts ?? [],
@@ -42,6 +43,8 @@ export function GroupBuyLines({
   cardsSort: ColumnSort | null;
   onCardsSort: ReturnType<typeof useColumnSort>["onSort"];
   renderBuyEditor?: (line: GroupBuyLine, excluded: boolean) => ReactNode;
+  /** The buy column's name: "Your buy", or the member the host is buying for. */
+  buyLabel?: string;
   renderAltRow?: (line: GroupBuyLine) => ReactNode;
   /** Where the card's copies are (arrived, on the way, not ordered), shown once the group buy is ordered. */
   renderStatus?: (line: GroupBuyLine) => ReactNode;
@@ -110,7 +113,7 @@ export function GroupBuyLines({
               </div>
               {renderBuyEditor ? (
                 <div className="grid-card-owned">
-                  <span>Your buy</span>
+                  <span>{buyLabel}</span>
                   {renderBuyEditor(line, excluded)}
                 </div>
               ) : null}
@@ -165,7 +168,7 @@ export function GroupBuyLines({
             >
               {renderBuyEditor ? (
                 <div className="mobile-card-owned">
-                  <span>Your buy</span>
+                  <span>{buyLabel}</span>
                   {renderBuyEditor(line, excluded)}
                 </div>
               ) : null}
@@ -191,7 +194,7 @@ export function GroupBuyLines({
         <thead>
           <tr>
             {th("Card", "card", "asc")}
-            {renderBuyEditor ? th("Your buy", "mine", "desc") : null}
+            {renderBuyEditor ? th(buyLabel, "mine", "desc") : null}
             {th("Copies", "total", "desc")}
             {th("Who", "who", "asc")}
             {th("Each", "market", "desc")}

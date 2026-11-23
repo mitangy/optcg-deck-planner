@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
-from app.core.models import LoginTicket, User
+from app.core.models import LoginTicket, User, is_placeholder_user
 from app.core.time import as_utc
 from app.roles import Role, is_banned
 
@@ -178,6 +178,8 @@ def resolve_google_user(
     user = db.scalar(select(User).where(User.google_sub == sub))
     if user is None:
         user = db.scalar(select(User).where(User.email == email))
+    if user is not None and is_placeholder_user(user):
+        raise HTTPException(status_code=403, detail="Account cannot sign in")
     if user is None:
         user = User(email=email, name=name, google_sub=sub)
         if email.strip().lower() in get_settings().admin_email_set:
@@ -210,7 +212,7 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid session")
     user_id, session_version = parsed
     user = db.get(User, user_id)
-    if user is None:
+    if user is None or is_placeholder_user(user):
         raise HTTPException(status_code=401, detail="User not found")
     if is_banned(user):
         raise HTTPException(status_code=403, detail="Account banned")
@@ -232,7 +234,7 @@ def get_optional_user(
         return None
     user_id, session_version = parsed
     user = db.get(User, user_id)
-    if user is None or is_banned(user):
+    if user is None or is_banned(user) or is_placeholder_user(user):
         return None
     if int(user.session_version or 0) != session_version:
         return None

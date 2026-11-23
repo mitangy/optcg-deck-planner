@@ -3191,6 +3191,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/group-buys/{group_id}/offline-members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Offline Member */
+        post: operations["post_offline_member_group_buys__group_id__offline_members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/offline-members/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Offline Member */
+        delete: operations["delete_offline_member_group_buys__group_id__offline_members__member_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Offline Member */
+        patch: operations["patch_offline_member_group_buys__group_id__offline_members__member_id__patch"];
+        trace?: never;
+    };
+    "/group-buys/{group_id}/offline-members/{member_id}/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Offline Member Cards */
+        post: operations["post_offline_member_cards_group_buys__group_id__offline_members__member_id__cards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/group-buys/{group_id}/order": {
         parameters: {
             query?: never;
@@ -7904,6 +7956,11 @@ export interface components {
              */
             include_singles: boolean;
             /**
+             * Is Offline
+             * @default false
+             */
+            is_offline: boolean;
+            /**
              * Paid
              * @default false
              */
@@ -8002,6 +8059,30 @@ export interface components {
             qty: number;
             /** User Id */
             user_id: number;
+        };
+        /** GroupBuyOfflineCardsPaste */
+        GroupBuyOfflineCardsPaste: {
+            /** Text */
+            text: string;
+        };
+        /** GroupBuyOfflineCardsResult */
+        GroupBuyOfflineCardsResult: {
+            /**
+             * Applied
+             * @default 0
+             */
+            applied: number;
+            detail: components["schemas"]["GroupBuyDetail"];
+            /**
+             * Unmatched
+             * @default []
+             */
+            unmatched: string[];
+        };
+        /** GroupBuyOfflineMemberBody */
+        GroupBuyOfflineMemberBody: {
+            /** Name */
+            name: string;
         };
         /** GroupBuyOrderAdded */
         GroupBuyOrderAdded: {
@@ -8263,6 +8344,8 @@ export interface components {
         GroupBuyQtyUpdate: {
             /** Qty */
             qty: number;
+            /** User Id */
+            user_id?: number | null;
         };
         /** GroupBuyReceiptApplyRequest */
         GroupBuyReceiptApplyRequest: {
@@ -16492,6 +16575,145 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_offline_member_group_buys__group_id__offline_members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOfflineMemberBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_offline_member_group_buys__group_id__offline_members__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_offline_member_group_buys__group_id__offline_members__member_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOfflineMemberBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_offline_member_cards_group_buys__group_id__offline_members__member_id__cards_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOfflineCardsPaste"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOfflineCardsResult"];
                 };
             };
             /** @description Validation Error */

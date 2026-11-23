@@ -1111,3 +1111,151 @@
 .mobile-card-list.density-compact .mobile-card-info > .gb-line-status {
   flex: 1 0 100%;
 }
+
+/* Members who are not on the app (#1445). */
+.gb-offline-tag {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 0.12rem 0.45rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: help;
+}
+
+.gb-offline-menu {
+  flex: 0 0 auto;
+}
+
+.gb-offline-menu .gb-more-btn {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.gb-add-offline {
+  width: auto;
+  margin: 0.6rem 0 0;
+  min-height: 2.5rem;
+}
+
+.gb-buying-for {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.9rem;
+  min-width: 0;
+  margin: 0.9rem 0 0.4rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: var(--surface);
+}
+
+.gb-buying-pick {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.gb-buying-label {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.gb-buying-pick > :last-child {
+  min-width: 9rem;
+}
+
+.gb-buying-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.gb-buying-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.gb-buying-actions .btn {
+  width: auto;
+  margin: 0;
+  min-height: 2.5rem;
+}
+
+.gb-buying-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.gb-offline-field {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 600;
+}
+
+.gb-offline-field input,
+.gb-offline-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  font-weight: 400;
+}
+
+.gb-offline-field textarea {
+  min-height: 9rem;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.gb-offline-note {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.gb-offline-result p {
+  margin: 0 0 0.3rem;
+  font-weight: 600;
+}
+
+.gb-offline-unmatched {
+  margin: 0;
+  padding: 0.5rem 0.75rem 0.5rem 1.5rem;
+  max-height: 8rem;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-8, 8px);
+  background: var(--bg-deep);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.gb-offline-panel {
+  width: min(34rem, 100%);
+}
+
+@media (max-width: 640px) {
+  .gb-buying-pick {
+    flex: 1 1 100%;
+  }
+
+  .gb-buying-pick > :last-child {
+    flex: 1 1 auto;
+  }
+
+  .gb-buying-actions {
+    flex: 1 1 100%;
+  }
+
+  .gb-buying-actions .btn {
+    flex: 1 1 auto;
+  }
+}

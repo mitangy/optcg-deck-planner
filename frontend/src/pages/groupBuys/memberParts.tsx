@@ -3,8 +3,17 @@ import { GroupBuyBoughtArt, GroupBuyLine, GroupBuyMember, GroupBuyMemberQty, mon
 import { boughtAlts, lineEach, mySelectedArtsTotal } from "./groupBuyArt";
 import { MemberSwatch, memberColor } from "./memberColors";
 
+/** Next to a name the host typed in for someone who does not use the app. */
+export function OfflineTag() {
+  return (
+    <span className="gb-offline-tag" title="Added by the host. They are not on the app, so the host buys and hands over their cards.">
+      not on the app
+    </span>
+  );
+}
+
 export function MemberModeTag({ member }: { member: GroupBuyMember }) {
-  if (member.sum_across_leaders == null) return null;
+  if (member.sum_across_leaders == null || member.is_offline) return null;
   const separate = member.sum_across_leaders;
   return (
     <span
@@ -36,7 +45,8 @@ export function MemberBreakdown({
           <span>
             {m.display_name} ×{m.qty}
           </span>
-          {m.is_custom ? (
+          {members.find((x) => x.user_id === m.user_id)?.is_offline ? <OfflineTag /> : null}
+          {m.is_custom && !members.find((x) => x.user_id === m.user_id)?.is_offline ? (
             <span className="group-buy-custom-tag" title="Custom quantity, not Shopping still-need">
               custom
             </span>
