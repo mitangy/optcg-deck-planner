@@ -3,7 +3,7 @@ import { shownMarket } from "../../cards/altArt";
 
 type ArtLine = Pick<
   GroupBuyLine,
-  "my_qty" | "alt_arts" | "preferred_market_price" | "name" | "my_deck_qty" | "my_extras"
+  "my_qty" | "alt_arts" | "preferred_market_price" | "name" | "my_deck_qty" | "my_extras" | "bought_arts"
 >;
 
 export type MyArtSplit = {
@@ -51,9 +51,19 @@ export type MyArtsTotal = {
   breakdown: string;
 };
 
+/** The viewer's copies that sit in a seller order, at what was bought (#1443). */
+function myBoughtParts(line: ArtLine) {
+  return (line.bought_arts ?? [])
+    .filter((b) => b.my_qty > 0)
+    .map((b) => ({ label: b.product_id == null ? "Base" : b.name, qty: b.my_qty, price: b.unit_price }));
+}
+
 export function mySelectedArtsTotal(line: ArtLine): MyArtsTotal {
-  const { base, alts } = myArtSplit(line);
-  const parts: { label: string; qty: number; price: number | null }[] = [];
+  const bought = myBoughtParts(line);
+  const boughtQty = bought.reduce((s, p) => s + p.qty, 0);
+  // Copies in an order keep what was bought; only the copies still to order follow the live picks.
+  const { base, alts } = myArtSplit(boughtQty > 0 ? { ...line, my_qty: Math.max(0, line.my_qty - boughtQty) } : line);
+  const parts: { label: string; qty: number; price: number | null }[] = [...bought];
   if (base > 0) parts.push({ label: "Base", qty: base, price: line.preferred_market_price ?? null });
   for (const a of alts) parts.push({ label: a.name, qty: a.qty, price: a.price });
   const copies = parts.reduce((s, p) => s + p.qty, 0);
@@ -94,9 +104,31 @@ export function visibleGroupBuyLines<
   });
 }
 
+/** Each for a row: the price paid per bought copy once the card is in an order, otherwise the shown art's market price (#1443). */
+export function lineEach(
+  line: Pick<GroupBuyLine, "market_price" | "alt_arts" | "display_art" | "product_id" | "bought_arts" | "bought_each">,
+): { price: number | null | undefined; productId: number | null | undefined; bought: boolean } {
+  if (line.bought_arts?.length) {
+    return { price: line.bought_each ?? null, productId: shownMarket(line).productId, bought: true };
+  }
+  return { ...shownMarket(line), bought: false };
+}
+
 /** Each: the market price of the art the row shows (the picked alt art when there is one, otherwise the base card). */
 export function shownArtPrice(
   line: Pick<GroupBuyLine, "market_price" | "alt_arts" | "display_art">,
 ): number | null {
   return shownMarket(line).price ?? null;
+}
+
+/** The alt printings a card was bought as, in the order the receipt arts sort (#1443). Base copies have no printing here. */
+export function boughtAlts(line: Pick<GroupBuyLine, "bought_arts" | "alt_arts">): GroupBuyLine["alt_arts"] {
+  const bought = new Set((line.bought_arts ?? []).filter((b) => b.product_id != null).map((b) => b.product_id));
+  return (line.alt_arts ?? []).filter((a) => bought.has(a.product_id));
+}
+
+/** "2 bought": the arts already in an order, in place of the "N alts · N picked" chip. */
+export function boughtChipLabel(line: Pick<GroupBuyLine, "bought_arts">): string {
+  const n = line.bought_arts?.length ?? 0;
+  return `${n} bought`;
 }

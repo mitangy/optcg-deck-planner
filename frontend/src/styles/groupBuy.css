@@ -1100,3 +1100,14 @@
 .mobile-card-list.density-compact .gb-prices {
   row-gap: 0;
 }
+
+/* Compact group buy rows: when the status pill and art chip don't fit beside the name, they wrap to a
+   second line instead of running into the Copies column (#1443). */
+.table-wrap.density-compact .data-table.group-buy-table .card-cell-inner > div.card-cell-text {
+  flex-wrap: wrap;
+}
+
+/* Compact phone cards: the copies status pill takes its own line so a short pill never squeezes the name. */
+.mobile-card-list.density-compact .mobile-card-info > .gb-line-status {
+  flex: 1 0 100%;
+}

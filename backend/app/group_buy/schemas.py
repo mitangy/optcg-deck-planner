@@ -104,6 +104,18 @@ class GroupBuyNotOrderedMemberOut(BaseModel):
     product_id: int | None = None
 
 
+class GroupBuyBoughtArtOut(BaseModel):
+    """One art of a card that is in a seller order (#1443). ``product_id`` None is the base art."""
+
+    product_id: int | None = None
+    name: str = ""
+    qty: int
+    my_qty: int = 0
+    # Per copy: the price paid when ``paid``, otherwise that art's market price.
+    unit_price: float | None = None
+    paid: bool = False
+
+
 class GroupBuyLineOut(BaseModel):
     card_id: str
     name: str
@@ -124,6 +136,10 @@ class GroupBuyLineOut(BaseModel):
     alt_arts: list[PrintingView] = []
     art_wants: list[GroupBuyArtWantOut] = []
     display_art: int | None = None
+    # Arts already in a seller order; empty until the card has copies in one (#1443).
+    bought_arts: list[GroupBuyBoughtArtOut] = []
+    # Price per bought copy (copy-weighted over bought_arts); None while any is unpriced.
+    bought_each: float | None = None
     my_qty: int = 0
     my_suggested_qty: int = 0
     my_is_custom: bool = False
@@ -159,6 +175,8 @@ class GroupBuyOrderLineOut(BaseModel):
     qty_arrived: int
     # Ordered copies nobody's snapshot still needed; they cannot be tracked per member.
     qty_extra: int = 0
+    # Price paid per copy, when the import had one (#1443).
+    unit_price: float | None = None
     allocations: list[GroupBuyOrderAllocationOut] = []
 
 

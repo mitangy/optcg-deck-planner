@@ -57,8 +57,11 @@ export function AltChip({
   trayKey,
   expanded,
   onToggle,
+  label,
 }: {
   alts: readonly ChipAlt[];
+  /** Replaces the "N alts · N picked" text (the group buy shows what was bought instead). */
+  label?: string;
   trayKey: string;
   expanded: boolean;
   onToggle: (key: string) => void;
@@ -75,7 +78,7 @@ export function AltChip({
         onToggle(trayKey);
       }}
     >
-      <span>{altChipLabel(alts)}</span>
+      <span>{label ?? altChipLabel(alts)}</span>
       <span className="alt-chip-chevron" aria-hidden="true">
         {expanded ? "▴" : "▾"}
       </span>

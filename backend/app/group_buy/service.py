@@ -31,6 +31,7 @@ from app.group_buy.models import (
 )
 from app.planner.models import CatalogCard, CatalogPrinting, Owned, OwnedPrinting
 from app.group_buy.schemas import (
+    GroupBuyBoughtArtOut,
     GroupBuyHandoffUpdate,
     GroupBuyDetail,
     GroupBuyExport,
@@ -368,6 +369,74 @@ def _allocated_by_user_card_art(group: GroupBuy) -> dict[tuple[int, str], dict[i
     return out
 
 
+class _BoughtArt:
+    """One art of a card across the seller orders: copies bought, and what the receipts say they cost."""
+
+    __slots__ = ("qty", "paid_qty", "paid_total")
+
+    def __init__(self) -> None:
+        self.qty = 0
+        self.paid_qty = 0
+        self.paid_total = 0.0
+
+    def unit_price(self, market: float | None) -> tuple[float | None, bool]:
+        """(price per copy, whether it was paid): the paid average when every copy has one, else market."""
+        if self.qty > 0 and self.paid_qty == self.qty:
+            return round(self.paid_total / self.qty, 2), True
+        return market, False
+
+
+def _bought_by_card_art(group: GroupBuy) -> dict[str, dict[int | None, _BoughtArt]]:
+    """card id -> art (None is the standard art) -> what the orders bought (#1443)."""
+    out: dict[str, dict[int | None, _BoughtArt]] = {}
+    for order in group.orders:
+        for line in order.lines:
+            qty = int(line.qty_ordered or 0)
+            if qty <= 0:
+                continue
+            bought = out.setdefault(line.card_id.upper(), {}).setdefault(line.product_id, _BoughtArt())
+            bought.qty += qty
+            if line.unit_price is not None:
+                bought.paid_qty += qty
+                bought.paid_total += qty * float(line.unit_price)
+    return out
+
+
+def _art_key(art: int | None) -> tuple[bool, int]:
+    return (art is not None, art or 0)
+
+
+def _bought_shown_art(bought: dict[int | None, _BoughtArt]) -> int | None:
+    """The art with the most bought copies (the standard art on a tie, then the lower product id)."""
+    return min(bought, key=lambda art: (-bought[art].qty, art is not None, art or 0))
+
+
+def _pinned_member_cost(
+    placed: dict[int | None, int],
+    art_price: dict[int | None, float | None],
+    qty: int,
+    live_cost,
+) -> float | None:
+    """A member's cost for ``qty`` copies: the copies in an order at what was bought, the rest the live way."""
+    left = qty
+    cost = 0.0
+    for art in sorted(placed, key=_art_key):
+        n = min(left, placed[art])
+        if n <= 0:
+            continue
+        left -= n
+        price = art_price.get(art)
+        if price is None:
+            return None
+        cost += n * price
+    if left > 0:
+        rest = live_cost(left)
+        if rest is None:
+            return None
+        cost += rest
+    return round(cost, 2)
+
+
 def _member_not_ordered(
     member: MergedMemberQty,
     wants: dict[int, int],
@@ -526,6 +595,7 @@ def _build_lines(
     card_ids = {line.card_id for line in merged} | set(zero_customs)
     order_stats = _allocation_stats(group)
     order_arts = _allocated_by_user_card_art(group)
+    bought_map = {} if unordered_only else _bought_by_card_art(group)
 
     viewer_wants: dict[str, dict[int, int]] = {}
     viewer_need: dict[str, int] = {}
@@ -605,6 +675,15 @@ def _build_lines(
         art_wants: list[GroupBuyArtWantOut] = []
         not_ordered_members: list[GroupBuyNotOrderedMemberOut] = []
         per_user = order_stats.get(card_id.upper(), {})
+        # Copies already in a seller order are pinned to what was bought, whatever Shopping picks say now (#1443).
+        bought = bought_map.get(card_id.upper())
+        art_price: dict[int | None, float | None] = {}
+        art_paid: dict[int | None, bool] = {}
+        for art, b in (bought or {}).items():
+            art_market = preferred_market if art is None else (
+                printings[art].market_price if art in printings else None
+            )
+            art_price[art], art_paid[art] = b.unit_price(art_market)
         for mem in members:
             if mem.qty <= 0:
                 continue
@@ -631,7 +710,22 @@ def _build_lines(
                         unordered_only=unordered_only,
                     )
                 )
-            cost = shopping_svc.remaining_cost_for_buys(buys)
+            if bought:
+
+                def live_cost(n: int, _uid: int = mem.user_id, _cid: str = card_id) -> float | None:
+                    left_buys = shopping_svc.allocate_still_need_buys(
+                        n,
+                        _alt_inputs_for(member_items, skips, _uid, _cid, n),
+                        standard_product_id=preferred_product_id,
+                        standard_price=preferred_market,
+                    )
+                    return shopping_svc.remaining_cost_for_buys(left_buys)
+
+                cost = _pinned_member_cost(
+                    order_arts.get((mem.user_id, card_id.upper()), {}), art_price, mem.qty, live_cost
+                )
+            else:
+                cost = shopping_svc.remaining_cost_for_buys(buys)
             bucket = member_totals.setdefault(mem.user_id, [0, 0.0])
             bucket[0] += mem.qty
             if cost is None:
@@ -651,6 +745,33 @@ def _build_lines(
                 line_display_art = group_pick
                 if group_pick > 0 and all(a.product_id != group_pick for a in line_alt_arts):
                     line_alt_arts.extend(a for a in alts.get(card_id, []) if a.product_id == group_pick)
+
+        bought_out: list[GroupBuyBoughtArtOut] = []
+        bought_each: float | None = None
+        if bought:
+            line_display_art = _bought_shown_art(bought) or 0
+            mine_by_art = order_arts.get((viewer_user_id, card_id.upper()), {})
+            for art in sorted(bought, key=_art_key):
+                if art is not None and all(a.product_id != art for a in line_alt_arts):
+                    line_alt_arts.extend(a for a in alts.get(card_id, []) if a.product_id == art)
+                bought_out.append(
+                    GroupBuyBoughtArtOut(
+                        product_id=art,
+                        name=(
+                            (cat.name if cat else "")
+                            if art is None
+                            else (printings[art].name if art in printings else "")
+                        ),
+                        qty=bought[art].qty,
+                        my_qty=mine_by_art.get(art, 0),
+                        unit_price=art_price[art],
+                        paid=art_paid[art],
+                    )
+                )
+            if all(b.unit_price is not None for b in bought_out):
+                bought_each = round(
+                    sum(b.qty * (b.unit_price or 0.0) for b in bought_out) / sum(b.qty for b in bought_out), 2
+                )
 
         mine = next((m for m in members if m.user_id == viewer_user_id), None)
         my_qty = mine.qty if mine else 0
@@ -692,6 +813,8 @@ def _build_lines(
                 alt_arts=line_alt_arts,
                 art_wants=art_wants,
                 display_art=line_display_art,
+                bought_arts=bought_out,
+                bought_each=bought_each,
                 my_qty=my_qty,
                 my_suggested_qty=mine.suggested_qty if mine else 0,
                 my_is_custom=my_is_custom,
@@ -1750,6 +1873,8 @@ def _split_alt_copies(
 # --- Seller orders (packages), #1418 ---------------------------------------------------------
 
 Copies = dict[str, dict[int | None, int]]
+# Price paid per copy, by card and art; an art with no entry has no known price.
+Prices = dict[str, dict[int | None, float]]
 
 
 def _now() -> datetime:
@@ -1835,6 +1960,7 @@ def _orders_out(db: Session, group: GroupBuy, *, show_private: bool) -> list[Gro
                     qty_ordered=int(line.qty_ordered),
                     qty_arrived=sum(int(a.qty_arrived) for a in line.allocations),
                     qty_extra=max(0, int(line.qty_ordered) - line_alloc),
+                    unit_price=line.unit_price,
                     allocations=[
                         GroupBuyOrderAllocationOut(
                             user_id=a.user_id,
@@ -1900,14 +2026,28 @@ def _copies_from_receipt(
 def _copies_from_parsed(
     db: Session, parsed: list[ParsedReceiptLine]
 ) -> tuple[Copies, list[GroupBuyReceiptUnmatchedOut]]:
+    copies, _, unmatched = _copies_and_prices_from_parsed(db, parsed)
+    return copies, unmatched
+
+
+def _copies_and_prices_from_parsed(
+    db: Session, parsed: list[ParsedReceiptLine]
+) -> tuple[Copies, Prices, list[GroupBuyReceiptUnmatchedOut]]:
+    """Copies per card and art, and the price paid per copy of each (the average when lines merge).
+
+    A price is kept only when every copy of that art had one on the page."""
     matched, unmatched = aggregate_receipt_matches(db, parsed)
     copies: Copies = {}
+    prices: Prices = {}
     for hit in matched:
         alts = {pid: n for pid, n in hit.alt_copies.items() if n > 0}
         for pid, n in alts.items():
             _add_copies(copies, hit.card_id, pid, n)
         _add_copies(copies, hit.card_id, None, hit.qty - sum(alts.values()))
-    return copies, [
+        for art, (total, priced, all_qty) in hit.art_spend.items():
+            if priced > 0 and priced == all_qty:
+                prices.setdefault(hit.card_id.upper().strip(), {})[art] = round(total / priced, 2)
+    return copies, prices, [
         GroupBuyReceiptUnmatchedOut(
             qty=line.qty,
             description=line.raw_description,
@@ -2036,6 +2176,7 @@ def _create_order(
     receipt_text: str,
     copies: Copies,
     from_receipt_apply: bool = False,
+    prices: Prices | None = None,
 ) -> tuple[GroupBuyOrder, str, bool]:
     """Add the order and its allocations; the first one moves locked -> ordered."""
     plan = _plan_allocation(db, group, copies)
@@ -2056,15 +2197,22 @@ def _create_order(
         version=1,
     )
     group.orders.append(order)
-    _fill_order_lines(order, copies, plan)
+    _fill_order_lines(order, copies, plan, prices)
     db.flush()
     return order, status_before, set_ordered_at
 
 
-def _fill_order_lines(order: GroupBuyOrder, copies: Copies, plan) -> None:
+def _fill_order_lines(
+    order: GroupBuyOrder, copies: Copies, plan, prices: Prices | None = None
+) -> None:
     for card_id, arts in sorted(copies.items()):
         for art, qty in sorted(arts.items(), key=_art_order):
-            line = GroupBuyOrderLine(card_id=card_id, product_id=art, qty_ordered=qty)
+            line = GroupBuyOrderLine(
+                card_id=card_id,
+                product_id=art,
+                qty_ordered=qty,
+                unit_price=(prices or {}).get(card_id, {}).get(art),
+            )
             order.lines.append(line)
             for uid, n in plan.get(card_id, {}).get(art, []):
                 line.allocations.append(GroupBuyOrderAllocation(user_id=uid, qty=n, qty_arrived=0))
@@ -2208,7 +2356,7 @@ def import_order_history(
             continue
         if any(o.order_number == item.order_number for o in group.orders):
             continue
-        copies, miss = _copies_from_parsed(db, item.lines)
+        copies, prices, miss = _copies_and_prices_from_parsed(db, item.lines)
         unmatched.extend(miss)
         order, _, _ = _create_order(
             db,
@@ -2219,6 +2367,7 @@ def import_order_history(
             tracking=tracking_url_for(item.tracking_number),
             receipt_text=_history_receipt_text(item.lines),
             copies=copies,
+            prices=prices,
         )
         created.append(order.id)
     _refresh_status(group)
@@ -2249,9 +2398,13 @@ def set_order_lines(
     else:
         raise Invalid("Paste the order or pick cards")
     # Drop this order's own lines first so its copies count as not ordered while allocation reruns.
+    kept_prices: Prices = {}
+    for old in order.lines:
+        if old.unit_price is not None:
+            kept_prices.setdefault(old.card_id.upper(), {})[old.product_id] = float(old.unit_price)
     order.lines.clear()
     db.flush()
-    _fill_order_lines(order, copies, _plan_allocation(db, group, copies))
+    _fill_order_lines(order, copies, _plan_allocation(db, group, copies), kept_prices)
     if receipt_text and not body.lines:
         order.receipt_text = receipt_text
     _touch(order)

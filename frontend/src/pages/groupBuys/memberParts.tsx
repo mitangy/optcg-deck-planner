@@ -1,7 +1,6 @@
 import { AltArtsRow, MarketPrice } from "../../cards/MarketPrice";
-import { GroupBuyLine, GroupBuyMember, GroupBuyMemberQty, money } from "../../api";
-import { shownMarket } from "../../cards/altArt";
-import { mySelectedArtsTotal } from "./groupBuyArt";
+import { GroupBuyBoughtArt, GroupBuyLine, GroupBuyMember, GroupBuyMemberQty, money } from "../../api";
+import { boughtAlts, lineEach, mySelectedArtsTotal } from "./groupBuyArt";
 import { MemberSwatch, memberColor } from "./memberColors";
 
 export function MemberModeTag({ member }: { member: GroupBuyMember }) {
@@ -89,13 +88,59 @@ export function SkippedBadge({ line, productId }: { line: GroupBuyLine; productI
   );
 }
 
-/** The alt arts somebody in the group buy wants; the read-only view shows only those. */
+/** The alt arts somebody in the group buy wants (or, once ordered, the ones bought); the read-only view shows only those. */
 export function wantedAlts(line: GroupBuyLine) {
+  if (line.bought_arts?.length) return boughtAlts(line);
   const wanted = new Set((line.art_wants ?? []).map((w) => w.product_id));
   return (line.alt_arts ?? []).filter((a) => wanted.has(a.product_id));
 }
 
+/** What one bought art cost: "Bought ×2 · $7.00 each", or "Market" when no receipt price was kept. */
+function BoughtTag({ art }: { art: GroupBuyBoughtArt }) {
+  return (
+    <span className="alt-art-wants">
+      <span
+        className="group-buy-who-chip gb-bought-chip"
+        data-testid="gb-bought-chip"
+        title={art.paid ? "Price paid per copy" : "No receipt price, so this is the market price"}
+      >
+        Bought ×{art.qty}
+        {art.my_qty > 0 ? ` (you ${art.my_qty})` : ""}
+        {art.unit_price != null ? ` · ${money(art.unit_price)}${art.paid ? " each" : " mkt"}` : ""}
+      </span>
+    </span>
+  );
+}
+
+/** Once a card is in a seller order its arts are fixed: a read-only list of what was bought (#1443). */
+export function boughtAltRow(line: GroupBuyLine) {
+  const bought = new Map((line.bought_arts ?? []).map((b) => [b.product_id ?? 0, b]));
+  const alts = boughtAlts(line).map((a) => ({ ...a, wanted: 0, owned: 0, collector: 0 }));
+  if (!alts.length) return null;
+  return (
+    <AltArtsRow
+      base={
+        bought.has(0)
+          ? {
+              name: line.name,
+              image_url: line.base_image_url || undefined,
+              market_price: line.preferred_market_price ?? null,
+              product_id: line.preferred_product_id ?? null,
+            }
+          : null
+      }
+      alts={alts}
+      cardId={line.card_id}
+      tileExtra={(productId) => {
+        const art = bought.get(productId);
+        return art ? <BoughtTag art={art} /> : null;
+      }}
+    />
+  );
+}
+
 export function readOnlyAltRow(line: GroupBuyLine, members: GroupBuyMember[]) {
+  if (line.bought_arts?.length) return boughtAltRow(line);
   const alts = wantedAlts(line);
   if (!alts.length) return null;
   return (
@@ -146,14 +191,26 @@ export function GroupBuyYours({ line }: { line: GroupBuyLine }) {
   );
 }
 
+/** Each: the market price of the shown art, or what was paid per copy once the card is in an order (#1443). */
+export function LineEach({ line }: { line: GroupBuyLine }) {
+  const each = lineEach(line);
+  if (!each.bought) return <MarketPrice price={each.price} productId={each.productId} />;
+  if (each.price == null) return <span className="muted">—</span>;
+  const paid = (line.bought_arts ?? []).every((b) => b.paid);
+  return (
+    <span title={paid ? "Price paid per copy" : "Market price of the art bought (no receipt price)"} data-testid="gb-bought-each">
+      {money(each.price)}
+    </span>
+  );
+}
+
 /** Each (the shown art's market price), Line total (what the whole pool pays for the line) and Yours, in one vocabulary. */
 export function GroupBuyPrices({ line }: { line: GroupBuyLine }) {
-  const shown = shownMarket(line);
   return (
     <div className="gb-prices">
       <span className="gb-price-line gb-price-each">
         <span className="muted">Each</span>{" "}
-        <MarketPrice price={shown.price} productId={shown.productId} />
+        <LineEach line={line} />
       </span>
       <span className="gb-price-line gb-price-total">
         <span className="muted">Line total</span>{" "}

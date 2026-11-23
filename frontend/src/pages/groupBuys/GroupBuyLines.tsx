@@ -1,16 +1,15 @@
 import { type CardLayout, type ListDensity } from "../../ui/CardLayout";
 import { CardThumb } from "../../ui/CardThumb";
-import { MarketPrice } from "../../cards/MarketPrice";
 import { AltChip, AltStripRow, altTrayId, useExpandedAlts } from "../../cards/AltTray";
 import { GridCard, MobileCard } from "../../ui/PlannerCard";
 import { UsedInCell } from "../../ui/UsedInCell";
-import { shownMarket, shownProductId } from "../../cards/altArt";
+import { shownProductId } from "../../cards/altArt";
 import { GroupBuyLine, GroupBuyMember, money } from "../../api";
 import { SortableTh, useColumnSort, type ColumnSort } from "../../ui/columnSort";
-import { isLineExcluded } from "./groupBuyArt";
+import { boughtAlts, boughtChipLabel, isLineExcluded } from "./groupBuyArt";
 import { type ReactNode } from "react";
 import { GroupBuyDisplayRow, UserGroupHeading, cardShellClass } from "./lineRows";
-import { GroupBuyPrices, GroupBuyYours, MemberBreakdown, MemberColorRail } from "./memberParts";
+import { GroupBuyPrices, GroupBuyYours, LineEach, MemberBreakdown, MemberColorRail } from "./memberParts";
 import { lineArtUrl } from "./useGroupBuyLines";
 
 /** Colour and copies; money lives in the price lines so no price shows twice. */
@@ -51,10 +50,18 @@ export function GroupBuyLines({
 }) {
   const compact = layout === "list" && density === "compact";
   const { open: openAlts, toggle: toggleAlts } = useExpandedAlts();
-  const hasAlts = (line: GroupBuyLine) => Boolean(renderAltRow) && altsOf(line).length > 0;
+  // A card in a seller order lists the arts bought instead of the picks (#1443).
+  const altsFor = (line: GroupBuyLine) => (line.bought_arts?.length ? boughtAlts(line) : altsOf(line));
+  const hasAlts = (line: GroupBuyLine) => Boolean(renderAltRow) && altsFor(line).length > 0;
   const altChip = (line: GroupBuyLine) =>
     compact && hasAlts(line) ? (
-      <AltChip alts={altsOf(line)} trayKey={line.card_id} expanded={openAlts.has(line.card_id)} onToggle={toggleAlts} />
+      <AltChip
+        alts={altsFor(line)}
+        label={line.bought_arts?.length ? boughtChipLabel(line) : undefined}
+        trayKey={line.card_id}
+        expanded={openAlts.has(line.card_id)}
+        onToggle={toggleAlts}
+      />
     ) : null;
   const heading = (row: Extract<GroupBuyDisplayRow, { kind: "header" }>) => (
     <UserGroupHeading userId={row.userId} displayName={row.displayName} members={members} />
@@ -204,7 +211,6 @@ export function GroupBuyLines({
           }
           const line = row.line;
           const excluded = isLineExcluded(line);
-          const shown = shownMarket(line);
           const stripped = compact && hasAlts(line) && openAlts.has(line.card_id);
           return (
             <tbody key={row.key} className="card-rows">
@@ -233,7 +239,7 @@ export function GroupBuyLines({
                   {compact && line.my_used_in?.length ? <UsedInCell className="gb-used-in" decks={line.my_used_in} /> : null}
                 </td>
                 <td>
-                  <MarketPrice price={shown.price} productId={shown.productId} />
+                  <LineEach line={line} />
                 </td>
                 <td className="gb-line-total">
                   <span className="gb-price-amount">{money(line.remaining_cost)}</span>

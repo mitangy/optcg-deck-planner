@@ -41,7 +41,7 @@ export function groupBuyLineValue(line: GroupBuyLine, key: string) {
     case "who":
       return line.members.map((m) => m.display_name).join(", ");
     case "market":
-      return line.market_price;
+      return line.bought_arts?.length ? (line.bought_each ?? null) : line.market_price;
     case "est":
       return line.remaining_cost;
     default:

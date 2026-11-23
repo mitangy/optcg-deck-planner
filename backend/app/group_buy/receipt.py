@@ -55,6 +55,8 @@ class ParsedReceiptLine:
     card_id_hint: str | None = None
     collector_number: str | None = None
     wants_special: bool = False
+    # Price per copy when the page shows one (Order History); None when it does not.
+    unit_price: float | None = None
 
 
 @dataclass
@@ -79,6 +81,8 @@ class AggregatedReceiptCard:
     is_special: bool = False
     # Copies of each alternate printing on the receipt, so the art survives the per-card total.
     alt_copies: dict[int, int] = field(default_factory=dict)
+    # Per art (None is the standard art): [price paid for the copies that had one, those copies, all copies] (#1443).
+    art_spend: dict[int | None, list[float]] = field(default_factory=dict)
 
 
 def _normalize_key(value: str) -> str:
@@ -365,6 +369,12 @@ def aggregate_receipt_matches(
                 existing.name = hit.name
         if hit.is_special and hit.product_id is not None:
             entry.alt_copies[hit.product_id] = entry.alt_copies.get(hit.product_id, 0) + line.qty
+        art = hit.product_id if hit.is_special and hit.product_id is not None else None
+        spend = entry.art_spend.setdefault(art, [0.0, 0, 0])
+        if line.unit_price is not None:
+            spend[0] += line.unit_price * line.qty
+            spend[1] += line.qty
+        spend[2] += line.qty
     return list(by_card.values()), unmatched
 
 
@@ -519,10 +529,12 @@ def _item_to_line(item: _Item) -> ParsedReceiptLine | None:
         collector = coll.group(1) if coll else None
     cond_text = "" if item.condition == "-" else item.condition
     _, condition, is_foil = _strip_condition(cond_text)
+    unit_price = float(item.price.replace(",", "")) if item.price else None
     set_name = " ".join(item.set_parts).strip()
     raw = " - ".join(p for p in (set_name, name, cond_text) if p)
     return ParsedReceiptLine(
         qty=item.qty,
+        unit_price=unit_price,
         raw_description=raw,
         set_name=set_name,
         card_name=name,
