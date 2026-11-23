@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-23", app: "duel", pr: 1421, title: "Franky (OP18-021): Stage cards counter from your hand", text: "With Franky (OP18-021) as your Leader, Stage cards in your hand can now be used as their +3000 Counter during a battle. Before, only Characters could be used from hand as counters, so the Leader's ability did nothing." },
   { date: "2026-11-22", app: "planner", pr: 1417, title: "Price alerts ping once per drop", text: "Price alerts no longer ping you twice for the same drop when the price wobbles around your target, and all alerts in the bell use the same short card name." },
   { date: "2026-11-21", app: "duel", pr: 1405, title: "Ranked seasons", text: "Ranked now runs in seasons. When a season ends, everyone's Bounty moves halfway back to 1,000 (or all the way, for a hard reset) and you play 10 placement games again. The Leaderboard has a season picker for every past season's final standings, and your Profile lists where you finished." },
   { date: "2026-11-21", app: "duel", pr: 1410, title: "Log Pose lessons name the cards", text: "Lessons Log Pose drafts from bot games, under Settings > Log Pose, now read in plain words and name the cards (accepting the optional effect of Nami, putting Buggy into play) instead of showing internal codes like optional_accepted:EB05-010. Lessons already saved were reworded too, and a card shows under a lesson only when the lesson does not already name it." },
