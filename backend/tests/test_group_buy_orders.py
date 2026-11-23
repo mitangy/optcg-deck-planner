@@ -427,7 +427,7 @@ def test_migration_turns_existing_applies_into_one_arrived_order_1418():
                 text(
                     "INSERT INTO group_buys (id, host_user_id, title, status, invite_token, external_order_id, "
                     "receipt_text, order_notes, shipping_cost, shipping_split, tax_cost, is_public) "
-                    "VALUES (:i, 1, 't', :s, :tok, :e, 'the receipt', '', 0, 'equal', 0, 0)"
+                    "VALUES (:i, 1, 't', :s, :tok, :e, 'the receipt', '', 0, 'equal', 0, false)"
                 ),
                 {"i": gid, "s": status, "tok": f"tok{gid}", "e": ext},
             )
@@ -469,7 +469,7 @@ def test_migration_turns_existing_applies_into_one_arrived_order_1418():
     assert [(g, n) for g, n, _ in orders] == [(1, "TCG-9"), (2, ""), (4, "REF-4")]
     assert all(r == "the receipt" for _, _, r in orders)
     # A standard credit stored its product id too; only the special printing counts as an art.
-    assert lines == [("OP01-001", None, 2), ("OP01-001", 1009, 1)]
+    assert sorted(lines, key=lambda l: l[1] or 0) == [("OP01-001", None, 2), ("OP01-001", 1009, 1)]
     assert allocations == [(1, 2, 2), (2, 1, 1)]
     assert attached == [attached[0], attached[0]] and attached[0] is not None
     # Only the order built from old Mark purchased applies is one receipt/undo may drop.
