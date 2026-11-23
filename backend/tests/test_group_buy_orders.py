@@ -419,7 +419,7 @@ def test_adding_an_order_returns_the_lines_that_matched_no_card_1418(db):
 
 def test_migration_turns_existing_applies_into_one_arrived_order_1418():
     engine = make_bare_engine()
-    upgrade_to(engine, "0005")
+    upgrade_to(engine, "0007")
     with engine.begin() as conn:
         conn.execute(text("INSERT INTO users (id, email, name, google_sub) VALUES (1, 'h@x', 'H', 'h'), (2, 'f@x', 'F', 'f')"))
         for gid, status, ext in ((1, "completed", "TCG-9"), (2, "ordered", ""), (3, "locked", ""), (4, "locked", "REF-4")):

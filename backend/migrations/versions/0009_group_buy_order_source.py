@@ -2,10 +2,10 @@
 
 ``group_buy_orders.from_receipt_apply``: ``receipt/undo`` drops an order that Mark purchased
 created, but only reverses the arrivals of one the host added through the orders endpoint.
-Orders backfilled by 0006 from old applies are Mark purchased orders.
+Orders backfilled by 0008 from old applies are Mark purchased orders.
 
-Revision ID: 0007
-Revises: 0006
+Revision ID: 0009
+Revises: 0008
 """
 
 from __future__ import annotations
@@ -13,8 +13,8 @@ from __future__ import annotations
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0007"
-down_revision = "0006"
+revision = "0009"
+down_revision = "0008"
 branch_labels = None
 depends_on = None
 
