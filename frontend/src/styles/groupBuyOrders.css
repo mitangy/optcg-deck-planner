@@ -242,7 +242,10 @@
   text-decoration: none;
 }
 
-.gb-order-actions .gb-more {
+.gb-order-head-end {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
   margin-left: auto;
 }
 
