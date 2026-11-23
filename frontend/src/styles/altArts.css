@@ -864,3 +864,10 @@
   font-weight: 400;
   color: var(--muted, inherit);
 }
+
+/* "Bought ×N (you M) · $X each" wraps inside its tile instead of running past it (#1443). */
+.alt-art-wants .group-buy-who-chip.gb-bought-chip {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
