@@ -671,7 +671,13 @@ export function withBattleDrag(base: PlayerView, params: URLSearchParams): Playe
           }
         : mode === "newgate"
           ? { ...base.you, leader: { ...base.you.leader, defId: "OP09-081", power: 5000 } }
-          : base.you;
+          : mode === "franky"
+            ? {
+                ...base.you,
+                leader: { ...base.you.leader, defId: "OP18-021", power: 5000 },
+                hand: base.you.hand.map((c) => (c.id === "y-h1" ? { ...c, defId: "OP18-075", counter: 3000 } : c)),
+              }
+            : base.you;
     return {
       ...base,
       you,
