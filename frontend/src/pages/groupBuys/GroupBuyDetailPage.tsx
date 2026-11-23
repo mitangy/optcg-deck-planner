@@ -1,6 +1,5 @@
 import { useCardLayout, useListDensity } from "../../ui/CardLayout";
 import { AltArtsRow } from "../../cards/MarketPrice";
-import { ReceiptImportPanel, type ReceiptApplyDraft } from "./ReceiptImport";
 import { GroupBuyDetailSkeleton } from "../../ui/Skeleton";
 import { shownProductId } from "../../cards/altArt";
 import { api, GroupBuyDetail, GroupBuyLine, GroupBuyOrderUpdate, money } from "../../api";
@@ -12,7 +11,6 @@ import { CardWorkspace } from "../../ui/CardWorkspace";
 import { SortableTh, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { applyDisplayArtOptimistic, invalidateDisplayArtViews } from "../../cards/displayArtViews";
 import { altIncBlocked, myAltBuyQty, myArtSplit } from "./groupBuyArt";
-import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { blankMassEntryUrl } from "../shopping/tcgplayerMassEntry";
 import { useGroupBuyListNarrow } from "../../hooks/useGroupBuyListNarrow";
 import { Select, useConfirm } from "@optcg/ui/popups";
@@ -25,6 +23,14 @@ import { GroupBuyMembersList, GroupBuyOrderDetails, GroupBuySettlement, hasOrder
 import { groupBuyOweValue } from "./lineRows";
 import { MemberSwatch } from "./memberColors";
 import { GroupBuyActionBar, GroupBuyStepper, PencilIcon, YourShareCard, type ActionDef } from "./GroupBuyHeader";
+import { AddOrderDialog } from "./AddOrderDialog";
+import { CheckItemsDialog } from "./CheckItemsDialog";
+import { NotInOrderPanel } from "./NotInOrderPanel";
+import { PackagesSection, StatusChip } from "./PackagesSection";
+import { YourCards } from "./YourCards";
+import { cardStatus, notOrderedCopies, packageCounts, sellersOnTheWay } from "./groupBuyOrders";
+import { useGroupBuyOrders } from "./useGroupBuyOrders";
+import { CollapsibleDrawer } from "../../ui/cardListControls";
 import { groupBuyActions, stepHint, stepLabel, summaryParts, type GroupBuyActionKey } from "./groupBuyActions";
 import { ArtWantChips, SkippedBadge } from "./memberParts";
 import { SHIPPING_SPLIT_LABELS, ShippingSplit } from "./shipping";
@@ -42,7 +48,10 @@ export function GroupBuyDetailPage() {
   const isNarrow = useGroupBuyListNarrow();
   const [layout, setLayout] = useCardLayout();
   const [density, setDensity] = useListDensity("groupBuy");
-  const [receiptFocus, setReceiptFocus] = useState(0);
+  const [addOpen, setAddOpen] = useState(false);
+  const [checkOrderId, setCheckOrderId] = useState<number | null>(null);
+  const [editOrderId, setEditOrderId] = useState<number | null>(null);
+  const [cardsOpenPick, setCardsOpenPick] = useState<boolean | null>(null);
   const [showExcluded, setShowExcluded] = useState(false);
   const unavailableSorts = useMemo(() => ["deck"] as SortKey[], []);
   const { sorts, setSorts, effectiveSorts } = useCardSorts(true, unavailableSorts);
@@ -54,13 +63,10 @@ export function GroupBuyDetailPage() {
   const [keepVisible, setKeepVisible] = useState<ReadonlySet<string>>(() => new Set());
   const keepCardVisible = (cardId: string) =>
     setKeepVisible((prev) => (prev.has(cardId) ? prev : new Set(prev).add(cardId)));
-  const [orderId, setOrderId] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [shippingCost, setShippingCost] = useState("0");
   const [taxCost, setTaxCost] = useState("0");
   const [shippingSplit, setShippingSplit] = useState<ShippingSplit>("equal");
-  const [receiptDraft, setReceiptDraft] = useState<ReceiptApplyDraft | null>(null);
-  const [receiptResetKey, setReceiptResetKey] = useState(0);
   const sortingByUser = effectiveSorts.includes("user");
 
   const detailQ = useQuery({
@@ -99,7 +105,6 @@ export function GroupBuyDetailPage() {
 
   useEffect(() => {
     if (!detail) return;
-    setOrderId(detail.external_order_id || "");
     setOrderNotes(detail.order_notes || "");
     setShippingCost(String(detail.shipping_cost ?? 0));
     setTaxCost(String(detail.tax_cost ?? 0));
@@ -147,61 +152,12 @@ export function GroupBuyDetailPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
-  const markOrdered = useMutation({
-    mutationFn: (body: GroupBuyOrderUpdate) => api.markGroupBuyOrdered(groupId, body),
-    onSuccess: async (d) => {
-      qc.setQueryData(qk.groupBuy.detail(groupId), d);
-      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
-      setMsg(
-        "Order placed — settle shipping below. Import a TCGPlayer receipt, then Mark purchased for matched copies.",
-      );
-    },
-    onError: (e: Error) => setMsg(e.message),
-  });
-
   const saveOrder = useMutation({
     mutationFn: (body: GroupBuyOrderUpdate) => api.updateGroupBuyOrder(groupId, body),
     onSuccess: async (d) => {
       qc.setQueryData(qk.groupBuy.detail(groupId), d);
       await qc.invalidateQueries({ queryKey: qk.groupBuys() });
       setMsg("Order details saved.");
-    },
-    onError: (e: Error) => setMsg(e.message),
-  });
-
-  const complete = useMutation({
-    mutationFn: (draft: ReceiptApplyDraft) =>
-      api.applyGroupBuyReceipt(groupId, {
-        receipt_text: draft.receiptText,
-        card_ids: draft.selectedCardIds,
-        allow_partial: true,
-      }),
-    onSuccess: async (d, draft) => {
-      qc.setQueryData(qk.groupBuy.detail(groupId), d);
-      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
-      invalidateOwnedViews(qc);
-      setReceiptDraft(null);
-      setReceiptResetKey((k) => k + 1);
-      setMsg(
-        d.status === "completed"
-          ? `Marked purchased — ${draft.stagedCopies} matched copies (${draft.lineCount} lines) added to Owned.`
-          : `Marked purchased — ${draft.stagedCopies} matched copies (${draft.lineCount} lines) added to Owned. Remaining pool stays ordered until another receipt covers it.`,
-      );
-    },
-    onError: (e: Error) => setMsg(e.message),
-  });
-
-  const undoPurchase = useMutation({
-    mutationFn: () => api.undoGroupBuyReceiptApply(groupId),
-    onSuccess: async (d) => {
-      qc.setQueryData(qk.groupBuy.detail(groupId), d);
-      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
-      invalidateOwnedViews(qc);
-      setReceiptDraft(null);
-      setReceiptResetKey((k) => k + 1);
-      setMsg(
-        "Undid Mark purchased — pool quantities and who owes what are restored. Receipt paste is still saved.",
-      );
     },
     onError: (e: Error) => setMsg(e.message),
   });
@@ -379,6 +335,8 @@ export function GroupBuyDetailPage() {
     onError: (e: Error) => setMsg(e.message),
   });
 
+  const orderOps = useGroupBuyOrders(groupId, setMsg);
+
   const qtyBusy =
     setQty.isPending || clearQty.isPending || syncQty.isPending || setExtraSkip.isPending;
 
@@ -481,8 +439,17 @@ export function GroupBuyDetailPage() {
   if (!detail) return <p className="error">Group buy not found.</p>;
 
   const showOrderPanel = hasOrderPanel(detail);
-  const orderBusy = markOrdered.isPending || saveOrder.isPending || complete.isPending;
-  const receiptReady = Boolean(receiptDraft?.canApply);
+  const orderBusy = saveOrder.isPending || orderOps.busy;
+  const orders = detail.orders ?? [];
+  const showPackages = detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
+  const inOrderedPhase = detail.status === "ordered" || detail.status === "completed";
+  const everythingArrived = detail.status === "completed" && notOrderedCopies(detail) === 0;
+  const canEditArrival = detail.status === "ordered" || everythingArrived;
+  const checkOrder = orders.find((o) => o.id === checkOrderId) ?? null;
+  const editOrder = orders.find((o) => o.id === editOrderId) ?? null;
+  const meId = meQ.data?.id;
+  // The long list folds away for the host once packages are being tracked; members and open/locked groups see it.
+  const cardsOpen = cardsOpenPick ?? !(detail.is_host && inOrderedPhase && orders.length > 0);
 
   function updateContribution(patch: Partial<ContributionUpdate>) {
     contribution.mutate(
@@ -505,7 +472,6 @@ export function GroupBuyDetailPage() {
     const parsedShip = Number(shippingCost);
     const parsedTax = Number(taxCost);
     return {
-      external_order_id: orderId.trim(),
       order_notes: orderNotes.trim(),
       shipping_cost: Number.isFinite(parsedShip) && parsedShip >= 0 ? parsedShip : 0,
       shipping_split: shippingSplit,
@@ -513,8 +479,7 @@ export function GroupBuyDetailPage() {
     };
   }
 
-  const hasReceipt = Boolean(detail.has_receipt);
-  const actions = groupBuyActions(detail.status, detail.is_host, receiptReady, Boolean(detail.can_undo_purchase));
+  const actions = groupBuyActions(detail.status, detail.is_host);
   const summary = summaryParts(detail);
   const filterBadge = (showExcluded ? 1 : 0) + (showAltArts ? 0 : 1);
 
@@ -531,54 +496,7 @@ export function GroupBuyDetailPage() {
       disabled: unlock.isPending || orderBusy,
       onClick: () => unlock.mutate(),
     },
-    "mark-ordered": {
-      label: markOrdered.isPending ? "Saving…" : "Mark ordered",
-      disabled: orderBusy,
-      onClick: async () => {
-        const ok = await confirm({
-          title: "Mark this group buy as ordered?",
-          message:
-            "Use this after placing the bulk TCGPlayer order. Quantities stay frozen; you can still edit shipping and what each person owes. Owned counts are not updated yet.",
-          confirmLabel: "Mark ordered",
-          danger: false,
-        });
-        if (ok) markOrdered.mutate(orderBodyFromForm());
-      },
-    },
-    "import-receipt": { label: "Import receipt", onClick: () => setReceiptFocus((n) => n + 1) },
-    "mark-purchased": {
-      label: complete.isPending ? "Finishing…" : `Mark purchased (${receiptDraft?.stagedCopies ?? 0})`,
-      disabled: complete.isPending || !receiptReady,
-      onClick: async () => {
-        if (!receiptDraft?.canApply) {
-          setMsg("Import and match a TCGPlayer receipt before Mark purchased.");
-          return;
-        }
-        const ok = await confirm({
-          title: "Mark purchased for matched receipt cards?",
-          message:
-            `${receiptDraft.lineCount} card line(s), ${receiptDraft.stagedCopies} copies will be added to Owned.\n\n` +
-            "Pool cards missing from the receipt are left ordered until another receipt covers them.",
-          confirmLabel: "Mark purchased",
-          danger: false,
-        });
-        if (ok) complete.mutate(receiptDraft);
-      },
-    },
-    "undo-purchase": {
-      label: undoPurchase.isPending ? "Undoing…" : "Undo Mark purchased",
-      disabled: undoPurchase.isPending || complete.isPending,
-      onClick: async () => {
-        const ok = await confirm({
-          title: "Undo the latest Mark purchased?",
-          message:
-            "This restores the shopping pool and each person’s owed amounts, and removes those receipt copies from Owned. " +
-            "Your imported receipt paste stays saved so you can Mark purchased again.",
-          confirmLabel: "Undo",
-        });
-        if (ok) undoPurchase.mutate();
-      },
-    },
+    "add-order": { label: "Add order", testId: "gb-add-order", disabled: orderBusy, onClick: () => setAddOpen(true) },
     "reset-invite": {
       label: "Reset invite link",
       testId: "gb-reset-invite",
@@ -625,6 +543,56 @@ export function GroupBuyDetailPage() {
   return (
     <section className="group-buy-detail">
       {confirmDialog}
+      {addOpen ? (
+        <AddOrderDialog
+          groupId={groupId}
+          detail={detail}
+          onClose={() => setAddOpen(false)}
+          onAdded={async (d, info) => {
+            await orderOps.accept(d, info.arrived);
+            setAddOpen(false);
+            setMsg(
+              `Order added${info.copies ? ` · ${info.copies} ${info.copies === 1 ? "copy" : "copies"}` : ""}${info.arrived ? ", marked arrived" : ""}.` +
+                (info.unmatched ? ` ${info.unmatched} ${info.unmatched === 1 ? "line was" : "lines were"} not in this buy and left out.` : ""),
+            );
+          }}
+        />
+      ) : null}
+      {editOrder ? (
+        <AddOrderDialog
+          key={editOrder.version}
+          groupId={groupId}
+          detail={detail}
+          order={editOrder}
+          onClose={() => setEditOrderId(null)}
+          onAdded={async (d, info) => {
+            await orderOps.accept(d, false);
+            setEditOrderId(null);
+            setMsg(
+              "Order updated." +
+                (info.unmatched ? ` ${info.unmatched} ${info.unmatched === 1 ? "line was" : "lines were"} not in this buy and left out.` : ""),
+            );
+          }}
+        />
+      ) : null}
+      {checkOrder ? (
+        <CheckItemsDialog
+          key={checkOrder.version}
+          order={checkOrder}
+          index={orders.indexOf(checkOrder)}
+          lines={detail.lines}
+          members={members}
+          saving={orderOps.saveArrival.isPending}
+          error={orderOps.saveArrival.isError ? (orderOps.saveArrival.error as Error).message : null}
+          onSave={(draft) =>
+            orderOps.saveArrival.mutate({ order: checkOrder, draft }, { onSuccess: () => setCheckOrderId(null) })
+          }
+          onClose={() => {
+            orderOps.saveArrival.reset();
+            setCheckOrderId(null);
+          }}
+        />
+      ) : null}
       <div className="page-head gb-head">
         <div>
           <p className="eyebrow gb-back">
@@ -689,7 +657,7 @@ export function GroupBuyDetailPage() {
           </p>
           <GroupBuyStepper status={detail.status} />
           <p className="gb-step-hint muted" role="status">
-            {stepHint(detail.status, detail.is_host, receiptReady, hasReceipt)}
+            {stepHint(detail.status, detail.is_host)}
           </p>
         </div>
       </div>
@@ -700,6 +668,68 @@ export function GroupBuyDetailPage() {
           {inviteMsg || msg}
         </p>
       )}
+
+      {showPackages && !detail.is_host && inOrderedPhase ? <YourCards detail={detail} userId={meId} /> : null}
+
+      {showPackages ? (
+        <PackagesSection
+          detail={detail}
+          canEdit={canEditArrival}
+          busy={orderBusy}
+          onAddOrder={() => setAddOpen(true)}
+          onEdit={(o) => {
+            setMsg(null);
+            setEditOrderId(o.id);
+          }}
+          onMarkArrived={(o) => orderOps.markArrived.mutate(o)}
+          onCheck={(o) => {
+            setMsg(null);
+            setCheckOrderId(o.id);
+          }}
+          onUndo={async (o) => {
+            const ok = await confirm({
+              title: "Undo this order's arrival?",
+              message: "Its copies come off members' Owned and the order goes back to On the way.",
+              confirmLabel: "Undo arrival",
+            });
+            if (ok) orderOps.undoArrival.mutate(o);
+          }}
+          onDelete={async (o) => {
+            const ok = await confirm({
+              title: "Delete this order?",
+              message: "Its copies go back to Not in an order yet.",
+              confirmLabel: "Delete order",
+            });
+            if (ok) orderOps.deleteOrder.mutate(o);
+          }}
+        />
+      ) : null}
+
+      {detail.status === "ordered" ? (
+        <NotInOrderPanel
+          detail={detail}
+          busy={orderBusy}
+          onMassEntry={() => void exportMassEntry(detail)}
+          onClose={async () => {
+            const ok = await confirm({
+              title: "Close this group buy?",
+              message:
+                `${notOrderedCopies(detail)} copies are not in any order. They stay on members' Shopping lists, and package tracking ends.`,
+              confirmLabel: "Close group buy",
+              danger: false,
+            });
+            if (ok) orderOps.close.mutate();
+          }}
+        />
+      ) : null}
+
+      {showPackages && detail.is_host && inOrderedPhase ? (
+        <div className="gb-yourcards-fold">
+          <CollapsibleDrawer label="Your cards">
+            <YourCards detail={detail} userId={meId} />
+          </CollapsibleDrawer>
+        </div>
+      ) : null}
 
       {myContribution ? (
         <YourShareCard
@@ -731,16 +761,6 @@ export function GroupBuyDetailPage() {
                   saveOrder.mutate(orderBodyFromForm());
                 }}
               >
-                <label>
-                  Order / receipt id
-                  <input
-                    type="text"
-                    value={orderId}
-                    maxLength={200}
-                    onChange={(e) => setOrderId(e.target.value)}
-                    placeholder="Optional"
-                  />
-                </label>
                 <label>
                   Shipping cost
                   <input
@@ -828,27 +848,20 @@ export function GroupBuyDetailPage() {
         </GroupBuySettlement>
       )}
 
-      {detail.is_host && (detail.status === "locked" || detail.status === "ordered") && (
-        <ReceiptImportPanel
-          key={receiptResetKey}
-          groupId={groupId}
-          isHost={detail.is_host}
-          status={detail.status}
-          initialReceiptText={detail.receipt_text || ""}
-          focusRequest={receiptFocus}
-          onDraftChange={setReceiptDraft}
-          onError={(message) => setMsg(message)}
-          onReceiptSaved={() => {
-            void qc.invalidateQueries({ queryKey: qk.groupBuy.detail(groupId) });
-          }}
-        />
-      )}
-
       {detail.lines.length === 0 ? (
         <p className="muted">Nothing to buy yet — members need cards on their shopping lists.</p>
       ) : (
         <>
-          <h2 className="group-buy-merged-heading">Cards · {detail.lines.length}</h2>
+          {inOrderedPhase ? (
+            <h2 className="group-buy-merged-heading gb-cards-toggle">
+              <button type="button" aria-expanded={cardsOpen} onClick={() => setCardsOpenPick(!cardsOpen)}>
+                <span aria-hidden="true">{cardsOpen ? "▾" : "▸"}</span> Cards · {detail.lines.length}
+              </button>
+            </h2>
+          ) : (
+            <h2 className="group-buy-merged-heading">Cards · {detail.lines.length}</h2>
+          )}
+          {cardsOpen ? (
           <CardWorkspace
             rail={
               <ListToolbar
@@ -928,9 +941,18 @@ export function GroupBuyDetailPage() {
                     : undefined
                 }
                 renderAltRow={showAltArts ? groupBuyAltRow : undefined}
+                renderStatus={
+                  inOrderedPhase
+                    ? (line) => {
+                        const chip = cardStatus(packageCounts([line]), sellersOnTheWay(orders, line.card_id));
+                        return chip ? <StatusChip {...chip} /> : null;
+                      }
+                    : undefined
+                }
               />
             )}
           </CardWorkspace>
+          ) : null}
         </>
       )}
     </section>

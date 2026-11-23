@@ -7,7 +7,7 @@ type HandCard = { id: string; defId: string; counter?: number };
 
 export function counterAfterBlock(card: HandCard, activeDon: number): boolean {
   const entry = lookupCard(card.defId);
-  if (entry.type === "character")
+  if (entry.type === "character" || entry.type === "stage")
     return (card.counter ?? entry.counter ?? 0) > 0;
   if (entry.type === "event") {
     return counterClause(entry.effectText) != null && entry.cost <= activeDon;

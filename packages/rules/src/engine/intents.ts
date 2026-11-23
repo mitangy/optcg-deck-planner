@@ -303,7 +303,7 @@ function applyInner(sim: Sim, intent: Intent, seat: Seat): ApplyError {
       const card = p.hand[intent.handIndex];
       if (!card) return err("INVALID_CARD", "No card at that hand index");
       const value = counterOf(state, seat, card);
-      if (getCardDef(card.defId).type !== "character" || value <= 0) return err("NO_COUNTER", "That card has no Counter");
+      if (!["character", "stage"].includes(getCardDef(card.defId).type) || value <= 0) return err("NO_COUNTER", "That card has no Counter");
       const defender = currentDefender(state);
       if (!defender) return err("NO_BATTLE", "No defender");
       const entry = takeCard(state, locate(state, card.id)!);
@@ -449,7 +449,7 @@ function legalIntentsOf(state: MatchState, seat: Seat): Intent[] {
     out.push({ type: "pass_counter" });
     p.hand.forEach((c, handIndex) => {
       const def = getCardDef(c.defId);
-      if (def.type === "character" && counterOf(state, seat, c) > 0) out.push({ type: "counter_from_hand", handIndex });
+      if ((def.type === "character" || def.type === "stage") && counterOf(state, seat, c) > 0) out.push({ type: "counter_from_hand", handIndex });
       const ability = def.type === "event" ? mainAbility(def.id, "counter") : undefined;
       if (ability && abilityGateOpen(state, seat, c, ability) && activeDon(p).length >= playCostOf(state, seat, c)) out.push({ type: "counter_event", handIndex });
     });

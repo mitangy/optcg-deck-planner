@@ -137,7 +137,7 @@ function buildPlayerView(state: MatchState, seat: Seat, spectator?: { revealHand
           else if (def.type === "character" && playerRestricted(state, seat, "cannot_play_characters", c)) row.blocked = "characters";
           else if (def.type === "event" && playerRestricted(state, seat, "cannot_play_events")) row.blocked = "events";
         }
-        if (defending && def.type === "character") row.counter = counterOf(state, seat, c);
+        if (defending && (def.type === "character" || def.type === "stage")) row.counter = counterOf(state, seat, c);
         return row;
       }),
       deckCount: you.deck.length,
