@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import type { ShoppingItem } from "../../api";
 import { ShoppingItemsView } from "./ShoppingItemsView";
-import { shownWhileOnlyNeed } from "./GroupBuyChip";
+import { shoppingRowState, shoppingStatusText, shownWhileOnlyNeed } from "./GroupBuyChip";
 
 beforeAll(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -102,5 +102,16 @@ describe("Shopping shows copies still coming from a group buy (#1418)", () => {
     const covered = item({ still_need: 0, in_group_buy: 2, group_buys: [{ group_buy_id: 1, title: "A", qty: 2, ordered: false }] });
     expect(shownWhileOnlyNeed(covered)).toBe(true);
     expect(shownWhileOnlyNeed(item({ still_need: 0 }))).toBe(false);
+  });
+
+  it("covered-by-group-buy cards say so instead of Have all and are not styled as done (#1418)", () => {
+    const buy = (qty: number, ordered: boolean) => ({ in_group_buy: qty, group_buys: [{ group_buy_id: 1, title: "A", qty, ordered }] });
+    expect(shoppingStatusText(item({ need: 4, owned: 0, alts_owned: 0, still_need: 0, ...buy(4, true) }))).toBe("4 on the way");
+    expect(shoppingStatusText(item({ need: 4, owned: 1, alts_owned: 0, still_need: 0, ...buy(3, false) }))).toBe("Have 1 \u00b7 3 in group buy");
+    expect(shoppingStatusText(item({ need: 4, owned: 1, alts_owned: 0, still_need: 1, ...buy(2, true) }))).toBe("To buy 1 of 4 \u00b7 2 on the way");
+    expect(shoppingStatusText(item({ need: 4, owned: 4, alts_owned: 0, still_need: 0 }))).toBe("Have all 4");
+    expect(shoppingRowState(item({ still_need: 0, ...buy(2, true) }))).toBe("covered");
+    expect(shoppingRowState(item({ still_need: 0 }))).toBe("done");
+    expect(shoppingRowState(item({ still_need: 1 }))).toBe("need");
   });
 });

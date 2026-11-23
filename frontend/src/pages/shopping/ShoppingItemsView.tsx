@@ -1,7 +1,7 @@
 import { type ReactNode, Fragment, useMemo } from "react";
 import { CollectorLine, money, ShoppingItem } from "../../api";
 import { BuySplit } from "./BuySplit";
-import { GroupBuyChip } from "./GroupBuyChip";
+import { GroupBuyChip, shoppingRowState, shoppingStatusText } from "./GroupBuyChip";
 import { CollectorChip, CollectorRemove, CollectorStepper } from "../collection/CollectorLine";
 import {
   canOpenBuyPopover,
@@ -19,7 +19,7 @@ import { UsedInCell } from "../../ui/UsedInCell";
 import { mainImageUrl, shownMarket, shownProductId } from "../../cards/altArt";
 import { MarketPrice } from "../../cards/MarketPrice";
 import { AltChip, AltStripRow, CardBodies, altTrayId, useExpandedAlts, useFoldGridAlts, useWideListRows } from "../../cards/AltTray";
-import { OwnedCell, StillNeededCell, toBuyText, totalOwned } from "../collection/OwnedCells";
+import { OwnedCell, StillNeededCell, totalOwned } from "../collection/OwnedCells";
 import { SortableTh, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { needExplanation, usedInChips } from "./shoppingBuy";
 import { OwnedInput, WantInput } from "../OwnedInputs";
@@ -228,7 +228,7 @@ export function ShoppingItemsView({
               )}
               <GridCard
                 as="div"
-                className={item.still_need > 0 ? "need" : "done"}
+                className={shoppingRowState(item)}
                 cardId={item.card_id}
                 name={item.name}
                 imageSrc={mainImageUrl(item)}
@@ -239,7 +239,7 @@ export function ShoppingItemsView({
                 altsProps={{ onClick: stopCardSelectBubble }}
                 meta={
                   <>
-                    {toBuyText(item.still_need, item.need)}
+                    {shoppingStatusText(item)}
                     {item.still_need > 0 || canOpenBuyPopover(item, Boolean(collector)) ? (
                       <span className="buy-split-line">{buySplit(item, "To buy ")}</span>
                     ) : null}
@@ -385,7 +385,7 @@ export function ShoppingItemsView({
               const lines = linesOf(item);
               const stripped = compact ? hasAlts(item) && openAlts.has(item.card_id) : wide && hasAlts(item);
               const span = stripped && !compact ? 2 : undefined;
-              const rowClass = `${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}${lines.length > 0 ? " has-collector" : ""}`;
+              const rowClass = `${shoppingRowState(item)}${checked ? " selected-row" : ""}${lines.length > 0 ? " has-collector" : ""}`;
               const mainRow = (
                 <tr className={`${rowClass}${wide ? " alt-main-row" : ""}${stripped && !compact ? " has-strip" : ""}`}>
                   <td className="select-col" rowSpan={span}>
@@ -520,7 +520,7 @@ export function ShoppingItemsView({
           return (
             <Fragment key={item.card_id}>
             <MobileCard
-              className={`selectable ${item.still_need > 0 ? "need" : "done"}${checked ? " selected-row" : ""}`}
+              className={`selectable ${shoppingRowState(item)}${checked ? " selected-row" : ""}`}
               rootProps={{
                 role: "button",
                 tabIndex: 0,
@@ -544,7 +544,7 @@ export function ShoppingItemsView({
               meta={
                 <>
                   <span className="mobile-card-meta-text">
-                    {[item.color, toBuyText(item.still_need, item.need)].filter(Boolean).join(" · ")}
+                    {[item.color, shoppingStatusText(item)].filter(Boolean).join(" · ")}
                   </span>
                   {item.still_need > 0 || canOpenBuyPopover(item, Boolean(collector)) ? (
                     <span className="buy-split-line">{buySplit(item, "To buy ")}</span>
