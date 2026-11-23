@@ -30,6 +30,7 @@ export function GroupBuyLines({
   onCardsSort,
   renderBuyEditor,
   renderAltRow,
+  renderStatus,
   altsOf = (line) => line.alt_arts ?? [],
 }: {
   layout: CardLayout;
@@ -43,6 +44,8 @@ export function GroupBuyLines({
   onCardsSort: ReturnType<typeof useColumnSort>["onSort"];
   renderBuyEditor?: (line: GroupBuyLine, excluded: boolean) => ReactNode;
   renderAltRow?: (line: GroupBuyLine) => ReactNode;
+  /** Where the card's copies are (arrived, on the way, not ordered), shown once the group buy is ordered. */
+  renderStatus?: (line: GroupBuyLine) => ReactNode;
   /** The alt arts a row's chip counts (the read-only view only shows arts somebody wants). */
   altsOf?: (line: GroupBuyLine) => GroupBuyLine["alt_arts"];
 }) {
@@ -89,6 +92,7 @@ export function GroupBuyLines({
               <div className="group-buy-who-row">
                 <MemberBreakdown line={line} members={members} />
               </div>
+              {renderStatus ? <div className="gb-line-status">{renderStatus(line)}</div> : null}
               {line.my_used_in?.length ? (
                 <div className="grid-card-used-in">
                   <UsedInCell decks={line.my_used_in} />
@@ -142,6 +146,7 @@ export function GroupBuyLines({
                   <div className="group-buy-who-row">
                     <MemberBreakdown line={line} members={members} />
                   </div>
+                  {renderStatus ? <div className="gb-line-status">{renderStatus(line)}</div> : null}
                   {line.my_used_in?.length ? <UsedInCell className="mobile-used-in" decks={line.my_used_in} /> : null}
                   <div className="mobile-card-price-row">
                     <GroupBuyPrices line={line} />
@@ -215,6 +220,7 @@ export function GroupBuyLines({
                       </div>
                       {!compact && line.my_used_in?.length ? <UsedInCell decks={line.my_used_in} /> : null}
                       {excluded ? <div className="muted">Excluded</div> : null}
+                      {renderStatus ? <div className="gb-line-status">{renderStatus(line)}</div> : null}
                       {tcgLink(line)}
                       {altChip(line)}
                     </div>

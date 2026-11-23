@@ -352,6 +352,67 @@ export type GroupBuyLine = {
   my_used_in?: string[];
   my_deck_qty?: number;
   my_extras?: GroupBuyMyExtra[];
+  /** Copies in a seller order, how many of those arrived, and how many are in no order yet (#1418). */
+  in_order?: number;
+  arrived?: number;
+  not_ordered?: number;
+  my_in_order?: number;
+  my_arrived?: number;
+  my_not_ordered?: number;
+};
+
+export type GroupBuyOrderStatus = "on_the_way" | "partial" | "arrived";
+
+export type GroupBuyOrderAllocation = { user_id: number; display_name: string; qty: number; qty_arrived: number };
+
+export type GroupBuyOrderLine = {
+  id: number;
+  card_id: string;
+  name: string;
+  product_id: number | null;
+  qty_ordered: number;
+  qty_arrived: number;
+  qty_extra: number;
+  allocations: GroupBuyOrderAllocation[];
+};
+
+export type GroupBuyOrder = {
+  id: number;
+  seller_name: string;
+  status: GroupBuyOrderStatus | string;
+  qty_ordered: number;
+  qty_allocated: number;
+  qty_arrived: number;
+  qty_extra: number;
+  arrived_at: string | null;
+  created_at: string;
+  version: number;
+  /** Host only; blank for members. */
+  order_number: string;
+  tracking_url: string;
+  receipt_text: string;
+  lines: GroupBuyOrderLine[];
+};
+
+export type GroupBuyOrderCreate = {
+  order_number?: string;
+  seller_name?: string;
+  tracking_url?: string;
+  receipt_text?: string;
+  lines?: { card_id: string; product_id?: number | null; qty: number }[];
+  mark_arrived?: boolean;
+};
+
+export type GroupBuyOrderPreview = {
+  lines: {
+    card_id: string;
+    name: string;
+    product_id: number | null;
+    qty: number;
+    allocations: { user_id: number; display_name: string; qty: number }[];
+    qty_extra: number;
+  }[];
+  unmatched: GroupBuyReceiptUnmatched[];
 };
 
 export type GroupBuySummary = {
@@ -388,6 +449,7 @@ export type GroupBuyDetail = GroupBuySummary & {
   has_receipt?: boolean;
   can_undo_purchase?: boolean;
   read_only?: boolean;
+  orders?: GroupBuyOrder[];
 };
 
 export type GroupBuyInvitePreview = {
@@ -830,6 +892,35 @@ export const api = {
     }),
   undoGroupBuyReceiptApply: (id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/receipt/undo`, { method: "POST" }),
+  addGroupBuyOrder: (id: number, body: GroupBuyOrderCreate) =>
+    request<{ order_id: number; unmatched: GroupBuyReceiptUnmatched[]; detail: GroupBuyDetail }>(`/group-buys/${id}/orders`, {
+      method: "POST",
+      body: JSON.stringify(body),
+      timeoutMs: LONG_TIMEOUT_MS,
+    }),
+  previewGroupBuyOrder: (id: number, text: string) =>
+    request<GroupBuyOrderPreview>(`/group-buys/${id}/orders/preview`, {
+      method: "POST",
+      body: JSON.stringify({ receipt_text: text }),
+      timeoutMs: LONG_TIMEOUT_MS,
+    }),
+  deleteGroupBuyOrder: (id: number, orderId: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/orders/${orderId}`, { method: "DELETE" }),
+  setGroupBuyOrderArrival: (
+    id: number,
+    orderId: number,
+    body: { expected_version: number; all?: boolean; lines?: { line_id: number; qty_arrived: number }[] },
+  ) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/orders/${orderId}/arrival`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  undoGroupBuyOrderArrival: (id: number, orderId: number, expected_version: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/orders/${orderId}/arrival/undo`, {
+      method: "POST",
+      body: JSON.stringify({ expected_version }),
+    }),
+  closeGroupBuy: (id: number) => request<GroupBuyDetail>(`/group-buys/${id}/close`, { method: "POST" }),
   setGroupBuyQty: (id: number, cardId: string, qty: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/quantities/${encodeURIComponent(cardId)}`, {
       method: "PUT",
