@@ -728,6 +728,16 @@ def test_above_alert_does_not_fire_twice_when_the_price_wobbles_around_the_targe
     assert len(_inbox(db, user)) == 1 and len(outbox.sent) == 1
 
 
+def test_cheap_above_alert_rearms_and_fires_again_after_the_price_drops_back_1426(db, outbox):
+    user, alert = _fire_then_wobble(db, outbox, direction="above", target=0.25, hit=0.30, wobble=0.01)
+    assert alert.armed is True
+
+    _set_price(db, base=0.30)
+
+    assert price_alerts.check_alerts(db, LATER)["fired"] == 1
+    assert len(_inbox(db, user)) == 2
+
+
 def test_notifications_list_shows_old_stored_price_alert_titles_in_the_short_format_1416(client):
     c, SessionLocal = client
     _catalog(SessionLocal, base=5.0, alt=3.0)

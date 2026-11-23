@@ -39,6 +39,8 @@ def recovered(direction: str, price: float, target: float) -> bool:
     """True when the price is clearly back on the wrong side of the target, so the alert may re-arm."""
     margin = max(target * REARM_MARGIN, REARM_MIN_MARGIN)
     if direction == "above":
+        # Cap at half the target so cheap targets (at or below the minimum margin) can still re-arm (#1426).
+        margin = min(margin, target * 0.5)
         return price < target - margin
     return price > target + margin
 
