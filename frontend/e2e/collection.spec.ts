@@ -69,7 +69,7 @@ test("a scanned or looked-up card can be added from the scanner (#268)", async (
   await expect(page.locator(row("EB01-009"))).toBeVisible();
 });
 
-test("Collection picks up copies a group buy's Mark purchased adds and Undo takes back (#268)", async ({ page, planner }) => {
+test("Collection picks up copies when a group buy's order is marked arrived, and Undo arrival takes them back (#268, #1418)", async ({ page, planner }) => {
   const nav = page.getByRole("navigation", { name: "Primary" });
   const totals = page.getByRole("list", { name: "Collection totals" });
   const toGroupBuy = async () => {
@@ -82,26 +82,26 @@ test("Collection picks up copies a group buy's Mark purchased adds and Undo take
     await nav.getByRole("link", { name: "Collection" }).click();
     await expect(page.getByRole("heading", { name: "Collection", level: 1 })).toBeVisible();
   };
-  const confirmDialog = async (button: string) => page.getByRole("alertdialog").getByRole("button", { name: button }).click();
   await expect(totals).toContainText("$5.80");
 
   await toGroupBuy();
-  await page.getByRole("button", { name: "Mark purchased (4)" }).click();
-  await confirmDialog("Mark purchased");
+  await page.getByRole("button", { name: "Add order", exact: true }).first().click();
+  const dialog = page.getByRole("dialog", { name: /Add a TCGplayer order/ });
+  await dialog.getByRole("button", { name: "Pick cards by hand instead" }).click();
+  await dialog.getByLabel("All arrived now").check();
+  await dialog.getByRole("button", { name: /^Save order/ }).click();
   await expect.poll(() => planner.owned.get("EB01-003")).toBe(4);
-  await page.getByRole("button", { name: "More actions" }).click();
-  await expect(page.getByRole("menuitem", { name: "Undo Mark purchased" })).toBeVisible();
-  await page.keyboard.press("Escape");
+  await expect(page.getByTestId("gb-order")).toContainText("Arrived");
   await toCollection();
   await expect(page.locator(row("EB01-003"))).toBeVisible();
   await expect(totals).toContainText("$33.00");
 
   await toGroupBuy();
-  await page.getByRole("button", { name: "More actions" }).click();
-  await page.getByRole("menuitem", { name: "Undo Mark purchased" }).click();
-  await confirmDialog("Undo");
+  await page.getByRole("button", { name: /^More for / }).click();
+  await page.getByRole("menuitem", { name: "Undo arrival" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Undo arrival" }).click();
   await expect.poll(() => planner.owned.get("EB01-003")).toBe(0);
-  await expect(page.getByRole("button", { name: "Mark purchased (4)" })).toBeVisible();
+  await expect(page.getByTestId("gb-order")).toContainText("On the way");
   await toCollection();
   await expect(page.locator(row("EB01-003"))).toHaveCount(0);
   await expect(totals).toContainText("$5.80");

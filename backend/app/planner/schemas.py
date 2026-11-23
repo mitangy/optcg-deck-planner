@@ -245,6 +245,15 @@ class CollectorLine(BaseModel):
     remaining_cost: float | None = None
 
 
+class ShoppingGroupBuyRef(BaseModel):
+    """Copies of a card still to arrive from one locked or ordered group buy."""
+
+    group_buy_id: int
+    title: str
+    qty: int
+    ordered: bool = False
+
+
 class ShoppingItem(BaseModel):
     card_id: str
     name: str
@@ -274,6 +283,8 @@ class ShoppingItem(BaseModel):
     extra_qty: int = 0
     deck_need: int = 0
     collector_wants: list[CollectorLine] = []
+    in_group_buy: int = 0
+    group_buys: list[ShoppingGroupBuyRef] = []
 
 
 class ShoppingResponse(BaseModel):

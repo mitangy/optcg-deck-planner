@@ -67,17 +67,14 @@ test("A phone held sideways shows the card list, not a table, and the page does 
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
-test("An ordered group buy's main button is Import receipt and it focuses the receipt box (#1361)", async ({ page, planner }) => {
+test("An ordered group buy's main button is Add order and it opens the add-order dialog (#1361, #1418)", async ({ page, planner }) => {
   await page.route(`**/api/group-buys/${GB}`, (r) => r.fulfill({ json: detail("ordered", 3) }));
   await planner.open(`/group-buys/${GB}`);
   await expect(page.getByRole("heading", { name: "Friday pool", level: 1 })).toBeVisible();
-  // Hide the paste box first, so the button has to open it again.
-  await page.getByRole("button", { name: "Hide import" }).click();
-  await expect(page.getByLabel("Receipt text")).toHaveCount(0);
   const primary = page.locator(".gb-actions .btn.primary");
-  await expect(primary).toHaveText("Import receipt");
+  await expect(primary).toHaveText("Add order");
   await primary.click();
-  await expect(page.getByLabel("Receipt text")).toBeFocused();
+  await expect(page.getByRole("dialog", { name: /Add a TCGplayer order/ })).toBeVisible();
 });
 
 test.afterEach(({ planner }) => {

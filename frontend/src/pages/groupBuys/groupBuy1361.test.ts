@@ -1,25 +1,21 @@
 import { describe, expect, it } from "vitest";
 import type { GroupBuyMember } from "../../api";
 import { defaultListDensity } from "../../ui/CardLayout";
-import { groupBuyActions, stepHint, summaryParts } from "./groupBuyActions";
+import { groupBuyActions, stepHint, stepLabel, summaryParts } from "./groupBuyActions";
 import { shownArtPrice } from "./groupBuyArt";
 import { buyingForText, yourShareText } from "./yourShare";
 
-describe("group buy header actions (#1361)", () => {
-  it("the host's one primary button follows the step (#1361)", () => {
-    expect(groupBuyActions("open", true, false, false).primary).toBe("lock");
-    expect(groupBuyActions("locked", true, false, false).primary).toBe("mark-ordered");
-    expect(groupBuyActions("ordered", true, false, false).primary).toBe("import-receipt");
-    expect(groupBuyActions("completed", true, false, true).primary).toBeNull();
-  });
-
-  it("an ordered pool swaps Import receipt for Mark purchased once a receipt is matched (#1361)", () => {
-    expect(groupBuyActions("ordered", true, true, false).primary).toBe("mark-purchased");
+describe("group buy header actions (#1361, #1418)", () => {
+  it("the host's one primary button follows the step, and Add order replaces Mark purchased (#1418)", () => {
+    expect(groupBuyActions("open", true).primary).toBe("lock");
+    expect(groupBuyActions("locked", true).primary).toBe("add-order");
+    expect(groupBuyActions("ordered", true).primary).toBe("add-order");
+    expect(groupBuyActions("completed", true).primary).toBeNull();
   });
 
   it("members get no primary button and Leave sits under More (#1361)", () => {
     for (const status of ["open", "locked", "ordered", "completed"]) {
-      const a = groupBuyActions(status, false, true, true);
+      const a = groupBuyActions(status, false);
       expect(a.primary).toBeNull();
       expect(a.more).toEqual(["leave"]);
     }
@@ -27,24 +23,18 @@ describe("group buy header actions (#1361)", () => {
 
   it("the invite link can only be copied while the group buy is open (#1361)", () => {
     for (const isHost of [true, false]) {
-      expect(groupBuyActions("open", isHost, false, false).secondary).toContain("copy-invite");
+      expect(groupBuyActions("open", isHost).secondary).toContain("copy-invite");
       for (const status of ["locked", "ordered", "completed"]) {
-        expect(groupBuyActions(status, isHost, false, true).secondary).not.toContain("copy-invite");
+        expect(groupBuyActions(status, isHost).secondary).not.toContain("copy-invite");
       }
     }
   });
 
-  it("rare host actions live under More and Undo only shows when the purchase can be undone (#1361)", () => {
-    expect(groupBuyActions("open", true, false, false).more).toEqual(["reset-invite", "delete"]);
-    expect(groupBuyActions("locked", true, false, false).more).toEqual(["unlock", "delete"]);
-    expect(groupBuyActions("completed", true, false, true).more).toEqual(["undo-purchase", "delete"]);
-    expect(groupBuyActions("completed", true, false, false).more).toEqual(["delete"]);
-  });
-
-  it("an ordered pool keeps Undo Mark purchased for the host after a partial purchase (#1375)", () => {
-    expect(groupBuyActions("ordered", true, true, true).more).toEqual(["undo-purchase", "delete"]);
-    expect(groupBuyActions("ordered", true, true, false).more).toEqual(["delete"]);
-    expect(groupBuyActions("ordered", false, true, true).more).toEqual(["leave"]);
+  it("rare host actions live under More (#1361)", () => {
+    expect(groupBuyActions("open", true).more).toEqual(["reset-invite", "delete"]);
+    expect(groupBuyActions("locked", true).more).toEqual(["unlock", "delete"]);
+    expect(groupBuyActions("ordered", true).more).toEqual(["delete"]);
+    expect(groupBuyActions("completed", true).more).toEqual(["delete"]);
   });
 
   it("the summary shows the cards figure while open and the grand total afterwards, once (#1361)", () => {
@@ -53,9 +43,12 @@ describe("group buy header actions (#1361)", () => {
     expect(summaryParts({ ...d, status: "ordered" })).toMatchObject({ moneyLabel: "Total", money: 451.17 });
   });
 
-  it("the step hint tells the host what unlocks Mark purchased (#1361)", () => {
-    expect(stepHint("ordered", true, false, false)).toMatch(/Import and match a TCGPlayer receipt/);
-    expect(stepHint("ordered", true, true, true)).toMatch(/Mark purchased adds/);
+  it("the stepper reads Collect wants, Lock & check out, Packages arriving, Done (#1418)", () => {
+    expect(["open", "locked", "ordered", "completed"].map(stepLabel)).toEqual(["Collect wants", "Lock & check out", "Packages arriving", "Done"]);
+  });
+
+  it("the locked step hint sends the host to add each seller's order (#1418)", () => {
+    expect(stepHint("locked", true)).toMatch(/add each seller's order/);
   });
 });
 

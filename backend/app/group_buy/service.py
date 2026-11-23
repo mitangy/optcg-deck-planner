@@ -4,13 +4,15 @@ from __future__ import annotations
 import json
 import secrets
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from urllib.parse import urlencode
 
 from sqlalchemy import case, delete, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
-from app.core.errors import Forbidden, Invalid, NotFound
-from app.core.statuses import GroupBuyStatus, ReceiptLineStatus
+from app.core.errors import Conflict, Forbidden, Invalid, NotFound
+from app.core.statuses import GroupBuyOrderStatus, GroupBuyStatus, ReceiptLineStatus
 from app.group_buy.merge import MemberNeed, MergedMemberQty, merge_member_needs
 from app.group_buy.settlement import SHIPPING_SPLIT_MODES, build_settlements, round_money
 from app.core.models import User
@@ -18,12 +20,15 @@ from app.group_buy.models import (
     GroupBuy,
     GroupBuyExtraSkip,
     GroupBuyMember,
+    GroupBuyOrder,
+    GroupBuyOrderAllocation,
+    GroupBuyOrderLine,
     GroupBuyQtyOverride,
     GroupBuyReceiptApply,
     GroupBuyReceiptApplyLine,
     GroupBuySnapshotLine,
 )
-from app.planner.models import CatalogCard, CatalogPrinting, Owned
+from app.planner.models import CatalogCard, CatalogPrinting, Owned, OwnedPrinting
 from app.group_buy.schemas import (
     GroupBuyDetail,
     GroupBuyExport,
@@ -32,6 +37,18 @@ from app.group_buy.schemas import (
     GroupBuyMemberOut,
     GroupBuyMemberQtyOut,
     GroupBuyMyExtraOut,
+    GroupBuyArrivalUndo,
+    GroupBuyArrivalUpdate,
+    GroupBuyOrderAdded,
+    GroupBuyOrderAllocationOut,
+    GroupBuyOrderCreate,
+    GroupBuyOrderLinesUpdate,
+    GroupBuyOrderLineOut,
+    GroupBuyOrderOut,
+    GroupBuyOrderPatch,
+    GroupBuyOrderPreview,
+    GroupBuyOrderPreviewAllocation,
+    GroupBuyOrderPreviewLine,
     GroupBuyOrderUpdate,
     GroupBuyReceiptApplyRequest,
     GroupBuyReceiptLineOut,
@@ -40,7 +57,11 @@ from app.group_buy.schemas import (
     GroupBuySummary,
 )
 from app.planner.schemas import GroupBuyArtWantOut
-from app.group_buy.receipt import aggregate_receipt_matches, parse_tcgplayer_receipt
+from app.group_buy.receipt import (
+    AggregatedReceiptCard,
+    aggregate_receipt_matches,
+    parse_tcgplayer_receipt,
+)
 from app.planner import shopping as shopping_svc
 from app.planner import catalog_repo
 from app.planner.owned import increment_owned
@@ -83,6 +104,10 @@ def _anonymize_detail(detail: GroupBuyDetail, group: GroupBuy) -> GroupBuyDetail
     for line in detail.lines:
         for member in line.members:
             member.display_name = names.get(member.user_id, "Member")
+    for order in detail.orders:
+        for order_line in order.lines:
+            for alloc in order_line.allocations:
+                alloc.display_name = names.get(alloc.user_id, "Member")
     return detail
 
 
@@ -128,6 +153,9 @@ def _get_group(db: Session, group_id: int, *, lock: bool = False) -> GroupBuy:
             selectinload(GroupBuy.qty_overrides),
             selectinload(GroupBuy.extra_skips),
             selectinload(GroupBuy.receipt_applies).selectinload(GroupBuyReceiptApply.lines),
+            selectinload(GroupBuy.orders)
+            .selectinload(GroupBuyOrder.lines)
+            .selectinload(GroupBuyOrderLine.allocations),
         )
     )
     if group is None:
@@ -153,6 +181,7 @@ def _compute_member_shopping(db: Session, member: GroupBuyMember):
         include_extras=bool(member.include_singles),
         include_collector=True,
         show_collector=bool(member.include_extra_copies),
+        exclude_group_buy_id=member.group_buy_id,
     )
 
 
@@ -294,11 +323,37 @@ def _member_needs_live(db: Session, group: GroupBuy, memo: dict | None = None) -
     return needs
 
 
-def _member_needs_locked(group: GroupBuy) -> list[MemberNeed]:
+def _allocated_by_user_card(group: GroupBuy) -> dict[tuple[int, str], int]:
+    out: dict[tuple[int, str], int] = {}
+    for order in group.orders:
+        for line in order.lines:
+            for alloc in line.allocations:
+                key = (alloc.user_id, line.card_id.upper())
+                out[key] = out.get(key, 0) + int(alloc.qty)
+    return out
+
+
+def _allocation_stats(group: GroupBuy) -> dict[str, dict[int, tuple[int, int]]]:
+    """card id -> user id -> (copies in an order, copies arrived)."""
+    out: dict[str, dict[int, tuple[int, int]]] = {}
+    for order in group.orders:
+        for line in order.lines:
+            per_user = out.setdefault(line.card_id.upper(), {})
+            for alloc in line.allocations:
+                qty, arrived = per_user.get(alloc.user_id, (0, 0))
+                per_user[alloc.user_id] = (qty + int(alloc.qty), arrived + int(alloc.qty_arrived))
+    return out
+
+
+def _member_needs_locked(group: GroupBuy, *, unordered_only: bool = False) -> list[MemberNeed]:
+    """Frozen needs. By default the whole snapshot (what each member is buying in this group buy,
+    which money is settled on); ``unordered_only`` takes off copies already in a seller order."""
     users = {m.user_id: m.user for m in group.members}
+    in_orders = _allocated_by_user_card(group) if unordered_only else {}
     needs: list[MemberNeed] = []
     for line in group.snapshot_lines:
-        if line.qty <= 0:
+        qty = int(line.qty) - in_orders.get((line.user_id, line.card_id.upper()), 0)
+        if qty <= 0:
             continue
         user = users.get(line.user_id)
         name = _display_name(user) if user else f"User {line.user_id}"
@@ -307,9 +362,9 @@ def _member_needs_locked(group: GroupBuy) -> list[MemberNeed]:
                 user_id=line.user_id,
                 display_name=name,
                 card_id=line.card_id,
-                qty=line.qty,
+                qty=qty,
                 product_id=line.product_id,
-                suggested_qty=line.qty,
+                suggested_qty=qty,
                 is_custom=False,
             )
         )
@@ -400,11 +455,12 @@ def _build_lines(
     group: GroupBuy,
     viewer_user_id: int | None = None,
     memo: dict | None = None,
+    unordered_only: bool = False,
 ) -> tuple[list[GroupBuyLineOut], dict[int, tuple[int, float]]]:
     if memo is None:
         memo = {}
     needs = (
-        _member_needs_locked(group)
+        _member_needs_locked(group, unordered_only=unordered_only)
         if group.status in FROZEN_STATUSES
         else _member_needs_live(db, group, memo)
     )
@@ -413,6 +469,7 @@ def _build_lines(
     )
     merged = merge_member_needs(needs)
     card_ids = {line.card_id for line in merged} | set(zero_customs)
+    order_stats = _allocation_stats(group)
 
     viewer_wants: dict[str, dict[int, int]] = {}
     viewer_need: dict[str, int] = {}
@@ -531,6 +588,9 @@ def _build_lines(
         my_qty = mine.qty if mine else 0
         my_is_custom = mine.is_custom if mine else False
         my_item = viewer_items.get(card_id)
+        per_user = order_stats.get(card_id.upper(), {})
+        in_order = sum(q for q, _ in per_user.values())
+        my_in_order, my_arrived = per_user.get(viewer_user_id, (0, 0))
         my_extras = (
             _my_extras(my_item, _card_skips(skips, viewer_user_id, card_id)) if my_item else []
         )
@@ -573,6 +633,12 @@ def _build_lines(
                 my_used_in=viewer_used_in.get(card_id, []),
                 my_deck_qty=my_item.still_need if my_item else 0,
                 my_extras=my_extras,
+                in_order=in_order,
+                arrived=sum(a for _, a in per_user.values()),
+                not_ordered=total_qty if unordered_only else max(0, total_qty - in_order),
+                my_in_order=my_in_order,
+                my_arrived=my_arrived,
+                my_not_ordered=my_qty if unordered_only else max(0, my_qty - my_in_order),
             )
         )
 
@@ -669,6 +735,7 @@ def _detail_from_group(
                 total_owed=settle.total_owed if settle else 0.0,
             )
         )
+    # Members need the order id and payment notes to pay the host; the invite-link view is open to anyone.
     receipt_text = "" if read_only else (group.receipt_text or "")
     return GroupBuyDetail(
         **_summary_fields(group, user, lines),
@@ -676,8 +743,8 @@ def _detail_from_group(
         lines=lines,
         locked_at=group.locked_at.isoformat() if group.locked_at else None,
         ordered_at=group.ordered_at.isoformat() if group.ordered_at else None,
-        external_order_id=group.external_order_id or "",
-        order_notes=group.order_notes or "",
+        external_order_id="" if read_only else (group.external_order_id or ""),
+        order_notes="" if read_only else (group.order_notes or ""),
         shipping_cost=shipping_cost,
         shipping_split=group.shipping_split or "equal",
         tax_cost=tax_cost,
@@ -687,6 +754,9 @@ def _detail_from_group(
         has_receipt=bool(receipt_text.strip()) if not read_only else False,
         can_undo_purchase=False if read_only else bool(group.receipt_applies),
         read_only=read_only,
+        orders=_orders_out(
+            db, group, show_private=bool(user is not None and user.id == group.host_user_id)
+        ),
     )
 
 
@@ -850,6 +920,9 @@ def public_group_buy_view(db: Session, token: str) -> GroupBuyDetail:
             selectinload(GroupBuy.snapshot_lines),
             selectinload(GroupBuy.qty_overrides),
             selectinload(GroupBuy.receipt_applies).selectinload(GroupBuyReceiptApply.lines),
+            selectinload(GroupBuy.orders)
+            .selectinload(GroupBuyOrder.lines)
+            .selectinload(GroupBuyOrderLine.allocations),
         )
     )
     if group is None:
@@ -1106,6 +1179,57 @@ def _subtract_owned(db: Session, user_id: int, card_id: str, delta: int) -> None
     )
 
 
+def _add_alt_owned(db: Session, user_id: int, card_id: str, product_id: int, delta: int) -> None:
+    """Credit copies of one alternate printing (``OwnedPrinting`` holds alts apart from ``Owned``)."""
+    if delta <= 0:
+        return
+    key = (OwnedPrinting.user_id == user_id, OwnedPrinting.card_id == card_id,
+           OwnedPrinting.product_id == product_id)
+    bump = (
+        update(OwnedPrinting)
+        .where(*key)
+        .values(qty=OwnedPrinting.qty + delta)
+        .execution_options(synchronize_session="fetch")
+    )
+    if db.execute(bump).rowcount:
+        return
+    try:
+        with db.begin_nested():
+            db.add(OwnedPrinting(user_id=user_id, card_id=card_id, product_id=product_id, qty=delta))
+    except IntegrityError:
+        db.execute(bump)
+
+
+def _subtract_alt_owned(db: Session, user_id: int, card_id: str, product_id: int, delta: int) -> None:
+    if delta <= 0:
+        return
+    key = (OwnedPrinting.user_id == user_id, OwnedPrinting.card_id == card_id,
+           OwnedPrinting.product_id == product_id)
+    db.execute(
+        update(OwnedPrinting)
+        .where(*key)
+        .values(qty=case((OwnedPrinting.qty > delta, OwnedPrinting.qty - delta), else_=0))
+        .execution_options(synchronize_session="fetch")
+    )
+    # A zero row is the same as no row (set_alt_owned deletes at 0).
+    db.execute(delete(OwnedPrinting).where(*key, OwnedPrinting.qty <= 0))
+
+
+def _is_alt_printing(db: Session, card_id: str, product_id: int | None) -> bool:
+    if product_id is None:
+        return False
+    return (
+        db.scalar(
+            select(CatalogPrinting.id).where(
+                CatalogPrinting.card_id == card_id,
+                CatalogPrinting.product_id == product_id,
+                CatalogPrinting.is_special == 1,
+            )
+        )
+        is not None
+    )
+
+
 def _apply_order_fields(group: GroupBuy, body: GroupBuyOrderUpdate) -> None:
     if body.external_order_id is not None:
         group.external_order_id = body.external_order_id.strip()[:200]
@@ -1141,6 +1265,8 @@ def unlock_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
     _require_host(group, user)
     if group.status in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
         raise Forbidden(f"{group.status.capitalize()} group buys cannot be unlocked")
+    if group.orders:
+        raise Forbidden("Delete the seller orders before unlocking")
     group.status = GroupBuyStatus.OPEN
     group.locked_at = None
     db.execute(delete(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id))
@@ -1202,7 +1328,8 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
     group = _get_group(db, group_id)
     _require_member(group, user)
     memo: dict = {}
-    lines, _ = _build_lines(db, group, viewer_user_id=user.id, memo=memo)
+    # Mass Entry is for what still has to be bought: copies already in an order are left out.
+    lines, _ = _build_lines(db, group, viewer_user_id=user.id, memo=memo, unordered_only=True)
 
     skips = _extra_skip_map(group)
     member_items: dict[int, dict[str, object]] = {}
@@ -1302,7 +1429,7 @@ def delete_group_buy(db: Session, user: User, group_id: int) -> None:
 
 def _pool_qty_by_card_db(db: Session, group: GroupBuy) -> dict[str, int]:
     if group.status in FROZEN_STATUSES:
-        needs = _member_needs_locked(group)
+        needs = _member_needs_locked(group, unordered_only=True)
     else:
         needs = _member_needs_live(db, group)
     totals: dict[str, int] = {}
@@ -1337,7 +1464,12 @@ def build_receipt_match_report(
 ) -> GroupBuyReceiptMatchReport:
     group = _get_group(db, group_id)
     _require_member(group, user)
+    return _match_report(db, group, receipt_text)[0]
 
+
+def _match_report(
+    db: Session, group: GroupBuy, receipt_text: str
+) -> tuple[GroupBuyReceiptMatchReport, list[AggregatedReceiptCard]]:
     parsed = parse_tcgplayer_receipt(receipt_text)
     matched, unmatched_lines = aggregate_receipt_matches(db, parsed)
     pool = _pool_qty_by_card_db(db, group)
@@ -1426,30 +1558,668 @@ def build_receipt_match_report(
     )
     can_partial = counts["staged_copies"] > 0
 
-    return GroupBuyReceiptMatchReport(
+    report = GroupBuyReceiptMatchReport(
         lines=lines_out,
         unmatched=unmatched_out,
         summary=counts,
         can_apply_full=can_full,
         can_apply_partial=can_partial,
     )
+    return report, matched
 
 
-def _allocate_across_snapshot(
-    snapshot_rows: list[GroupBuySnapshotLine],
-    apply_qty: int,
-) -> list[tuple[GroupBuySnapshotLine, int]]:
-    remaining = apply_qty
-    out: list[tuple[GroupBuySnapshotLine, int]] = []
-    for row in sorted(snapshot_rows, key=lambda r: (r.id or 0)):
-        if remaining <= 0:
-            break
-        take = min(int(row.qty), remaining)
-        if take <= 0:
-            continue
-        out.append((row, take))
-        remaining -= take
+def _split_alt_copies(
+    db: Session,
+    group: GroupBuy,
+    rows: list[GroupBuySnapshotLine],
+    staged_qty: int,
+    alt_copies: dict[int, int],
+    memo: dict,
+    placed_alts: dict[int, dict[int, int]] | None = None,
+) -> dict[int, tuple[dict[int, int], int]]:
+    """Per snapshot row id: (alt copies by product id, standard copies) out of ``staged_qty``.
+
+    Alt copies go first to members whose current alt wants include that art, then to
+    the rest in snapshot order; standard copies fill what is left, also in snapshot order.
+    """
+    ordered = sorted(rows, key=lambda r: (r.id or 0))
+    room = {r.id: int(r.qty) for r in ordered}
+    alts: dict[int, dict[int, int]] = {r.id: {} for r in ordered}
+    wants: dict[int, dict[int, int]] = {}
+    if alt_copies:
+        skips = _extra_skip_map(group)
+        members = {m.user_id: m for m in group.members}
+        for r in ordered:
+            member = members.get(r.user_id)
+            shop = _member_shopping(db, member, memo) if member is not None else None
+            item = next(
+                (i for i in (shop.items if shop else []) if i.card_id.upper() == r.card_id.upper()),
+                None,
+            )
+            inputs = (
+                _member_alt_inputs(item, _card_skips(skips, r.user_id, r.card_id), int(r.qty))
+                if item is not None
+                else []
+            )
+            # Arts already ordered for this member in earlier orders are not wanted again.
+            done = (placed_alts or {}).get(r.id, {})
+            wants[r.id] = {pid: max(0, left - done.get(pid, 0)) for pid, left, _price in inputs}
+    left_to_place = staged_qty
+    for pid, qty in sorted(alt_copies.items()):
+        n = min(qty, left_to_place)
+        for wanters_only in (True, False):
+            for r in ordered:
+                if n <= 0:
+                    break
+                cap = room[r.id]
+                if wanters_only:
+                    cap = min(cap, wants[r.id].get(pid, 0))
+                take = min(cap, n)
+                if take <= 0:
+                    continue
+                alts[r.id][pid] = alts[r.id].get(pid, 0) + take
+                room[r.id] -= take
+                wants[r.id][pid] = wants[r.id].get(pid, 0) - take
+                n -= take
+                left_to_place -= take
+    std_left = left_to_place
+    out: dict[int, tuple[dict[int, int], int]] = {}
+    for r in ordered:
+        std = min(room[r.id], std_left)
+        std_left -= std
+        out[r.id] = (alts[r.id], std)
     return out
+
+
+
+
+# --- Seller orders (packages), #1418 ---------------------------------------------------------
+
+Copies = dict[str, dict[int | None, int]]
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _order_totals(order: GroupBuyOrder) -> tuple[int, int, int]:
+    """(copies ordered, copies allocated to members, copies arrived)."""
+    ordered = sum(int(line.qty_ordered) for line in order.lines)
+    allocated = sum(int(a.qty) for line in order.lines for a in line.allocations)
+    arrived = sum(int(a.qty_arrived) for line in order.lines for a in line.allocations)
+    return ordered, allocated, arrived
+
+
+def _order_status(allocated: int, arrived: int) -> str:
+    if allocated <= 0 or arrived <= 0:
+        return GroupBuyOrderStatus.ON_THE_WAY
+    if arrived < allocated:
+        return GroupBuyOrderStatus.PARTIAL
+    return GroupBuyOrderStatus.ARRIVED
+
+
+def _unordered_total(group: GroupBuy) -> int:
+    in_orders = _allocated_by_user_card(group)
+    return sum(
+        max(0, int(row.qty) - in_orders.get((row.user_id, row.card_id.upper()), 0))
+        for row in group.snapshot_lines
+    )
+
+
+def _everything_arrived(group: GroupBuy) -> bool:
+    allocations = [a for o in group.orders for line in o.lines for a in line.allocations]
+    if not any(a.qty > 0 for a in allocations):
+        return False
+    return all(a.qty_arrived >= a.qty for a in allocations) and _unordered_total(group) == 0
+
+
+def _refresh_status(group: GroupBuy) -> None:
+    if group.status not in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED) or not group.orders:
+        return
+    group.status = (
+        GroupBuyStatus.COMPLETED if _everything_arrived(group) else GroupBuyStatus.ORDERED
+    )
+
+
+def _clean_tracking_url(raw: str | None) -> str:
+    url = (raw or "").strip()
+    if url and not url.lower().startswith("https://"):
+        raise Invalid("Tracking link must start with https://")
+    return url
+
+
+def _check_order_number(group: GroupBuy, number: str, *, ignore_id: int | None = None) -> None:
+    if number and any(o.order_number == number and o.id != ignore_id for o in group.orders):
+        raise Conflict("That order number is already on this group buy")
+
+
+def _orders_out(db: Session, group: GroupBuy, *, show_private: bool) -> list[GroupBuyOrderOut]:
+    if not group.orders:
+        return []
+    names = {m.user_id: _display_name(m.user) for m in group.members}
+    card_ids = {line.card_id for o in group.orders for line in o.lines}
+    card_names = (
+        {
+            c.card_id: c.name
+            for c in db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(card_ids)))
+        }
+        if card_ids
+        else {}
+    )
+    out: list[GroupBuyOrderOut] = []
+    for order in group.orders:
+        ordered, allocated, arrived = _order_totals(order)
+        lines = []
+        for line in order.lines:
+            line_alloc = sum(int(a.qty) for a in line.allocations)
+            lines.append(
+                GroupBuyOrderLineOut(
+                    id=line.id,
+                    card_id=line.card_id,
+                    name=card_names.get(line.card_id, ""),
+                    product_id=line.product_id,
+                    qty_ordered=int(line.qty_ordered),
+                    qty_arrived=sum(int(a.qty_arrived) for a in line.allocations),
+                    qty_extra=max(0, int(line.qty_ordered) - line_alloc),
+                    allocations=[
+                        GroupBuyOrderAllocationOut(
+                            user_id=a.user_id,
+                            display_name=names.get(a.user_id, f"User {a.user_id}"),
+                            qty=int(a.qty),
+                            qty_arrived=int(a.qty_arrived),
+                        )
+                        for a in line.allocations
+                    ],
+                )
+            )
+        out.append(
+            GroupBuyOrderOut(
+                id=order.id,
+                seller_name=order.seller_name or "",
+                status=_order_status(allocated, arrived),
+                qty_ordered=ordered,
+                qty_allocated=allocated,
+                qty_arrived=arrived,
+                qty_extra=max(0, ordered - allocated),
+                arrived_at=order.arrived_at.isoformat() if order.arrived_at else None,
+                created_at=order.created_at.isoformat() if order.created_at else "",
+                version=int(order.version or 1),
+                order_number=(order.order_number or "") if show_private else "",
+                tracking_url=(order.tracking_url or "") if show_private else "",
+                receipt_text=(order.receipt_text or "") if show_private else "",
+                lines=lines,
+            )
+        )
+    return out
+
+
+def _get_order(group: GroupBuy, order_id: int) -> GroupBuyOrder:
+    for order in group.orders:
+        if order.id == order_id:
+            return order
+    raise NotFound("Order not found")
+
+
+def _check_version(order: GroupBuyOrder, expected: int | None) -> None:
+    if expected is not None and int(order.version or 1) != expected:
+        raise Conflict("This order changed since you loaded it. Refresh and try again.")
+
+
+def _touch(order: GroupBuyOrder) -> None:
+    order.version = int(order.version or 1) + 1
+    order.updated_at = _now()
+
+
+def _add_copies(copies: Copies, card_id: str, art: int | None, qty: int) -> None:
+    if qty <= 0:
+        return
+    per_art = copies.setdefault(card_id.upper().strip(), {})
+    per_art[art] = per_art.get(art, 0) + qty
+
+
+def _copies_from_receipt(
+    db: Session, receipt_text: str
+) -> tuple[Copies, list[GroupBuyReceiptUnmatchedOut]]:
+    parsed = parse_tcgplayer_receipt(receipt_text)
+    matched, unmatched = aggregate_receipt_matches(db, parsed)
+    copies: Copies = {}
+    for hit in matched:
+        alts = {pid: n for pid, n in hit.alt_copies.items() if n > 0}
+        for pid, n in alts.items():
+            _add_copies(copies, hit.card_id, pid, n)
+        _add_copies(copies, hit.card_id, None, hit.qty - sum(alts.values()))
+    return copies, [
+        GroupBuyReceiptUnmatchedOut(
+            qty=line.qty,
+            description=line.raw_description,
+            set_name=line.set_name,
+            card_name=line.card_name,
+        )
+        for line in unmatched
+    ]
+
+
+def _copies_from_lines(db: Session, lines) -> Copies:
+    copies: Copies = {}
+    for line in lines:
+        card_id = line.card_id.upper().strip()
+        if db.get(CatalogCard, card_id) is None:
+            raise Invalid(f"Unknown card {card_id}")
+        art = line.product_id if _is_alt_printing(db, card_id, line.product_id) else None
+        _add_copies(copies, card_id, art, int(line.qty))
+    return copies
+
+
+def _art_order(item: tuple[int | None, int]) -> tuple[bool, int]:
+    return (item[0] is not None, item[0] or 0)
+
+
+def _plan_allocation(
+    db: Session, group: GroupBuy, copies: Copies
+) -> dict[str, dict[int | None, list[tuple[int, int]]]]:
+    """Per card and art, (user id, copies): who each ordered copy is for.
+
+    Members whose snapshot still has room get copies; room is the snapshot qty minus copies
+    already allocated in earlier orders. Alt arts go to members who want that art first.
+    """
+    taken = _allocated_by_user_card(group)
+    placed: dict[tuple[int, str], dict[int, int]] = {}
+    for order in group.orders:
+        for line in order.lines:
+            if line.product_id is None:
+                continue
+            for alloc in line.allocations:
+                bucket = placed.setdefault((alloc.user_id, line.card_id.upper()), {})
+                bucket[line.product_id] = bucket.get(line.product_id, 0) + int(alloc.qty)
+    memo: dict = {}
+    plan: dict[str, dict[int | None, list[tuple[int, int]]]] = {}
+    for card_id, arts in sorted(copies.items()):
+        rows = []
+        for snap in sorted(group.snapshot_lines, key=lambda r: r.id or 0):
+            if snap.card_id.upper() != card_id:
+                continue
+            room = int(snap.qty) - taken.get((snap.user_id, card_id), 0)
+            if room > 0:
+                rows.append(
+                    SimpleNamespace(id=snap.id, user_id=snap.user_id, card_id=card_id, qty=room)
+                )
+        per_art: dict[int | None, list[tuple[int, int]]] = {}
+        plan[card_id] = per_art
+        if not rows:
+            continue
+        staged = min(sum(arts.values()), sum(r.qty for r in rows))
+        alt_copies = {pid: n for pid, n in arts.items() if pid is not None}
+        split = _split_alt_copies(
+            db,
+            group,
+            rows,
+            staged,
+            alt_copies,
+            memo,
+            {r.id: placed.get((r.user_id, card_id), {}) for r in rows},
+        )
+        for row in rows:
+            alts, std = split[row.id]
+            for pid, n in sorted(alts.items()):
+                if n > 0:
+                    per_art.setdefault(pid, []).append((row.user_id, n))
+            if std > 0:
+                per_art.setdefault(None, []).append((row.user_id, std))
+    return plan
+
+
+def preview_order(
+    db: Session, user: User, group_id: int, receipt_text: str
+) -> GroupBuyOrderPreview:
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
+        raise Forbidden("Lock for checkout before adding orders")
+    copies, unmatched = _copies_from_receipt(db, receipt_text)
+    plan = _plan_allocation(db, group, copies)
+    names = {m.user_id: _display_name(m.user) for m in group.members}
+    lines: list[GroupBuyOrderPreviewLine] = []
+    for card_id, arts in sorted(copies.items()):
+        for art, qty in sorted(arts.items(), key=_art_order):
+            alloc = plan.get(card_id, {}).get(art, [])
+            lines.append(
+                GroupBuyOrderPreviewLine(
+                    card_id=card_id,
+                    name=_line_display_name(db, card_id),
+                    product_id=art,
+                    qty=qty,
+                    allocations=[
+                        GroupBuyOrderPreviewAllocation(
+                            user_id=uid, display_name=names.get(uid, ""), qty=n
+                        )
+                        for uid, n in alloc
+                    ],
+                    qty_extra=max(0, qty - sum(n for _, n in alloc)),
+                )
+            )
+    return GroupBuyOrderPreview(lines=lines, unmatched=unmatched)
+
+
+def _create_order(
+    db: Session,
+    group: GroupBuy,
+    user: User,
+    *,
+    number: str,
+    seller: str,
+    tracking: str,
+    receipt_text: str,
+    copies: Copies,
+    from_receipt_apply: bool = False,
+) -> tuple[GroupBuyOrder, str, bool]:
+    """Add the order and its allocations; the first one moves locked -> ordered."""
+    plan = _plan_allocation(db, group, copies)
+    status_before = str(group.status)
+    set_ordered_at = False
+    if group.status == GroupBuyStatus.LOCKED:
+        group.status = GroupBuyStatus.ORDERED
+        if group.ordered_at is None:
+            group.ordered_at = _now()
+            set_ordered_at = True
+    order = GroupBuyOrder(
+        from_receipt_apply=from_receipt_apply,
+        order_number=number,
+        seller_name=seller,
+        tracking_url=tracking,
+        receipt_text=receipt_text,
+        created_by_user_id=user.id,
+        version=1,
+    )
+    group.orders.append(order)
+    _fill_order_lines(order, copies, plan)
+    db.flush()
+    return order, status_before, set_ordered_at
+
+
+def _fill_order_lines(order: GroupBuyOrder, copies: Copies, plan) -> None:
+    for card_id, arts in sorted(copies.items()):
+        for art, qty in sorted(arts.items(), key=_art_order):
+            line = GroupBuyOrderLine(card_id=card_id, product_id=art, qty_ordered=qty)
+            order.lines.append(line)
+            for uid, n in plan.get(card_id, {}).get(art, []):
+                line.allocations.append(GroupBuyOrderAllocation(user_id=uid, qty=n, qty_arrived=0))
+
+
+def add_order(
+    db: Session, user: User, group_id: int, body: GroupBuyOrderCreate
+) -> GroupBuyOrderAdded:
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    if group.status == GroupBuyStatus.COMPLETED:
+        raise Forbidden("Group buy is already completed")
+    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
+        raise Forbidden("Lock for checkout before adding orders")
+    number = body.order_number.strip()
+    tracking = _clean_tracking_url(body.tracking_url)
+    _check_order_number(group, number)
+    receipt_text = body.receipt_text.strip()
+    unmatched: list[GroupBuyReceiptUnmatchedOut] = []
+    if body.lines:
+        copies = _copies_from_lines(db, body.lines)
+    elif receipt_text:
+        copies, unmatched = _copies_from_receipt(db, receipt_text)
+    else:
+        copies = {}
+    order, status_before, set_ordered_at = _create_order(
+        db,
+        group,
+        user,
+        number=number,
+        seller=body.seller_name.strip(),
+        tracking=tracking,
+        receipt_text=receipt_text,
+        copies=copies,
+    )
+    if body.mark_arrived:
+        _set_arrival(db, group, order, user, None, status_before, set_ordered_at)
+    _refresh_status(group)
+    db.commit()
+    return GroupBuyOrderAdded(
+        order_id=order.id, unmatched=unmatched, detail=get_group_buy(db, user, group_id)
+    )
+
+
+def set_order_lines(
+    db: Session, user: User, group_id: int, order_id: int, body: GroupBuyOrderLinesUpdate
+) -> GroupBuyOrderAdded:
+    """Replace what an order holds. Only while nothing in it arrived, so no Owned credit has to move."""
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    order = _get_order(group, order_id)
+    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
+        raise Forbidden("This group buy was closed")
+    _check_version(order, body.expected_version)
+    if _order_totals(order)[2] > 0 or any(a.order_id == order.id for a in group.receipt_applies):
+        raise Conflict("Undo this order's arrivals before changing its items")
+    receipt_text = body.receipt_text.strip()
+    unmatched: list[GroupBuyReceiptUnmatchedOut] = []
+    if body.lines:
+        copies = _copies_from_lines(db, body.lines)
+    elif receipt_text:
+        copies, unmatched = _copies_from_receipt(db, receipt_text)
+    else:
+        raise Invalid("Paste the order or pick cards")
+    # Drop this order's own lines first so its copies count as not ordered while allocation reruns.
+    order.lines.clear()
+    db.flush()
+    _fill_order_lines(order, copies, _plan_allocation(db, group, copies))
+    if receipt_text and not body.lines:
+        order.receipt_text = receipt_text
+    _touch(order)
+    _refresh_status(group)
+    db.commit()
+    return GroupBuyOrderAdded(
+        order_id=order.id, unmatched=unmatched, detail=get_group_buy(db, user, group_id)
+    )
+
+
+def update_order_details(
+    db: Session, user: User, group_id: int, order_id: int, body: GroupBuyOrderPatch
+) -> GroupBuyDetail:
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    order = _get_order(group, order_id)
+    _check_version(order, body.expected_version)
+    if body.order_number is not None:
+        number = body.order_number.strip()
+        _check_order_number(group, number, ignore_id=order.id)
+        order.order_number = number
+    if body.seller_name is not None:
+        order.seller_name = body.seller_name.strip()
+    if body.tracking_url is not None:
+        order.tracking_url = _clean_tracking_url(body.tracking_url)
+    _touch(order)
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def delete_order(db: Session, user: User, group_id: int, order_id: int) -> GroupBuyDetail:
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    order = _get_order(group, order_id)
+    if _order_totals(order)[2] > 0:
+        raise Conflict("Undo this order's arrivals before deleting it")
+    for apply_event in [a for a in group.receipt_applies if a.order_id == order.id]:
+        group.receipt_applies.remove(apply_event)
+    db.flush()
+    group.orders.remove(order)
+    _refresh_status(group)
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def _credit(db: Session, user_id: int, card_id: str, art: int | None, delta: int) -> None:
+    if art is None:
+        (_add_owned if delta > 0 else _subtract_owned)(db, user_id, card_id, abs(delta))
+    elif delta > 0:
+        _add_alt_owned(db, user_id, card_id, art, delta)
+    else:
+        _subtract_alt_owned(db, user_id, card_id, art, -delta)
+
+
+def _line_capacity(line: GroupBuyOrderLine) -> int:
+    return sum(int(a.qty) for a in line.allocations)
+
+
+def _arrival_would_change(order: GroupBuyOrder, targets: dict[int, int] | None) -> bool:
+    for line in order.lines:
+        capacity = _line_capacity(line)
+        target = capacity if targets is None else targets.get(line.id)
+        if target is not None and min(int(target), capacity) != sum(
+            int(a.qty_arrived) for a in line.allocations
+        ):
+            return True
+    return False
+
+
+def _set_arrival(
+    db: Session,
+    group: GroupBuy,
+    order: GroupBuyOrder,
+    user: User,
+    targets: dict[int, int] | None,
+    status_before: str | None = None,
+    set_ordered_at: bool = False,
+) -> bool:
+    """Move arrived counts to ``targets`` (line id -> copies; None = all) and credit Owned.
+
+    Each line's target is split across its allocations in allocation order, so the result is
+    the same however many times it is applied. Owned and OwnedPrinting move by the change only.
+    """
+    deltas: dict[tuple[int, str, int | None], int] = {}
+    for line in order.lines:
+        capacity = _line_capacity(line)
+        target = capacity if targets is None else targets.get(line.id)
+        if target is None:
+            continue
+        left = min(int(target), capacity)
+        for alloc in line.allocations:
+            new = min(int(alloc.qty), left)
+            left -= new
+            change = new - int(alloc.qty_arrived)
+            if change:
+                key = (alloc.user_id, line.card_id.upper(), line.product_id)
+                deltas[key] = deltas.get(key, 0) + change
+                alloc.qty_arrived = new
+    deltas = {k: v for k, v in deltas.items() if v}
+    if not deltas:
+        return False
+    apply_event = GroupBuyReceiptApply(
+        group_buy_id=group.id,
+        applied_by_user_id=user.id,
+        status_before=status_before or str(group.status),
+        set_ordered_at=1 if set_ordered_at else 0,
+        order_id=order.id,
+    )
+    group.receipt_applies.append(apply_event)
+    db.flush()
+    for (uid, card_id, art), delta in deltas.items():
+        _credit(db, uid, card_id, art, delta)
+        db.add(
+            GroupBuyReceiptApplyLine(
+                apply_id=apply_event.id, user_id=uid, card_id=card_id, product_id=art, qty=delta
+            )
+        )
+    _, allocated, arrived = _order_totals(order)
+    order.arrived_at = _now() if allocated > 0 and arrived >= allocated else None
+    _touch(order)
+    return True
+
+
+def _require_arrival_editable(group: GroupBuy) -> None:
+    if group.status not in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
+        raise Forbidden("Add an order first")
+    if group.status == GroupBuyStatus.COMPLETED and not _everything_arrived(group):
+        raise Forbidden("This group buy was closed")
+
+
+def set_order_arrival(
+    db: Session, user: User, group_id: int, order_id: int, body: GroupBuyArrivalUpdate
+) -> GroupBuyDetail:
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    order = _get_order(group, order_id)
+    _require_arrival_editable(group)
+    targets: dict[int, int] | None = None
+    if not body.all:
+        by_id = {line.id: line for line in order.lines}
+        targets = {}
+        for item in body.lines or []:
+            line = by_id.get(item.line_id)
+            if line is None:
+                raise NotFound("Order line not found")
+            if item.qty_arrived > int(line.qty_ordered):
+                raise Invalid("More copies arrived than were ordered")
+            targets[line.id] = item.qty_arrived
+        if not targets:
+            raise Invalid("Say which lines arrived, or mark the whole order arrived")
+    # A repeat of the same targets is a no-op even when the page is a version behind.
+    if _arrival_would_change(order, targets):
+        _check_version(order, body.expected_version)
+        _set_arrival(db, group, order, user, targets)
+        _refresh_status(group)
+        db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def _reverse_arrivals(db: Session, group: GroupBuy, order: GroupBuyOrder) -> None:
+    """Take back everything the ledger credited for this order and clear its arrived counts."""
+    applies = [a for a in group.receipt_applies if a.order_id == order.id]
+    net: dict[tuple[int, str, int | None], int] = {}
+    for apply_event in applies:
+        for line in apply_event.lines:
+            card_id = line.card_id.upper().strip()
+            # Rows from before orders existed store the standard product id on standard credits.
+            art = line.product_id if _is_alt_printing(db, card_id, line.product_id) else None
+            key = (line.user_id, card_id, art)
+            net[key] = net.get(key, 0) + int(line.qty)
+    for (uid, card_id, art), qty in net.items():
+        if qty > 0:
+            _credit(db, uid, card_id, art, -qty)
+    for apply_event in applies:
+        group.receipt_applies.remove(apply_event)
+    for line in order.lines:
+        for alloc in line.allocations:
+            alloc.qty_arrived = 0
+    order.arrived_at = None
+    db.flush()
+
+
+def undo_order_arrival(
+    db: Session, user: User, group_id: int, order_id: int, body: GroupBuyArrivalUndo
+) -> GroupBuyDetail:
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    order = _get_order(group, order_id)
+    _require_arrival_editable(group)
+    if _order_totals(order)[2] > 0 or any(a.order_id == order.id for a in group.receipt_applies):
+        _check_version(order, body.expected_version)
+        _reverse_arrivals(db, group, order)
+        _touch(order)
+        _refresh_status(group)
+        db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def close_group_buy(db: Session, user: User, group_id: int) -> GroupBuyDetail:
+    """Finish the buy. Copies that never arrived stay on members' Shopping; Owned is untouched."""
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    if group.status == GroupBuyStatus.COMPLETED:
+        return get_group_buy(db, user, group_id)
+    if group.status != GroupBuyStatus.ORDERED:
+        raise Forbidden("Add an order before closing the group buy")
+    group.status = GroupBuyStatus.COMPLETED
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+# --- Mark purchased: one order, all arrived ----------------------------------------------------
 
 
 def apply_receipt_to_group_buy(
@@ -1470,7 +2240,8 @@ def apply_receipt_to_group_buy(
     cleaned_receipt = (body.receipt_text or "").strip()[:200_000]
     group.receipt_text = cleaned_receipt
 
-    report = build_receipt_match_report(db, user, group_id, cleaned_receipt)
+    report, matched = _match_report(db, group, cleaned_receipt)
+    alt_copies = {m.card_id.upper(): m.alt_copies for m in matched}
     if not report.can_apply_partial:
         raise Invalid("No receipt lines matched cards in this group buy")
 
@@ -1500,75 +2271,42 @@ def apply_receipt_to_group_buy(
             if selected != pool_ids:
                 raise Invalid("Full apply requires staging every pool card")
 
-    status_before = group.status
-    set_ordered_at = False
-    if group.status == GroupBuyStatus.LOCKED:
-        group.status = GroupBuyStatus.ORDERED
-        if group.ordered_at is None:
-            group.ordered_at = datetime.now(timezone.utc)
-            set_ordered_at = True
-
-    apply_event = GroupBuyReceiptApply(
-        group_buy_id=group.id,
-        applied_by_user_id=user.id,
-        status_before=status_before,
-        set_ordered_at=1 if set_ordered_at else 0,
-    )
-    db.add(apply_event)
-    db.flush()
-
-    snapshot_all = list(
-        db.scalars(
-            select(GroupBuySnapshotLine).where(GroupBuySnapshotLine.group_buy_id == group.id)
-        ).all()
-    )
-    by_card: dict[str, list[GroupBuySnapshotLine]] = {}
-    for row in snapshot_all:
-        by_card.setdefault(row.card_id.upper(), []).append(row)
-
-    applied_any = False
+    copies: Copies = {}
     for line in staged_lines:
-        rows = by_card.get(line.card_id, [])
-        allocations = _allocate_across_snapshot(rows, line.staged_qty)
-        for snap, take in allocations:
-            _add_owned(db, snap.user_id, snap.card_id, take)
-            db.add(
-                GroupBuyReceiptApplyLine(
-                    apply_id=apply_event.id,
-                    user_id=snap.user_id,
-                    card_id=snap.card_id.upper().strip(),
-                    product_id=snap.product_id,
-                    qty=take,
-                )
-            )
-            snap.qty = int(snap.qty) - take
-            applied_any = True
-            if snap.qty <= 0:
-                if snap in group.snapshot_lines:
-                    group.snapshot_lines.remove(snap)
-                else:
-                    db.delete(snap)
-
-    if not applied_any:
+        room = line.staged_qty
+        for pid, n in sorted(alt_copies.get(line.card_id, {}).items()):
+            take = min(n, room)
+            _add_copies(copies, line.card_id, pid, take)
+            room -= take
+        _add_copies(copies, line.card_id, None, room)
+    order, status_before, set_ordered_at = _create_order(
+        db,
+        group,
+        user,
+        number="",
+        seller="",
+        tracking="",
+        receipt_text=cleaned_receipt,
+        copies=copies,
+        from_receipt_apply=True,
+    )
+    if not _set_arrival(db, group, order, user, None, status_before, set_ordered_at):
         raise Invalid("Nothing left to apply — snapshot may already be cleared")
-
-    db.flush()
-    remaining = any(int(row.qty) > 0 for row in group.snapshot_lines)
-    if not remaining:
-        group.status = GroupBuyStatus.COMPLETED
-
+    _refresh_status(group)
     db.commit()
     return get_group_buy(db, user, group_id)
 
 
 def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyDetail:
+    """Undo the most recent arrival. An order made by Mark purchased is dropped, restoring the
+    pre-purchase state; an order added through the orders endpoint keeps existing."""
     group = _get_group(db, group_id, lock=True)
     _require_host(group, user)
     if group.status not in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
         raise Forbidden("Nothing to undo in this status")
 
     applies = sorted(
-        group.receipt_applies,
+        (a for a in group.receipt_applies if a.order_id is not None),
         key=lambda a: (a.applied_at or datetime.min.replace(tzinfo=timezone.utc), a.id or 0),
     )
     if not applies:
@@ -1576,47 +2314,23 @@ def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyD
             "Nothing to undo — this purchase was not recorded (apply before undo was available)"
         )
     apply_event = applies[-1]
-
-    for line in apply_event.lines:
-        card_id = line.card_id.upper().strip()
-        qty = int(line.qty)
-        if qty <= 0:
-            continue
-        _subtract_owned(db, line.user_id, card_id, qty)
-        existing = next(
-            (
-                row
-                for row in group.snapshot_lines
-                if row.user_id == line.user_id and row.card_id.upper() == card_id
-            ),
-            None,
-        )
-        if existing is not None:
-            existing.qty = int(existing.qty) + qty
-            if existing.product_id is None and line.product_id is not None:
-                existing.product_id = line.product_id
-        else:
-            group.snapshot_lines.append(
-                GroupBuySnapshotLine(
-                    group_buy_id=group.id,
-                    user_id=line.user_id,
-                    card_id=card_id,
-                    qty=qty,
-                    product_id=line.product_id,
-                )
-            )
-
-    status_before = (apply_event.status_before or GroupBuyStatus.ORDERED).strip()
-    if status_before not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
-        status_before = GroupBuyStatus.ORDERED
-    group.status = status_before
-    if int(apply_event.set_ordered_at or 0):
-        group.ordered_at = None
-
-    if apply_event in group.receipt_applies:
-        group.receipt_applies.remove(apply_event)
+    order = _get_order(group, apply_event.order_id)
+    _reverse_arrivals(db, group, order)
+    if not order.from_receipt_apply:
+        # An order the host added on purpose stays; only its arrivals are taken back.
+        _touch(order)
+        _refresh_status(group)
+        db.commit()
+        return get_group_buy(db, user, group_id)
+    group.orders.remove(order)
+    if group.orders:
+        _refresh_status(group)
     else:
-        db.delete(apply_event)
-
+        status_before = (apply_event.status_before or GroupBuyStatus.ORDERED).strip()
+        if status_before not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
+            status_before = GroupBuyStatus.ORDERED
+        group.status = status_before
+        if int(apply_event.set_ordered_at or 0):
+            group.ordered_at = None
     db.commit()
     return get_group_buy(db, user, group_id)

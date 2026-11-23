@@ -30,7 +30,8 @@ def test_shopping_list_does_not_reload_catalog_rows_for_alt_arts_1346(db):
         event.remove(engine, "before_cursor_execute", record)
 
     # 14 before the alt-art lookup took the catalog rows and primary ids from the caller.
-    assert len(statements) <= 12
+    # 12 plus the one group buy lookup (#1418).
+    assert len(statements) <= 13
 
 
 def test_group_buy_detail_builds_each_members_list_once_1346(db, monkeypatch):

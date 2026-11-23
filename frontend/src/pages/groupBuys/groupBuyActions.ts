@@ -2,14 +2,11 @@ export type GroupBuyStatus = "open" | "locked" | "ordered" | "completed";
 
 export type GroupBuyActionKey =
   | "lock"
-  | "mark-ordered"
-  | "import-receipt"
-  | "mark-purchased"
+  | "add-order"
   | "copy-invite"
   | "mass-entry"
   | "reset-invite"
   | "unlock"
-  | "undo-purchase"
   | "delete"
   | "leave";
 
@@ -26,7 +23,7 @@ export function normalizeStatus(status: string): GroupBuyStatus {
 }
 
 /** What the header offers for each step and role: one primary button, a few secondary ones, the rest under More. */
-export function groupBuyActions(statusRaw: string, isHost: boolean, receiptReady: boolean, canUndo: boolean): GroupBuyActions {
+export function groupBuyActions(statusRaw: string, isHost: boolean): GroupBuyActions {
   const status = normalizeStatus(statusRaw);
   if (!isHost) {
     return {
@@ -39,19 +36,19 @@ export function groupBuyActions(statusRaw: string, isHost: boolean, receiptReady
     case "open":
       return { primary: "lock", secondary: ["copy-invite", "mass-entry"], more: ["reset-invite", "delete"] };
     case "locked":
-      return { primary: "mark-ordered", secondary: ["mass-entry"], more: ["unlock", "delete"] };
+      return { primary: "add-order", secondary: ["mass-entry"], more: ["unlock", "delete"] };
     case "ordered":
-      return { primary: receiptReady ? "mark-purchased" : "import-receipt", secondary: ["mass-entry"], more: canUndo ? ["undo-purchase", "delete"] : ["delete"] };
+      return { primary: "add-order", secondary: ["mass-entry"], more: ["delete"] };
     case "completed":
-      return { primary: null, secondary: [], more: canUndo ? ["undo-purchase", "delete"] : ["delete"] };
+      return { primary: null, secondary: [], more: ["delete"] };
   }
 }
 
 export const GROUP_BUY_STEPS: { status: GroupBuyStatus; label: string }[] = [
-  { status: "open", label: "Open" },
-  { status: "locked", label: "Locked" },
-  { status: "ordered", label: "Ordered" },
-  { status: "completed", label: "Purchased" },
+  { status: "open", label: "Collect wants" },
+  { status: "locked", label: "Lock & check out" },
+  { status: "ordered", label: "Packages arriving" },
+  { status: "completed", label: "Done" },
 ];
 
 export function stepLabel(status: string): string {
@@ -59,7 +56,7 @@ export function stepLabel(status: string): string {
 }
 
 /** The one short line under the stepper, for the current step. */
-export function stepHint(statusRaw: string, isHost: boolean, receiptReady: boolean, hasReceipt: boolean): string {
+export function stepHint(statusRaw: string, isHost: boolean): string {
   const status = normalizeStatus(statusRaw);
   if (status === "open") {
     return isHost
@@ -68,17 +65,15 @@ export function stepHint(statusRaw: string, isHost: boolean, receiptReady: boole
   }
   if (status === "locked") {
     return isHost
-      ? "Quantities are frozen. Place the TCGPlayer order, then mark it ordered."
+      ? "Quantities are frozen. Check out on TCGplayer, then add each seller's order."
       : "Quantities are frozen while the host checks out.";
   }
   if (status === "ordered") {
-    if (!isHost) return "Order placed. The host marks it purchased once the receipt is matched.";
-    if (receiptReady) return "Receipt matched. Mark purchased adds the matched copies to Owned.";
-    return hasReceipt
-      ? "Matching the saved receipt. Mark purchased unlocks when the match finishes."
-      : "Import and match a TCGPlayer receipt to enable Mark purchased.";
+    return isHost
+      ? "Mark each package arrived when it shows up. Owned updates for everyone as you do."
+      : "Packages are on their way. Cards land in your collection as the host checks them in.";
   }
-  return "Purchased. Owned is updated for the matched receipt cards.";
+  return "Done. Arrived cards are in members' collections; anything not ordered stays on Shopping lists.";
 }
 
 export function stepIndex(status: string): number {

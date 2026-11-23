@@ -7,7 +7,7 @@ import { buyCards, pickSelection } from "./shoppingBuy";
 import { ShoppingBuyButton, ShoppingBuyDock } from "./ShoppingBuyControls";
 import { shoppingMenuPrice } from "./deckCost";
 import { UndoToast } from "../collection/CollectorLine";
-import { itemNeedsCopies } from "../collection/collectorLines";
+import { shownWhileOnlyNeed } from "./GroupBuyChip";
 import { useMe } from "../../auth/useMe";
 import { useCardLayout, useListDensity } from "../../ui/CardLayout";
 import { FilterCheck, HintHeading, ListToolbar } from "../../ui/ListToolbar";
@@ -252,7 +252,7 @@ export function ShoppingPage() {
 
   const filteredItems = useMemo(() => {
     let list = data?.items ?? [];
-    if (onlyNeed) list = list.filter(itemNeedsCopies);
+    if (onlyNeed) list = list.filter(shownWhileOnlyNeed);
     if (colors.length) list = list.filter((i) => cardHasColor(i, colors));
     if (type) list = list.filter((i) => cardHasType(i, type));
     if (search.trim()) list = list.filter((i) => matchesCardSearch(i, search));
