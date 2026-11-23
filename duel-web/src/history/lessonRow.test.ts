@@ -55,6 +55,19 @@ describe("Log Pose lesson review list", () => {
     expect(rows[0].cards).toEqual(["<OP02-121>"]);
   });
 
+  it("lists each card once, drops cards the text already names and tells same-named cards apart by id (#1408)", () => {
+    const sameName = (id: string) => (id.startsWith("OP09") ? "Buggy" : `<${id}>`);
+    const rows = lessonRows(
+        [
+          lesson({ id: 1, text: "Putting Buggy (OP09-051) into play went with more wins", cards: ["OP09-051", "OP09-042", "OP09-042", "OP01-016"] }),
+          lesson({ id: 2, text: "A lesson", cards: ["OP09-051", "OP09-042", "OP01-016", "OP01-016"] }),
+          lesson({ id: 3, text: "Only OP01-016 here", cards: ["OP01-016"] }),
+        ],
+        sameName,
+    );
+    expect(rows.map((r) => r.cards)).toEqual([["Buggy", "<OP01-016>"], ["Buggy (OP09-051)", "Buggy (OP09-042)", "<OP01-016>"], []]);
+  });
+
   it("marks only lessons drafted from bot games, and treats a missing source as your own (#915)", () => {
     const rows = lessonRows([lesson({ id: 1, source: "bots" }), lesson({ id: 2, source: "player" }), lesson({ id: 3 })], name);
     expect(rows.map((r) => r.fromBots)).toEqual([true, false, false]);
