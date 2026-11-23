@@ -180,6 +180,7 @@ def _compute_member_shopping(db: Session, member: GroupBuyMember):
         include_extras=bool(member.include_singles),
         include_collector=True,
         show_collector=bool(member.include_extra_copies),
+        exclude_group_buy_id=member.group_buy_id,
     )
 
 

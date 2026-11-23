@@ -9058,6 +9058,23 @@ export interface components {
             /** Qty */
             qty: number;
         };
+        /**
+         * ShoppingGroupBuyRef
+         * @description Copies of a card still to arrive from one locked or ordered group buy.
+         */
+        ShoppingGroupBuyRef: {
+            /** Group Buy Id */
+            group_buy_id: number;
+            /**
+             * Ordered
+             * @default false
+             */
+            ordered: boolean;
+            /** Qty */
+            qty: number;
+            /** Title */
+            title: string;
+        };
         /** ShoppingItem */
         ShoppingItem: {
             /**
@@ -9107,10 +9124,20 @@ export interface components {
              */
             extra_qty: number;
             /**
+             * Group Buys
+             * @default []
+             */
+            group_buys: components["schemas"]["ShoppingGroupBuyRef"][];
+            /**
              * Image Url
              * @default
              */
             image_url: string;
+            /**
+             * In Group Buy
+             * @default 0
+             */
+            in_group_buy: number;
             /**
              * Leader Count
              * @default 1

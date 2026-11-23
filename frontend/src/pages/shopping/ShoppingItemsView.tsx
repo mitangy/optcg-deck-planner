@@ -1,6 +1,7 @@
 import { type ReactNode, Fragment, useMemo } from "react";
 import { CollectorLine, money, ShoppingItem } from "../../api";
 import { BuySplit } from "./BuySplit";
+import { GroupBuyChip } from "./GroupBuyChip";
 import { CollectorChip, CollectorRemove, CollectorStepper } from "../collection/CollectorLine";
 import {
   canOpenBuyPopover,
@@ -274,6 +275,7 @@ export function ShoppingItemsView({
                     </a>
                   )}
                   {foldGrid ? <div className="grid-card-alt-chip">{altChip(item)}</div> : null}
+                  <GroupBuyChip item={item} />
                   {(item.extra_qty ?? 0) > 0 && (
                     <div className="grid-card-extra muted" onClick={stopCardSelectBubble}>
                       <span>Added directly</span>
@@ -406,6 +408,7 @@ export function ShoppingItemsView({
                           </a>
                         )}
                         {altChip(item)}
+                        <GroupBuyChip item={item} />
                       </div>
                     </div>
                   </td>
@@ -590,6 +593,7 @@ export function ShoppingItemsView({
                   {altRow(item)}
                 </div>
               )}
+              <GroupBuyChip item={item} />
               {usedInChips(item).length > 0 && (
                 <div onClick={stopCardSelectBubble} onKeyDown={stopCardSelectBubble}>
                   <UsedInCell
