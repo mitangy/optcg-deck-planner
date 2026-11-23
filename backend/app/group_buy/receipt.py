@@ -366,3 +366,204 @@ def aggregate_receipt_matches(
         if hit.is_special and hit.product_id is not None:
             entry.alt_copies[hit.product_id] = entry.alt_copies.get(hit.product_id, 0) + line.qty
     return list(by_card.values()), unmatched
+
+
+# ---------------------------------------------------------------------------
+# TCGplayer Order History page (many orders in one paste or PDF), #1433
+# ---------------------------------------------------------------------------
+
+ORDER_NUMBER_RE = re.compile(r"\b[0-9A-F]{8}-[0-9A-F]{6}-[0-9A-F]{5}\b", re.IGNORECASE)
+_ORDER_DATE_RE = re.compile(r"^([A-Z][a-z]+ \d{1,2}, \d{4})$")
+_TRACKING_RE = re.compile(r"^(?=.*\d)[0-9A-Z]{10,35}$")
+_PRICE_RE = re.compile(r"^\$\s*([\d,]+(?:\.\d{1,2})?)$")
+_PRICE_QTY_RE = re.compile(r"^\$\s*([\d,]+(?:\.\d{1,2})?)\s+(\d{1,4})$")
+_COND_TAIL_RE = re.compile(r"\s+\$\s*([\d,]+(?:\.\d{1,2})?)(?:\s+(\d{1,4}))?\s*$")
+_QTY_RE = re.compile(r"^\d{1,4}$")
+_ITEMS_HEADER_WORDS = {"ITEMS", "DETAILS", "PRICE", "QUANTITY", "ITEMS DETAILS PRICE QUANTITY"}
+_HEADER_SPLIT_RE = re.compile(
+    r"^(SHIPPED WITH TRACKING:?|SHIPPED AND SOLD BY|ORDER DATE|ORDER NUMBER|CHANNEL)\s+(\S.*)$",
+    re.IGNORECASE,
+)
+_JUNK_RES = tuple(
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"^contact seller\b",
+        r"^rate transaction\b",
+        r"^enter an order number\b",
+        r"^search$",
+        r"^orders placed in\b",
+        r"^last \d+ days$",
+        r"^viewing \d+",
+        r"^store credit\b",
+        r"^first\b.*\blast$",
+        r"^order history$",
+        r"^(rate|transaction)$",
+        r"^(order number|channel|order summary|ship to|bill to)$",
+        r"^page \d+( of \d+)?$",
+    )
+)
+TRACKING_URL_UPS = "https://www.ups.com/track?tracknum="
+TRACKING_URL_USPS = "https://tools.usps.com/go/TrackConfirmAction?tLabels="
+
+
+@dataclass
+class ParsedHistoryOrder:
+    order_number: str
+    order_date: str = ""
+    seller_name: str = ""
+    tracking_number: str = ""
+    lines: list[ParsedReceiptLine] = field(default_factory=list)
+
+
+def _history_tokens(text: str) -> list[str]:
+    raw = (text or "").replace("\r\n", "\n").replace("\r", "\n").replace("\xa0", " ")
+    tokens: list[str] = []
+    for piece in re.split(r"[\n\t]", raw):
+        tok = re.sub(r" {2,}", " ", piece.strip())
+        if not tok:
+            continue
+        split = _HEADER_SPLIT_RE.match(tok)
+        if split:
+            tokens.extend([split.group(1).strip(), split.group(2).strip()])
+        else:
+            tokens.append(tok)
+    return [t for t in tokens if not any(p.search(t) for p in _JUNK_RES)]
+
+
+def looks_like_order_history(text: str) -> bool:
+    """A TCGplayer Order History page: an order number plus item markers."""
+    body = text or ""
+    if not ORDER_NUMBER_RE.search(body):
+        return False
+    return "rarity:" in body.lower() or bool(re.search(r"\bitems\b.*\bdetails\b", body, re.IGNORECASE))
+
+
+def tracking_url_for(number: str) -> str:
+    num = (number or "").strip()
+    if not num:
+        return ""
+    if num.upper().startswith("1Z"):
+        return TRACKING_URL_UPS + num
+    if num.isdigit():
+        return TRACKING_URL_USPS + num
+    return ""
+
+
+def _split_orders(tokens: list[str]) -> list[list[str]]:
+    starts = [i for i, t in enumerate(tokens) if t.upper() == "ORDER DATE"]
+    if not starts:
+        starts = [i for i, t in enumerate(tokens) if ORDER_NUMBER_RE.fullmatch(t)]
+    return [tokens[a:b] for a, b in zip(starts, starts[1:] + [len(tokens)])]
+
+
+class _Item:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.set_parts: list[str] = []
+        self.condition = ""
+        self.price: str | None = None
+        self.qty: int | None = None
+
+    @property
+    def started_details(self) -> bool:
+        return self.price is not None or self.qty is not None or bool(self.condition)
+
+
+def _walk_items(tokens: list[str]) -> list[_Item]:
+    items: list[_Item] = []
+    cur: _Item | None = None
+    for tok in tokens:
+        if tok.upper() in _ITEMS_HEADER_WORDS:
+            continue
+        if re.match(r"^rarity:", tok, re.IGNORECASE):
+            continue
+        cond = re.match(r"^condition:\s*(.*)$", tok, re.IGNORECASE)
+        if cond is not None and cur is not None:
+            rest = cond.group(1)
+            tail = _COND_TAIL_RE.search(rest)
+            if tail:
+                rest = rest[: tail.start()]
+                cur.price = tail.group(1)
+                if tail.group(2):
+                    cur.qty = int(tail.group(2))
+            cur.condition = rest.strip() or "-"
+            continue
+        both = _PRICE_QTY_RE.match(tok)
+        if both and cur is not None:
+            cur.price, cur.qty = both.group(1), int(both.group(2))
+            continue
+        price = _PRICE_RE.match(tok)
+        if price and cur is not None:
+            cur.price = price.group(1)
+            continue
+        if _QTY_RE.match(tok):
+            # A bare number is the quantity only while the item still lacks one (a page number must not become it).
+            if cur is not None and cur.qty is None and cur.started_details:
+                cur.qty = int(tok)
+            continue
+        if cur is None or cur.started_details:
+            cur = _Item(tok)
+            items.append(cur)
+        else:
+            cur.set_parts.append(tok)
+    return items
+
+
+def _item_to_line(item: _Item) -> ParsedReceiptLine | None:
+    if item.qty is None or item.qty <= 0:
+        return None
+    name, card_id_hint, _, wants_special = _extract_hints(item.name)
+    collector = None
+    if not card_id_hint:
+        coll = re.search(r"\((\d{2,3})\)", name)
+        collector = coll.group(1) if coll else None
+    cond_text = "" if item.condition == "-" else item.condition
+    _, condition, is_foil = _strip_condition(cond_text)
+    set_name = " ".join(item.set_parts).strip()
+    raw = " - ".join(p for p in (set_name, name, cond_text) if p)
+    return ParsedReceiptLine(
+        qty=item.qty,
+        raw_description=raw,
+        set_name=set_name,
+        card_name=name,
+        condition=condition,
+        is_foil=is_foil,
+        card_id_hint=card_id_hint,
+        collector_number=collector,
+        wants_special=wants_special,
+    )
+
+
+def _parse_order_block(tokens: list[str]) -> ParsedHistoryOrder | None:
+    number = next((t.upper() for t in tokens if ORDER_NUMBER_RE.fullmatch(t)), "")
+    if not number:
+        return None
+    items_at = next((i for i, t in enumerate(tokens) if t.upper() in _ITEMS_HEADER_WORDS), len(tokens))
+    head, body = tokens[:items_at], tokens[items_at:]
+    order = ParsedHistoryOrder(order_number=number)
+    order.order_date = next((t for t in head if _ORDER_DATE_RE.match(t)), "")
+    for i, tok in enumerate(head):
+        upper = tok.upper().rstrip(":")
+        if upper == "SHIPPED AND SOLD BY" and i + 1 < len(head):
+            nxt = head[i + 1]
+            if not nxt.upper().startswith("SHIPPED"):
+                order.seller_name = nxt
+        elif upper == "SHIPPED WITH TRACKING" and i + 1 < len(head):
+            cand = head[i + 1].replace(" ", "").upper()
+            if _TRACKING_RE.match(cand):
+                order.tracking_number = cand
+    order.lines = [ln for it in _walk_items(body) if (ln := _item_to_line(it)) is not None]
+    return order
+
+
+def parse_order_history(text: str) -> list[ParsedHistoryOrder]:
+    """One entry per TCGplayer order number on a pasted (or PDF-extracted) Order History page, in page order."""
+    orders: list[ParsedHistoryOrder] = []
+    seen: set[str] = set()
+    for block in _split_orders(_history_tokens(text)):
+        order = _parse_order_block(block)
+        if order is None or order.order_number in seen:
+            continue
+        seen.add(order.order_number)
+        orders.append(order)
+    return orders

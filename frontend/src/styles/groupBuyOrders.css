@@ -869,3 +869,133 @@
     min-height: 5rem;
   }
 }
+
+/* Order History page: one card per order, with a checkbox (#1433). */
+.gb-history {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.gb-history-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.gb-history-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.gb-history-order {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: var(--surface);
+}
+
+.gb-history-order.is-added {
+  opacity: 0.75;
+}
+
+.gb-history-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.gb-history-order.is-added .gb-history-head {
+  cursor: default;
+}
+
+.gb-history-head input {
+  flex: 0 0 auto;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin: 0;
+}
+
+.gb-history-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.gb-history-head .gb-chip {
+  flex: 0 0 auto;
+}
+
+.gb-history-meta,
+.gb-history-note,
+.gb-history-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.gb-history-note {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.gb-history .gb-preview-sum {
+  margin: 0.2rem 0 0.3rem;
+}
+
+/* The upload button and its status share one row height, so reading a PDF never moves the paste box. */
+.gb-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  min-width: 0;
+}
+
+.gb-upload-text {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.gb-upload-btn {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+  min-height: 2.75rem;
+  white-space: nowrap;
+}
+
+.gb-upload-status {
+  flex: 1 1 100%;
+  margin: 0;
+  min-height: 1.3em;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.gb-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+}

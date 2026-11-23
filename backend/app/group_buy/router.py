@@ -3,12 +3,13 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.orm import Session
 
 from app.core.auth import get_current_user
 from app.core.db import get_db
 from app.group_buy import service as group_buy
+from app.group_buy.order_history_pdf import MAX_PDF_BYTES, extract_order_history_text
 from app.core.models import User
 from app.group_buy.schemas import (
     GroupBuyArrivalUndo,
@@ -22,6 +23,10 @@ from app.group_buy.schemas import (
     GroupBuyInvitePreview,
     GroupBuyOrderAdded,
     GroupBuyOrderCreate,
+    GroupBuyOrderHistoryImport,
+    GroupBuyOrderHistoryImported,
+    GroupBuyOrderHistoryPreview,
+    GroupBuyOrderHistoryRequest,
     GroupBuyOrderLinesUpdate,
     GroupBuyOrderPatch,
     GroupBuyOrderPreview,
@@ -227,6 +232,49 @@ def preview_group_buy_order(
 ):
     """Match a pasted order and show who its copies would go to; saves nothing."""
     return group_buy.preview_order(db, user, group_id, body.receipt_text)
+
+
+@router.post(
+    "/group-buys/{group_id}/orders/history/preview", response_model=GroupBuyOrderHistoryPreview
+)
+def preview_group_buy_order_history(
+    group_id: int,
+    body: GroupBuyOrderHistoryRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Match every order on a pasted TCGplayer Order History page; saves nothing."""
+    return group_buy.preview_order_history(db, user, group_id, body.text)
+
+
+@router.post(
+    "/group-buys/{group_id}/orders/history/pdf", response_model=GroupBuyOrderHistoryPreview
+)
+def preview_group_buy_order_history_pdf(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+    file: Annotated[UploadFile, File()],
+):
+    """Same as the paste preview for an Order History page saved as PDF; returns the text to import with."""
+    data = file.file.read(MAX_PDF_BYTES + 1)
+    text = extract_order_history_text(data)
+    preview = group_buy.preview_order_history(db, user, group_id, text)
+    preview.text = text
+    return preview
+
+
+@router.post(
+    "/group-buys/{group_id}/orders/history/import", response_model=GroupBuyOrderHistoryImported
+)
+def import_group_buy_order_history(
+    group_id: int,
+    body: GroupBuyOrderHistoryImport,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Add the chosen orders of an Order History page at once (host)."""
+    return group_buy.import_order_history(db, user, group_id, body.text, body.order_numbers)
 
 
 @router.patch("/group-buys/{group_id}/orders/{order_id}", response_model=GroupBuyDetail)

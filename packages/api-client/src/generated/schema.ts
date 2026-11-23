@@ -3235,6 +3235,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/group-buys/{group_id}/orders/history/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Group Buy Order History
+         * @description Add the chosen orders of an Order History page at once (host).
+         */
+        post: operations["import_group_buy_order_history_group_buys__group_id__orders_history_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/history/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Group Buy Order History Pdf
+         * @description Same as the paste preview for an Order History page saved as PDF; returns the text to import with.
+         */
+        post: operations["preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/history/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Group Buy Order History
+         * @description Match every order on a pasted TCGplayer Order History page; saves nothing.
+         */
+        post: operations["preview_group_buy_order_history_group_buys__group_id__orders_history_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/group-buys/{group_id}/orders/preview": {
         parameters: {
             query?: never;
@@ -5352,6 +5412,11 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+        };
+        /** Body_preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post */
+        Body_preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post: {
+            /** File */
+            file: string;
         };
         /** BotBatchOut */
         BotBatchOut: {
@@ -7556,6 +7621,45 @@ export interface components {
             /** Tracking Url */
             tracking_url?: string | null;
         };
+        /** GroupBuyHistoryOrderPreview */
+        GroupBuyHistoryOrderPreview: {
+            /**
+             * Already Added
+             * @default false
+             */
+            already_added: boolean;
+            /**
+             * In Group Buy
+             * @default false
+             */
+            in_group_buy: boolean;
+            /** Lines */
+            lines: components["schemas"]["GroupBuyOrderPreviewLine"][];
+            /**
+             * Order Date
+             * @default
+             */
+            order_date: string;
+            /** Order Number */
+            order_number: string;
+            /**
+             * Seller Name
+             * @default
+             */
+            seller_name: string;
+            /**
+             * Tracking Number
+             * @default
+             */
+            tracking_number: string;
+            /**
+             * Tracking Url
+             * @default
+             */
+            tracking_url: string;
+            /** Unmatched */
+            unmatched: components["schemas"]["GroupBuyReceiptUnmatchedOut"][];
+        };
         /** GroupBuyInvitePreview */
         GroupBuyInvitePreview: {
             /** Host Name */
@@ -7889,6 +7993,39 @@ export interface components {
              * @default
              */
             tracking_url: string;
+        };
+        /** GroupBuyOrderHistoryImport */
+        GroupBuyOrderHistoryImport: {
+            /** Order Numbers */
+            order_numbers: string[];
+            /** Text */
+            text: string;
+        };
+        /** GroupBuyOrderHistoryImported */
+        GroupBuyOrderHistoryImported: {
+            detail: components["schemas"]["GroupBuyDetail"];
+            /** Order Ids */
+            order_ids: number[];
+            /**
+             * Unmatched
+             * @default []
+             */
+            unmatched: components["schemas"]["GroupBuyReceiptUnmatchedOut"][];
+        };
+        /** GroupBuyOrderHistoryPreview */
+        GroupBuyOrderHistoryPreview: {
+            /** Orders */
+            orders: components["schemas"]["GroupBuyHistoryOrderPreview"][];
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /** GroupBuyOrderHistoryRequest */
+        GroupBuyOrderHistoryRequest: {
+            /** Text */
+            text: string;
         };
         /** GroupBuyOrderLineIn */
         GroupBuyOrderLineIn: {
@@ -16397,6 +16534,111 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GroupBuyOrderAdded"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_group_buy_order_history_group_buys__group_id__orders_history_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderHistoryImport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderHistoryImported"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderHistoryPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_group_buy_order_history_group_buys__group_id__orders_history_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderHistoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderHistoryPreview"];
                 };
             };
             /** @description Validation Error */

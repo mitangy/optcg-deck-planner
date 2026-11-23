@@ -554,8 +554,9 @@ export function GroupBuyDetailPage() {
           onAdded={async (d, info) => {
             await orderOps.accept(d, info.arrived);
             setAddOpen(false);
+            const added = info.orders ?? 1;
             setMsg(
-              `Order added${info.copies ? ` · ${info.copies} ${info.copies === 1 ? "copy" : "copies"}` : ""}${info.arrived ? ", marked arrived" : ""}.` +
+              `${added === 1 ? "Order" : `${added} orders`} added${info.copies ? ` · ${info.copies} ${info.copies === 1 ? "copy" : "copies"}` : ""}${info.arrived ? ", marked arrived" : ""}.` +
                 (info.unmatched ? ` ${info.unmatched} ${info.unmatched === 1 ? "line was" : "lines were"} not in this buy and left out.` : ""),
             );
           }}

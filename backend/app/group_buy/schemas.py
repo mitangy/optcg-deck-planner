@@ -329,6 +329,41 @@ class GroupBuyOrderPreview(BaseModel):
     unmatched: list[GroupBuyReceiptUnmatchedOut]
 
 
+class GroupBuyOrderHistoryRequest(BaseModel):
+    text: str = Field(min_length=1, max_length=400_000)
+
+
+class GroupBuyOrderHistoryImport(BaseModel):
+    text: str = Field(min_length=1, max_length=400_000)
+    order_numbers: list[str] = Field(min_length=1, max_length=200)
+
+
+class GroupBuyHistoryOrderPreview(BaseModel):
+    order_number: str
+    order_date: str = ""
+    seller_name: str = ""
+    tracking_number: str = ""
+    tracking_url: str = ""
+    # Already on this group buy: it cannot be added again.
+    already_added: bool = False
+    # At least one matched card is in this group buy; the rest of the page is usually other purchases.
+    in_group_buy: bool = False
+    lines: list[GroupBuyOrderPreviewLine]
+    unmatched: list[GroupBuyReceiptUnmatchedOut]
+
+
+class GroupBuyOrderHistoryPreview(BaseModel):
+    orders: list[GroupBuyHistoryOrderPreview]
+    # Set by the PDF endpoint so the client can send the text back to import.
+    text: str = ""
+
+
+class GroupBuyOrderHistoryImported(BaseModel):
+    order_ids: list[int]
+    unmatched: list[GroupBuyReceiptUnmatchedOut] = []
+    detail: GroupBuyDetail
+
+
 class GroupBuyOrderAdded(BaseModel):
     order_id: int
     unmatched: list[GroupBuyReceiptUnmatchedOut] = []

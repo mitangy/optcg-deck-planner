@@ -43,7 +43,10 @@ from app.group_buy.schemas import (
     GroupBuyArrivalUpdate,
     GroupBuyOrderAdded,
     GroupBuyOrderAllocationOut,
+    GroupBuyHistoryOrderPreview,
     GroupBuyOrderCreate,
+    GroupBuyOrderHistoryImported,
+    GroupBuyOrderHistoryPreview,
     GroupBuyOrderLinesUpdate,
     GroupBuyOrderLineOut,
     GroupBuyOrderOut,
@@ -61,8 +64,11 @@ from app.group_buy.schemas import (
 from app.planner.schemas import GroupBuyArtWantOut
 from app.group_buy.receipt import (
     AggregatedReceiptCard,
+    ParsedReceiptLine,
     aggregate_receipt_matches,
+    parse_order_history,
     parse_tcgplayer_receipt,
+    tracking_url_for,
 )
 from app.planner import shopping as shopping_svc
 from app.planner import catalog_repo
@@ -1829,7 +1835,12 @@ def _add_copies(copies: Copies, card_id: str, art: int | None, qty: int) -> None
 def _copies_from_receipt(
     db: Session, receipt_text: str
 ) -> tuple[Copies, list[GroupBuyReceiptUnmatchedOut]]:
-    parsed = parse_tcgplayer_receipt(receipt_text)
+    return _copies_from_parsed(db, parse_tcgplayer_receipt(receipt_text))
+
+
+def _copies_from_parsed(
+    db: Session, parsed: list[ParsedReceiptLine]
+) -> tuple[Copies, list[GroupBuyReceiptUnmatchedOut]]:
     matched, unmatched = aggregate_receipt_matches(db, parsed)
     copies: Copies = {}
     for hit in matched:
@@ -1917,16 +1928,9 @@ def _plan_allocation(
     return plan
 
 
-def preview_order(
-    db: Session, user: User, group_id: int, receipt_text: str
-) -> GroupBuyOrderPreview:
-    group = _get_group(db, group_id)
-    _require_host(group, user)
-    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
-        raise Forbidden("Lock for checkout before adding orders")
-    copies, unmatched = _copies_from_receipt(db, receipt_text)
-    plan = _plan_allocation(db, group, copies)
-    names = {m.user_id: _display_name(m.user) for m in group.members}
+def _preview_lines(
+    db: Session, group, copies: Copies, plan, names: dict[int, str]
+) -> list[GroupBuyOrderPreviewLine]:
     lines: list[GroupBuyOrderPreviewLine] = []
     for card_id, arts in sorted(copies.items()):
         for art, qty in sorted(arts.items(), key=_art_order):
@@ -1946,7 +1950,20 @@ def preview_order(
                     qty_extra=max(0, qty - sum(n for _, n in alloc)),
                 )
             )
-    return GroupBuyOrderPreview(lines=lines, unmatched=unmatched)
+    return lines
+
+
+def preview_order(
+    db: Session, user: User, group_id: int, receipt_text: str
+) -> GroupBuyOrderPreview:
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
+        raise Forbidden("Lock for checkout before adding orders")
+    copies, unmatched = _copies_from_receipt(db, receipt_text)
+    plan = _plan_allocation(db, group, copies)
+    names = {m.user_id: _display_name(m.user) for m in group.members}
+    return GroupBuyOrderPreview(lines=_preview_lines(db, group, copies, plan, names), unmatched=unmatched)
 
 
 def _create_order(
@@ -2030,6 +2047,125 @@ def add_order(
     db.commit()
     return GroupBuyOrderAdded(
         order_id=order.id, unmatched=unmatched, detail=get_group_buy(db, user, group_id)
+    )
+
+
+class _SimulatedGroup:
+    """The group buy with extra, unsaved orders on top, so a preview can plan them one after another."""
+
+    def __init__(self, group: GroupBuy, orders: list) -> None:
+        self._group = group
+        self.orders = orders
+
+    def __getattr__(self, name: str):
+        return getattr(self._group, name)
+
+
+def _history_orders(text: str):
+    orders = parse_order_history(text)
+    if not orders:
+        raise Invalid("No TCGplayer orders found. Paste the whole Order History page.")
+    return orders
+
+
+def _history_receipt_text(lines: list[ParsedReceiptLine]) -> str:
+    """Only the order's items, as qty and description. Never the page text: it holds addresses."""
+    return "\n".join(f"{line.qty}\t{line.raw_description}" for line in lines)
+
+
+def preview_order_history(
+    db: Session, user: User, group_id: int, text: str
+) -> GroupBuyOrderHistoryPreview:
+    """Every order on a pasted Order History page, matched to this group buy; saves nothing."""
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
+        raise Forbidden("Lock for checkout before adding orders")
+    parsed = _history_orders(text)
+    names = {m.user_id: _display_name(m.user) for m in group.members}
+    wanted = {row.card_id.upper() for row in group.snapshot_lines}
+    existing = {o.order_number for o in group.orders if o.order_number}
+    # Later orders see the copies earlier ones would take, like the real import does.
+    sim_orders = list(group.orders)
+    sim = _SimulatedGroup(group, sim_orders)
+    out: list[GroupBuyHistoryOrderPreview] = []
+    for item in parsed:
+        copies, unmatched = _copies_from_parsed(db, item.lines)
+        already = item.order_number in existing
+        plan = _plan_allocation(db, sim, copies)
+        if not already:
+            sim_orders.append(
+                SimpleNamespace(
+                    lines=[
+                        SimpleNamespace(
+                            card_id=card_id,
+                            product_id=art,
+                            allocations=[
+                                SimpleNamespace(user_id=uid, qty=n)
+                                for uid, n in plan.get(card_id, {}).get(art, [])
+                            ],
+                        )
+                        for card_id, arts in copies.items()
+                        for art in arts
+                    ]
+                )
+            )
+        out.append(
+            GroupBuyHistoryOrderPreview(
+                order_number=item.order_number,
+                order_date=item.order_date,
+                seller_name=item.seller_name,
+                tracking_number=item.tracking_number,
+                tracking_url=tracking_url_for(item.tracking_number),
+                already_added=already,
+                in_group_buy=any(card_id in wanted for card_id in copies),
+                lines=_preview_lines(db, sim, copies, plan, names),
+                unmatched=unmatched,
+            )
+        )
+    return GroupBuyOrderHistoryPreview(orders=out)
+
+
+def import_order_history(
+    db: Session, user: User, group_id: int, text: str, order_numbers: list[str]
+) -> GroupBuyOrderHistoryImported:
+    """Add the chosen orders from an Order History page in one go, in page order."""
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    if group.status == GroupBuyStatus.COMPLETED:
+        raise Forbidden("Group buy is already completed")
+    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
+        raise Forbidden("Lock for checkout before adding orders")
+    parsed = _history_orders(text)
+    on_page = {p.order_number for p in parsed}
+    wanted = {n.strip().upper() for n in order_numbers if n.strip()}
+    missing = sorted(wanted - on_page)
+    if missing:
+        raise Invalid(f"Order {missing[0]} is not on that page")
+    unmatched: list[GroupBuyReceiptUnmatchedOut] = []
+    created: list[int] = []
+    for item in parsed:
+        if item.order_number not in wanted:
+            continue
+        if any(o.order_number == item.order_number for o in group.orders):
+            continue
+        copies, miss = _copies_from_parsed(db, item.lines)
+        unmatched.extend(miss)
+        order, _, _ = _create_order(
+            db,
+            group,
+            user,
+            number=item.order_number,
+            seller=item.seller_name,
+            tracking=tracking_url_for(item.tracking_number),
+            receipt_text=_history_receipt_text(item.lines),
+            copies=copies,
+        )
+        created.append(order.id)
+    _refresh_status(group)
+    db.commit()
+    return GroupBuyOrderHistoryImported(
+        order_ids=created, unmatched=unmatched, detail=get_group_buy(db, user, group_id)
     )
 
 

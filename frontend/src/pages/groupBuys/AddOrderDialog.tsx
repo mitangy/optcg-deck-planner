@@ -1,11 +1,13 @@
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { api, type GroupBuyDetail, type GroupBuyLine, type GroupBuyOrder, type GroupBuyOrderPreview } from "../../api";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { api, type GroupBuyDetail, type GroupBuyLine, type GroupBuyOrder, type GroupBuyOrderHistoryPreview } from "../../api";
 import { qk } from "../../cache/queryKeys";
 import { useGroupBuyListNarrow } from "../../hooks/useGroupBuyListNarrow";
 import { CardThumb } from "../../ui/CardThumb";
-import { artLabel, pickableLines, pickedOrderLines, startingPicks } from "./groupBuyOrders";
+import { HistoryOrders } from "./HistoryOrders";
+import { addOrdersLabel, historyCopies, looksLikeOrderHistory, pickableLines, pickedHistoryNumbers, pickedOrderLines, startingHistorySelection, startingPicks } from "./groupBuyOrders";
+import { PreviewResult } from "./OrderPreview";
 import { lineArtUrl } from "./useGroupBuyLines";
 
 const PREVIEW_DELAY_MS = 450;
@@ -17,82 +19,6 @@ function useDebounced(value: string, ms: number): string {
     return () => clearTimeout(t);
   }, [value, ms]);
   return v;
-}
-
-function whoText(allocations: { display_name: string; qty: number }[], extra: number): string {
-  const parts = allocations.map((a) => `${a.display_name} ×${a.qty}`);
-  if (extra > 0) parts.push(`${extra} extra`);
-  return parts.join(", ") || "Nobody needs it";
-}
-
-function PreviewResult({ preview, lines, narrow }: { preview: GroupBuyOrderPreview; lines: GroupBuyLine[]; narrow: boolean }) {
-  const byCard = new Map(lines.map((l) => [l.card_id, l]));
-  const copies = preview.lines.reduce((s, l) => s + l.qty, 0);
-  const unmatchedCopies = preview.unmatched.reduce((s, u) => s + u.qty, 0);
-  return (
-    <div className="gb-preview" data-testid="gb-order-preview">
-      <h3 className="gb-preview-title">Matched to this group buy</h3>
-      <p className="muted gb-preview-sum">
-        {preview.lines.length} {preview.lines.length === 1 ? "card" : "cards"} · {copies} {copies === 1 ? "copy" : "copies"} matched
-        {preview.unmatched.length ? ` · ${unmatchedCopies} ${unmatchedCopies === 1 ? "copy" : "copies"} not in this buy` : ""}
-      </p>
-      {preview.lines.length > 0 ? (
-        narrow ? (
-          <ul className="gb-preview-list">
-            {preview.lines.map((l) => (
-              <li key={`${l.card_id}:${l.product_id ?? 0}`}>
-                <span className="gb-preview-card">
-                  <strong>{l.name || l.card_id}</strong> <span className="muted">{l.card_id}</span>
-                </span>
-                <span className="gb-preview-qty">
-                  ×{l.qty} · {artLabel(byCard.get(l.card_id), l.product_id)}
-                </span>
-                <span className="muted gb-preview-who">{whoText(l.allocations, l.qty_extra)}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <table className="data-table gb-preview-table">
-            <thead>
-              <tr>
-                <th>Card</th>
-                <th>Art</th>
-                <th>In order</th>
-                <th>Goes to</th>
-              </tr>
-            </thead>
-            <tbody>
-              {preview.lines.map((l) => (
-                <tr key={`${l.card_id}:${l.product_id ?? 0}`}>
-                  <td>
-                    <strong>{l.name || l.card_id}</strong> <span className="muted">{l.card_id}</span>
-                  </td>
-                  <td>{artLabel(byCard.get(l.card_id), l.product_id)}</td>
-                  <td>{l.qty}</td>
-                  <td>{whoText(l.allocations, l.qty_extra)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )
-      ) : (
-        <p className="muted">No lines matched this group buy.</p>
-      )}
-      {preview.unmatched.length > 0 ? (
-        <ul className="gb-unmatched" aria-label="Lines not in this buy">
-          {preview.unmatched.map((u, i) => (
-            <li key={i}>
-              <span className="gb-chip gb-chip-none">Not in this buy</span>
-              <span className="gb-unmatched-text">
-                {u.qty} × {u.card_name || u.description}
-              </span>
-            </li>
-          ))}
-        </ul>
-      ) : null}
-      {preview.unmatched.length > 0 ? <p className="muted gb-preview-note">Those lines are left out of this order.</p> : null}
-    </div>
-  );
 }
 
 function CardPicker({
@@ -167,7 +93,7 @@ export function AddOrderDialog({
   detail: GroupBuyDetail;
   order?: GroupBuyOrder;
   onClose: () => void;
-  onAdded: (d: GroupBuyDetail, info: { copies: number; unmatched: number; arrived: boolean; edited: boolean }) => void;
+  onAdded: (d: GroupBuyDetail, info: { copies: number; unmatched: number; arrived: boolean; edited: boolean; orders?: number }) => void;
 }) {
   const narrow = useGroupBuyListNarrow();
   const itemsLocked = Boolean(order && order.qty_arrived > 0);
@@ -181,23 +107,52 @@ export function AddOrderDialog({
   const [arrivedNow, setArrivedNow] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const [pdf, setPdf] = useState<{ name: string; preview: GroupBuyOrderHistoryPreview } | null>(null);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [picked, setPicked] = useState<{ source: GroupBuyOrderHistoryPreview; set: Set<string> } | null>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
+
   const pasteText = paste.trim();
   const debounced = useDebounced(pasteText, PREVIEW_DELAY_MS);
   const settled = debounced === pasteText;
-  const previewQ = useQuery({
-    queryKey: qk.groupBuy.orderPreview(groupId, debounced),
-    queryFn: () => api.previewGroupBuyOrder(groupId, debounced),
-    enabled: !manual && debounced.length > 0,
+  // A whole Order History page (pasted or uploaded) adds many orders at once; a single order keeps the form below.
+  const historyMode = !order && !manual && (pdf !== null || looksLikeOrderHistory(pasteText));
+  const historyQ = useQuery({
+    queryKey: qk.groupBuy.orderHistoryPreview(groupId, debounced),
+    queryFn: () => api.previewGroupBuyOrderHistory(groupId, debounced),
+    enabled: historyMode && pdf === null && looksLikeOrderHistory(debounced),
     staleTime: 60_000,
     retry: false,
   });
-  const preview = !manual && pasteText && settled ? previewQ.data : undefined;
+  const historyPreview = !historyMode ? undefined : pdf ? pdf.preview : settled ? historyQ.data : undefined;
+  const historyText = pdf ? pdf.preview.text : paste;
+  const defaultPick = useMemo(() => (historyPreview ? new Set(startingHistorySelection(historyPreview.orders)) : new Set<string>()), [historyPreview]);
+  const selection = picked && picked.source === historyPreview ? picked.set : defaultPick;
+  const pickedNumbers = historyPreview ? pickedHistoryNumbers(historyPreview.orders, selection) : [];
+
+  const readPdf = useMutation({
+    mutationFn: (file: File) => api.previewGroupBuyOrderHistoryPdf(groupId, file),
+    onSuccess: (res, file) => {
+      setPdfError(null);
+      setPdf({ name: file.name, preview: res });
+    },
+    onError: (e: Error) => setPdfError(e.message),
+  });
+
+  const previewQ = useQuery({
+    queryKey: qk.groupBuy.orderPreview(groupId, debounced),
+    queryFn: () => api.previewGroupBuyOrder(groupId, debounced),
+    enabled: !manual && !historyMode && debounced.length > 0,
+    staleTime: 60_000,
+    retry: false,
+  });
+  const preview = !manual && !historyMode && pasteText && settled ? previewQ.data : undefined;
 
   const pickable = useMemo(() => pickableLines(detail.lines, order), [detail.lines, order]);
   const pickedLines = useMemo(() => pickedOrderLines(detail.lines, picks, order), [detail.lines, picks, order]);
   const pickedCopies = pickedLines.reduce((s, l) => s + l.qty, 0);
   const matchedCopies = preview ? preview.lines.reduce((s, l) => s + l.qty, 0) : 0;
-  const copies = manual ? pickedCopies : matchedCopies;
+  const copies = historyMode ? (historyPreview ? historyCopies(historyPreview.orders, selection) : 0) : manual ? pickedCopies : matchedCopies;
 
   const startManual = () => {
     setPicks(startingPicks(detail.lines, order));
@@ -208,6 +163,10 @@ export function AddOrderDialog({
 
   const save = useMutation({
     mutationFn: async () => {
+      if (historyMode) {
+        const res = await api.importGroupBuyOrderHistory(groupId, historyText, pickedNumbers);
+        return { detail: res.detail, unmatched: res.unmatched.length, orders: res.order_ids.length };
+      }
       if (!order) {
         const res = await api.addGroupBuyOrder(groupId, {
           order_number: orderNumber.trim(),
@@ -243,14 +202,19 @@ export function AddOrderDialog({
       }
       return { detail: latest ?? detail, unmatched };
     },
-    onSuccess: (res) => onAdded(res.detail, { copies, unmatched: res.unmatched, arrived: arrivedNow, edited: Boolean(order) }),
+    onSuccess: (res) =>
+      onAdded(res.detail, { copies, unmatched: res.unmatched, arrived: arrivedNow, edited: Boolean(order), orders: "orders" in res ? res.orders : undefined }),
     onError: (e: Error) => setError(e.message),
   });
 
-  const canSave = !save.isPending && (orderNumber.trim().length > 0 || hasItems || Boolean(order));
+  const canSave = historyMode
+    ? !save.isPending && pickedNumbers.length > 0
+    : !save.isPending && (orderNumber.trim().length > 0 || hasItems || Boolean(order));
   const saveLabel = save.isPending
     ? "Saving…"
-    : order
+    : historyMode
+      ? addOrdersLabel(pickedNumbers.length)
+      : order
       ? copies > 0 && hasItems
         ? `Save changes · ${copies} ${copies === 1 ? "copy" : "copies"}`
         : "Save changes"
@@ -272,7 +236,7 @@ export function AddOrderDialog({
       >
         <div className="gb-dialog-head">
           <DialogTitle as="h2" className="gb-dialog-title">
-            {order ? "Edit order" : "Add a TCGplayer order"}
+            {order ? "Edit order" : historyMode ? "Add TCGplayer orders" : "Add a TCGplayer order"}
           </DialogTitle>
           <button type="button" className="ghost gb-dialog-x" aria-label="Close" onClick={onClose}>
             ✕
@@ -280,6 +244,9 @@ export function AddOrderDialog({
         </div>
         <div className="gb-dialog-body gb-add-cols">
           <div className="gb-add-left">
+            {historyMode ? (
+              <p className="muted gb-history-hint">Each order's number, seller and tracking link are read from the page. Tick the orders that are part of this group buy.</p>
+            ) : (
             <div className="gb-order-fields">
               <label>
                 <span>Order number</span>
@@ -298,22 +265,53 @@ export function AddOrderDialog({
                 <input type="text" inputMode="url" value={tracking} maxLength={1000} autoComplete="off" onChange={(e) => setTracking(e.target.value)} placeholder="https://tools.usps.com/…" />
               </label>
             </div>
+            )}
             {manual || itemsLocked ? null : (
               <label className="gb-paste">
                 <span>
-                  Paste the order's items <span className="muted">(whole page or email is fine)</span>
+                  Paste one order's items, or your whole Order History page <span className="muted">(Ctrl+A, Ctrl+C)</span>
                 </span>
                 <textarea
                   value={paste}
-                  maxLength={200_000}
+                  maxLength={400_000}
                   rows={4}
                   spellCheck={false}
-                  onChange={(e) => setPaste(e.target.value)}
-                  placeholder={"TCGplayer > Order History > this order. Select the Qty / Description table and copy."}
+                  onChange={(e) => {
+                    setPaste(e.target.value);
+                    setPdf(null);
+                  }}
+                  placeholder={"TCGplayer > Order History. Select the whole page and copy it, or copy one order's Qty / Description table."}
                 />
               </label>
             )}
-            {itemsLocked ? null : (
+            {order || manual ? null : (
+              <div className="gb-upload">
+                <input
+                  ref={fileInput}
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="gb-file-input"
+                  aria-label="Order History PDF"
+                  tabIndex={-1}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    e.target.value = "";
+                    if (file) {
+                      setPdfError(null);
+                      readPdf.mutate(file);
+                    }
+                  }}
+                />
+                <span className="muted gb-upload-text">Saved the Order History page as a PDF? Upload it.</span>
+                <button type="button" className="btn secondary gb-upload-btn" disabled={readPdf.isPending} onClick={() => fileInput.current?.click()}>
+                  Upload PDF
+                </button>
+                <p className="muted gb-upload-status" aria-live="polite" role={pdfError ? "alert" : undefined}>
+                  {readPdf.isPending ? "Reading the PDF…" : pdfError ? <span className="error">{pdfError}</span> : pdf ? `Read ${pdf.name}` : ""}
+                </p>
+              </div>
+            )}
+            {itemsLocked || historyMode ? null : (
               <button type="button" className="gb-link-btn gb-mode-toggle" onClick={() => (manual ? setManual(false) : startManual())}>
                 {manual ? "Paste an order instead" : "Pick cards by hand instead"}
               </button>
@@ -331,6 +329,22 @@ export function AddOrderDialog({
                   setPicks(next);
                 }}
               />
+            ) : historyMode ? (
+              <div className="gb-preview-slot" aria-live="polite">
+                {historyPreview ? (
+                  <HistoryOrders
+                    orders={historyPreview.orders}
+                    selected={selection}
+                    lines={detail.lines}
+                    narrow={narrow}
+                    onChange={(set) => setPicked({ source: historyPreview, set })}
+                  />
+                ) : (
+                  <p className="muted gb-preview-wait">
+                    {readPdf.isPending ? "Reading the PDF…" : historyQ.isError ? (historyQ.error as Error).message : "Matching your orders…"}
+                  </p>
+                )}
+              </div>
             ) : (
               <div className="gb-preview-slot" aria-live="polite">
                 {preview ? (
@@ -338,7 +352,7 @@ export function AddOrderDialog({
                 ) : pasteText ? (
                   <p className="muted gb-preview-wait">{previewQ.isError ? (previewQ.error as Error).message : "Matching…"}</p>
                 ) : (
-                  <p className="muted gb-preview-wait">Paste an order to see which cards it covers and who gets each copy.</p>
+                  <p className="muted gb-preview-wait">Paste an order, or your whole Order History page, to see which cards it covers and who gets each copy.</p>
                 )}
               </div>
             )}
@@ -346,7 +360,7 @@ export function AddOrderDialog({
         </div>
 
         <div className="gb-dialog-foot">
-          {order ? null : (
+          {order || historyMode ? null : (
             <label className="gb-check">
               <input type="checkbox" checked={arrivedNow} onChange={(e) => setArrivedNow(e.target.checked)} />
               <span>
