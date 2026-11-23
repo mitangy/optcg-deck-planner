@@ -94,9 +94,10 @@ def test_receipt_partial_apply_leaves_remainder(db):
     assert _owned(db, host.id, "OP01-001") + _owned(db, friend.id, "OP01-001") == 1 + 2
     assert _owned(db, host.id, "OP01-002") + _owned(db, friend.id, "OP01-002") == 1 + 5
 
-    remaining = {l.card_id: l.total_qty for l in updated.lines}
+    # Lines keep the whole snapshot now; what is left to buy is not_ordered.
+    remaining = {l.card_id: l.not_ordered for l in updated.lines}
     assert remaining.get("OP01-001") == 4
-    assert "OP01-002" not in remaining or remaining.get("OP01-002", 0) == 0
+    assert remaining.get("OP01-002") == 0
 
 
 def test_receipt_stage_selected_cards_only(db):
@@ -126,8 +127,8 @@ def test_receipt_stage_selected_cards_only(db):
     assert updated.status == "ordered"
     assert _owned(db, host.id, "OP01-001") == 2
     assert _owned(db, host.id, "OP01-002") == 0
-    remaining = {l.card_id: l.total_qty for l in updated.lines}
-    assert remaining == {"OP01-002": 2}
+    remaining = {l.card_id: l.not_ordered for l in updated.lines}
+    assert remaining == {"OP01-001": 0, "OP01-002": 2}
 
 
 def test_undo_full_apply_restores_pool_owned_and_settlement(db):
@@ -174,7 +175,8 @@ def test_undo_full_apply_restores_pool_owned_and_settlement(db):
     assert done.status == "completed"
     assert done.can_undo_purchase is True
     assert done.has_receipt is True
-    assert done.cards_subtotal == 0.0
+    # Settlement is on what members are buying, so it does not fall to zero once bought.
+    assert done.cards_subtotal == before.cards_subtotal
     assert _owned(db, host.id, "OP01-001") == 2
     assert _owned(db, friend.id, "OP01-001") == 1
 
@@ -216,7 +218,7 @@ def test_undo_partial_then_second_apply_lifo(db):
     assert after_a.status == "ordered"
     assert after_a.can_undo_purchase is True
     assert _owned(db, host.id, "OP01-001") == 2
-    remaining_a = {l.card_id: l.total_qty for l in after_a.lines}
+    remaining_a = {l.card_id: l.not_ordered for l in after_a.lines}
     assert remaining_a.get("OP01-001") == 2
     assert remaining_a.get("OP01-002") == 2
 
@@ -239,7 +241,7 @@ def test_undo_partial_then_second_apply_lifo(db):
     assert undo_b.can_undo_purchase is True
     assert _owned(db, host.id, "OP01-001") == 2
     assert _owned(db, host.id, "OP01-002") == 0
-    remaining = {l.card_id: l.total_qty for l in undo_b.lines}
+    remaining = {l.card_id: l.not_ordered for l in undo_b.lines}
     assert remaining.get("OP01-001") == 2
     assert remaining.get("OP01-002") == 2
 

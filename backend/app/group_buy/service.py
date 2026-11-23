@@ -343,12 +343,13 @@ def _allocation_stats(group: GroupBuy) -> dict[str, dict[int, tuple[int, int]]]:
     return out
 
 
-def _member_needs_locked(group: GroupBuy) -> list[MemberNeed]:
+def _member_needs_locked(group: GroupBuy, *, unordered_only: bool = False) -> list[MemberNeed]:
+    """Frozen needs. By default the whole snapshot (what each member is buying in this group buy,
+    which money is settled on); ``unordered_only`` takes off copies already in a seller order."""
     users = {m.user_id: m.user for m in group.members}
-    in_orders = _allocated_by_user_card(group)
+    in_orders = _allocated_by_user_card(group) if unordered_only else {}
     needs: list[MemberNeed] = []
     for line in group.snapshot_lines:
-        # Snapshot rows keep what was wanted; copies already in a seller order are not "still to buy".
         qty = int(line.qty) - in_orders.get((line.user_id, line.card_id.upper()), 0)
         if qty <= 0:
             continue
@@ -452,11 +453,12 @@ def _build_lines(
     group: GroupBuy,
     viewer_user_id: int | None = None,
     memo: dict | None = None,
+    unordered_only: bool = False,
 ) -> tuple[list[GroupBuyLineOut], dict[int, tuple[int, float]]]:
     if memo is None:
         memo = {}
     needs = (
-        _member_needs_locked(group)
+        _member_needs_locked(group, unordered_only=unordered_only)
         if group.status in FROZEN_STATUSES
         else _member_needs_live(db, group, memo)
     )
@@ -585,6 +587,7 @@ def _build_lines(
         my_is_custom = mine.is_custom if mine else False
         my_item = viewer_items.get(card_id)
         per_user = order_stats.get(card_id.upper(), {})
+        in_order = sum(q for q, _ in per_user.values())
         my_in_order, my_arrived = per_user.get(viewer_user_id, (0, 0))
         my_extras = (
             _my_extras(my_item, _card_skips(skips, viewer_user_id, card_id)) if my_item else []
@@ -628,12 +631,12 @@ def _build_lines(
                 my_used_in=viewer_used_in.get(card_id, []),
                 my_deck_qty=my_item.still_need if my_item else 0,
                 my_extras=my_extras,
-                in_order=sum(q for q, _ in per_user.values()),
+                in_order=in_order,
                 arrived=sum(a for _, a in per_user.values()),
-                not_ordered=total_qty,
+                not_ordered=total_qty if unordered_only else max(0, total_qty - in_order),
                 my_in_order=my_in_order,
                 my_arrived=my_arrived,
-                my_not_ordered=my_qty,
+                my_not_ordered=my_qty if unordered_only else max(0, my_qty - my_in_order),
             )
         )
 
@@ -1323,7 +1326,8 @@ def export_tcgplayer(db: Session, user: User, group_id: int) -> GroupBuyExport:
     group = _get_group(db, group_id)
     _require_member(group, user)
     memo: dict = {}
-    lines, _ = _build_lines(db, group, viewer_user_id=user.id, memo=memo)
+    # Mass Entry is for what still has to be bought: copies already in an order are left out.
+    lines, _ = _build_lines(db, group, viewer_user_id=user.id, memo=memo, unordered_only=True)
 
     skips = _extra_skip_map(group)
     member_items: dict[int, dict[str, object]] = {}
@@ -1423,7 +1427,7 @@ def delete_group_buy(db: Session, user: User, group_id: int) -> None:
 
 def _pool_qty_by_card_db(db: Session, group: GroupBuy) -> dict[str, int]:
     if group.status in FROZEN_STATUSES:
-        needs = _member_needs_locked(group)
+        needs = _member_needs_locked(group, unordered_only=True)
     else:
         needs = _member_needs_live(db, group)
     totals: dict[str, int] = {}
@@ -1904,6 +1908,7 @@ def _create_order(
     tracking: str,
     receipt_text: str,
     copies: Copies,
+    from_receipt_apply: bool = False,
 ) -> tuple[GroupBuyOrder, str, bool]:
     """Add the order and its allocations; the first one moves locked -> ordered."""
     plan = _plan_allocation(db, group, copies)
@@ -1915,6 +1920,7 @@ def _create_order(
             group.ordered_at = _now()
             set_ordered_at = True
     order = GroupBuyOrder(
+        from_receipt_apply=from_receipt_apply,
         order_number=number,
         seller_name=seller,
         tracking_url=tracking,
@@ -2242,6 +2248,7 @@ def apply_receipt_to_group_buy(
         tracking="",
         receipt_text=cleaned_receipt,
         copies=copies,
+        from_receipt_apply=True,
     )
     if not _set_arrival(db, group, order, user, None, status_before, set_ordered_at):
         raise Invalid("Nothing left to apply — snapshot may already be cleared")
@@ -2251,7 +2258,8 @@ def apply_receipt_to_group_buy(
 
 
 def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyDetail:
-    """Undo the most recent order's arrival and drop that order, restoring the pre-purchase state."""
+    """Undo the most recent arrival. An order made by Mark purchased is dropped, restoring the
+    pre-purchase state; an order added through the orders endpoint keeps existing."""
     group = _get_group(db, group_id, lock=True)
     _require_host(group, user)
     if group.status not in (GroupBuyStatus.ORDERED, GroupBuyStatus.COMPLETED):
@@ -2268,6 +2276,12 @@ def undo_last_receipt_apply(db: Session, user: User, group_id: int) -> GroupBuyD
     apply_event = applies[-1]
     order = _get_order(group, apply_event.order_id)
     _reverse_arrivals(db, group, order)
+    if not order.from_receipt_apply:
+        # An order the host added on purpose stays; only its arrivals are taken back.
+        _touch(order)
+        _refresh_status(group)
+        db.commit()
+        return get_group_buy(db, user, group_id)
     group.orders.remove(order)
     if group.orders:
         _refresh_status(group)

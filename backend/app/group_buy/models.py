@@ -234,6 +234,10 @@ class GroupBuyOrder(Base):
     group_buy_id: Mapped[int] = mapped_column(
         ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
     )
+    # Made by Mark purchased (receipt/apply), so receipt/undo takes the whole order back.
+    from_receipt_apply: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false(), nullable=False
+    )
     order_number: Mapped[str] = mapped_column(String(200), default="")
     seller_name: Mapped[str] = mapped_column(String(200), default="")
     tracking_url: Mapped[str] = mapped_column(String(1000), default="")

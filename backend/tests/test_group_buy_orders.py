@@ -14,6 +14,7 @@ from app.group_buy.schemas import (
     GroupBuyArrivalUndo,
     GroupBuyArrivalUpdate,
     GroupBuyOrderCreate,
+    GroupBuyOrderUpdate,
     GroupBuyOrderPatch,
     GroupBuyReceiptApplyRequest,
 )
@@ -362,7 +363,7 @@ def test_the_buy_completes_when_every_copy_arrived_and_none_is_unordered_1418(db
     done = _arrive_all(db, host, gid, added.detail.orders[-1])
 
     assert done.status == "completed"
-    assert not done.lines
+    assert all(l.not_ordered == 0 for l in done.lines)
 
 
 def test_an_order_with_copies_beyond_the_pool_shows_them_as_extra_1418(db):
@@ -458,6 +459,9 @@ def test_migration_turns_existing_applies_into_one_arrived_order_1418():
             text("SELECT user_id, qty, qty_arrived FROM group_buy_order_allocations ORDER BY user_id")
         ).all()
         attached = conn.execute(text("SELECT order_id FROM group_buy_receipt_applies ORDER BY id")).scalars().all()
+        flags = conn.execute(
+            text("SELECT group_buy_id, from_receipt_apply FROM group_buy_orders ORDER BY group_buy_id")
+        ).all()
     engine.dispose()
 
     assert [(g, n) for g, n, _ in orders] == [(1, "TCG-9"), (2, ""), (4, "REF-4")]
@@ -466,3 +470,73 @@ def test_migration_turns_existing_applies_into_one_arrived_order_1418():
     assert lines == [("OP01-001", None, 2), ("OP01-001", 1009, 1)]
     assert allocations == [(1, 2, 2), (2, 1, 1)]
     assert attached == [attached[0], attached[0]] and attached[0] is not None
+    # Only the order built from old Mark purchased applies is one receipt/undo may drop.
+    assert [(g, bool(f)) for g, f in flags] == [(1, True), (2, False), (4, False)]
+
+
+def _money(detail):
+    return (
+        detail.cards_subtotal,
+        detail.grand_total,
+        {m.user_id: (m.card_cost, m.shipping_share, m.total_owed, m.cards_still_needed) for m in detail.members},
+    )
+
+
+def test_what_members_owe_is_the_same_before_an_order_after_it_and_after_arrival_1418(db):
+    host, friend, gid = _locked_group(db)
+    group_buy.update_order(
+        db, host, gid, GroupBuyOrderUpdate(shipping_cost=8.0, tax_cost=2.0, shipping_split="by_copies")
+    )
+    before = group_buy.get_group_buy(db, host, gid)
+    assert before.cards_subtotal > 0
+
+    # Two standard copies go to the host, so every one of the host's copies is in this order.
+    added = _add(db, host, gid, std=2).detail
+    arrived = _arrive_all(db, host, gid, added.orders[0])
+    closed = group_buy.close_group_buy(db, host, gid)
+
+    assert _money(added) == _money(before)
+    assert _money(arrived) == _money(before)
+    assert _money(closed) == _money(before)
+
+
+def test_lines_keep_cards_that_are_fully_in_an_order_with_their_snapshot_quantities_1418(db):
+    host, friend, gid = _locked_group(db)
+
+    detail = _add(db, host, gid, alt=1, std=3).detail
+
+    (line,) = detail.lines
+    assert (line.total_qty, line.my_qty) == (4, 2)
+    assert (line.in_order, line.not_ordered, line.my_in_order, line.my_not_ordered) == (4, 0, 2, 0)
+    friend_line = group_buy.get_group_buy(db, friend, gid).lines[0]
+    assert (friend_line.my_qty, friend_line.my_in_order, friend_line.my_not_ordered) == (2, 2, 0)
+
+
+def test_mass_entry_lists_only_copies_not_in_an_order_1418(db):
+    host, _friend, gid = _locked_group(db)
+    assert group_buy.export_tcgplayer(db, host, gid).copy_count == 4
+
+    _add(db, host, gid, alt=1, std=1)
+
+    assert group_buy.export_tcgplayer(db, host, gid).copy_count == 2
+
+
+def test_a_receipt_match_only_needs_copies_not_in_an_order_1418(db):
+    host, _friend, gid = _locked_group(db)
+    _add(db, host, gid, std=3)
+
+    report = group_buy.build_receipt_match_report(db, host, gid, _receipt(std=4))
+
+    assert [(l.needed_qty, l.staged_qty) for l in report.lines] == [(1, 1)]
+
+
+def test_receipt_undo_only_takes_back_arrivals_of_an_order_added_on_purpose_1418(db):
+    host, friend, gid = _locked_group(db)
+    _add(db, host, gid, std=4, arrived=True)
+    assert _owned(db, host.id) == 2
+
+    undone = group_buy.undo_last_receipt_apply(db, host, gid)
+
+    assert _owned(db, host.id) == 0 and _owned(db, friend.id) == 0
+    assert [(o.status, o.qty_arrived) for o in undone.orders] == [("on_the_way", 0)]
+    assert undone.status == "ordered"
