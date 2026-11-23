@@ -46,6 +46,8 @@ export type ScanMulti = {
   onAdded?: () => void;
   matcher?: MatchAllCards;
   target?: ScanTarget;
+  /** Hand the recognised cards to the caller instead of the add tray; it returns the line to show. Nothing is saved by the scanner. */
+  collect?: (cards: { cardId: string }[], unread: number) => string;
 };
 
 function testMatcher(): MatchAllCards | undefined {
@@ -127,6 +129,7 @@ export function CardScanner({
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
   const [added, setAdded] = useState<number | null>(null);
+  const [collected, setCollected] = useState<string | null>(null);
   const qc = useQueryClient();
   const injected = multi ? (multi.matcher ?? testMatcher()) : undefined;
   const scanReady = scanData.state.kind === "ready" || !!injected;
@@ -154,6 +157,7 @@ export function CardScanner({
       if (multi) {
         setTray(null);
         setAdded(null);
+        setCollected(null);
         setAddError(null);
         setPhase({ kind: "working", label: "Finding cards…", progress: 0 });
         scanLog("scan-multi:start", `type=${file.type || "?"} size=${file.size}`);
@@ -186,6 +190,12 @@ export function CardScanner({
               message:
                 "No cards found. Lay the cards flat on a plain background with good light, then try again.",
             });
+            return;
+          }
+          if (multi.collect) {
+            const named = items.flatMap((it) => (it.confidence !== "none" && it.cardId ? [{ cardId: it.cardId }] : []));
+            setCollected(multi.collect(named, items.length - named.length));
+            setPhase({ kind: "idle" });
             return;
           }
           setPhase({
@@ -305,6 +315,7 @@ export function CardScanner({
   const resetScan = () => {
     setTray(null);
     setAdded(null);
+    setCollected(null);
     setAddError(null);
     setPhase({ kind: "idle" });
   };
@@ -346,7 +357,7 @@ export function CardScanner({
     }
   };
 
-  const reviewing = !!multi && (tray !== null || added !== null);
+  const reviewing = !!multi && (tray !== null || added !== null || collected !== null);
 
   const need =
     phase.kind === "hit" ? items.find((i) => i.card_id === phase.card.card_id) : undefined;
@@ -355,7 +366,7 @@ export function CardScanner({
     <Dialog
       open
       onClose={onClose}
-      className="scan-backdrop"
+      className={`scan-backdrop${multi?.collect ? " scan-over-modal" : ""}`}
       panelClassName={`scan-dialog${multi ? " multi" : ""}${reviewing ? " reviewing" : ""}`}
       label={multi ? "Scan cards" : "Scan a card"}
     >
@@ -402,6 +413,23 @@ export function CardScanner({
       )}
       {reviewing && added !== null && (
         <ScanAdded count={added} target={multi?.target} onMore={resetScan} onClose={onClose} />
+      )}
+
+      {reviewing && collected !== null && (
+        <div className="scan-added">
+          <p className="scan-added-title" role="status">
+            {collected}
+          </p>
+          <p className="muted">Counted in Check items. Nothing is saved until you press Save there.</p>
+          <div className="scan-tray-foot-actions">
+            <button type="button" className="ghost" onClick={resetScan}>
+              Scan more
+            </button>
+            <button type="button" className="btn primary" onClick={onClose}>
+              Back to Check items
+            </button>
+          </div>
+        </div>
       )}
 
       {!reviewing && (

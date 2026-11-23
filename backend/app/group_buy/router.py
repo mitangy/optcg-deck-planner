@@ -18,6 +18,7 @@ from app.group_buy.schemas import (
     GroupBuyDetail,
     GroupBuyExtraSkipUpdate,
     GroupBuyExport,
+    GroupBuyHandoffUpdate,
     GroupBuyInvitePreview,
     GroupBuyOrderAdded,
     GroupBuyOrderCreate,
@@ -284,6 +285,28 @@ def undo_group_buy_order_arrival(
     db: Annotated[Session, Depends(get_db)],
 ):
     return group_buy.undo_order_arrival(db, user, group_id, order_id, body)
+
+
+@router.put("/group-buys/{group_id}/handoffs/{member_id}", response_model=GroupBuyDetail)
+def put_group_buy_handoff(
+    group_id: int,
+    member_id: int,
+    body: GroupBuyHandoffUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Host: set how one member's arrived cards reach them, and whether they paid."""
+    return group_buy.set_handoff(db, user, group_id, member_id, body)
+
+
+@router.post("/group-buys/{group_id}/handoffs/me/received", response_model=GroupBuyDetail)
+def post_group_buy_handoff_received(
+    group_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    """Member: confirm the cards the host shipped or handed over arrived."""
+    return group_buy.confirm_handoff_received(db, user, group_id)
 
 
 @router.post("/group-buys/{group_id}/close", response_model=GroupBuyDetail)

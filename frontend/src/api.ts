@@ -306,6 +306,21 @@ export type GroupBuyMember = {
   shipping_share?: number;
   tax_share?: number;
   total_owed?: number;
+  /** Hand-off: filled for the host and for the member themselves, blank for everyone else. */
+  handoff_status?: "" | "waiting" | "shipped" | "handed_over" | "received" | string;
+  handoff_tracking_url?: string;
+  handoff_note?: string;
+  qty_handed?: number;
+  ready_to_hand_over?: number;
+  paid?: boolean;
+};
+
+export type GroupBuyHandoffUpdate = {
+  status?: "waiting" | "shipped" | "handed_over";
+  tracking_url?: string;
+  note?: string;
+  qty_handed?: number;
+  paid?: boolean;
 };
 
 export type GroupBuyOrderUpdate = {
@@ -938,6 +953,10 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ expected_version }),
     }),
+  setGroupBuyHandoff: (id: number, userId: number, body: GroupBuyHandoffUpdate) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/handoffs/${userId}`, { method: "PUT", body: JSON.stringify(body) }),
+  confirmGroupBuyHandoffReceived: (id: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/handoffs/me/received`, { method: "POST" }),
   closeGroupBuy: (id: number) => request<GroupBuyDetail>(`/group-buys/${id}/close`, { method: "POST" }),
   setGroupBuyQty: (id: number, cardId: string, qty: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/quantities/${encodeURIComponent(cardId)}`, {

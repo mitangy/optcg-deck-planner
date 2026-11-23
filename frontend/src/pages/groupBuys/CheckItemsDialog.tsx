@@ -1,9 +1,11 @@
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { GroupBuyLine, GroupBuyMember, GroupBuyOrder } from "../../api";
+import { CardScanner } from "../../app/lazyPages";
 import { CardThumb } from "../../ui/CardThumb";
 import { MemberSwatch } from "./memberColors";
-import { allArrivedDraft, arrivalDraft, artLabel, draftTotal, lineAllocated, orderLineArt, orderTitle } from "./groupBuyOrders";
+import { applyScans, scanSummary, type ScanReceiveState } from "./groupBuyScanReceive";
+import { allArrivedDraft, arrivalDraft, artLabel, draftTotal, lineAllocated, orderLineArt, orderMissing, orderTitle } from "./groupBuyOrders";
 
 /** Per-card arrived counts for one package. Desktop: a modal. Phone: a bottom sheet. Mount it with key={order.version} so a reloaded order restarts from the server's counts. */
 export function CheckItemsDialog({
@@ -11,6 +13,8 @@ export function CheckItemsDialog({
   index,
   lines,
   members,
+  orders = [],
+  startScanning = false,
   saving,
   error,
   onSave,
@@ -20,16 +24,36 @@ export function CheckItemsDialog({
   index: number;
   lines: GroupBuyLine[];
   members: GroupBuyMember[];
+  /** All orders of the group buy, so a scanned card can point at the order that holds it. */
+  orders?: GroupBuyOrder[];
+  /** Open the scanner straight away (the order card's Scan cards button). */
+  startScanning?: boolean;
   saving: boolean;
   error: string | null;
   onSave: (draft: Record<number, number>) => void;
   onClose: () => void;
 }) {
-  const [draft, setDraft] = useState(() => arrivalDraft(order));
+  const [recv, setRecv] = useState<ScanReceiveState>(() => ({ draft: arrivalDraft(order), notInOrder: [] }));
+  const recvRef = useRef(recv);
+  const [scanning, setScanning] = useState(startScanning && orderMissing(order) > 0);
+  const [flash, setFlash] = useState<{ ids: number[]; n: number }>({ ids: [], n: 0 });
+  const draft = recv.draft;
+  const update = (next: ScanReceiveState) => {
+    recvRef.current = next;
+    setRecv(next);
+  };
   const byCard = new Map(lines.map((l) => [l.card_id, l]));
   const total = order.qty_allocated;
   const arrived = draftTotal(draft);
-  const set = (id: number, n: number, max: number) => setDraft((d) => ({ ...d, [id]: Math.max(0, Math.min(max, n)) }));
+  const set = (id: number, n: number, max: number) =>
+    update({ ...recvRef.current, draft: { ...recvRef.current.draft, [id]: Math.max(0, Math.min(max, n)) } });
+  const onScanned = (cards: { cardId: string }[], unread: number) => {
+    const before = recvRef.current.notInOrder.reduce((n, e) => n + e.count, 0);
+    const r = applyScans(order, orders, lines, recvRef.current, cards);
+    update({ draft: r.draft, notInOrder: r.notInOrder });
+    setFlash((f) => ({ ids: r.bumped, n: f.n + 1 }));
+    return scanSummary(r.counted, r.notInOrder.reduce((n, e) => n + e.count, 0) - before, unread);
+  };
   const saveWidth = `Save · ${total} of ${total} arrived`.length + 4;
 
   return (
@@ -43,13 +67,27 @@ export function CheckItemsDialog({
             ✕
           </button>
         </div>
-        <ul className="gb-dialog-body gb-check-list">
+        <div className="gb-dialog-body gb-check-body">
+        {orderMissing(order) > 0 ? (
+          <div className="gb-check-tools">
+            <button type="button" className="btn secondary" disabled={saving} onClick={() => setScanning(true)}>
+              Scan cards
+            </button>
+            <span className="muted">Each card you scan counts as arrived. Save when the counts look right.</span>
+          </div>
+        ) : null}
+        <ul className="gb-check-list">
           {order.lines.map((l) => {
             const max = lineAllocated(l);
             const have = Math.min(draft[l.id] ?? 0, max);
             const line = byCard.get(l.card_id);
             return (
-              <li key={l.id} className="gb-check-row" data-testid="gb-check-row">
+              <li
+                key={l.id}
+                className="gb-check-row"
+                data-flash={flash.ids.includes(l.id) ? flash.n % 2 : undefined}
+                data-testid="gb-check-row"
+              >
                 <CardThumb src={orderLineArt(line, l.product_id)} cardId={l.card_id} alt={l.name || l.card_id} productId={l.product_id ?? undefined} />
                 <div className="gb-check-info">
                   <strong className="gb-check-name">{l.name || l.card_id}</strong>
@@ -81,12 +119,31 @@ export function CheckItemsDialog({
             );
           })}
         </ul>
+        {recv.notInOrder.length > 0 ? (
+          <section className="gb-check-extra" aria-label="Not in this order" data-testid="gb-scan-extra">
+            <h3 className="gb-check-extra-title">Not in this order</h3>
+            <ul>
+              {recv.notInOrder.map((e) => (
+                <li key={e.cardId}>
+                  <strong>
+                    {e.count} × {e.name}
+                  </strong>
+                  <span className="muted">
+                    {e.cardId}
+                    {e.elsewhere.length > 0 ? ` · In ${e.elsewhere.join(", ")}` : ""}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+        </div>
         <div className="gb-dialog-foot">
           <p className="error gb-dialog-error" role="alert">
             {error}
           </p>
           <div className="gb-dialog-buttons">
-            <button type="button" className="btn secondary" disabled={saving} onClick={() => setDraft(allArrivedDraft(order))}>
+            <button type="button" className="btn secondary" disabled={saving} onClick={() => update({ ...recvRef.current, draft: allArrivedDraft(order) })}>
               All arrived
             </button>
             <button type="button" className="btn primary gb-save-count" style={{ minWidth: `${saveWidth}ch` }} disabled={saving} onClick={() => onSave(draft)}>
@@ -95,6 +152,14 @@ export function CheckItemsDialog({
           </div>
         </div>
       </div>
+      {scanning ? (
+        <CardScanner
+          items={[]}
+          showNeed={false}
+          multi={{ collect: onScanned }}
+          onClose={() => setScanning(false)}
+        />
+      ) : null}
     </Dialog>
   );
 }
