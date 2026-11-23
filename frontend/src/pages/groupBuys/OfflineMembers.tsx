@@ -4,7 +4,7 @@ import type { GroupBuyMember } from "../../api";
 import { CatalogAddDrawer } from "../collection/CatalogAddDrawer";
 import { MoreIcon } from "../../ui/HeadPopover";
 import { MemberSwatch } from "./memberColors";
-import { pasteSummary } from "./offlineMembers";
+import { pasteSummary } from "./offlineMembersModel";
 
 const NAME_MAX = 40;
 

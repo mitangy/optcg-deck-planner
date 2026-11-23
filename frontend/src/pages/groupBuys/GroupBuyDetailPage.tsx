@@ -36,7 +36,7 @@ import { CollapsibleDrawer } from "../../ui/cardListControls";
 import { groupBuyActions, stepHint, stepLabel, summaryParts, type GroupBuyActionKey } from "./groupBuyActions";
 import { ArtWantChips, OfflineTag, SkippedBadge, boughtAltRow } from "./memberParts";
 import { AddCardDialog, BuyingForBar, OfflineNameDialog, PasteCardsDialog } from "./OfflineMembers";
-import { buyingForQty, canManageOffline, offlineMembers, resolveBuyingFor } from "./offlineMembers";
+import { buyingForQty, canManageOffline, offlineMembers, resolveBuyingFor } from "./offlineMembersModel";
 import { SHIPPING_SPLIT_LABELS, ShippingSplit } from "./shipping";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_CARDS_KEY, COLSORT_GB_OWE_KEY } from "../../storage/keys";

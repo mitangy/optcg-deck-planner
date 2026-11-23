@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { GroupBuyLine, GroupBuyMember } from "../../api";
-import { buyingForQty, canManageOffline, offlineMembers, pasteSummary, resolveBuyingFor } from "./offlineMembers";
+import { buyingForQty, canManageOffline, offlineMembers, pasteSummary, resolveBuyingFor } from "./offlineMembersModel";
 
 const member = (user_id: number, is_offline = false, role = "member"): GroupBuyMember => ({
   user_id,
