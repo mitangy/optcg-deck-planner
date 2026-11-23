@@ -52,7 +52,6 @@ export function GroupBuyDetailPage() {
   const [density, setDensity] = useListDensity("groupBuy");
   const [addOpen, setAddOpen] = useState(false);
   const [checkOrderId, setCheckOrderId] = useState<number | null>(null);
-  const [scanOnOpen, setScanOnOpen] = useState(false);
   const [editOrderId, setEditOrderId] = useState<number | null>(null);
   const [cardsOpenPick, setCardsOpenPick] = useState<boolean | null>(null);
   const [showExcluded, setShowExcluded] = useState(false);
@@ -587,7 +586,6 @@ export function GroupBuyDetailPage() {
           lines={detail.lines}
           members={members}
           orders={orders}
-          startScanning={scanOnOpen}
           saving={orderOps.saveArrival.isPending}
           error={orderOps.saveArrival.isError ? (orderOps.saveArrival.error as Error).message : null}
           onSave={(draft) =>
@@ -695,12 +693,6 @@ export function GroupBuyDetailPage() {
           onMarkArrived={(o) => orderOps.markArrived.mutate(o)}
           onCheck={(o) => {
             setMsg(null);
-            setScanOnOpen(false);
-            setCheckOrderId(o.id);
-          }}
-          onScan={(o) => {
-            setMsg(null);
-            setScanOnOpen(true);
             setCheckOrderId(o.id);
           }}
           onUndo={async (o) => {

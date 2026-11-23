@@ -20,9 +20,9 @@ export function countsTotal(c: PackageCounts): number {
   return c.arrived + c.onTheWay + c.notOrdered;
 }
 
-/** The three words under the progress bar. Zero counts stay so the line keeps its shape. */
+/** The three phrases under the progress bar, all in copies. Zero counts stay so the line keeps its shape. */
 export function progressLabels(c: PackageCounts): string[] {
-  return [`${c.arrived} arrived`, `${c.onTheWay} on the way`, `${c.notOrdered} not in an order yet`];
+  return [`${c.arrived} of ${countsTotal(c)} copies arrived`, `${c.onTheWay} on the way`, `${c.notOrdered} not in an order yet`];
 }
 
 export type ChipTone = "done" | "way" | "none" | "mixed";
@@ -231,4 +231,165 @@ export function notOrderedArt(line: GroupBuyLine): string | undefined {
     }
   }
   return orderLineArt(line, best);
+}
+
+// ---- Packages toolbar: status, sort, search and counts (#1441) ----
+
+export type PackageStatus = "on_the_way" | "partial" | "arrived";
+export type PackageFilter = "all" | PackageStatus;
+export type PackageSort = "not_arrived" | "seller" | "copies" | "added";
+
+/** Packages needed before the search, pills and sort show; with fewer they are noise. */
+export const PACKAGE_TOOLBAR_MIN = 4;
+
+export const PACKAGE_SORT_LABELS: Record<PackageSort, string> = {
+  not_arrived: "Not arrived first",
+  seller: "Seller A–Z",
+  copies: "Most copies",
+  added: "Order added",
+};
+export const PACKAGE_SORTS = Object.keys(PACKAGE_SORT_LABELS) as PackageSort[];
+
+const PACKAGE_FILTER_LABELS: Record<PackageFilter, string> = {
+  all: "All",
+  on_the_way: "On the way",
+  partial: "Missing cards",
+  arrived: "Arrived",
+};
+
+/** Where a package is: on the way, marked arrived with cards short ("partial"), or fully arrived. */
+export function packageStatus(order: Pick<GroupBuyOrder, "status">): PackageStatus {
+  return order.status === "arrived" || order.status === "partial" ? order.status : "on_the_way";
+}
+
+const STATUS_RANK: Record<PackageStatus, number> = { partial: 0, on_the_way: 1, arrived: 2 };
+
+/** Lower case, with spaces, dashes and the "#…" the card shows left out, so "9ee3c" finds "…-9EE3C". */
+export function searchKey(text: string): string {
+  return text.toLowerCase().replace(/[\s\-.#…_]+/g, "");
+}
+
+export type PackageHit = { any: boolean; lines: GroupBuyOrderLine[] };
+
+/** Does a package match the search? Names and card numbers always, the seller, 3+ characters of the order number, and member names only when asked (the host). */
+export function packageHit(order: GroupBuyOrder, query: string, withMembers: boolean): PackageHit {
+  const q = searchKey(query);
+  if (!q) return { any: true, lines: [] };
+  const lines = order.lines.filter(
+    (l) =>
+      searchKey(l.name).includes(q) ||
+      searchKey(l.card_id).includes(q) ||
+      (withMembers && l.allocations.some((a) => searchKey(a.display_name).includes(q))),
+  );
+  const own = searchKey(order.seller_name).includes(q) || (q.length >= 3 && searchKey(order.order_number).includes(q));
+  return { any: own || lines.length > 0, lines };
+}
+
+export type PackageItem = { order: GroupBuyOrder; index: number; hit: PackageHit };
+export type PackageFilterCounts = Record<PackageFilter, number>;
+
+export function packageItems(orders: GroupBuyOrder[], query: string, withMembers: boolean): PackageItem[] {
+  return orders.map((order, index) => ({ order, index, hit: packageHit(order, query, withMembers) }));
+}
+
+/** Pill counts for the packages that match the search, whatever pill is on, so they always say what a tap would show. */
+export function packageFilterCounts(matched: PackageItem[]): PackageFilterCounts {
+  const c: PackageFilterCounts = { all: matched.length, on_the_way: 0, partial: 0, arrived: 0 };
+  for (const i of matched) c[packageStatus(i.order)] += 1;
+  return c;
+}
+
+export function sortPackages(items: PackageItem[], sort: PackageSort): PackageItem[] {
+  const byIndex = (a: PackageItem, b: PackageItem) => a.index - b.index;
+  const seller = (i: PackageItem) => i.order.seller_name.trim();
+  const cmp: Record<PackageSort, (a: PackageItem, b: PackageItem) => number> = {
+    not_arrived: (a, b) => STATUS_RANK[packageStatus(a.order)] - STATUS_RANK[packageStatus(b.order)] || byIndex(a, b),
+    // Packages with no seller name go last.
+    seller: (a, b) => (!seller(a) ? 1 : 0) - (!seller(b) ? 1 : 0) || seller(a).localeCompare(seller(b), undefined, { sensitivity: "base" }) || byIndex(a, b),
+    copies: (a, b) => b.order.qty_ordered - a.order.qty_ordered || byIndex(a, b),
+    added: byIndex,
+  };
+  return [...items].sort(cmp[sort]);
+}
+
+export type PackageView = { matched: PackageItem[]; counts: PackageFilterCounts; list: PackageItem[] };
+
+/** Search first, then count for the pills, then apply the pill and the sort. */
+export function packageView(
+  orders: GroupBuyOrder[],
+  { query, filter, sort, withMembers }: { query: string; filter: PackageFilter; sort: PackageSort; withMembers: boolean },
+): PackageView {
+  const matched = packageItems(orders, query, withMembers).filter((i) => i.hit.any);
+  const counts = packageFilterCounts(matched);
+  const shown = filter === "all" ? matched : matched.filter((i) => packageStatus(i.order) === filter);
+  return { matched, counts, list: sortPackages(shown, sort) };
+}
+
+export type PackagePill = { value: PackageFilter; label: string; count: number };
+
+/** The pills to show: All and the selected one always, others with copies. With no search the empty On the way / Arrived stay, so the row keeps its shape; Missing cards hides at 0. */
+export function packagePills(counts: PackageFilterCounts, selected: PackageFilter, hasQuery: boolean): PackagePill[] {
+  const order: PackageFilter[] = ["all", "on_the_way", "partial", "arrived"];
+  return order
+    .filter((k) => k === "all" || k === selected || counts[k] > 0 || (!hasQuery && k !== "partial"))
+    .map((k) => ({ value: k, label: PACKAGE_FILTER_LABELS[k], count: counts[k] }));
+}
+
+/** A pill with nothing in it (and no search to explain why) is a dead end: fall back to All. `shown` is how many packages are on screen. */
+export function emptyPillFallback(selected: PackageFilter, counts: PackageFilterCounts, hasQuery: boolean, shown: number): PackageFilter {
+  return selected !== "all" && !hasQuery && counts[selected] === 0 && shown === 0 ? "all" : selected;
+}
+
+export function packageFilterWord(filter: PackageFilter): string {
+  return PACKAGE_FILTER_LABELS[filter];
+}
+
+/**
+ * Package ids as they are laid out: those already on screen keep their place (even if they no longer
+ * match, e.g. just marked arrived), packages that are gone drop out, new matches go to the end.
+ */
+export function keepPlace(shown: number[], fresh: number[], existing: ReadonlySet<number>): number[] {
+  const kept = shown.filter((id) => existing.has(id));
+  const have = new Set(kept);
+  return [...kept, ...fresh.filter((id) => !have.has(id))];
+}
+
+/** Cards a search finds that no seller order covers yet, with who they are for. */
+export function notOrderedMatches(lines: GroupBuyLine[], query: string): { name: string; copies: number; who: string[] }[] {
+  const q = searchKey(query);
+  if (!q) return [];
+  return lines
+    .filter((l) => (l.not_ordered ?? 0) > 0 && (searchKey(l.name).includes(q) || searchKey(l.card_id).includes(q)))
+    .map((l) => ({
+      name: l.name,
+      copies: l.not_ordered ?? 0,
+      who: [...new Set((l.not_ordered_members ?? []).filter((m) => m.qty > 0).map((m) => m.display_name))],
+    }));
+}
+
+/** How many thumbnails fit a row (each takes `slot` px). More cards than that show one fewer and a +N chip. */
+export function thumbSplit(total: number, width: number, slot: number): { shown: number; more: number } {
+  const fit = Math.max(1, Math.floor(width / slot));
+  if (total <= fit) return { shown: total, more: 0 };
+  const shown = Math.max(1, fit - 1);
+  return { shown, more: total - shown };
+}
+
+/** Matching cards first, in their own order, then the rest. */
+export function hitsFirst(lines: GroupBuyOrderLine[], hits: GroupBuyOrderLine[]): GroupBuyOrderLine[] {
+  if (hits.length === 0) return lines;
+  const on = new Set(hits.map((l) => l.id));
+  return [...lines.filter((l) => on.has(l.id)), ...lines.filter((l) => !on.has(l.id))];
+}
+
+/** "Nov 20" for the day a package arrived, in the viewer's time zone. */
+export function arrivedDay(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** The seller as the card header shows it: the trimmed name, or null (shown as "Seller not set"). */
+export function sellerName(order: Pick<GroupBuyOrder, "seller_name">): string | null {
+  return order.seller_name.trim() || null;
 }

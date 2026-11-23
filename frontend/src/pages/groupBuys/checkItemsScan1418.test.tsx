@@ -70,7 +70,6 @@ describe("Check items scan to receive (#1418)", () => {
           lines={[{ card_id: "OP01-001", name: "Luffy" } as GroupBuyLine]}
           members={[]}
           orders={[a, b]}
-          startScanning
           saving={false}
           error={null}
           onSave={onSave}
@@ -78,6 +77,7 @@ describe("Check items scan to receive (#1418)", () => {
         />,
       );
     });
+    await click("Scan cards");
     await click("fake scan");
     expect(h.summary).toBe("2 counted · 2 not in this order · 1 not recognised");
     expect(onSave).not.toHaveBeenCalled();
