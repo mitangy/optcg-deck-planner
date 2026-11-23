@@ -570,8 +570,49 @@ export type SimQuery = { leader?: string; opponent?: string; levels?: string; da
 
 const ID = "[A-Z]{2,4}\\d{2}-\\d{3}|P-\\d{3}";
 
+const named = (id: string) => `${cardName(id) ?? id} (${id})`;
+
+/** A line kind this code does not know: never the raw key, the kind in words and any card ids in it named. */
+function humanizedLine(line: string): string {
+  const i = line.indexOf(":");
+  const kind = (i < 0 ? line : line.slice(0, i)).replace(/_/g, " ");
+  const ids = [...new Set(i < 0 ? [] : line.slice(i + 1).match(new RegExp(ID, "g")) ?? [])];
+  return ids.length ? `${kind}: ${ids.map(named).join(", ")}` : kind;
+}
+
+/** A line as a gerund phrase for a sentence ("accepting the optional effect of Nami (OP01-016)"), never a raw key (#1408). */
+export function linePhrase(line: string): string {
+  const i = line.indexOf(":");
+  const kind = i < 0 ? line : line.slice(0, i);
+  const rest = i < 0 ? "" : line.slice(i + 1);
+  const hasRest = i >= 0;
+  switch (kind) {
+    case "leader_activation":
+      return "using the Leader's Activate: Main";
+    case "activation":
+      return hasRest ? `using the Activate: Main of ${named(rest)}` : humanizedLine(line);
+    case "optional_accepted":
+      return hasRest ? `accepting the optional effect of ${named(rest)}` : humanizedLine(line);
+    case "optional_declined":
+      return hasRest ? `declining the optional effect of ${named(rest)}` : humanizedLine(line);
+    case "counter_event":
+      return hasRest ? `playing the Counter Event ${named(rest)}` : "playing a Counter Event";
+    case "cheat_out": {
+      const generic = "putting a Character into play with an effect instead of from hand";
+      if (!hasRest) return generic;
+      const m = new RegExp(`^(${ID}) via (${ID}|rules)$`).exec(rest);
+      if (m) return `putting ${named(m[1]!)} into play ${m[2] === "rules" ? "through the rules" : `with the effect of ${named(m[2]!)}`} instead of from hand`;
+      const ids = [...new Set(rest.match(new RegExp(ID, "g")) ?? [])];
+      return ids.length ? `${generic}: ${ids.map(named).join(", ")}` : generic;
+    }
+    case "main_event":
+      return hasRest ? `playing the Event ${named(rest)}` : humanizedLine(line);
+    default:
+      return humanizedLine(line);
+  }
+}
+
 export function lineDescription(line: string): string {
-  const named = (id: string) => `${cardName(id) ?? id} (${id})`;
   const [kind, rest = ""] = [line.split(":")[0]!, line.slice(line.indexOf(":") + 1)];
   const hasRest = line.includes(":");
   switch (kind) {
@@ -593,7 +634,7 @@ export function lineDescription(line: string): string {
     case "main_event":
       return `[Main] Event ${named(rest)} played`;
     default:
-      return line;
+      return humanizedLine(line);
   }
 }
 

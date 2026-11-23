@@ -6,10 +6,12 @@ import {
   type AdminBots,
   type AdminHosting,
   type AdminOverview,
+  type AdminSeasons,
   type AdminTraffic,
   fetchAdminBots,
   fetchAdminHosting,
   fetchAdminOverview,
+  fetchAdminSeasons,
   fetchAdminTraffic,
 } from "./adminApi";
 import { type AdminTab, type RangeDays, tabsForRole } from "./adminLogic";
@@ -19,6 +21,7 @@ import { EventTab } from "./EventTab";
 import { HostingTab } from "./HostingTab";
 import { PlayersTab } from "./PlayersTab";
 import { TrafficTab } from "./TrafficTab";
+import { SeasonsTab } from "./SeasonsTab";
 import { ReportsTab } from "./ReportsTab";
 import { UploadsTab } from "./UploadsTab";
 import { UsersTab } from "./UsersTab";
@@ -68,6 +71,7 @@ export default function AdminPage() {
   const [trafficDays, setTrafficDays] = useState<RangeDays>(30);
   const traffic = useTabData<AdminTraffic>(current === "traffic", (force) => fetchAdminTraffic(trafficDays, force), trafficDays);
   const hosting = useTabData<AdminHosting>(current === "hosting", fetchAdminHosting);
+  const seasons = useTabData<AdminSeasons>(current === "seasons", fetchAdminSeasons);
 
   if (who.status === "loading") {
     return (
@@ -88,7 +92,7 @@ export default function AdminPage() {
     );
   }
 
-  const tabData = current === "players" ? overview : current === "bots" ? bots : current === "traffic" ? traffic : current === "hosting" ? hosting : null;
+  const tabData = current === "players" ? overview : current === "bots" ? bots : current === "traffic" ? traffic : current === "hosting" ? hosting : current === "seasons" ? seasons : null;
   const refreshing = tabData?.refreshing ?? false;
 
   function body() {
@@ -117,6 +121,7 @@ export default function AdminPage() {
       const d = s.data as AdminTraffic;
       return <TrafficTab data={d} days={trafficDays} onDaysChange={setTrafficDays} stale={refreshing || d.days !== trafficDays} />;
     }
+    if (current === "seasons") return <SeasonsTab data={s.data as AdminSeasons} onChanged={() => seasons.run(true)} />;
     return <HostingTab data={s.data as AdminHosting} />;
   }
 

@@ -60,20 +60,22 @@ def current_board(db: Session) -> list[BoardRow]:
     return rank_board([(r[0], r[1], r[2]) for r in rows])
 
 
-def board_as_of(db: Session, cutoff: datetime) -> dict[int, int]:
-    """user_id -> rank as the board stood at `cutoff`, rebuilt from each player's last rated game before it."""
-    matches = db.execute(
-        moved_ranked(
-            select(
-                DuelMatch.seat0_user_id,
-                DuelMatch.seat1_user_id,
-                DuelMatch.seat0_rating_after,
-                DuelMatch.seat1_rating_after,
-            )
+def board_as_of(db: Session, cutoff: datetime, *, since: datetime | None = None) -> dict[int, int]:
+    """user_id -> rank as the board stood at `cutoff`, rebuilt from each player's last rated game before it.
+
+    `since` is the current season's start: earlier games belong to a season that was reset, so they are ignored
+    (a cutoff at or before it therefore has no games and no board to compare with)."""
+    stmt = moved_ranked(
+        select(
+            DuelMatch.seat0_user_id,
+            DuelMatch.seat1_user_id,
+            DuelMatch.seat0_rating_after,
+            DuelMatch.seat1_rating_after,
         )
-        .where(DuelMatch.created_at < cutoff)
-        .order_by(DuelMatch.created_at, DuelMatch.id)
-    ).all()
+    ).where(DuelMatch.created_at < cutoff)
+    if since is not None:
+        stmt = stmt.where(DuelMatch.created_at >= since)
+    matches = db.execute(stmt.order_by(DuelMatch.created_at, DuelMatch.id)).all()
     rating: dict[int, int] = {}
     games: dict[int, int] = {}
     for s0, s1, after0, after1 in matches:

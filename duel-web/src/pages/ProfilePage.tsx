@@ -8,7 +8,7 @@ import { fetchMatchHistory } from "../history/historyApi";
 import { MatchHistoryList, RecordSummary } from "../history/MatchHistoryList";
 import { PageShell } from "../layout/PageShell";
 import { useAsyncResource } from "../lib/useAsyncResource";
-import { fetchRatingMe, googleLoginUrl } from "../net/api";
+import { fetchMySeasons, fetchRatingMe, googleLoginUrl } from "../net/api";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { updateSettings, useDuelSettings } from "../settings";
 import "../history/history.css";
@@ -151,6 +151,32 @@ function HistoryPanel() {
   );
 }
 
+function PastSeasonsPanel() {
+  const res = useAsyncResource(() => fetchMySeasons(), []);
+  if (res.status !== "ready" || res.data.length === 0) return null;
+  return (
+    <section className="panel" aria-labelledby="profile-seasons-title">
+      <h2 className="panel-title" id="profile-seasons-title">Past seasons</h2>
+      <ul className="profile-seasons">
+        {res.data.map((s) => (
+          <li key={s.number}>
+            <Link to={`/leaderboard?season=${s.number}`} className="profile-season-name">
+              {s.name}
+            </Link>
+            <span className="profile-season-rank" title={s.provisional ? "Provisional (under 10 games)" : undefined}>
+              #{s.rank}
+            </span>
+            <BountyAmount amount={s.rating} />
+            <span className="profile-season-record">
+              {s.wins}-{s.losses}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 export function ProfilePage() {
   const authUser = useAuthUser();
   const { profileCard, profileArt } = useDuelSettings();
@@ -178,6 +204,7 @@ export function ProfilePage() {
             <h2 className="panel-title" id="profile-username-title">Username</h2>
             <UsernameSettings user={authUser} />
           </section>
+          <PastSeasonsPanel />
           <HistoryPanel />
         </>
       ) : (

@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -475,3 +476,47 @@ class TrafficOut(BaseModel):
     days: int
     vercel: dict[str, Any]
     render: dict[str, Any]
+
+
+class AdminSeasonCurrent(BaseModel):
+    number: int
+    name: str
+    started_at: datetime | None = None
+    players: int
+
+
+class AdminSeasonPreviewRow(BaseModel):
+    user_id: int
+    name: str
+    rank: int
+    rating: int
+    soft_after: int
+    hard_after: int
+    games: int
+
+
+class AdminSeasonPast(BaseModel):
+    number: int
+    name: str
+    started_at: datetime | None = None
+    ended_at: datetime
+    reset_mode: str | None = None
+    players: int
+
+
+class AdminSeasons(BaseModel):
+    current: AdminSeasonCurrent
+    preview: list[AdminSeasonPreviewRow]
+    past: list[AdminSeasonPast]
+
+
+class AdminSeasonStartIn(BaseModel):
+    mode: Literal["soft", "hard"]
+    name: str | None = Field(default=None, max_length=64)
+    confirm: str = Field(max_length=200)
+
+
+class AdminSeasonStarted(BaseModel):
+    number: int
+    name: str
+    started_at: datetime | None = None

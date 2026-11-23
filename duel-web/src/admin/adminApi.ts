@@ -221,3 +221,15 @@ export async function fetchUploadImageUrl(id: number): Promise<string> {
   if (!res.ok) throw await apiError(res, `Could not load the image (${res.status})`);
   return URL.createObjectURL(await res.blob());
 }
+
+export type AdminSeasons = Schemas["AdminSeasons"];
+export type AdminSeasonPreviewRow = Schemas["AdminSeasonPreviewRow"];
+export type AdminSeasonPast = Schemas["AdminSeasonPast"];
+export type SeasonResetMode = Schemas["AdminSeasonStartIn"]["mode"];
+
+export const fetchAdminSeasons = () => call<AdminSeasons>("/admin/seasons");
+export const startAdminSeason = (mode: SeasonResetMode, name: string, confirm: string) =>
+  call<Schemas["AdminSeasonStarted"]>("/admin/seasons", {
+    method: "POST",
+    body: JSON.stringify({ mode, name: name.trim() || undefined, confirm }),
+  });

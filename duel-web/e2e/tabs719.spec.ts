@@ -25,9 +25,9 @@ test("Admin sections: arrows, Home and End move between tabs and each tab shows 
   await tab("Players").click();
   await tab("Players").focus();
   await page.keyboard.press("ArrowRight");
-  await expect(tab("Bots & Log Pose")).not.toHaveCSS("outline-style", "none");
-  await expect(tab("Bots & Log Pose")).toBeFocused();
-  await expect(tab("Bots & Log Pose")).toHaveAttribute("aria-selected", "true");
+  await expect(tab("Seasons")).not.toHaveCSS("outline-style", "none");
+  await expect(tab("Seasons")).toBeFocused();
+  await expect(tab("Seasons")).toHaveAttribute("aria-selected", "true");
   await expect(tab("Players")).toHaveAttribute("aria-selected", "false");
 
   await page.keyboard.press("End");

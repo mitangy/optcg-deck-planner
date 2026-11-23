@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { botLabel, lineDescription, replayGame, searchAnyGames, simStats } from "./matches";
+import { botLabel, lineDescription, linePhrase, replayGame, searchAnyGames, simStats } from "./matches";
 import { gameResults, type SearchResultBlock } from "./sources";
 import { adaptToolResult } from "./toolMeta";
 import { finishedGame } from "./testFixtures";
@@ -94,6 +94,26 @@ describe("simulated stats (#635)", () => {
     expect(lineDescription("counter_event:OP01-016")).toBe("Counter Event Nami (OP01-016) played");
     expect(lineDescription("main_event:OP01-016")).toBe("[Main] Event Nami (OP01-016) played");
     expect(lineDescription("cheat_out:OP01-016 via rules")).toBe("Nami (OP01-016) put into play by the rules rather than played from hand");
+  });
+
+  it("words every line kind as a phrase that names the cards (#1408)", () => {
+    expect(linePhrase("leader_activation")).toBe("using the Leader's Activate: Main");
+    expect(linePhrase("activation:OP01-016")).toBe("using the Activate: Main of Nami (OP01-016)");
+    expect(linePhrase("optional_accepted:OP01-016")).toBe("accepting the optional effect of Nami (OP01-016)");
+    expect(linePhrase("optional_declined:OP01-016")).toBe("declining the optional effect of Nami (OP01-016)");
+    expect(linePhrase("counter_event")).toBe("playing a Counter Event");
+    expect(linePhrase("counter_event:OP01-016")).toBe("playing the Counter Event Nami (OP01-016)");
+    expect(linePhrase("main_event:OP01-016")).toBe("playing the Event Nami (OP01-016)");
+    expect(linePhrase("cheat_out")).toBe("putting a Character into play with an effect instead of from hand");
+    expect(linePhrase("cheat_out:OP01-016 via OP01-001")).toBe("putting Nami (OP01-016) into play with the effect of Roronoa Zoro (OP01-001) instead of from hand");
+    expect(linePhrase("cheat_out:OP01-016 via rules")).toBe("putting Nami (OP01-016) into play through the rules instead of from hand");
+    expect(linePhrase("cheat_out:OP01-016 sideways")).toBe("putting a Character into play with an effect instead of from hand: Nami (OP01-016)");
+  });
+
+  it("never shows a raw line key for an unknown kind, in the phrase or the description (#1408)", () => {
+    expect(linePhrase("new_kind:OP01-016")).toBe("new kind: Nami (OP01-016)");
+    expect(linePhrase("brand_new")).toBe("brand new");
+    expect(lineDescription("new_kind:OP01-016")).toBe("new kind: Nami (OP01-016)");
   });
 
   it("cites simulated stats as botsim: sources apart from stats: and tourney:, with the games and interval in every record sentence (#635)", () => {

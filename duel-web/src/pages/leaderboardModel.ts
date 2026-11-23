@@ -44,3 +44,18 @@ export function provisionalDividerAt(entries: readonly LeaderboardEntry[]): numb
   const i = entries.findIndex((e) => e.provisional);
   return i > 0 ? i : -1;
 }
+
+/** The past season a `?season=` value names, or null (the current season) when it is missing, malformed or not an ended season. */
+export function pastSeasonFromParam(raw: string | null, past: readonly { number: number }[]): number | null {
+  if (raw == null || !/^\d+$/.test(raw)) return null;
+  const n = Number(raw);
+  return past.some((s) => s.number === n) ? n : null;
+}
+
+/** Picker options: the running season first, then ended ones newest first. Values are "current" or the season number. */
+export function seasonOptions(
+  current: { name: string },
+  past: readonly { number: number; name: string }[],
+): { value: string; label: string }[] {
+  return [{ value: "current", label: `${current.name} (current)` }, ...past.map((s) => ({ value: String(s.number), label: s.name }))];
+}

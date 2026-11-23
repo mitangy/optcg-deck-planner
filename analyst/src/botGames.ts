@@ -7,7 +7,7 @@
  */
 import { replayApply, replayStart, type MatchReplay, type Seat } from "@optcg/rules";
 import { emptyTally, tallyIntent, type LineTally } from "@optcg/rules/src/sim/selfPlay";
-import { cardName, plannerCall, type PlannerApi } from "./matches";
+import { cardName, linePhrase, plannerCall, type PlannerApi } from "./matches";
 
 export type { LineTally };
 
@@ -155,7 +155,7 @@ export function compareLines(bot: LineRow[], real: RealLine[], opts: CompareOpti
     if (Math.sign(botDiff) !== Math.sign(realDiff) || Math.abs(botDiff) < gap || Math.abs(realDiff) < gap) continue;
     out.push({
       line: b.line,
-      description: b.description ?? b.line,
+      description: linePhrase(b.line),
       direction: botDiff > 0 ? "better" : "worse",
       bot: { withRate: b.with.win_rate, withoutRate: b.without.win_rate, withGames: b.with.games, withoutGames: b.without.games },
       real: { withRate: realWith, withoutRate: realWithout, withGames: r.withGames, withoutGames: r.withoutGames },
@@ -169,8 +169,8 @@ const pc = (x: number) => `${Math.round(x * 100)}%`;
 export function lessonText(c: LessonCandidate, leaderName: string): string {
   const side = (s: LessonCandidate["bot"]) => `${pc(s.withRate)} vs ${pc(s.withoutRate)} (${s.withGames} and ${s.withoutGames} games)`;
   return (
-    `With ${leaderName}, games where ${c.description} were won ${c.direction === "better" ? "more" : "less"} often than games without it: ` +
-    `${side(c.real)} in real games, and ${side(c.bot)} in bot simulations. A pattern in the games, not proof of cause.`
+    `With ${leaderName}, ${c.description} went with ${c.direction === "better" ? "more" : "fewer"} wins: ` +
+    `${side(c.real)} in real games, and ${side(c.bot)} in bot simulations (win rate with it vs without). A pattern in the games, not proof of cause.`
   ).slice(0, 1000);
 }
 

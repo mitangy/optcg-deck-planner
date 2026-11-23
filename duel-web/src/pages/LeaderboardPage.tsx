@@ -1,13 +1,15 @@
 import { PageShell } from "../layout/PageShell";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { Select } from "@optcg/ui/popups";
 import { useAsyncResource } from "../lib/useAsyncResource";
 import { BountyAmount } from "../Bounty";
 import { pinnedYou } from "../home/bounties";
 import { ensureAuth } from "../auth/session";
 import { fetchFriends } from "../friends/friendsApi";
-import { fetchLeaderboard, fetchRatingMe, googleLoginUrl, type LeaderboardEntry, type RatingMe } from "../net/api";
-import { WINDOWS, filterEntries, movement, notListedText, provisionalDividerAt, type BoardWindow } from "./leaderboardModel";
+import { fetchLeaderboard, fetchRatingMe, fetchSeasonBoard, fetchSeasons, googleLoginUrl, type LeaderboardEntry, type RatingMe } from "../net/api";
+import { seasonDate } from "../lib/seasonDate";
+import { WINDOWS, filterEntries, movement, notListedText, pastSeasonFromParam, provisionalDividerAt, seasonOptions, type BoardWindow } from "./leaderboardModel";
 
 const LIMIT = 100;
 const PROVISIONAL_GAMES = 10;
@@ -47,7 +49,20 @@ function Move({ change }: { change: number | null | undefined }) {
 
 export function LeaderboardPage() {
   const [period, setPeriod] = useState<BoardWindow>("all");
-  const res = useAsyncResource(() => fetchLeaderboard(LIMIT, period), [period]);
+  const [params, setParams] = useSearchParams();
+  const seasons = useAsyncResource(() => fetchSeasons(), []);
+  const seasonList = seasons.status === "ready" ? seasons.data : null;
+  // The picker only exists once a season has ended; before that there is only Season 1 and nothing to choose.
+  const pastSeasons = seasonList?.past ?? [];
+  const pastNumber = pastSeasonFromParam(params.get("season"), pastSeasons);
+  const viewedPast = pastNumber == null ? null : (pastSeasons.find((s) => s.number === pastNumber) ?? null);
+  const final = viewedPast != null;
+  const res = useAsyncResource(
+    () => (pastNumber != null ? fetchSeasonBoard(pastNumber, LIMIT) : fetchLeaderboard(LIMIT, period)),
+    [period, pastNumber],
+    // A ?season= link must wait for the season list, or it would flash the current board first.
+    seasons.status !== "loading",
+  );
   const [auth, setAuth] = useState<Auth>("checking");
   const [me, setMe] = useState<RatingMe | null>(null);
   const [query, setQuery] = useState("");
@@ -88,8 +103,8 @@ export function LeaderboardPage() {
   );
   const filtering = query.trim() !== "" || friendsOnly;
   const mineRow = meId == null ? undefined : rows.find((e) => e.user_id === meId);
-  const you = period === "all" && !filtering && loaded ? pinnedYou(me, loaded.map((e) => e.user_id)) : null;
-  const dividerAt = period === "all" ? provisionalDividerAt(rows) : -1;
+  const you = !final && period === "all" && !filtering && loaded ? pinnedYou(me, loaded.map((e) => e.user_id)) : null;
+  const dividerAt = period === "all" || final ? provisionalDividerAt(rows) : -1;
   const span = period === "week" ? "this week" : "this month";
 
   const showMe = useCallback(() => {
@@ -101,29 +116,60 @@ export function LeaderboardPage() {
   }, [meId]);
 
   const retry = res.reload;
-  const timeless = period === "all";
+  const timeless = period === "all" || final;
+  const pickSeason = (value: string) => {
+    const next = new URLSearchParams(params);
+    if (value === "current") next.delete("season");
+    else next.set("season", value);
+    setParams(next, { replace: true });
+    setQuery("");
+  };
 
   return (
-    <PageShell pageClass="page-narrow" title="Leaderboard" headerExtra={<PlayRanked />}>
-      <p className="leaderboard-sub">Win ranked games to raise your Bounty. Under {PROVISIONAL_GAMES} ranked games is provisional.</p>
+    <PageShell pageClass="page-narrow" title="Leaderboard" headerExtra={final ? null : <PlayRanked />}>
+      {seasonList && pastSeasons.length > 0 ? (
+        <div className="leaderboard-season">
+          <Select<string>
+            aria-label="Season"
+            className="leaderboard-season-select"
+            value={viewedPast ? String(viewedPast.number) : "current"}
+            onChange={pickSeason}
+            options={seasonOptions(seasonList.current, pastSeasons)}
+          />
+          <span className="leaderboard-season-note">
+            {viewedPast
+              ? `Final standings · ended ${seasonDate(viewedPast.ended_at)}`
+              : seasonList.current.started_at
+                ? `Started ${seasonDate(seasonList.current.started_at)}`
+                : null}
+          </span>
+        </div>
+      ) : null}
+      <p className="leaderboard-sub">
+        {final
+          ? `Where ${viewedPast.name} finished. Bounty here is the final Bounty of the season.`
+          : `Win ranked games to raise your Bounty. Under ${PROVISIONAL_GAMES} ranked games is provisional.`}
+      </p>
 
-      <YourBounty auth={auth} me={me} timeless={timeless} span={span} entries={loaded} canShow={mineRow != null} onShow={showMe} />
+      {final ? null : <YourBounty auth={auth} me={me} timeless={timeless} span={span} entries={loaded} canShow={mineRow != null} onShow={showMe} />}
 
       <div className="leaderboard-toolbar">
-        <div className="segmented segmented-3 leaderboard-window" role="radiogroup" aria-label="Time period">
-          {WINDOWS.map((w) => (
-            <button
-              key={w.id}
-              type="button"
-              role="radio"
-              aria-checked={period === w.id}
-              className={period === w.id ? "active" : ""}
-              onClick={() => setPeriod(w.id)}
-            >
-              {w.label}
-            </button>
-          ))}
-        </div>
+        {final ? null : (
+          <div className="segmented segmented-3 leaderboard-window" role="radiogroup" aria-label="Time period">
+            {WINDOWS.map((w) => (
+              <button
+                key={w.id}
+                type="button"
+                role="radio"
+                aria-checked={period === w.id}
+                className={period === w.id ? "active" : ""}
+                onClick={() => setPeriod(w.id)}
+              >
+                {w.label}
+              </button>
+            ))}
+          </div>
+        )}
         <label className="leaderboard-search">
           <span className="visually-hidden">Find a player</span>
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find a player" autoComplete="off" />
@@ -169,15 +215,21 @@ export function LeaderboardPage() {
         ) : null}
         {loaded && loaded.length === 0 ? (
           <div className="leaderboard-note">
-            <p className="panel-copy">{timeless ? "No ranked games yet." : `No ranked games ${span}.`} Be the first on the board.</p>
-            <PlayRanked />
+            {final ? (
+              <p className="panel-copy">Nobody was ranked in {viewedPast.name}.</p>
+            ) : (
+              <>
+                <p className="panel-copy">{timeless ? "No ranked games yet." : `No ranked games ${span}.`} Be the first on the board.</p>
+                <PlayRanked />
+              </>
+            )}
           </div>
         ) : null}
         {loaded && loaded.length > 0 && rows.length === 0 ? <p className="panel-copy leaderboard-note">No players match</p> : null}
         {rows.length > 0 ? (
           <ol className="bounty-list leaderboard-list">
             {rows.map((e, i) => (
-              <Row key={e.user_id} e={e} timeless={timeless} mine={e.user_id === meId} flash={e.user_id === flash} divider={i === dividerAt} />
+              <Row key={e.user_id} e={e} timeless={timeless} final={final} mine={e.user_id === meId} flash={e.user_id === flash} divider={i === dividerAt} />
             ))}
             {you && me ? (
               <li className="bounty-row leaderboard-row me pinned">
@@ -200,7 +252,7 @@ export function LeaderboardPage() {
   );
 }
 
-function Row({ e, timeless, mine, flash, divider }: { e: LeaderboardEntry; timeless: boolean; mine: boolean; flash: boolean; divider: boolean }) {
+function Row({ e, timeless, final, mine, flash, divider }: { e: LeaderboardEntry; timeless: boolean; final: boolean; mine: boolean; flash: boolean; divider: boolean }) {
   const muted = e.provisional;
   return (
     <>
@@ -212,7 +264,7 @@ function Row({ e, timeless, mine, flash, divider }: { e: LeaderboardEntry; timel
       >
         <span className="leaderboard-rank">
           <span>{e.rank}</span>
-          {timeless ? <Move change={e.rank_change} /> : null}
+          {timeless && !final ? <Move change={e.rank_change} /> : null}
         </span>
         <span className="leaderboard-who">
           <span className="bounty-name">{e.username || e.name}</span>
