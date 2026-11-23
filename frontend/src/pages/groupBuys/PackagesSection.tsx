@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { GroupBuyDetail, GroupBuyLine, GroupBuyOrder } from "../../api";
 import { CardThumb } from "../../ui/CardThumb";
 import { MoreIcon } from "../../ui/HeadPopover";
+import { goToNotInOrder } from "./NotInOrderPanel";
 import {
   countsTotal,
   orderChip,
@@ -39,9 +40,12 @@ export function StatusChip({ label, tone }: { label: string; tone: ChipTone }) {
 export function ProgressBar({
   counts,
   label,
+  notOrderedLink = false,
 }: {
   counts: PackageCounts;
   label: string;
+  /** Make "N not in an order yet" jump to the list of those cards (#1439). */
+  notOrderedLink?: boolean;
 }) {
   const total = Math.max(1, countsTotal(counts));
   const pct = (n: number) => `${(n / total) * 100}%`;
@@ -61,10 +65,25 @@ export function ProgressBar({
           style={{ width: pct(counts.onTheWay) }}
         />
       </div>
-      <p className="gb-progress-text" aria-hidden="true">
-        {progressLabels(counts).map((t) => (
-          <span key={t}>{t}</span>
-        ))}
+      <p className="gb-progress-text">
+        {progressLabels(counts).map((t, i) =>
+          i === 2 && notOrderedLink && counts.notOrdered > 0 ? (
+            <button
+              key={t}
+              type="button"
+              className="gb-link-btn gb-progress-link"
+              aria-label={`${t}. Show which cards`}
+              data-testid="gb-not-ordered-link"
+              onClick={goToNotInOrder}
+            >
+              {t}
+            </button>
+          ) : (
+            <span key={t} aria-hidden="true">
+              {t}
+            </span>
+          ),
+        )}
       </p>
     </div>
   );
@@ -373,7 +392,11 @@ export function PackagesSection({
         </p>
       ) : (
         <>
-          <ProgressBar counts={counts} label="Packages" />
+          <ProgressBar
+            counts={counts}
+            label="Packages"
+            notOrderedLink={detail.status === "ordered"}
+          />
           {isHost ? (
             <ul className="gb-order-list">
               {orders.map((o, i) => (

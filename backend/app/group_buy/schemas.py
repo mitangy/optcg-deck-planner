@@ -94,6 +94,16 @@ class GroupBuyMyExtraOut(BaseModel):
     skipped: int = 0
 
 
+class GroupBuyNotOrderedMemberOut(BaseModel):
+    """Copies of one card a member still has no seller order for (#1439)."""
+
+    user_id: int
+    display_name: str
+    qty: int
+    # The alt art these copies are, or None for the standard art.
+    product_id: int | None = None
+
+
 class GroupBuyLineOut(BaseModel):
     card_id: str
     name: str
@@ -129,6 +139,8 @@ class GroupBuyLineOut(BaseModel):
     my_in_order: int = 0
     my_arrived: int = 0
     my_not_ordered: int = 0
+    # Who the not-ordered copies are for; empty until the group buy has an order (#1439).
+    not_ordered_members: list[GroupBuyNotOrderedMemberOut] = []
 
 
 class GroupBuyOrderAllocationOut(BaseModel):

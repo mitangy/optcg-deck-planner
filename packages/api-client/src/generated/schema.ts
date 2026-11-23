@@ -7802,6 +7802,11 @@ export interface components {
              * @default 0
              */
             not_ordered: number;
+            /**
+             * Not Ordered Members
+             * @default []
+             */
+            not_ordered_members: components["schemas"]["GroupBuyNotOrderedMemberOut"][];
             /** Preferred Market Price */
             preferred_market_price?: number | null;
             /** Preferred Product Id */
@@ -7949,6 +7954,20 @@ export interface components {
              * @default 0
              */
             wanted: number;
+        };
+        /**
+         * GroupBuyNotOrderedMemberOut
+         * @description Copies of one card a member still has no seller order for (#1439).
+         */
+        GroupBuyNotOrderedMemberOut: {
+            /** Display Name */
+            display_name: string;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+            /** User Id */
+            user_id: number;
         };
         /** GroupBuyOrderAdded */
         GroupBuyOrderAdded: {

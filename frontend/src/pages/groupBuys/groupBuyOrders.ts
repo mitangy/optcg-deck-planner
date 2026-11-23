@@ -205,3 +205,30 @@ export function historyCopies(orders: GroupBuyHistoryOrder[], picked: ReadonlySe
     .filter((o) => !o.already_added && picked.has(o.order_number))
     .reduce((sum, o) => sum + o.lines.reduce((s, l) => s + l.qty, 0), 0);
 }
+
+/** Who a card's not-ordered copies are for: "Nami ×1 · Zoro ×1", alt arts named, standard copies marked Base once an alt is in the mix. */
+export function notOrderedWho(line: Pick<GroupBuyLine, "alt_arts" | "not_ordered_members">): string[] {
+  const members = line.not_ordered_members ?? [];
+  const mixed = members.some((m) => m.product_id != null) && members.some((m) => m.product_id == null);
+  return members
+    .filter((m) => m.qty > 0)
+    .map((m) => {
+      const alt = m.product_id != null ? artLabel(line as GroupBuyLine, m.product_id) : mixed ? "Base" : "";
+      return `${m.display_name} ×${m.qty}${alt ? ` (${alt})` : ""}`;
+    });
+}
+
+/** The art to show for a card's not-ordered copies: the alt most of them are, else the card's usual art. */
+export function notOrderedArt(line: GroupBuyLine): string | undefined {
+  const byArt = new Map<number | null, number>();
+  for (const m of line.not_ordered_members ?? []) byArt.set(m.product_id ?? null, (byArt.get(m.product_id ?? null) ?? 0) + m.qty);
+  let best: number | null = null;
+  let bestQty = byArt.get(null) ?? 0;
+  for (const [pid, qty] of byArt) {
+    if (pid != null && qty > bestQty) {
+      best = pid;
+      bestQty = qty;
+    }
+  }
+  return orderLineArt(line, best);
+}
