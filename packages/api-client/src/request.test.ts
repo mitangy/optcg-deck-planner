@@ -56,6 +56,16 @@ describe("shared API client (refactor 2.1a, 2.1b)", () => {
     expect(get.headers).not.toHaveProperty("Content-Type");
   });
 
+  it("lets a file upload set its own multipart content type (#1433)", async () => {
+    const fetchImpl = reply("{}");
+    const body = new FormData();
+    body.append("file", new Blob(["%PDF-"]), "orders.pdf");
+    await request("/upload", { method: "POST", body, fetchImpl: asFetch(fetchImpl) });
+    const init = (fetchImpl.mock.calls[0] as unknown as [string, RequestInit])[1];
+    expect(init.body).toBe(body);
+    expect(init.headers).not.toHaveProperty("Content-Type");
+  });
+
   it("keeps the caller's headers and adds the JSON content type to them (refactor 2.1b)", async () => {
     const fetchImpl = reply("{}");
     await request("/me", { method: "POST", json: { a: 1 }, headers: { "X-Trace": "t1" }, fetchImpl: asFetch(fetchImpl) });

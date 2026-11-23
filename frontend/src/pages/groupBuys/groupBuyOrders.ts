@@ -1,4 +1,4 @@
-import type { GroupBuyDetail, GroupBuyLine, GroupBuyOrder, GroupBuyOrderLine } from "../../api";
+import type { GroupBuyDetail, GroupBuyHistoryOrder, GroupBuyLine, GroupBuyOrder, GroupBuyOrderLine } from "../../api";
 import { lineArtUrl } from "./useGroupBuyLines";
 
 export type PackageCounts = { arrived: number; onTheWay: number; notOrdered: number };
@@ -145,4 +145,46 @@ export function artLabel(line: GroupBuyLine | undefined, productId: number | nul
 
 export function notOrderedCopies(detail: Pick<GroupBuyDetail, "lines">): number {
   return detail.lines.reduce((s, l) => s + (l.not_ordered ?? 0), 0);
+}
+
+const HISTORY_ORDER_NUMBER_RE = /\b[0-9A-F]{8}-[0-9A-F]{6}-[0-9A-F]{5}\b/i;
+
+/** A whole TCGplayer Order History page: an order number plus item markers. Same test as the server's. */
+export function looksLikeOrderHistory(text: string): boolean {
+  if (!HISTORY_ORDER_NUMBER_RE.test(text)) return false;
+  return /rarity:/i.test(text) || /\bitems\b[\s\S]*\bdetails\b/i.test(text);
+}
+
+/** Orders that can be added: not on this group buy yet. */
+export function addableHistoryOrders(orders: GroupBuyHistoryOrder[]): GroupBuyHistoryOrder[] {
+  return orders.filter((o) => !o.already_added);
+}
+
+/** Orders with cards from this group buy start checked; the rest of the page is usually other purchases. */
+export function startingHistorySelection(orders: GroupBuyHistoryOrder[]): string[] {
+  return addableHistoryOrders(orders)
+    .filter((o) => o.in_group_buy)
+    .map((o) => o.order_number);
+}
+
+/** The picked numbers in page order, so the import adds them the way the page lists them. */
+export function pickedHistoryNumbers(orders: GroupBuyHistoryOrder[], picked: ReadonlySet<string>): string[] {
+  return addableHistoryOrders(orders)
+    .filter((o) => picked.has(o.order_number))
+    .map((o) => o.order_number);
+}
+
+export function historyHeading(total: number, selected: number): string {
+  return `Found ${total} ${total === 1 ? "order" : "orders"}, ${selected} selected`;
+}
+
+export function addOrdersLabel(selected: number): string {
+  return `Add ${selected} ${selected === 1 ? "order" : "orders"}`;
+}
+
+/** Copies the picked orders put into this group buy (matched lines only). */
+export function historyCopies(orders: GroupBuyHistoryOrder[], picked: ReadonlySet<string>): number {
+  return orders
+    .filter((o) => !o.already_added && picked.has(o.order_number))
+    .reduce((sum, o) => sum + o.lines.reduce((s, l) => s + l.qty, 0), 0);
 }

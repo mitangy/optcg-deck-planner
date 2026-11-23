@@ -432,6 +432,21 @@ export type GroupBuyOrderPreview = {
   unmatched: GroupBuyReceiptUnmatched[];
 };
 
+export type GroupBuyHistoryOrder = {
+  order_number: string;
+  order_date: string;
+  seller_name: string;
+  tracking_number: string;
+  tracking_url: string;
+  already_added: boolean;
+  in_group_buy: boolean;
+  lines: GroupBuyOrderPreview["lines"];
+  unmatched: GroupBuyReceiptUnmatched[];
+};
+
+/** `text` is set for a PDF upload, so the page text can go back to the import call. */
+export type GroupBuyOrderHistoryPreview = { orders: GroupBuyHistoryOrder[]; text: string };
+
 export type GroupBuySummary = {
   id: number;
   title: string;
@@ -921,6 +936,26 @@ export const api = {
       body: JSON.stringify({ receipt_text: text }),
       timeoutMs: LONG_TIMEOUT_MS,
     }),
+  previewGroupBuyOrderHistory: (id: number, text: string) =>
+    request<GroupBuyOrderHistoryPreview>(`/group-buys/${id}/orders/history/preview`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
+      timeoutMs: LONG_TIMEOUT_MS,
+    }),
+  previewGroupBuyOrderHistoryPdf: (id: number, file: File) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<GroupBuyOrderHistoryPreview>(`/group-buys/${id}/orders/history/pdf`, {
+      method: "POST",
+      body,
+      timeoutMs: LONG_TIMEOUT_MS,
+    });
+  },
+  importGroupBuyOrderHistory: (id: number, text: string, order_numbers: string[]) =>
+    request<{ order_ids: number[]; unmatched: GroupBuyReceiptUnmatched[]; detail: GroupBuyDetail }>(
+      `/group-buys/${id}/orders/history/import`,
+      { method: "POST", body: JSON.stringify({ text, order_numbers }), timeoutMs: LONG_TIMEOUT_MS },
+    ),
   setGroupBuyOrderLines: (
     id: number,
     orderId: number,
