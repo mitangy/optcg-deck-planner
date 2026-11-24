@@ -118,4 +118,20 @@ describe("CardListCard (#1450)", () => {
     expect(host!.querySelectorAll("button")).toHaveLength(before);
     expect(btn("Add one Brook")!.disabled).toBe(false);
   });
+
+  it("card art is a button that enlarges that card when the app can show one (#1459)", async () => {
+    const openCard = vi.fn();
+    await render(null, { card: (id) => ({ name: `Art ${id}`, imageUrl: `https://img.test/${id}.jpg` }), openCard });
+    const thumb = btn("Enlarge Art OP01-028")!;
+    expect(thumb.querySelector("img")?.getAttribute("src")).toBe("https://img.test/OP01-028.jpg");
+    act(() => thumb.click());
+    expect(openCard).toHaveBeenCalledTimes(1);
+    expect(openCard).toHaveBeenCalledWith("OP01-028");
+  });
+
+  it("card art is not a button when the app has no enlarged view (#1459)", async () => {
+    await render(null, { card: (id) => ({ name: `Art ${id}`, imageUrl: `https://img.test/${id}.jpg` }) });
+    expect(host!.querySelectorAll("button")).toHaveLength(0);
+    expect(host!.querySelectorAll(".lp-cl-thumb img")).toHaveLength(4);
+  });
 });

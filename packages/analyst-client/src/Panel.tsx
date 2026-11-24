@@ -240,6 +240,7 @@ export function LogPosePanel({
       data-sized={floating && drawer.size ? "true" : undefined}
       data-dock={!phone && dock ? dock : undefined}
       data-embedded={embedded ? "true" : undefined}
+      data-in-layer={phone && inLayer ? "true" : undefined}
       data-moving={move.moving ? "true" : undefined}
       data-closing={closing ? "true" : undefined}
       style={

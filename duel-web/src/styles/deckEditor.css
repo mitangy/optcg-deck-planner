@@ -813,6 +813,11 @@ body:has(.deck-bottom-bar) {
   padding-bottom: calc(64px + var(--safe-b, 0px));
 }
 
+/* Log Pose's compass is fixed bottom-right too: lift it above the bar so it never sits on Add cards (#1458). */
+body:has(.is-compact .deck-bottom-bar) .lp-compass {
+  bottom: calc(var(--deck-bar-h, 56px) + var(--safe-b, 0px) + 12px);
+}
+
 .is-compact .deck-tools {
   display: flex;
   gap: 0.5rem;
@@ -1267,4 +1272,11 @@ html {
   html {
     --deck-u: calc(1rem / 13.5);
   }
+}
+
+/* "Describe a card" sits above the search box; it keeps its natural width instead of stretching the column. */
+.deck-search > .deck-describe-btn {
+  align-self: flex-start;
+  max-width: calc(100% - 6px);
+  margin: 3px; /* room for the focus ring inside the scrolling Add cards sheet */
 }

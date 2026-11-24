@@ -34,6 +34,7 @@ import {
 } from "./lazyPages";
 import { LoginPage } from "../auth/LoginPage";
 import { PublicSharePage } from "../pages/PublicSharePage";
+import { useLogPoseCardLightbox } from "../pages/decks/logPoseCard";
 import { MetaRoute, CardRoute, HomeRoute, RequireAuth } from "./routeGuards";
 
 export default function App() {
@@ -42,7 +43,8 @@ export default function App() {
   const { data: me } = useMe();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const navigate = useNavigate();
-  const sources = useMemo(() => ({ ...PLANNER_SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o)) }), [navigate]);
+  const { openCard, lightbox: cardLightbox } = useLogPoseCardLightbox();
+  const sources = useMemo(() => ({ ...PLANNER_SOURCE_HOOKS, openCard, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o)) }), [navigate, openCard]);
   return (
     <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={sources}>
       <RouteMeta signedIn={!!me} />
@@ -152,6 +154,7 @@ export default function App() {
           onClose={() => setFeedbackOpen(false)}
         />
       ) : null}
+      {cardLightbox}
     </LogPoseProvider>
   );
 }

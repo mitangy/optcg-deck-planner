@@ -155,4 +155,16 @@ describe("DeckEditCard auto-apply (#726)", () => {
     expect(prevented).toBe(false);
     expect(onNavigate).not.toHaveBeenCalled();
   });
+
+  it("card art in a suggested edit enlarges that card, and is plain art without the hook (#1459)", async () => {
+    const openCard = vi.fn();
+    const card = (id: string) => ({ name: `Art ${id}`, imageUrl: `https://img.test/${id}.jpg` });
+    await render({ editor: null, hooks: { card, openCard } });
+    const thumb = host!.querySelector<HTMLButtonElement>('button[aria-label="Enlarge Art ST01-016"]')!;
+    act(() => thumb.click());
+    expect(openCard).toHaveBeenCalledWith("ST01-016");
+    await render({ editor: null, hooks: { card } });
+    expect(host!.querySelector('button[aria-label^="Enlarge"]')).toBeNull();
+    expect(host!.querySelectorAll(".lp-edit-thumb img").length).toBeGreaterThan(0);
+  });
 });

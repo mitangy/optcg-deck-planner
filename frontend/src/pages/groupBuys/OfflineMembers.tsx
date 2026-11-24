@@ -42,6 +42,7 @@ export function OfflineNameDialog({
   title,
   confirmLabel,
   initial = "",
+  note = "They do not need the app. You choose their cards and see what they owe on its own line.",
   busy,
   error,
   onSubmit,
@@ -50,6 +51,7 @@ export function OfflineNameDialog({
   title: string;
   confirmLabel: string;
   initial?: string;
+  note?: string;
   busy: boolean;
   error: string | null;
   onSubmit: (name: string) => void;
@@ -79,9 +81,7 @@ export function OfflineNameDialog({
               onChange={(e) => setName(e.target.value)}
             />
           </label>
-          <p className="muted gb-offline-note">
-            They do not need the app. You choose their cards and see what they owe on its own line.
-          </p>
+          <p className="muted gb-offline-note">{note}</p>
         </div>
         <div className="gb-dialog-foot">
           <p className="error gb-dialog-error" role="alert">
@@ -232,11 +232,12 @@ export function OfflineMemberMenu({
 }: {
   member: GroupBuyMember;
   onRename: () => void;
-  onRemove: () => void;
+  /** Left out when they still have copies; move those off them first. */
+  onRemove?: () => void;
 }) {
   return (
     <Menu as="div" className="head-popover gb-offline-menu">
-      <MenuButton type="button" className="ghost gb-more-btn" aria-label={`Options for ${member.display_name}`} title="Rename or remove">
+      <MenuButton type="button" className="ghost gb-more-btn" aria-label={`Options for ${member.display_name}`} title={onRemove ? "Rename or remove" : "Rename"}>
         <MoreIcon />
       </MenuButton>
       <MenuList
@@ -249,11 +250,13 @@ export function OfflineMemberMenu({
             Rename
           </button>
         </MenuItem>
-        <MenuItem>
-          <button type="button" className="danger" onClick={onRemove}>
-            Remove
-          </button>
-        </MenuItem>
+        {onRemove ? (
+          <MenuItem>
+            <button type="button" className="danger" onClick={onRemove}>
+              Remove
+            </button>
+          </MenuItem>
+        ) : null}
       </MenuList>
     </Menu>
   );

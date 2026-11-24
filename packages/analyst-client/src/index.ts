@@ -8,6 +8,7 @@ export { hintAsk, messageContext } from "./ask";
 export { DeckEditCard } from "./DeckEditCard";
 export { deckListText, parseDraft } from "./drafts";
 export { CardListCard } from "./CardListCard";
+export { DescribeCardButton, DESCRIBE_A_CARD_ASK } from "./DescribeCardButton";
 export { parseCardList, type CardList } from "./cardLists";
 export { parseProposal, type DeckEditOp, type DeckEditor } from "./proposals";
 export { CitedAnswer, type SourceHooks } from "./Sources";
