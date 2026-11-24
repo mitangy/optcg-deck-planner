@@ -1,6 +1,20 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-24", app: "planner", pr: 0, title: "Gift Collection -Heroines alt arts", text: "The 10 Gift Collection -Heroines printings are now alt arts in the planner and the duel app: Nami (EB03-006), Hina (EB03-025), Koala (EB03-042), Rebecca (EB03-048), Shirahoshi (EB03-052), Boa Hancock (EB04-027), Vinsmoke Reiju (OP12-063), Jewelry Bonney (OP12-118), Perona (OP14-111) and Nico Robin (P-111).",
+    cards: [
+      { id: "EB03-006", name: "Nami", image: "https://tcgplayer-cdn.tcgplayer.com/product/735311_400w.jpg", label: "Gift Collection -Heroines" },
+      { id: "EB03-025", name: "Hina", image: "https://tcgplayer-cdn.tcgplayer.com/product/735312_400w.jpg", label: "Gift Collection -Heroines" },
+      { id: "EB03-042", name: "Koala", image: "https://tcgplayer-cdn.tcgplayer.com/product/735313_400w.jpg", label: "Gift Collection -Heroines" },
+      { id: "EB03-048", name: "Rebecca", image: "https://tcgplayer-cdn.tcgplayer.com/product/735314_400w.jpg", label: "Gift Collection -Heroines" },
+      { id: "EB03-052", name: "Shirahoshi", image: "https://tcgplayer-cdn.tcgplayer.com/product/735315_400w.jpg", label: "Gift Collection -Heroines" },
+      { id: "EB04-027", name: "Boa Hancock", image: "https://tcgplayer-cdn.tcgplayer.com/product/735316_400w.jpg", label: "Gift Collection -Heroines" },
+      { id: "OP12-063", name: "Vinsmoke Reiju", image: "https://tcgplayer-cdn.tcgplayer.com/product/735318_400w.jpg", label: "Gift Collection -Heroines" },
+      { id: "OP12-118", name: "Jewelry Bonney", image: "https://tcgplayer-cdn.tcgplayer.com/product/735320_400w.jpg", label: "Gift Collection -Heroines" },
+      { id: "OP14-111", name: "Perona", image: "https://tcgplayer-cdn.tcgplayer.com/product/735319_400w.jpg", label: "Gift Collection -Heroines" },
+      { id: "P-111", name: "Nico Robin", image: "https://tcgplayer-cdn.tcgplayer.com/product/735317_400w.jpg", label: "Gift Collection -Heroines" },
+    ],
+  },
   { date: "2026-11-23", app: "planner", pr: 1445, title: "Group buys for friends who are not on the app", text: "A group buy host can now add someone who is not on the app, from Members: Add someone not on the app. Under Buying for, pick them and the steppers set their copies, Add a card finds a card that is not on the list yet, and Paste their list sets all their cards from a pasted list (4xOP01-001 or 4 OP01-001). Their cards, what they owe and their hand-off show on their own line, apart from yours, and nothing is added to anyone's collection for them. You can rename or remove them from the menu on their name." },
   { date: "2026-11-23", app: "planner", pr: 1443, title: "Group buy cards you ordered keep what you bought", text: "Group buy cards you've ordered now show the art and price you actually bought, and no longer change when you pick a different art in Shopping. Each is what was paid per copy (from an Order History import; otherwise the market price of the art bought), Line total and Your share add up the copies that are ordered at that price, and copies not in an order yet still follow your picks. The art list on an ordered card is now a read-only list of the arts bought, with how many and the price." },
   { date: "2026-11-23", app: "planner", pr: 1441, title: "Find packages faster", text: "On a group buy with 4 or more packages, the host can now search them by card name or number, seller, order number (the last few characters on the card work) or member, and filter by On the way, Missing cards or Arrived, with a count on each. Packages that still need work come first, and Sort can also order them by seller, most copies or the order you added them. Searching shows which card is in each package and who it is for, and a package you just marked arrived stays where it is. Each package card is cleaner too: one main button, Track now sits in the header, the order number has a copy icon, the +N thumbnail is always visible, and a package with no seller says Seller not set." },
