@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-24", app: "duel", pr: 1458, title: "Log Pose button clear of Add cards", text: "On a phone, the Log Pose compass button no longer covers the Add cards button at the bottom of the deck editor. It sits just above the bar instead." },
   { date: "2026-11-24", app: "duel", pr: 1459, title: "Enlarge cards in Log Pose", text: "In Log Pose, tap a card's art in a list of cards it found, or in a suggested deck edit, to see it enlarged. Close it to go back to the chat." },
   { date: "2026-11-24", app: "planner", pr: 1459, title: "Enlarge cards in Log Pose", text: "In Log Pose, click a card's art in a list of cards it found, or in a suggested deck edit, to see it enlarged. Close it to go back to the chat." },
   { date: "2026-11-24", app: "duel", pr: 1456, title: "Describe a card to Log Pose in the deck editor", text: "In the deck editor, Describe a card above the card search opens Log Pose with Find cards that ready to finish. Log Pose answers with the matching cards, each with its art, cost, power and why it fits, and a + button to add it to your deck (and a − to take it out). With a deck open it only lists cards your Leader can use." },
