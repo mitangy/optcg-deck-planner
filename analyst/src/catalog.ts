@@ -51,6 +51,15 @@ type RawAbilities = Record<string, { abilities: Ability[]; status?: string }>;
 
 const STRUCTURAL = new Set(["if", "seq", "may", "choose_one", "nothing", "select", "pay", "invoke", "delay"]);
 
+/** Sign of a power/cost change: a plain number, or `{count, times}` (the sign is the multiplier's). */
+function amountSign(amount: unknown): number {
+  const n = typeof amount === "number" ? amount : (amount as { times?: unknown } | null)?.times;
+  return typeof n === "number" ? Math.sign(n) : 0;
+}
+
+/** `power` and `cost` effects also get a direction tag, so "gives -power" is searchable without reading the text. */
+const DIRECTED = { power: ["power_up", "power_down"], cost: ["cost_up", "cost_down"] } as const;
+
 function collectVerbs(node: unknown, out: Set<string>): void {
   if (Array.isArray(node)) {
     for (const n of node) collectVerbs(n, out);
@@ -58,7 +67,12 @@ function collectVerbs(node: unknown, out: Set<string>): void {
   }
   if (!node || typeof node !== "object") return;
   const rec = node as Record<string, unknown>;
-  if (typeof rec.do === "string" && !STRUCTURAL.has(rec.do)) out.add(rec.do);
+  if (typeof rec.do === "string" && !STRUCTURAL.has(rec.do)) {
+    out.add(rec.do);
+    const directed = DIRECTED[rec.do as keyof typeof DIRECTED];
+    const sign = directed ? amountSign(rec.amount) : 0;
+    if (directed && sign) out.add(directed[sign > 0 ? 0 : 1]);
+  }
   for (const v of Object.values(rec)) collectVerbs(v, out);
 }
 

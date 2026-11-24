@@ -106,8 +106,8 @@ export const applyOps = (p: DeckEditProposal): DeckEditOp[] => p.lines.map((l) =
 
 export const undoOps = (p: DeckEditProposal): DeckEditOp[] => p.lines.map((l) => ({ id: l.id, before: l.after, after: l.before }));
 
-export const isEmptyAnswer = (m: { text: string; proposals?: readonly unknown[]; drafts?: readonly unknown[]; plans?: readonly unknown[]; choices?: readonly unknown[]; stopped?: boolean }): boolean =>
-  !m.text && !m.proposals?.length && !m.drafts?.length && !m.plans?.length && !m.choices?.length && !m.stopped;
+export const isEmptyAnswer = (m: { text: string; proposals?: readonly unknown[]; drafts?: readonly unknown[]; cardLists?: readonly unknown[]; plans?: readonly unknown[]; choices?: readonly unknown[]; stopped?: boolean }): boolean =>
+  !m.text && !m.proposals?.length && !m.drafts?.length && !m.cardLists?.length && !m.plans?.length && !m.choices?.length && !m.stopped;
 
 export function shouldAutoApply(
   p: DeckEditProposal,

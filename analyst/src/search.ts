@@ -38,6 +38,20 @@ export const MAX_LIMIT = 100;
 
 export const setOf = (id: string) => id.split("-")[0] ?? id;
 
+/** The leader of the deck open in the app, when it names a real leader card. */
+export function openLeaderOf(catalog: Catalog, leaderId: string | null | undefined): CardRow | undefined {
+  const card = leaderId ? catalog.cards.get(normalizeCardId(leaderId)) : undefined;
+  return card?.type === "leader" ? card : undefined;
+}
+
+/** Whether a leader's deck may include this card: it shares a color and no leader rule (Atlas) rules it out. The same check legalFor uses. */
+export function legalUnder(catalog: Catalog, leader: CardRow, c: CardRow): boolean {
+  if (c.type === "leader") return false;
+  if (!c.colors.some((x) => leader.colors.includes(x))) return false;
+  const atlasCard = catalog.atlas[c.id];
+  return !(atlasCard && (catalog.atlas[leader.id]?.rules ?? []).some((r) => ruleOffends(r, atlasCard)));
+}
+
 export function searchCards(catalog: Catalog, f: CardFilter): SearchResult {
   const notes: string[] = [];
   let leader: CardRow | undefined;
@@ -45,7 +59,6 @@ export function searchCards(catalog: Catalog, f: CardFilter): SearchResult {
     leader = catalog.cards.get(normalizeCardId(f.legalFor));
     if (!leader || leader.type !== "leader") notes.push(`${f.legalFor} is not a known leader, so legalFor was ignored.`);
   }
-  const leaderRules = leader ? catalog.atlas[leader.id]?.rules ?? [] : [];
   const q = f.query ? lower(f.query) : null;
   const name = f.name ? lower(f.name) : null;
   const colors = f.colors?.map(lower);
@@ -69,12 +82,7 @@ export function searchCards(catalog: Catalog, f: CardFilter): SearchResult {
     if (!anyIn(f.effects, c.effects)) continue;
     if (f.hasTrigger !== undefined && Boolean(c.trigger) !== f.hasTrigger) continue;
     if (f.set && lower(setOf(c.id)) !== lower(f.set)) continue;
-    if (leader && leader.type === "leader") {
-      if (c.type === "leader") continue;
-      if (!c.colors.some((x) => leader.colors.includes(x))) continue;
-      const atlasCard = catalog.atlas[c.id];
-      if (atlasCard && leaderRules.some((r) => ruleOffends(r, atlasCard))) continue;
-    }
+    if (leader && leader.type === "leader" && !legalUnder(catalog, leader, c)) continue;
     matches.push(c);
   }
   matches.sort((a, b) => (a.cost ?? -1) - (b.cost ?? -1) || a.id.localeCompare(b.id));

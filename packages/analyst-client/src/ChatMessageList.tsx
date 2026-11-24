@@ -3,6 +3,7 @@ import { autoText, isAutoMessage } from "./client";
 import type { Msg } from "./chatMessages";
 import { CitedAnswer } from "./Sources";
 import { DeckEditCard } from "./DeckEditCard";
+import { CardListCard } from "./CardListCard";
 import { NewDeckCard } from "./NewDeckCard";
 import { FeedbackBar, type useFeedback } from "./Feedback";
 import { answerStart, targetKey } from "./feedbackModel";
@@ -68,6 +69,9 @@ export function ChatMessages({
             ))}
             {(m.drafts ?? []).map((d) => (
               <NewDeckCard key={d.id} draft={d} live={m.live === true} onOpened={phone ? onClose : undefined} />
+            ))}
+            {(m.cardLists ?? []).map((l) => (
+              <CardListCard key={l.id} list={l} editor={editor} />
             ))}
             {game
               ? (m.plans ?? []).map((plan) => (
