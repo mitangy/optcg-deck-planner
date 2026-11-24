@@ -135,7 +135,7 @@ describe("the cards of a lethal board", () => {
     }
     for (const id of pool.leaders) expect(row(id).timings, id).toEqual([]);
     expect(pool.events.length).toBeGreaterThan(0);
-    for (const id of pool.events) expect(row(id).effects, id).toEqual(["power"]);
+    for (const id of pool.events) expect(row(id).effects.filter((e) => e !== "power_up"), id).toEqual(["power"]);
     expect(row(pool.lifeFiller).counter ?? 0).toBe(0);
     expect(row(pool.lifeFiller).trigger).toBe("");
   });

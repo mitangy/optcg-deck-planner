@@ -8,6 +8,8 @@
 @import "./logPose/sources.css";
 @import "./logPose/editCard.css";
 @import "./logPose/newDeckCard.css";
+@import "./logPose/cardListCard.css";
+@import "./logPose/describeCard.css";
 @import "./logPose/access.css";
 @import "./logPose/usage.css";
 @import "./logPose/chats.css";

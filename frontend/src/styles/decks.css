@@ -567,8 +567,18 @@
 
 .deck-editor-replace {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
+  gap: 0.4rem;
   margin: 0 0 0.4rem;
+}
+
+.deck-editor-replace > * {
+  min-width: 0;
+}
+
+.deck-editor-describe {
+  margin-right: auto;
 }
 
 .load-error {

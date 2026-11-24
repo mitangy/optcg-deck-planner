@@ -1498,5 +1498,9 @@ module.exports = {
     { id: "e2e-mo1424-labels-nowrap", args: "match-over-buttons-1424 --project=desktop-1280 -g \"narrowest card\"", edits: [
       { file: "duel-web/src/styles/intentBar.css", from: "  white-space: normal;\n  text-wrap: balance;\n  overflow-wrap: normal;\n  text-align: center;\n  line-height: 1.15;\n", to: "  white-space: nowrap;\n" }
     ], kills: ["match-over-buttons-1424.spec.ts > Match over buttons fit their labels when the opponent left, narrowest card (#1424) [desktop-1280]"] },
+    { id: "e2e-lp1458-compass-not-lifted", args: "log-pose-card-list-1456 -g 1458 --project=phone-375", edits: [
+      { file: "duel-web/src/styles/deckEditor.css", from: "body:has(.is-compact .deck-bottom-bar) .lp-compass {\n  bottom: calc(var(--deck-bar-h, 56px) + var(--safe-b, 0px) + 12px);\n}\n", to: "" },
+    ], kills: ["log-pose-card-list-1456.spec.ts > Log Pose compass sits above the deck editor's Add cards bar (#1458) [phone-375]"] },
+    {"id": "e2e-lp1459-card-art-not-wired", "args": "log-pose-card-list-1456 -g 1459 --project=phone-375", "edits": [{"file": "duel-web/src/App.tsx", "from": "{ ...SOURCE_HOOKS, openCard, openDeck", "to": "{ ...SOURCE_HOOKS, openDeck"}], "kills": ["log-pose-card-list-1456.spec.ts > Tapping a card's art in a Log Pose card list enlarges it above the panel (#1459) [phone-375]"]},
   ],
 };

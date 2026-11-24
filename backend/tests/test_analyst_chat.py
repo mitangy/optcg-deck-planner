@@ -131,8 +131,8 @@ def test_threads_store_messages_as_sent_and_show_only_the_conversation(chat):
 
     view = c.get(f"/analyst/chat/threads/{tid}").json()
     assert view["messages"] == [
-        {"role": "user", "text": "How is my Zoro?", "citations": [], "proposals": [], "drafts": []},
-        {"role": "assistant", "text": "Let me look.\n\nIt's legal.", "citations": [], "proposals": [], "drafts": []},
+        {"role": "user", "text": "How is my Zoro?", "citations": [], "proposals": [], "drafts": [], "card_lists": []},
+        {"role": "assistant", "text": "Let me look.\n\nIt's legal.", "citations": [], "proposals": [], "drafts": [], "card_lists": []},
     ]
     c.post("/analyst/chat/threads", json={"title": "never answered"}, headers=h)
     assert [t["id"] for t in c.get("/analyst/chat/threads").json()["threads"]] == [tid]
@@ -412,6 +412,95 @@ def test_the_thread_view_shows_a_new_deck_under_the_answer_that_made_it(chat):
         ("assistant", "Opening it.", ["d1"]),
     ]
     assert view[3]["drafts"][0] == _draft("d1")
+
+
+def _card_list(lid: str, title: str = "Red Straw Hats") -> dict:
+    return {
+        "id": lid,
+        "version": 1,
+        "kind": "card_list",
+        "title": title,
+        "cards": [
+            {"id": "OP01-022", "name": "Brook", "type": "character", "colors": ["red"], "cost": 4, "power": 5000, "counter": 1000, "reason": "-2000 power", "any_number": False},
+            {"id": "OP01-028", "name": "Green Star Rafflesia", "type": "event", "colors": ["red"], "cost": 1, "power": None, "counter": None, "reason": "", "any_number": False},
+            {"id": "OP01-075", "name": "Pacifista", "type": "character", "colors": ["blue"], "cost": 5, "power": 5000, "counter": None, "reason": "", "any_number": True},
+        ],
+        "leader_id": "OP01-001",
+    }
+
+
+def test_a_card_list_must_come_from_a_show_cards_call_in_its_thread(chat):
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Find"}, headers=h).json()["id"]
+    messages = _propose_turn("l1", "Here.", name="show_cards") + _propose_turn("t2", "An edit.")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    url = f"/analyst/chat/threads/{tid}/card_lists"
+    assert c.post(url, json={"card_lists": [_card_list("nope")]}, headers=h).status_code == 400
+    assert c.post(url, json={"card_lists": [_card_list("t2")]}, headers=h).status_code == 400
+    assert c.post(url, json={"card_lists": [_card_list("l1"), _card_list("nope")]}, headers=h).status_code == 400
+    assert [m["card_lists"] for m in c.get(f"/analyst/chat/threads/{tid}").json()["messages"]] == [[], [], [], []]
+    assert c.post(url, json={"card_lists": [_card_list("l1")]}, headers=h).status_code == 204
+    assert c.post(url, json={"card_lists": [_card_list("l1", title="Changed")]}, headers=h).status_code == 204
+    shown = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [x["title"] for m in shown for x in m["card_lists"]] == ["Red Straw Hats"]
+    # A list is neither an edit nor a new deck, and they never show up as one.
+    assert [m["proposals"] + m["drafts"] for m in shown] == [[], [], [], []]
+
+
+def test_a_card_list_is_kept_apart_from_edits_and_new_decks_on_the_same_thread(chat):
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Mixed"}, headers=h).json()["id"]
+    messages = _propose_turn("l1", "Cards.", name="show_cards") + _propose_turn("t1", "Edit.") + _propose_turn("d1", "Deck.", name="propose_new_deck")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    assert c.post(f"/analyst/chat/threads/{tid}/card_lists", json={"card_lists": [_card_list("l1")]}, headers=h).status_code == 204
+    assert c.post(f"/analyst/chat/threads/{tid}/proposals", json={"proposals": [_edit("t1")]}, headers=h).status_code == 204
+    assert c.post(f"/analyst/chat/threads/{tid}/drafts", json={"drafts": [_draft("d1")]}, headers=h).status_code == 204
+    shown = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [x["id"] for m in shown for x in m["card_lists"]] == ["l1"]
+    assert [x["id"] for m in shown for x in m["proposals"]] == ["t1"]
+    assert [x["id"] for m in shown for x in m["drafts"]] == ["d1"]
+
+
+def test_the_thread_view_shows_a_card_list_under_the_answer_that_made_it(chat):
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Find"}, headers=h).json()["id"]
+    first = [
+        {"role": "user", "content": [{"type": "text", "text": "Hi"}]},
+        {"role": "assistant", "content": [{"type": "text", "text": "Ahoy."}]},
+    ]
+    messages = first + _propose_turn("l1", "Two match.", name="show_cards")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    assert c.post(f"/analyst/chat/threads/{tid}/card_lists", json={"card_lists": [_card_list("l1")]}, headers=h).status_code == 204
+    view = c.get(f"/analyst/chat/threads/{tid}").json()["messages"]
+    assert [(m["role"], m["text"], [x["id"] for x in m["card_lists"]]) for m in view] == [
+        ("user", "Hi", []),
+        ("assistant", "Ahoy.", []),
+        ("user", "Review l1", []),
+        ("assistant", "Two match.", ["l1"]),
+    ]
+    assert view[3]["card_lists"][0] == _card_list("l1")
+
+
+def test_a_card_list_holds_one_to_24_cards_and_at_most_4_per_turn(chat):
+    c, _ = chat
+    _, body = _session(c)
+    h = _as(body["token"])
+    tid = c.post("/analyst/chat/threads", json={"title": "Find"}, headers=h).json()["id"]
+    messages = _propose_turn("l1", "Here.", name="show_cards")
+    assert c.post(f"/analyst/chat/threads/{tid}/messages", json={"messages": messages}, headers=h).status_code == 204
+    url = f"/analyst/chat/threads/{tid}/card_lists"
+    big = _card_list("l1")
+    big["cards"] = [{"id": f"OP01-{n:03d}", "name": "X", "type": "character"} for n in range(1, 26)]
+    assert c.post(url, json={"card_lists": [big]}, headers=h).status_code == 422
+    big["cards"] = big["cards"][:24]
+    assert c.post(url, json={"card_lists": [big]}, headers=h).status_code == 204
+    assert c.post(url, json={"card_lists": [_card_list(f"l{n}") for n in range(5)]}, headers=h).status_code == 422
 
 
 def test_an_edit_keeps_its_apply_flag_across_a_reload(chat):

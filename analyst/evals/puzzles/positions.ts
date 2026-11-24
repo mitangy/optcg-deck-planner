@@ -184,7 +184,7 @@ export function lethalPool(catalog: Catalog): LethalPool {
     blockers: chars.filter((r) => r.keywords.includes("Blocker")).map((r) => r.id),
     heavy: chars.filter((r) => r.keywords.includes("Double Attack") || r.keywords.includes("Banish")).map((r) => r.id),
     counterChars: chars.filter((r) => (r.counter ?? 0) > 0).map((r) => r.id),
-    events: rows.filter((r) => r.type === "event" && r.timings.includes("counter") && r.effects.join() === "power" && (r.cost ?? 9) <= 2 && SIMPLE_COUNTER.test(r.text)).map((r) => r.id),
+    events: rows.filter((r) => r.type === "event" && r.timings.includes("counter") && r.effects.filter((e) => e !== "power_up").join() === "power" && (r.cost ?? 9) <= 2 && SIMPLE_COUNTER.test(r.text)).map((r) => r.id),
     lifeFiller: filler.id,
   };
   poolCache.set(catalog, pool);

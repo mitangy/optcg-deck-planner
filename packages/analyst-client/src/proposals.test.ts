@@ -107,6 +107,11 @@ describe("deck edit proposals (#400)", () => {
     expect(isEmptyAnswer({ text: "", drafts: [] })).toBe(true);
   });
 
+  it("keeps an answer that has only a card list (#1450)", () => {
+    expect(isEmptyAnswer({ text: "", cardLists: [{ id: "l1" }] })).toBe(false);
+    expect(isEmptyAnswer({ text: "", cardLists: [] })).toBe(true);
+  });
+
   it("keeps an answer that has only a turn plan (#416)", () => {
     expect(isEmptyAnswer({ text: "", plans: [{ id: "p1" }] })).toBe(false);
     expect(isEmptyAnswer({ text: "", plans: [] })).toBe(true);

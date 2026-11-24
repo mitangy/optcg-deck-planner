@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { tcgArtForCard } from "@optcg/card-core";
 import { pageScope, plannerDeckScope, type DeckContext, type DeckEditOp, type LogPosePage, type SourceHooks } from "@optcg/analyst-client";
 
 /** Public share links are for people without an account; the sign-in page has no session yet. */
@@ -48,8 +49,15 @@ export function plannerDeckContext(deck: DeckCards): DeckContext {
 
 export const plannerDeckHref = (ref: string): string | null => (ref.startsWith("planner:") ? `/decks/${ref.slice(8)}` : null);
 
+/** Card art for a card id: the same TCGplayer product image the card data maps it to, so no lookup is needed (#1459). */
+export const plannerCardArt: NonNullable<SourceHooks["card"]> = (id) => {
+  const imageUrl = tcgArtForCard(id.trim().toUpperCase());
+  return imageUrl ? { imageUrl } : null;
+};
+
 export const PLANNER_SOURCE_HOOKS: SourceHooks = {
   deckHref: plannerDeckHref,
+  card: plannerCardArt,
 };
 
 export function openDeckFor(navigate: (to: string) => void): NonNullable<SourceHooks["openDeck"]> {

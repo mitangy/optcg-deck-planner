@@ -21,6 +21,7 @@ import {
 import { DON_DECK_LIMIT, setDeckCardNeeded, MAIN_DECK_LIMIT } from "./deckEditing";
 import { DECK_EDITOR_COLOR_KEY, DECK_EDITOR_TYPE_KEY, DECK_SEARCH_OPEN_KEY } from "../../storage/keys";
 import { useCatalogSearch } from "../../hooks/useCatalogSearch";
+import { DescribeCardButton, useLogPoseAsk } from "@optcg/analyst-client";
 
 function toStatsCards(cards: DeckDetail["cards"]): DeckStatsCard[] {
   return cards
@@ -44,6 +45,7 @@ export function DeckEditorPanel({
   onReplaceList?: () => void;
 }) {
   const qc = useQueryClient();
+  const askLogPose = useLogPoseAsk();
   const atlas = useStatsAtlas().data;
   const [delta, setDelta] = useState<{ text: string; key: number } | null>(null);
   const deltaKey = useRef(0);
@@ -136,11 +138,14 @@ export function DeckEditorPanel({
 
   return (
     <div className="deck-editor">
-      {onReplaceList ? (
+      {onReplaceList || askLogPose ? (
         <div className="deck-editor-replace">
-          <button type="button" className="btn secondary" onClick={onReplaceList}>
-            Replace with deck list
-          </button>
+          {askLogPose ? <DescribeCardButton ask={askLogPose} className="secondary deck-editor-describe" /> : null}
+          {onReplaceList ? (
+            <button type="button" className="btn secondary" onClick={onReplaceList}>
+              Replace with deck list
+            </button>
+          ) : null}
         </div>
       ) : null}
       <div className="dh-delta-slot" role="status" aria-live="polite">

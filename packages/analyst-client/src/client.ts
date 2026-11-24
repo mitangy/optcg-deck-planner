@@ -1,5 +1,6 @@
 import { parseCitations, type Citation, type PlacedCitation } from "./citations";
 import { PLAN_ABILITY_ID_MAX, PLAN_STEP_ID_MAX, isLimitCode, type DonePayload, type ErrorCode, type HintContext, type LimitCode } from "@optcg/analyst-contract";
+import { parseCardList, type CardList } from "./cardLists";
 import { parseDraft, type NewDeckDraft } from "./drafts";
 import { parseProposal, type DeckEditProposal } from "./proposals";
 import type { SessionManager } from "./session";
@@ -273,6 +274,7 @@ export type StreamHandlers = {
   onCite?: (citations: Citation[]) => void;
   onProposal?: (proposal: DeckEditProposal) => void;
   onDraft?: (draft: NewDeckDraft) => void;
+  onCardList?: (list: CardList) => void;
   onPlan?: (plan: TurnPlan) => void;
   onChoice?: (answer: ChoiceAnswer) => void;
   onDone?: (done: DonePayload) => void;
@@ -319,6 +321,9 @@ function dispatch(handlers: StreamHandlers, event: string, data: unknown) {
   } else if (event === "deck_draft") {
     const draft = parseDraft(d);
     if (draft) handlers.onDraft?.(draft);
+  } else if (event === "card_list") {
+    const list = parseCardList(d);
+    if (list) handlers.onCardList?.(list);
   } else if (event === "plan") {
     const plan = parseTurnPlan(d);
     if (plan) handlers.onPlan?.(plan);
@@ -387,7 +392,7 @@ export async function streamAnalyst(
   }
 }
 
-export type ThreadMessage = { role: "user" | "assistant"; text: string; citations?: PlacedCitation[]; proposals?: DeckEditProposal[]; drafts?: NewDeckDraft[] };
+export type ThreadMessage = { role: "user" | "assistant"; text: string; citations?: PlacedCitation[]; proposals?: DeckEditProposal[]; drafts?: NewDeckDraft[]; cardLists?: CardList[] };
 export type ThreadHistory = { id: number; title: string; scope?: string; messages: ThreadMessage[] };
 
 export type ThreadSummary = { id: number; title: string; updated_at: string; scope: string };
@@ -409,14 +414,15 @@ export async function fetchThread(apiBase: string, threadId: number, fetchImpl: 
   const res = await fetchImpl(`${apiBase}/analyst/chat/threads/${threadId}`, { credentials: "include" });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Could not load the chat (${res.status})`);
-  const body = (await res.json()) as ThreadHistory;
+  const body = (await res.json()) as Omit<ThreadHistory, "messages"> & { messages: (ThreadMessage & { card_lists?: unknown })[] };
   return {
     ...body,
-    messages: body.messages.map((m) => ({
+    messages: body.messages.map(({ card_lists, ...m }) => ({
       ...m,
       citations: parseCitations(m.citations, true),
       proposals: (Array.isArray(m.proposals) ? m.proposals : []).map(parseProposal).filter((p): p is DeckEditProposal => p !== null),
       drafts: (Array.isArray(m.drafts) ? m.drafts : []).map(parseDraft).filter((d): d is NewDeckDraft => d !== null),
+      cardLists: (Array.isArray(card_lists) ? card_lists : []).map(parseCardList).filter((l): l is CardList => l !== null),
     })),
   };
 }

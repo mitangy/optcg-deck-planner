@@ -157,6 +157,14 @@ html[data-lp-layer="left"] .lightbox {
   padding-left: calc(var(--lp-layer-w, 420px) + 1rem);
 }
 
+html[data-lp-layer="sheet"] .lightbox {
+  padding-bottom: var(--lp-layer-h, 50dvh);
+}
+
+html[data-lp-layer="sheet"] .lightbox-img {
+  max-height: calc(100dvh - var(--lp-layer-h, 50dvh) - 4.5rem);
+}
+
 html[data-lp-layer="right"] .lightbox-close {
   right: calc(var(--lp-layer-w, 420px) + 1rem);
 }

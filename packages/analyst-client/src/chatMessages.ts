@@ -1,5 +1,6 @@
 import type { PlacedCitation } from "./citations";
 import type { ChoiceAnswer, ThreadMessage, TurnPlan } from "./client";
+import type { CardList } from "./cardLists";
 import type { NewDeckDraft } from "./drafts";
 import type { DeckEditProposal } from "./proposals";
 
@@ -9,6 +10,7 @@ export type Msg = {
   citations: PlacedCitation[];
   proposals?: DeckEditProposal[];
   drafts?: NewDeckDraft[];
+  cardLists?: CardList[];
   plans?: TurnPlan[];
   choices?: ChoiceAnswer[];
   stopped?: boolean;
@@ -24,6 +26,7 @@ export const fromHistory = (m: ThreadMessage): Msg => ({
   text: m.text,
   citations: m.citations ?? [],
   proposals: m.proposals ?? [],
+  cardLists: m.cardLists ?? [],
   drafts: m.drafts ?? [],
   saved: true,
 });

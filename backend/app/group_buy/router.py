@@ -29,6 +29,7 @@ from app.group_buy.schemas import (
     GroupBuyInvitePreview,
     GroupBuyOfflineCardsPaste,
     GroupBuyOfflineCardsResult,
+    GroupBuyMoveCopies,
     GroupBuyOfflineMemberBody,
     GroupBuyOrderAdded,
     GroupBuyOrderCreate,
@@ -494,6 +495,16 @@ def post_offline_member(
     db: Annotated[Session, Depends(get_db)],
 ):
     return group_buy.add_offline_member(db, user, group_id, body.name)
+
+
+@router.post("/group-buys/{group_id}/move-copies", response_model=GroupBuyDetail)
+def post_move_copies(
+    group_id: int,
+    body: GroupBuyMoveCopies,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return group_buy.move_copies(db, user, group_id, body)
 
 
 @router.patch("/group-buys/{group_id}/offline-members/{member_id}", response_model=GroupBuyDetail)

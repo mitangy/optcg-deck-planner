@@ -3,6 +3,7 @@ import { PlannerApiError, plannerCall } from "./matches";
 import { buildTools } from "./server";
 import { answerChoiceTool, gameContextBlock, turnPlanTool, verifyGame } from "./copilot";
 import { parseEditLines } from "./editLines";
+import { cardListTool, type CardList } from "./cardList";
 import { newDeckTool, type NewDeckDraft } from "./newDeck";
 import { checkTextEdits, deckEditTool, type ContextDeck, type DeckEditProposal } from "./proposals";
 import { claimStream, currentModel, recordRefusal, recordUsage, refusalNow, type Budget } from "./budget";
@@ -114,8 +115,9 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   };
   const proposals: DeckEditProposal[] = [];
   const drafts: NewDeckDraft[] = [];
-  // Always registered, so a propose_deck_edit tool_use kept in the history still matches a tool.
-  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), newDeckTool(deps.catalog, deps.knowledge), turnPlanTool(deps.catalog, game), answerChoiceTool(deps.catalog, game)];
+  const cardLists: CardList[] = [];
+  // Always registered, so a propose_deck_edit / show_cards tool_use kept in the history still matches a tool (show_cards refuses itself in the duel app).
+  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge, body.context?.deck?.leaderId), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), newDeckTool(deps.catalog, deps.knowledge), cardListTool(deps.catalog, body.context?.deck), turnPlanTool(deps.catalog, game), answerChoiceTool(deps.catalog, game)];
   const clientActions: ClientActions = {
     proposal: (p) => {
       proposals.push(p);
@@ -124,6 +126,10 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
     deck_draft: (d) => {
       drafts.push(d);
       emit({ event: "deck_draft", data: d });
+    },
+    card_list: (l) => {
+      cardLists.push(l);
+      emit({ event: "card_list", data: l });
     },
     plan: (p) => emit({ event: "plan", data: p }),
     choice: (a) => emit({ event: "choice", data: a }),
@@ -171,6 +177,11 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
       if (finished && drafts.length) {
         await plannerCall(api, token, `/analyst/chat/threads/${threadId}/drafts`, true, { drafts }).catch((err) =>
           console.error("saving new deck drafts failed", err instanceof Error ? err.message : err),
+        );
+      }
+      if (finished && cardLists.length) {
+        await plannerCall(api, token, `/analyst/chat/threads/${threadId}/card_lists`, true, { card_lists: cardLists }).catch((err) =>
+          console.error("saving card lists failed", err instanceof Error ? err.message : err),
         );
       }
     }
