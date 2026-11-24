@@ -46,9 +46,15 @@ export function usePanelMotion(
 export function useLayerRoom(panelRef: RefObject<HTMLDivElement | null>, { inLayer, phone, closing, dock }: { inLayer: boolean; phone: boolean; closing: boolean; dock: Dock }) {
   useEffect(() => {
     const el = panelRef.current;
-    if (!inLayer || phone || closing || !el) return;
+    if (!inLayer || closing || !el) return;
     const root = document.documentElement;
+    // A phone's bottom sheet is capped (panel.css) so the layer's card stays visible above it.
     const apply = () => {
+      if (phone) {
+        root.dataset.lpLayer = "sheet";
+        root.style.setProperty("--lp-layer-h", `${el.offsetHeight}px`);
+        return;
+      }
       root.dataset.lpLayer = dock === "left" ? "left" : "right";
       root.style.setProperty("--lp-layer-w", `${el.offsetWidth}px`);
     };
@@ -59,6 +65,7 @@ export function useLayerRoom(panelRef: RefObject<HTMLDivElement | null>, { inLay
       ro?.disconnect();
       delete root.dataset.lpLayer;
       root.style.removeProperty("--lp-layer-w");
+      root.style.removeProperty("--lp-layer-h");
     };
   }, [inLayer, phone, closing, dock]);
 }

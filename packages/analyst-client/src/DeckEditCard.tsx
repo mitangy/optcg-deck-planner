@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { SourceHooksContext } from "./Sources";
+import { CardThumbButton } from "./CardThumbButton";
 import {
   applyOps,
   markAutoApplied,
@@ -94,9 +95,9 @@ export function DeckEditCard({
               <span className="lp-edit-badge">{add ? `+${l.after - l.before}` : `${MINUS}${l.before - l.after}`}</span>
               <span className="lp-edit-name">
                 {hooks.card ? (
-                  <span className="lp-edit-thumb" aria-hidden="true">
+                  <CardThumbButton id={l.id} name={art?.name ?? l.name} className="lp-edit-thumb">
                     {art?.imageUrl ? <img src={art.imageUrl} alt="" loading="lazy" decoding="async" onError={(e) => (e.currentTarget.style.visibility = "hidden")} /> : null}
-                  </span>
+                  </CardThumbButton>
                 ) : null}
                 <span className="lp-edit-name-text" title={`${art?.name ?? l.name} (${l.id})`}>
                   {art?.name ?? l.name} <span className="lp-edit-id">{l.id}</span>

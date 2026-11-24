@@ -17,6 +17,13 @@
   overscroll-behavior: contain;
 }
 
+/* Over an enlarged card on a phone the sheet leaves the top half for the card (#1459). */
+.lp-panel[data-in-layer] {
+  --lp-sheet-cap: min(var(--lp-sheet-h, var(--lp-vv-height, 100dvh)), 50dvh);
+  top: calc(var(--lp-vv-top, 0px) + var(--lp-vv-height, 100dvh) - var(--lp-sheet-cap));
+  height: var(--lp-sheet-cap);
+}
+
 .lp-panel[data-closing] {
   pointer-events: none;
 }

@@ -813,6 +813,11 @@ body:has(.deck-bottom-bar) {
   padding-bottom: calc(64px + var(--safe-b, 0px));
 }
 
+/* Log Pose's compass is fixed bottom-right too: lift it above the bar so it never sits on Add cards (#1458). */
+body:has(.is-compact .deck-bottom-bar) .lp-compass {
+  bottom: calc(var(--deck-bar-h, 56px) + var(--safe-b, 0px) + 12px);
+}
+
 .is-compact .deck-tools {
   display: flex;
   gap: 0.5rem;
