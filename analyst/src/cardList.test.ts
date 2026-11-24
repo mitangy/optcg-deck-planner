@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCardList, CARD_LIST_DUEL_ERROR, CARD_LIST_TOO_MANY_ERROR, cardListTool, type CardListInput } from "./cardList";
+import { buildCardList, CARD_LIST_TOO_MANY_ERROR, cardListTool, type CardListInput } from "./cardList";
 import { buildTools } from "./server";
 import { catalog } from "./testkit";
 
@@ -68,11 +68,9 @@ describe("show_cards (#1450)", () => {
     expect(refused([{ id: "DON-01" }])).toMatch(/DON!!/);
   });
 
-  it("refuses in the duel app and after four lists in one answer (#1450)", async () => {
+  it("refuses after four lists in one answer (#1450)", async () => {
     const args = { title: "Cards", cards: [{ id: BROOK }] };
-    const duel = await cardListTool(catalog, undefined, "duel").run(args);
-    expect(duel).toMatchObject({ isError: true, content: [{ text: CARD_LIST_DUEL_ERROR }] });
-    const tool = cardListTool(catalog, undefined, "planner");
+    const tool = cardListTool(catalog, undefined);
     for (let i = 0; i < 4; i++) expect((await tool.run(args)).isError).toBeUndefined();
     expect(await tool.run(args)).toMatchObject({ isError: true, content: [{ text: CARD_LIST_TOO_MANY_ERROR }] });
   });

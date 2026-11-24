@@ -1268,3 +1268,10 @@ html {
     --deck-u: calc(1rem / 13.5);
   }
 }
+
+/* "Describe a card" sits above the search box; it keeps its natural width instead of stretching the column. */
+.deck-search > .deck-describe-btn {
+  align-self: flex-start;
+  max-width: calc(100% - 6px);
+  margin: 3px; /* room for the focus ring inside the scrolling Add cards sheet */
+}

@@ -1,4 +1,5 @@
 import { CardStack } from "@optcg/ui/cardStack";
+import { DescribeCardButton, useLogPoseAsk } from "@optcg/analyst-client";
 import { useMediaQuery } from "@optcg/ui/hooks";
 import { Dialog, DialogTitle, Menu, MenuButton, MenuItem, MenuList, Select, type SelectOption } from "@optcg/ui/popups";
 import { readStored, writeStored } from "@optcg/ui/storage";
@@ -245,6 +246,7 @@ export function countHiddenFilters(f: {
 type ToolPanel = "stats" | "replace" | null;
 
 export function DeckEditor({ deck, onChange, onArtChanged, sideTop, onCopyList }: Props) {
+  const askLogPose = useLogPoseAsk();
   const [query, setQuery] = useState("");
   const leaderColors = useMemo(() => [...lookupCard(deck.leaderId).colors], [deck.leaderId]);
   const [colors, setColors] = useState<string[]>(leaderColors);
@@ -365,6 +367,13 @@ export function DeckEditor({ deck, onChange, onArtChanged, sideTop, onCopyList }
 
   const addBody = (
     <div className="deck-search">
+      {askLogPose ? <DescribeCardButton
+          ask={(a) => {
+            // On a phone Add cards is a sheet over the page; close it so Log Pose is not hidden behind it.
+            setSheetOpen(false);
+            askLogPose(a);
+          }}
+          className="btn-secondary btn-sm deck-describe-btn" /> : null}
       <label className="deck-search-field deck-search-query">
         <span className="visually-hidden">Search</span>
         <input

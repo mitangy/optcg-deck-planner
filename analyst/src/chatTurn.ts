@@ -117,7 +117,7 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   const drafts: NewDeckDraft[] = [];
   const cardLists: CardList[] = [];
   // Always registered, so a propose_deck_edit / show_cards tool_use kept in the history still matches a tool (show_cards refuses itself in the duel app).
-  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge, body.context?.deck?.leaderId), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), newDeckTool(deps.catalog, deps.knowledge), cardListTool(deps.catalog, body.context?.deck, body.context?.app), turnPlanTool(deps.catalog, game), answerChoiceTool(deps.catalog, game)];
+  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge, body.context?.deck?.leaderId), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), newDeckTool(deps.catalog, deps.knowledge), cardListTool(deps.catalog, body.context?.deck), turnPlanTool(deps.catalog, game), answerChoiceTool(deps.catalog, game)];
   const clientActions: ClientActions = {
     proposal: (p) => {
       proposals.push(p);

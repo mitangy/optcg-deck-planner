@@ -48,11 +48,11 @@ describe("Log Pose shows a card list (#1450)", () => {
     expect(calls.some((c) => c.url.endsWith("/threads/9/messages"))).toBe(true);
   });
 
-  it("gives the duel app no card list and tells the model to write the cards out (#1450)", async () => {
+  it("gives the duel app a card list too, saved with the thread (#1456)", async () => {
     const { events, seen, calls } = await run({ app: "duel" });
-    expect(events.some((e) => e.event === "card_list")).toBe(false);
-    expect(calls.some((c) => c.url.endsWith("/card_lists"))).toBe(false);
-    expect(seen[1]!.messages.at(-1).content[0]).toMatchObject({ is_error: true, content: expect.stringMatching(/not available in the duel app/) });
+    expect(events.find((e) => e.event === "card_list")!.data).toMatchObject({ kind: "card_list", title: "Red Straw Hats", cards: [{ id: "OP01-022" }] });
+    expect(calls.some((c) => c.url.endsWith("/threads/9/card_lists"))).toBe(true);
+    expect(seen[1]!.messages.at(-1).content[0].is_error).toBeUndefined();
   });
 
   it("keeps every card when no deck is open (#1450)", async () => {
