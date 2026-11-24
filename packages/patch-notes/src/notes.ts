@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-24", app: "planner", pr: 1317, title: "Add several DON!! at once, and keep extras", text: "In Available DON!! cards, each tile now has a quantity stepper next to Add, so you can add 3 at once instead of tapping Add another three times. A deck can also hold more than 10 DON!! if you want spares, and it shows them as, for example, 12/10 (+2 extra)." },
   { date: "2026-11-24", app: "duel", pr: 1458, title: "Log Pose button clear of Add cards", text: "On a phone, the Log Pose compass button no longer covers the Add cards button at the bottom of the deck editor. It sits just above the bar instead." },
   { date: "2026-11-24", app: "duel", pr: 1459, title: "Enlarge cards in Log Pose", text: "In Log Pose, tap a card's art in a list of cards it found, or in a suggested deck edit, to see it enlarged. Close it to go back to the chat." },
   { date: "2026-11-24", app: "planner", pr: 1459, title: "Card art and tap to enlarge in Log Pose", text: "Log Pose now shows card art in the planner. Click a card's art in a list of cards it found, or in a suggested deck edit, to see it enlarged. Close it to go back to the chat." },

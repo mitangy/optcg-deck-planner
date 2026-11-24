@@ -37,7 +37,7 @@ import { CardArtImg } from "../../ui/CardThumb";
 import { useCardEdits } from "../../cache/useCardEdits";
 import { DeckDetailSkeleton } from "../../ui/Skeleton";
 import { invalidateAltWantViews } from "../../cache/invalidate";
-import { setDeckCardNeeded, MAIN_DECK_LIMIT, DON_DECK_LIMIT } from "./deckEditing";
+import { setDeckCardNeeded, MAIN_DECK_LIMIT, formatDonCount } from "./deckEditing";
 import { isDonCardType } from "../../cards/donCards";
 import { DeckSharePanel, DeckExportPanel } from "../SharePanels";
 import { DeckEditorPanel } from "./DeckEditorPanel";
@@ -418,7 +418,7 @@ export function DeckDetailPage() {
             </button>
             {data.is_main && <span className="deck-main-badge">Main deck</span>}
             <span className="muted deck-size-inline">
-              Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
+              Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {formatDonCount(donCount)}
             </span>
           </div>
           {rename.isError && <p className="error deck-rename-error">{(rename.error as Error).message}</p>}
@@ -433,7 +433,7 @@ export function DeckDetailPage() {
                 : ""}
           </p>
           <p className="muted deck-size-meta deck-size-below">
-            Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {donCount}/{DON_DECK_LIMIT}
+            Main {mainCount}/{MAIN_DECK_LIMIT} · DON!! {formatDonCount(donCount)}
           </p>
           </div>
         </div>
@@ -655,7 +655,7 @@ export function DeckDetailPage() {
       <AvailableDonSection deckId={deckId} deck={data} onUpdated={applyDeckUpdate} />
 
       <h2 className="don-heading">
-        DON!! deck · {donCount}/{DON_DECK_LIMIT}
+        DON!! deck · {formatDonCount(donCount)}
       </h2>
       {donCards.length === 0 ? (
         <p className="muted">

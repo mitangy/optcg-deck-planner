@@ -1,7 +1,6 @@
 
 from __future__ import annotations
 
-import pytest
 from sqlalchemy import select
 
 from app.planner.models import CatalogCard, DeckCard, DeckCardPrinting
@@ -110,16 +109,16 @@ def test_replace_deck_list_empty_paste_is_400_and_keeps_deck_1016(client):
         assert _needed(db, deck_id) == {"OP01-016": 2}
 
 
-def test_replace_deck_list_rejects_over_limit_don_1016(db):
+def test_replace_deck_list_keeps_extra_don_past_ten_1317(db):
     _seed(db)
     db.add(CatalogCard(card_id="DON-001", name="DON!!", card_type="DON!!", rarity="DON!!"))
     db.commit()
     user = make_user(db, email="a@t", name="A", sub="a")
     deck = add_deck_with_cards(db, user, "D", {"OP01-016": 1})
 
-    with pytest.raises(ValueError, match="DON"):
-        replace_deck_list(db, user, deck.id, "1xOP01-001\n11xDON-001")
-    assert _needed(db, deck.id) == {"OP01-016": 1}
+    detail = replace_deck_list(db, user, deck.id, "1xOP01-001\n12xDON-001")
+    assert detail.don_cards == 12
+    assert _needed(db, deck.id)["DON-001"] == 12
 
 
 def _user(db, uid):

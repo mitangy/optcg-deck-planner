@@ -312,34 +312,17 @@ def test_upsert_requires_confirm_over_main_limit(db):
         upsert_deck_card(db, user, deck.id, "OP99-999", 1)
 
 
-def test_don_deck_hard_cap(db):
+def test_don_deck_allows_extras_past_ten_1317(db):
     user = make_user(db, email="c@test", name="C", sub="sub-c")
     for i in range(DON_DECK_LIMIT):
-        cid = f"DON-{i:03d}"
-        db.add(
-            CatalogCard(
-                card_id=cid,
-                name=f"DON {i}",
-                card_type="DON!!",
-                market_price=0.1,
-            )
-        )
-    db.add(
-        CatalogCard(
-            card_id="DON-999",
-            name="Extra DON",
-            card_type="DON!!",
-            market_price=0.1,
-        )
-    )
+        db.add(CatalogCard(card_id=f"DON-{i:03d}", name=f"DON {i}", card_type="DON!!", market_price=0.1))
     db.commit()
 
     starter = {f"DON-{i:03d}": 1 for i in range(DON_DECK_LIMIT)}
     deck = add_deck_with_cards(db, user, "DON Deck", starter)
 
-    with pytest.raises(ValueError, match="DON!! deck"):
-        upsert_deck_card(db, user, deck.id, "DON-999", 1)
-
+    detail = upsert_deck_card(db, user, deck.id, "DON-000", 3)
+    assert detail.don_cards == DON_DECK_LIMIT + 2
     detail = get_deck_detail(db, user, deck.id)
-    assert detail.don_cards == DON_DECK_LIMIT
+    assert detail.don_cards == DON_DECK_LIMIT + 2
     assert all(c.section == "don" for c in detail.cards)
