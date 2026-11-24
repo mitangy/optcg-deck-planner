@@ -158,3 +158,47 @@ test("Log Pose compass sits above the deck editor's Add cards bar (#1458)", asyn
     }
   }
 });
+
+test("Tapping a card's art in a Log Pose card list enlarges it above the panel (#1459)", async ({ page }, info) => {
+  await fakeLogPose(page);
+  await page.addInitScript(
+    ([id, deck]) => {
+      if (sessionStorage.getItem("e2e-seeded")) return;
+      sessionStorage.setItem("e2e-seeded", "1");
+      localStorage.clear();
+      localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify([{ id, name: "Red Vanilla", ...deck, updatedAt: 1 }]));
+    },
+    [DECK_ID, RED_VANILLA] as const,
+  );
+  await page.goto(`/decks/${DECK_ID}/configure`);
+  await expect(page.locator("article.deck-stack", { hasText: "ST01-006" }).getByLabel("4 copies")).toBeVisible();
+  const describe = page.getByRole("button", { name: "Describe a card" });
+  if (!(await describe.isVisible())) await page.getByText("Add cards", { exact: true }).first().click();
+  await expect(describe).toBeVisible();
+  await describe.click();
+  await page.getByLabel("Message Log Pose").pressSequentially("fit red Straw Hat Crew");
+  await page.keyboard.press("Enter");
+  const panel = page.locator(".lp-panel");
+  const enlarge = panel.getByRole("button", { name: /^Enlarge Franky/ });
+  await expect(enlarge).toBeVisible();
+  const before = (await enlarge.boundingBox())!;
+  await enlarge.click();
+  const inspect = page.locator(".card-inspect-backdrop");
+  await expect(inspect).toBeVisible();
+  // The enlarged card covers the panel: at the panel's centre the topmost thing is the card view, not the panel.
+  const p = (await panel.boundingBox())!;
+  const covered = await page.evaluate(([x, y]) => !!document.elementFromPoint(x, y)?.closest(".card-inspect-backdrop"), [p.x + p.width / 2, p.y + p.height / 2]);
+  expect(covered).toBe(true);
+  await shot(page, `${info.project.name}-1459-enlarged-${page.viewportSize()!.width}x${page.viewportSize()!.height}`);
+  if (info.project.name === "phone-375" && SHOTS_DIR) {
+    await page.setViewportSize({ width: 812, height: 375 });
+    await shot(page, "phone-1459-enlarged-812x375");
+    await page.setViewportSize({ width: 375, height: 812 });
+  }
+  await inspect.getByRole("button", { name: "Done" }).click();
+  await expect(inspect).toHaveCount(0);
+  // Closing it leaves the thumbnail where it was.
+  const after = (await enlarge.boundingBox())!;
+  expect(after.x).toBeCloseTo(before.x, 0);
+  expect(after.y).toBeCloseTo(before.y, 0);
+});

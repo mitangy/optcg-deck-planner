@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import { canAddCopy, copiesIn, type CardList, type CardListRow } from "./cardLists";
 import { SourceHooksContext } from "./Sources";
+import { CardThumbButton } from "./CardThumbButton";
 import type { DeckEditor } from "./proposals";
 
 const MINUS = "−";
@@ -57,9 +58,9 @@ export function CardListCard({ list, editor }: { list: CardList; editor: DeckEdi
           const busy = working === c.id;
           return (
             <li key={c.id} className="lp-cl-row" data-busy={busy ? "true" : undefined}>
-              <span className="lp-edit-thumb lp-cl-thumb" aria-hidden="true">
+              <CardThumbButton id={c.id} name={name} className="lp-edit-thumb lp-cl-thumb">
                 {art?.imageUrl ? <img src={art.imageUrl} alt="" loading="lazy" decoding="async" onError={(e) => (e.currentTarget.style.visibility = "hidden")} /> : null}
-              </span>
+              </CardThumbButton>
               <span className="lp-cl-main">
                 <span className="lp-edit-name-text" title={`${name} (${c.id})`}>
                   {name} <span className="lp-edit-id">{c.id}</span>

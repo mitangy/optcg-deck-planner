@@ -1501,5 +1501,6 @@ module.exports = {
     { id: "e2e-lp1458-compass-not-lifted", args: "log-pose-card-list-1456 -g 1458 --project=phone-375", edits: [
       { file: "duel-web/src/styles/deckEditor.css", from: "body:has(.is-compact .deck-bottom-bar) .lp-compass {\n  bottom: calc(var(--deck-bar-h, 56px) + var(--safe-b, 0px) + 12px);\n}\n", to: "" },
     ], kills: ["log-pose-card-list-1456.spec.ts > Log Pose compass sits above the deck editor's Add cards bar (#1458) [phone-375]"] },
+    {"id": "e2e-lp1459-card-art-not-wired", "args": "log-pose-card-list-1456 -g 1459 --project=phone-375", "edits": [{"file": "duel-web/src/App.tsx", "from": "{ ...SOURCE_HOOKS, openCard, openDeck", "to": "{ ...SOURCE_HOOKS, openDeck"}], "kills": ["log-pose-card-list-1456.spec.ts > Tapping a card's art in a Log Pose card list enlarges it above the panel (#1459) [phone-375]"]},
   ],
 };

@@ -24,6 +24,8 @@ export type SourceHooks = {
   card?: (id: string) => { name?: string; imageUrl?: string } | null | undefined;
   deckHref?: (ref: string) => string | null;
   openDeck?: (ref: string) => boolean;
+  /** Show a card enlarged in the app's own card view (above the Log Pose panel). Without it card art is not tappable. */
+  openCard?: (id: string) => void;
   openNewDeck?: (draft: { name: string; list: string }, how: { auto: boolean }) => boolean;
 };
 

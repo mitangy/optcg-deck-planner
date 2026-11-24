@@ -5,6 +5,7 @@ import { LogPoseProvider } from "@optcg/analyst-client";
 import { getApiBaseUrl } from "./config";
 import { LeaveGameDialog } from "./LeaveGameDialog";
 import { defaultLogPosePage, logPoseChromeFor, openDeckFor, openNewDeckFor, SOURCE_HOOKS, useBoardBrief } from "./logPose";
+import { useLogPoseCardInspect } from "./logPoseCard";
 import { APP_ROUTES } from "./routes";
 import { useDuelSettings } from "./settings";
 import { FeedbackHost } from "./FeedbackHost";
@@ -26,9 +27,10 @@ export function App() {
   const pathRef = useRef(pathname);
   pathRef.current = pathname;
   const [leaving, setLeaving] = useState<(() => void) | null>(null);
+  const { openCard, inspect: cardInspect } = useLogPoseCardInspect();
   const sources = useMemo(
-    () => ({ ...SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o), () => pathRef.current, (go) => setLeaving(() => go)) }),
-    [navigate],
+    () => ({ ...SOURCE_HOOKS, openCard, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o), () => pathRef.current, (go) => setLeaving(() => go)) }),
+    [navigate, openCard],
   );
   useLayoutEffect(() => applyTheme(theme, colorMode), [theme, colorMode, deviceLight]);
   useLayoutEffect(() => applyTextSize(textSize), [textSize]);
@@ -63,6 +65,7 @@ export function App() {
           go?.();
         }}
       />
+      {cardInspect}
     </LogPoseProvider>
   );
 }
