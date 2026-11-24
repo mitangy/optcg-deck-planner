@@ -9,8 +9,6 @@ import { refusalResult as refusal, type ToolResult } from "./toolResult";
 
 export const CARD_LIST_TOOL = "show_cards";
 export const CARD_LIST_TOO_MANY_ERROR = "That's enough card lists for one answer.";
-/** The duel app's deck editor can't add from a list yet (duel merges are on hold), so the model lists cards in text there. */
-export const CARD_LIST_DUEL_ERROR = "Card lists are not available in the duel app yet. List the cards in text instead, each with its number and name.";
 const MAX_LISTS_PER_TURN = 4;
 export const CARD_LIST_MAX = 24;
 
@@ -81,7 +79,7 @@ export function listedFor(built: BuiltCardList): ToolResult {
   return { content: [{ type: "text", text }], value: list };
 }
 
-export function cardListTool(catalog: Catalog, deck: ContextDeck | undefined, app: "planner" | "duel" | undefined): ToolDef {
+export function cardListTool(catalog: Catalog, deck: ContextDeck | undefined): ToolDef {
   let made = 0;
   return {
     name: CARD_LIST_TOOL,
@@ -100,7 +98,6 @@ export function cardListTool(catalog: Catalog, deck: ContextDeck | undefined, ap
     },
     annotations: { readOnlyHint: true, openWorldHint: false },
     run: async (args) => {
-      if (app === "duel") return refusal(CARD_LIST_DUEL_ERROR);
       if (made >= MAX_LISTS_PER_TURN) return refusal(CARD_LIST_TOO_MANY_ERROR);
       const result = buildCardList(catalog, deck, args as CardListInput);
       if (!result.ok) return refusal(result.error);
