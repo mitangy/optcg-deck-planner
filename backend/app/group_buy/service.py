@@ -723,9 +723,15 @@ def _build_lines(
             if bought:
 
                 def live_cost(n: int, _uid: int = mem.user_id, _cid: str = card_id) -> float | None:
+                    # Alt copies already in an order are paid for: only the rest of each alt want is still live.
+                    placed_arts = order_arts.get((_uid, _cid.upper()), {})
+                    left_alts = [
+                        (pid, max(0, want - placed_arts.get(pid, 0)), price)
+                        for pid, want, price in _alt_inputs_for(member_items, skips, _uid, _cid, n)
+                    ]
                     left_buys = shopping_svc.allocate_still_need_buys(
                         n,
-                        _alt_inputs_for(member_items, skips, _uid, _cid, n),
+                        left_alts,
                         standard_product_id=preferred_product_id,
                         standard_price=preferred_market,
                     )

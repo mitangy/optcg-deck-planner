@@ -79,3 +79,21 @@ describe("group buy lines pinned to what was bought (#1443)", () => {
     expect(boughtAlts(line).map((a) => a.product_id)).toEqual([203]);
   });
 });
+
+describe("group buy alt copies already ordered (#1452)", () => {
+  it("ordered alt copies are not charged again (#1452)", () => {
+    const line = {
+      ...base,
+      preferred_market_price: 2.5,
+      my_qty: 4,
+      my_deck_qty: 4,
+      my_extras: [],
+      alt_arts: [alt(1009, 9, 2)],
+      bought_arts: [bought(1009, 2, 2, 7)],
+    };
+    const t = mySelectedArtsTotal(line);
+    expect(t.total).toBeCloseTo(2 * 7 + 2 * 2.5, 2);
+    expect(t.copies).toBe(4);
+    expect(t.breakdown).toBe("2 × Art 1009 $7.00 + 2 × Base $2.50");
+  });
+});
