@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import secrets
+import uuid
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from urllib.parse import urlencode
@@ -15,7 +16,7 @@ from app.core.errors import Conflict, Forbidden, Invalid, NotFound
 from app.core.statuses import GroupBuyOrderStatus, GroupBuyStatus, HandoffStatus, ReceiptLineStatus
 from app.group_buy.merge import MemberNeed, MergedMemberQty, merge_member_needs
 from app.group_buy.settlement import SHIPPING_SPLIT_MODES, build_settlements, round_money
-from app.core.models import User
+from app.core.models import User, is_placeholder_user
 from app.group_buy.models import (
     GroupBuy,
     GroupBuyExtraSkip,
@@ -38,6 +39,7 @@ from app.group_buy.schemas import (
     GroupBuyInvitePreview,
     GroupBuyLineOut,
     GroupBuyNotOrderedMemberOut,
+    GroupBuyOfflineCardsResult,
     GroupBuyMemberOut,
     GroupBuyMemberQtyOut,
     GroupBuyMyExtraOut,
@@ -73,6 +75,7 @@ from app.group_buy.receipt import (
     tracking_url_for,
 )
 from app.planner import shopping as shopping_svc
+from app.planner.domain import parse_decklist
 from app.planner import catalog_repo
 from app.planner.owned import increment_owned
 from app.planner.printings import deck_alt_buy_inputs
@@ -88,6 +91,11 @@ def _display_name(user: User) -> str:
     if user.username:
         return user.username
     return (user.name or user.email or f"User {user.id}").strip()
+
+
+def _people_count(group: GroupBuy) -> int:
+    """Members who can sign in; a "not on the app" name is not a person who joined (#1445)."""
+    return sum(1 for m in group.members if not is_placeholder_user(m.user))
 
 
 def _public_names(group: GroupBuy) -> dict[int, str]:
@@ -858,7 +866,7 @@ def _summary_fields(
         "invite_path": f"/group-buy/join/{group.invite_token}",
         "host_user_id": group.host_user_id,
         "host_name": _display_name(group.host),
-        "member_count": len(group.members),
+        "member_count": _people_count(group),
         "is_host": bool(user is not None and group.host_user_id == user.id),
         "is_public": is_public,
         "public_path": f"/group-buy/view/{group.invite_token}" if is_public else None,
@@ -947,6 +955,7 @@ def _detail_from_group(
                 user_id=member.user_id,
                 display_name=_display_name(member.user),
                 role=member.role,
+                is_offline=is_placeholder_user(member.user),
                 deck_ids=_parse_deck_ids(member.deck_ids_json) if not read_only else None,
                 include_singles=bool(member.include_singles),
                 include_extra_copies=bool(member.include_extra_copies),
@@ -1101,7 +1110,7 @@ def invite_preview(db: Session, token: str) -> GroupBuyInvitePreview:
     return GroupBuyInvitePreview(
         title=group.title,
         host_name=_public_names(group)[group.host_user_id],
-        member_count=len(group.members),
+        member_count=_people_count(group),
         status=group.status,
         invite_token=group.invite_token,
         is_public=bool(getattr(group, "is_public", False)),
@@ -1212,58 +1221,189 @@ def include_deck_in_open_group_buys(db: Session, user: User, deck_id: int) -> No
         db.commit()
 
 
+def _offline_member(group: GroupBuy, user: User, member_id: int) -> GroupBuyMember:
+    """A "not on the app" member of this group buy, for its host only (#1445)."""
+    _require_host(group, user)
+    for member in group.members:
+        if member.user_id == member_id and member.user.placeholder_group_buy_id == group.id:
+            return member
+    raise NotFound("That member is not an offline member of this group buy")
+
+
+def _require_open(group: GroupBuy) -> None:
+    if group.status != GroupBuyStatus.OPEN:
+        raise Forbidden("Group buy is locked; quantities cannot change")
+
+
 def set_member_qty(
     db: Session,
     user: User,
     group_id: int,
     card_id: str,
     qty: int,
+    target_user_id: int | None = None,
 ) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     member = _require_member(group, user)
-    if group.status != GroupBuyStatus.OPEN:
-        raise Forbidden("Group buy is locked; quantities cannot change")
+    if target_user_id is not None and target_user_id != user.id:
+        member = _offline_member(group, user, target_user_id)
+    _require_open(group)
     card_id = card_id.upper().strip()
     if not card_id:
         raise Invalid("card_id is required")
     qty = max(0, min(999, int(qty)))
+    _write_member_qty(db, group, member, card_id, qty)
+    db.commit()
+    return get_group_buy(db, user, group_id)
 
-    shopping = _member_shopping(db, member)
-    my_skips = _card_skips(_extra_skip_map(group), user.id, card_id)
-    suggested = next(
-        (
-            _suggested_qty(item, my_skips)
-            for item in shopping.items
-            if item.card_id.upper() == card_id
-        ),
-        0,
-    )
+
+def _write_member_qty(
+    db: Session, group: GroupBuy, member: GroupBuyMember, card_id: str, qty: int
+) -> None:
+    """Set one member's override for a card; the caller commits."""
+    offline = is_placeholder_user(member.user)
+    suggested = 0
+    if not offline:
+        shopping = _member_shopping(db, member)
+        my_skips = _card_skips(_extra_skip_map(group), member.user_id, card_id)
+        suggested = next(
+            (
+                _suggested_qty(item, my_skips)
+                for item in shopping.items
+                if item.card_id.upper() == card_id
+            ),
+            0,
+        )
     existing = db.scalar(
         select(GroupBuyQtyOverride).where(
             GroupBuyQtyOverride.group_buy_id == group.id,
-            GroupBuyQtyOverride.user_id == user.id,
+            GroupBuyQtyOverride.user_id == member.user_id,
             GroupBuyQtyOverride.card_id == card_id,
         )
     )
-    if qty == suggested and qty > 0:
+    # An offline member has no shopping list to fall back on, so zero means "not buying it".
+    if (qty == suggested and qty > 0) or (offline and qty == 0):
         if existing is not None:
             db.delete(existing)
-            db.commit()
-        return get_group_buy(db, user, group_id)
-
+        return
     if existing is None:
         db.add(
             GroupBuyQtyOverride(
                 group_buy_id=group.id,
-                user_id=user.id,
+                user_id=member.user_id,
                 card_id=card_id,
                 qty=qty,
             )
         )
     else:
         existing.qty = qty
+
+
+MAX_OFFLINE_MEMBERS = 20
+
+
+def add_offline_member(db: Session, user: User, group_id: int, name: str) -> GroupBuyDetail:
+    group = _get_group(db, group_id)
+    _require_host(group, user)
+    _require_open(group)
+    if sum(1 for m in group.members if is_placeholder_user(m.user)) >= MAX_OFFLINE_MEMBERS:
+        raise Invalid(f"A group buy can have up to {MAX_OFFLINE_MEMBERS} people who are not on the app")
+    clean = (name or "").strip()
+    if not clean or len(clean) > 40:
+        raise Invalid("Name must be 1 to 40 characters")
+    token = uuid.uuid4()
+    # Both columns are NOT NULL UNIQUE; these can never be a Google email or subject id.
+    placeholder = User(
+        email=f"placeholder-{token}@placeholder.invalid",
+        google_sub=f"placeholder:{token}",
+        name=clean,
+        placeholder_group_buy_id=group.id,
+    )
+    db.add(placeholder)
+    db.flush()
+    db.add(GroupBuyMember(group_buy_id=group.id, user_id=placeholder.id, role="member"))
     db.commit()
     return get_group_buy(db, user, group_id)
+
+
+def rename_offline_member(
+    db: Session, user: User, group_id: int, member_id: int, name: str
+) -> GroupBuyDetail:
+    group = _get_group(db, group_id)
+    member = _offline_member(group, user, member_id)
+    _require_open(group)
+    clean = (name or "").strip()
+    if not clean or len(clean) > 40:
+        raise Invalid("Name must be 1 to 40 characters")
+    member.user.name = clean
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def remove_offline_member(db: Session, user: User, group_id: int, member_id: int) -> GroupBuyDetail:
+    group = _get_group(db, group_id)
+    member = _offline_member(group, user, member_id)
+    for order in group.orders:
+        for line in order.lines:
+            if any(a.user_id == member_id and int(a.qty) > 0 for a in line.allocations):
+                raise Conflict("They have cards in a seller order, so they cannot be removed")
+    _require_open(group)
+    for model in (GroupBuyQtyOverride, GroupBuyExtraSkip, GroupBuySnapshotLine, GroupBuyHandoff):
+        db.execute(
+            delete(model).where(model.group_buy_id == group.id, model.user_id == member_id)
+        )
+    db.delete(member)
+    db.flush()
+    db.execute(delete(User).where(User.id == member_id, User.placeholder_group_buy_id == group.id))
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
+def set_offline_member_cards(
+    db: Session, user: User, group_id: int, member_id: int, text: str
+) -> GroupBuyOfflineCardsResult:
+    """Replace an offline member's cards with the ones in a pasted list (4xOP01-001, 4 OP01-001...)."""
+    group = _get_group(db, group_id)
+    member = _offline_member(group, user, member_id)
+    _require_open(group)
+    wanted: dict[str, int] = {}
+    unmatched: list[str] = []
+    lines = [ln.strip() for ln in (text or "").replace("\r", "\n").split("\n")]
+    parsed_lines: list[tuple[str, list]] = []
+    for line in lines:
+        if not line or line.startswith("#") or line.startswith("//"):
+            continue
+        try:
+            parsed_lines.append((line, parse_decklist(line)))
+        except Invalid:
+            unmatched.append(line)
+    known = catalog_repo.catalog_map(
+        db, {c.card_id.upper() for _, cards in parsed_lines for c in cards}
+    )
+    for line, cards in parsed_lines:
+        if not cards or any(c.card_id.upper() not in known for c in cards):
+            unmatched.append(line)
+            continue
+        for card in cards:
+            key = card.card_id.upper()
+            wanted[key] = min(999, wanted.get(key, 0) + int(card.needed))
+    db.execute(
+        delete(GroupBuyQtyOverride).where(
+            GroupBuyQtyOverride.group_buy_id == group.id,
+            GroupBuyQtyOverride.user_id == member_id,
+        )
+    )
+    db.flush()
+    for card_id, qty in wanted.items():
+        db.add(
+            GroupBuyQtyOverride(
+                group_buy_id=group.id, user_id=member_id, card_id=card_id, qty=qty
+            )
+        )
+    db.commit()
+    return GroupBuyOfflineCardsResult(
+        detail=get_group_buy(db, user, group_id), applied=len(wanted), unmatched=unmatched
+    )
 
 
 def set_extra_skip(
@@ -1660,7 +1800,11 @@ def leave_group_buy(db: Session, user: User, group_id: int) -> None:
 def delete_group_buy(db: Session, user: User, group_id: int) -> None:
     group = _get_group(db, group_id)
     _require_host(group, user)
+    offline_ids = [m.user_id for m in group.members if is_placeholder_user(m.user)]
     db.delete(group)
+    db.flush()
+    if offline_ids:
+        db.execute(delete(User).where(User.id.in_(offline_ids), User.placeholder_group_buy_id == group_id))
     db.commit()
 
 
@@ -2451,6 +2595,9 @@ def delete_order(db: Session, user: User, group_id: int, order_id: int) -> Group
 
 
 def _credit(db: Session, user_id: int, card_id: str, art: int | None, delta: int) -> None:
+    # A "not on the app" member has no collection to credit (#1445).
+    if db.scalar(select(User.placeholder_group_buy_id).where(User.id == user_id)) is not None:
+        return
     if art is None:
         (_add_owned if delta > 0 else _subtract_owned)(db, user_id, card_id, abs(delta))
     elif delta > 0:

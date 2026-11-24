@@ -44,7 +44,13 @@ def build_overview(db: Session, days: int) -> dict:
     guest = is_guest()
 
     def users(*where) -> int:
-        return int(db.scalar(select(func.count()).select_from(User).where(*where)) or 0)
+        # "Not on the app" group buy members (#1445) are names, not accounts.
+        return int(
+            db.scalar(
+                select(func.count()).select_from(User).where(User.placeholder_group_buy_id.is_(None), *where)
+            )
+            or 0
+        )
 
     total = users()
     guests = users(guest)
@@ -60,7 +66,7 @@ def build_overview(db: Session, days: int) -> dict:
 
     window = last_days(now, days)
     window_start = datetime.combine(window[0], datetime.min.time(), tzinfo=timezone.utc)
-    signups = db.execute(select(User.created_at, guest).where(User.created_at >= window_start)).all()
+    signups = db.execute(select(User.created_at, guest).where(User.created_at >= window_start, User.placeholder_group_buy_id.is_(None))).all()
     real_by_day = bucket_by_day([c for c, g in signups if not g], window)
     guest_by_day = bucket_by_day([c for c, g in signups if g], window)
 

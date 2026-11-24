@@ -1,8 +1,9 @@
-import { GroupBuyDetail, money } from "../../api";
+import { GroupBuyDetail, GroupBuyMember, money } from "../../api";
 import { CollapsibleDrawer } from "../../ui/cardListControls";
 import { type ReactNode } from "react";
 import { MemberSwatch } from "./memberColors";
-import { MemberModeTag } from "./memberParts";
+import { MemberModeTag, OfflineTag } from "./memberParts";
+import { OfflineMemberMenu } from "./OfflineMembers";
 import { SHIPPING_SPLIT_LABELS } from "./shipping";
 import { MEMBERS_OPEN_KEY, SETTLEMENT_OPEN_KEY } from "../../storage/keys";
 
@@ -10,7 +11,18 @@ export function hasOrderPanel(detail: Pick<GroupBuyDetail, "status">): boolean {
   return detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
 }
 
-export function GroupBuyMembersList({ detail }: { detail: GroupBuyDetail }) {
+export function GroupBuyMembersList({
+  detail,
+  onAddOffline,
+  onRenameOffline,
+  onRemoveOffline,
+}: {
+  detail: GroupBuyDetail;
+  /** Host only, while open: add someone who is not on the app, then rename or remove them. */
+  onAddOffline?: () => void;
+  onRenameOffline?: (member: GroupBuyMember) => void;
+  onRemoveOffline?: (member: GroupBuyMember) => void;
+}) {
   const members = detail.members ?? [];
   const showOrderPanel = hasOrderPanel(detail);
   return (
@@ -24,6 +36,7 @@ export function GroupBuyMembersList({ detail }: { detail: GroupBuyDetail }) {
                 <MemberSwatch userId={m.user_id} members={members} />
                 <span className="gb-member-chip-name">{m.display_name}</span>
                 {m.role === "host" ? <span className="gb-member-chip-host">host</span> : null}
+                {m.is_offline ? <span className="gb-member-chip-host">not on the app</span> : null}
               </span>
             ))}
           </span>
@@ -41,6 +54,14 @@ export function GroupBuyMembersList({ detail }: { detail: GroupBuyDetail }) {
                   {m.role === "host" ? " (host)" : ""}
                 </strong>
                 <MemberModeTag member={m} />
+                {m.is_offline ? <OfflineTag /> : null}
+                {m.is_offline && onRenameOffline && onRemoveOffline ? (
+                  <OfflineMemberMenu
+                    member={m}
+                    onRename={() => onRenameOffline(m)}
+                    onRemove={() => onRemoveOffline(m)}
+                  />
+                ) : null}
               </span>
               <span className="gb-member-stats muted">
                 <span>{m.cards_still_needed} copies</span>
@@ -64,6 +85,11 @@ export function GroupBuyMembersList({ detail }: { detail: GroupBuyDetail }) {
             </li>
           ))}
         </ul>
+        {onAddOffline ? (
+          <button type="button" className="btn secondary gb-add-offline" data-testid="gb-add-offline" onClick={onAddOffline}>
+            Add someone not on the app
+          </button>
+        ) : null}
       </CollapsibleDrawer>
     </div>
   );

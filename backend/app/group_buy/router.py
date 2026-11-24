@@ -27,6 +27,9 @@ from app.group_buy.schemas import (
     GroupBuyExport,
     GroupBuyHandoffUpdate,
     GroupBuyInvitePreview,
+    GroupBuyOfflineCardsPaste,
+    GroupBuyOfflineCardsResult,
+    GroupBuyOfflineMemberBody,
     GroupBuyOrderAdded,
     GroupBuyOrderCreate,
     GroupBuyOrderHistoryImport,
@@ -438,7 +441,7 @@ def put_group_buy_qty(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
-    return group_buy.set_member_qty(db, user, group_id, card_id, body.qty)
+    return group_buy.set_member_qty(db, user, group_id, card_id, body.qty, body.user_id)
 
 
 @router.put(
@@ -481,3 +484,48 @@ def export_group_buy_tcgplayer(
     db: Annotated[Session, Depends(get_db)],
 ):
     return group_buy.export_tcgplayer(db, user, group_id)
+
+
+@router.post("/group-buys/{group_id}/offline-members", response_model=GroupBuyDetail)
+def post_offline_member(
+    group_id: int,
+    body: GroupBuyOfflineMemberBody,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return group_buy.add_offline_member(db, user, group_id, body.name)
+
+
+@router.patch("/group-buys/{group_id}/offline-members/{member_id}", response_model=GroupBuyDetail)
+def patch_offline_member(
+    group_id: int,
+    member_id: int,
+    body: GroupBuyOfflineMemberBody,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return group_buy.rename_offline_member(db, user, group_id, member_id, body.name)
+
+
+@router.delete("/group-buys/{group_id}/offline-members/{member_id}", response_model=GroupBuyDetail)
+def delete_offline_member(
+    group_id: int,
+    member_id: int,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return group_buy.remove_offline_member(db, user, group_id, member_id)
+
+
+@router.post(
+    "/group-buys/{group_id}/offline-members/{member_id}/cards",
+    response_model=GroupBuyOfflineCardsResult,
+)
+def post_offline_member_cards(
+    group_id: int,
+    member_id: int,
+    body: GroupBuyOfflineCardsPaste,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+):
+    return group_buy.set_offline_member_cards(db, user, group_id, member_id, body.text)

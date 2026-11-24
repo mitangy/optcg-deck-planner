@@ -306,6 +306,8 @@ export type GroupBuyMember = {
   shipping_share?: number;
   tax_share?: number;
   total_owed?: number;
+  /** A name the host typed for someone who is not on the app (#1445). */
+  is_offline?: boolean;
   /** Hand-off: filled for the host and for the member themselves, blank for everyone else. */
   handoff_status?: "" | "waiting" | "shipped" | "handed_over" | "received" | string;
   handoff_tracking_url?: string;
@@ -504,6 +506,8 @@ export type GroupBuyDetail = GroupBuySummary & {
   read_only?: boolean;
   orders?: GroupBuyOrder[];
 };
+
+export type GroupBuyOfflineCardsResult = { detail: GroupBuyDetail; applied: number; unmatched: string[] };
 
 export type GroupBuyInvitePreview = {
   title: string;
@@ -1015,10 +1019,28 @@ export const api = {
   confirmGroupBuyHandoffReceived: (id: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/handoffs/me/received`, { method: "POST" }),
   closeGroupBuy: (id: number) => request<GroupBuyDetail>(`/group-buys/${id}/close`, { method: "POST" }),
-  setGroupBuyQty: (id: number, cardId: string, qty: number) =>
+  /** `userId` is a "not on the app" member the host is buying for; leave it out to set your own. */
+  setGroupBuyQty: (id: number, cardId: string, qty: number, userId?: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/quantities/${encodeURIComponent(cardId)}`, {
       method: "PUT",
-      body: JSON.stringify({ qty }),
+      body: JSON.stringify(userId == null ? { qty } : { qty, user_id: userId }),
+    }),
+  addGroupBuyOfflineMember: (id: number, name: string) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/offline-members`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  renameGroupBuyOfflineMember: (id: number, memberId: number, name: string) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/offline-members/${memberId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name }),
+    }),
+  removeGroupBuyOfflineMember: (id: number, memberId: number) =>
+    request<GroupBuyDetail>(`/group-buys/${id}/offline-members/${memberId}`, { method: "DELETE" }),
+  pasteGroupBuyOfflineCards: (id: number, memberId: number, text: string) =>
+    request<GroupBuyOfflineCardsResult>(`/group-buys/${id}/offline-members/${memberId}/cards`, {
+      method: "POST",
+      body: JSON.stringify({ text }),
     }),
   setGroupBuyExtraSkip: (id: number, cardId: string, productId: number, skip: number) =>
     request<GroupBuyDetail>(

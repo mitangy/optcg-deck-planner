@@ -1,9 +1,9 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from app.group_buy.order_history_pdf import MAX_TEXT_CHARS
 from app.planner.schemas import GroupBuyArtWantOut, PrintingView
@@ -22,6 +22,19 @@ class GroupBuyContributionUpdate(BaseModel):
 
 class GroupBuyQtyUpdate(BaseModel):
     qty: int = Field(ge=0, le=999)
+    # Host only: edit this "not on the app" member's quantity instead of their own (#1445).
+    user_id: int | None = None
+
+
+OfflineMemberName = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+
+
+class GroupBuyOfflineMemberBody(BaseModel):
+    name: OfflineMemberName
+
+
+class GroupBuyOfflineCardsPaste(BaseModel):
+    text: str = Field(max_length=20000)
 
 
 class GroupBuyOrderUpdate(BaseModel):
@@ -54,6 +67,8 @@ class GroupBuyMemberOut(BaseModel):
     shipping_share: float = 0.0
     tax_share: float = 0.0
     total_owed: float = 0.0
+    # A name the host typed for someone who is not on the app (#1445).
+    is_offline: bool = False
     # Hand-off (#1418): host and the member themselves only; blank for everyone else and the invite view.
     handoff_status: str = ""
     handoff_tracking_url: str = ""
@@ -233,6 +248,13 @@ class GroupBuyDetail(GroupBuySummary):
     can_undo_purchase: bool = False
     read_only: bool = False
     orders: list[GroupBuyOrderOut] = []
+
+
+
+class GroupBuyOfflineCardsResult(BaseModel):
+    detail: GroupBuyDetail
+    applied: int = 0
+    unmatched: list[str] = []
 
 
 class GroupBuyInvitePreview(BaseModel):

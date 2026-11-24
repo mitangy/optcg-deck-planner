@@ -2,7 +2,7 @@ import { useCardLayout, useListDensity } from "../../ui/CardLayout";
 import { AltArtsRow } from "../../cards/MarketPrice";
 import { GroupBuyDetailSkeleton } from "../../ui/Skeleton";
 import { shownProductId } from "../../cards/altArt";
-import { api, GroupBuyDetail, GroupBuyLine, GroupBuyOrderUpdate, money } from "../../api";
+import { api, GroupBuyDetail, GroupBuyLine, GroupBuyMember, GroupBuyOrderUpdate, money } from "../../api";
 import { useMe } from "../../auth/useMe";
 import { contributionUpdate, type ContributionUpdate } from "./contribution";
 import { useCardSorts, useShowAltArts, type SortKey } from "../../ui/cardListControls";
@@ -34,7 +34,9 @@ import { cardStatus, notOrderedCopies, packageCounts, sellersOnTheWay } from "./
 import { useGroupBuyOrders } from "./useGroupBuyOrders";
 import { CollapsibleDrawer } from "../../ui/cardListControls";
 import { groupBuyActions, stepHint, stepLabel, summaryParts, type GroupBuyActionKey } from "./groupBuyActions";
-import { ArtWantChips, SkippedBadge, boughtAltRow } from "./memberParts";
+import { ArtWantChips, OfflineTag, SkippedBadge, boughtAltRow } from "./memberParts";
+import { AddCardDialog, BuyingForBar, OfflineNameDialog, PasteCardsDialog } from "./OfflineMembers";
+import { buyingForQty, canManageOffline, offlineMembers, resolveBuyingFor } from "./offlineMembersModel";
 import { SHIPPING_SPLIT_LABELS, ShippingSplit } from "./shipping";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_CARDS_KEY, COLSORT_GB_OWE_KEY } from "../../storage/keys";
@@ -65,6 +67,12 @@ export function GroupBuyDetailPage() {
   const [keepVisible, setKeepVisible] = useState<ReadonlySet<string>>(() => new Set());
   const keepCardVisible = (cardId: string) =>
     setKeepVisible((prev) => (prev.has(cardId) ? prev : new Set(prev).add(cardId)));
+  // The host's "Buying for" pick and the dialogs for people who are not on the app (#1445).
+  const [buyingForId, setBuyingForId] = useState<number | null>(null);
+  const [addOfflineOpen, setAddOfflineOpen] = useState(false);
+  const [renameOffline, setRenameOffline] = useState<GroupBuyMember | null>(null);
+  const [pasteOpen, setPasteOpen] = useState(false);
+  const [addCardOpen, setAddCardOpen] = useState(false);
   const [orderNotes, setOrderNotes] = useState("");
   const [shippingCost, setShippingCost] = useState("0");
   const [taxCost, setTaxCost] = useState("0");
@@ -81,6 +89,9 @@ export function GroupBuyDetailPage() {
 
   const detail = detailQ.data;
   const members = detail?.members ?? [];
+  const offline = offlineMembers(members);
+  const manageOffline = Boolean(detail && canManageOffline(detail));
+  const buyingFor = manageOffline ? resolveBuyingFor(members, buyingForId) : null;
 
   const { lines, displayRows, tableRows, cardsSort, onCardsSort } = useGroupBuyLines(
     detail?.lines ?? [],
@@ -176,14 +187,55 @@ export function GroupBuyDetailPage() {
   });
 
   const setQty = useMutation({
-    mutationFn: ({ cardId, qty }: { cardId: string; qty: number }) =>
-      api.setGroupBuyQty(groupId, cardId, qty),
+    mutationFn: ({ cardId, qty, userId }: { cardId: string; qty: number; userId?: number }) =>
+      api.setGroupBuyQty(groupId, cardId, qty, userId),
     onMutate: ({ cardId }) => keepCardVisible(cardId),
     onSuccess: async (d) => {
       qc.setQueryData(qk.groupBuy.detail(groupId), d);
       await qc.invalidateQueries({ queryKey: qk.groupBuys() });
     },
     onError: (e: Error) => setMsg(e.message),
+  });
+
+  const addOffline = useMutation({
+    mutationFn: (name: string) => api.addGroupBuyOfflineMember(groupId, name),
+    onSuccess: async (d, name) => {
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
+      const added = [...d.members].reverse().find((m) => m.is_offline && m.display_name === name.trim());
+      if (added) setBuyingForId(added.user_id);
+      setAddOfflineOpen(false);
+      setMsg(null);
+    },
+  });
+
+  const renameOfflineMember = useMutation({
+    mutationFn: ({ memberId, name }: { memberId: number; name: string }) =>
+      api.renameGroupBuyOfflineMember(groupId, memberId, name),
+    onSuccess: async (d) => {
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
+      setRenameOffline(null);
+    },
+  });
+
+  const removeOfflineMember = useMutation({
+    mutationFn: (memberId: number) => api.removeGroupBuyOfflineMember(groupId, memberId),
+    onSuccess: async (d, memberId) => {
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
+      setBuyingForId((cur) => (cur === memberId ? null : cur));
+    },
+    onError: (e: Error) => setMsg(e.message),
+  });
+
+  const pasteOffline = useMutation({
+    mutationFn: ({ memberId, text }: { memberId: number; text: string }) =>
+      api.pasteGroupBuyOfflineCards(groupId, memberId, text),
+    onSuccess: async (res) => {
+      qc.setQueryData(qk.groupBuy.detail(groupId), res.detail);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
+    },
   });
 
   const setExtraSkip = useMutation({
@@ -345,7 +397,7 @@ export function GroupBuyDetailPage() {
   const groupBuyAltRow = (line: GroupBuyLine) => {
     if (line.bought_arts?.length) return boughtAltRow(line);
     const alts = line.alt_arts ?? [];
-    const canEditWants = detail?.status === "open" && (line.my_need ?? 0) > 0;
+    const canEditWants = detail?.status === "open" && (line.my_need ?? 0) > 0 && !buyingFor;
     const baseCount = myArtSplit(line).base;
     const baseControl =
       baseCount > 0 ? (
@@ -546,6 +598,62 @@ export function GroupBuyDetailPage() {
   return (
     <section className="group-buy-detail">
       {confirmDialog}
+      {addOfflineOpen ? (
+        <OfflineNameDialog
+          title="Add someone not on the app"
+          confirmLabel="Add"
+          busy={addOffline.isPending}
+          error={addOffline.isError ? (addOffline.error as Error).message : null}
+          onSubmit={(name) => addOffline.mutate(name)}
+          onClose={() => {
+            addOffline.reset();
+            setAddOfflineOpen(false);
+          }}
+        />
+      ) : null}
+      {renameOffline ? (
+        <OfflineNameDialog
+          title={`Rename ${renameOffline.display_name}`}
+          confirmLabel="Save"
+          initial={renameOffline.display_name}
+          busy={renameOfflineMember.isPending}
+          error={renameOfflineMember.isError ? (renameOfflineMember.error as Error).message : null}
+          onSubmit={(name) => renameOfflineMember.mutate({ memberId: renameOffline.user_id, name })}
+          onClose={() => {
+            renameOfflineMember.reset();
+            setRenameOffline(null);
+          }}
+        />
+      ) : null}
+      {pasteOpen && buyingFor ? (
+        <PasteCardsDialog
+          name={buyingFor.display_name}
+          busy={pasteOffline.isPending}
+          error={pasteOffline.isError ? (pasteOffline.error as Error).message : null}
+          result={pasteOffline.data ?? null}
+          onSubmit={(text) => pasteOffline.mutate({ memberId: buyingFor.user_id, text })}
+          onClose={() => {
+            pasteOffline.reset();
+            setPasteOpen(false);
+          }}
+        />
+      ) : null}
+      {addCardOpen && buyingFor ? (
+        <AddCardDialog
+          name={buyingFor.display_name}
+          busy={setQty.isPending}
+          error={setQty.isError ? (setQty.error as Error).message : null}
+          onAdd={(cardId) => {
+            const line = detail.lines.find((l) => l.card_id.toUpperCase() === cardId.toUpperCase());
+            setQty.mutate({
+              cardId,
+              qty: Math.min(999, (line ? buyingForQty(line, buyingFor.user_id) : 0) + 1),
+              userId: buyingFor.user_id,
+            });
+          }}
+          onClose={() => setAddCardOpen(false)}
+        />
+      ) : null}
       {addOpen ? (
         <AddOrderDialog
           groupId={groupId}
@@ -761,7 +869,23 @@ export function GroupBuyDetailPage() {
         />
       ) : null}
 
-      <GroupBuyMembersList detail={detail} />
+      <GroupBuyMembersList
+        detail={detail}
+        onAddOffline={manageOffline ? () => setAddOfflineOpen(true) : undefined}
+        onRenameOffline={manageOffline ? (m) => setRenameOffline(m) : undefined}
+        onRemoveOffline={
+          manageOffline
+            ? async (m) => {
+                const ok = await confirm({
+                  title: `Remove ${m.display_name}?`,
+                  message: "Their cards come off the group buy. This can't be undone.",
+                  confirmLabel: "Remove",
+                });
+                if (ok) removeOfflineMember.mutate(m.user_id);
+              }
+            : undefined
+        }
+      />
 
       {showOrderPanel && (
         <GroupBuySettlement detail={detail}>
@@ -844,6 +968,7 @@ export function GroupBuyDetailPage() {
                         <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
                         {m.display_name}
                         {m.role === "host" ? " (host)" : ""}
+                        {m.is_offline ? <OfflineTag /> : null}
                       </span>
                     </td>
                     <td>{money(m.card_cost ?? 0)}</td>
@@ -860,8 +985,29 @@ export function GroupBuyDetailPage() {
         </GroupBuySettlement>
       )}
 
+      {manageOffline && offline.length > 0 ? (
+        <BuyingForBar
+          members={members}
+          offline={offline}
+          value={buyingFor}
+          onChange={setBuyingForId}
+          onPaste={() => {
+            pasteOffline.reset();
+            setPasteOpen(true);
+          }}
+          onAddCard={() => {
+            setQty.reset();
+            setAddCardOpen(true);
+          }}
+        />
+      ) : null}
+
       {detail.lines.length === 0 ? (
-        <p className="muted">Nothing to buy yet — members need cards on their shopping lists.</p>
+        <p className="muted">
+          {buyingFor
+            ? `Nothing on ${buyingFor.display_name}'s list yet. Add a card or paste their list.`
+            : "Nothing to buy yet — members need cards on their shopping lists."}
+        </p>
       ) : (
         <>
           {inOrderedPhase ? (
@@ -930,8 +1076,24 @@ export function GroupBuyDetailPage() {
                 tableRows={tableRows}
                 cardsSort={cardsSort}
                 onCardsSort={onCardsSort}
+                buyLabel={buyingFor ? `${buyingFor.display_name}'s buy` : undefined}
                 renderBuyEditor={
-                  detail.status === "open"
+                  detail.status === "open" && buyingFor
+                    ? (line) => (
+                        <BuyQtyEditor
+                          cardId={line.card_id}
+                          qty={buyingForQty(line, buyingFor.user_id)}
+                          suggestedQty={0}
+                          isCustom={false}
+                          excluded={false}
+                          disabled={qtyBusy}
+                          offlineName={buyingFor.display_name}
+                          onSave={(qty) => setQty.mutate({ cardId: line.card_id, qty, userId: buyingFor.user_id })}
+                          onReset={() => undefined}
+                          onExclude={() => setQty.mutate({ cardId: line.card_id, qty: 0, userId: buyingFor.user_id })}
+                        />
+                      )
+                    : detail.status === "open"
                     ? (line, excluded) => (
                         <BuyQtyEditor
                           cardId={line.card_id}
@@ -952,7 +1114,7 @@ export function GroupBuyDetailPage() {
                       )
                     : undefined
                 }
-                renderAltRow={showAltArts ? groupBuyAltRow : undefined}
+                renderAltRow={showAltArts && !buyingFor ? groupBuyAltRow : undefined}
                 renderStatus={
                   inOrderedPhase
                     ? (line) => {
