@@ -357,6 +357,9 @@ export type GroupBuyBoughtArt = {
   paid: boolean;
 };
 
+/** How many copies of one art of a card a member has in the group buy; the host's view once locked or ordered (#1451). */
+export type GroupBuyMemberArt = { user_id: number; product_id: number | null; qty: number; qty_arrived: number };
+
 export type GroupBuyLine = {
   card_id: string;
   name: string;
@@ -397,6 +400,7 @@ export type GroupBuyLine = {
   my_arrived?: number;
   my_not_ordered?: number;
   not_ordered_members?: GroupBuyNotOrderedMember[];
+  member_arts?: GroupBuyMemberArt[];
 };
 
 export type GroupBuyOrderStatus = "on_the_way" | "partial" | "arrived";
@@ -1035,6 +1039,10 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ name }),
     }),
+  moveGroupBuyCopies: (
+    id: number,
+    body: { card_id: string; product_id: number | null; from_user_id: number; to_user_id: number; qty: number },
+  ) => request<GroupBuyDetail>(`/group-buys/${id}/move-copies`, { method: "POST", body: JSON.stringify(body) }),
   removeGroupBuyOfflineMember: (id: number, memberId: number) =>
     request<GroupBuyDetail>(`/group-buys/${id}/offline-members/${memberId}`, { method: "DELETE" }),
   pasteGroupBuyOfflineCards: (id: number, memberId: number, text: string) =>

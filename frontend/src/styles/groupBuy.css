@@ -1259,3 +1259,24 @@
     flex: 1 1 auto;
   }
 }
+
+/* Move copies (#1451): the per-card action and the dialog's one-line preview. */
+.gb-line-move {
+  margin-top: 0.15rem;
+}
+
+.gb-move-btn {
+  min-height: 2.25rem;
+  padding: 0 0.5rem;
+  font-size: 0.85rem;
+}
+
+.gb-move-preview {
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.gb-offline-field .gb-stepper-ctl {
+  justify-self: start;
+}

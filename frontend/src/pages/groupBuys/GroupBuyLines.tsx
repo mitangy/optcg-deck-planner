@@ -31,6 +31,7 @@ export function GroupBuyLines({
   buyLabel = "Your buy",
   renderAltRow,
   renderStatus,
+  renderMove,
   altsOf = (line) => line.alt_arts ?? [],
 }: {
   layout: CardLayout;
@@ -48,6 +49,8 @@ export function GroupBuyLines({
   renderAltRow?: (line: GroupBuyLine) => ReactNode;
   /** Where the card's copies are (arrived, on the way, not ordered), shown once the group buy is ordered. */
   renderStatus?: (line: GroupBuyLine) => ReactNode;
+  /** Host only, locked or ordered: the "Move copies…" action for a card (#1451). */
+  renderMove?: (line: GroupBuyLine) => ReactNode;
   /** The alt arts a row's chip counts (the read-only view only shows arts somebody wants). */
   altsOf?: (line: GroupBuyLine) => GroupBuyLine["alt_arts"];
 }) {
@@ -103,6 +106,7 @@ export function GroupBuyLines({
                 <MemberBreakdown line={line} members={members} />
               </div>
               {renderStatus ? <div className="gb-line-status">{renderStatus(line)}</div> : null}
+              {renderMove ? <div className="gb-line-move">{renderMove(line)}</div> : null}
               {line.my_used_in?.length ? (
                 <div className="grid-card-used-in">
                   <UsedInCell decks={line.my_used_in} />
@@ -157,6 +161,7 @@ export function GroupBuyLines({
                     <MemberBreakdown line={line} members={members} />
                   </div>
                   {renderStatus ? <div className="gb-line-status">{renderStatus(line)}</div> : null}
+                  {renderMove ? <div className="gb-line-move">{renderMove(line)}</div> : null}
                   {line.my_used_in?.length ? <UsedInCell className="mobile-used-in" decks={line.my_used_in} /> : null}
                   <div className="mobile-card-price-row">
                     <GroupBuyPrices line={line} />
@@ -230,6 +235,7 @@ export function GroupBuyLines({
                       {!compact && line.my_used_in?.length ? <UsedInCell decks={line.my_used_in} /> : null}
                       {excluded ? <div className="muted">Excluded</div> : null}
                       {renderStatus ? <div className="gb-line-status">{renderStatus(line)}</div> : null}
+                      {renderMove ? <div className="gb-line-move">{renderMove(line)}</div> : null}
                       {tcgLink(line)}
                       {altChip(line)}
                     </div>

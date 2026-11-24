@@ -3191,6 +3191,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/group-buys/{group_id}/move-copies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Move Copies */
+        post: operations["post_move_copies_group_buys__group_id__move_copies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/group-buys/{group_id}/offline-members": {
         parameters: {
             query?: never;
@@ -7824,6 +7841,11 @@ export interface components {
             in_order: number;
             /** Market Price */
             market_price?: number | null;
+            /**
+             * Member Arts
+             * @default []
+             */
+            member_arts: components["schemas"]["GroupBuyMemberArtOut"][];
             /** Members */
             members: components["schemas"]["GroupBuyMemberQtyOut"][];
             /**
@@ -7913,6 +7935,23 @@ export interface components {
             tcgplayer_url: string;
             /** Total Qty */
             total_qty: number;
+        };
+        /**
+         * GroupBuyMemberArtOut
+         * @description How many copies of one art of a card a member has in this group buy (#1451); host view only.
+         */
+        GroupBuyMemberArtOut: {
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+            /**
+             * Qty Arrived
+             * @default 0
+             */
+            qty_arrived: number;
+            /** User Id */
+            user_id: number;
         };
         /** GroupBuyMemberOut */
         GroupBuyMemberOut: {
@@ -8020,6 +8059,19 @@ export interface components {
             suggested_qty: number;
             /** User Id */
             user_id: number;
+        };
+        /** GroupBuyMoveCopies */
+        GroupBuyMoveCopies: {
+            /** Card Id */
+            card_id: string;
+            /** From User Id */
+            from_user_id: number;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+            /** To User Id */
+            to_user_id: number;
         };
         /**
          * GroupBuyMyExtraOut
@@ -16567,6 +16619,41 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_move_copies_group_buys__group_id__move_copies_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyMoveCopies"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {

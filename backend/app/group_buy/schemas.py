@@ -95,6 +95,23 @@ class GroupBuyMemberQtyOut(BaseModel):
     is_custom: bool = False
 
 
+class GroupBuyMemberArtOut(BaseModel):
+    """How many copies of one art of a card a member has in this group buy (#1451); host view only."""
+
+    user_id: int
+    product_id: int | None = None
+    qty: int
+    qty_arrived: int = 0
+
+
+class GroupBuyMoveCopies(BaseModel):
+    card_id: str = Field(min_length=1, max_length=32)
+    product_id: int | None = None
+    from_user_id: int
+    to_user_id: int
+    qty: int = Field(ge=1, le=999)
+
+
 class GroupBuyExtraSkipUpdate(BaseModel):
     skip: int = Field(ge=0, le=999)
 
@@ -172,6 +189,8 @@ class GroupBuyLineOut(BaseModel):
     my_not_ordered: int = 0
     # Who the not-ordered copies are for; empty until the group buy has an order (#1439).
     not_ordered_members: list[GroupBuyNotOrderedMemberOut] = []
+    # Per member and art, for the host once locked or ordered (#1451).
+    member_arts: list[GroupBuyMemberArtOut] = []
 
 
 class GroupBuyOrderAllocationOut(BaseModel):
