@@ -179,3 +179,27 @@ def test_editing_an_orders_items_keeps_the_price_paid_for_the_same_art_1443(db):
 
     assert _line(db, host, gid).bought_arts[0].qty == 3
     assert _line(db, host, gid).bought_each == pytest.approx(7.0)
+
+
+def test_ordered_alt_copies_are_not_charged_again_1452(db):
+    add_catalog(db, "OP01-001", name="Monkey D. Luffy (001)", product_id=1001, market=2.5)
+    add_catalog(db, "OP01-001", name="Monkey D. Luffy (001) (Parallel)", product_id=1009, market=9.0, special=True)
+    host = make_user(db, email="h1452@example.com", name="Host", sub="sub-h1452")
+    friend = make_user(db, email="f1452@example.com", name="Friend", sub="sub-f1452")
+    add_deck_with_cards(db, host, "Host Deck", {"OP01-001": 1})
+    friend_deck = add_deck_with_cards(db, friend, "Friend Deck", {"OP01-001": 4})
+    for u in (host, friend):
+        set_owned(db, u, "OP01-001", 0)
+    deck_svc.set_deck_card_printing(db, friend, friend_deck.id, "OP01-001", 1009, 2)
+    created = group_buy.create_group_buy(db, host, "Locked")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    page = _history((ORDER, [(PARALLEL, 2, "$7.00")]))
+    group_buy.import_order_history(db, host, created.id, page, [ORDER])
+
+    line = _line(db, host, created.id)
+    friend_cost = next(m.card_cost for m in group_buy.get_group_buy(db, host, created.id).members if m.user_id == friend.id)
+
+    # Friend: 2 Parallels bought at $7.00 + 2 standard at $2.50 = 19.0; host: 1 standard = 2.5.
+    assert line.remaining_cost == pytest.approx(21.5)
+    assert friend_cost == pytest.approx(19.0)

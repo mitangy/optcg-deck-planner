@@ -62,7 +62,17 @@ export function mySelectedArtsTotal(line: ArtLine): MyArtsTotal {
   const bought = myBoughtParts(line);
   const boughtQty = bought.reduce((s, p) => s + p.qty, 0);
   // Copies in an order keep what was bought; only the copies still to order follow the live picks.
-  const { base, alts } = myArtSplit(boughtQty > 0 ? { ...line, my_qty: Math.max(0, line.my_qty - boughtQty) } : line);
+  // Alt copies already bought are paid for, so only the rest of each alt want is still live.
+  const boughtByArt = new Map((line.bought_arts ?? []).map((b) => [b.product_id, b.my_qty]));
+  const { base, alts } = myArtSplit(
+    boughtQty > 0
+      ? {
+          ...line,
+          my_qty: Math.max(0, line.my_qty - boughtQty),
+          alt_arts: line.alt_arts.map((a) => ({ ...a, wanted: Math.max(0, (a.wanted ?? 0) - (boughtByArt.get(a.product_id) ?? 0)) })),
+        }
+      : line,
+  );
   const parts: { label: string; qty: number; price: number | null }[] = [...bought];
   if (base > 0) parts.push({ label: "Base", qty: base, price: line.preferred_market_price ?? null });
   for (const a of alts) parts.push({ label: a.name, qty: a.qty, price: a.price });
