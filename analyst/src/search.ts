@@ -1,25 +1,17 @@
-/**
- * Structured card search. Every filter is optional; list filters inside one field match
- * any value (colors, types, traits, timings, effects), except `keywords`, which needs all.
- */
 import { normalizeCardId } from "@optcg/card-core";
 import { ruleOffends } from "@optcg/deck-analytics";
 import type { Catalog, CardRow, CardType } from "./catalog";
 
 export type CardFilter = {
-  /** Case-insensitive substring of the name, text or trigger text. */
   query?: string;
-  /** Case-insensitive substring of the name only. */
   name?: string;
   colors?: string[];
-  /** "any" (default): shares a color. "only": every card color is in `colors`. */
   colorMode?: "any" | "only";
   types?: CardType[];
   costMin?: number;
   costMax?: number;
   powerMin?: number;
   powerMax?: number;
-  /** Printed counter values to allow; 0 means no counter. */
   counters?: number[];
   traits?: string[];
   attributes?: string[];
@@ -27,9 +19,7 @@ export type CardFilter = {
   timings?: string[];
   effects?: string[];
   hasTrigger?: boolean;
-  /** Set code prefix, e.g. OP05, ST10, EB01, P. */
   set?: string;
-  /** Only cards a deck led by this leader can include (shares a color, obeys the leader's deck rules). */
   legalFor?: string;
   limit?: number;
   offset?: number;
@@ -46,8 +36,21 @@ const inRange = (v: number | undefined, min?: number, max?: number) =>
 export const DEFAULT_LIMIT = 25;
 export const MAX_LIMIT = 100;
 
-/** Card number prefix: OP05-060 -> OP05, P-001 -> P. */
 export const setOf = (id: string) => id.split("-")[0] ?? id;
+
+/** The leader of the deck open in the app, when it names a real leader card. */
+export function openLeaderOf(catalog: Catalog, leaderId: string | null | undefined): CardRow | undefined {
+  const card = leaderId ? catalog.cards.get(normalizeCardId(leaderId)) : undefined;
+  return card?.type === "leader" ? card : undefined;
+}
+
+/** Whether a leader's deck may include this card: it shares a color and no leader rule (Atlas) rules it out. The same check legalFor uses. */
+export function legalUnder(catalog: Catalog, leader: CardRow, c: CardRow): boolean {
+  if (c.type === "leader") return false;
+  if (!c.colors.some((x) => leader.colors.includes(x))) return false;
+  const atlasCard = catalog.atlas[c.id];
+  return !(atlasCard && (catalog.atlas[leader.id]?.rules ?? []).some((r) => ruleOffends(r, atlasCard)));
+}
 
 export function searchCards(catalog: Catalog, f: CardFilter): SearchResult {
   const notes: string[] = [];
@@ -56,7 +59,6 @@ export function searchCards(catalog: Catalog, f: CardFilter): SearchResult {
     leader = catalog.cards.get(normalizeCardId(f.legalFor));
     if (!leader || leader.type !== "leader") notes.push(`${f.legalFor} is not a known leader, so legalFor was ignored.`);
   }
-  const leaderRules = leader ? catalog.atlas[leader.id]?.rules ?? [] : [];
   const q = f.query ? lower(f.query) : null;
   const name = f.name ? lower(f.name) : null;
   const colors = f.colors?.map(lower);
@@ -80,12 +82,7 @@ export function searchCards(catalog: Catalog, f: CardFilter): SearchResult {
     if (!anyIn(f.effects, c.effects)) continue;
     if (f.hasTrigger !== undefined && Boolean(c.trigger) !== f.hasTrigger) continue;
     if (f.set && lower(setOf(c.id)) !== lower(f.set)) continue;
-    if (leader && leader.type === "leader") {
-      if (c.type === "leader") continue;
-      if (!c.colors.some((x) => leader.colors.includes(x))) continue;
-      const atlasCard = catalog.atlas[c.id];
-      if (atlasCard && leaderRules.some((r) => ruleOffends(r, atlasCard))) continue;
-    }
+    if (leader && leader.type === "leader" && !legalUnder(catalog, leader, c)) continue;
     matches.push(c);
   }
   matches.sort((a, b) => (a.cost ?? -1) - (b.cost ?? -1) || a.id.localeCompare(b.id));

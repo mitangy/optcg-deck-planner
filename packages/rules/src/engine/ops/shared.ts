@@ -1,7 +1,3 @@
-/**
- * Shared pieces of the leaf op handlers: the handler types, target resolution
- * and the removal loop.
- */
 import type { Effect, ReplacementEvent, Target } from "../../effects/types.js";
 import type { MatchState, ResolutionFrame, Seat } from "../../types.js";
 import { candidates } from "../queries.js";
@@ -12,10 +8,8 @@ import { type Located, isOnField, locate, otherSeat } from "../zones.js";
 import { type ExecResult, frameCtx } from "../vm.js";
 import { B, REPL_PREFIX, V, getBinding, recordAffected, replKey, setBinding } from "../../effects/bindings.js";
 
-/** One variant of the effect DSL, by its `do` tag. */
 export type OpEffect<K extends Effect["do"]> = Extract<Effect, { do: K }>;
 
-/** What every leaf op handler receives besides the effect. */
 export interface OpCtx {
   sim: Sim;
   state: MatchState;
@@ -25,7 +19,6 @@ export interface OpCtx {
 }
 
 export type OpHandler<K extends Effect["do"]> = (effect: OpEffect<K>, c: OpCtx) => ExecResult;
-/** Handlers for the subset `K` of ops; `OPS` in `./index.ts` joins the subsets into the full table. */
 export type OpTable<K extends Effect["do"]> = { [P in K]: OpHandler<P> };
 
 export function resolveTargets(state: MatchState, frame: ResolutionFrame, target: Target): Located[] {
@@ -56,7 +49,6 @@ export function resolveTargets(state: MatchState, frame: ResolutionFrame, target
     case "choose": return [];
   }
 }
-/** Apply a removal to each target in order; may pause for replacement prompts. */
 export function forEachTarget(sim: Sim, frame: ResolutionFrame, targets: Located[], kind: "ko" | "return" | "remove" | "rest" | null, apply: (loc: Located) => void, done?: () => void): ExecResult {
   const { state } = sim;
   if (getBinding(frame, B.actTargets) === undefined) frame.bindings[V.affected] = [];

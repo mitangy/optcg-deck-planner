@@ -1,4 +1,3 @@
-"""Duel token mint, match ingest, and ratings (Step 4)."""
 
 from __future__ import annotations
 
@@ -8,7 +7,7 @@ import logging
 import re
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Request, Response
 from sqlalchemy import delete, func, or_, select
@@ -27,7 +26,16 @@ from app.core.config import Settings, get_settings
 from app.core.security import OpsToken
 from app.core.time import as_utc
 from app.core.db import get_db
-from app.duel.ratings import INITIAL_RATING, apply_elo
+from app.duel.seasons import current_season, ended_seasons, latest_since
+from app.duel.models import DuelSeason, DuelSeasonStanding
+from app.duel.leaderboard import Record, board_as_of, current_board, ranked_records, window_board
+from app.duel.ratings import (
+    INITIAL_RATING,
+    PROVISIONAL_GAMES,
+    RANKED_PAIR_DAILY_LIMIT,
+    RANKED_PAIR_WINDOW_HOURS,
+    apply_elo,
+)
 from app.duel.tokens import mint_game_token
 from app.duel.moderation import recent_takedowns
 from app.core.models import User
@@ -50,6 +58,7 @@ from app.duel.matches import (
     lock_match,
     match_history,
     progress_closed,
+    ranked_pair_games_in_window,
     unfinished_entries,
 )
 from app.social.presence import ONLINE_TTL, PRESENCE_TTL
@@ -62,6 +71,7 @@ from app.duel.schemas import (
     DuelDevTokenIn,
     DuelGuestTokenIn,
     DuelLeaderboardEntryOut,
+    DuelEndedSeasonOut,
     DuelLeaderboardOut,
     DuelLiveOut,
     DuelMatchDetailOut,
@@ -70,7 +80,11 @@ from app.duel.schemas import (
     DuelMatchOut,
     DuelMatchProgressIngest,
     DuelMatchReplayOut,
+    DuelMySeasonOut,
     DuelRatingOut,
+    DuelSeasonBoardOut,
+    DuelSeasonRefOut,
+    DuelSeasonsOut,
     DuelSoloGameIngest,
     DuelTokenOut,
     GameServerPoolIn,
@@ -81,19 +95,15 @@ from app.social.schemas import DuelPresenceSnapshot
 router = APIRouter(prefix="/duel", tags=["duel"])
 log = logging.getLogger(__name__)
 
-# A long game is a few hundred intents (tens of KB). Anything far larger is dropped, not the result.
 MAX_REPLAY_BYTES = 1_000_000
-# Takedowns the presence answer repeats, so every game-server process hears about each one.
 TAKEDOWN_RELAY_WINDOW = timedelta(minutes=15)
 
 _token_rate = RateLimiter(max_calls=30, period_s=60, name="duel_token_rate")
 _ingest_rate = RateLimiter(max_calls=120, period_s=60, name="duel_ingest_rate")
 _presence_rate = RateLimiter(max_calls=120, period_s=60, name="duel_presence_rate")
-# One snapshot per turn per live game, all from the game server's address.
 _progress_rate = RateLimiter(max_calls=1200, period_s=60, name="duel_progress_rate")
 _report_rate = RateLimiter(max_calls=10, period_s=600, name="duel_report_rate")
-# Reports are stored forever and the per-IP key can be spoofed (X-Forwarded-For),
-# so cap the total too.
+# Reports are kept forever and the per-IP key can be spoofed via X-Forwarded-For, so cap the total too.
 _report_global_rate = RateLimiter(max_calls=60, period_s=3600, name="duel_report_global_rate")
 # Guest and dev ids are client-chosen, so a fresh id per request would create a
 # User + DuelRating row every time. New accounts are capped per IP and in total.
@@ -105,7 +115,6 @@ _GUEST_ID_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
 
 
 def _allow_new_account(request: Request) -> None:
-    """Spend one new-account slot, or refuse with 429 (re-minting an existing id never needs one)."""
     if not _new_account_ip_rate.allow(f"new-account:{client_ip(request)}") or not _new_account_global_rate.allow(
         "new-account"
     ):
@@ -113,8 +122,7 @@ def _allow_new_account(request: Request) -> None:
 
 
 def _get_or_create_rating(db: Session, user_id: int) -> DuelRating:
-    # Token minting and the first result can race to initialize a rating. Keep
-    # initialization atomic without rolling back the surrounding match transaction.
+    # Token minting and the first result can race, so insert atomically without rolling back the match transaction.
     insert = sqlite_insert if db.get_bind().dialect.name == "sqlite" else pg_insert
     db.execute(
         insert(DuelRating)
@@ -323,7 +331,11 @@ def ingest_match(
     before0, before1 = r0.rating, r1.rating
     after0, after1 = before0, before1
 
-    if body.ranked:
+    # Win-trading cap: past the daily limit for this pair the game is still saved as ranked, but moves nobody's rating.
+    capped = body.ranked and ranked_pair_games_in_window(
+        db, body.seat0_user_id, body.seat1_user_id, RANKED_PAIR_WINDOW_HOURS
+    ) >= RANKED_PAIR_DAILY_LIMIT
+    if body.ranked and not capped:
         score0 = 1.0 if body.winner_seat == 0 else 0.0
         after0, after1 = apply_elo(
             before0,
@@ -366,18 +378,17 @@ def ingest_match(
             db.add(DuelMatchSeatLog(match_id=body.match_id, seat=seat, log=log_text))
         else:
             log.warning("duel seat %d log for %s dropped: %d bytes", seat, body.match_id, len(log_text))
-    # Leaders, decks and who went first, for Log Pose matchup stats.
     db.add_all(seats_for(row, body.replay))
-    # The finished logs replace the per-turn snapshot.
     db.execute(delete(DuelMatchProgress).where(DuelMatchProgress.match_id == body.match_id))
     db.commit()
     _forget_live_progress(body.match_id, (body.seat0_user_id, body.seat1_user_id))
-    # A tournament game moves its bracket along; never let that fail the ingest.
-    try:
-        duel_tournaments.record_game(db, body.match_id, body.seat0_user_id, body.seat1_user_id, body.winner_seat)
-    except Exception:
-        db.rollback()
-        log.exception("tournament result for %s not recorded", body.match_id)
+    # Only a room opened with a tournament ticket hides hands; any other room's result must not decide a match.
+    if body.tournament:
+        try:
+            duel_tournaments.record_game(db, body.match_id, body.seat0_user_id, body.seat1_user_id, body.winner_seat)
+        except Exception:
+            db.rollback()
+            log.exception("tournament result for %s not recorded", body.match_id)
     return DuelMatchOut(
         match_id=row.match_id,
         created=True,
@@ -428,7 +439,7 @@ def ingest_match_progress(
             redis_client.report_failure("progress write")
     lock_match(db, match_id)
     if has_result(db, match_id):
-        # The result is in; a snapshot that lost the race must not bring the game back.
+        # A snapshot that lost the race to the result must not bring the game back.
         db.rollback()
         return
     _require_known_seats(db, body)
@@ -441,7 +452,6 @@ def ingest_match_progress(
     _fill_progress(row, body, match_id)
     db.commit()
     if r is not None:
-        # The durable copy replaces the live one.
         _forget_live_progress(match_id, (body.seat0_user_id, body.seat1_user_id))
 
 
@@ -465,11 +475,10 @@ def _fill_progress(row: DuelMatchProgress, body: DuelMatchProgressIngest, match_
 
 
 def _progress_to_redis(r, db: Session, body: DuelMatchProgressIngest, match_id: str) -> None:
-    """A live snapshot to Redis. No match lock: readers drop snapshots of games that have a result."""
     if has_result(db, match_id):
         return
     _require_known_seats(db, body)
-    db.rollback()  # Done with Postgres; don't hold the read transaction open.
+    db.rollback()
     existing = duel_live.read_progress(r, match_id)
     if existing is not None and (existing.seat0_user_id, existing.seat1_user_id) != (
         body.seat0_user_id,
@@ -482,7 +491,6 @@ def _progress_to_redis(r, db: Session, body: DuelMatchProgressIngest, match_id: 
 
 
 def _forget_live_progress(match_id: str, user_ids: tuple[int, int]) -> None:
-    """Best effort: a leftover live copy is filtered out by readers anyway."""
     r = redis_client.get_redis()
     if r is None:
         return
@@ -531,7 +539,6 @@ def ingest_presence(
             redis_client.report_failure("presence write")
     db.execute(delete(DuelPresence).where(DuelPresence.instance_id == body.instance_id))
     for e in entries:
-        # merge: a room that moved between processes keeps one row per (user, room).
         db.merge(
             DuelPresence(
                 user_id=e.user_id,
@@ -555,25 +562,10 @@ def my_rating(
 ) -> DuelRatingOut:
     rating = _get_or_create_rating(db, user.id)
     db.commit()
-    seat0 = DuelMatch.seat0_user_id == user.id
-    seat1 = DuelMatch.seat1_user_id == user.id
-    wins = db.scalar(
-        select(func.count(DuelMatch.id)).where(
-            or_(
-                (seat0) & (DuelMatch.winner_seat == 0),
-                (seat1) & (DuelMatch.winner_seat == 1),
-            )
-        )
-    )
-    played = db.scalar(select(func.count(DuelMatch.id)).where(or_(seat0, seat1)))
-    rank = None
-    if rating.games_played > 0:
-        ahead = db.scalar(
-            select(func.count())
-            .select_from(DuelRating)
-            .where(DuelRating.games_played > 0, DuelRating.rating > rating.rating)
-        )
-        rank = 1 + (ahead or 0)
+    season = current_season(db)
+    record = ranked_records(db, since=season.started_at, user_id=user.id).get(user.id, Record())
+    board = {row.user_id: row for row in current_board(db)}
+    mine = board.get(user.id)
     return DuelRatingOut(
         user_id=user.id,
         email=user.email,
@@ -581,9 +573,10 @@ def my_rating(
         username=user.username,
         rating=rating.rating,
         games_played=rating.games_played,
-        wins=wins or 0,
-        losses=(played or 0) - (wins or 0),
-        rank=rank,
+        wins=record.wins,
+        losses=record.losses,
+        rank=mine.rank if mine else None,
+        provisional=rating.games_played < PROVISIONAL_GAMES,
     )
 
 
@@ -647,7 +640,6 @@ def my_match_replay(
             raise HTTPException(status_code=404, detail="No replay was kept for this match")
         seat0_id, seat1_id, turns, replay_text, finished = row.seat0_user_id, row.seat1_user_id, row.turns, log_row.replay, True
     else:
-        # The newest copy decides: a swept row can be old while the game goes on in Redis.
         progress = latest_progress(db=db, match_id=match_id)
         players = (progress.seat0_user_id, progress.seat1_user_id) if progress is not None else ()
         if progress is None or (user.id not in players and not is_admin(user)):
@@ -673,26 +665,122 @@ def my_match_replay(
 def leaderboard(
     db: Annotated[Session, Depends(get_db)],
     limit: int = 20,
+    window: Literal["all", "week", "month"] = "all",
 ) -> DuelLeaderboardOut:
     limit = max(1, min(limit, 100))
+    season = current_season(db)
+    board = current_board(db)
+    by_user = {row.user_id: row for row in board}
+    if window == "all":
+        yesterday = board_as_of(db, datetime.now(timezone.utc) - timedelta(hours=24), since=season.started_at)
+        records = ranked_records(db, since=season.started_at)
+        shown = [(row.user_id, row.rank, None) for row in board[:limit]]
+    else:
+        window_start = datetime.now(timezone.utc) - timedelta(days=7 if window == "week" else 30)
+        records = ranked_records(db, since=latest_since(window_start, season.started_at))
+        yesterday = {}
+        shown = [(uid, rank, records[uid].gain) for uid, rank in window_board(records)[:limit]]
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_([s[0] for s in shown]))).all()}
+    entries = []
+    for uid, rank, gain in shown:
+        user, row = users.get(uid), by_user.get(uid)
+        if user is None or row is None:
+            continue
+        before = yesterday.get(uid)
+        rec = records.get(uid, Record())
+        entries.append(
+            DuelLeaderboardEntryOut(
+                user_id=uid,
+                name=duel_display_name(user),
+                username=user.username,
+                rating=row.rating,
+                games_played=row.games_played,
+                rank=rank,
+                provisional=row.provisional,
+                wins=rec.wins,
+                losses=rec.losses,
+                rank_change=before - rank if window == "all" and before is not None else None,
+                bounty_change=gain,
+            )
+        )
+    return DuelLeaderboardOut(
+        entries=entries,
+        season=DuelSeasonRefOut(number=season.number, name=season.name, started_at=season.started_at),
+    )
+
+
+def _ended_out(season: DuelSeason, players: int) -> DuelEndedSeasonOut:
+    return DuelEndedSeasonOut(
+        number=season.number, name=season.name, started_at=season.started_at, ended_at=season.ended_at, players=players
+    )
+
+
+@router.get("/seasons", response_model=DuelSeasonsOut)
+def seasons(db: Annotated[Session, Depends(get_db)]) -> DuelSeasonsOut:
+    """The running ranked season and every ended one, newest first (#1405)."""
+    now = current_season(db)
+    return DuelSeasonsOut(
+        current=DuelSeasonRefOut(number=now.number, name=now.name, started_at=now.started_at),
+        past=[_ended_out(s, players) for s, players in ended_seasons(db)],
+    )
+
+
+@router.get("/seasons/me", response_model=list[DuelMySeasonOut])
+def my_seasons(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(get_current_user)],
+) -> list[DuelMySeasonOut]:
+    """The signed-in player's final line in each ended season, newest first."""
     rows = db.execute(
-        select(DuelRating, User)
-        .join(User, User.id == DuelRating.user_id)
-        .where(DuelRating.games_played > 0)
-        .order_by(DuelRating.rating.desc(), DuelRating.games_played.desc())
+        select(DuelSeason, DuelSeasonStanding)
+        .join(DuelSeasonStanding, DuelSeasonStanding.season_id == DuelSeason.id)
+        .where(DuelSeasonStanding.user_id == user.id)
+        .order_by(DuelSeason.number.desc())
+    ).all()
+    return [
+        DuelMySeasonOut(
+            number=s.number, name=s.name, rank=st.rank, rating=st.rating,
+            wins=st.wins, losses=st.losses, provisional=st.provisional,
+        )
+        for s, st in rows
+    ]
+
+
+@router.get("/seasons/{number}/leaderboard", response_model=DuelSeasonBoardOut)
+def season_leaderboard(
+    number: int,
+    db: Annotated[Session, Depends(get_db)],
+    limit: int = 20,
+) -> DuelSeasonBoardOut:
+    """Final standings of an ended season."""
+    limit = max(1, min(limit, 100))
+    season = db.scalar(select(DuelSeason).where(DuelSeason.number == number, DuelSeason.ended_at.is_not(None)))
+    if season is None:
+        raise HTTPException(status_code=404, detail="Season not found")
+    standings = db.scalars(
+        select(DuelSeasonStanding)
+        .where(DuelSeasonStanding.season_id == season.id)
+        .order_by(DuelSeasonStanding.rank, DuelSeasonStanding.rating.desc(), DuelSeasonStanding.user_id)
         .limit(limit)
     ).all()
+    players = db.scalar(select(func.count()).select_from(DuelSeasonStanding).where(DuelSeasonStanding.season_id == season.id)) or 0
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_([st.user_id for st in standings])))}
     entries = [
         DuelLeaderboardEntryOut(
-            user_id=user.id,
-            name=duel_display_name(user),
-            username=user.username,
-            rating=rating.rating,
-            games_played=rating.games_played,
+            user_id=st.user_id,
+            name=duel_display_name(users[st.user_id]),
+            username=users[st.user_id].username,
+            rating=st.rating,
+            games_played=st.games_played,
+            rank=st.rank,
+            provisional=st.provisional,
+            wins=st.wins,
+            losses=st.losses,
         )
-        for rating, user in rows
+        for st in standings
+        if st.user_id in users
     ]
-    return DuelLeaderboardOut(entries=entries)
+    return DuelSeasonBoardOut(season=_ended_out(season, int(players)), entries=entries)
 
 
 LIVE_CACHE_S = 30.0
@@ -721,18 +809,15 @@ def ingest_solo_game(
             bot_level=body.bot_level if body.mode == "bot" else None,
             leader_id=body.leader_id,
             opponent_leader_id=body.opponent_leader_id,
-            # Practice has the same player on both sides: nobody won.
             won=body.won if body.mode == "bot" else None,
             turns=body.turns,
             reason=body.reason,
-            # Only bot games keep their replay (#1202); practice never does.
             replay=_capped_json(body.replay, "replay", body.game_id) if body.mode == "bot" else None,
         )
     )
     try:
         db.commit()
     except IntegrityError:
-        # A retry racing the first post: the game is already recorded.
         db.rollback()
         return {"game_id": body.game_id, "created": False}
     return {"game_id": body.game_id, "created": True}

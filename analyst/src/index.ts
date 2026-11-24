@@ -1,7 +1,3 @@
-/**
- * Process entry for the Log Pose service: reads the environment, loads the card catalog and the knowledge
- * sources, and listens. The routes live in app.ts.
- */
 import Anthropic from "@anthropic-ai/sdk";
 import { anthropicModel } from "./anthropic";
 import { createApp } from "./app";

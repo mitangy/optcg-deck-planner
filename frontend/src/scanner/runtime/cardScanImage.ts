@@ -1,9 +1,3 @@
-/** Turning whatever the user gave us into pixels the matcher can use.
- *
- * Capture handling only — no matching logic. Kept separate because the
- * awkward parts here (HEIC, dragged web images, oversized captures) are
- * about browsers and input, not about card recognition.
- */
 
 import { scanLog } from "./scanLog";
 
@@ -15,10 +9,8 @@ import { scanLog } from "./scanLog";
  */
 const MAX_WORK_EDGE = 2000;
 
-/** Many cards in one frame: each gets fewer pixels, so keep more of them. */
 export const MULTI_MAX_WORK_EDGE = 3000;
 
-/** Decode a file into something drawable, honouring EXIF orientation. */
 export async function loadImage(file: Blob): Promise<ImageBitmap> {
   try {
     return await createImageBitmap(file, { imageOrientation: "from-image" });
@@ -59,13 +51,10 @@ export async function readDroppedImage(dt: DataTransfer): Promise<DropResult> {
     if (blob.type && !blob.type.startsWith("image/")) return { ok: false, reason: "not-image" };
     return { ok: true, blob };
   } catch {
-    // Cross-origin reads are blocked far more often than not; say so rather
-    // than reporting a generic failure.
     return { ok: false, reason: "remote-blocked" };
   }
 }
 
-/** Decode a capture and return pixels, downscaled if oversized. */
 export async function loadImageForScan(file: Blob, maxEdge = MAX_WORK_EDGE): Promise<ImageData> {
   const bitmap = await loadImage(file);
   try {

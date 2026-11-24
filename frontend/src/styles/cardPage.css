@@ -1,4 +1,3 @@
-/* Card page (#953) */
 .card-page {
   min-width: 0;
 }
@@ -17,7 +16,7 @@
 
 .card-head-art {
   flex: 0 0 auto;
-  width: clamp(150px, 26vw, 260px);
+  width: clamp(9.375rem, 26vw, 16.25rem);
 }
 
 .card-head-img {
@@ -172,8 +171,6 @@
   max-width: 100%;
 }
 
-/* On the card page the editor drops under the alert, over the content below (#1028);
-   floating above like in the lightbox put it off the top of the page. */
 .card-actions .lightbox-alert-pop {
   top: calc(100% + 0.5rem);
   bottom: auto;
@@ -189,15 +186,32 @@
   align-items: start;
 }
 
-.card-col {
-  display: grid;
-  gap: var(--space-4);
-  min-width: 0;
-}
-
+/* Phones stack Arts, Price, Tournament play. Wider screens put the tall Price chart on the left and Arts over Tournament play on the right, so both columns fill. */
 @media (min-width: 760px) {
   .card-cols {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      "price arts"
+      "price play";
+  }
+
+  .card-cols:not(:has(.card-arts-panel)) {
+    grid-template-areas: "price play";
+  }
+
+  /* The chart stays in view beside a long Tournament play list. */
+  .card-cols > .card-price {
+    grid-area: price;
+    position: sticky;
+    top: 1rem;
+  }
+
+  .card-cols > .card-arts-panel {
+    grid-area: arts;
+  }
+
+  .card-cols > .card-play {
+    grid-area: play;
   }
 }
 
@@ -233,7 +247,7 @@
 
 .card-arts {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(5.75rem, 1fr));
   gap: 0.6rem;
   list-style: none;
   margin: 0;
@@ -392,8 +406,8 @@ a.card-play-row:focus-visible {
 
 .card-play-art {
   flex: 0 0 auto;
-  width: 40px;
-  height: 56px;
+  width: 2.5rem;
+  height: 3.5rem;
   object-fit: cover;
   border-radius: var(--radius-5);
   border: 1px solid var(--line);
@@ -443,7 +457,7 @@ a.card-play-row:focus-visible {
   }
 
   .card-head-art {
-    width: min(220px, 62vw);
+    width: min(13.75rem, 62vw);
     align-self: center;
   }
 }

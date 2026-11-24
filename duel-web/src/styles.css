@@ -1,4 +1,3 @@
-/* Base and gameplay stylesheet. Index only: the partials are imported in their original order, because a later rule overrides an earlier one. */
 @import "./styles/tokens.css";
 @import "./styles/pages.css";
 @import "./styles/version.css";

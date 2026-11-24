@@ -82,7 +82,6 @@ describe("hotkeyAction", () => {
   it("F toggles full screen, either case, when the browser offers it (#468)", () => {
     expect(hotkeyAction({ key: "f" }, base)).toBe("fullscreen");
     expect(hotkeyAction({ key: "F" }, base)).toBe("fullscreen");
-    // Not tied to the desktop card keys: a spectator, or a narrow window, can still go full screen.
     expect(hotkeyAction({ key: "f" }, { ...base, spectating: true })).toBe("fullscreen");
     expect(hotkeyAction({ key: "f" }, { ...base, cardKeys: false, wide: false })).toBe("fullscreen");
   });
@@ -199,7 +198,6 @@ describe("actionKeyTags", () => {
 });
 
 describe("stepHandSelection", () => {
-  // Sorted hand: display order differs from hand-index order.
   const order = [2, 0, 1];
 
   it("moves through the display order, not the hand indexes", () => {

@@ -1,4 +1,3 @@
-/* —— Settings: earlier playmat / card back uploads —— */
 .cosmetic-history {
   min-width: 0;
   margin-top: 0.75rem;
@@ -53,7 +52,6 @@
 }
 
 .cosmetic-thumb[aria-pressed="true"] {
-  /* Ring drawn with box-shadow so selecting never changes the tile's size. */
   border-color: var(--chrome);
   box-shadow: 0 0 0 2px var(--chrome);
 }
@@ -87,8 +85,6 @@
   cursor: pointer;
 }
 
-/* Settings → Theme: one card per theme, each previewing its own palette
-   (the chip carries data-theme, so its tokens come from that theme). */
 .theme-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(136px, 100%), 1fr));
@@ -134,7 +130,6 @@
     var(--arena-deep);
 }
 
-/* Little playmat strip, primary button and accent dot. */
 .theme-chip-mat {
   position: absolute;
   left: 8px;
@@ -175,7 +170,7 @@
 }
 
 .theme-blurb {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   line-height: 1.35;
   color: var(--muted);
 }
@@ -184,7 +179,6 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
-/* iPhone install tip: one quiet line under Play, not a card above it. */
 .install-hint {
   display: flex;
   align-items: center;
@@ -211,10 +205,10 @@
   cursor: pointer;
 }
 
-/* Wide windows: deck and Play on the left, your voyage, friends and bounties on the right. */
 @media (min-width: 1000px) and (min-height: 500px) {
   .home {
-    max-width: 1100px;
+    /* Scales with the root font size, which grows with the window, so wide screens keep the same line lengths (#1391). */
+    max-width: 63rem;
     display: grid;
     grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
     column-gap: 2.5rem;
@@ -223,9 +217,24 @@
     padding: clamp(1.5rem, 5vh, 3rem) 1.5rem 2rem;
   }
 
-  /* The top bar carries the mark; the deck is the hero. */
   .home-hero {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    align-items: baseline;
+    column-gap: 1rem;
+    row-gap: 0;
+    text-align: left;
+  }
+
+  .home-kicker,
+  .home-rule {
     display: none;
+  }
+
+  .home-brand {
+    font-size: 1.7rem;
   }
 
   .home-version {
@@ -233,7 +242,6 @@
   }
 }
 
-/* Tablets and wide windows: a bigger hero card (the card is the page's focus). */
 @media (min-width: 480px) {
   .home-deck {
     --leader-w: 120px;
@@ -277,7 +285,6 @@
   }
 }
 
-/* Landscape phones: a compact header so Play and the deck both stay on the first screen. */
 @media (orientation: landscape) and (max-height: 499px) {
   .home {
     max-width: 720px;
@@ -286,9 +293,25 @@
     gap: var(--space-3);
   }
 
-  /* The top bar carries the mark; Play and the deck sit side by side. */
   .home-hero {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: baseline;
+    column-gap: 0.75rem;
+  }
+
+  .home-kicker,
+  .home-rule {
     display: none;
+  }
+
+  .home-brand {
+    font-size: 1.3rem;
+  }
+
+  .home-tagline {
+    font-size: max(12px, 0.8rem);
   }
 
   .home-primary {
@@ -313,7 +336,6 @@
     flex: 1 1 0;
   }
 
-  .home-primary > .live-empty,
   .home-primary > .live-pill {
     order: 3;
   }

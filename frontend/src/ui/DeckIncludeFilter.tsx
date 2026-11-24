@@ -9,12 +9,6 @@ export type DeckIncludeChip = {
   onChange: (checked: boolean) => void;
 };
 
-/**
- * "Include decks" filter shared by Master Shopping and group buys (#1203): decks grouped by leader
- * (ticking a leader ticks all its decks), plus an "Other" group for chips that aren't decks.
- * `onChange` gets the next full list of ticked deck ids; it may be empty (only the Other chips count),
- * and "Clear all" unticks every deck without touching the Other chips (#1208).
- */
 export function DeckIncludeFilter({
   heading,
   decks,

@@ -1,16 +1,11 @@
-/**
- * "The revealed card" keeps pointing at the card that was revealed, even after another step in the same effect
- * picks a different card, and a revealed card with a cost of 3 or less stays on top of the deck (EB01-029 Q&A) (#524).
- */
 import { runScenarios, theirs, type CardScenario } from "../../testing/scenario.js";
 
-const KAROO = "ST01-003"; // vanilla 1-cost 3000
-const ROBIN = "ST01-008"; // vanilla 3-cost 5000
-const COST_6 = "EB01-041"; // vanilla 6-cost
-const COST_3 = "ST01-008"; // vanilla 3-cost
+const KAROO = "ST01-003";
+const ROBIN = "ST01-008";
+const COST_6 = "EB01-041";
+const COST_3 = "ST01-008";
 
 const rows: CardScenario[] = [
-  // EB01-029 Sorry. I'm a Goner.: [Counter] Reveal 1 card from the top of your deck. If the revealed card has a cost of 4 or more, return up to 1 of your Characters to the owner's hand. Then, place the revealed card at the bottom of your deck.
   {
     card: "EB01-029", name: "puts the revealed cost 6 card at the bottom of the deck and keeps the returned Character in hand (#524)",
     me: { field: [ROBIN], hand: ["EB01-029"], don: { active: 1 }, deckTop: [COST_6] },

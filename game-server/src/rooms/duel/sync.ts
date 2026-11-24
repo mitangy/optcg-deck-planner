@@ -8,7 +8,6 @@ import {
 } from "../../protocol.js";
 import type { DuelCore, WireBody } from "./context.js";
 
-/** Brings one client up to date: the welcome, its view and everything stored for it (join, sync, reconnect). */
 export class SyncSender {
   constructor(
     private readonly core: Pick<
@@ -22,7 +21,6 @@ export class SyncSender {
     return bot ? { bot: { level: bot.level } } : {};
   }
 
-  /** Seat-indexed public names for nameplates / results (never emails). */
   playersInfo(): [SeatPlayerInfo, SeatPlayerInfo] {
     const { game } = this.core;
     const info = (seat: Seat): SeatPlayerInfo => ({
@@ -31,13 +29,9 @@ export class SyncSender {
     return [info(0), info(1)];
   }
 
-  /**
-   * The matchup-brief ticket for a player seat: that seat's own leader and deck
-   * against the other seat's leader. Never minted for a ranked room.
-   */
   private briefFor(seat: Seat): BriefTicketWire | undefined {
     const { game } = this.core;
-    if (game.ranked || !game.replay) return undefined;
+    if (game.competitive || !game.replay) return undefined;
     const mine = game.replay.players[seat];
     const theirs = game.replay.players[1 - seat];
     const ticket = mintBriefTicket({
@@ -52,7 +46,6 @@ export class SyncSender {
     return { ticket, leaderId: mine.leaderId, opponentId: theirs.leaderId, deck: [...mine.deck] };
   }
 
-  /** Welcome, view, stored cosmetics, chat history and undo state for a seated player: what a new game opens with. */
   sendPlayerStart(client: Client, seat: Seat) {
     const { game, io, spectators, cosmetics, chat, undo } = this.core;
     const view = spectators.playerView(game.match!, seat);
@@ -63,19 +56,19 @@ export class SyncSender {
       view,
       players: this.playersInfo(),
       ranked: game.ranked,
+      tournament: game.tournament,
       firstSeatPickedBy: game.firstSeatPickedBy,
       brief: this.briefFor(seat),
       dice: game.dice,
       ...this.botInfo(),
     };
     io.send(client, "welcome", welcome);
-    io.send(client, "view", { view });
+    io.send(client, "view", { view, step: game.stateStep });
     cosmetics.sendStored(client);
     chat.sendHistory(client);
     undo.sendState(client);
   }
 
-  /** Re-send everything the client needs to render the room (the "sync" message, a join, a reconnect). */
   sendSync(client: Client) {
     const { game, io, clocks, rematch, seats, spectators } = this.core;
     const spec = spectators.forClient(client);
@@ -97,7 +90,6 @@ export class SyncSender {
     }
   }
 
-  /** No game yet: during the opening dice roll (#1190) the client is shown that, else it is told to wait. */
   private sendNoMatch(client: Client) {
     if (this.core.dice.sendState(client)) return;
     this.core.io.sendError(client, "match_not_ready", "Match not started");
@@ -119,10 +111,11 @@ export class SyncSender {
       view,
       players: this.playersInfo(),
       ranked: game.ranked,
+      tournament: game.tournament,
       firstSeatPickedBy: game.firstSeatPickedBy,
     };
     io.send(client, "welcome", welcome);
-    io.send(client, "view", { view });
+    io.send(client, "view", { view, step: game.stateStep });
     cosmetics.sendStored(client);
     chat.sendHistory(client);
     if (game.match.winner !== null && game.matchOverSent) this.sendMatchOver(client);

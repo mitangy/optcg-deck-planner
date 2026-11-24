@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-"""Unit tests for the pure planning logic of sync_alt_arts (#581)."""
 
 from __future__ import annotations
 
@@ -19,12 +18,10 @@ from sync_alt_arts import (  # noqa: E402
 
 
 def bits(n: int) -> str:
-    """A 256-bit hash with `n` bits set, so it is `n` bits from the all-zero hash."""
     return f"{(1 << n) - 1:064x}"
 
 
 def far(n: int) -> str:
-    """A hash `n` bits from the all-zero hash AND from `bits(m)` for other `m` ranges."""
     return f"{((1 << n) - 1) << (256 - n):064x}"
 
 
@@ -100,7 +97,6 @@ class UnmarkedProductTests(unittest.TestCase):
         self.assertEqual(stats["no_marker"], 1)
 
     def test_unmarked_product_needs_a_real_picture_of_the_primary_590(self) -> None:
-        # The primary's own scan is still "Image Coming Soon": nothing to compare with.
         new, stats = plan_card(
             primary_pid=1,
             known_pids=set(),
@@ -194,17 +190,15 @@ class SuffixLabelTests(unittest.TestCase):
 
 
 class AltProductIdsTests(unittest.TestCase):
-    """The backend flags exactly these productIds as alt art (#762)."""
-
     CATALOG = {
         "OP12-034": {"altArts": [{"id": "p1", "productId": 900}, {"id": "p2", "productId": 300}]},
-        "OP11-106": {"altArts": [{"id": "p1", "productId": 300}]},  # shared id appears once
+        "OP11-106": {"altArts": [{"id": "p1", "productId": 300}]},
         "OP01-001": {},
     }
     ATLAS = {"OP12-034": {"altArts": [{"id": "p3", "productId": 500}]}}
     TCG = {
         "OP11-106": {
-            "alts": [{"id": "p2", "imageUrl": "https://x/product/100_400w.jpg"}]  # no productId
+            "alts": [{"id": "p2", "imageUrl": "https://x/product/100_400w.jpg"}]
         }
     }
 

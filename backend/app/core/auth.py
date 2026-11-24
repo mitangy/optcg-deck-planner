@@ -1,4 +1,3 @@
-"""Session cookie auth helpers."""
 
 from __future__ import annotations
 
@@ -13,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
-from app.core.models import LoginTicket, User
+from app.core.models import LoginTicket, User, is_placeholder_user
 from app.core.time import as_utc
 from app.roles import Role, is_banned
 
@@ -21,6 +20,7 @@ SESSION_COOKIE = "optcg_session"
 OAUTH_NONCE_COOKIE = "optcg_oauth_nonce"
 OAUTH_RETURN_COOKIE = "optcg_oauth_return"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
+SESSION_RENEW_AFTER_SECONDS = 60 * 60 * 24 * 7
 LOGIN_TICKET_MAX_AGE_SECONDS = 120
 OAUTH_STATE_MAX_AGE_SECONDS = 600
 
@@ -30,7 +30,6 @@ def _serializer(settings: Settings) -> URLSafeTimedSerializer:
 
 
 def _ticket_serializer(settings: Settings) -> URLSafeTimedSerializer:
-    # Separate salt so login tickets can never verify as session cookies.
     return URLSafeTimedSerializer(settings.session_secret, salt="optcg-login-ticket")
 
 
@@ -50,19 +49,16 @@ def create_session_token(
 def read_session_token(
     token: str, settings: Settings | None = None
 ) -> tuple[int, int] | None:
-    """Return (user_id, session_version) or None if invalid."""
     settings = settings or get_settings()
     try:
         data = _serializer(settings).loads(token, max_age=SESSION_MAX_AGE_SECONDS)
     except (BadSignature, SignatureExpired):
         return None
-    # Defense in depth: session cookies must not carry a login purpose.
     if data.get("purpose") is not None:
         return None
     uid = data.get("uid")
     if uid is None:
         return None
-    # Missing sv means pre-hardening cookie; treat as version 0.
     sv = data.get("sv", 0)
     try:
         return int(uid), int(sv)
@@ -70,12 +66,22 @@ def read_session_token(
         return None
 
 
+def session_token_age_seconds(token: str, settings: Settings | None = None) -> float | None:
+    settings = settings or get_settings()
+    try:
+        _data, issued_at = _serializer(settings).loads(
+            token, max_age=SESSION_MAX_AGE_SECONDS, return_timestamp=True
+        )
+    except (BadSignature, SignatureExpired):
+        return None
+    return (datetime.now(timezone.utc) - as_utc(issued_at)).total_seconds()
+
+
 def new_oauth_nonce() -> str:
     return secrets.token_urlsafe(24)
 
 
 def create_oauth_state(nonce: str, settings: Settings | None = None) -> str:
-    """Signed OAuth state bound to a browser-held nonce cookie."""
     settings = settings or get_settings()
     return _oauth_serializer(settings).dumps({"v": 1, "n": nonce})
 
@@ -100,11 +106,9 @@ def create_login_ticket(
     user_id: int,
     settings: Settings | None = None,
 ) -> str:
-    """Issue a short-lived, single-use login ticket stored in the DB by jti."""
     settings = settings or get_settings()
     jti = secrets.token_urlsafe(18)
     now = datetime.now(timezone.utc)
-    # Drop expired rows opportunistically so the table stays small.
     db.execute(delete(LoginTicket).where(LoginTicket.expires_at < now))
     db.add(
         LoginTicket(
@@ -124,7 +128,6 @@ def consume_login_ticket(
     ticket: str,
     settings: Settings | None = None,
 ) -> int | None:
-    """Validate and atomically consume a login ticket. Returns user_id or None."""
     settings = settings or get_settings()
     try:
         data = _ticket_serializer(settings).loads(
@@ -152,7 +155,6 @@ def consume_login_ticket(
 
 
 def read_login_ticket(ticket: str, settings: Settings | None = None) -> int | None:
-    """Validate ticket signature/age without consuming (tests / introspection)."""
     settings = settings or get_settings()
     try:
         data = _ticket_serializer(settings).loads(
@@ -173,16 +175,13 @@ def resolve_google_user(
     sub: str,
     name: str,
 ) -> User:
-    """Find or create a user for a verified Google identity.
-
-    Refuses to rebind an email that is already linked to a different google_sub.
-    """
     user = db.scalar(select(User).where(User.google_sub == sub))
     if user is None:
         user = db.scalar(select(User).where(User.email == email))
+    if user is not None and is_placeholder_user(user):
+        raise HTTPException(status_code=403, detail="Account cannot sign in")
     if user is None:
         user = User(email=email, name=name, google_sub=sub)
-        # The admin may sign in for the first time after startup already ran sync_admin_role.
         if email.strip().lower() in get_settings().admin_email_set:
             user.role = Role.ADMIN
         db.add(user)
@@ -213,7 +212,7 @@ def get_current_user(
         raise HTTPException(status_code=401, detail="Invalid session")
     user_id, session_version = parsed
     user = db.get(User, user_id)
-    if user is None:
+    if user is None or is_placeholder_user(user):
         raise HTTPException(status_code=401, detail="User not found")
     if is_banned(user):
         raise HTTPException(status_code=403, detail="Account banned")
@@ -235,7 +234,7 @@ def get_optional_user(
         return None
     user_id, session_version = parsed
     user = db.get(User, user_id)
-    if user is None or is_banned(user):
+    if user is None or is_banned(user) or is_placeholder_user(user):
         return None
     if int(user.session_version or 0) != session_version:
         return None

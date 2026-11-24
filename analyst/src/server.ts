@@ -1,7 +1,3 @@
-/**
- * Log Pose MCP server: the analyst's tools, served to Claude (custom connector) over MCP.
- * The model runs in the Claude app; this server only answers tool calls.
- */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { normalizeCardId } from "@optcg/card-core";
@@ -28,7 +24,7 @@ import { newestFormat, queryPlaybook, type Playbook } from "./playbook";
 import { instructionsFor } from "./prompts/connector";
 import { priceHistory } from "./priceHistory";
 import { analyzePosition, fetchReplayFor, MAX_BUDGET_MS } from "./position";
-import { searchCards } from "./search";
+import { openLeaderOf, searchCards } from "./search";
 import { listMySimGamesSummary, reviewSimGame } from "./simGames";
 import { exclusive, simulateDeck } from "./simulate";
 import type { SourceAdapter } from "./sources";
@@ -62,18 +58,13 @@ const compactCard = (c: CardRow) => ({
 const json = jsonResult;
 const failure = failureResult;
 
-/** The signed-in player behind a personal connector link. */
 export type PersonalContext = { api: PlannerApi; token: string };
 
-/** Official rules material and the strategy playbook; tools that need them are left out without them. */
 export type Knowledge = { library?: OfficialLibrary; playbook?: Playbook; stats?: PlannerApi };
 
-/** One analyst tool, served over MCP and to the in-app chat alike. `status` and `sources` come from `TOOL_META`. */
 export type ToolDef = {
   name: ToolName;
-  /** The status line the app shows while the tool runs. */
   status: string;
-  /** Turns this tool's answer value into citable sources; none keeps the plain text. */
   sources?: SourceAdapter;
   title: string;
   description: string;
@@ -100,8 +91,11 @@ export function createServer(catalog: Catalog, fetchImpl?: typeof fetch, persona
   return server;
 }
 
-/** Every tool this caller gets: the card tools always, rules, playbook and stats when configured, and the player's own games with a personal context. */
-export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext, knowledge: Knowledge = {}): ToolDef[] {
+/**
+ * `openLeaderId` is the leader of the deck open in the app (chat only). While one is open, search_cards only returns cards that
+ * leader can use, whatever the model asks for: the player never sees a card they can't put in the deck.
+ */
+export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?: PersonalContext, knowledge: Knowledge = {}, openLeaderId?: string | null): ToolDef[] {
   const tools: ToolDef[] = [];
   const add: Add = (name, config, handler) => {
     tools.push({ name, ...config, ...metaFor(name), run: handler as ToolDef["run"] });
@@ -115,7 +109,7 @@ export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?
       description:
         "Filter all One Piece Card Game cards (English card list) by any combination of fields. List filters match any value, except keywords, which must all be present. " +
         "timings are ability timings: on_play, when_attacking, on_ko, activate_main, main, counter, trigger, on_opp_attack, on_block, end_of_your_turn, on_event, replacement. " +
-        "effects are effect kinds from the parsed card text: ko, rest, to_hand (bounce or recursion), to_deck, draw, look (search the top of the deck), play (play a card from hand/trash/deck), power, base_power, cost, add_don, give_don, set_don_active, rest_don, return_don, discard, mill, deck_to_life, hand_to_life, life_to_hand, trash_life, look_life, to_life, negate, restrict, player_restrict, keyword (grants a keyword), redirect_attack, damage, extra_turn, win. " +
+        "effects are effect kinds from the parsed card text: ko, rest, to_hand (bounce or recursion), to_deck, draw, look (search the top of the deck), play (play a card from hand/trash/deck), power (power_up: gives +power, power_down: gives -power, usually to an opponent's card), base_power, cost (cost_up, cost_down: changes a card's cost, usually -cost on an opponent's card), add_don, give_don, set_don_active, rest_don, return_don, discard, mill, deck_to_life, hand_to_life, life_to_hand, trash_life, look_life, to_life, negate, restrict, player_restrict, keyword (grants a keyword), redirect_attack, damage, extra_turn, win. " +
         "Use legalFor with a leader's card number to list only cards that deck may include.",
       inputSchema: {
         query: z.string().max(100).optional().describe("Substring of name, effect text or trigger text"),
@@ -142,8 +136,10 @@ export function buildTools(catalog: Catalog, fetchImpl?: typeof fetch, personal?
       annotations: readOnly,
     },
     async (args) => {
-      const r = searchCards(catalog, args);
-      return json({ total: r.total, offset: r.offset, cards: r.cards.map(compactCard), notes: r.notes });
+      const open = openLeaderOf(catalog, openLeaderId);
+      const r = searchCards(catalog, open ? { ...args, legalFor: open.id } : args);
+      const notes = open ? [`Only cards ${open.name} (${open.id}) can use are listed: the open deck's leader decides, whatever legalFor says.`, ...r.notes] : r.notes;
+      return json({ total: r.total, offset: r.offset, cards: r.cards.map(compactCard), notes });
     },
   );
 

@@ -1,4 +1,3 @@
-"""Meta deck browser (#443): leader shares and tournament decklists, public and cached."""
 
 from __future__ import annotations
 
@@ -80,7 +79,6 @@ def test_window_and_min_players_pick_the_events_that_count_443(client):
     assert leaders(c, min_players=4)["events"] == 3
     assert leaders(c, min_players=17)["events"] == 1
     assert leaders(c, days=7, min_players=33) == {**leaders(c, days=7, min_players=33), "events": 0, "total_decks": 0, "leaders": []}
-    # The deck list honours the same window.
     assert len(decks(c, A, days=7)["decks"]) == 1
     assert len(decks(c, A, min_players=4)["decks"]) == 3
 
@@ -89,11 +87,10 @@ def test_leaders_are_sorted_by_decks_then_id_with_their_share_443(client):
     c, SessionLocal = client
     with SessionLocal() as db:
         add_event(db, "e1", 2, 32)
-        # B is inserted first, so only the id tie-break puts A ahead of it.
         for leader, n in ((B, 2), (A, 2), (C, 3), (D, 1)):
             for _ in range(n):
                 add_deck(db, "e1", leader)
-        add_deck(db, "e1", D, cards={})  # hidden list: still counts for the leader
+        add_deck(db, "e1", D, cards={})
         db.commit()
     out = leaders(c)
     assert [(x["leader_id"], x["decks"], x["share"]) for x in out["leaders"]] == [(C, 3, 0.333), (A, 2, 0.222), (B, 2, 0.222), (D, 2, 0.222)]
@@ -113,7 +110,6 @@ def test_leader_record_top8_and_win_rate_443(client):
         db.commit()
     by_id = {x["leader_id"]: x for x in leaders(c)["leaders"]}
     assert {k: by_id[A][k] for k in ("decks", "top8", "wins", "losses", "ties", "win_rate")} == {"decks": 3, "top8": 1, "wins": 9, "losses": 7, "ties": 3, "win_rate": 0.562}
-    # No decisive games: no win rate, not zero.
     assert (by_id[B]["win_rate"], by_id[B]["ties"], by_id[B]["top8"]) == (None, 3, 1)
 
 
@@ -135,7 +131,6 @@ def test_leader_and_card_names_drop_catalog_suffixes_443(client):
     out = decks(c, B)
     assert out["name"] == "Rocks.D.Xebec"
     assert [x["name"] for x in out["decks"][0]["cards"]] == ["Nami", "Zoro (Parallel)"]
-    # A leader missing from the catalog still lists, with blanks.
     with SessionLocal() as db:
         add_event(db, "e2", 1, 32)
         add_deck(db, "e2", D)
@@ -206,11 +201,28 @@ def test_deck_rows_carry_event_record_and_sorted_cards_without_player_data_443(c
     assert (deck["event_id"], deck["event"], deck["event_url"], deck["set_label"], deck["players"], deck["placing"]) == ("abc", "Weekly Cup", "https://play.limitlesstcg.com/tournament/abc", "OP17", 64, 1)
     assert deck["date"] == ago(2).date().isoformat()
     assert deck["record"] == {"wins": 6, "losses": 1, "ties": 2}
-    # Cost ascending, card id within a cost; unknown cards (no catalog row) sort last.
     assert [(x["card_id"], x["count"]) for x in deck["cards"]] == [("OP01-016", 4), ("OP01-020", 3), ("OP01-030", 4), ("OP01-009", 2), ("OP01-040", 1), ("OP01-999", 1)]
-    assert deck["cards"][0] == {"card_id": "OP01-016", "count": 4, "name": "Nami", "cost": "1", "card_type": "Character", "image_url": "https://img/nami.png"}
+    assert deck["cards"][0] == {"card_id": "OP01-016", "count": 4, "name": "Nami", "cost": "1", "card_type": "Character", "image_url": "https://img/nami.png", "market_price": None}
     assert deck["card_count"] == 15
     assert deck["text"] == "1xOP01-001\n4xOP01-016\n3xOP01-020\n4xOP01-030\n2xOP01-009\n1xOP01-040\n1xOP01-999"
+
+
+def test_deck_cards_and_leader_carry_the_catalog_market_price_1342(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_card(db, A, "Silvers Rayleigh", "Leader", None, "Red")
+        add_card(db, "OP01-016", "Nami")
+        add_card(db, "OP01-030", "Two Drop")
+        db.flush()
+        db.get(CatalogCard, A).market_price = 5.25
+        db.get(CatalogCard, "OP01-016").market_price = 0.4
+        add_event(db, "abc", 2, 64)
+        add_deck(db, "abc", A, placing=1, cards={"OP01-016": 4, "OP01-030": 2})
+        db.commit()
+    out = decks(c, A)
+    assert out["leader_market_price"] == 5.25
+    prices = {x["card_id"]: x["market_price"] for x in out["decks"][0]["cards"]}
+    assert prices == {"OP01-016": 0.4, "OP01-030": None}
 
 
 def test_text_creates_a_planner_deck_with_that_leader_and_those_cards_443(client):
@@ -230,7 +242,7 @@ def test_text_creates_a_planner_deck_with_that_leader_and_those_cards_443(client
     res = c.post("/decks", json={"name": "Silvers Rayleigh – 1st Weekly Cup", "decklist": deck["text"]})
     assert res.status_code == 200, res.text
     summary = res.json()
-    assert (summary["leader_card_id"], summary["main_cards"]) == (A, 51)  # the planner counts the leader in the main deck: 1 + 50
+    assert (summary["leader_card_id"], summary["main_cards"]) == (A, 51)
     detail = c.get(f"/decks/{summary['id']}").json()
     got = {x["card_id"]: x["needed"] for x in detail["cards"]}
     assert got == {A: 1, **counts}
@@ -253,9 +265,8 @@ def test_responses_are_cacheable_and_reused_for_ten_minutes_443(client, monkeypa
         add_event(db, "e1", 2, 32)
         add_deck(db, "e1", A)
         db.commit()
-    assert c.get("/meta/leaders").json()["total_decks"] == 0  # served from the cache
-    assert c.get("/meta/leaders", params={"days": 29}).json()["total_decks"] == 1  # other params, other entry
-    # Past the TTL it is rebuilt.
+    assert c.get("/meta/leaders").json()["total_decks"] == 0
+    assert c.get("/meta/leaders", params={"days": 29}).json()["total_decks"] == 1
     started = meta_router._now()
     monkeypatch.setattr(meta_router, "_now", lambda: started + meta_router.CACHE_TTL_S + 1)
     assert c.get("/meta/leaders").json()["total_decks"] == 1
@@ -289,7 +300,7 @@ def seed_card_meta(db) -> None:
     add_deck(db, "e1", B, cards={X: 3})
     add_deck(db, "e1", B, cards={X: 1})
     add_deck(db, "e1", B, cards={"OP01-017": 1})
-    add_deck(db, "e1", B, cards={})  # no stored list: not a decklist
+    add_deck(db, "e1", B, cards={})
     db.commit()
 
 
@@ -300,7 +311,7 @@ def test_card_usage_rate_and_average_copies_count_decks_with_a_list_953(client):
     u = card_page(c)["usage"]
     assert (u["events"], u["total_decks"], u["decks_with_card"]) == (1, 5, 3)
     assert u["rate"] == 0.6
-    assert u["average_copies"] == 2.7  # (4 + 3 + 1) / 3, not the max
+    assert u["average_copies"] == 2.7
     assert u["is_leader"] is False
 
 
@@ -309,11 +320,11 @@ def test_card_usage_breaks_down_by_leader_with_each_leaders_own_rate_953(client)
     with SessionLocal() as db:
         seed_card_meta(db)
     leaders_ = card_page(c)["usage"]["leaders"]
-    assert [row["leader_id"] for row in leaders_] == [B, A]  # most decks with the card first, not by id
+    assert [row["leader_id"] for row in leaders_] == [B, A]
     kid, zoro = leaders_
     assert (kid["decks_with_card"], kid["leader_decks"], kid["rate"], kid["average_copies"]) == (2, 3, 0.667, 2.0)
     assert (zoro["decks_with_card"], zoro["leader_decks"], zoro["rate"], zoro["average_copies"]) == (1, 2, 0.5, 4.0)
-    assert zoro["name"] == "Roronoa Zoro"  # catalog suffix dropped
+    assert zoro["name"] == "Roronoa Zoro"
 
 
 def test_leader_card_usage_is_the_decks_it_led_with_no_leader_breakdown_953(client):
@@ -322,7 +333,7 @@ def test_leader_card_usage_is_the_decks_it_led_with_no_leader_breakdown_953(clie
         seed_card_meta(db)
     u = card_page(c, A)["usage"]
     assert u["is_leader"] is True
-    assert (u["total_decks"], u["decks_with_card"], u["rate"]) == (6, 2, 0.333)  # every deck counts, like /meta/leaders
+    assert (u["total_decks"], u["decks_with_card"], u["rate"]) == (6, 2, 0.333)
     assert u["average_copies"] is None
     assert u["leaders"] == []
     assert [d["leader_id"] for d in u["top_decks"]] == [A, A]

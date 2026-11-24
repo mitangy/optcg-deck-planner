@@ -1,11 +1,12 @@
-"""Group-buy receipt match + apply (stage bought copies)."""
 
 from __future__ import annotations
 
-from sqlalchemy import select
+import pytest
+from sqlalchemy import select, update
 
 from app.group_buy import service as group_buy
-from app.planner.models import Owned
+from app.planner import decks as deck_svc
+from app.planner.models import Owned, OwnedPrinting
 from app.group_buy.schemas import GroupBuyOrderUpdate, GroupBuyReceiptApplyRequest
 from app.group_buy.receipt import parse_tcgplayer_receipt
 from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owned
@@ -62,15 +63,14 @@ def test_receipt_partial_apply_leaves_remainder(db):
     friend = make_user(db, email="friend@example.com", name="Friend", sub="sub-friend")
     add_deck_with_cards(db, host, "Host Deck", {"OP01-001": 4, "OP01-002": 2})
     add_deck_with_cards(db, friend, "Friend Deck", {"OP01-001": 3, "OP01-002": 4})
-    set_owned(db, host, "OP01-001", 1)  # still 3
-    set_owned(db, friend, "OP01-002", 1)  # still 3 of 002, 3 of 001
+    set_owned(db, host, "OP01-001", 1)
+    set_owned(db, friend, "OP01-002", 1)
 
     created = group_buy.create_group_buy(db, host, "Partial")
     group_buy.join_group_buy(db, friend, created.invite_token)
     group_buy.lock_group_buy(db, host, created.id)
     group_buy.mark_ordered(db, host, created.id, None)
 
-    # Only enough Luffy for part of the pool (need 6); full Zoro (need 5)
     receipt = """
 2	One Piece Card Game - Test Set - Luffy - Near Mint
 5	One Piece Card Game - Test Set - Zoro - Near Mint Foil
@@ -90,14 +90,14 @@ def test_receipt_partial_apply_leaves_remainder(db):
         created.id,
         GroupBuyReceiptApplyRequest(receipt_text=receipt, allow_partial=True),
     )
-    assert updated.status == "ordered"  # remainder still open
-    # 2 Luffy applied across members; 5 Zoro applied fully
+    assert updated.status == "ordered"
     assert _owned(db, host.id, "OP01-001") + _owned(db, friend.id, "OP01-001") == 1 + 2
     assert _owned(db, host.id, "OP01-002") + _owned(db, friend.id, "OP01-002") == 1 + 5
 
-    remaining = {l.card_id: l.total_qty for l in updated.lines}
-    assert remaining.get("OP01-001") == 4  # 6 - 2
-    assert "OP01-002" not in remaining or remaining.get("OP01-002", 0) == 0
+    # Lines keep the whole snapshot now; what is left to buy is not_ordered.
+    remaining = {l.card_id: l.not_ordered for l in updated.lines}
+    assert remaining.get("OP01-001") == 4
+    assert remaining.get("OP01-002") == 0
 
 
 def test_receipt_stage_selected_cards_only(db):
@@ -114,7 +114,6 @@ def test_receipt_stage_selected_cards_only(db):
 2	One Piece Card Game - Test Set - Zoro - Near Mint
 """.strip()
 
-    # Apply from locked (auto-marks ordered); only stage Luffy
     updated = group_buy.apply_receipt_to_group_buy(
         db,
         host,
@@ -128,8 +127,8 @@ def test_receipt_stage_selected_cards_only(db):
     assert updated.status == "ordered"
     assert _owned(db, host.id, "OP01-001") == 2
     assert _owned(db, host.id, "OP01-002") == 0
-    remaining = {l.card_id: l.total_qty for l in updated.lines}
-    assert remaining == {"OP01-002": 2}
+    remaining = {l.card_id: l.not_ordered for l in updated.lines}
+    assert remaining == {"OP01-001": 0, "OP01-002": 2}
 
 
 def test_undo_full_apply_restores_pool_owned_and_settlement(db):
@@ -176,7 +175,8 @@ def test_undo_full_apply_restores_pool_owned_and_settlement(db):
     assert done.status == "completed"
     assert done.can_undo_purchase is True
     assert done.has_receipt is True
-    assert done.cards_subtotal == 0.0
+    # Settlement is on what members are buying, so it does not fall to zero once bought.
+    assert done.cards_subtotal == before.cards_subtotal
     assert _owned(db, host.id, "OP01-001") == 2
     assert _owned(db, friend.id, "OP01-001") == 1
 
@@ -218,7 +218,7 @@ def test_undo_partial_then_second_apply_lifo(db):
     assert after_a.status == "ordered"
     assert after_a.can_undo_purchase is True
     assert _owned(db, host.id, "OP01-001") == 2
-    remaining_a = {l.card_id: l.total_qty for l in after_a.lines}
+    remaining_a = {l.card_id: l.not_ordered for l in after_a.lines}
     assert remaining_a.get("OP01-001") == 2
     assert remaining_a.get("OP01-002") == 2
 
@@ -236,17 +236,15 @@ def test_undo_partial_then_second_apply_lifo(db):
     assert _owned(db, host.id, "OP01-001") == 4
     assert _owned(db, host.id, "OP01-002") == 2
 
-    # Undo latest (B) first — back to post-A state
     undo_b = group_buy.undo_last_receipt_apply(db, host, created.id)
     assert undo_b.status == "ordered"
     assert undo_b.can_undo_purchase is True
     assert _owned(db, host.id, "OP01-001") == 2
     assert _owned(db, host.id, "OP01-002") == 0
-    remaining = {l.card_id: l.total_qty for l in undo_b.lines}
+    remaining = {l.card_id: l.not_ordered for l in undo_b.lines}
     assert remaining.get("OP01-001") == 2
     assert remaining.get("OP01-002") == 2
 
-    # Undo A — full pool restored
     undo_a = group_buy.undo_last_receipt_apply(db, host, created.id)
     assert undo_a.status == "ordered"
     assert undo_a.can_undo_purchase is False
@@ -307,7 +305,6 @@ def test_undo_clamps_owned_when_user_already_spent_copies(db):
         GroupBuyReceiptApplyRequest(receipt_text=receipt, allow_partial=True),
     )
     assert _owned(db, host.id, "OP01-001") == 3
-    # Simulate user removing inventory after purchase
     set_owned(db, host, "OP01-001", 1)
 
     undone = group_buy.undo_last_receipt_apply(db, host, created.id)
@@ -317,7 +314,6 @@ def test_undo_clamps_owned_when_user_already_spent_copies(db):
 
 
 def test_parse_user_receipt_smoke():
-    """Sanity: the user's pasted receipt shape parses without error."""
     text = """
 Qty	Description
 2	One Piece Card Game - 500 Years in the Future - Perfume Femur - Near Mint Foil
@@ -327,3 +323,136 @@ Qty	Description
     lines = parse_tcgplayer_receipt(text)
     assert len(lines) == 3
     assert lines[2].card_name.startswith("DON!!")
+
+
+RECEIPT_1346 = "Qty\tDescription\n2\tOne Piece Card Game - Test Set - Luffy - Near Mint Foil"
+
+
+def _locked_group_1346(db):
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1001, market=2.5)
+    host = make_user(db, email="host@example.com", name="Host", sub="sub-host")
+    add_deck_with_cards(db, host, "Solo", {"OP01-001": 2})
+    set_owned(db, host, "OP01-001", 0)
+    created = group_buy.create_group_buy(db, host, "Bulk buy")
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(db, host, created.id, None)
+    return host, created
+
+
+def test_second_receipt_apply_from_a_stale_session_adds_nothing_1346(db):
+    from sqlalchemy.orm import sessionmaker
+
+    host, created = _locked_group_1346(db)
+    other = sessionmaker(bind=db.get_bind(), autoflush=False, autocommit=False)()
+    try:
+        other_host = other.get(type(host), host.id)
+        stale_group = group_buy._get_group(other, created.id)
+        assert stale_group.status == "ordered"
+        body = GroupBuyReceiptApplyRequest(receipt_text=RECEIPT_1346, allow_partial=True)
+
+        group_buy.apply_receipt_to_group_buy(db, host, created.id, body)
+        assert _owned(db, host.id, "OP01-001") == 2
+
+        with pytest.raises(PermissionError):
+            group_buy.apply_receipt_to_group_buy(other, other_host, created.id, body)
+        assert _owned(db, host.id, "OP01-001") == 2
+        assert stale_group.status == "completed"
+    finally:
+        other.close()
+
+
+def test_receipt_owned_increment_does_not_overwrite_a_concurrent_change_1346(db):
+    from sqlalchemy.orm import sessionmaker
+
+    host, created = _locked_group_1346(db)
+    set_owned(db, host, "OP01-001", 1)
+    stale = db.scalar(select(Owned).where(Owned.user_id == host.id, Owned.card_id == "OP01-001"))
+    assert stale.qty == 1
+
+    writer = sessionmaker(bind=db.get_bind(), autoflush=False, autocommit=False)()
+    try:
+        writer.execute(
+            update(Owned).where(Owned.user_id == host.id, Owned.card_id == "OP01-001").values(qty=5)
+        )
+        writer.commit()
+    finally:
+        writer.close()
+
+    group_buy.apply_receipt_to_group_buy(
+        db, host, created.id, GroupBuyReceiptApplyRequest(receipt_text=RECEIPT_1346, allow_partial=True)
+    )
+    assert _owned(db, host.id, "OP01-001") == 7
+
+    group_buy.undo_last_receipt_apply(db, host, created.id)
+    assert _owned(db, host.id, "OP01-001") == 5
+
+
+ALT_RECEIPT_1419 = (
+    "Qty\tDescription\n"
+    "1\tOne Piece Card Game - Test Set - Luffy (OP01-001) (Parallel) - Near Mint\n"
+    "3\tOne Piece Card Game - Test Set - Luffy (OP01-001) - Near Mint"
+)
+
+
+def _alt_owned(db, user_id: int, card_id: str, product_id: int) -> int:
+    row = db.scalar(
+        select(OwnedPrinting).where(
+            OwnedPrinting.user_id == user_id,
+            OwnedPrinting.card_id == card_id,
+            OwnedPrinting.product_id == product_id,
+        )
+    )
+    return int(row.qty) if row else 0
+
+
+def _ordered_group_1419(db):
+    """Host first by snapshot row id, friend (the only one wanting the 1009 alt) second."""
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1001, market=2.5)
+    add_catalog(db, "OP01-001", name="Luffy", product_id=1009, market=9.0, special=True)
+    host = make_user(db, email="host@example.com", name="Host", sub="sub-host")
+    friend = make_user(db, email="friend@example.com", name="Friend", sub="sub-friend")
+    add_deck_with_cards(db, host, "Host Deck", {"OP01-001": 2})
+    friend_deck = add_deck_with_cards(db, friend, "Friend Deck", {"OP01-001": 2})
+    set_owned(db, host, "OP01-001", 0)
+    set_owned(db, friend, "OP01-001", 0)
+    deck_svc.set_deck_card_printing(db, friend, friend_deck.id, "OP01-001", 1009, 1)
+
+    created = group_buy.create_group_buy(db, host, "Alt buy")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(db, host, created.id, None)
+    return host, friend, created
+
+
+def test_receipt_alt_copy_goes_to_the_member_who_wants_that_art_1419(db):
+    host, friend, created = _ordered_group_1419(db)
+
+    done = group_buy.apply_receipt_to_group_buy(
+        db,
+        host,
+        created.id,
+        GroupBuyReceiptApplyRequest(receipt_text=ALT_RECEIPT_1419, allow_partial=False),
+    )
+
+    assert done.status == "completed"
+    assert _alt_owned(db, friend.id, "OP01-001", 1009) == 1
+    assert _alt_owned(db, host.id, "OP01-001", 1009) == 0
+    assert _owned(db, friend.id, "OP01-001") == 1
+    assert _owned(db, host.id, "OP01-001") == 2
+
+
+def test_undo_receipt_with_an_alt_copy_takes_the_alt_back_too_1419(db):
+    host, friend, created = _ordered_group_1419(db)
+    group_buy.apply_receipt_to_group_buy(
+        db,
+        host,
+        created.id,
+        GroupBuyReceiptApplyRequest(receipt_text=ALT_RECEIPT_1419, allow_partial=False),
+    )
+
+    undone = group_buy.undo_last_receipt_apply(db, host, created.id)
+
+    assert _alt_owned(db, friend.id, "OP01-001", 1009) == 0
+    assert _owned(db, friend.id, "OP01-001") == 0
+    assert _owned(db, host.id, "OP01-001") == 0
+    assert {l.card_id: l.total_qty for l in undone.lines} == {"OP01-001": 4}

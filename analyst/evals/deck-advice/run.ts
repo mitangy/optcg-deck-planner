@@ -44,7 +44,6 @@ import { inProcess } from "./sim";
 import { simPool } from "./simPool";
 
 const OUT = suiteOutDir("deck-advice");
-/** Games per version the default aims for. */
 const TARGET_GAMES = 300;
 
 const { values: f, positionals } = parseArgs({

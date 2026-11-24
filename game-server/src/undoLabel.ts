@@ -18,12 +18,7 @@ function boardCard(state: MatchState, id: string): CardInstance | null {
   return null;
 }
 
-/**
- * Short human description of an intent about to be applied to `before`, shown
- * in the undo button and the opponent's request. Names only cards the
- * opponent sees as a result of the action (cards played, countered with, or
- * already on the board); a private decision stays generic.
- */
+// Names only cards the opponent sees as a result of the action; a private decision stays generic.
 export function undoLabel(before: MatchState, seat: Seat, intent: Intent): string {
   const label = describe(before, seat, intent);
   return label.length > MAX_LABEL ? `${label.slice(0, MAX_LABEL - 1)}…` : label;

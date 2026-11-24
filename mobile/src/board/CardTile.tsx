@@ -23,7 +23,6 @@ type Props = {
   defId: string;
   rested?: boolean;
   power?: number;
-  /** Live cost of a Character in play (includes +cost effects). */
   fieldCost?: number;
   attachedDonCount?: number;
   compact?: boolean;

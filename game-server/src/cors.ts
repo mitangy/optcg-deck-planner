@@ -1,10 +1,4 @@
-/**
- * Colyseus-compatible CORS allowlist (Step 4.5).
- *
- * Do NOT use Express `cors()` middleware — Colyseus already answers OPTIONS and
- * sets Access-Control-* via matchMaker.controller; double-writing headers breaks
- * matchmake with ERR_HTTP_HEADERS_SENT.
- */
+// Not Express `cors()`: Colyseus already answers OPTIONS and sets Access-Control-* via matchMaker.controller, and double-writing headers breaks matchmake with ERR_HTTP_HEADERS_SENT.
 import { matchMaker } from "colyseus";
 import { getCorsOriginRegex, getCorsOrigins } from "./env.js";
 
@@ -17,11 +11,9 @@ export function installCorsAllowlist(): void {
     if (origin && (allowed.has(origin) || allowedPattern?.test(origin))) {
       return { "Access-Control-Allow-Origin": origin };
     }
-    // Non-browser / same-origin tooling (no Origin header): keep permissive local default.
     if (!origin) {
       return { "Access-Control-Allow-Origin": "*" };
     }
-    // Reject unknown browser origins by omitting a usable ACAO (browser will block).
     return { "Access-Control-Allow-Origin": "null" };
   };
 }

@@ -70,7 +70,6 @@ describe("DeckEditCard auto-apply (#726)", () => {
     ]);
     expect(JSON.parse(localStorage.getItem(AUTO_APPLIED_KEY)!)).toEqual(["t1"]);
 
-    // The app saved it: the card shows it applied by Log Pose, with Undo.
     await render({ live: true, editor: editor(AFTER, apply) });
     expect(text()).toContain("Applied by Log Pose");
     expect(text()).toContain("Edit by Log Pose");
@@ -78,7 +77,6 @@ describe("DeckEditCard auto-apply (#726)", () => {
     expect(calls).toHaveLength(2);
     expect(calls[1]![0]).toEqual({ id: "ST01-016", before: 2, after: 0 });
 
-    // Undone: the deck is back at "ready", and the card stays that way instead of applying again.
     await render({ live: true, editor: editor(BEFORE, apply) });
     await render({ live: true, editor: editor([...BEFORE], apply) });
     expect(calls).toHaveLength(2);
@@ -156,5 +154,17 @@ describe("DeckEditCard auto-apply (#726)", () => {
     await act(async () => void host!.querySelector("a.lp-edit-link")!.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
     expect(prevented).toBe(false);
     expect(onNavigate).not.toHaveBeenCalled();
+  });
+
+  it("card art in a suggested edit enlarges that card, and is plain art without the hook (#1459)", async () => {
+    const openCard = vi.fn();
+    const card = (id: string) => ({ name: `Art ${id}`, imageUrl: `https://img.test/${id}.jpg` });
+    await render({ editor: null, hooks: { card, openCard } });
+    const thumb = host!.querySelector<HTMLButtonElement>('button[aria-label="Enlarge Art ST01-016"]')!;
+    act(() => thumb.click());
+    expect(openCard).toHaveBeenCalledWith("ST01-016");
+    await render({ editor: null, hooks: { card } });
+    expect(host!.querySelector('button[aria-label^="Enlarge"]')).toBeNull();
+    expect(host!.querySelectorAll(".lp-edit-thumb img").length).toBeGreaterThan(0);
   });
 });

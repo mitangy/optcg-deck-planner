@@ -1,7 +1,3 @@
-/**
- * Usage: npx tsx src/sim/optcgsim/report.ts <path-to-optcgsim-matches.json>
- * Prints the parse report (games, turns, events by kind, unknown line patterns, CHK mismatches).
- */
 import { readFileSync } from "node:fs";
 import { parseSimExport } from "./parse.js";
 import type { SimMatchRecord } from "./types.js";

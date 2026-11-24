@@ -3,24 +3,20 @@ import type { MatchOverMessage, PlayerView, RematchAction, RematchState, Seat, S
 import type { RematchDeckOption } from "../../decks/rematchDecks";
 import { openReport } from "../../reports/reportDialog";
 import { matchReportTarget } from "../../reports/reportTargets";
-import { MatchOverFactsList, type LoadMatchRecord } from "./MatchOverFacts";
+import { MatchLogLinks, MatchOverFactsLine, ReviewGameSlot, useMatchOverFacts, type LoadMatchRecord } from "./MatchOverFacts";
 import type { describeMatchResult } from "./matchResult";
 import { winnerHeadline } from "./playerNames";
-import { RematchPanel, type RematchDecks } from "./RematchPanel";
+import { RematchPanel, rematchStage, type RematchDecks } from "./RematchPanel";
 
-/** The match result is not dismissed by Escape or an outside click; its buttons leave it. */
 const noop = () => {};
 
-/** Rematch vote on the match-over screen (unranked rooms). */
 export type BoardRematch = {
   state: RematchState | null;
   onAction: (action: RematchAction, decks?: RematchDecks) => void;
   autoAccept?: boolean;
-  /** Saved decks to switch to for the next game. */
   deckOptions?: readonly RematchDeckOption[];
 };
 
-/** The match-over card, or (once "View board" tucked it away) the pill that brings it back. */
 export function MatchResultView({
   over,
   resultHidden,
@@ -40,6 +36,7 @@ export function MatchResultView({
   canReportPlayer,
   reportTargetFor,
   onLeave,
+  onBackToTournament,
 }: {
   over: boolean;
   resultHidden: boolean;
@@ -59,7 +56,16 @@ export function MatchResultView({
   canReportPlayer: boolean;
   reportTargetFor: (source: "match" | "spectate" | "postmatch") => ReturnType<typeof matchReportTarget>;
   onLeave: () => void;
+  /** Set for a tournament game: leaves the room and goes back to the bracket. */
+  onBackToTournament?: () => void;
 }) {
+  const facts = useMatchOverFacts(over ? matchId : null, view.turnNumber, spectating ? undefined : loadMatchRecord);
+  const offersRematch = rematch != null && !spectating;
+  // Gold goes to the rematch offer; with none (or no rematch possible) Return home takes it. Spectators have no gold button.
+  const stage = rematchStage(offersRematch ? rematch.state : null, boardSeat, rematch?.autoAccept);
+  const backToTournament = !spectating && !isReplay ? onBackToTournament : undefined;
+  const backPrimary = backToTournament != null && (stage === "none" || stage === "left");
+  const homePrimary = !spectating && !backToTournament && (stage === "none" || stage === "left");
   return (
     <>
       {over && resultHidden && !(isReplay && !(wide && !lp)) ? (
@@ -77,7 +83,6 @@ export function MatchResultView({
       ) : null}
 
       {over && !resultHidden ? (
-        // Blocking: Escape and an outside click do nothing; "View board" tucks the result away.
         <Dialog
           open
           onClose={noop}
@@ -87,7 +92,6 @@ export function MatchResultView({
           <p className="match-result-kicker">Match over</p>
           <DialogTitle as="h2">
             {(() => {
-              // Spectators / hotseat: name the winning player instead of "Seat N".
               const winner = (matchOver?.winner ?? view.winner) as Seat | null;
               return (spectating || isReplay) && players && (winner === 0 || winner === 1)
                 ? winnerHeadline(players, winner, null, true)
@@ -95,15 +99,8 @@ export function MatchResultView({
             })()}
           </DialogTitle>
           <p className="match-result-detail">{result.detail}</p>
-          <MatchOverFactsList
-            matchId={matchId}
-            turnNumber={view.turnNumber}
-            loadRecord={spectating ? undefined : loadMatchRecord}
-          />
-          <button type="button" className="btn btn-secondary match-result-board" onClick={() => setResultHidden(true)}>
-            View board
-          </button>
-          {rematch && !spectating ? (
+          <MatchOverFactsLine facts={facts} />
+          {offersRematch ? (
             <RematchPanel
               state={rematch.state}
               mySeat={boardSeat}
@@ -113,6 +110,29 @@ export function MatchResultView({
               onAction={rematch.onAction}
             />
           ) : null}
+          <div className="match-result-secondary">
+            {backToTournament ? (
+              <button
+                type="button"
+                className={`btn ${backPrimary ? "btn-primary" : "btn-secondary"} match-result-tournament`}
+                onClick={backToTournament}
+              >
+                Back to tournament
+              </button>
+            ) : null}
+            <ReviewGameSlot facts={facts} enabled={!spectating && loadMatchRecord != null} />
+            <button type="button" className="btn btn-secondary match-result-board" onClick={() => setResultHidden(true)}>
+              View board
+            </button>
+            <button
+              type="button"
+              className={`btn ${homePrimary ? "btn-primary" : "btn-secondary"} match-result-home`}
+              onClick={onLeave}
+            >
+              {homePrimary ? "Return home" : "Home"}
+            </button>
+          </div>
+          <MatchLogLinks facts={facts} />
           {!spectating && canReportPlayer ? (
             <button
               type="button"
@@ -125,9 +145,6 @@ export function MatchResultView({
               Report player
             </button>
           ) : null}
-          <button type="button" className="leave-btn" onClick={onLeave}>
-            Return home
-          </button>
         </Dialog>
       ) : null}
     </>

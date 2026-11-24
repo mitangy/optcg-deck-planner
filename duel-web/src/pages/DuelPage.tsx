@@ -11,8 +11,9 @@ import { rematchDeckOptions } from "../decks/rematchDecks";
 import { setSelectedDeckId } from "../decks/storage";
 import { fetchMatchDetail } from "../history/historyApi";
 import { useDuelSession } from "../state/DuelSession";
+import { clearActiveTournamentMatch, getActiveTournamentMatch, tournamentReturnFor } from "../tournaments/activeTournamentMatch";
+import { duelPageChrome } from "./duelPageChrome";
 
-/** The saved match, for the rating change and match log link on the match-over card. */
 const loadMatchRecord = (matchId: string) => fetchMatchDetail(matchId).then((d) => d.match);
 
 export function DuelPage() {
@@ -32,6 +33,7 @@ export function DuelPage() {
     seat,
     matchId,
     errorBanner,
+    serverRestart,
     matchOver,
     rating,
     sendIntent,
@@ -69,23 +71,21 @@ export function DuelPage() {
     if (leftRef.current) return;
     if (!connected && !view && !canReconnect && !matchId && !resuming && !launching) {
       leftRef.current = true;
-      // A request that failed before the match opened: say why back in the lobby.
       navigate("/", { replace: true, state: errorBanner ? { matchError: errorBanner } : null });
       if (errorBanner) clearError();
     }
   }, [connected, view, canReconnect, matchId, resuming, launching, errorBanner, clearError, navigate]);
 
-  // Alone in your own room, or watching: a friend's invite must still reach you here.
   const friends = useFriends(pollsInvitesInMatch({ launch, role, view, matchId }));
   function joinFriendRoom(invite: FriendInvite) {
-    // Leave this room first; the lobby takes the seat in theirs (it has the
-    // deck and sign-in) and must not bounce back here with no note.
     leftRef.current = true;
     void leave();
     navigate("/", { replace: true, state: { joinInvite: invite } });
   }
 
-  // Until the first view arrives the board is already up, empty, saying what it waits on.
+  const spectating = role === "spectator" || Boolean(view?.spectator);
+  const chrome = duelPageChrome({ vsBot, spectating, rating });
+  const tournamentCode = tournamentReturnFor(getActiveTournamentMatch(), { spectating, isReplay: false, roomId: matchId });
   const rolling = !view && !(launching && launch) && !resuming && Boolean(dice);
   const waiting: BoardWaiting | undefined = view
     ? undefined
@@ -126,7 +126,7 @@ export function DuelPage() {
           </button>
         </div>
       ) : null}
-      {rating != null && !(role === "spectator" || view?.spectator) ? <div className="rating-chip">
+      {chrome.bounty && rating != null ? <div className="rating-chip">
           Your Bounty: <BountyAmount amount={rating} />
         </div> : null}
       <DuelBoard
@@ -134,10 +134,11 @@ export function DuelPage() {
         seat={seat}
         matchId={matchId}
         errorBanner={errorBanner}
+        serverRestart={serverRestart}
         matchOver={matchOver}
         players={players}
         timer={timer}
-        spectator={role === "spectator" || Boolean(view?.spectator)}
+        spectator={spectating}
         matchBrief={role === "player" ? { brief, ranked } : undefined}
         battleLog={battleLog}
         firstSeatPickedBy={firstSeatPickedBy}
@@ -145,7 +146,7 @@ export function DuelPage() {
         dicePhase={view || !dice ? undefined : { state: dice, onAction: sendDice }}
         vsHuman
         canReport={!vsBot}
-        chat={{ lines: chat, onSend: sendChat }}
+        chat={chrome.chat ? { lines: chat, onSend: sendChat } : undefined}
         onConcede={connected && role === "player" ? () => concede() : undefined}
         onHandOrder={connected && role === "player" ? sendHandOrder : undefined}
         undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}
@@ -158,7 +159,6 @@ export function DuelPage() {
                 onAction: (action, decks) => {
                   const deck = seat === 0 || seat === 1 ? decks?.[seat] : undefined;
                   sendRematch(action, deck);
-                  // Remember the pick so the lobby defaults to it next time.
                   const picked = deck ? deckOptions.find((o) => o.wire === deck) : undefined;
                   if (picked) setSelectedDeckId(picked.id);
                 },
@@ -169,12 +169,20 @@ export function DuelPage() {
         seatSkins={seatSkins}
         opponentAwayUntil={seat === 0 || seat === 1 ? awayUntil[seat === 0 ? 1 : 0] : null}
         waiting={waiting}
-        // Both Leaders are revealed once the dice roll starts, so a player who leaves then takes the loss.
         leaveLabel={view ? undefined : role === "player" && rolling ? "Leave (counts as a loss)" : "Cancel"}
         onLeave={() => {
           void leave();
           navigate("/", { replace: true });
         }}
+        onBackToTournament={
+          tournamentCode
+            ? () => {
+                clearActiveTournamentMatch();
+                void leave();
+                navigate(`/tournaments/${tournamentCode}`, { replace: true });
+              }
+            : undefined
+        }
         onClearError={clearError}
       />
       {role === "spectator" && view && friends.state?.invites.length ? createPortal(

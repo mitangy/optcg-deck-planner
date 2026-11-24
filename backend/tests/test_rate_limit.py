@@ -8,7 +8,6 @@ from app.core.rate_limit import RateLimiter
 
 @pytest.fixture(autouse=True)
 def _settings_follow_env():
-    # PROXY_SHARED_SECRET is read through the cached Settings; re-read it per test.
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
@@ -30,14 +29,12 @@ def test_rate_limiter_keys_are_independent():
 
 
 def test_named_limiter_budget_is_shared_across_workers_with_redis_389(fake_redis):
-    # Two workers each build the same module-level limiter; Redis makes them one budget.
     worker_a = RateLimiter(max_calls=2, period_s=60, name="shared-test")
     worker_b = RateLimiter(max_calls=2, period_s=60, name="shared-test")
     assert worker_a.allow("ip") is True
     assert worker_b.allow("ip") is True
     assert worker_a.allow("ip") is False
     assert worker_b.allow("ip") is False
-    # A refused call does not spend budget, and other keys are untouched.
     assert fake_redis.zcard("rl:shared-test:ip") == 2
     assert worker_b.allow("other-ip") is True
 
@@ -53,7 +50,6 @@ def test_named_limiter_counts_in_process_when_redis_is_down_389(monkeypatch):
     monkeypatch.setattr(redis_client, "_override", down)
     limiter = RateLimiter(max_calls=1, period_s=60, name="down-test")
     assert limiter.allow("ip") is True
-    # The failure parks Redis for a while, so the next call never waits on it.
     assert redis_client.get_redis() is None
     assert limiter.allow("ip") is False
 
@@ -73,7 +69,6 @@ def test_forwarded_for_is_ignored_without_the_proxy_secret_323(monkeypatch):
 
     monkeypatch.setenv("PROXY_SHARED_SECRET", "s3cret-from-vercel")
     spoofed = {"X-Forwarded-For": "203.0.113.7", "CF-Connecting-IP": "198.51.100.9"}
-    # Calling the Render URL directly: the caller-chosen first hop is not trusted.
     assert client_ip(_Request(spoofed)) == "198.51.100.9"
     assert client_ip(_Request({**spoofed, "X-Optcg-Proxy-Secret": "guess"})) == "198.51.100.9"
 

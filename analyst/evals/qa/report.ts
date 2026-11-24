@@ -1,4 +1,3 @@
-/** The one-line summary, report.md, the declared metrics for the claude-api report builder, and baseline.json. */
 import { judgeCostUsd } from "../grade/judge";
 import type { ErrorRow, EvalCase, Row, RunMeta } from "./types";
 import { caseMeans, flipped, mean, pairedDelta, score, wilson, type Metric } from "./stats";
@@ -115,7 +114,6 @@ export function renderReport(input: { rows: readonly Row[]; errors: readonly Err
   return `${lines.join("\n")}\n`;
 }
 
-/** The declared metrics and perf fields the claude-api skill's report builder reads. */
 export function stateFile(rows: readonly Row[], meta: RunMeta) {
   return {
     variant: meta.variant,
@@ -125,7 +123,6 @@ export function stateFile(rows: readonly Row[], meta: RunMeta) {
   };
 }
 
-/** The run as POST /admin/evals takes it: score in cases (a case's mean over its reps), per group, and the spend. */
 export function evalRunPayload(rows: readonly Row[], meta: RunMeta) {
   const all = scored(rows);
   const groups: Record<string, { correct: number; total: number }> = {};

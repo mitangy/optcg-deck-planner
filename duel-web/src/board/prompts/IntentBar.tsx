@@ -1,5 +1,6 @@
 import { useContext } from "react";
 import { intentLabel } from "./intentLabel";
+import { noActionReason } from "./noActionReason";
 import type { Intent, PlayerView } from "../../net/protocol";
 import { splitCardActions } from "../input/cardActions";
 import { isReplacePlay } from "../combat/dragIntents";
@@ -17,34 +18,16 @@ type Props = {
   disabled?: boolean;
   filterHandIndex?: number | null;
   selectedBoardId?: string | null;
-  /** End turn needs a second tap (gameplay setting); `reason` fills the armed label. */
   confirmEndTurn?: { reason: string | null } | null;
   onSend: (intent: Intent) => void;
-  /** Full-board play: ask which Character to replace instead of sending. */
   onChooseReplace?: (handIndex: number) => void;
-  /**
-   * The defend tray owns the block / counter choices: hide the secondary
-   * actions and let the tray relabel the primary ("Take hit", "Confirm
-   * counter"). `onPress` replaces sending the primary intent itself.
-   */
   defend?: { label: string; onPress?: () => void };
-  /** Relabels a Pass counter primary ("Resolve" once the defender is safe). */
   counterLabel?: string;
-  /** Replaces "No actions for this card" while something else already answers it. */
-  emptyHint?: string;
-  /**
-   * The selected card's own actions are shown on the card (a popover), so this
-   * bar keeps only the phase-wide ones and a hint. `count` shifts the hotkey
-   * numbers of the bar's buttons past the card's; `active` says a popover is up.
-   */
   onCard?: { count: number; active: boolean };
-  /** Phones and landscape phones: the wait for the opponent shows in the primary's slot. */
   waiting?: WaitingOnOpponent | null;
-  /** Why the bar is empty when it is not your move. */
   idle?: "prompt" | "opponent" | null;
 };
 
-/** What the empty action rail says. */
 export function emptyIntentText(o: {
   mulliganWaiting: boolean;
   idle: "prompt" | "opponent" | null;
@@ -69,21 +52,17 @@ export function IntentBar({
   onChooseReplace,
   defend,
   counterLabel,
-  emptyHint,
   onCard,
   waiting = null,
   idle = null,
 }: Props) {
   const handIndex = filterHandIndex ?? null;
   const boardId = selectedBoardId ?? null;
-  // The primary comes from every legal intent, not the selection-filtered
-  // list, so its slot never changes when a card is tapped.
   const { primary, rest } = splitPrimaryIntent(intents);
   const selected = defend ? [] : filterIntentsForSelection(rest, { handIndex, boardId });
   const split = splitCardActions(selected);
   const shown = onCard ? split.bar : [...split.card, ...split.bar];
   const keyTags = actionKeyTags(shown, onCard?.count ?? 0);
-  // The keys work either way; the setting only hides their tabs.
   const showKeyTags = useDuelSettings().shortcutTags;
   const mulliganPhase = view?.phase === "mulligan";
   const nothingSelected = handIndex == null && boardId == null;
@@ -108,7 +87,6 @@ export function IntentBar({
             hasIntents: intents.length > 0,
           })}
         </p>
-        {/* A hand pick's Confirm / None land here on phones, where End turn sits. */}
         {idle === "prompt" ? <div className="intent-prompt-slot" ref={setPromptSlot} /> : null}
       </div>
     );
@@ -125,12 +103,11 @@ export function IntentBar({
         <div className="intent-row">
           {shown.length === 0 && !defend ? (
             <p className="intent-empty">
-              {emptyHint ??
-                (onCard?.active
-                  ? "Choose an action on the card"
-                  : nothingSelected
-                    ? "Select a card for actions"
-                    : "No actions for this card")}
+              {onCard?.active
+                ? "Choose an action on the card"
+                : nothingSelected
+                  ? "Select a card for actions"
+                  : (view ? noActionReason(view, { handIndex, boardId }) : null) ?? "No actions for this card"}
             </p>
           ) : null}
           {shown.map((intent, idx) => (

@@ -1,13 +1,4 @@
-/**
- * Golden replays: a fixture (seed + decks + the intents played) is re-run
- * through the engine and narrated as text. The narration is compared with a
- * checked-in `<name>.golden.txt`, so any change to rules, card data or
- * `describeEvents` shows up as a reviewable text diff.
- *
- * Fixtures hold only inputs (no timestamps, ids minted at runtime, or registry
- * hash). Mulligans are skipped with `skipMulligans`, using the same rng that
- * then drives every `applyIntent`.
- */
+/** Fixtures hold only inputs (no timestamps, ids minted at runtime, or registry hash). */
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -83,7 +74,6 @@ function cardLabel(state: MatchState, seat: Seat, c: CardInstance): string {
   return `${c.defId}${c.rested ? " (rested)" : ""} ${powerOf(state, seat, c)}p${c.attachedDonIds.length ? ` +${c.attachedDonIds.length} DON!!` : ""}`;
 }
 
-/** Compact end-of-replay summary of both seats. */
 export function summarizeState(state: MatchState): string[] {
   const lines: string[] = [];
   for (const seat of [0, 1] as const) {
@@ -100,7 +90,6 @@ export function summarizeState(state: MatchState): string[] {
   return lines;
 }
 
-/** Appears in a narration only when the engine refuses a recorded intent; never blessed. */
 export const REJECTED_MARK = "!! REJECTED";
 
 function intentArgs(intent: Intent): string {
@@ -124,7 +113,6 @@ export function playReplay(name: string, f: ReplayFixture): string {
     const r = applyIntent(state, intent, { seat });
     out.push("", `> #${i + 1} seat ${seat} ${intent.type}${intentArgs(intent)}`);
     if (!r.ok) {
-      // The engine no longer accepts a recorded move: show where, and stop (later moves would be meaningless).
       out.push(`  ${REJECTED_MARK} ${r.error?.code}: ${r.error?.message}`);
       break;
     }

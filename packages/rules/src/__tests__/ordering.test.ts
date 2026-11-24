@@ -1,9 +1,3 @@
-/**
- * Timing and interaction ordering: who resolves first, what a replaced event
- * still triggers, how K.O. chains and "you may ... if you do" gates unfold, and
- * what resolves while a choice is paused. Each test names a real card whose
- * printed text exercises the rule.
- */
 import { describe, expect, it } from "vitest";
 import { costOf } from "../engine/queries.js";
 import { FILLER, Harness } from "../testing/harness.js";

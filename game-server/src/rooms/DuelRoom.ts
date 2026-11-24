@@ -1,4 +1,5 @@
 import { Room, Client } from "colyseus";
+import { rejectPendingReconnections } from "./pendingReconnections.js";
 import {
   applyIntent,
   buildTestDeck,
@@ -12,19 +13,21 @@ import {
   type MatchState,
   type Seat,
 } from "@optcg/rules";
+import { hashToNegativeId } from "../devIdentity.js";
 import { sanitizeDisplayName, verifyGameToken } from "../gameToken.js";
 import { writeLog, type LogLevel } from "../log.js";
 import { SlidingWindowLimiter } from "../rateLimit.js";
-import { checkMatchmakeToken, claimCreatorRoom, releaseCreatorRoom } from "../matchmakeGuard.js";
+import { checkMatchmakeToken, claimCreatorRoom, newRngKey, releaseCreatorRoom } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
 import {
   PROTOCOL_VERSION,
   TAKEN_OVER_CLOSE_CODE,
   parseCreateOptions,
-  parseIntentMessage,
+  parseIntentEnvelope,
   parseJoinOptions,
   CLIENT_MESSAGE,
   ProtocolError,
+  SEATED_SPECTATOR_MESSAGE,
   errorCodeOf,
   type ErrorCode,
   type PlayerDeckWire,
@@ -58,20 +61,16 @@ export { BOT_MAX_INTENTS_PER_TURN, botDisplayName, botPacing, botSearch } from "
 
 const INTENT_RATE_LIMIT = 20;
 const INTENT_RATE_WINDOW_MS = 1000;
-/** Any message type, per client: more than this in one second drops the client (intents alone allow 20). */
 const MAX_MESSAGES_PER_SECOND = 40;
 
-/**
- * One duel: a Colyseus room that owns the lifecycle (create, join, takeover, leave, drop, dispose),
- * message routing and the game's start and end. Everything else lives in the collaborators under
- * `./duel/`, which share `game` (the current game's state) and reach each other through `this`.
- */
+/** How long a live game is warned before a server shutdown closes it. */
+export const RESTART_WARNING_SECONDS = 10;
+
 export class DuelRoom extends Room implements PresenceSource, DuelCore {
   maxClients = 2 + MAX_SPECTATORS;
   maxMessagesPerSecond = MAX_MESSAGES_PER_SECOND;
   state = new DuelPublicState();
 
-  /** Matchmake-time token check (see checkMatchmakeToken); the instance onAuth then seats the client. */
   static async onAuth(_token: string, options: unknown): Promise<unknown> {
     return checkMatchmakeToken(options);
   }
@@ -79,7 +78,8 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   readonly game = new DuelGame();
   readonly seats = new SeatRegistry();
   private roomConfig: RoomConfig | null = null;
-  /** Wall clock, timers and sleeping; real unless a test installed `duelTimeSource.create`. */
+  private readonly pendingResultWrites = new Set<Promise<void>>();
+  private autoDisposeBeforeWrite = true;
   readonly time: DuelTime = duelTimeSource.create?.(this) ?? realTime(this);
   readonly io: RoomIO = {
     allClients: () => this.clients,
@@ -102,13 +102,11 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   readonly persistence: MatchPersistence = new MatchPersistence(this);
   private readonly intentLimiter = new SlidingWindowLimiter(INTENT_RATE_LIMIT, INTENT_RATE_WINDOW_MS, () => this.time.now());
 
-  /** Account that created this room, counted against its open-room cap until dispose. */
   private creatorUid: number | null = null;
 
   private lastMetadataKey = "";
   private stopTakedowns: (() => void) | null = null;
 
-  /** What shapes this room, built once in onCreate from the create options and the environment. */
   get config(): RoomConfig {
     if (!this.roomConfig) throw new Error("Room config is read in onCreate");
     return this.roomConfig;
@@ -142,7 +140,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       for (const deck of config.players) assertKnownDeck(deck);
     }
     // Ranked checks use the request's own flag: a forged one is rejected for its decks too.
-    if (config.requestedRanked && config.players) {
+    if ((config.requestedRanked || config.tournament) && config.players) {
       for (const deck of config.players) {
         const problem = rankedDeckProblem(deck);
         if (problem) throw new Error(problem);
@@ -154,6 +152,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     // config.ranked already ignores a browser-provided `ranked: true`: only the in-process
     // matchmaker can supply the server-only capability needed for Elo matches.
     game.ranked = config.ranked;
+    game.tournament = config.tournament;
     this.clocks.configure(config.timer);
     if (config.seatUserIds) {
       // A paired ranked room: if one player never makes it in (deck turned
@@ -249,20 +248,34 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.clocks.clearTimerLoop();
     this.log("info", "room_disposed", { matchId: this.game.matchId });
     // A game closing without a result keeps its log up to the last action.
-    if (this.game.matchStarted && !this.game.matchOverSent && !this.game.resultPending) {
+    if (this.game.matchStarted && !this.game.matchOverSent) {
       await this.persistence.saveProgress(true);
     }
   }
 
+  // Set once the server is shutting down: dropped seats are the restart's doing, not a forfeit.
+  private shuttingDown = false;
+
   async onBeforeShutdown() {
-    // Do not dispose a completed match before its result is durably queued.
-    await this.game.resultPending;
+    this.shuttingDown = true;
+    // Tell a live game before anything else, then give the players a few seconds to read it. Assumes Render's
+    // default 30 s between SIGTERM and SIGKILL, so this stays well inside that.
+    if (this.game.matchStarted && !this.game.matchOverSent) {
+      this.io.broadcast("server_restarting", { seconds: RESTART_WARNING_SECONDS });
+      this.log("info", "server_restarting", { matchId: this.game.matchId, seconds: RESTART_WARNING_SECONDS });
+      await this.time.sleep(RESTART_WARNING_SECONDS * 1000);
+    }
+    // Do not dispose a completed match before its result is durably queued. A rematch can add a write
+    // while we wait, so loop until none is left.
+    while (this.pendingResultWrites.size > 0) await Promise.all([...this.pendingResultWrites]);
     super.onBeforeShutdown();
   }
 
   onAuth(client: Client, options: unknown) {
     try {
-      return this.resolveIdentity(options);
+      const identity = this.resolveIdentity(options);
+      this.refuseSeatedSpectator(identity);
+      return identity;
     } catch (e) {
       const err = e as Error;
       this.log("warn", "join_rejected", {
@@ -275,12 +288,11 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
   }
 
-  /** Ranked: the paired opponent never claimed their seat, so close the room. */
   private expireNoShow() {
     const { game } = this;
     if (game.matchStarted) return;
     // Mid-roll: not a no-show yet. Check again later, because a seat leaving cancels the roll and
-    // would otherwise leave the room waiting with no timer (#1206).
+    // would otherwise leave the room waiting with no timer.
     if (this.dice.active) {
       this.time.setTimeout(() => this.expireNoShow(), this.config.rankedNoShowSeconds * 1000);
       return;
@@ -355,6 +367,11 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
 
     if (identity.role === "spectator") {
+      // A second connection from a seated account would read the opponent's hand.
+      if (this.seats.holdsSeat(identity.userId)) {
+        this.rejectJoin(client, "unauthorized", SEATED_SPECTATOR_MESSAGE);
+        return;
+      }
       const cameraSeat: Seat =
         identity.preferredSeat === 0 || identity.preferredSeat === 1
           ? identity.preferredSeat
@@ -380,12 +397,24 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       return;
     }
 
-    if (game.ranked && identity.deck) {
+    if (game.competitive && identity.deck) {
       const problem = rankedDeckProblem(identity.deck);
       if (problem) {
         this.rejectJoin(client, "unsupported_deck", problem);
         return;
       }
+    }
+
+    // The same hole from the other side: spectate first, then take a seat.
+    if (this.spectators.list.some((s) => s.userId === identity.userId)) {
+      this.rejectJoin(client, "unauthorized", "You are watching this match");
+      return;
+    }
+
+    // Seats are not fixed per account in a tournament room, so nothing else stops one account filling both.
+    if (this.config.tournament && this.seats.holdsSeat(identity.userId)) {
+      this.rejectJoin(client, "room_full", "You already hold a seat in this match");
+      return;
     }
 
     if (reservedSeat !== null && this.seats.slot(reservedSeat)) {
@@ -427,7 +456,6 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     });
 
     if (this.seats.bothFilled() && !game.matchStarted) {
-      // Game 1's order is a dice roll when the room asks for one, else the coin flip made at create.
       if (!this.dice.begin()) this.startMatch(this.config.firstSeat, null);
     } else if (game.matchStarted && game.match) {
       this.sendSync(client);
@@ -435,11 +463,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.refreshMetadata();
   }
 
-  /**
-   * Move a seat to this connection (#451). Only the account that controls the seat
-   * may do it; identity, deck and clocks stay as they were, so nothing is
-   * written back differently and the opponent never sees a leave.
-   */
+  // Identity, deck and clocks stay as they were, so nothing is written back differently and the opponent never sees a leave.
   private takeOverSeat(
     client: Client,
     identity: { userId: number; preferredSeat?: Seat },
@@ -463,14 +487,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.chat.forget(oldSessionId);
     // A seat dropped mid-grace: kill the pending reclaim so the old socket's
     // reconnection token can never take the seat back from this one.
-    const pending = (
-      this as unknown as {
-        _reconnections: Record<string, [string, { reject(reason?: unknown): void }]>;
-      }
-    )._reconnections;
-    for (const entry of Object.values(pending)) {
-      if (entry[0] === oldSessionId) entry[1].reject(false);
-    }
+    rejectPendingReconnections(this, oldSessionId);
     const old = this.io.clientFor(oldSessionId);
     if (old) {
       this.io.send(old, "taken_over", { seat });
@@ -489,7 +506,6 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.refreshMetadata();
   }
 
-  /** Lobby lookup data (GET /active-matches): who holds the seats and how far along the room is. */
   refreshMetadata() {
     const { game } = this;
     const phase = game.matchOverSent ? "finished" : game.matchStarted ? "playing" : "waiting";
@@ -500,7 +516,6 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     void this.setMetadata(metadata).catch(() => undefined);
   }
 
-  /** Consented leave (CloseCode.CONSENTED) — no reclaim. */
   onLeave(client: Client, _code?: number) {
     if (this.spectators.forClient(client)) {
       this.spectators.remove(client.sessionId);
@@ -519,33 +534,34 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.time.setTimeout(() => this.forfeitAbsentSeat(seat, "abandoned"), 1500);
   }
 
-  /** End a live match for a seat that is gone for good (left / reclaim timed out). */
-  private forfeitAbsentSeat(seat: Seat, reason: "abandoned" | "disconnect") {
+  /** Ends the game for a reason the rules engine does not know (concede, forfeit, clock) by mimicking its leader-defeated result. */
+  endGameOutsideRules(winner: Seat, reason: string) {
     const { game } = this;
-    if (!game.match || !game.matchStarted || game.matchOverSent) return;
-    if (game.match.winner !== null || game.match.phase === "game_over") return;
-    if (this.seats.slot(seat)) return; // came back
-    const other = (seat === 0 ? 1 : 0) as Seat;
-    if (!this.seats.slot(other)) return; // nobody left to hand the win to
     game.endReason = reason;
-    game.match = { ...game.match, winner: other, winReason: "leader_battle_at_zero_life", phase: "game_over" };
-    this.seats.clearAway();
+    game.match = { ...game.match!, winner, winReason: "leader_battle_at_zero_life", phase: "game_over" };
     this.undo.request = null;
     this.syncPublicState();
     this.spectators.broadcastViews([]);
+    this.undo.broadcastState();
     this.clocks.stopSeatClock();
     this.clocks.clearTimerLoop();
     this.clocks.broadcastTimer();
-    this.undo.broadcastState();
+  }
+
+  private forfeitAbsentSeat(seat: Seat, reason: "abandoned" | "disconnect") {
+    const { game } = this;
+    if (this.shuttingDown || !game.match || !game.matchStarted || game.matchOverSent) return;
+    if (game.match.winner !== null || game.match.phase === "game_over") return;
+    if (this.seats.slot(seat)) return;
+    const other = (seat === 0 ? 1 : 0) as Seat;
+    if (!this.seats.slot(other)) return;
+    this.seats.clearAway();
+    this.endGameOutsideRules(other, reason);
     this.broadcastPresence();
     this.log("info", "forfeit_absent", { matchId: game.matchId, seat, reason, winner: other });
     this.maybeSendMatchOver();
   }
 
-  /**
-   * Unexpected disconnect — offer seat reclaim for RECONNECT_GRACE_SECONDS.
-   * Colyseus 0.18 routes drops here when `onDrop` is defined.
-   */
   async onDrop(client: Client, _code?: number) {
     const { game } = this;
     if (this.spectators.forClient(client)) {
@@ -559,6 +575,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     // during the seat-1 join window). Only skip once the match is over.
     if (game.matchOverSent) {
       this.clearSeat(client.sessionId);
+      this.rematch.broadcast();
       return;
     }
 
@@ -594,6 +611,14 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
   }
 
+  // A second connection from a seated account would read the opponent's hand. Refused in onAuth so
+  // joinById itself rejects with the message (a room error sent during onJoin never reaches the client).
+  private refuseSeatedSpectator(identity: { role: string; userId: number }): void {
+    if (identity.role === "spectator" && this.seats.holdsSeat(identity.userId)) {
+      throw new ProtocolError(SEATED_SPECTATOR_MESSAGE, "unauthorized");
+    }
+  }
+
   private resolveIdentity(options: unknown): {
     displayId: string;
     displayName: string;
@@ -602,7 +627,6 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     role: "player" | "spectator";
     deck?: PlayerDeckWire;
     takeover: boolean;
-    /** Verified uid of join.ownerToken, else null. */
     ownerUid: number | null;
   } {
     const join = parseJoinOptions(options);
@@ -667,14 +691,21 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.chat.forget(sessionId);
   }
 
-  /** Enforce the identity/seat reservation created by ranked_queue. */
   private reservedSeatFor(identity: {
     userId: number;
     preferredSeat?: Seat;
     role: "player" | "spectator";
   }): Seat | null {
-    const { seatUserIds } = this.config;
-    if (identity.role === "spectator" || !seatUserIds) return null;
+    const { seatUserIds, tournamentSeats } = this.config;
+    if (identity.role === "spectator") return null;
+    // A tournament room names its two accounts but not their seats: either may sit in any free one.
+    if (tournamentSeats) {
+      if (!tournamentSeats.includes(identity.userId)) {
+        throw new ProtocolError("Identity is not reserved for this match", "unauthorized");
+      }
+      return null;
+    }
+    if (!seatUserIds) return null;
     const seat = seatUserIds.indexOf(identity.userId) as -1 | Seat;
     if (seat !== 0 && seat !== 1) {
       throw new ProtocolError("Identity is not reserved for this match", "unauthorized");
@@ -685,10 +716,6 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     return seat;
   }
 
-  /**
-   * The seat `client` holds. A spectator or an unseated client cannot act: it is told why and
-   * null comes back, so each handler starts with one early return.
-   */
   private requireSeat(client: Client, spectatorMessage: string, unseatedMessage = "Not seated"): Seat | null {
     if (this.spectators.forClient(client)) {
       this.sendError(client, "unauthorized", spectatorMessage);
@@ -704,6 +731,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     game.firstSeatPickedBy = pickedBy;
     this.resetPerGameState();
     const { players: createPlayers, autoSkipMulligan } = this.config;
+    game.rngKey = this.config.seedPinned ? null : newRngKey();
     const deckA = game.seatDecks[0]?.deck ?? createPlayers?.[0]?.deck ?? buildTestDeck(20);
     const deckB = game.seatDecks[1]?.deck ?? createPlayers?.[1]?.deck ?? buildTestDeck(20);
     const leaderA =
@@ -715,6 +743,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     try {
       match = createMatch({
         seed: game.seed,
+        ...(game.rngKey ? { rngKey: game.rngKey } : {}),
         firstSeat,
         players: [
           { leaderId: leaderA, deck: [...deckA] },
@@ -747,9 +776,10 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       rulesVersion: RULES_VERSION,
       registryHash: REGISTRY_HASH,
       seed: game.seed,
+      ...(game.rngKey ? { rngKey: game.rngKey } : {}),
       firstSeat,
       skipMulligans: autoSkipMulligan,
-      // createMatch's default: every non-Banish Life hit opens a private Life check (#352).
+      // createMatch's default: every non-Banish Life hit opens a private Life check.
       lifeCheckEveryHit: true,
       privateChoicesV2: true,
       players: [
@@ -765,7 +795,6 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.recordStep(null, null, []);
     const [slot0, slot1] = [this.seats.slot(0)!, this.seats.slot(1)!];
     game.matchUserIds = [slot0.userId, slot1.userId];
-    // Hotseat practice seats two guest accounts under one signed-in owner (#988).
     const [owner0, owner1] = this.seats.owners();
     game.practiceOwnerUid = owner0 != null && owner0 === owner1 ? owner0 : null;
     game.seatNames = [slot0.displayName, slot1.displayName];
@@ -807,19 +836,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     const { game } = this;
     if (!game.match) return;
     const winner = (seat === 0 ? 1 : 0) as Seat;
-    game.endReason = "concede";
-    game.match = {
-      ...game.match,
-      winner,
-      winReason: "leader_battle_at_zero_life",
-      phase: "game_over",
-    };
-    this.syncPublicState();
-    this.spectators.broadcastViews([]);
-    this.undo.request = null;
-    this.undo.broadcastState();
-    this.clocks.stopSeatClock();
-    this.clocks.broadcastTimer();
+    this.endGameOutsideRules(winner, "concede");
     this.log("info", "concede", { matchId: game.matchId, seat, winner });
     this.maybeSendMatchOver();
   }
@@ -842,25 +859,56 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     }
 
     let intent: Intent;
+    let step: number | undefined;
+    let cardId: string | undefined;
     try {
-      intent = parseIntentMessage(message);
+      ({ intent, step, cardId } = parseIntentEnvelope(message));
     } catch (e) {
       this.io.sendParseError(client, e);
       return;
+    }
+
+    // Omitted guards (older tabs) skip these checks. A stale intent is dropped and the sender resynced.
+    // A board sends several intents from one view (DON!! to attach, counters to play) all stamped with that view's step.
+    // Only the seat's own unbroken chain may reuse it: any other state change moves stateStep past chain.to.
+    const chain = this.stepChains[seat];
+    const inChain = chain !== null && step === chain.from && game.stateStep === chain.to;
+    this.stepChains[seat] = null;
+    if (step !== undefined && step !== game.stateStep && !inChain) {
+      this.rejectStale(client, seat, "State changed since the action was taken");
+      return;
+    }
+    if (cardId !== undefined && intentHandIndex(intent) !== undefined) {
+      const hand = game.match.players[seat].hand;
+      if (hand[intentHandIndex(intent)!]?.id !== cardId) {
+        // The same card elsewhere in hand is still what the player meant (the engine re-checks legality); a card that left the hand is stale.
+        const at = hand.findIndex((c) => c.id === cardId);
+        if (at < 0) {
+          this.rejectStale(client, seat, "That card is no longer in your hand");
+          return;
+        }
+        intent = { ...intent, handIndex: at } as Intent;
+      }
     }
 
     const applied = this.applySeatIntent(seat, intent);
     if (!applied.ok) {
       this.sendError(client, "illegal_intent", applied.message);
       this.io.send(client, "view", { view: this.spectators.playerView(game.match, seat) });
+      return;
     }
+    if (step !== undefined) this.stepChains[seat] = { from: inChain ? chain.from : step, to: game.stateStep };
   }
 
-  /**
-   * Apply an already-parsed intent for `seat` and do everything that follows a state change: replay
-   * record, undo snapshot, views, timers, match over and the bot's next move. Shared by human
-   * intents, the bot seat and the turn clock's automatic move, so all three take exactly the same path.
-   */
+  /** Per seat: the step its last applied intent was stamped with, and the step the game reached by applying it. */
+  private stepChains: [{ from: number; to: number } | null, { from: number; to: number } | null] = [null, null];
+
+  private rejectStale(client: Client, seat: Seat, message: string) {
+    const { game } = this;
+    this.io.send(client, "view", { view: this.spectators.playerView(game.match!, seat), step: game.stateStep });
+    this.sendError(client, "stale_intent", message);
+  }
+
   applySeatIntent(seat: Seat, intent: Intent): ApplyResult {
     const { game } = this;
     if (!game.match) return { ok: false, message: "Match not started" };
@@ -871,7 +919,7 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
       undoSnap = this.undo.captureSnapshot(seat, intent);
       result = applyIntent(before, intent, { seat });
     } catch (e) {
-      // applyIntent works on a clone, so game.match is untouched; answer like any illegal intent (refactor 0.2).
+      // applyIntent works on a clone, so game.match is untouched; answer like any illegal intent.
       this.log("warn", "apply_intent_threw", {
         matchId: game.matchId,
         seat,
@@ -901,21 +949,19 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     return { ok: true };
   }
 
-  /** After a state change: save the turn's progress, then push the undo snapshot taken before the action. */
   private recordStep(...args: Parameters<UndoHistory["recordStep"]>) {
     this.persistence.noteTurn();
     this.undo.recordStep(...args);
   }
 
-  /** Clear everything tied to one game so a rematch starts clean. */
   private resetPerGameState() {
     const { game } = this;
     this.bots.resetPerGameState();
     game.gameNumber += 1;
     game.matchOverSent = false;
-    game.resultPending = null;
     game.endReason = null;
     game.replay = null;
+    this.stepChains = [null, null];
     this.persistence.resetPerGameState();
     this.undo.resetPerGameState();
     this.clocks.resetPerGameState();
@@ -924,41 +970,53 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.cosmetics.resetPerGameState();
   }
 
-  /** Tell everyone which seats dropped and until when they may reconnect. */
   private broadcastPresence() {
     this.io.broadcast("presence", { awayUntil: this.seats.awayUntil() });
   }
 
   maybeSendMatchOver() {
     const { game } = this;
-    if (!game.match || game.match.winner === null || game.matchOverSent || game.resultPending) return;
+    if (!game.match || game.match.winner === null || game.matchOverSent) return;
     const result = {
       winner: game.match.winner,
       reason: game.endReason ?? game.match.winReason ?? "unknown",
     };
     this.bots.clearTimer();
-    const autoDispose = this.autoDispose;
-    this.autoDispose = false;
-    game.resultPending = this.persistence.writebackResult(result.winner, result.reason).then(() => {
-      game.matchOverSent = true;
-      this.refreshMetadata();
-      presence.markDirty();
-      this.log("info", "match_end", { matchId: game.matchId, ...result });
-      if (game.bot) {
-        const turns = game.match?.turnNumber;
-        this.log("info", "bot_game_over", { matchId: game.matchId, level: game.bot.level, winner: result.winner, turns, ...this.bots.stats });
-      }
-      this.io.broadcast("match_over", { result });
-      this.rematch.broadcast();
-      this.autoDispose = autoDispose;
-      if (autoDispose && this.clients.length === 0) void this.disconnect().catch(() => undefined);
-    });
+    // The end screen never waits on the outbox database; the durable write retries on its own.
+    game.matchOverSent = true;
+    this.trackResultWrite(this.persistence.writebackResult(result.winner, result.reason));
+    this.refreshMetadata();
+    presence.markDirty();
+    this.log("info", "match_end", { matchId: game.matchId, ...result });
+    if (game.bot) {
+      const turns = game.match?.turnNumber;
+      this.log("info", "bot_game_over", { matchId: game.matchId, level: game.bot.level, winner: result.winner, turns, ...this.bots.stats });
+    }
+    this.io.broadcast("match_over", { result });
+    this.rematch.broadcast();
   }
 
   /**
-   * Test seams: the writeback methods below are what tests replace on a room instance to see (or
-   * fail) what would be saved, so the collaborators always call them through the room.
+   * Tracked per room rather than per game: a rematch resets per-game state while the earlier result may
+   * still be retrying, and the room must neither dispose nor shut down until every write has landed.
    */
+  private trackResultWrite(write: Promise<void>) {
+    if (this.pendingResultWrites.size === 0) {
+      this.autoDisposeBeforeWrite = this.autoDispose;
+      this.autoDispose = false;
+    }
+    const tracked: Promise<void> = write
+      .catch(() => this.log("warn", "match_result_write_failed", { matchId: this.game.matchId }))
+      .then(() => {
+        this.pendingResultWrites.delete(tracked);
+        if (this.pendingResultWrites.size > 0) return;
+        const autoDispose = this.autoDisposeBeforeWrite;
+        this.autoDispose = autoDispose;
+        if (autoDispose && this.clients.length === 0) void this.disconnect().catch(() => undefined);
+      });
+    this.pendingResultWrites.add(tracked);
+  }
+
   ingestSeats(): [number, number] | { skip: string } {
     return this.persistence.ingestSeats();
   }
@@ -975,7 +1033,6 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     return postMatchResult(payload);
   }
 
-  /** Who is here, for the friends list ("in a game", spectate). */
   presenceEntries(): PresenceEntry[] {
     const { game } = this;
     const phase: PresenceEntry["phase"] = !game.matchStarted
@@ -1002,12 +1059,10 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
     this.state.winner = this.game.match.winner === null ? -1 : this.game.match.winner;
   }
 
-  /** The "sync" message, a join and a reconnect all land here (tests wrap it to see who was welcomed). */
   sendSync(client: Client) {
     this.sync.sendSync(client);
   }
 
-  /** Turn a join away, with a log line so a stranded opponent can be traced. */
   private rejectJoin(client: Client, code: ErrorCode, message: string) {
     this.log("warn", "join_rejected", { matchId: this.game.matchId, sessionId: client.sessionId, code, message });
     this.sendError(client, code, message);
@@ -1023,10 +1078,8 @@ export class DuelRoom extends Room implements PresenceSource, DuelCore {
   }
 }
 
-/** Same check createMatch applies (unknown ids / non-Leader leaders), surfaced at join. */
-export function hashToNegativeId(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  const n = Math.abs(h) % 1_000_000_000;
-  return -1 - n;
+function intentHandIndex(intent: Intent): number | undefined {
+  return intent.type === "play_card" || intent.type === "counter_from_hand" || intent.type === "counter_event"
+    ? intent.handIndex
+    : undefined;
 }

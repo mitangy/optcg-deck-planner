@@ -1,4 +1,3 @@
-"""Duel tournaments among friends: single elimination or round robin, every match one game."""
 
 from __future__ import annotations
 
@@ -24,14 +23,13 @@ from app.core.rate_limit import RateLimiter
 from app.duel.server_urls import known_game_server_urls
 from app.social.presence import friendship, live_presence, room_server_url
 from app.duel.server_urls import normalize_server_url
+from app.duel.tournament_tickets import mint_tournament_ticket
 
 router = APIRouter(prefix="/tournaments", tags=["tournaments"])
 
 MAX_ORGANIZED = 5
 FINISHED_VISIBLE = timedelta(days=14)
-# A room the host just reported counts as open this long even before presence shows it.
 ROOM_FRESH = timedelta(seconds=30)
-# While one player is opening the room the other waits this long before taking over.
 HOST_LOCK = timedelta(seconds=45)
 
 _create_rate = RateLimiter(max_calls=10, period_s=60, name="tournament_create_rate")
@@ -145,6 +143,8 @@ class PlayOut(BaseModel):
     action: Literal["join", "host", "wait", "hosted"]
     room_id: str | None = None
     server_url: str | None = None
+    # Only a "host" answer carries one: the game server treats a room opened with it as this match's tournament room.
+    ticket: str | None = None
 
 
 def current_player(user: Annotated[User, Depends(get_current_user)]) -> User:
@@ -514,10 +514,6 @@ def play(
         return PlayOut(action="hosted")
 
     presence = live_presence(db, [m.host_id] if m.host_id else [], now)
-    # The host asking again while their own game is still running (they dropped and came back
-    # via the tournament page) goes back to that room. Resetting it would orphan the result,
-    # which is ingested under the old room id (#1006). Only a seated, playing host counts here:
-    # a room reported moments ago with nobody in it is still replaced.
     host_playing = (
         m.host_id == user.id
         and _room_live(m, presence, now)
@@ -540,7 +536,10 @@ def play(
     m.server_url = None
     m.room_set_at = None
     db.commit()
-    return PlayOut(action="host")
+    ticket = mint_tournament_ticket(
+        match_id=m.id, seats=(m.player_a_id, m.player_b_id), settings=settings, now=int(now.timestamp())
+    )
+    return PlayOut(action="host", ticket=ticket)
 
 
 @router.post("/{code}/matches/{match_id}/award", response_model=TournamentOut)

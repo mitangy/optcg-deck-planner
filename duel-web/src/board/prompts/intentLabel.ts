@@ -1,7 +1,7 @@
 import { lookupCard } from "../../cards/atlas";
 import type { Intent, PlayerView } from "@optcg/duel-protocol";
 
-/** Name of a card for a button label: the atlas name, else the id. Injected so the label logic needs no card atlas. */
+// Injected so the label logic needs no card atlas.
 export type NameForDef = (defId: string | undefined) => string | null;
 
 function shortId(id: unknown): string {
@@ -39,7 +39,6 @@ function handName(view: PlayerView | undefined, handIndex: unknown, nameForDef: 
   return nameForDef(card.defId) ?? `#${handIndex}`;
 }
 
-/** The label of an intent as its button reads. `activate_leader` is the pre-`activate_ability` shape older callers still pass. */
 export function intentLabel(
   anIntent: Intent | { type: "activate_leader"; targetId?: string },
   view?: PlayerView,
@@ -52,8 +51,6 @@ export function intentLabel(
     case "mulligan":
       return intent.doMulligan ? "Mulligan (redraw 5)" : "Keep opening hand";
     case "play_card":
-      // Full board: one legal play per Character that could be trashed, so
-      // name the one this button replaces.
       return intent.trashCharacterId != null
         ? `Play ${handCardName(intent.handIndex)}, replacing ${boardName(intent.trashCharacterId)}`
         : `Play ${handCardName(intent.handIndex)}`;

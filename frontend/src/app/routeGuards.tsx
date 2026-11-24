@@ -14,16 +14,28 @@ import { ShoppingPage } from "./lazyPages";
 import { renderCardPageActions } from "../pages/shopping/lightboxActions";
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const { data: user, isLoading } = useMe();
+  const { data: user, isLoading, isError, isFetching, refetch } = useMe();
   if (isLoading) return <AuthLoadingSkeleton label="Loading…" />;
+  // A failed check says nothing about whether the visitor is signed in, so don't bounce them to the sign-in page.
+  if (isError && user === undefined) {
+    return (
+      <main className="app-main">
+        <div className="empty-state" role="alert">
+          <h2>Can't reach the server</h2>
+          <p>We couldn't check your sign-in. Your decks and collection are safe.</p>
+          <button type="button" className="btn primary" disabled={isFetching} onClick={() => void refetch()}>
+            Try again
+          </button>
+        </div>
+      </main>
+    );
+  }
   if (!user) return <Navigate to="/login" replace />;
   return <Shell user={user}>{children}</Shell>;
 }
 
-/** `/` is the public landing page for visitors and the shopping list for signed-in players (#804). */
 export function HomeRoute() {
   const { data: user, isLoading, refetch } = useMe();
-  // A pre-rendered page keeps showing the landing page while the session loads (see prerendered.ts).
   if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;
   if (!user) {
     return (
@@ -42,7 +54,6 @@ export function HomeRoute() {
   );
 }
 
-/** Meta browsing is public: signed-in users get the app shell, everyone else the slim public header. */
 export function MetaRoute() {
   const { data: user, isLoading } = useMe();
   if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;
@@ -56,7 +67,6 @@ export function MetaRoute() {
   return <PublicMetaScreen />;
 }
 
-/** A card's page is public: signed-in users get the app shell (and their owned/alert controls), everyone else the slim public header. */
 export function CardRoute() {
   const { data: user, isLoading } = useMe();
   if (isLoading && !KEEP_PRERENDER_WHILE_LOADING) return <AuthLoadingSkeleton label="Loading…" />;

@@ -3,7 +3,6 @@ import { answerTopup, decideAccess, listAccessRequests, NOTE_MAX, requestAccess,
 import { formatUsd } from "./credit";
 import type { AccessState } from "./session";
 
-/** What the panel shows a signed-in player who doesn't have Log Pose yet: the request form, or where their request stands. */
 export function RequestAccessView({
   apiBase,
   access,
@@ -15,10 +14,8 @@ export function RequestAccessView({
   apiBase: string;
   access: AccessState;
   onSent: () => void;
-  /** Free spots in all and how many are left; unknown when the API doesn't say. */
   freeSpots?: number;
   spotsLeft?: number;
-  /** The monthly credit a free spot brings. */
   freeCreditUsd?: number;
 }) {
   const [note, setNote] = useState("");
@@ -117,7 +114,6 @@ function whenText(iso: string | null): string {
   return Number.isFinite(t) ? new Date(t).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) : "";
 }
 
-/** Owners: everyone who asked for Log Pose, with Approve / Deny / Revoke. */
 export function RequestsList({ apiBase, onChanged }: { apiBase: string; onChanged: () => void }) {
   const [rows, setRows] = useState<AccessRequest[] | null>(null);
   const [spots, setSpots] = useState<{ free: number; used: number } | null>(null);

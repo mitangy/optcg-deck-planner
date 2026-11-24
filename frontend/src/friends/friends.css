@@ -1,7 +1,5 @@
-/* Friends, spares and trades (#703). Theme tokens only, so light and dark both follow styles.css. */
 
-/* Nav: the count floats over the link's corner (into the gap beside it), so it never resizes the link.
-   Where the nav scrolls on its own (phones) the link reserves the room instead, because that row clips overhang. */
+/* Nav: the count floats over the corner of the More button (or sits inline in the menu row), so it never resizes the control. */
 .nav-badge {
   position: absolute;
   top: 0.1rem;
@@ -17,17 +15,6 @@
   line-height: 1.05rem;
   text-align: center;
   pointer-events: none;
-}
-
-@media (max-width: 760px) {
-  .topbar nav a.nav-friends {
-    padding-right: 1.15rem;
-  }
-
-  .nav-badge {
-    top: 0.3rem;
-    right: 0.05rem;
-  }
 }
 
 .friends-page {
@@ -105,7 +92,6 @@
   margin: 0.5rem 0;
 }
 
-/* Tabs: equal widths, so a count appearing never resizes the trigger. */
 .friend-tabs {
   display: flex;
   gap: var(--space-1);
@@ -150,7 +136,6 @@
   line-height: 1.15rem;
 }
 
-/* Forms */
 .friend-field {
   display: grid;
   gap: 0.3rem;
@@ -220,7 +205,6 @@
   max-width: 28rem;
 }
 
-/* Sharing */
 .sharing-loading {
   min-height: 12rem;
 }
@@ -280,7 +264,6 @@
   font-size: 0.9rem;
 }
 
-/* Friend list */
 .friend-list {
   display: grid;
   gap: 0.35rem;
@@ -344,7 +327,6 @@
   padding: 1.75rem 1rem;
 }
 
-/* Card rows */
 .friend-card-list {
   display: grid;
   gap: 0.55rem;
@@ -485,7 +467,6 @@
   }
 }
 
-/* Toolbar and grids */
 .friend-toolbar {
   display: flex;
   flex-wrap: wrap;
@@ -572,7 +553,6 @@
   font-size: 1.15rem;
 }
 
-/* Trades */
 .trades-panel {
   display: grid;
   gap: 1.5rem;
@@ -728,8 +708,6 @@
   display: none;
 }
 
-/* Trade tray: fixed to the bottom edge. It grows upward over the page, so nothing on the page moves.
-   The room under the page (footer included) is only for scrolling to the very end. */
 body:has(.trade-tray) {
   padding-bottom: calc(4.5rem + env(safe-area-inset-bottom, 0px));
 }
@@ -826,7 +804,6 @@ body:has(.trade-tray) {
   flex: 0 0 auto;
 }
 
-/* The Log Pose button sits in the same corner: lift it above the tray while an offer is being built. */
 body:has(.trade-tray) .lp-compass {
   bottom: calc(max(16px, env(safe-area-inset-bottom, 0px)) + 4.25rem);
 }
@@ -841,4 +818,225 @@ body:has(.trade-tray) .lp-compass {
   .tray-groups {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* #1362 trades + friend pages */
+.step-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--label);
+  white-space: nowrap;
+}
+
+.spares-hint {
+  margin: 0 0 var(--space-3);
+}
+
+.spares-disclosure {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.trade-status.tone-attention {
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+}
+
+.trade-status.tone-neutral {
+  background: var(--bg-deep);
+  color: var(--muted);
+}
+
+.need-ask {
+  margin-top: var(--space-3);
+}
+
+.tray-add-give,
+.tray-add-message {
+  justify-self: start;
+}
+
+@media (pointer: coarse), (max-width: 640px) {
+  .trade-actions .btn,
+  .trade-actions button,
+  .tray-clear,
+  .tray-add-give,
+  .tray-add-message,
+  .need-ask {
+    min-height: 2.75rem;
+  }
+}
+
+/* #1362 Friends tab */
+.friends-needs-you {
+  margin-bottom: var(--space-4);
+  border-color: var(--gold);
+  background: linear-gradient(180deg, var(--gold-soft), var(--card) 70%);
+}
+
+.friends-needs-link {
+  margin: 0.5rem 0 0;
+  font-size: 0.92rem;
+}
+
+.friends-needs-link a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-weight: 600;
+}
+
+/* Every action on this tab keeps a 44px hit area. */
+.friends-act,
+.friends-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  min-width: 2.75rem;
+  box-sizing: border-box;
+}
+
+.friends-more {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.friends-row-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.friends-row-menu-list {
+  min-width: 10rem;
+}
+
+.friends-menu-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.friends-menu-item.danger {
+  color: var(--danger);
+}
+
+.friends-offer {
+  width: auto;
+  margin-top: 0;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.friends-me {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin: 0 0 0.5rem;
+  font-size: 0.92rem;
+}
+
+.friends-me strong {
+  overflow-wrap: anywhere;
+}
+
+/* The hint line takes no room until it has something to say; its live region stays mounted. */
+.friend-hint.empty {
+  min-height: 0;
+  margin: 0;
+}
+
+/* Avatar tones: tinted fills with ink that stays above 4.5:1 in both themes. */
+.friend-avatar[data-tone] {
+  background: hsl(var(--tone-h) 45% 86%);
+  color: hsl(var(--tone-h) 55% 22%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .friend-avatar[data-tone] {
+    background: hsl(var(--tone-h) 35% 24%);
+    color: hsl(var(--tone-h) 70% 86%);
+  }
+}
+
+:root[data-theme="dark"] .friend-avatar[data-tone] {
+  background: hsl(var(--tone-h) 35% 24%);
+  color: hsl(var(--tone-h) 70% 86%);
+}
+
+.friend-avatar[data-tone="0"] { --tone-h: 12; }
+.friend-avatar[data-tone="1"] { --tone-h: 38; }
+.friend-avatar[data-tone="2"] { --tone-h: 85; }
+.friend-avatar[data-tone="3"] { --tone-h: 150; }
+.friend-avatar[data-tone="4"] { --tone-h: 190; }
+.friend-avatar[data-tone="5"] { --tone-h: 220; }
+.friend-avatar[data-tone="6"] { --tone-h: 265; }
+.friend-avatar[data-tone="7"] { --tone-h: 325; }
+
+/* Wide screens: friends become tiles instead of 1,000px-long rows. */
+@media (min-width: 1600px) {
+  .friends-tiles {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .friends-tiles .friend-list-row {
+    flex-wrap: wrap;
+    align-content: start;
+    border: 1px solid var(--line);
+  }
+
+  /* A tile stacks: avatar and name on top, Offer a trade and the menu under it. */
+  .friends-tiles .friend-link {
+    flex: 1 1 100%;
+  }
+
+  .friends-tiles .friend-row-actions {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
+}
+
+/* #1362 phone: keep long usernames on one line beside the row actions */
+.friends-offer-short {
+  display: none;
+}
+
+.friends-tiles .friend-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow-wrap: normal;
+}
+
+@media (max-width: 480px) {
+  .friends-offer-long {
+    display: none;
+  }
+
+  .friends-offer-short {
+    display: inline;
+  }
+}
+
+/* #1362 "Add cards you give" lands on the section heading, clear of the sticky top bar */
+.spares-section {
+  scroll-margin-top: 5.5rem;
 }

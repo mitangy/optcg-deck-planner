@@ -8,7 +8,6 @@ import { DEMO_VIEW } from "../fixtures/demoViews";
 import { stubBattle } from "../fixtures/stubCard";
 import { useDefendFlow } from "./useDefendFlow";
 
-// ST01-003 Karoo prints +1000 and has a Counter; ST01-006 Chopper has none.
 const hand = [
   { id: "y-h1", defId: "ST01-006" },
   { id: "y-h2", defId: "ST01-003" },
@@ -50,7 +49,6 @@ function render(intents: Intent[], extra: Opts = {}) {
           isReplay: false,
           over: false,
           vsHuman: false,
-          // A phone: the defend tray takes the hand's place, so the staged cards live in it.
           wide: false,
           lp: false,
           onSendIntent: (i) => sent.push(i),
@@ -81,7 +79,6 @@ describe("answering an attack: the queued Counter (refactor 3.2)", () => {
     render(blockStep);
     expect(flow.defend?.phase).toBe("block");
     act(() => flow.skipBlockToCounter("y-h2", "stage"));
-    // The block is passed first; the Counter waits for the next step.
     expect(sent).toEqual([{ type: "pass_block" }]);
     expect(flow.defend?.stagedIds).toEqual([]);
     render(counterStep);
@@ -115,7 +112,6 @@ describe("response stops (refactor 3.2)", () => {
     const forcedBlock: Intent[] = [{ type: "pass_block" }];
     render(forcedBlock, { stopMode: "auto" });
     expect(flow.autoPass).toEqual({ type: "pass_block" });
-    // The player taps Pass block before the beat ends; the next view (the counter step) is still on its way.
     act(() => {
       sent.push({ type: "pass_block" });
       flow.noteAnswered({ type: "pass_block" });

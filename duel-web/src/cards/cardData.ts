@@ -7,9 +7,7 @@ import { createStore } from "../lib/createStore";
  * routes in lazyRoutes.ts, `CardDataGate`) or for `useCardDataReady()` (the lobby, which paints first).
  */
 export type CardData = {
-  /** Curated playable prints (rules package export). */
   curated: Record<string, unknown>;
-  /** Cosmetics catalog for every English OPTCG number (TCGCSV). */
   catalog: Record<string, unknown>;
 };
 
@@ -26,7 +24,6 @@ export function cardDataReady(): boolean {
   return readyStore.get();
 }
 
-/** Installs the card data and wakes every component waiting on `useCardDataReady`. */
 export function setCardData(next: CardData): void {
   data = next;
   readyStore.set(true);
@@ -51,7 +48,6 @@ export function createCardDataLoader(importer: () => Promise<CardData>, apply: (
 
 export const loadCardData = createCardDataLoader(() => import("./cardDataSource").then((m) => m.cardData));
 
-/** True once the card data is installed. Starts the load itself, so a page that only reads this still gets its data. */
 export function useCardDataReady(): boolean {
   const isReady = readyStore.use();
   if (!isReady) void loadCardData().catch(() => undefined);

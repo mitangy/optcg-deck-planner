@@ -1,7 +1,3 @@
-/**
- * The once-per-update "What's new" card in the lobby, and the full list page.
- * The FastAPI backend is faked as a signed-out guest, like e2e/lobby.spec.ts.
- */
 import { test, expect, type Page } from "@playwright/test";
 import { notesFor } from "../../packages/patch-notes/src/helpers";
 import { PATCH_NOTES } from "../../packages/patch-notes/src/notes";
@@ -9,7 +5,6 @@ import { FAKE_API, RED_VANILLA } from "./fixtures";
 
 const KEY = "optcg.patchNotes.lastSeen.duel";
 
-/** Opens the lobby. `lastSeen` is stored before the first load only (a reload keeps what the app wrote). */
 async function openLobby(page: Page, lastSeen: string | null): Promise<void> {
   await page.route(`${FAKE_API}/**`, (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -38,11 +33,9 @@ const card = (page: Page) => page.getByRole("region", { name: "What's new" });
 test("the card shows after an update and Got it keeps it away, even after a reload (#450)", async ({ page }) => {
   await openLobby(page, "2026-10-05");
   await expect(card(page)).toBeVisible();
-  // The newest duel note leads the card (a hard-coded title breaks as soon as more notes land).
   await expect(card(page)).toContainText(notesFor("duel", PATCH_NOTES)[0].title);
   await expect(card(page)).toContainText("more");
 
-  // It overlays the page: dismissing it moves nothing, and it sits fully on screen.
   const vp = page.viewportSize()!;
   const box = (await card(page).boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
@@ -66,9 +59,10 @@ test("See all opens the full list and the card stays away afterwards (#450)", as
   await card(page).getByRole("link", { name: "See all" }).click();
   await expect(page).toHaveURL(/\/whats-new$/);
   await expect(page.getByRole("heading", { name: "What’s new", level: 1 })).toBeVisible();
+  // The list opens on the recent updates; a search reaches the older ones.
+  await page.getByRole("searchbox", { name: "Search updates" }).fill("Choose your DON");
   await expect(page.getByRole("heading", { name: "October 8, 2026" })).toBeVisible();
   await expect(page.getByText("Choose your DON!! art")).toBeVisible();
-  // Footer carries the link too.
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "What’s new" })).toBeVisible();
   await page.getByRole("link", { name: "Back to home" }).first().click();
   await expect(page.locator(".home-deck")).toBeVisible();
@@ -88,4 +82,35 @@ test("Settings > About links to the full list (#450)", async ({ page }) => {
   await page.locator("#about").getByRole("link", { name: "What’s new" }).click();
   await expect(page).toHaveURL(/\/whats-new$/);
   await expect(page.getByRole("heading", { name: "What’s new", level: 1 })).toBeVisible();
+});
+
+test("What's new opens on recent updates, Show older reveals more, and nothing scrolls sideways (#1390)", async ({ page }) => {
+  await openLobby(page, "2026-10-05");
+  await page.goto("/whats-new");
+  await expect(page.getByRole("heading", { name: "What’s new", level: 1 })).toBeVisible();
+  const total = notesFor("duel", PATCH_NOTES).length;
+  const notes = page.locator(".wn-note");
+  await expect(notes.first()).toBeVisible();
+  const before = await notes.count();
+  expect(before).toBeLessThan(total);
+  const noScroll = () => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
+  expect(await noScroll()).toBe(true);
+
+  await page.getByRole("button", { name: /^Show older/ }).click();
+  expect(await notes.count()).toBeGreaterThan(before);
+  expect(await noScroll()).toBe(true);
+
+  const vp = page.viewportSize()!;
+  if (vp.width >= 1100) {
+    const rail = (await page.getByRole("navigation", { name: "Months" }).boundingBox())!;
+    const column = (await notes.first().boundingBox())!;
+    expect(rail.x).toBeGreaterThanOrEqual(0);
+    expect(rail.x + rail.width).toBeLessThanOrEqual(column.x);
+    // The rail hangs in the gutter: the page's reading column keeps its full width.
+    expect(column.width).toBeGreaterThanOrEqual(540);
+  } else {
+    await expect(page.getByRole("navigation", { name: "Months" })).toBeHidden();
+    const back = (await page.getByRole("link", { name: "Back to home" }).boundingBox())!;
+    expect(back.width).toBeLessThanOrEqual(48);
+  }
 });

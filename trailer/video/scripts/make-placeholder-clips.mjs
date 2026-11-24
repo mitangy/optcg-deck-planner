@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Makes labelled placeholder clips with ffmpeg into trailer/clips/<id>.mp4,
-// ONLY for ids that do not exist yet. Real capture output is never overwritten.
 import {spawnSync} from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,7 +8,6 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const clipsDir = path.resolve(here, '../../clips');
 const FONT = '/usr/share/fonts/opentype/inter/Inter-Bold.otf';
 
-// id, seconds, hue (hex colour), WxH  (keep in sync with plan.md clip contract)
 const CLIPS = [
   ['01-landing', 5, '0f2a4a', [1920, 1080]],
   ['02-turn', 8, '14384a', [1920, 1080]],
@@ -37,12 +34,10 @@ for (const [id, secs, color, [w, h]] of CLIPS) {
   const small = Math.round(big / 3);
   const vf = [
     `drawgrid=w=${Math.round(w / 12)}:h=${Math.round(w / 12)}:t=2:c=white@0.10`,
-    // moving bar so motion/freezes are visible
     `drawbox=x='mod(t*${Math.round(w / 5)}\\,${w})':y=0:w=6:h=${h}:color=0xe8b64c@0.8:t=fill`,
     `drawbox=x=0:y=0:w=${w}:h=${h}:color=white@0.25:t=6`,
     `drawtext=fontfile=${FONT}:text='${id}':fontsize=${big}:fontcolor=white:x=(w-text_w)/2:y=(h-text_h)/2-${small}`,
     `drawtext=fontfile=${FONT}:text='PLACEHOLDER %{pts\\:hms\\:0} / ${secs}s':fontsize=${small}:fontcolor=0xe8b64c:x=(w-text_w)/2:y=(h/2)+${small}`,
-    // corner markers: show whether zoom/crop is clipping
     `drawbox=x=0:y=0:w=${Math.round(w / 8)}:h=${Math.round(w / 8)}:color=0xe8b64c@0.7:t=fill`,
     `drawbox=x=${w - Math.round(w / 8)}:y=${h - Math.round(w / 8)}:w=${Math.round(w / 8)}:h=${Math.round(w / 8)}:color=0x4cc3e8@0.7:t=fill`,
   ].join(',');

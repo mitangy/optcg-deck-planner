@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import type { RematchDeckOption } from "../../decks/rematchDecks";
 import type { RematchState } from "../../net/protocol";
-import { RematchPanel, decksFromPicks } from "./RematchPanel";
+import { RematchPanel, decksFromPicks, rematchStage } from "./RematchPanel";
 
 const zoro: RematchDeckOption = { id: "zoro", name: "Zoro Aggro", leaderId: "OP01-001", leaderName: "Roronoa Zoro", cards: 50, wire: { leaderId: "OP01-001", deck: ["A"] } };
 const luffy: RematchDeckOption = { id: "luffy", name: "Luffy Mid", leaderId: "ST01-001", leaderName: "Monkey.D.Luffy", cards: 48, wire: { leaderId: "ST01-001", deck: ["B"] } };
@@ -41,12 +41,18 @@ afterEach(() => {
   onAction.mockClear();
 });
 
-/** Mounts the panel and opens the first deck picker. */
-function openPicker(mySeat: 0 | 1) {
+function mount(node: React.ReactElement) {
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
-  act(() => root!.render(<RematchPanel state={state()} mySeat={mySeat} players={null} deckOptions={options} onAction={onAction} />));
+  act(() => root!.render(node));
+}
+
+const changeDeck = () => [...host!.querySelectorAll("button")].find((b) => /^Change decks?$/.test(b.textContent ?? ""));
+
+function openPicker(mySeat: 0 | 1) {
+  mount(<RematchPanel state={state()} mySeat={mySeat} players={null} deckOptions={options} onAction={onAction} />);
+  act(() => changeDeck()!.click());
   const button = () => host!.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"]')!;
   act(() => button().click());
   const rows = () => [...document.querySelectorAll<HTMLElement>('[role="option"]')];
@@ -78,9 +84,6 @@ describe("rematch deck pick", () => {
   });
 
   it("offers Keep same deck first, then each saved deck with its leader and size, before asking (#479, #772)", () => {
-    const h = html(state());
-    expect(h).toContain("Deck for the rematch");
-    expect(h).toContain("Keep same deck");
     const { button, labels } = openPicker(0);
     expect(labels()).toEqual([
       "Keep same deck✓",
@@ -95,10 +98,8 @@ describe("rematch deck pick", () => {
 
   it("lists a later deck of the same Leader right after the first, under one header (#1294)", () => {
     const zoro2: RematchDeckOption = { ...zoro, id: "zoro2", name: "Zoro Control" };
-    host = document.createElement("div");
-    document.body.append(host);
-    root = createRoot(host);
-    act(() => root!.render(<RematchPanel state={state()} mySeat={0} players={null} deckOptions={[zoro, luffy, zoro2]} onAction={onAction} />));
+    mount(<RematchPanel state={state()} mySeat={0} players={null} deckOptions={[zoro, luffy, zoro2]} onAction={onAction} />);
+    act(() => changeDeck()!.click());
     act(() => host!.querySelector<HTMLButtonElement>('button[aria-haspopup="listbox"]')!.click());
     const rows = [...document.querySelectorAll<HTMLElement>('[role="option"]')];
     expect(rows.map((r) => r.textContent)).toEqual([
@@ -123,14 +124,54 @@ describe("rematch deck pick", () => {
   });
 
   it("practice shows one picker per seat (#479)", () => {
-    expect((html(state(), 0, true).match(/aria-haspopup="listbox"/g) ?? []).length).toBe(2);
-    expect((html(state(), 0, false).match(/aria-haspopup="listbox"/g) ?? []).length).toBe(1);
-    expect(html(state(), 0, true)).not.toContain("<select");
+    const pickers = () => host!.querySelectorAll('button[aria-haspopup="listbox"]').length;
+    mount(<RematchPanel state={state()} mySeat={0} players={null} autoAccept deckOptions={options} onAction={onAction} />);
+    act(() => changeDeck()!.click());
+    expect(pickers()).toBe(2);
+    expect(host!.querySelector("select")).toBeNull();
+    act(() => root!.unmount());
+    host!.remove();
+    mount(<RematchPanel state={state()} mySeat={0} players={null} deckOptions={options} onAction={onAction} />);
+    act(() => changeDeck()!.click());
+    expect(pickers()).toBe(1);
+  });
+
+  it("keeps the deck select behind Change deck until it is asked for (#1343)", () => {
+    expect(html(state())).toContain("Change deck");
+    expect(html(state())).not.toContain("aria-haspopup");
+    expect(html(state(), 0, true)).toContain("Change decks");
+  });
+
+  it("asks for the rematch with no deck while the select was never opened (#1343)", () => {
+    mount(<RematchPanel state={state()} mySeat={0} players={null} deckOptions={options} onAction={onAction} />);
+    act(() => [...host!.querySelectorAll("button")].find((b) => b.textContent === "Ask for a rematch")!.click());
+    expect(onAction).toHaveBeenCalledWith("request", undefined);
   });
 
   it("tells you when the opponent is bringing a different deck, not when you are (#479)", () => {
     const s = state({ requested: [false, true], newDeck: [false, true] });
     expect(html(s, 0)).toContain("is bringing a different deck.");
     expect(html(s, 1)).not.toContain("is bringing a different deck.");
+  });
+});
+
+describe("rematchStage decides which button is gold (#1343)", () => {
+  it("is ask, accept or waiting by who has asked (#1343)", () => {
+    expect(rematchStage(state(), 0)).toBe("ask");
+    expect(rematchStage(state({ requested: [false, true] }), 0)).toBe("accept");
+    expect(rematchStage(state({ requested: [true, false] }), 0)).toBe("waiting");
+    expect(rematchStage(state({ requested: [false, true] }), 1)).toBe("waiting");
+  });
+
+  it("has no rematch offer when the opponent left or there is no state, which leaves Return home gold (#1343)", () => {
+    expect(rematchStage(state({ available: false }), 0)).toBe("left");
+    expect(rematchStage(null, 0)).toBe("none");
+  });
+
+  it("asks only the loser to choose the turn order, unless it is practice (#1343)", () => {
+    const chosen = state({ requested: [true, true], chooser: 0 });
+    expect(rematchStage(chosen, 0)).toBe("order");
+    expect(rematchStage(chosen, 1)).toBe("order-wait");
+    expect(rematchStage(chosen, 1, true)).toBe("order");
   });
 });

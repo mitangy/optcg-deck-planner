@@ -28,7 +28,6 @@ beforeAll(() => {
 
 beforeEach(() => {
   tracks = [];
-  // jsdom has no camera: hand out a stream whose tracks record `stop()`.
   Object.defineProperty(navigator, "mediaDevices", {
     configurable: true,
     value: {
@@ -73,7 +72,6 @@ async function click(el: Element) {
   });
 }
 
-/** A page with an opener button that opens the scanner, so focus has somewhere to come back to. */
 async function openScanner(onClose = vi.fn()) {
   host = document.createElement("div");
   document.body.appendChild(host);

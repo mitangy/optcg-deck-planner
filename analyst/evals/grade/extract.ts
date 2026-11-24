@@ -1,10 +1,8 @@
-/** Programmatic facts read out of an answer: percentages, game counts, card numbers, numbers and +N/-N edit lines. */
-
 import { parseEditLines, type Edit } from "../../src/editLines";
 
 export type { Edit };
 
-export const CARD_ID = /(?<![A-Z0-9])(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})\b/g; // "4xOP01-006" counts: the x is not a capital
+export const CARD_ID = /(?<![A-Z0-9])(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})\b/g;
 
 export type Percent = { value: number; /** Written without a decimal point, as in "78%". */ whole: boolean };
 
@@ -13,7 +11,6 @@ export type Facts = {
   games: number[];
   wins: number[];
   cardIds: string[];
-  /** Every number in the answer with card numbers left out; number words one to ten count too. */
   numbers: number[];
   edits: Edit[];
 };
@@ -22,7 +19,6 @@ const WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five:
 
 const num = (s: string) => Number(s.replace(/,/g, ""));
 
-/** Two percentages agree when they differ by at most `tol`. */
 export function closePercent(a: number, c: number, tol: number): boolean {
   return Math.abs(a - c) <= tol + 1e-9;
 }

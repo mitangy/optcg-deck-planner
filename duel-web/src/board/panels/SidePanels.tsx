@@ -23,32 +23,22 @@ type DragState = {
   x: number;
   y: number;
   drop: PanelDrop;
-  /** Fixed-position insertion line (viewport px). */
   line: { left: number; width: number; top: number };
-  /** Over a playmat spot (the opponent hand only): lands there instead of a column. */
   mat: { spot: MatSpot; left: number; top: number; width: number; height: number } | null;
 };
 
-/**
- * A panel that can also be pinned onto the playmat (the opponent hand):
- * `spot` is where it is pinned now (null = in its column).
- */
 export type MatPin = { id: PanelId; spot: MatSpot | null; onChange: (spot: MatSpot | null) => void };
 
-/** Measure the desktop side columns and their panels inside `root`. */
 function measure(root: HTMLElement) {
   const columns: Partial<Record<PanelColumn, ColumnRect & { top: number }>> = {};
   const panels: PanelRect[] = [];
   for (const col of root.querySelectorAll<HTMLElement>("[data-panel-col]")) {
     const column = col.dataset.panelCol as PanelColumn;
-    // The column the single-column setting folded away is not a drop target.
     if (col.hasAttribute("data-col-off")) continue;
     const r = col.getBoundingClientRect();
-    // An empty column's drop line goes under the action row (no top bar), not over it.
     const actions = col.querySelector<HTMLElement>(":scope > .col-actions");
     columns[column] = { left: r.left, right: r.right, top: actions ? actions.getBoundingClientRect().bottom : r.top };
     for (const p of col.querySelectorAll<HTMLElement>(":scope > [data-panel]")) {
-      // The action buttons and the defend tray ride in the column but are not movable panels (#556).
       if (p.dataset.panel === "actions" || p.dataset.panel === "defend") continue;
       const pr = p.getBoundingClientRect();
       panels.push({ id: p.dataset.panel as PanelId, column, top: pr.top, bottom: pr.bottom });
@@ -57,11 +47,6 @@ function measure(root: HTMLElement) {
   return { columns, panels };
 }
 
-/**
- * Drag-to-move for the desktop side panels. The panels never move while you
- * drag: a line shows where the panel will land, and the layout only changes on
- * drop (Esc cancels), so nothing on the board shifts under the pointer.
- */
 export function usePanelDrag(
   rootRef: React.RefObject<HTMLElement | null>,
   layout: PanelLayout,
@@ -89,8 +74,7 @@ export function usePanelDrag(
       const matEl = latest.current.matPin?.id === id ? root.querySelector<HTMLElement>("[data-mat-drop]") : null;
       if (matEl) {
         const r = matEl.getBoundingClientRect();
-        // Open space beside the opponent's mat is where left / right sit; a
-        // narrow or tilted board has none and falls back to the top strip.
+        // A narrow or tilted board has no open space beside the opponent's mat and falls back to the top strip.
         const inner = matEl.querySelector<HTMLElement>(".playmat-inner");
         const roomy =
           inner != null &&
@@ -126,7 +110,6 @@ export function usePanelDrag(
     }
     const next = movePanel(cur, d.id, d.drop.column, d.drop.beforeId);
     if (!samePanelLayout(next, cur)) change(next);
-    // Dropped in a column: off the mat.
     if (matPin?.id === d.id && matPin.spot) matPin.onChange(null);
   }, []);
 
@@ -172,7 +155,6 @@ export function usePanelDrag(
       e.stopPropagation();
       const root = rootRef.current;
       if (!root) return;
-      // Panels with nothing to show are not rendered; they keep their places.
       const visible = new Set(measure(root).panels.map((p) => p.id));
       const cur = latest.current.layout;
       const next = nudgePanel(cur, id, dir, visible);
@@ -213,7 +195,6 @@ export function usePanelDrag(
   return { draggingId: drag?.id ?? null, gripProps, overlay };
 }
 
-/** One movable side panel: the panel itself plus a grip that shows on hover (Drag handles on). */
 export function SidePanel({
   id,
   dragging,
@@ -224,11 +205,8 @@ export function SidePanel({
 }: {
   id: PanelId;
   dragging: boolean;
-  /** Null when Drag handles is off: the panel keeps its place, without a grip. */
   grip: ReturnType<ReturnType<typeof usePanelDrag>["gripProps"]> | null;
-  /** The resize divider on this panel's top edge (null on the first panel, or Drag handles off). */
   divider?: ReturnType<ReturnType<typeof usePanelResize>["dividerProps"]> | null;
-  /** Inline height from a saved size (see usePanelResize.panelStyle). */
   style?: CSSProperties;
   children: ReactNode;
 }) {

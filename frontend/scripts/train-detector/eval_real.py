@@ -1,8 +1,4 @@
 #!/usr/bin/env python3
-"""Score a YOLO-pose .pt/.onnx on the real photos (quads.json = hand-labelled top cards).
-
-    python eval_real.py weights.pt [--imgsz 640] [--conf 0.25] [--out /tmp/overlays]
-"""
 import argparse, json, os, sys
 import cv2, numpy as np
 from ultralytics import YOLO

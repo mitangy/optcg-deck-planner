@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
-import { lookupCard } from "../cards/atlas";
 import { DeckConfigHeader } from "../layout/DeckConfigHeader";
 import { deckEditorScope } from "../logPoseScopes";
 import { useLogPoseDeckEditor, useLogPosePage, type DeckEditor as LogPoseDeckEditor } from "@optcg/analyst-client";
@@ -12,18 +11,21 @@ import {
   BLANK_DECK_NAME_ERROR,
   isDeckDirty,
   MAX_DECK_NAME_LENGTH,
-  MAX_MAIN_DECK_SIZE,
   saveDeckDraft,
   type DeckDraft,
 } from "../decks/editDeck";
 import { useLeaveGuard } from "../decks/useLeaveGuard";
 import { pushDeckArtToPlanner } from "../decks/planner";
+import { deckSubtitle } from "../decks/deckLegality";
+import { isStarterDeck, saveDeckAsCopy } from "../decks/saveAsCopy";
 import {
+  ensureTestDecks,
   getSavedDeck,
   setSelectedDeckId,
   validateImportedList,
   type SavedDeck,
 } from "../decks/storage";
+import { useCopyDeckList, useToast } from "../decks/useCopyDeckList";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 
@@ -39,26 +41,28 @@ export function DeckConfigurePage() {
   const notice = (location.state as { importNotice?: string } | null)?.importNotice ?? null;
 
   const navigate = useNavigate();
-  /** Unsaved edits to the open deck; null while the editor shows the saved deck as is (#481). */
   const [edits, setEdits] = useState<(DeckDraft & { deckId: string }) | null>(null);
   const [saveMsg, setSaveMsg] = useState("");
   const [saveErr, setSaveErr] = useState<string | null>(null);
 
   const saved = useMemo(() => {
     void tick;
+    // Built-in starters are only seeded when the Decks list loads; a direct link must seed them too.
+    if (deckId?.startsWith("test-")) ensureTestDecks();
     return deckId ? getSavedDeck(deckId) : undefined;
   }, [deckId, tick, syncedDecks]);
   const draft: DeckDraft | null = saved ? (edits && edits.deckId === saved.id ? edits : saved) : null;
-  /** The saved deck with the draft's name, leader and cards: what the editor, stats and Log Pose see. */
   const deck: SavedDeck | undefined =
     saved && draft ? { ...saved, name: draft.name, leaderId: draft.leaderId, cards: draft.cards } : undefined;
   const dirty = Boolean(saved && draft && isDeckDirty(saved, draft));
   const blankName = Boolean(draft && !draft.name.trim());
   const leave = useLeaveGuard(dirty);
+  const { say, toast } = useToast();
+  const { copyList, dialog: copyDialog } = useCopyDeckList(say);
+
   const draftRef = useRef(draft);
   draftRef.current = draft;
 
-  /** Write the draft to the deck. Returns false (and says why) when storage refuses. */
   function commit(next: DeckDraft): boolean {
     setSaveErr(null);
     try {
@@ -83,7 +87,6 @@ export function DeckConfigurePage() {
     deck ? { page: "deck-editor", label: deck.name || "This deck", deck: deckContext(deck), scope: deckEditorScope(deck), starters: DECK_EDITOR_STARTERS } : null,
   );
 
-  // Log Pose's Apply card changes the draft and saves it at once: Apply is an explicit commit.
   const editor = useMemo<LogPoseDeckEditor | null>(
     () =>
       deck
@@ -111,7 +114,6 @@ export function DeckConfigurePage() {
     setTick((n) => n + 1);
   }
 
-  /** A picked alt art also becomes the art the planner shows for that card (best effort, #1017). */
   function onArtChanged() {
     refresh();
     if (!saved!.plannerDeckId) return;
@@ -129,6 +131,23 @@ export function DeckConfigurePage() {
     setSaveMsg("");
     setSaveErr(null);
     setEdits(null);
+  }
+
+  function onPlay() {
+    if (dirty && !commit(draft!)) return;
+    // The editor already made this deck the selected one when it opened.
+    leave.go("/", navigate);
+  }
+
+  function onSaveCopy() {
+    setSaveErr(null);
+    const { deck: copy, persisted } = saveDeckAsCopy(saved!, draft!);
+    if (!persisted) {
+      setSaveErr("Could not save a copy in this browser.");
+      return;
+    }
+    setEdits(null);
+    leave.go(`/decks/${copy.id}/configure`, navigate);
   }
 
   function leaveTo(to: string, save: boolean) {
@@ -149,7 +168,6 @@ export function DeckConfigurePage() {
       setImportErr(v.errors.join(" · ") || "Import failed");
       return;
     }
-    // Replaces the draft only; Save keeps it.
     onChangeDraft({ name: draft!.name, leaderId: v.leaderId, cards: v.cards });
     setImportText("");
     setImportMsg(
@@ -174,26 +192,52 @@ export function DeckConfigurePage() {
                   onCommit={(name) => onChangeDraft({ ...draft, name })}
                 />
               </h1>
-              {/* The blank-name message takes the meta line's place, so nothing below shifts. */}
-              <p className={blankName ? "meta error-text" : "meta"} role={blankName ? "alert" : undefined}>
-                {blankName
-                  ? BLANK_DECK_NAME_ERROR
-                  : `Leader ${lookupCard(deck.leaderId).name} · ${deck.cards.length}/${MAX_MAIN_DECK_SIZE} main`}
-              </p>
+              <div className="deck-config-subline">
+                <p className={blankName ? "meta error-text" : "meta"} role={blankName ? "alert" : undefined}>
+                  {blankName ? BLANK_DECK_NAME_ERROR : deckSubtitle(deck.leaderId, deck.cards)}
+                </p>
+                {isStarterDeck(saved) ? (
+                  <p className="meta deck-starter-note" role="note">
+                    <span>
+                      <strong>Starter deck.</strong> Edits change the built-in list.
+                    </span>
+                    <button type="button" className="deck-starter-copy" onClick={onSaveCopy}>
+                      Save as a copy
+                    </button>
+                  </p>
+                ) : null}
+              </div>
             </>
           }
         >
           <div className="deck-planner-actions deck-header-actions">
-            <button type="button" className="btn btn-secondary deck-discard-btn" onClick={onDiscard} disabled={!dirty}>
-              Discard
+            {dirty ? (
+              <>
+                <button type="button" className="btn btn-secondary deck-discard-btn" onClick={onDiscard}>
+                  Discard
+                </button>
+                <button type="button" className="btn btn-primary deck-save-btn" onClick={() => commit(draft)} disabled={blankName}>
+                  Save
+                </button>
+              </>
+            ) : (
+              <span className="deck-saved-status">
+                <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" focusable="false">
+                  <path d="M3 8.5l3.2 3.2L13 4.8" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                Saved
+              </span>
+            )}
+            <button type="button" className="btn btn-secondary deck-header-copy" onClick={() => void copyList(deck)}>
+              Copy deck list
             </button>
             <button
               type="button"
-              className="btn btn-primary deck-save-btn"
-              onClick={() => commit(draft)}
-              disabled={!dirty || blankName}
+              className={`btn ${dirty ? "btn-secondary" : "btn-primary"} deck-play-btn`}
+              onClick={onPlay}
+              disabled={blankName}
             >
-              {dirty ? "Save" : "Saved"}
+              Play <span aria-hidden>→</span>
             </button>
             {deck.plannerDeckId ? (
               <span className="deck-planner-badge" title="Edits here and in the planner reach both">
@@ -203,20 +247,19 @@ export function DeckConfigurePage() {
           </div>
         </DeckConfigHeader>
 
-        {/* Announced to screen readers; the Save button already shows the state, so nothing shifts. */}
         <p className="visually-hidden" role="status">
           {saveMsg}
         </p>
         {saveErr ? <p className="error-text deck-config-notice">{saveErr}</p> : null}
         {notice ? <p className="meta deck-config-notice">{notice}</p> : null}
-
         <DeckEditor
           deck={deck}
           onChange={onChangeDraft}
           onArtChanged={onArtChanged}
-          sideTop={
+          onCopyList={() => void copyList(deck)}
+          sideTop={(panel) => (
             <DeckImportPanel
-              collapsible
+              collapsible={!panel}
               heading="Replace with deck list"
               buttonLabel="Replace deck"
               hint="Paste an OPTCGSim deck code (one card per line like 4xST01-003). Replaces the leader and main deck; press Save to keep it."
@@ -227,9 +270,11 @@ export function DeckConfigurePage() {
               error={importErr}
               message={importMsg}
             />
-          }
+          )}
         />
       </div>
+      {toast}
+      {copyDialog}
 
       {leave.pending ? (
         <Dialog
@@ -257,10 +302,6 @@ export function DeckConfigurePage() {
   );
 }
 
-/**
- * The deck name as an h1-looking text field (#526). Typing edits the page's draft straight away, so Save lights up
- * while the field still has focus; Enter leaves the field, Escape puts back the name it had on focus.
- */
 function DeckNameField({
   value,
   invalid,

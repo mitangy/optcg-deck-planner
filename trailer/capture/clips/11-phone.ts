@@ -1,4 +1,3 @@
-/** 11-phone (4s): the same match on a 375x812 phone (device pixel ratio 2, touch layout). */
 import { sleep } from "../lib/util";
 import { finishTake, startTake } from "../lib/take";
 import { MIKO } from "../lib/data";

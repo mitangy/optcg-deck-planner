@@ -1,4 +1,3 @@
-"""Group-buy models."""
 
 from __future__ import annotations
 
@@ -10,12 +9,14 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     false,
     func,
+    text,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -28,14 +29,11 @@ if TYPE_CHECKING:
 
 
 class GroupBuy(Base):
-    """Collaborative shopping pool (group buy) with invite link."""
-
     __tablename__ = "group_buys"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     host_user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     title: Mapped[str] = mapped_column(String(200), default="Group buy")
-    # GroupBuyStatus: open | locked | ordered | completed
     status: Mapped[str] = mapped_column(String(32), default=GroupBuyStatus.OPEN)
     invite_token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -46,16 +44,12 @@ class GroupBuy(Base):
     external_order_id: Mapped[str] = mapped_column(String(200), default="")
     order_notes: Mapped[str] = mapped_column(Text, default="")
     shipping_cost: Mapped[float] = mapped_column(Float, default=0.0)
-    # equal | by_cost | by_copies
     shipping_split: Mapped[str] = mapped_column(String(32), default="equal")
-    # Sales tax / fees — always split by card cost in settlement.
     tax_cost: Mapped[float] = mapped_column(Float, default=0.0)
-    # Last TCGPlayer receipt paste (host); survives refresh so Mark purchased can rematch.
     receipt_text: Mapped[str] = mapped_column(Text, default="")
-    # When True, anyone with the invite token can view the pool read-only (no mutations).
     is_public: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
 
-    host: Mapped[User] = relationship()
+    host: Mapped[User] = relationship(foreign_keys=[host_user_id])
     members: Mapped[list[GroupBuyMember]] = relationship(
         back_populates="group_buy", cascade="all, delete-orphan"
     )
@@ -74,6 +68,12 @@ class GroupBuy(Base):
     receipt_applies: Mapped[list[GroupBuyReceiptApply]] = relationship(
         back_populates="group_buy", cascade="all, delete-orphan"
     )
+    orders: Mapped[list[GroupBuyOrder]] = relationship(
+        back_populates="group_buy", cascade="all, delete-orphan", order_by="GroupBuyOrder.id"
+    )
+    handoffs: Mapped[list[GroupBuyHandoff]] = relationship(
+        back_populates="group_buy", cascade="all, delete-orphan"
+    )
 
 
 class GroupBuyMember(Base):
@@ -85,14 +85,11 @@ class GroupBuyMember(Base):
         ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
     )
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
-    role: Mapped[str] = mapped_column(String(32), default="member")  # host | member
-    # JSON list of deck ids for this member's contribution; null/empty = all decks
+    role: Mapped[str] = mapped_column(String(32), default="member")
     deck_ids_json: Mapped[str | None] = mapped_column(Text, nullable=True)
-    # Cards added straight to Master Shopping (in no deck) count toward the contribution (#1177).
     include_singles: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default=true(), nullable=False
     )
-    # Extra copy wants (alt arts on top of the decks) count toward the contribution (#1177).
     include_extra_copies: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=false(), nullable=False
     )
@@ -105,8 +102,6 @@ class GroupBuyMember(Base):
 
 
 class GroupBuySnapshotLine(Base):
-    """Frozen per-member qty at lock time."""
-
     __tablename__ = "group_buy_snapshot_lines"
     __table_args__ = (
         UniqueConstraint(
@@ -127,8 +122,6 @@ class GroupBuySnapshotLine(Base):
 
 
 class GroupBuyLineOverride(Base):
-    """Host-chosen TCGPlayer product/printing for a merged card line."""
-
     __tablename__ = "group_buy_line_overrides"
     __table_args__ = (
         UniqueConstraint("group_buy_id", "card_id", name="uq_group_buy_line_override"),
@@ -166,8 +159,6 @@ class GroupBuyQtyOverride(Base):
 
 
 class GroupBuyExtraSkip(Base):
-    """Extra copies a member leaves out of one group buy (#1269); their Shopping list is untouched."""
-
     __tablename__ = "group_buy_extra_skips"
     __table_args__ = (
         UniqueConstraint(
@@ -182,15 +173,12 @@ class GroupBuyExtraSkip(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     card_id: Mapped[str] = mapped_column(String(32), index=True)
     product_id: Mapped[int] = mapped_column(Integer)
-    # Copies of this Extra skipped in this group buy.
     qty: Mapped[int] = mapped_column(Integer, default=0)
 
     group_buy: Mapped[GroupBuy] = relationship(back_populates="extra_skips")
 
 
 class GroupBuyReceiptApply(Base):
-    """One Mark purchased action — ledger so the host can undo Owned + snapshot changes."""
-
     __tablename__ = "group_buy_receipt_applies"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -200,10 +188,11 @@ class GroupBuyReceiptApply(Base):
     applied_by_user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), index=True
     )
-    # GroupBuyStatus (locked or ordered) — status immediately before this apply mutated the pool
     status_before: Mapped[str] = mapped_column(String(32), default=GroupBuyStatus.ORDERED)
-    # True when this apply set ordered_at (auto-order from locked)
     set_ordered_at: Mapped[int] = mapped_column(Integer, default=0)
+    order_id: Mapped[int | None] = mapped_column(
+        ForeignKey("group_buy_orders.id"), nullable=True, index=True
+    )
     applied_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -215,8 +204,6 @@ class GroupBuyReceiptApply(Base):
 
 
 class GroupBuyReceiptApplyLine(Base):
-    """Per-member Owned / snapshot allocation recorded for one receipt apply."""
-
     __tablename__ = "group_buy_receipt_apply_lines"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -229,3 +216,114 @@ class GroupBuyReceiptApplyLine(Base):
     qty: Mapped[int] = mapped_column(Integer, default=0)
 
     apply: Mapped[GroupBuyReceiptApply] = relationship(back_populates="lines")
+
+
+class GroupBuyOrder(Base):
+    """One seller package. Owned counts move only when copies arrive (see GroupBuyReceiptApply.order_id)."""
+
+    __tablename__ = "group_buy_orders"
+    __table_args__ = (
+        Index(
+            "uq_group_buy_order_number",
+            "group_buy_id",
+            "order_number",
+            unique=True,
+            sqlite_where=text("order_number <> ''"),
+            postgresql_where=text("order_number <> ''"),
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_buy_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
+    )
+    # Made by Mark purchased (receipt/apply), so receipt/undo takes the whole order back.
+    from_receipt_apply: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=false(), nullable=False
+    )
+    order_number: Mapped[str] = mapped_column(String(200), default="")
+    seller_name: Mapped[str] = mapped_column(String(200), default="")
+    tracking_url: Mapped[str] = mapped_column(String(1000), default="")
+    receipt_text: Mapped[str] = mapped_column(Text, default="")
+    created_by_user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    arrived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    version: Mapped[int] = mapped_column(Integer, default=1)
+
+    group_buy: Mapped[GroupBuy] = relationship(back_populates="orders")
+    lines: Mapped[list[GroupBuyOrderLine]] = relationship(
+        back_populates="order", cascade="all, delete-orphan", order_by="GroupBuyOrderLine.id"
+    )
+
+
+class GroupBuyOrderLine(Base):
+    __tablename__ = "group_buy_order_lines"
+    __table_args__ = (
+        UniqueConstraint("order_id", "card_id", "product_id", name="uq_group_buy_order_line"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buy_orders.id", ondelete="CASCADE"), index=True
+    )
+    card_id: Mapped[str] = mapped_column(String(32), index=True)
+    # NULL = the standard art (Owned); a product id = that alternate printing (OwnedPrinting).
+    product_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    qty_ordered: Mapped[int] = mapped_column(Integer, default=0)
+    # What each copy cost on the receipt (Order History import); NULL when the import had no price (#1443).
+    unit_price: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    order: Mapped[GroupBuyOrder] = relationship(back_populates="lines")
+    allocations: Mapped[list[GroupBuyOrderAllocation]] = relationship(
+        back_populates="line", cascade="all, delete-orphan", order_by="GroupBuyOrderAllocation.id"
+    )
+
+
+class GroupBuyOrderAllocation(Base):
+    """Which member each ordered copy is for, fixed when the order is added."""
+
+    __tablename__ = "group_buy_order_allocations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    order_line_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buy_order_lines.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    qty: Mapped[int] = mapped_column(Integer, default=0)
+    qty_arrived: Mapped[int] = mapped_column(Integer, default=0)
+
+    line: Mapped[GroupBuyOrderLine] = relationship(back_populates="allocations")
+
+
+class GroupBuyHandoff(Base):
+    """Getting one member's arrived cards from the host to them (#1418). No row means waiting."""
+
+    __tablename__ = "group_buy_handoffs"
+    __table_args__ = (UniqueConstraint("group_buy_id", "user_id", name="uq_group_buy_handoff"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    group_buy_id: Mapped[int] = mapped_column(
+        ForeignKey("group_buys.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(32), default="waiting")
+    tracking_url: Mapped[str] = mapped_column(String(1000), default="")
+    note: Mapped[str] = mapped_column(String(300), default="")
+    # Copies the host has already covered (shipped or handed over) for this member.
+    qty_handed: Mapped[int] = mapped_column(Integer, default=0)
+    paid: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false(), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_by_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    group_buy: Mapped[GroupBuy] = relationship(back_populates="handoffs")

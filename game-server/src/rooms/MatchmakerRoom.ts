@@ -5,6 +5,7 @@ import {
   getSeatReservationSeconds,
   requireGameToken,
 } from "../env.js";
+import { hashToNegativeId } from "../devIdentity.js";
 import { verifyGameToken } from "../gameToken.js";
 import { checkMatchmakeToken } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
@@ -19,10 +20,6 @@ type Queued = {
   joinedAt: number;
 };
 
-/**
- * Ranked FIFO queue. When two clients are waiting, create a `duel` room and
- * tell each client to `joinById` with their preferred seat.
- */
 export class MatchmakerRoom extends Room {
   // One queue room serves every process in a pool (found through the Redis
   // driver), so it must hold everyone queued at once: a second room would
@@ -31,7 +28,6 @@ export class MatchmakerRoom extends Room {
   maxMessagesPerSecond = 10;
   private queue: Queued[] = [];
 
-  /** Matchmake-time token check (see checkMatchmakeToken); the instance onAuth then reads the identity. */
   static async onAuth(_token: string, options: unknown): Promise<unknown> {
     return checkMatchmakeToken(options);
   }
@@ -48,7 +44,6 @@ export class MatchmakerRoom extends Room {
   }
 
   onAuth(_client: Client, options: unknown) {
-    // Validate early; return identity for onJoin.
     try {
       return this.resolveIdentity(options);
     } catch (e) {
@@ -183,11 +178,4 @@ export class MatchmakerRoom extends Room {
   private log(level: LogLevel, event: string, data: Record<string, unknown>) {
     writeLog(level, event, data);
   }
-}
-
-function hashToNegativeId(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  const n = Math.abs(h) % 1_000_000_000;
-  return -1 - n;
 }

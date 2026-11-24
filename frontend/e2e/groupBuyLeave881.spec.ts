@@ -1,7 +1,3 @@
-/**
- * Group buy detail (/group-buys/:id): non-host members can leave an open group
- * buy; the host never sees Leave (#881).
- */
 import { expect, test } from "./fixtures";
 
 const GB = 9;
@@ -52,17 +48,20 @@ test("A member leaves a group buy after confirming and lands on the list (#881)"
   });
   await page.route(`**/api/group-buys/${GB}`, (route) => route.fulfill({ json: detail(false) }));
   await planner.open(`/group-buys/${GB}`);
-  const leave = page.getByRole("button", { name: "Leave group buy" });
+  await page.getByRole("button", { name: "More actions" }).click();
+  const leave = page.getByRole("menuitem", { name: "Leave group buy" });
   await expect(leave).toBeEnabled();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-leave-button.png`, fullPage: true });
 
-  // Dismissing the confirm sends nothing.
-  page.once("dialog", (d) => d.dismiss());
+  const confirm = page.getByRole("alertdialog", { name: "Leave this group buy?" });
   await leave.click();
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(confirm).toHaveCount(0);
   expect(posts).toEqual([]);
 
-  page.once("dialog", (d) => d.accept());
-  await leave.click();
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Leave group buy" }).click();
+  await confirm.getByRole("button", { name: "Leave" }).click();
   await expect(page).toHaveURL(/\/group-buys$/);
   expect(posts).toEqual(["POST"]);
 });
@@ -70,7 +69,8 @@ test("A member leaves a group buy after confirming and lands on the list (#881)"
 test("Leave is disabled while the group buy is locked (#881)", async ({ page, planner }) => {
   await page.route(`**/api/group-buys/${GB}`, (route) => route.fulfill({ json: detail(false, "locked") }));
   await planner.open(`/group-buys/${GB}`);
-  const leave = page.getByRole("button", { name: "Leave group buy" });
+  await page.getByRole("button", { name: "More actions" }).click();
+  const leave = page.getByRole("menuitem", { name: "Leave group buy" });
   await expect(leave).toBeDisabled();
   await expect(leave).toHaveAttribute("title", "Ask the host to unlock first");
 });
@@ -78,8 +78,9 @@ test("Leave is disabled while the group buy is locked (#881)", async ({ page, pl
 test("The host does not see Leave group buy (#881)", async ({ page, planner }) => {
   await page.route(`**/api/group-buys/${GB}`, (route) => route.fulfill({ json: detail(true) }));
   await planner.open(`/group-buys/${GB}`);
-  await expect(page.getByRole("button", { name: "Delete" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Leave group buy" })).toHaveCount(0);
+  await page.getByRole("button", { name: "More actions" }).click();
+  await expect(page.getByRole("menuitem", { name: "Delete group buy" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Leave group buy" })).toHaveCount(0);
 });
 
 test.afterEach(({ planner }) => {

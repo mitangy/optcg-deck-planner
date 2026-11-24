@@ -1,4 +1,3 @@
-"""Pure settlement helpers for group-buy cost split."""
 
 from __future__ import annotations
 
@@ -29,7 +28,6 @@ def split_shipping(
     copies: dict[int, int],
     mode: str,
 ) -> dict[int, float]:
-    """Split shipping among members. Returns per-user shares (may not sum exactly before final round)."""
     shipping = max(0.0, float(shipping_cost or 0.0))
     mode = mode if mode in SHIPPING_SPLIT_MODES else "equal"
     user_ids = sorted(set(card_costs) | set(copies))
@@ -41,7 +39,6 @@ def split_shipping(
     elif mode == "by_copies":
         weights = {uid: float(max(0, int(copies.get(uid, 0)))) for uid in user_ids}
     else:
-        # Equal among members who actually bought something; else equal among all.
         active = [uid for uid in user_ids if copies.get(uid, 0) > 0 or card_costs.get(uid, 0) > 0]
         pool = active or user_ids
         weights = {uid: 1.0 if uid in pool else 0.0 for uid in user_ids}
@@ -51,9 +48,7 @@ def split_shipping(
         return {uid: 0.0 for uid in user_ids}
 
     raw = {uid: shipping * (weights[uid] / total_w) for uid in user_ids}
-    # Largest-remainder style so rounded shares sum to shipping.
     floors = {uid: round_money(math_floor_cents(raw[uid])) for uid in user_ids}
-    # Fix float: assign remainder cents to highest fractional parts.
     return _allocate_cents(shipping, raw, floors)
 
 
@@ -62,7 +57,6 @@ def split_tax(
     *,
     card_costs: dict[int, float],
 ) -> dict[int, float]:
-    """Tax always splits proportional to each member's card cost."""
     return split_shipping(
         tax_cost,
         card_costs=card_costs,

@@ -41,8 +41,8 @@ export function DeckProgressSummary({ cards }: { cards: CardView[] }) {
   const meta =
     stats.copiesStill > 0
       ? mode === "uniques"
-        ? `${stats.copiesStill} copies left · ${money(stats.remainingMarket)} left`
-        : `${money(stats.remainingMarket)} left`
+        ? `${stats.copiesStill} copies to buy · ${money(stats.remainingMarket)} to finish`
+        : `${money(stats.remainingMarket)} to finish`
       : "Deck complete";
 
   return (
@@ -71,7 +71,7 @@ export function DeckProgressSummary({ cards }: { cards: CardView[] }) {
             <strong>
               {owned}/{total}
             </strong>{" "}
-            {mode === "copies" ? "copies owned" : "uniques complete"} · <strong>{still}</strong> still needed
+            {mode === "copies" ? "copies owned" : "uniques complete"} · <strong>{still}</strong> to buy
           </span>
           <span className="deck-progress-line deck-progress-meta">{meta}</span>
         </p>

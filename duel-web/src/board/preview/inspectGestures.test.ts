@@ -20,8 +20,8 @@ describe("shouldCancelLongPress", () => {
   it("cancels when movement exceeds the threshold", () => {
     expect(shouldCancelLongPress(0, 0, MOVE_CANCEL_PX + 1, 0)).toBe(true);
     expect(shouldCancelLongPress(0, 0, 0, MOVE_CANCEL_PX + 1)).toBe(true);
-    expect(shouldCancelLongPress(0, 0, 9, 9, 12)).toBe(true); // 81+81=162 > 144
-    expect(shouldCancelLongPress(0, 0, 8, 8, 12)).toBe(false); // 64+64=128 < 144
+    expect(shouldCancelLongPress(0, 0, 9, 9, 12)).toBe(true);
+    expect(shouldCancelLongPress(0, 0, 8, 8, 12)).toBe(false);
   });
 
   it("respects a custom threshold", () => {

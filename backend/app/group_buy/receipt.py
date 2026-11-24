@@ -1,4 +1,3 @@
-"""Parse and match TCGPlayer order receipts to catalog / group-buy lines."""
 
 from __future__ import annotations
 
@@ -14,8 +13,8 @@ from app.planner.models import CatalogCard, CatalogPrinting
 
 PRODUCT_LINE_PREFIXES = (
     "one piece card game - ",
-    "one piece card game – ",  # en-dash
-    "one piece card game — ",  # em-dash
+    "one piece card game – ",
+    "one piece card game — ",
 )
 
 CONDITIONS = (
@@ -27,20 +26,16 @@ CONDITIONS = (
     "unopened",
 )
 
-# Full OPTCG number inside parentheses, e.g. (OP15-113), (EB04-007), (ST21-003)
 CARD_ID_IN_PARENS_RE = re.compile(
     r"\(([A-Za-z0-9]+-\d+[A-Za-z]?)\)",
     re.IGNORECASE,
 )
-# Standalone id after a dash: "Nami - OP01-016 (Luffy Deck)" / "Boa Hancock - OP14-112"
 CARD_ID_AFTER_DASH_RE = re.compile(
     r"\s[-–—]\s*([A-Za-z0-9]+-\d+[A-Za-z]?)\b",
     re.IGNORECASE,
 )
-# Collector number only: (054), (112), (053)
 COLLECTOR_NUM_RE = re.compile(r"\((\d{2,3})\)\s*$")
 
-# Same markers as catalog sync so receipt lines prefer the matching printing.
 SPECIAL_HINTS = SPECIAL_NAME_MARKERS
 
 LINE_START_RE = re.compile(
@@ -60,6 +55,8 @@ class ParsedReceiptLine:
     card_id_hint: str | None = None
     collector_number: str | None = None
     wants_special: bool = False
+    # Price per copy when the page shows one (Order History); None when it does not.
+    unit_price: float | None = None
 
 
 @dataclass
@@ -69,7 +66,7 @@ class CatalogMatch:
     name: str
     group_name: str
     is_special: bool
-    confidence: str  # exact_id | name_set | name_only
+    confidence: str
 
 
 @dataclass
@@ -82,6 +79,10 @@ class AggregatedReceiptCard:
     confidence: str
     descriptions: list[str] = field(default_factory=list)
     is_special: bool = False
+    # Copies of each alternate printing on the receipt, so the art survives the per-card total.
+    alt_copies: dict[int, int] = field(default_factory=dict)
+    # Per art (None is the standard art): [price paid for the copies that had one, those copies, all copies] (#1443).
+    art_spend: dict[int | None, list[float]] = field(default_factory=dict)
 
 
 def _normalize_key(value: str) -> str:
@@ -93,11 +94,9 @@ def _normalize_key(value: str) -> str:
 
 
 def _strip_condition(description: str) -> tuple[str, str, bool]:
-    """Return (without_condition, condition, is_foil)."""
     text = description.strip()
     is_foil = False
     lower = text.lower()
-    # Trailing "Foil" (with or without condition)
     if lower.endswith(" foil"):
         is_foil = True
         text = text[: -len(" foil")].rstrip()
@@ -112,9 +111,7 @@ def _strip_condition(description: str) -> tuple[str, str, bool]:
 
 
 def _split_set_and_name(body: str) -> tuple[str, str]:
-    """Split '{set} - {card name}' after product-line prefix was removed."""
     text = body.strip()
-    # Prefer " - " / en/em dashes as separators
     for sep in (" - ", " – ", " — "):
         if sep in text:
             set_name, card_name = text.split(sep, 1)
@@ -123,7 +120,6 @@ def _split_set_and_name(body: str) -> tuple[str, str]:
 
 
 def _extract_hints(card_name: str) -> tuple[str, str | None, str | None, bool]:
-    """Return cleaned name, card_id_hint, collector_number, wants_special."""
     name = card_name.strip()
     wants_special = any(h in name.lower() for h in SPECIAL_HINTS)
 
@@ -137,7 +133,6 @@ def _extract_hints(card_name: str) -> tuple[str, str | None, str | None, bool]:
             card_id_hint = dash_match.group(1).upper()
 
     collector: str | None = None
-    # Only treat (NNN) as collector when it is not a card id / special marker.
     if not card_id_hint:
         coll = COLLECTOR_NUM_RE.search(name)
         if coll:
@@ -161,7 +156,7 @@ def parse_receipt_line(raw: str) -> ParsedReceiptLine | None:
         return None
     try:
         qty = int(match.group(1))
-    except ValueError as exc:  # thousands of digits: int() refuses; stays a 400 with Python's message
+    except ValueError as exc:
         raise Invalid(str(exc)) from exc
     if qty <= 0:
         return None
@@ -238,7 +233,6 @@ def _pick_best_printing(
             score += 30
         elif not wants_special and not row.is_special:
             score += 20
-        # Prefer cheaper / standard when tied
         price = row.market_price if row.market_price is not None else 9999.0
         scored.append((score * 10000 - int(price * 100), row))
     scored.sort(key=lambda x: x[0], reverse=True)
@@ -246,11 +240,9 @@ def _pick_best_printing(
 
 
 def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch | None:
-    """Resolve a receipt line to a catalog card_id / printing."""
     set_key = _normalize_key(line.set_name)
     name_key = _normalize_key(line.card_name)
 
-    # 1) Explicit card id in the description
     if line.card_id_hint:
         rows = list(
             db.scalars(
@@ -259,7 +251,6 @@ def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch 
                 )
             ).all()
         )
-        # Fallback: preferred CatalogCard face only
         if not rows:
             card = db.get(CatalogCard, line.card_id_hint)
             if card is not None:
@@ -277,8 +268,6 @@ def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch 
         if picked is not None:
             return _printing_to_match(picked, "exact_id")
 
-    # 2) Name (+ set) against printings
-    # Strip parenthetical suffixes for looser name compare, keep full string too.
     base_name = re.sub(r"\s*\([^)]*\)\s*", " ", line.card_name)
     base_name = re.sub(r"\s[-–—]\s*[A-Za-z0-9]+-\d+[A-Za-z]?\b", " ", base_name)
     base_key = _normalize_key(base_name)
@@ -295,14 +284,12 @@ def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch 
     )
 
     if not candidates and (name_key or base_key):
-        # Broader contains match limited by set when possible
         like_term = f"%{(base_name or line.card_name).strip()[:80]}%"
         stmt = select(CatalogPrinting).where(CatalogPrinting.name.ilike(like_term))
         if line.set_name:
             stmt = stmt.where(CatalogPrinting.group_name.ilike(f"%{line.set_name[:80]}%"))
         candidates = list(db.scalars(stmt.limit(40)).all())
 
-    # Filter by normalized name equality when we got fuzzy rows
     if candidates and (name_key or base_key):
         tight = [
             c
@@ -314,10 +301,8 @@ def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch 
         if tight:
             candidates = tight
 
-    # Collector number disambiguation: card_id ending
     if line.collector_number and candidates:
         suffix = f"-{line.collector_number.zfill(3)}" if len(line.collector_number) <= 2 else f"-{line.collector_number}"
-        # Prefer ids ending with -054 / -053 etc.
         numbered = [
             c
             for c in candidates
@@ -350,7 +335,6 @@ def match_line_to_catalog(db: Session, line: ParsedReceiptLine) -> CatalogMatch 
 def aggregate_receipt_matches(
     db: Session, lines: list[ParsedReceiptLine]
 ) -> tuple[list[AggregatedReceiptCard], list[ParsedReceiptLine]]:
-    """Match each line; aggregate qty by card_id. Return (matched, unmatched)."""
     by_card: dict[str, AggregatedReceiptCard] = {}
     unmatched: list[ParsedReceiptLine] = []
     for line in lines:
@@ -370,10 +354,11 @@ def aggregate_receipt_matches(
                 descriptions=[line.raw_description],
                 is_special=hit.is_special,
             )
+            entry = by_card[hit.card_id]
         else:
+            entry = existing
             existing.qty += line.qty
             existing.descriptions.append(line.raw_description)
-            # Prefer higher-confidence / special product id when aggregating
             if hit.confidence == "exact_id" and existing.confidence != "exact_id":
                 existing.confidence = hit.confidence
                 existing.product_id = hit.product_id
@@ -382,4 +367,215 @@ def aggregate_receipt_matches(
                 existing.is_special = True
                 existing.product_id = hit.product_id or existing.product_id
                 existing.name = hit.name
+        if hit.is_special and hit.product_id is not None:
+            entry.alt_copies[hit.product_id] = entry.alt_copies.get(hit.product_id, 0) + line.qty
+        art = hit.product_id if hit.is_special and hit.product_id is not None else None
+        spend = entry.art_spend.setdefault(art, [0.0, 0, 0])
+        if line.unit_price is not None:
+            spend[0] += line.unit_price * line.qty
+            spend[1] += line.qty
+        spend[2] += line.qty
     return list(by_card.values()), unmatched
+
+
+# ---------------------------------------------------------------------------
+# TCGplayer Order History page (many orders in one paste or PDF), #1433
+# ---------------------------------------------------------------------------
+
+ORDER_NUMBER_RE = re.compile(r"\b[0-9A-F]{8}-[0-9A-F]{6}-[0-9A-F]{5}\b", re.IGNORECASE)
+_ORDER_DATE_RE = re.compile(r"^([A-Z][a-z]+ \d{1,2}, \d{4})$")
+_TRACKING_RE = re.compile(r"^(?=.*\d)[0-9A-Z]{10,35}$")
+_PRICE_RE = re.compile(r"^\$\s*([\d,]+(?:\.\d{1,2})?)$")
+_PRICE_QTY_RE = re.compile(r"^\$\s*([\d,]+(?:\.\d{1,2})?)\s+(\d{1,4})$")
+_COND_TAIL_RE = re.compile(r"\s+\$\s*([\d,]+(?:\.\d{1,2})?)(?:\s+(\d{1,4}))?\s*$")
+_QTY_RE = re.compile(r"^\d{1,4}$")
+_ITEMS_HEADER_WORDS = {"ITEMS", "DETAILS", "PRICE", "QUANTITY", "ITEMS DETAILS PRICE QUANTITY"}
+_HEADER_SPLIT_RE = re.compile(
+    r"^(SHIPPED WITH TRACKING:?|SHIPPED AND SOLD BY|ORDER DATE|ORDER NUMBER|CHANNEL)\s+(\S.*)$",
+    re.IGNORECASE,
+)
+_JUNK_RES = tuple(
+    re.compile(p, re.IGNORECASE)
+    for p in (
+        r"^contact seller\b",
+        r"^rate transaction\b",
+        r"^enter an order number\b",
+        r"^search$",
+        r"^orders placed in\b",
+        r"^last \d+ days$",
+        r"^viewing \d+",
+        r"^store credit\b",
+        r"^first\b.*\blast$",
+        r"^order history$",
+        r"^(rate|transaction)$",
+        r"^(order number|channel|order summary|ship to|bill to)$",
+        r"^page \d+( of \d+)?$",
+    )
+)
+TRACKING_URL_UPS = "https://www.ups.com/track?tracknum="
+TRACKING_URL_USPS = "https://tools.usps.com/go/TrackConfirmAction?tLabels="
+
+
+@dataclass
+class ParsedHistoryOrder:
+    order_number: str
+    order_date: str = ""
+    seller_name: str = ""
+    tracking_number: str = ""
+    lines: list[ParsedReceiptLine] = field(default_factory=list)
+
+
+def _history_tokens(text: str) -> list[str]:
+    raw = (text or "").replace("\r\n", "\n").replace("\r", "\n").replace("\xa0", " ")
+    tokens: list[str] = []
+    for piece in re.split(r"[\n\t]", raw):
+        tok = re.sub(r" {2,}", " ", piece.strip())
+        if not tok:
+            continue
+        split = _HEADER_SPLIT_RE.match(tok)
+        if split:
+            tokens.extend([split.group(1).strip(), split.group(2).strip()])
+        else:
+            tokens.append(tok)
+    return [t for t in tokens if not any(p.search(t) for p in _JUNK_RES)]
+
+
+def looks_like_order_history(text: str) -> bool:
+    """A TCGplayer Order History page: an order number plus item markers."""
+    body = text or ""
+    if not ORDER_NUMBER_RE.search(body):
+        return False
+    return "rarity:" in body.lower() or bool(re.search(r"\bitems\b.*\bdetails\b", body, re.IGNORECASE))
+
+
+def tracking_url_for(number: str) -> str:
+    num = (number or "").strip()
+    if not num:
+        return ""
+    if num.upper().startswith("1Z"):
+        return TRACKING_URL_UPS + num
+    if num.isdigit():
+        return TRACKING_URL_USPS + num
+    return ""
+
+
+def _split_orders(tokens: list[str]) -> list[list[str]]:
+    starts = [i for i, t in enumerate(tokens) if t.upper() == "ORDER DATE"]
+    if not starts:
+        starts = [i for i, t in enumerate(tokens) if ORDER_NUMBER_RE.fullmatch(t)]
+    return [tokens[a:b] for a, b in zip(starts, starts[1:] + [len(tokens)])]
+
+
+class _Item:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.set_parts: list[str] = []
+        self.condition = ""
+        self.price: str | None = None
+        self.qty: int | None = None
+
+    @property
+    def started_details(self) -> bool:
+        return self.price is not None or self.qty is not None or bool(self.condition)
+
+
+def _walk_items(tokens: list[str]) -> list[_Item]:
+    items: list[_Item] = []
+    cur: _Item | None = None
+    for tok in tokens:
+        if tok.upper() in _ITEMS_HEADER_WORDS:
+            continue
+        if re.match(r"^rarity:", tok, re.IGNORECASE):
+            continue
+        cond = re.match(r"^condition:\s*(.*)$", tok, re.IGNORECASE)
+        if cond is not None and cur is not None:
+            rest = cond.group(1)
+            tail = _COND_TAIL_RE.search(rest)
+            if tail:
+                rest = rest[: tail.start()]
+                cur.price = tail.group(1)
+                if tail.group(2):
+                    cur.qty = int(tail.group(2))
+            cur.condition = rest.strip() or "-"
+            continue
+        both = _PRICE_QTY_RE.match(tok)
+        if both and cur is not None:
+            cur.price, cur.qty = both.group(1), int(both.group(2))
+            continue
+        price = _PRICE_RE.match(tok)
+        if price and cur is not None:
+            cur.price = price.group(1)
+            continue
+        if _QTY_RE.match(tok):
+            # A bare number is the quantity only while the item still lacks one (a page number must not become it).
+            if cur is not None and cur.qty is None and cur.started_details:
+                cur.qty = int(tok)
+            continue
+        if cur is None or cur.started_details:
+            cur = _Item(tok)
+            items.append(cur)
+        else:
+            cur.set_parts.append(tok)
+    return items
+
+
+def _item_to_line(item: _Item) -> ParsedReceiptLine | None:
+    if item.qty is None or item.qty <= 0:
+        return None
+    name, card_id_hint, _, wants_special = _extract_hints(item.name)
+    collector = None
+    if not card_id_hint:
+        coll = re.search(r"\((\d{2,3})\)", name)
+        collector = coll.group(1) if coll else None
+    cond_text = "" if item.condition == "-" else item.condition
+    _, condition, is_foil = _strip_condition(cond_text)
+    unit_price = float(item.price.replace(",", "")) if item.price else None
+    set_name = " ".join(item.set_parts).strip()
+    raw = " - ".join(p for p in (set_name, name, cond_text) if p)
+    return ParsedReceiptLine(
+        qty=item.qty,
+        unit_price=unit_price,
+        raw_description=raw,
+        set_name=set_name,
+        card_name=name,
+        condition=condition,
+        is_foil=is_foil,
+        card_id_hint=card_id_hint,
+        collector_number=collector,
+        wants_special=wants_special,
+    )
+
+
+def _parse_order_block(tokens: list[str]) -> ParsedHistoryOrder | None:
+    number = next((t.upper() for t in tokens if ORDER_NUMBER_RE.fullmatch(t)), "")
+    if not number:
+        return None
+    items_at = next((i for i, t in enumerate(tokens) if t.upper() in _ITEMS_HEADER_WORDS), len(tokens))
+    head, body = tokens[:items_at], tokens[items_at:]
+    order = ParsedHistoryOrder(order_number=number)
+    order.order_date = next((t for t in head if _ORDER_DATE_RE.match(t)), "")
+    for i, tok in enumerate(head):
+        upper = tok.upper().rstrip(":")
+        if upper == "SHIPPED AND SOLD BY" and i + 1 < len(head):
+            nxt = head[i + 1]
+            if not nxt.upper().startswith("SHIPPED"):
+                order.seller_name = nxt
+        elif upper == "SHIPPED WITH TRACKING" and i + 1 < len(head):
+            cand = head[i + 1].replace(" ", "").upper()
+            if _TRACKING_RE.match(cand):
+                order.tracking_number = cand
+    order.lines = [ln for it in _walk_items(body) if (ln := _item_to_line(it)) is not None]
+    return order
+
+
+def parse_order_history(text: str) -> list[ParsedHistoryOrder]:
+    """One entry per TCGplayer order number on a pasted (or PDF-extracted) Order History page, in page order."""
+    orders: list[ParsedHistoryOrder] = []
+    seen: set[str] = set()
+    for block in _split_orders(_history_tokens(text)):
+        order = _parse_order_block(block)
+        if order is None or order.order_number in seen:
+            continue
+        seen.add(order.order_number)
+        orders.append(order)
+    return orders

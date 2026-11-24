@@ -1,10 +1,5 @@
 name: Log Pose eval
 
-# Manual only: the paid Log Pose eval (analyst/evals, ~$6-7 for the full run). Never scheduled.
-#
-# Needs the ANTHROPIC_API_KEY secret. With planner "live" it also needs ANALYST_API_URL and ANALYST_SERVICE_SECRET
-# (the same ones the bot self-play job uses), so stats, tournament and bot-game reads come from the real backend.
-# With "post" on, the score is saved to the admin page (POST /admin/evals, #667).
 on:
   workflow_dispatch:
     inputs:

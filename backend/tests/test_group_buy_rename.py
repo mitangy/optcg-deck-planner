@@ -1,4 +1,3 @@
-"""Host renames a group buy (#879)."""
 
 from __future__ import annotations
 

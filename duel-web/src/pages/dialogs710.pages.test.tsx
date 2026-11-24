@@ -70,12 +70,12 @@ async function click(el: Element) {
 }
 
 describe("Play-mode sheet on the shared Dialog", () => {
-  it("opens as a modal named Play with focus inside, and Escape closes it and returns focus to Play (#710)", async () => {
+  it("opens as a modal named for its mode with focus inside, and Escape closes it and returns focus to Play (#710)", async () => {
     await mountAt("/", <DuelSessionProvider><LobbyPage /></DuelSessionProvider>, "/");
-    const play = buttonByText(/^PlayChoose a mode/);
+    const play = buttonByText(/^Play vs BotCasual, vs computer/);
     play.focus();
     await click(play);
-    expect(modal()!.getAttribute("aria-label")).toBe("Play");
+    expect(modal()!.getAttribute("aria-label")).toBe("Play vs Bot");
     expect(modal()!.contains(document.activeElement)).toBe(true);
     await press("Escape");
     expect(modal()).toBeNull();
@@ -84,7 +84,7 @@ describe("Play-mode sheet on the shared Dialog", () => {
 
   it("a click on the backdrop closes it, a click inside the sheet does not (#710)", async () => {
     await mountAt("/", <DuelSessionProvider><LobbyPage /></DuelSessionProvider>, "/");
-    await click(buttonByText(/^PlayChoose a mode/));
+    await click(buttonByText(/^Play vs BotCasual, vs computer/));
     await click(modal()!.querySelector(".sheet-head")!);
     expect(modal()).not.toBeNull();
     await click(modal()!);
@@ -111,7 +111,7 @@ describe("Leave-page confirm on the shared Dialog", () => {
     expect(document.activeElement?.textContent).toBe("Save");
     await press("Escape");
     expect(modal()).toBeNull();
-    expect(document.body.textContent).toContain("Leader Monkey.D.Luffy");
+    expect(document.body.textContent).toContain("Monkey.D.Luffy · 1 card short");
   });
 
   it("a click outside the dialog keeps editing, a click inside does not (#710)", async () => {

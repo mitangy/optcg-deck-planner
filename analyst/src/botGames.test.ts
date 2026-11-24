@@ -19,7 +19,6 @@ describe("tallies of saved bot games (#635)", () => {
       }
       expect(counted.turns).toBe(played.turns);
     }
-    // The games played some advanced lines, so equal tallies mean something.
     expect(seenLines).toBeGreaterThan(0);
   });
 });
@@ -162,9 +161,26 @@ describe("lessons both sources agree on (#635)", () => {
     const text = lessonText(c!, "Charlotte Pudding");
     expect(text).toContain("70% vs 50% (10 and 20 games) in real games");
     expect(text).toContain("70% vs 50% (40 and 60 games) in bot simulations");
-    expect(text).toContain("more often");
+    expect(text).toContain("went with more wins:");
+    expect(compareLines([row("optional_accepted:OP08-058", 40, 0.3, 60, 0.5)], [real("optional_accepted:OP08-058", 10, 3, 20, 10)]).map((x) => lessonText(x, "L"))[0]).toContain("went with fewer wins:");
     expect(text.length).toBeLessThanOrEqual(1000);
     expect(cardsOfLine("cheat_out:OP01-016 via OP02-004")).toEqual(["OP01-016", "OP02-004"]);
+  });
+});
+
+describe("lessons name cards instead of showing line keys (#1408)", () => {
+  it("compareLines words the line itself, even for a row that has no description (#1408)", () => {
+    const bare = (line: string): LineRow => {
+      const { description: _d, ...rest } = row(line, 40, 0.7, 60, 0.5);
+      return rest;
+    };
+    const [c] = compareLines([bare("optional_accepted:OP01-016")], [real("optional_accepted:OP01-016", 10, 7, 20, 10)]);
+    expect(c!.description).toBe("accepting the optional effect of Nami (OP01-016)");
+    const [d] = compareLines([row("optional_accepted:OP01-016", 40, 0.7, 60, 0.5)], [real("optional_accepted:OP01-016", 10, 7, 20, 10)]);
+    expect(d!.description).toBe("accepting the optional effect of Nami (OP01-016)");
+    const text = lessonText(c!, "Zoro");
+    expect(text).toContain("With Zoro, accepting the optional effect of Nami (OP01-016) went with more wins: 70% vs 50% (10 and 20 games) in real games, and 70% vs 50% (40 and 60 games) in bot simulations (win rate with it vs without).");
+    expect(text).not.toContain("optional_accepted");
   });
 });
 

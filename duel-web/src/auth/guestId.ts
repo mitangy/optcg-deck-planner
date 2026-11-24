@@ -1,11 +1,10 @@
 import { readStored, writeStored } from "@optcg/ui/storage";
-/** Stable browser guest id for duel rating continuity (localStorage). */
 
 const KEY = "optcg.duel.guestId.v1";
 
 /**
  * Fixed guest id for automated browsers (Playwright, Puppeteer: `navigator.webdriver`), so tests
- * reuse one prod account instead of creating a new one per run (#447).
+ * reuse one prod account instead of creating a new one per run.
  */
 export const AUTOMATION_GUEST_ID = "automation-test-guest";
 

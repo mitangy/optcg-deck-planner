@@ -1,0 +1,1225 @@
+/* Packages: seller orders, progress, status chips, Add order and Check items (#1418) */
+.gb-packages,
+.gb-notordered,
+.gb-yourcards {
+  margin: 0 0 0.9rem;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+  min-width: 0;
+}
+
+.gb-yourcards-fold {
+  margin: 0 0 0.9rem;
+  min-width: 0;
+}
+
+.gb-yourcards-fold .gb-yourcards {
+  margin: 0;
+  border: 0;
+  box-shadow: none;
+  padding: 0.5rem 0 0;
+}
+
+.gb-section-heading {
+  margin: 0 0 0.5rem;
+  font-size: 1.05rem;
+}
+
+.gb-empty {
+  margin: 0;
+  min-width: 0;
+}
+
+.gb-link-btn {
+  display: inline;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.gb-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  padding: 0.12rem 0.55rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.3;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+
+.gb-chip > span[aria-hidden] {
+  margin-right: 0.3em;
+}
+
+.gb-chip-done {
+  border-color: var(--ok-line);
+  background: var(--ok-bg);
+  color: var(--ok-ink);
+}
+
+.gb-chip-way {
+  border-color: var(--info-line);
+  background: var(--info-bg);
+  color: var(--info-ink);
+}
+
+.gb-chip-mixed {
+  border-color: var(--warn);
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+}
+
+.gb-chip-none {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.gb-line-status {
+  margin-top: 0.25rem;
+  min-width: 0;
+}
+
+.gb-progress {
+  margin: 0 0 0.75rem;
+}
+
+.gb-progress-bar {
+  display: flex;
+  height: 0.7rem;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-2);
+}
+
+.gb-progress-seg {
+  display: block;
+  height: 100%;
+  min-width: 0;
+}
+
+.gb-progress-seg.arrived {
+  background: var(--ok-line);
+}
+
+.gb-progress-seg.onway {
+  background: repeating-linear-gradient(135deg, var(--info-line) 0 5px, var(--info-bg) 5px 10px);
+}
+
+.gb-progress-text {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.9rem;
+  margin: 0.35rem 0 0;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.gb-order-list,
+.gb-order-rows,
+.gb-yourcards-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.gb-order-list {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+}
+
+.gb-order {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-10);
+  background: var(--surface-2);
+  min-width: 0;
+}
+
+.gb-order.done {
+  background: var(--surface);
+}
+
+/* The header is one line: seller (ellipsis, full name on hover), Track, and the menu. */
+.gb-order-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.gb-order-title {
+  margin: 0;
+  min-width: 0;
+  font-size: 1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gb-order-title.unnamed,
+.gb-order-row-name.unnamed {
+  font-style: italic;
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.gb-track {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin-block: -0.5rem;
+  padding: 0 0.3rem;
+  color: var(--accent);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.gb-order-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+  margin: 0;
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.gb-order-no {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Fixed size, so the info line never changes width; the hit area is 44px. */
+.gb-copy-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 1.9rem;
+  height: 1.9rem;
+  margin-block: -0.3rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-8);
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.gb-copy-btn::after {
+  content: "";
+  position: absolute;
+  inset: 50% auto auto 50%;
+  width: 2.75rem;
+  height: 2.75rem;
+  transform: translate(-50%, -50%);
+}
+
+.gb-copied {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 0.75rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.gb-copied:empty {
+  display: none;
+}
+
+.gb-order-match {
+  margin: 0;
+  font-size: 0.85rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.gb-order-match mark {
+  padding: 0 0.2rem;
+  border-radius: 4px;
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+}
+
+.gb-order-thumbs {
+  display: flex;
+  align-items: flex-start;
+  flex: 1 1 auto;
+  gap: 0.4rem;
+  min-width: 0;
+  /* Room for the ring around a match; the fit is worked out in code, so nothing is cut off. */
+  height: calc(4.2rem + 8px);
+  padding: 4px;
+  margin: -4px;
+}
+
+.gb-order-thumb {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.gb-order-thumb .thumb,
+.gb-order-thumb .thumb.placeholder {
+  width: 3rem;
+  height: 4.2rem;
+}
+
+.gb-order-thumb-qty {
+  position: absolute;
+  right: 0.1rem;
+  bottom: 0.1rem;
+  padding: 0 0.3rem;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+  color: var(--surface);
+  font-size: 0.72rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.gb-order-thumb.hit {
+  border-radius: 5px;
+  outline: 3px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.gb-order-thumb.dim {
+  opacity: 0.35;
+}
+
+/* Always-visible round +N chip; it takes one slot of the row and opens Check items. */
+.gb-order-more {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  align-self: center;
+  min-width: 2.75rem;
+  height: 2.75rem;
+  padding: 0 0.4rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+button.gb-order-more {
+  cursor: pointer;
+}
+
+.gb-order-empty {
+  margin: 0;
+  height: 4.2rem;
+}
+
+.gb-order-actions {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.4rem 0.5rem;
+  min-width: 0;
+}
+
+.gb-order-actions .btn {
+  width: auto;
+  margin: 0;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.9rem;
+  font-size: 0.9rem;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.gb-order-actions .btn.quiet {
+  min-height: 2.75rem;
+  padding-inline: 0.2rem;
+  border-color: transparent;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.gb-pkg-toolbar {
+  margin-bottom: 0.5rem;
+}
+
+.gb-pkg-toolbar .card-search {
+  max-width: 26rem;
+}
+
+.gb-pkg-toolbar .sort-menu {
+  margin-left: auto;
+}
+
+.gb-pkg-note {
+  margin: 0 0 0.6rem;
+  font-size: 0.88rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.gb-pkg-note:empty {
+  display: none;
+}
+
+.gb-pkg-empty {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+  padding: 1.2rem 0.5rem;
+  text-align: center;
+  color: var(--muted);
+}
+
+.gb-pkg-empty strong {
+  color: var(--ink);
+}
+
+.gb-pkg-empty > .gb-link-btn {
+  min-height: 2.75rem;
+}
+
+.gb-order-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.6rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.gb-order-row:last-child {
+  border-bottom: 0;
+}
+
+.gb-order-row-name {
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.gb-order-row .gb-link-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.3rem;
+}
+
+.gb-yourcards-row {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.gb-yourcards-row .thumb,
+.gb-yourcards-row .thumb.placeholder {
+  width: 2.4rem;
+  height: 3.35rem;
+}
+
+.gb-yourcards-name {
+  display: grid;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.gb-yourcards-name > * {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gb-yourcards-row .gb-chip {
+  max-width: 20rem;
+}
+
+.gb-yourcards .gb-link-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin-top: 0.2rem;
+}
+
+.gb-notordered p {
+  margin: 0 0 0.6rem;
+}
+
+.gb-notordered-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.gb-notordered-actions .btn {
+  width: auto;
+  margin: 0;
+  min-height: 2.75rem;
+}
+
+.gb-cards-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+/* Add order / Check items: a modal on desktop, a full-screen or bottom sheet on phones. */
+.gb-dialog-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(46rem, 100%);
+  max-height: min(92dvh, 56rem);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-12);
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+
+.gb-dialog-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: inherit;
+}
+
+.gb-dialog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 1rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.gb-dialog-title {
+  margin: 0;
+  min-width: 0;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.gb-dialog-x {
+  flex: 0 0 auto;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: 0;
+  padding: 0;
+}
+
+.gb-dialog-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0.85rem 1rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 0.85rem;
+  align-content: start;
+}
+
+.gb-dialog-foot {
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.7rem 1rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.gb-dialog-error {
+  margin: 0;
+  min-height: 1.3em;
+  font-size: 0.9rem;
+}
+
+.gb-dialog-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.gb-dialog-buttons .btn {
+  width: auto;
+  margin: 0;
+  min-height: 2.75rem;
+  white-space: nowrap;
+}
+
+.gb-check {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.gb-check input {
+  flex: 0 0 auto;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin: 0;
+}
+
+.gb-order-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+}
+
+.gb-field-wide {
+  grid-column: 1 / -1;
+}
+
+.gb-order-fields label,
+.gb-paste {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: 0.85rem;
+  color: var(--muted);
+  min-width: 0;
+}
+
+.gb-order-fields input,
+.gb-paste textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-4);
+  background: var(--field-bg);
+  color: var(--ink);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.gb-paste textarea {
+  min-height: 7rem;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+}
+
+.gb-preview-slot {
+  min-height: 3rem;
+  min-width: 0;
+}
+
+.gb-preview-wait {
+  margin: 0;
+}
+
+.gb-preview-title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.gb-preview-sum {
+  margin: 0.15rem 0 0.5rem;
+  font-size: 0.88rem;
+}
+
+.gb-preview-table {
+  width: 100%;
+  min-width: 0;
+  table-layout: fixed;
+}
+
+.gb-preview-table :is(th, td) {
+  padding: 0.4rem 0.5rem;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.gb-preview-table :is(th, td):nth-child(2) {
+  width: 4.5rem;
+}
+
+.gb-preview-table :is(th, td):nth-child(3) {
+  width: 4.5rem;
+}
+
+.gb-preview-list,
+.gb-unmatched,
+.gb-picker-list,
+.gb-check-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.gb-preview-list li {
+  display: grid;
+  gap: 0.1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.gb-preview-card,
+.gb-preview-who {
+  overflow-wrap: anywhere;
+}
+
+.gb-preview-qty {
+  font-weight: 600;
+}
+
+.gb-unmatched li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+  padding: 0.4rem 0;
+  min-width: 0;
+}
+
+.gb-unmatched-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.gb-preview-note {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+}
+
+.gb-mode-toggle {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.gb-picker-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  font-size: 0.88rem;
+}
+
+.gb-picker-row,
+.gb-check-row {
+  display: grid;
+  grid-template-columns: auto 3rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--line);
+  min-width: 0;
+}
+
+.gb-check-row {
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+}
+
+.gb-picker-row .thumb,
+.gb-picker-row .thumb.placeholder,
+.gb-check-row .thumb,
+.gb-check-row .thumb.placeholder {
+  width: 3rem;
+  height: 4.2rem;
+}
+
+.gb-picker-check {
+  width: 1.4rem;
+  height: 1.4rem;
+  margin: 0;
+}
+
+.gb-picker-name,
+.gb-check-info {
+  display: grid;
+  gap: 0.1rem;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.gb-picker-name > *,
+.gb-check-info > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.gb-goes-to {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 0.75rem;
+  margin-top: 0.1rem;
+  font-size: 0.82rem;
+}
+
+.gb-goes-to .gb-member-chip {
+  white-space: normal;
+}
+
+.gb-stepper-ctl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.gb-stepper-val {
+  min-width: 3.1rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.gb-stepper-ctl .owned-btn {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+@media (max-width: 640px) {
+  .gb-packages,
+  .gb-notordered,
+  .gb-yourcards {
+    padding: 0.65rem 0.7rem;
+  }
+
+  .gb-order-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gb-order-actions .btn.primary {
+    flex: 1 1 auto;
+  }
+
+  .gb-order-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gb-dialog.gb-dialog-full {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  .gb-dialog-full .gb-dialog-panel {
+    width: 100%;
+    max-height: none;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .gb-dialog.gb-dialog-sheet {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .gb-dialog-sheet .gb-dialog-panel {
+    width: 100%;
+    max-height: 88dvh;
+    border-bottom: 0;
+    border-radius: 16px 16px 0 0;
+  }
+
+  .gb-dialog-buttons .btn {
+    flex: 1 1 auto;
+  }
+
+  .gb-picker-row {
+    grid-template-columns: auto 2.6rem minmax(0, 1fr);
+  }
+
+  .gb-picker-row .gb-stepper-ctl {
+    grid-column: 2 / -1;
+    justify-self: start;
+  }
+
+  .gb-check-row {
+    grid-template-columns: 2.6rem minmax(0, 1fr);
+  }
+
+  .gb-check-row .gb-stepper-ctl {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+
+  .gb-picker-row .thumb,
+  .gb-picker-row .thumb.placeholder,
+  .gb-check-row .thumb,
+  .gb-check-row .thumb.placeholder {
+    width: 2.6rem;
+    height: 3.65rem;
+  }
+
+  /* Four step labels do not fit one row at 375px, so the bar wraps instead of clipping. */
+  .gb-stepper {
+    flex-wrap: wrap;
+  }
+}
+
+.gb-preview-table th {
+  position: static;
+}
+
+.gb-add-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.85rem 1.25rem;
+  align-content: start;
+}
+
+.gb-add-left,
+.gb-add-right {
+  display: grid;
+  gap: 0.75rem;
+  align-content: start;
+  min-width: 0;
+}
+
+@media (min-width: 900px) {
+  .gb-dialog-full .gb-dialog-panel {
+    width: min(68rem, 100%);
+    height: min(40rem, 92dvh);
+  }
+
+  .gb-add-cols {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+
+  .gb-add-right {
+    padding-left: 1.25rem;
+    border-left: 1px solid var(--line);
+  }
+}
+
+.gb-dialog-body.gb-check-body {
+  padding: 0.5rem 1rem;
+}
+
+.gb-check-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  padding-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.gb-check-tools .btn {
+  width: auto;
+  margin: 0;
+  min-height: 2.75rem;
+  white-space: nowrap;
+}
+
+.gb-check-tools .muted {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.gb-check-extra {
+  margin-top: 0.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+}
+
+.gb-check-extra-title {
+  margin: 0 0 0.3rem;
+  font-size: 0.9rem;
+}
+
+.gb-check-extra ul {
+  display: grid;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.gb-check-extra li {
+  display: grid;
+  gap: 0.05rem;
+  min-width: 0;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+@keyframes gb-flash-a {
+  from { background: color-mix(in srgb, var(--accent, #3b82f6) 22%, transparent); }
+  to { background: transparent; }
+}
+
+@keyframes gb-flash-b {
+  from { background: color-mix(in srgb, var(--accent, #3b82f6) 22%, transparent); }
+  to { background: transparent; }
+}
+
+.gb-check-row[data-flash="0"] {
+  animation: gb-flash-a 1.2s ease-out;
+}
+
+.gb-check-row[data-flash="1"] {
+  animation: gb-flash-b 1.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gb-check-row[data-flash] {
+    animation: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .gb-yourcards-row {
+    grid-template-columns: 2.4rem minmax(0, 1fr);
+    row-gap: 0.25rem;
+  }
+
+  .gb-yourcards-row .gb-chip {
+    grid-column: 2;
+    justify-self: start;
+    max-width: 100%;
+  }
+
+  .gb-paste textarea {
+    min-height: 5rem;
+  }
+}
+
+/* Order History page: one card per order, with a checkbox (#1433). */
+.gb-history {
+  display: grid;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.gb-history-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+}
+
+.gb-history-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.gb-history-order {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-12);
+  background: var(--surface);
+}
+
+.gb-history-order.is-added {
+  opacity: 0.75;
+}
+
+.gb-history-head {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.gb-history-order.is-added .gb-history-head {
+  cursor: default;
+}
+
+.gb-history-head input {
+  flex: 0 0 auto;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin: 0;
+}
+
+.gb-history-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.gb-history-head .gb-chip {
+  flex: 0 0 auto;
+}
+
+.gb-history-meta,
+.gb-history-note,
+.gb-history-hint {
+  margin: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.gb-history-note {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.gb-history .gb-preview-sum {
+  margin: 0.2rem 0 0.3rem;
+}
+
+/* The upload button and its status share one row height, so reading a PDF never moves the paste box. */
+.gb-upload {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  min-width: 0;
+}
+
+.gb-upload-text {
+  flex: 1 1 12rem;
+  min-width: 0;
+  font-size: 0.85rem;
+}
+
+.gb-upload-btn {
+  flex: 0 0 auto;
+  width: auto;
+  margin: 0;
+  min-height: 2.75rem;
+  white-space: nowrap;
+}
+
+.gb-upload-status {
+  flex: 1 1 100%;
+  margin: 0;
+  min-height: 1.3em;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.gb-file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+}
+
+/* Which cards are not in an order yet (#1439) */
+.gb-notordered {
+  scroll-margin-top: 4.5rem;
+}
+
+.gb-notordered .gb-section-heading:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 0.4rem;
+}
+
+.gb-notordered-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: 0.6rem 0.9rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.gb-notordered-row {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.gb-notordered-row .thumb,
+.gb-notordered-row .thumb.placeholder {
+  width: 2.4rem;
+  height: 3.35rem;
+}
+
+.gb-notordered-name {
+  display: grid;
+  min-width: 0;
+  font-size: 0.9rem;
+}
+
+.gb-notordered-name > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.gb-notordered-who {
+  font-weight: 600;
+}
+
+.gb-progress-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  margin-block: -0.75rem;
+  font-weight: 600;
+  text-align: left;
+}

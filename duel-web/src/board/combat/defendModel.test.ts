@@ -3,12 +3,10 @@ import { lookupCard } from "../../cards/atlas";
 import { counterValueFor } from "../../cards/counterValue";
 import type { Intent, PlayerView } from "../../net/protocol";
 import { DEMO_VIEW } from "../fixtures/demoViews";
-import { deriveDefend } from "./defendModel";
+import { attackSummary, defendVerdict, deriveDefend } from "./defendModel";
 import { responseStopPass } from "../settings/gameplayPrefs";
 import { stubBattle, stubCard } from "../fixtures/stubCard";
 
-// OP16-118 Portgas.D.Ace on your field sets the Counter of 8000-power
-// Characters in your hand to +2000; OP16-005 Thatch prints +1000.
 function aceCounterStep(): { view: PlayerView; intents: Intent[] } {
   const view: PlayerView = {
     ...DEMO_VIEW,
@@ -53,5 +51,39 @@ describe("deriveDefend with live Counter statics", () => {
     expect(d.gap).toBe(3000);
     const outlook = { gap: d.gap, values: d.counters.map((c) => c.value) };
     expect(responseStopPass("smart", intents, outlook)).toBeNull();
+  });
+});
+
+describe("attack summary above the Pass button (#1343)", () => {
+  const base = {
+    attackerName: "Nico Robin",
+    attackerPower: 4000,
+    defenderName: "your Leader",
+    defenderPower: 7000,
+    blocking: false,
+    preview: false,
+  };
+
+  it("reads as a sentence with the attacker first and no arrow (#1343)", () => {
+    expect(attackSummary(base)).toBe("Nico Robin (4000) attacks your Leader (7000)");
+  });
+
+  it("names a previewed Blocker as the one being attacked (#1343)", () => {
+    expect(attackSummary({ ...base, defenderName: "Karoo", defenderPower: 3000, blocking: true, preview: true })).toBe(
+      "Nico Robin (4000) attacks Blocker Karoo (3000) if it blocks",
+    );
+  });
+
+  const verdictBase = { phase: "counter" as const, gap: 2000, remaining: 2000, stagedIds: [], stagedTotal: 0, stagedUnknown: false };
+
+  it("says Safe only when no more power is needed (#1343)", () => {
+    expect(defendVerdict({ ...verdictBase, gap: 0, remaining: 0 })).toEqual({ text: "Safe", safe: true });
+    expect(defendVerdict(verdictBase)).toEqual({ text: "Need +2000 to survive", safe: false });
+  });
+
+  it("counts staged counters towards the verdict (#1343)", () => {
+    const staged = { ...verdictBase, stagedIds: ["c1"], stagedTotal: 1000 };
+    expect(defendVerdict({ ...staged, remaining: 1000 })).toEqual({ text: "+1000 staged · still short by 1000", safe: false });
+    expect(defendVerdict({ ...staged, stagedTotal: 2000, remaining: 0 })).toEqual({ text: "+2000 staged · Safe", safe: true });
   });
 });

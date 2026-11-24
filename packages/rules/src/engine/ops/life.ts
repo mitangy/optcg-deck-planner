@@ -1,6 +1,3 @@
-/**
- * Life-area ops: direct damage, deck/hand/trash/deck transfers, face-up/down and Life look-and-reorder.
- */
 import type { ChoiceOption } from "../../types.js";
 import { evalValue, lifeFaceGroups, playerRestricted } from "../queries.js";
 import { otherSeat, putCard, takeCard } from "../zones.js";

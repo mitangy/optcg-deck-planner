@@ -1,4 +1,3 @@
-"""Outbound email for price alerts (#855). Off until RESEND_API_KEY or SMTP_HOST is set."""
 
 from __future__ import annotations
 
@@ -23,7 +22,6 @@ def email_enabled() -> bool:
 
 
 def _sender(s) -> str:
-    """EMAIL_FROM, else the SMTP login (Gmail rewrites any other From to it anyway)."""
     if s.email_from:
         return s.email_from
     if "@" in (s.smtp_user or ""):
@@ -60,10 +58,6 @@ def _send_smtp(to: str, subject: str, html: str, text: str) -> bool:
 
 
 def send_email(to: str, subject: str, html: str, text: str) -> bool:
-    """Send one message through the configured provider. False when off or when sending failed.
-
-    Never raises, and never logs the address or any key.
-    """
     s = get_settings()
     try:
         if s.resend_api_key:

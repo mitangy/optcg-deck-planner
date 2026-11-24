@@ -8,10 +8,6 @@ import { seatLabel } from "../match/playerNames";
 import type { spectatorFans } from "./handLayout";
 import type { useFanMove } from "./useFanMove";
 
-/**
- * A spectator's far hand on a desktop board: the fan fixed to the top of the board column or floating where it
- * was dragged (outside the mat, which would clip it), and the target that lights while a fan is dragged home.
- */
 export function SpectatorFanLayer({
   specFans,
   fanMove,
@@ -53,7 +49,6 @@ export function SpectatorFanLayer({
     <>
       {specFans === "desktop" && (fanMove.livePos != null || farMove.livePos != null)
         ? (() => {
-            // Where the fan being dragged docks; lit when letting go now would put it back.
             const near = fanMove.livePos != null;
             const mat = playmatRef.current?.getBoundingClientRect();
             if (!mat) return null;
@@ -73,7 +68,7 @@ export function SpectatorFanLayer({
         : null}
 
       {farHand && specFans === "desktop" ? (
-        // Fixed to the top of the board column, or floating where it was dragged: outside the mat, which would clip it.
+        // Outside the mat, which would clip it.
         <HandFan
           rootRef={farRef}
           edge="top"

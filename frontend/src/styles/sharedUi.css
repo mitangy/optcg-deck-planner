@@ -1,4 +1,3 @@
-/* Shared pop-ups (packages/ui, Headless UI): map its tokens to the planner palette. */
 :root {
   --ui-backdrop: rgba(16, 36, 45, 0.82);
   --ui-panel-bg: var(--card);
@@ -21,7 +20,6 @@
   --ui-font-display: var(--font-display);
 }
 
-/* What's new card (packages/patch-notes), through the --ui-* set. */
 .wn-card {
   --wn-bg: var(--ui-panel-bg);
   --wn-ink: var(--ui-ink);

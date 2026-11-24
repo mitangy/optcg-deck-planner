@@ -1,12 +1,3 @@
-"""CORS with two trust tiers.
-
-Exact-listed origins (planner, duel-web production) get credentialed CORS so
-cookie sessions work. Origins that only match ``credentialless_regex`` (Vercel
-branch URLs) get CORS *without* ``Access-Control-Allow-Credentials``: a
-look-alike hostname that happens to match the pattern can call public
-endpoints (guest token mint) but can never read a response to a request that
-carried the user's session cookie.
-"""
 
 from __future__ import annotations
 

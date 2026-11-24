@@ -4,8 +4,8 @@ import { friendsApi } from "./friendsApi";
 import { badgeLabel, navBadgeCount } from "./tradeLogic";
 import { qk } from "../cache/queryKeys";
 
-/** Nav link with a count of offers waiting plus trades in progress. The badge floats over the link's corner, so it never resizes the link. */
-export function FriendsNavLink() {
+/** Number of friend trades waiting on the viewer (0 when none or unknown). */
+export function useFriendsBadgeCount(): number {
   const { data } = useQuery({
     queryKey: qk.tradesSummary(),
     queryFn: friendsApi.tradesSummary,
@@ -13,15 +13,23 @@ export function FriendsNavLink() {
     refetchOnWindowFocus: true,
     retry: false,
   });
-  const count = navBadgeCount(data);
+  return navBadgeCount(data);
+}
+
+export function NavBadge({ count }: { count: number }) {
+  return count > 0 ? (
+    <span className="nav-badge" aria-label={`${count} waiting`}>
+      {badgeLabel(count)}
+    </span>
+  ) : null;
+}
+
+export function FriendsNavLink() {
+  const count = useFriendsBadgeCount();
   return (
     <NavLink to="/friends" className="nav-friends">
       Friends
-      {count > 0 ? (
-        <span className="nav-badge" aria-label={`${count} waiting`}>
-          {badgeLabel(count)}
-        </span>
-      ) : null}
+      <NavBadge count={count} />
     </NavLink>
   );
 }

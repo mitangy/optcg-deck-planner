@@ -1,10 +1,3 @@
-/** Decides whether a retrained embedder may be published (#852).
- *
- * Publish only when the held-out user-crop test set is big enough to mean
- * something and the new model is strictly better at top-1 without losing top-5.
- *
- *   node gate.cjs metrics.json [oldLabel newLabel]   -> prints `publish=true|false reason=...`
- */
 const MIN_TEST = 25;
 
 function decide(oldM, newM, minTest = MIN_TEST) {

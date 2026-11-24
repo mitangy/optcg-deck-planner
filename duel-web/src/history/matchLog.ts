@@ -1,17 +1,13 @@
-/** A finished game's turn-by-turn log, as the match page shows it from your seat. */
 import { narrateEvents, type BattleLogEntry, type InstanceIndex } from "../board/match/battleLog";
 import type { SeatLogJson } from "./historyApi";
 
 export type MatchLogTurn = {
   turn: number;
-  /** "Your turn", "Opponent's turn", or "Before the game" for the mulligan step. */
   label: string;
   yours: boolean;
   entries: BattleLogEntry[];
-  /** Your hand at the start of the turn (after the draw), when the log recorded it. */
   hand?: string[];
   opponentHandCount?: number;
-  /** The opponent's actual hand then, once the game could no longer be played. */
   opponentHand?: string[];
 };
 
@@ -19,7 +15,6 @@ export function matchLogTurns(log: SeatLogJson): MatchLogTurn[] {
   const instances: InstanceIndex = new Map(log.boardCards.map(([id, defId, seat]) => [id, { defId, seat }]));
   const turns: MatchLogTurn[] = [];
   for (const t of log.turns) {
-    // Turn headings already say whose turn it is; phase steps are noise here.
     const events = t.events.filter((e) => (e as { type?: string }).type !== "phase_changed");
     const entries = narrateEvents(events, { youSeat: log.seat, turnNumber: t.turn, instances });
     if (!entries.length) continue;
@@ -37,7 +32,6 @@ export function matchLogTurns(log: SeatLogJson): MatchLogTurn[] {
   return turns;
 }
 
-/** A hand as distinct cards with copy counts, in the order each card first appears. */
 export function groupHand(defIds: string[]): { defId: string; count: number }[] {
   const counts = new Map<string, number>();
   for (const id of defIds) counts.set(id, (counts.get(id) ?? 0) + 1);

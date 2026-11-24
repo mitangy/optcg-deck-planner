@@ -17,7 +17,6 @@ export type PlannerOptions = {
   tournaments?: TournamentFixtures;
   liveUrl?: string;
   secret?: string;
-  /** For tests: the fetch used for forwarded calls in live mode. */
   forward?: typeof fetch;
 };
 
@@ -28,7 +27,6 @@ const MIN_GAMES = 5;
 const emptyRecord = { games: 0, wins: null, win_rate: null, interval: null, too_few_games: true };
 const emptySplit = { ...emptyRecord, going_first: emptyRecord, going_second: emptyRecord, average_turns: null };
 
-/** The fixture answer for a stats query: keyed by leader and opponent only, and a no-games record for anything else. */
 export function statsAnswer(fixtures: StatsFixtures, params: URLSearchParams): unknown {
   const leader = params.get("leader");
   const opponent = params.get("opponent");
@@ -40,7 +38,6 @@ export function statsAnswer(fixtures: StatsFixtures, params: URLSearchParams): u
   return { ...window, leader, overall: emptySplit, opponents: [], cards: [] };
 }
 
-/** The fixture answer for a tournament query, keyed by leader and opponent ("" for the meta overview); a leader with no fixture has no decks. */
 export function tournamentAnswer(fixtures: TournamentFixtures, params: URLSearchParams): unknown {
   const leader = params.get("leader");
   const opponent = params.get("opponent");

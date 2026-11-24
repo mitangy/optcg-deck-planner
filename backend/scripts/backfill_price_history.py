@@ -33,11 +33,11 @@ from pathlib import Path
 CATEGORY_ID = 68
 FIRST_ARCHIVE_DAY = date(2024, 2, 8)
 ARCHIVE_URL = "https://tcgcsv.com/archive/tcgplayer/prices-{day}.ppmd.7z"
-USER_AGENT = "OPTCGWebTracker/1.0"  # tcgcsv answers 401 without one
+USER_AGENT = "OPTCGWebTracker/1.0"
 DEFAULT_API_URL = "https://optcg-api-nutb.onrender.com"
 POST_PAUSE_S = 1.0
-RETRY_DELAYS_S = (15, 30, 45, 60, 60, 60, 60, 60)  # Render free cold start
-DOWNLOAD_DELAYS_S = (5, 15, 30, 60, 120)  # TCGCSV hiccups; then the day is skipped (#950)
+RETRY_DELAYS_S = (15, 30, 45, 60, 60, 60, 60, 60)
+DOWNLOAD_DELAYS_S = (5, 15, 30, 60, 120)
 
 
 def archive_member_pattern(day: date) -> re.Pattern[str]:
@@ -66,7 +66,6 @@ def prices_from_results(results: list[dict]) -> dict[int, float | None]:
 
 
 def download(url: str, dest: Path) -> bool:
-    """Fetch an archive; False when TCGCSV has none for that day (404)."""
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     attempts = len(DOWNLOAD_DELAYS_S) + 1
     for attempt, delay in enumerate((*DOWNLOAD_DELAYS_S, None), start=1):
@@ -95,7 +94,6 @@ def read_day(archive: Path, day: date) -> dict[int, float | None]:
         names = [n for n in z.getnames() if pattern.match(n)]
         if not names:
             return {}
-        # Extract into a fresh directory; extract only the One Piece entries.
         with tempfile.TemporaryDirectory(prefix="prices-") as tmp:
             z.extract(path=tmp, targets=names)
             prices: dict[int, float | None] = {}
@@ -157,8 +155,6 @@ def main(argv: list[str] | None = None) -> int:
     imported = skipped = 0
     failed: list[date] = []
     for day in days_between(args.start, args.end, args.step_days):
-        # One bad day (a download that keeps failing, a corrupt archive) is logged and skipped,
-        # so a long backfill doesn't stop halfway (#950). The failed days are listed at the end.
         try:
             with tempfile.TemporaryDirectory(prefix="archive-") as tmp:
                 archive = Path(tmp) / "prices.7z"

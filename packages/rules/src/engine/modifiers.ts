@@ -1,4 +1,3 @@
-/** Duration-limited effects ("during this turn", "until the start of your next turn", …). */
 import type { Duration } from "../effects/types.js";
 import type { MatchState, Modifier, ModifierEffect, ModifierExpiry, Seat } from "../types.js";
 import { alloc } from "./zones.js";

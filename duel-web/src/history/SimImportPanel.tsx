@@ -2,10 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { clearSimGames, fetchSimGameCount, importSimGames, type SimImportResult } from "./historyApi";
 import { addResults, batchGames, describeImport, logKey, logPlayers, logToGame, NO_RESULT, readSimUpload } from "./simImport";
 
-/**
- * Settings, inside the Log Pose panel: import your OPTCGSim games (the optcgsim-matches export, or one pasted
- * combat log) so Claude can read them. They are private to you; player names are dropped on the server.
- */
 export function SimImportPanel() {
   const [count, setCount] = useState<number | null>(null);
   const [text, setText] = useState("");
@@ -22,7 +18,6 @@ export function SimImportPanel() {
       .catch(() => setCount(null));
   useEffect(() => void refreshCount(), []);
 
-  // A pasted combat log names its two players; the importer says which one is them.
   const players = useMemo(() => logPlayers(text), [text]);
   const isLog = players.length === 2;
 
@@ -62,7 +57,6 @@ export function SimImportPanel() {
     const source = await file.text();
     if (fileInput.current) fileInput.current.value = "";
     const upload = readSimUpload(source);
-    // A single combat log in a file goes to the box, so you can say which player you were.
     if (upload.kind === "log") {
       setText(upload.log);
       setError(null);

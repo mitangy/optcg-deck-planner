@@ -1,4 +1,3 @@
-"""Card price alerts, their emails and the notification inbox (#855)."""
 
 from __future__ import annotations
 
@@ -23,8 +22,6 @@ LATER = datetime(2026, 11, 2, 12, 0, tzinfo=timezone.utc)
 
 
 class Outbox:
-    """Stands in for mailer.send_email so no test sends a real message."""
-
     def __init__(self, result: bool = True) -> None:
         self.sent: list[dict] = []
         self.result = result
@@ -43,7 +40,6 @@ def outbox(monkeypatch):
 
 
 def _seed(db, base=5.0, alt=3.0):
-    """Luffy with a base art at `base` and one alternate art at `alt`."""
     add_catalog(db, LUFFY, name="Luffy", product_id=1001, market=base)
     add_catalog(db, LUFFY, name="Luffy", product_id=ALT, market=alt, special=True)
     return make_user(db, email="a@example.com", name="A", sub="sub-a")
@@ -71,8 +67,6 @@ def _alert(db, user, *, product_id=0, target=5.0, direction="below", armed=True,
 def _inbox(db, user):
     return db.scalars(select(Notification).where(Notification.user_id == user.id)).all()
 
-
-# ------------------------------------------------------------------ checking prices
 
 
 def test_alert_fires_when_price_drops_to_exactly_the_target_855(db, outbox):
@@ -105,7 +99,6 @@ def test_alert_does_not_fire_again_while_the_price_stays_under_the_target_855(db
     assert price_alerts.check_alerts(db, LATER)["fired"] == 0
     assert len(_inbox(db, user)) == 1 and len(outbox.sent) == 1
     db.refresh(alert)
-    # The "Hit" chip shows the price it fired at, not the latest one.
     assert (alert.triggered_price, alert.last_price) == (4.0, 3.5)
 
 
@@ -136,7 +129,7 @@ def test_alt_art_alert_watches_that_printings_price_not_the_base_price_855(db, o
     assert (base_alert.armed, base_alert.last_price) == (True, 10.0)
     assert (alt_alert.armed, alt_alert.last_price) == (False, 3.0)
     assert [n.product_id for n in _inbox(db, user)] == [ALT]
-    assert _inbox(db, user)[0].title.startswith("Luffy (Alt) is now")
+    assert _inbox(db, user)[0].title.startswith("Luffy · Alt is now")
 
 
 def test_above_alert_fires_when_the_price_rises_to_the_target_855(db, outbox):
@@ -187,8 +180,8 @@ def test_app_only_alert_sends_no_email_and_email_only_alert_leaves_no_notificati
 
     assert [n.product_id for n in _inbox(db, user)] == [0]
     assert len(outbox.sent) == 1
-    assert outbox.sent[0]["subject"] == "Price alert: Luffy is now $1.00"
-    assert "Luffy (Alt)" in outbox.sent[0]["text"]
+    assert outbox.sent[0]["subject"] == "Price alert: Luffy · Alt is now $1.00"
+    assert "Luffy · Alt: $1.00" in outbox.sent[0]["text"]
 
 
 def test_several_fired_alerts_make_one_email_per_user_855(db, outbox):
@@ -264,8 +257,6 @@ def test_inbox_keeps_only_the_newest_hundred_notifications_855(db, outbox):
     assert "Luffy is now $1.00" in titles
 
 
-# ------------------------------------------------------------------ hooks
-
 
 def test_a_price_refresh_checks_alerts_after_applying_prices_855(db, outbox):
     user = _seed(db, base=5.0)
@@ -318,8 +309,6 @@ def test_a_catalog_sync_checks_alerts_with_its_own_session_and_survives_a_failur
     assert seen == [session]
     assert catalog_sync.sync_status()["last_error"] is None
 
-
-# ------------------------------------------------------------------ API
 
 
 def _login(c, SessionLocal, email):
@@ -447,7 +436,7 @@ def test_editing_the_target_rearms_or_disarms_against_the_current_price_855(clie
     c, SessionLocal = client
     _catalog(SessionLocal, base=3.0)
     _login(c, SessionLocal, "a@x.test")
-    alert = _post(c, target_price=4.0).json()  # met at creation, so disarmed
+    alert = _post(c, target_price=4.0).json()
     assert alert["armed"] is False
 
     lower = c.patch(f"/price-alerts/{alert['id']}", json={"target_price": 2.0}).json()
@@ -527,8 +516,6 @@ def test_marking_read_changes_only_the_ids_given_and_only_my_own_855(client):
         other = s.get(Notification, ids[3])
         assert other.read_at is None
 
-
-# ------------------------------------------------------------------ mailer
 
 
 @pytest.fixture()
@@ -657,3 +644,119 @@ def test_gmail_smtp_sends_from_the_login_address_when_no_sender_is_set_860(mail_
 
     assert mailer.send_email("a@x.test", "Subj", "<p>h</p>", "t") is True
     assert sent == ["OPTCG Planner <planner@gmail.com>"]
+
+
+REAL_ARTS = [
+    ("Monkey.D.Luffy", "OP05-119", "Monkey.D.Luffy (118) (Super Alternate Art)", "Super Alternate Art"),
+    ("Gol.D.Roger", "OP09-118", "Gol.D.Roger - OP09-118 (SP) (Wanted Poster)", "SP · Wanted Poster"),
+    ("Boa Hancock", "OP14-041", "Boa Hancock (OP14-041) (Heroine Leader)", "Heroine Leader"),
+    ("Dracule Mihawk", "OP12-030", "Dracule Mihawk - OP12-030 (SP)", "SP"),
+    ("Luffy", "OP01-001", "Base", "Base art"),
+]
+
+
+@pytest.mark.parametrize("card_name,card_id,art,expected", REAL_ARTS)
+def test_short_art_name_strips_the_card_name_id_and_wrapping_parentheses_1360(card_name, card_id, art, expected):
+    assert price_alerts.short_art_name(art, card_name, card_id) == expected
+
+
+def test_short_art_name_falls_back_to_the_raw_name_when_nothing_is_left_1360():
+    assert price_alerts.short_art_name("Luffy - OP01-001", "Luffy", "OP01-001") == "Luffy - OP01-001"
+
+
+def test_clean_card_name_drops_the_id_suffix_and_reprint_but_keeps_numbers_1360():
+    assert price_alerts.clean_card_name("Boa Hancock - OP14-041", "OP14-041") == "Boa Hancock"
+    assert price_alerts.clean_card_name("Monkey.D.Luffy - EB02-061 (Reprint)", "EB02-061") == "Monkey.D.Luffy"
+    assert price_alerts.clean_card_name("Monkey.D.Luffy (118)", "OP05-119") == "Monkey.D.Luffy (118)"
+
+
+def test_notification_title_names_the_card_and_short_art_1360(db, outbox):
+    user = _seed(db, base=300.0, alt=205.0)
+    db.get(CatalogCard, LUFFY).name = "Gol.D.Roger - OP01-001"
+    row = db.scalar(select(CatalogPrinting).where(CatalogPrinting.product_id == ALT))
+    row.name = "Gol.D.Roger - OP01-001 (SP) (Wanted Poster)"
+    db.commit()
+    _alert(db, user, product_id=ALT, target=210.0)
+    _alert(db, user, product_id=0, target=310.0)
+
+    price_alerts.check_alerts(db, LATER)
+
+    assert sorted(n.title for n in _inbox(db, user)) == [
+        "Gol.D.Roger is now $300.00",
+        "Gol.D.Roger · SP · Wanted Poster is now $205.00",
+    ]
+    assert "Gol.D.Roger · SP · Wanted Poster: $205.00" in outbox.sent[0]["text"]
+
+
+def _fire_then_wobble(db, outbox, *, direction, target, hit, wobble):
+    user = _seed(db, base=hit)
+    alert = _alert(db, user, target=target, direction=direction)
+    assert price_alerts.check_alerts(db, LATER)["fired"] == 1
+    _set_price(db, base=wobble)
+    price_alerts.check_alerts(db, LATER)
+    db.refresh(alert)
+    return user, alert
+
+
+def test_below_alert_does_not_fire_twice_when_the_price_wobbles_around_the_target_1416(db, outbox):
+    user, alert = _fire_then_wobble(db, outbox, direction="below", target=350.0, hit=347.62, wobble=351.72)
+    assert alert.armed is False
+
+    _set_price(db, base=347.62)
+
+    assert price_alerts.check_alerts(db, LATER)["fired"] == 0
+    assert len(_inbox(db, user)) == 1 and len(outbox.sent) == 1
+
+
+def test_below_alert_fires_again_after_the_price_clearly_recovers_1416(db, outbox):
+    user, alert = _fire_then_wobble(db, outbox, direction="below", target=350.0, hit=347.62, wobble=370.0)
+    assert alert.armed is True
+
+    _set_price(db, base=340.0)
+
+    assert price_alerts.check_alerts(db, LATER)["fired"] == 1
+    assert len(_inbox(db, user)) == 2
+
+
+def test_above_alert_does_not_fire_twice_when_the_price_wobbles_around_the_target_1416(db, outbox):
+    user, alert = _fire_then_wobble(db, outbox, direction="above", target=400.0, hit=403.14, wobble=399.94)
+    assert alert.armed is False
+
+    _set_price(db, base=403.14)
+
+    assert price_alerts.check_alerts(db, LATER)["fired"] == 0
+    assert len(_inbox(db, user)) == 1 and len(outbox.sent) == 1
+
+
+def test_cheap_above_alert_rearms_and_fires_again_after_the_price_drops_back_1426(db, outbox):
+    user, alert = _fire_then_wobble(db, outbox, direction="above", target=0.25, hit=0.30, wobble=0.01)
+    assert alert.armed is True
+
+    _set_price(db, base=0.30)
+
+    assert price_alerts.check_alerts(db, LATER)["fired"] == 1
+    assert len(_inbox(db, user)) == 2
+
+
+def test_notifications_list_shows_old_stored_price_alert_titles_in_the_short_format_1416(client):
+    c, SessionLocal = client
+    _catalog(SessionLocal, base=5.0, alt=3.0)
+    uid = _login(c, SessionLocal, "a@x.test")
+    with SessionLocal() as s:
+        s.add(Notification(user_id=uid, kind="price_alert", title="Luffy (Alt) is now $3.00",
+                           card_id=LUFFY, product_id=ALT, price=3.0))
+        s.add(Notification(user_id=uid, kind="price_alert", title="Luffy (OP01-001) is now $5.00",
+                           card_id=LUFFY, product_id=0, price=5.0))
+        s.add(Notification(user_id=uid, kind="price_alert", title="Gone Card is now $9.00",
+                           card_id="OP99-999", product_id=0, price=9.0))
+        s.commit()
+
+    titles = {n["card_id"] + str(n["product_id"]): n["title"] for n in c.get("/notifications").json()["items"]}
+
+    assert titles[LUFFY + str(ALT)] == "Luffy · Alt is now $3.00"
+    assert titles[LUFFY + "0"] == "Luffy is now $5.00"
+    assert titles["OP99-9990"] == "Gone Card is now $9.00"
+
+
+def test_short_art_name_drops_the_card_name_when_the_card_name_carries_a_number_1416():
+    assert price_alerts.short_art_name("Nami (OP11-041) (Heroine Leader)", "Nami (041)", "OP11-041") == "Heroine Leader"

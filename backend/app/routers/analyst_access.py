@@ -1,4 +1,3 @@
-"""Asking for the Log Pose chat panel: players request, owners (ANALYST_CHAT_EMAILS) approve or deny (#393)."""
 
 from __future__ import annotations
 
@@ -34,12 +33,10 @@ from app.usernames import duel_display_name
 
 router = APIRouter(prefix="/analyst/access", tags=["analyst"])
 
-# A denied player may ask again after this long.
 REREQUEST_AFTER = timedelta(hours=24)
 MAX_LISTED = 200
 
 _request_rate = RateLimiter(max_calls=5, period_s=3600, name="analyst_access_request_rate")
-# Rows are stored until an owner answers and the per-IP key can be spoofed, so cap the total too.
 _request_global_rate = RateLimiter(max_calls=100, period_s=3600, name="analyst_access_request_global_rate")
 
 _ORDER = {AccessStatus.PENDING: 0, AccessStatus.APPROVED: 1, AccessStatus.DENIED: 2}
@@ -50,7 +47,6 @@ def _owner_only(settings: Settings, user: User) -> None:
         raise HTTPException(status_code=403, detail="Only Log Pose owners can answer requests")
 
 
-# A row that only exists to be locked while free spots are counted and handed out.
 SPOTS_LOCK_KEY = "spots_lock"
 
 
@@ -104,7 +100,6 @@ def request_access(
         raise HTTPException(status_code=409, detail="You already have Log Pose")
     now = datetime.now(timezone.utc)
     if row is None:
-        # Only a first request can take a free spot; a player an owner already answered waits for an owner.
         _lock_spots(db)
         row = db.scalar(select(AnalystAccess).where(AnalystAccess.user_id == user.id))
         if row is not None:
@@ -143,7 +138,7 @@ def list_requests(
     """Every request, pending first, then approved, then denied; newest first within each."""
     _owner_only(settings, user)
     rows = list(db.scalars(select(AnalystAccess).order_by(AnalystAccess.created_at.desc(), AnalystAccess.id.desc())).all())
-    rows.sort(key=lambda r: _ORDER.get(r.status, 3))  # stable: newest stays first within a status
+    rows.sort(key=lambda r: _ORDER.get(r.status, 3))
     return AnalystAccessList(
         requests=[_row_out(r, db.get(User, r.user_id), settings, db) for r in rows[:MAX_LISTED]],
         free_spots=free_spots(db, settings),
@@ -203,7 +198,6 @@ def answer_topup(
         raise HTTPException(status_code=404, detail="No top-up request from that player")
     if body.action == "add":
         now = datetime.now(timezone.utc)
-        # A top-up from an earlier month is gone; this month's stack.
         row.topup_usd = (row.topup_usd or 0.0) + TOPUP_USD if row.topup_month == month_key(now) else TOPUP_USD
         row.topup_month = month_key(now)
     row.topup_requested_at = None

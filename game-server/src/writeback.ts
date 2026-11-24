@@ -9,37 +9,32 @@ export type MatchResultPayload = {
   winner_seat: 0 | 1;
   reason: string;
   ranked: boolean;
+  /** True only for a room opened with a backend tournament ticket: the one kind of result that may decide a tournament match. */
+  tournament?: boolean;
   seat0_leader_id?: string;
   seat1_leader_id?: string;
   turns?: number;
-  /** Seed, decks and intents; the backend stores it and never serves it to players. */
   replay?: MatchReplay;
-  /** What each seat saw, turn by turn; the backend serves each player only their own. */
   seat_logs?: [SeatLog, SeatLog];
 };
-/** A game with no result yet: its log so far. The backend keeps only the latest per match. */
 export type MatchProgressPayload = Pick<
   MatchResultPayload,
-  "seat0_user_id" | "seat1_user_id" | "ranked" | "seat0_leader_id" | "seat1_leader_id" | "turns" | "replay" | "seat_logs"
+  "seat0_user_id" | "seat1_user_id" | "ranked" | "tournament" | "seat0_leader_id" | "seat1_leader_id" | "turns" | "replay" | "seat_logs"
 > & {
-  /** Only on the snapshot sent as the room closes: nobody is playing any more, so the recording can be watched (#476). */
+  /** Set only as the room closes, when nobody is playing and the recording can be watched. */
   closed?: boolean;
 };
 
-/** A finished game with no human opponent: against the server bot, or hotseat practice (#988). Not a match: no rating, no history. */
 export type SoloGamePayload = {
-  /** The room's game key; the backend records each key once. */
   game_id: string;
   user_id: number;
   mode: "bot" | "practice";
   bot_level?: string;
   leader_id?: string;
   opponent_leader_id?: string;
-  /** Bot games: did the human win. Practice has no winner, so it is left out. */
   won?: boolean;
   turns?: number;
   reason: string;
-  /** Bot games only: the full replay (seed, decks, intents, result), kept for investigating bot games and training the bots (#1202). */
   replay?: NonNullable<MatchResultPayload["replay"]>;
 };
 
@@ -48,7 +43,6 @@ export interface OutboxDatabase {
 }
 type Claimed = { match_id: string; payload: MatchResultPayload; attempts: number };
 
-/** At-least-once delivery. The API commits each match_id only once. */
 export class MatchResultOutbox {
   private running: Promise<void> | null = null;
   constructor(private db: OutboxDatabase, private send: typeof fetch = fetch) {}
@@ -81,11 +75,6 @@ export class MatchResultOutbox {
     return this.running;
   }
 
-  /**
-   * Milliseconds until the next undelivered row is due (0 when one is due now),
-   * or null when nothing is waiting. Rows another process holds count from the
-   * end of its lease; rows parked forever ('infinity') never wake anyone.
-   */
   async nextDueInMs(): Promise<number | null> {
     const { rows } = await this.db.query<{ wait_ms: number | string | null }>(
       `SELECT EXTRACT(EPOCH FROM (MIN(GREATEST(available_at, COALESCE(locked_until, available_at))) - now())) * 1000 AS wait_ms
@@ -144,11 +133,6 @@ export class MatchResultOutbox {
   }
 }
 
-/**
- * Drains the outbox only when there is something to send: after an enqueue, at
- * startup, and when a failed delivery's retry falls due. An idle game server
- * sends the database nothing, so a serverless Postgres (Neon) can scale to zero.
- */
 export class OutboxScheduler {
   private timer: ReturnType<typeof setTimeout> | null = null;
   private running: Promise<void> | null = null;
@@ -166,13 +150,11 @@ export class OutboxScheduler {
     private minWaitMs = 1000,
   ) {}
 
-  /** Durably queue a result, then deliver it right away. */
   async enqueue(payload: MatchResultPayload): Promise<void> {
     await this.outbox.enqueue(payload);
     void this.kick();
   }
 
-  /** Drain now (or right after the drain in progress) and schedule the next due retry. */
   kick(): Promise<void> {
     if (this.stopped) return Promise.resolve();
     if (this.running) {
@@ -246,17 +228,11 @@ export async function stopMatchResultOutbox(): Promise<void> {
   outbox = null;
 }
 
-/** Resolves once durable; API delivery happens independently. */
 export async function postMatchResult(payload: MatchResultPayload): Promise<void> {
   if (!scheduler) throw new Error("Match result outbox is not configured");
   await scheduler.enqueue(payload);
 }
 
-/**
- * Sends a game's progress snapshots one at a time, newest wins: a snapshot that
- * arrives while one is in flight replaces any still waiting. A failed send is
- * dropped, since the next turn's snapshot carries everything it had.
- */
 export class LatestOnlySender<T> {
   private next: T | null = null;
   private sending: Promise<void> | null = null;
@@ -281,7 +257,6 @@ export class LatestOnlySender<T> {
   }
 }
 
-/** Save an unfinished game's log so far. Best effort: the next snapshot retries. */
 export async function postMatchProgress(matchId: string, payload: MatchProgressPayload): Promise<void> {
   const res = await fetch(`${getApiBaseUrl()}/duel/matches/${encodeURIComponent(matchId)}/progress`, {
     method: "PUT",
@@ -293,7 +268,7 @@ export async function postMatchProgress(matchId: string, payload: MatchProgressP
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
 }
 
-/** Report a finished bot or practice game. One attempt; the room retries a few times and never waits on it. A bot game carries its replay (tens of KB), so the timeout matches the progress post's. */
+// A bot game carries its replay (tens of KB), so the timeout matches the progress post's.
 export async function postSoloGame(payload: SoloGamePayload): Promise<void> {
   const res = await fetch(`${getApiBaseUrl()}/duel/solo-games`, {
     method: "POST",

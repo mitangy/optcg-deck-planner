@@ -1,7 +1,3 @@
-/**
- * Group buy alt arts show who wants them: member-coloured chips on the Base and alt
- * tiles, on the member page and on the view-only invite page (#891).
- */
 import { expect, test } from "./fixtures";
 
 const GB = 11;
@@ -95,9 +91,7 @@ test("Member page: the alt tile shows who wants it and Base shows its wanters (#
   await expect(tiles).toHaveCount(3);
   await expect(card.locator(".alt-art-base .alt-art-wants")).toHaveText("Nami ×2");
   await expect(tiles.nth(1).locator(".alt-art-wants")).toHaveText("Usopp ×1");
-  // The other alt has no wanters, so no chips.
   await expect(tiles.nth(2).locator(".alt-art-wants")).toHaveCount(0);
-  // The member page keeps its steppers.
   await expect(card.getByRole("button", { name: "Increase want for Manga" })).toBeVisible();
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-art-wants-member.png`, fullPage: true });
 });
@@ -114,7 +108,6 @@ test("Invite page: the same chips show with no Want steppers (#891)", async ({ p
   await expect(page.getByText("OP01-001").first()).toBeVisible();
   const card = await gridCard(page);
   const tiles = card.locator(".alt-art");
-  // Only Base and the alt somebody wants.
   await expect(tiles).toHaveCount(2);
   await expect(card.locator(".alt-art-base .alt-art-wants")).toHaveText("Nami ×2");
   await expect(tiles.nth(1).locator(".alt-art-wants")).toHaveText("Usopp ×1");

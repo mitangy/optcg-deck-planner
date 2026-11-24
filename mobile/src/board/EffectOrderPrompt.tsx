@@ -8,10 +8,6 @@ type Props = {
   onSend: (intent: Intent) => void;
 };
 
-/**
- * Mobile reorder UI for simultaneous effects (protocol v3 `order_effects`).
- * Remount with key={choice.id} so local order state resets per window.
- */
 export function EffectOrderPrompt({ choice, onSend }: Props) {
   const initial = choice.unorderedChoices ?? [];
   const [order, setOrder] = useState<PendingChoiceView[]>(() => [...initial]);

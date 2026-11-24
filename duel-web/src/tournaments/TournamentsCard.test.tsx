@@ -45,9 +45,9 @@ async function mount(tournaments: TournamentSummary[], signedIn = true): Promise
 describe("Tournaments card on the lobby (#997)", () => {
   it("flags a running tournament whose match is ready for you and links to it (#997)", async () => {
     const el = await mount([summary({ my_match_ready: true }), summary({ id: 2, code: "def", name: "Other", my_match_ready: false })]);
-    expect(el.textContent).toContain("Your match is ready");
+    expect(el.textContent).toContain("Play now");
     expect(el.textContent).toContain("1 ready");
-    expect(el.textContent?.match(/Your match is ready/g)).toHaveLength(1);
+    expect(el.textContent?.match(/Play now/g)).toHaveLength(1);
     expect(el.querySelector('a[href="/tournaments/abc"]')).not.toBeNull();
   });
 
@@ -55,6 +55,27 @@ describe("Tournaments card on the lobby (#997)", () => {
     const el = await mount([summary({ name: "Done one", status: "finished" }), summary({ id: 2, code: "def", name: "Live one", status: "open" })]);
     expect(el.textContent).toContain("Live one");
     expect(el.textContent).not.toContain("Done one");
+  });
+
+  it("says there are no tournaments yet instead of leaving a bare heading, with New tournament beside it (#1343)", async () => {
+    const el = await mount([summary({ name: "Done one", status: "finished" })]);
+    expect(el.querySelector(".tcard-empty")?.textContent).toBe("No tournaments yet.");
+    expect(el.querySelector('a[href="/tournaments"]')?.textContent).toBe("New tournament");
+  });
+
+  it("says the same when the list could not be loaded (#1343)", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("{}", { status: 500 })));
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+    await act(async () => {
+      root!.render(
+        <MemoryRouter>
+          <TournamentsCard signedIn />
+        </MemoryRouter>,
+      );
+    });
+    expect(host.querySelector(".tcard-empty")?.textContent).toBe("No tournaments yet.");
   });
 
   it("shows nothing and loads nothing when signed out (#997)", async () => {

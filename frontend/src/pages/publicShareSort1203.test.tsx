@@ -82,14 +82,13 @@ describe("Share page Filters and Sort (#1203)", () => {
       ),
     );
     await flush();
-    // Default Color > Set: same color, so card order.
     expect(order()).toEqual(["OP01-001", "OP01-002", "OP01-003"]);
 
-    const toggle = [...host.querySelectorAll<HTMLButtonElement>("button.filter-drawer-toggle")].find((b) =>
-      b.textContent?.startsWith("Filters"),
+    const toggle = [...host.querySelectorAll<HTMLButtonElement>("button")].find((b) =>
+      /^Filters/.test(b.textContent ?? ""),
     )!;
     if (toggle.getAttribute("aria-expanded") !== "true") await act(async () => toggle.click());
-    expect(host.textContent).toContain("Still need only");
+    expect(document.body.textContent).toContain("To buy only");
     await act(async () => host!.querySelector<HTMLButtonElement>("button.sort-menu-btn")!.click());
     const price = [...document.querySelectorAll<HTMLLabelElement>(".sort-menu-item label")].find((l) =>
       l.textContent?.startsWith("Price"),

@@ -1,4 +1,3 @@
-/** Condition grammar: "if ..." clauses → `Cond`. */
 import type { Cond, Filter } from "../../../effects/types.js";
 import { and, or, cmp, count as countCards, countOf, eq, exists, ge, le, none, sel } from "../../../effects/builders.js";
 import { nameList, num, parseCardPhrase, parseCountPhrase, quote, traitList, withCostAreaDon, type Ctx } from "../phrases.js";
@@ -318,7 +317,6 @@ export function parseCondition(text: string, ctx: Ctx): Cond | null {
   const t = text.trim().replace(/^if /i, "").replace(/,$/, "");
   const direct = firstMatch(t, COND_RULES, ctx);
   if (direct) return direct;
-  // Conjunctions: try every " and " split.
   const parts = splitTop(t, / and /);
   if (parts.length > 1) {
     for (let i = 1; i < parts.length; i += 1) {

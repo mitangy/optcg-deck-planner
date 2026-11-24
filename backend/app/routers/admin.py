@@ -1,8 +1,3 @@
-"""Admin page API (#667): player and bot analytics, evals, hosting status, and account moderation.
-
-Auth: staff (admin or moderator) for /admin/me and the user list, ban and unban; admin only for
-analytics, roles, deletes and hosting; the analyst service secret for POST /admin/evals.
-"""
 
 from __future__ import annotations
 
@@ -24,6 +19,12 @@ from app.admin.schemas import (
     AdminFeedback,
     AdminMe,
     AdminOverview,
+    AdminSeasonPast,
+    AdminSeasonPreviewRow,
+    AdminSeasonStartIn,
+    AdminSeasonStarted,
+    AdminSeasons,
+    AdminSeasonCurrent,
     AdminReports,
     AdminUser,
     AdminUserDetail,
@@ -66,6 +67,8 @@ from app.duel.models import (
 )
 from app.planner.models import Deck, Owned
 from app.social.models import DuelLobbySeen, Friendship
+from app.duel.leaderboard import current_board
+from app.duel.seasons import StaleSeason, current_season, ended_seasons, reset_rating, start_new_season
 from app.duel.moderation import REASON_MAX, restore_cosmetic, take_down_cosmetic
 from app.usernames import duel_display_name
 from app.roles import ASSIGNABLE_ROLES, STAFF_ROLES, can_ban, can_delete, can_set_role, is_admin
@@ -77,7 +80,6 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 DB = Annotated[Session, Depends(get_db)]
 
 
-# The windows the admin charts offer (#691); anything else is a 422.
 RANGE_DAYS = (7, 14, 30, 90)
 
 
@@ -96,15 +98,11 @@ def _iso(dt: datetime | None) -> str | None:
     return dt.isoformat() if dt else None
 
 
-# ---------------------------------------------------------------- who am I
-
 @router.get("/me", response_model=AdminMe)
 def admin_me(user: Staff) -> dict:
     admin = is_admin(user)
     return {"role": user.role, "can": {"analytics": admin, "set_roles": admin, "ban": True, "delete": admin}}
 
-
-# ---------------------------------------------------------------- players
 
 @router.get("/overview", response_model=AdminOverview)
 def overview(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 30) -> dict:
@@ -156,8 +154,6 @@ def matches_on_day(_: Admin, db: DB, day: Annotated[date, Query()]) -> dict:
     }
 
 
-# ---------------------------------------------------------------- bots and evals
-
 def _eval_out(run: AnalystEvalRun) -> dict:
     try:
         groups = json.loads(run.groups or "{}")
@@ -169,7 +165,6 @@ def _eval_out(run: AnalystEvalRun) -> dict:
         "run_at": _iso(run.run_at),
         "label": run.label,
         "model": run.model,
-        # A run that only has a headline metric has no score.
         "correct": run.correct if scored else None,
         "total": run.total if scored else None,
         "metric_name": run.metric_name,
@@ -219,7 +214,6 @@ class EvalGroupIn(BaseModel):
     total: int = Field(ge=0, le=10_000)
 
 
-# The evals that post here (analyst/evals/shared/post.ts); each gets its own trend on the admin page (#679).
 EvalSuite = Literal["main", "review_facts", "puzzles", "deck_advice"]
 
 
@@ -228,10 +222,8 @@ class EvalRunIn(BaseModel):
     suite: EvalSuite = "main"
     label: str = Field(default="", max_length=120)
     model: str = Field(default="", max_length=64)
-    # A score in cases out of total, for suites that have one. Leave both out for a run that only has a metric.
     correct: float | None = Field(default=None, ge=0, le=10_000)
     total: int | None = Field(default=None, ge=1, le=10_000)
-    # The headline when the suite is not a score, e.g. "Wrong claims per review" 0.8 with lower_is_better.
     metric_name: str | None = Field(default=None, min_length=1, max_length=60)
     metric_value: float | None = Field(default=None, allow_inf_nan=False, ge=-1e9, le=1e9)
     lower_is_better: bool = False
@@ -280,8 +272,6 @@ def record_eval(
     db.refresh(run)
     return _eval_out(run)
 
-
-# ---------------------------------------------------------------- Log Pose feedback
 
 FEEDBACK_DAYS = 30
 
@@ -349,8 +339,6 @@ def feedback_export(
     return {"items": [{k: v for k, v in _feedback_out(f, None).items() if k not in ("user_id", "user_name")} for f in rows]}
 
 
-# ---------------------------------------------------------------- hosting
-
 @router.get("/hosting", response_model=HostingOut)
 def hosting(_: Admin, settings: Annotated[Settings, Depends(get_settings)], refresh: int = 0) -> dict:
     return admin_hosting.hosting(settings, refresh=bool(refresh))
@@ -362,10 +350,7 @@ def traffic(_: Admin, settings: Annotated[Settings, Depends(get_settings)], days
     return admin_traffic.traffic(settings, days, refresh=bool(refresh))
 
 
-# ---------------------------------------------------------------- users
-
 def _parse_signup_source(raw: str | None) -> dict | None:
-    """The stored first-touch source, or None when unknown (#905)."""
     if raw is None:
         return None
     try:
@@ -401,22 +386,13 @@ def _user_row(
 
 
 def _friend_pair_on(me, other):
-    """Join condition: ``me`` and ``other`` (user id columns) are an accepted Friendship pair."""
     low = case((me < other, me), else_=other)
     high = case((me < other, other), else_=me)
     return and_(Friendship.status == FriendshipStatus.ACCEPTED, Friendship.user_low_id == low, Friendship.user_high_id == high)
 
 
-def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[int, int]]]:
-    """Games and wins per mode for each user: {user_id: {mode: (games, wins)}} (#988).
-
-    ranked = matchmaker games; friends = casual games against an accepted friend (as things stand
-    now); private = every other casual game; bot and practice come from duel_solo_games. Four
-    grouped queries however many users are asked for.
-    """
-    out = {uid: {m: (0, 0) for m in MODES} for uid in user_ids}
-    if not user_ids:
-        return out
+def _game_counts(db: Session, users) -> dict[int, dict[str, tuple[int, int]]]:
+    out: dict[int, dict[str, tuple[int, int]]] = {}
     me, opp = DuelMatchSeat, aliased(DuelMatchSeat)
     is_friend = Friendship.id.is_not(None)
     rows = db.execute(
@@ -424,31 +400,34 @@ def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[i
         .select_from(me)
         .outerjoin(opp, and_(opp.match_id == me.match_id, opp.seat != me.seat))
         .outerjoin(Friendship, _friend_pair_on(me.user_id, opp.user_id))
-        .where(me.user_id.in_(user_ids))
+        .where(me.user_id.in_(users))
         .group_by(me.user_id, me.ranked, is_friend)
     )
     for uid, ranked, friend, n, wins in rows:
         mode = "ranked" if ranked else ("friends" if friend else "private")
-        games, won = out[uid][mode]
+        games, won = out.setdefault(uid, {m: (0, 0) for m in MODES})[mode]
         out[uid][mode] = (games + int(n), won + int(wins))
     for uid, mode, n, wins in db.execute(
         select(
             DuelSoloGame.user_id, DuelSoloGame.mode, func.count(),
             func.coalesce(func.sum(case((DuelSoloGame.won.is_(True), 1), else_=0)), 0),
         )
-        .where(DuelSoloGame.user_id.in_(user_ids))
+        .where(DuelSoloGame.user_id.in_(users))
         .group_by(DuelSoloGame.user_id, DuelSoloGame.mode)
     ):
-        if mode in out[uid]:
-            out[uid][mode] = (int(n), int(wins))
+        if mode in MODES:
+            out.setdefault(uid, {m: (0, 0) for m in MODES})[mode] = (int(n), int(wins))
+    return out
+
+
+def mode_counts(db: Session, user_ids: list[int]) -> dict[int, dict[str, tuple[int, int]]]:
+    out = {uid: {m: (0, 0) for m in MODES} for uid in user_ids}
+    if user_ids:
+        out.update(_game_counts(db, user_ids))
     return out
 
 
 def _counted_row(db: Session, u: User) -> dict:
-    """``_user_row`` with the same counts the list shows, for the action endpoints (#991).
-
-    The page merges an action's response over the row it holds, so zeros here would blank the counts.
-    """
     modes = mode_counts(db, [u.id])[u.id]
     matches, last = db.execute(
         select(func.count(), func.max(DuelMatchSeat.created_at)).where(DuelMatchSeat.user_id == u.id)
@@ -460,6 +439,31 @@ def _like_escape(q: str) -> str:
     return q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+UserSort = Literal["user", "role", "source", "ranked", "friends", "private", "bot", "practice", "joined"]
+SortDir = Literal["asc", "desc"]
+
+
+def _source_label(raw: str | None) -> str | None:
+    src = _parse_signup_source(raw)
+    if src is None:
+        return None
+    utm = " / ".join(str(src[k]) for k in ("utm_source", "utm_medium", "utm_campaign") if src.get(k))
+    return (f"utm: {utm}" if utm else str(src.get("ref") or "direct")).lower()
+
+
+def _sorted_user_ids(db: Session, where: list, sort: str, direction: str) -> list[int]:
+    desc = direction == "desc"
+    if sort == "source":
+        rows = sorted(db.execute(select(User.id, User.signup_source).where(*where)).all(), key=lambda r: r[0])
+        known = [(uid, label) for uid, raw in rows if (label := _source_label(raw)) is not None]
+        unknown = [uid for uid, raw in rows if _source_label(raw) is None]
+        known.sort(key=lambda r: r[1], reverse=desc)
+        return [uid for uid, _ in known] + unknown
+    ids = sorted(db.scalars(select(User.id).where(*where)).all())
+    counts = _game_counts(db, select(User.id).where(*where))
+    return sorted(ids, key=lambda uid: counts[uid][sort][0] if uid in counts else 0, reverse=desc)
+
+
 @router.get("/users", response_model=AdminUsers, response_model_exclude_unset=True)
 def list_users(
     _: Staff,
@@ -468,8 +472,17 @@ def list_users(
     include_guests: int = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
     offset: Annotated[int, Query(ge=0, le=1_000_000)] = 0,
+    sort: UserSort | None = None,
+    sort_dir: Annotated[SortDir, Query(alias="dir")] = "asc",
 ) -> dict:
-    where = []
+    """The user list, staff first then newest unless `sort` names a column (#1323).
+
+    user = the name the tab shows (username, else name, else email), case-insensitive; role = alphabetical, which is
+    also privilege order (admin, moderator, user); joined = sign-up time; source = the text the tab shows, accounts
+    with an unknown source always last; ranked/friends/private/bot/practice = that mode's game count. Every sort
+    breaks ties by id ascending so a page boundary never repeats or drops a row.
+    """
+    where = [User.placeholder_group_buy_id.is_(None)]
     if not include_guests:
         where.append(~is_guest())
     q = q.strip().lower()
@@ -483,8 +496,20 @@ def list_users(
             )
         )
     total = int(db.scalar(select(func.count()).select_from(User).where(*where)) or 0)
-    staff_first = case((User.role.in_(STAFF_ROLES), 0), else_=1)
-    page = db.scalars(select(User).where(*where).order_by(staff_first, User.created_at.desc(), User.id.desc()).limit(limit).offset(offset)).all()
+    query = select(User).where(*where)
+    if sort is None:
+        page = db.scalars(query.order_by(case((User.role.in_(STAFF_ROLES), 0), else_=1), User.created_at.desc(), User.id.desc()).limit(limit).offset(offset)).all()
+    elif sort in ("user", "role", "joined"):
+        key = {
+            "user": func.lower(func.coalesce(func.nullif(User.username, ""), func.nullif(User.name, ""), User.email)),
+            "role": User.role,
+            "joined": User.created_at,
+        }[sort]
+        page = db.scalars(query.order_by(key.desc() if sort_dir == "desc" else key.asc(), User.id.asc()).limit(limit).offset(offset)).all()
+    else:
+        wanted = _sorted_user_ids(db, where, sort, sort_dir)[offset : offset + limit]
+        by_id = {u.id: u for u in db.scalars(select(User).where(User.id.in_(wanted)))} if wanted else {}
+        page = [by_id[i] for i in wanted]
     stats: dict[int, tuple[int, datetime | None]] = {}
     ids = [u.id for u in page]
     if ids:
@@ -505,7 +530,6 @@ def list_users(
 
 
 def _recent_matches(db: Session, user_id: int, limit: int = 25) -> list[dict]:
-    """The user's newest duel matches and solo games merged, newest first."""
     me, opp = DuelMatchSeat, aliased(DuelMatchSeat)
     duel = db.execute(
         select(me, opp.user_id, opp.leader_id, DuelMatch.reason)
@@ -699,7 +723,6 @@ def ban_user(user_id: int, actor: Staff, db: DB, body: BanIn | None = None) -> d
 
 
 def _apply_ban(db: Session, actor: User, target: User, reason: str) -> None:
-    """Ban ``target`` as ``actor`` (403 when the roles forbid it); shared with report handling."""
     refusal = can_ban(actor, target)
     if refusal:
         raise HTTPException(status_code=403, detail=refusal)
@@ -707,7 +730,6 @@ def _apply_ban(db: Session, actor: User, target: User, reason: str) -> None:
     target.banned_at = datetime.now(timezone.utc)
     target.ban_reason = reason or None
     target.banned_by = actor.id
-    # Signs them out everywhere: every cookie they hold carries the old version.
     target.session_version = int(target.session_version or 0) + 1
     db.commit()
     db.refresh(target)
@@ -733,7 +755,6 @@ def delete_user(user_id: int, actor: Admin, db: DB) -> Response:
     refusal = can_delete(actor, target)
     if refusal:
         raise HTTPException(status_code=403, detail=refusal)
-    # The ORM relationships (decks, owned, extras) cascade here; the DB cascades the rest on Postgres.
     db.delete(target)
     db.flush()
     # SQLite does not enforce foreign keys, so clear the other tables that point at the user by hand:
@@ -750,8 +771,6 @@ def delete_user(user_id: int, actor: Admin, db: DB) -> Response:
     return Response(status_code=204)
 
 
-# ---------------------------------------------------------------- player reports (#810)
-
 class ReportNoteIn(BaseModel):
     note: str | None = Field(default=None, max_length=300)
 
@@ -761,7 +780,6 @@ class ReportWarnIn(BaseModel):
 
 
 def _report_rows(db: Session, reports: list[PlayerReport]) -> list[dict]:
-    """ReportRows for these reports, with the per-player counts fetched in a few grouped queries."""
     if not reports:
         return []
     reported_ids = {r.reported_id for r in reports}
@@ -914,7 +932,6 @@ def remove_reported_image(report_id: int, actor: Staff, db: DB, body: ReportNote
         raise HTTPException(status_code=409, detail="There is no image to remove")
     take_down_cosmetic(db, cosmetic, actor.id, note or f"Report #{report.id}")
     _close_report(report, actor, ReportStatus.ACTIONED, "image_removed", note)
-    # Everyone else who reported the same image is answered by the same removal.
     siblings = db.scalars(
         select(PlayerReport).where(
             PlayerReport.id != report.id,
@@ -954,14 +971,11 @@ def ban_reported_player(report_id: int, actor: Staff, db: DB, body: BanIn | None
     return _report_row(db, report)
 
 
-# ---------------------------------------------------------------- uploaded images (#812)
-
 class TakeDownIn(BaseModel):
     reason: str = Field(min_length=1, max_length=REASON_MAX)
 
 
 def _cosmetic_rows(db: Session, rows: list) -> list[dict]:
-    """UploadRows for these (DuelCosmetic columns without the bytes) rows, owners and counts in grouped queries."""
     if not rows:
         return []
     owner_ids = {r.user_id for r in rows}
@@ -1085,3 +1099,51 @@ def restore_taken_down_cosmetic(cosmetic_id: int, _: Admin, db: DB) -> dict:
         "id": cosmetic.id, "user_id": cosmetic.user_id, "kind": cosmetic.kind, "taken_down": False,
         **_cosmetic_rows(db, [cosmetic])[0],
     }
+
+
+PREVIEW_ROWS = 20
+
+
+@router.get("/seasons", response_model=AdminSeasons)
+def seasons(_: Admin, db: DB) -> dict:
+    """The current ranked season, what a reset would do to the top players, and past seasons (#1405)."""
+    season = current_season(db)
+    board = current_board(db)
+    top = board[:PREVIEW_ROWS]
+    users = {u.id: u for u in db.scalars(select(User).where(User.id.in_([r.user_id for r in top])))}
+    return {
+        "current": {"number": season.number, "name": season.name, "started_at": season.started_at, "players": len(board)},
+        "preview": [
+            {
+                "user_id": r.user_id,
+                "name": duel_display_name(users[r.user_id]) if r.user_id in users else "Player",
+                "rank": r.rank,
+                "rating": r.rating,
+                "soft_after": reset_rating(r.rating, "soft"),
+                "hard_after": reset_rating(r.rating, "hard"),
+                "games": r.games_played,
+            }
+            for r in top
+        ],
+        "past": [
+            {
+                "number": s.number, "name": s.name, "started_at": s.started_at, "ended_at": s.ended_at,
+                "reset_mode": s.reset_mode, "players": players,
+            }
+            for s, players in ended_seasons(db)
+        ],
+    }
+
+
+@router.post("/seasons", response_model=AdminSeasonStarted)
+def start_season(body: AdminSeasonStartIn, actor: Admin, db: DB) -> dict:
+    """End the current season and reset Bounty. `confirm` must be the current season's name, which also stops a double submit:
+    after the first call the current name is the new season's, so the repeat no longer matches (#1405)."""
+    season = current_season(db)
+    if body.confirm != season.name:
+        raise HTTPException(status_code=400, detail=f"Type {season.name} to confirm")
+    try:
+        fresh = start_new_season(db, body.mode, body.name, actor.id, expected_number=season.number)
+    except StaleSeason:
+        raise HTTPException(status_code=409, detail="That season was already ended. Reload and check the current season")
+    return {"number": fresh.number, "name": fresh.name, "started_at": fresh.started_at}

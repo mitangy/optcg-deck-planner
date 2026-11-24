@@ -5,10 +5,6 @@ type Pending = { at: number; seq: number; run: () => void; every?: number; clear
 /** Lets queued promise callbacks (the room's awaited work) run between fake timer firings. */
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
-/**
- * A DuelTime whose clock only moves when a test calls `advance`: timers fire in order at their
- * virtual time, so clock, pacing and retry tests need no real waiting.
- */
 export class FakeTime implements DuelTime {
   private t = 1_700_000_000_000;
   private seq = 0;
@@ -40,9 +36,8 @@ export class FakeTime implements DuelTime {
     };
   }
 
-  /** Move the clock forward `ms`, firing every timer that comes due on the way, oldest first. */
   async advance(ms: number): Promise<void> {
-    await settle(); // work the room queued just before this call (a leave, a message) has run
+    await settle();
     const end = this.t + ms;
     for (;;) {
       this.timers = this.timers.filter((x) => !x.cleared);
@@ -62,7 +57,6 @@ export class FakeTime implements DuelTime {
     await settle();
   }
 
-  /** Every room created from now on runs on this clock. Call `uninstall` when the test ends. */
   install(): this {
     duelTimeSource.create = () => this;
     return this;
@@ -73,14 +67,9 @@ export class FakeTime implements DuelTime {
   }
 }
 
-/**
- * Real time, except that `sleep` waits for the test: it records each requested delay and resolves
- * it on `release()`. For retry loops whose back-off should be checked, not waited out.
- */
 export class ManualSleepTime implements DuelTime {
   readonly requested: number[] = [];
   private waiting: (() => void)[] = [];
-  /** Real time of the room this was handed to. */
   private real!: DuelTime;
 
   now = () => this.real.now();
@@ -92,7 +81,6 @@ export class ManualSleepTime implements DuelTime {
     return new Promise((resolve) => this.waiting.push(resolve));
   }
 
-  /** Let every pending sleep finish. */
   release(): void {
     const all = this.waiting;
     this.waiting = [];
@@ -112,7 +100,6 @@ export class ManualSleepTime implements DuelTime {
   }
 }
 
-/** Runs `fn` with every room created inside it on a clock that only moves when the test advances it. */
 export async function withFakeTime<T>(fn: (time: FakeTime) => Promise<T>): Promise<T> {
   const time = new FakeTime().install();
   try {

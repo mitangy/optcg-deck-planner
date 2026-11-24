@@ -1,9 +1,4 @@
-/**
- * Match replays recorded by the game server: the seed, both decks in order and
- * every accepted intent. The engine is deterministic, so re-running these
- * inputs rebuilds the whole game. A replay holds both hands and decks, so it
- * is kept server-side and never sent to players as-is.
- */
+/** A replay holds both hands and decks, so it is kept server-side and never sent to players as-is. */
 import { applyIntent, createMatch, skipMulligans } from "../engine.js";
 import { reseedMatch } from "./reseed.js";
 import type { GameEvent, Intent, MatchState, Seat } from "../types.js";
@@ -16,23 +11,18 @@ export interface MatchReplay {
   rulesVersion: string;
   registryHash: string;
   seed: number;
+  /** 256-bit hex key of a keyed match. Kept server-side until the game is over; a replay without it only replays keyless matches. */
+  rngKey?: string;
   firstSeat: Seat;
   /** The room skipped mulligans with the same rng that then drove every intent. */
   skipMulligans: boolean;
   /** Decks in the order they were dealt from (order feeds the shuffle). */
   players: [{ leaderId: string; deck: string[] }, { leaderId: string; deck: string[] }];
-  /** Every non-Banish Life hit opened a private Life check (#352). Absent on older recordings: legacy flow. */
   lifeCheckEveryHit?: boolean;
-  /** Private choices, hidden-zone selects and permuted deck ids (#369). Absent on older recordings: legacy flow. */
   privateChoicesV2?: boolean;
   intents: { seat: Seat; intent: Intent }[];
-  /**
-   * The room re-seeded the shuffle rng (an agreed undo must not repeat the old
-   * draws). Before applying intent `atIntent` the rng restarts from `seed`, and with `shuffleDecks` both decks are reshuffled with it.
-   * Absent on older recordings: one seed for the whole game.
-   */
+  /** An agreed undo must not repeat the old draws, so the room re-seeds the shuffle rng. */
   reseeds?: { atIntent: number; seed: number; shuffleDecks?: boolean }[];
-  /** How the game ended, including ends outside the engine (concede, timeout, leaving). */
   end?: { winner: Seat; reason: string };
 }
 
@@ -43,10 +33,10 @@ export interface ReplayStep {
   state: MatchState;
 }
 
-/** The match as dealt (mulligans skipped when the room skipped them), before the first intent. */
 export function replayStart(replay: MatchReplay): MatchState {
   const state = createMatch({
     seed: replay.seed,
+    ...(replay.rngKey ? { rngKey: replay.rngKey } : {}),
     firstSeat: replay.firstSeat,
     lifeCheckEveryHit: replay.lifeCheckEveryHit ?? false,
     privateChoicesV2: replay.privateChoicesV2 ?? false,
@@ -58,7 +48,6 @@ export function replayStart(replay: MatchReplay): MatchState {
   return replay.skipMulligans ? skipMulligans(state) : state;
 }
 
-/** Re-seed the match for every reseed recorded at `i` (before intent `i`, or after the last one). */
 function reseedAt(state: MatchState, replay: MatchReplay, i: number): MatchState {
   let next = state;
   for (const r of replay.reseeds ?? []) {
@@ -67,7 +56,6 @@ function reseedAt(state: MatchState, replay: MatchReplay, i: number): MatchState
   return next;
 }
 
-/** Apply recorded intent `i` to the state before it. Throws if the room's accepted move is now illegal. */
 export function replayApply(state: MatchState, replay: MatchReplay, i: number): { state: MatchState; events: GameEvent[] } {
   const { seat, intent } = replay.intents[i]!;
   const result = applyIntent(reseedAt(state, replay, i), intent, { seat });
@@ -77,7 +65,6 @@ export function replayApply(state: MatchState, replay: MatchReplay, i: number): 
   return { state: result.state, events: result.events };
 }
 
-/** Re-run a recorded game. Throws if an intent the room accepted is now illegal. */
 export function replayMatch(replay: MatchReplay, onStep?: (step: ReplayStep) => void): MatchState {
   let state = replayStart(replay);
   replay.intents.forEach(({ seat, intent }, i) => {

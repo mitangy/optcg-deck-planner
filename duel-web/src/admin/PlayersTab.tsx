@@ -23,7 +23,6 @@ function SortHead({ label, k, sort, onSort, className }: { label: string; k: Lea
   );
 }
 
-/** Top leaders as a table: click a header to sort, ten rows until "Show all". */
 function LeadersTable({ rows }: { rows: LeaderRow[] }) {
   const [sort, setSort] = useState<SortState<LeaderSortKey>>({ key: "games", dir: "desc" });
   const [all, setAll] = useState(false);
@@ -96,7 +95,6 @@ function MatchRow({ m }: { m: DayMatch }) {
   );
 }
 
-/** The matches of one day, under the chart that was clicked. Its own box, so the chart above never moves. */
 function DayMatchesPanel({ day, onClose, load }: { day: string; onClose: () => void; load: (day: string) => Promise<AdminDayMatches> }) {
   const res = useAsyncResource(() => load(day), [day]);
   const state = { status: res.status, data: res.status === "ready" ? res.data : undefined, message: res.status === "error" ? (res.error as Error).message : undefined };
@@ -141,7 +139,6 @@ export function PlayersTab({
   loadMatches = fetchAdminMatches,
 }: {
   data: AdminOverview;
-  /** The window asked for; `data.days` is the one on screen until the fetch lands. */
   days: RangeDays;
   onDaysChange: (days: RangeDays) => void;
   stale?: boolean;

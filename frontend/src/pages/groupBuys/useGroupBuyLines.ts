@@ -6,19 +6,12 @@ import { groupBuyShownPrice, visibleGroupBuyLines } from "./groupBuyArt";
 import { useMemo } from "react";
 import { buildGroupBuyDisplayRows, groupBuyLineValue, userSortKeyForLine } from "./lineRows";
 
-/** The card's main image follows your chosen art; line.image_url is the host's checkout printing, so start from the base art (#874). */
 export function lineArtUrl(line: GroupBuyLine): string | undefined {
   return mainImageUrl({ ...line, image_url: line.base_image_url || line.image_url });
 }
 
 const NO_KEEP_VISIBLE: ReadonlySet<string> = new Set();
 
-/**
- * Filter, search and sort a group buy's lines, then lay them out as grid/list rows
- * (with User section headings when User is the primary sort) and as table rows
- * (a column-header sort replaces the headings). The member page and the view-only
- * invite page share it so the two always order and price cards the same way.
- */
 export function useGroupBuyLines(
   allLines: GroupBuyLine[],
   members: GroupBuyMember[],

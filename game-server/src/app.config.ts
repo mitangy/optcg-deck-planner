@@ -16,21 +16,29 @@ import {
   SKIN_MAX_CARD_BACK_CHARS,
   SKIN_MAX_PLAYMAT_CHARS,
 } from "./protocol.js";
-import { DuelRoom, hashToNegativeId } from "./rooms/DuelRoom.js";
+import { hashToNegativeId } from "./devIdentity.js";
+import { DuelRoom } from "./rooms/DuelRoom.js";
 import { MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
 
-/**
- * Largest websocket frame a client may send. Colyseus' default is 4 KB, which
- * closes the socket (1009) on any real "skin" message: one message carries a
- * playmat and a card back of up to SKIN_MAX_PLAYMAT_CHARS +
- * SKIN_MAX_CARD_BACK_CHARS, plus JSON/msgpack overhead. 1 MB leaves headroom.
- */
+// Colyseus' default 4 KB closes the socket (1009) on a real skin message (playmat + card back).
 export const WS_MAX_PAYLOAD_BYTES = 1024 * 1024;
 if (WS_MAX_PAYLOAD_BYTES < SKIN_MAX_PLAYMAT_CHARS + SKIN_MAX_CARD_BACK_CHARS + 4096) {
   throw new Error("WS_MAX_PAYLOAD_BYTES must fit the largest skin message");
 }
 
-/** Account uid for GET /active-matches: a game token, or ?devUserId= when tokens aren't required. */
+/** Games being played right now, across the pool: a deploy waits for this to reach zero. */
+export function countLiveMatches(rooms: { metadata?: unknown }[]): number {
+  return rooms.filter((room) => (room.metadata as { phase?: string } | undefined)?.phase === "playing").length;
+}
+
+async function liveMatchesNow(): Promise<number | null> {
+  try {
+    return countLiveMatches(await matchMaker.query({ name: "duel" }));
+  } catch {
+    return null;
+  }
+}
+
 function activeMatchesCaller(authorization: string | undefined, devUserId: unknown): number | null {
   const bearer = /^Bearer\s+(.+)$/i.exec(authorization ?? "")?.[1]?.trim();
   if (bearer) return verifyGameToken(bearer)?.uid ?? null;
@@ -54,7 +62,7 @@ const server = defineServer({
   },
 
   express: (app) => {
-    app.get("/health", (_req, res) => {
+    app.get("/health", async (_req, res) => {
       res.json({
         ok: true,
         service: "optcg-game-server",
@@ -72,13 +80,12 @@ const server = defineServer({
         processId: matchMaker.processId,
         roomCount: matchMaker.stats.local.roomCount,
         ccu: matchMaker.stats.local.ccu,
+        // Games in progress (not lobbies or finished rooms); null when it could not be counted.
+        liveMatches: await liveMatchesNow(),
       });
     });
 
-    // CORS (incl. the Authorization preflight) comes from Colyseus' request listener
-    // and the allowlist installed by installCorsAllowlist, same as matchmake.
-    // Live matches a signed-in account holds a seat in, so it can resume one on
-    // another device (#451). Owners come from room metadata, not room state.
+    // CORS (incl. the Authorization preflight) comes from Colyseus' request listener and the installCorsAllowlist allowlist.
     app.get("/active-matches", async (req, res) => {
       const uid = activeMatchesCaller(req.get("authorization"), req.query.devUserId);
       if (uid === null) {

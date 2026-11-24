@@ -65,7 +65,6 @@ async function press(key: string) {
   });
 }
 
-/** The board's own hotkeys around a menu, wired like DuelBoard wires them. */
 function Board({ children }: { children: ReactNode }) {
   useBoardHotkeys({
     spectating: false,
@@ -315,7 +314,6 @@ describe("Site menu drawer on the shared Dialog (#715)", () => {
     </MemoryRouter>
   );
 
-  // The drawer slides out (#722), so it leaves the page a couple of frames after it closes.
   const gone = () => act(() => wait(120));
 
   it("opens as a named modal with focus on its first link and Escape returns focus to the hamburger (#715)", async () => {

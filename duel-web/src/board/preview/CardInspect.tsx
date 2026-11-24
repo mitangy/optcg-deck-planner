@@ -10,6 +10,7 @@ import {
   type SavedDeck,
 } from "../../decks/storage";
 import { lookupCard } from "../../cards/atlas";
+import { capitalise, colourLabel } from "../../cards/cardMeta";
 import { isPlaceholderArt } from "@optcg/ui/cardArt";
 import { useArtFallback } from "../../cards/useArtFallback";
 import {
@@ -35,26 +36,16 @@ type Props = {
   defId: string;
   open: boolean;
   onClose: () => void;
-  /** Seat whose cards own this art (display). */
   ownerSeat?: Seat;
-  /** Copy rank of an any-number card, so "One of each art" shows this copy's art (#1292). */
   artCopy?: number;
-  /** Seat controlling the UI — alt picks update this seat's prefs. */
   viewingSeat?: Seat;
-  /**
-   * Saved deck for configure-page inspect: resolves deck-scoped art and
-   * writes alt picks via `setDeckArtChoice` (no duel seats involved).
-   */
   deck?: SavedDeck;
-  /** Fired after a deck-scoped art pref changes so the parent can refresh. */
   onDeckArtChange?: () => void;
-  /** In-play power / statuses when inspecting a field card. */
   live?: PreviewLive;
 };
 
 const SWIPE_DISMISS_PX = 80;
 
-/** Expanded card inspect: sheet UI + ability text + alt-art picker. */
 export function CardInspect({
   defId,
   open,
@@ -102,8 +93,6 @@ export function CardInspect({
   if (!open) return null;
 
   const alts = entry.altArts ?? [];
-  // Deck-configure inspect can edit deck-scoped art without seats.
-  // In-match: only the card's owner may change its artwork.
   const prefSeat = artEditSeat({ ownerSeat, viewingSeat, matchSeat });
   const canEditArt = deck ? true : prefSeat != null;
 
@@ -122,7 +111,6 @@ export function CardInspect({
 
   function onSheetPointerDown(e: PointerEvent) {
     const target = e.target as HTMLElement;
-    // Only swipe-dismiss from the grab handle so Done/Close keep working.
     if (!target.closest(".card-inspect-handle")) return;
     swipeStartY.current = e.clientY;
     swipeDeltaY.current = 0;
@@ -188,7 +176,7 @@ export function CardInspect({
         </div>
         <div className="card-inspect-meta">
           <p className="card-inspect-id">
-            {entry.id} · {entry.type} · {entry.colors.join("/")} · cost {entry.cost}
+            {entry.id} · {capitalise(entry.type)} · {colourLabel(entry.colors)} · Cost {entry.cost}
             {entry.power != null ? ` · ${entry.power} power` : ""}
             {(() => {
               const cv = counterValueFor(entry);

@@ -18,22 +18,17 @@
  * made this survive foil where luma-average hashes did not.
  */
 
-/** Minimal shape both a Canvas ImageData and a decoded buffer satisfy. */
 export type PixelSource = {
   width: number;
   height: number;
   data: Uint8ClampedArray | Uint8Array;
 };
 
-/** Cell grid. 16x22 ≈ the card's own 63:88 aspect, so cells are not stretched. */
 const COLS = 16;
 const ROWS = 22;
 
-/** Working width for gradients — the downscale doubles as a denoising blur. */
 const WORK_WIDTH = 200;
 
-/** Top fraction of gradient magnitudes treated as edges: a percentile, not an
- *  absolute threshold, so it is invariant to overall contrast. */
 const EDGE_PERCENTILE = 0.8;
 
 /**
@@ -53,7 +48,6 @@ function rowIncluded(rowIndex: number, rows: number): boolean {
 
 type Gray = { gray: Float64Array; w: number; h: number };
 
-/** Box-filter downsample to grayscale at a target width, preserving aspect. */
 function toGrayDownscaled(source: PixelSource, targetWidth: number): Gray {
   const { width: sw, height: sh, data: px } = source;
   const w = Math.max(1, Math.min(targetWidth, sw));
@@ -80,7 +74,6 @@ function toGrayDownscaled(source: PixelSource, targetWidth: number): Gray {
   return { gray, w, h };
 }
 
-/** Sobel gradient magnitude. Border pixels stay 0 (no neighbourhood). */
 function sobelMagnitude({ gray, w, h }: Gray): Float64Array {
   const mag = new Float64Array(w * h);
   for (let y = 1; y < h - 1; y += 1) {
@@ -101,7 +94,6 @@ function sobelMagnitude({ gray, w, h }: Gray): Float64Array {
   return mag;
 }
 
-/** Hash of the card's edge structure, as a lowercase hex string. */
 export function computeOrderHash(source: PixelSource): string {
   const grayImg = toGrayDownscaled(source, WORK_WIDTH);
   const { w, h } = grayImg;
@@ -149,8 +141,6 @@ export function computeOrderHash(source: PixelSource): string {
     : 0;
 
   let bits = 0n;
-  // Strictly greater, so an all-zero-density region yields 0s rather than
-  // every bit flipping to 1 when the median itself is 0.
   for (const d of densities) bits = (bits << 1n) | (d > median ? 1n : 0n);
   return bits.toString(16).padStart(Math.ceil(densities.length / 4), "0");
 }
@@ -165,7 +155,6 @@ function popcount(n: bigint): number {
   return count;
 }
 
-/** Bits differing between two order hashes. Lower sorts first. */
 export function orderDistance(a: string, b: string): number {
   return popcount(BigInt(`0x${a}`) ^ BigInt(`0x${b}`));
 }

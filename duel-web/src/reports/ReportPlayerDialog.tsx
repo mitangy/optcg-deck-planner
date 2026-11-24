@@ -18,17 +18,12 @@ import {
 
 type Props = {
   target: ReportTarget;
-  /** The app's network call; reject with an Error whose message is shown to the person. */
   submit: (body: ReportRequest) => Promise<void>;
   onClose: () => void;
 };
 
 type Phase = "editing" | "sending" | "sent";
 
-/**
- * "Report {name}": a modal in the shared Dialog (fixed overlay in a portal, so nothing behind it moves).
- * The error line and the buttons keep their size while sending, so nothing shifts under the thumb.
- */
 export function ReportPlayerDialog({ target, submit, onClose }: Props) {
   const only = target.players.length === 1 ? target.players[0]! : null;
   const [player, setPlayer] = useState<ReportPlayer | null>(only);
@@ -55,7 +50,6 @@ export function ReportPlayerDialog({ target, submit, onClose }: Props) {
   };
   const pickPlayer = (p: ReportPlayer) => {
     setPlayer(p);
-    // A different player has different art: start the image choice again.
     setImageKind(null);
     if (reason === "image" && !imageReasonAvailable(p)) setReason(null);
     setError(null);
@@ -196,7 +190,6 @@ export function ReportPlayerDialog({ target, submit, onClose }: Props) {
             </a>
             .
           </p>
-          {/* Always rendered so an error never resizes the card. */}
           <p className="feedback-error" role="alert">
             {error ?? ""}
           </p>

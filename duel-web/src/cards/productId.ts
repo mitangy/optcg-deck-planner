@@ -1,4 +1,3 @@
-/** Parse TCGPlayer product id from CDN image URLs (`…/product/{id}_…`). */
 const PRODUCT_ID_FROM_URL_RE = /product\/(\d+)_/i;
 
 export function productIdFromImageUrl(url: string | undefined | null): number | undefined {

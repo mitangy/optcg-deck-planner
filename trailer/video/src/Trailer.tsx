@@ -22,7 +22,6 @@ const endSceneOf = (edit: Edit): SceneDef => ({
 const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 
-/** Consecutive scenes with the same eyebrow become one run so the label doesn't restart on every cut. */
 const eyebrowRuns = (edit: Edit) => {
   const {scenes: SCENES, phone: PHONE} = edit;
   const runs: {text: string; start: number; end: number}[] = [];
@@ -49,7 +48,6 @@ export const TrailerComp: React.FC<{layout: Layout; edit?: Edit}> = ({layout: L,
   const totalH = fh + BAR_H;
   const endF = Math.round(END_CARD.start * fps);
 
-  // --- persistent browser frame: rises in, floats, morphs to the end-card layout ---
   const FRAME_IN = edit.frameIn;
   const appear = FRAME_IN > 0 ? spring({frame: frame - FRAME_IN, fps, config: {damping: 18, stiffness: 70, mass: 1}}) : 1;
   const appearO = FRAME_IN > 0 ? clamp01((frame - FRAME_IN) / 10) : 1;
@@ -63,7 +61,6 @@ export const TrailerComp: React.FC<{layout: Layout; edit?: Edit}> = ({layout: L,
   const frameScale = lerp(1, L.end.desktop.scale, morph) * (0.93 + 0.07 * appear) * lerp(1, 0.9, hide);
   const rotY = Math.sin(frame / 95) * 1.1 * (1 - morph) + morph * 0;
 
-  // --- music ---
   const fadeIn = fps * 1.5;
   const fadeOut = fps * 3;
 

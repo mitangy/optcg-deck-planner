@@ -4,10 +4,10 @@ import { money, type OwnedCollectionResponse } from "../api";
 import { COLOR_ORDER } from "./cardListControls";
 import { cardColorNames } from "../pages/collection/collectionView";
 
-/** Summary cards under the page title: unique cards, total copies and estimated value. */
-export function CollectionStatCards({ data }: { data: OwnedCollectionResponse | undefined }) {
+/** The collection totals, in the same inline strip the Shopping head uses. */
+export function CollectionStatStrip({ data }: { data: OwnedCollectionResponse | undefined }) {
   return (
-    <ul className="stat-cards" aria-label="Collection totals">
+    <ul className="stat-strip" aria-label="Collection totals">
       <li>
         <span className="stat-label">Unique cards</span>
         <span className="stat-value">{data?.unique_cards ?? 0}</span>
@@ -29,7 +29,6 @@ function ColorDot({ color }: { color: string }) {
   return <span className="color-dot" data-color={color.toLowerCase()} aria-hidden="true" />;
 }
 
-/** A small pill per colour of a card (a two-colour card gets two). */
 export function CardColorChips({ color }: { color: string }) {
   const names = cardColorNames({ color });
   if (!names.length) return null;
@@ -45,7 +44,6 @@ export function CardColorChips({ color }: { color: string }) {
   );
 }
 
-/** Round colour buttons; any number can be on at once. */
 export function ColorFilterChips({
   selected,
   onToggle,
@@ -88,7 +86,39 @@ export function ColorFilterChips({
   );
 }
 
-/** "All" plus one pill per card type in the collection (single choice). */
+export type PillOption = { value: string; label: string; count?: number };
+
+/** Single-choice pills (the card type row, the group buy package status). A count, when given, sits after the label. */
+export function PillFilter({
+  options,
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  options: PillOption[];
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel: string;
+}) {
+  return (
+    <div className="type-filter" role="group" aria-label={ariaLabel}>
+      {options.map((o) => (
+        <button
+          key={o.value || "all"}
+          type="button"
+          className={`type-chip${value === o.value ? " on" : ""}`}
+          aria-pressed={value === o.value}
+          aria-label={o.count === undefined ? undefined : `${o.label} (${o.count})`}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+          {o.count === undefined ? null : <span className="type-chip-n" aria-hidden="true">{o.count}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function TypeFilterChips({
   types,
   value,
@@ -98,37 +128,23 @@ export function TypeFilterChips({
   value: string;
   onChange: (type: string) => void;
 }) {
-  const options = ["", ...types];
-  return (
-    <div className="type-filter" role="group" aria-label="Card type">
-      {options.map((t) => (
-        <button
-          key={t || "all"}
-          type="button"
-          className={`type-chip${value === t ? " on" : ""}`}
-          aria-pressed={value === t}
-          onClick={() => onChange(t)}
-        >
-          {t || "All"}
-        </button>
-      ))}
-    </div>
-  );
+  const options = ["", ...types].map((t) => ({ value: t, label: t || "All" }));
+  return <PillFilter options={options} value={value} onChange={onChange} ariaLabel="Card type" />;
 }
 
-/** The Collection page's yes/no filters, in a Headless UI popover so opening it moves nothing. */
 export function CollectionFilterMenu({
   badge,
+  label = "Filters",
   children,
 }: {
-  /** Filters that differ from their defaults. */
   badge: number;
+  label?: string;
   children: ReactNode;
 }) {
   return (
     <Popover as="div" className="collection-filter-menu">
       <PopoverButton type="button" className="sort-menu-btn collection-filter-btn">
-        Filters
+        {label}
         <span className={`collection-filter-badge${badge ? "" : " empty"}`} aria-hidden={badge ? undefined : true}>
           {badge || ""}
         </span>
@@ -137,7 +153,7 @@ export function CollectionFilterMenu({
       <PopoverPanel
         anchor={{ to: "bottom end", gap: 6, padding: 8 }}
         role="dialog"
-        aria-label="Collection filters"
+        aria-label="Filters"
         className="collection-filter-panel"
       >
         {children}

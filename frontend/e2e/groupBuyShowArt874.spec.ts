@@ -1,7 +1,3 @@
-/**
- * Group buy detail (/group-buys/:id): every art tile has Show / Shown like
- * Master Shopping, and the card's main image follows the choice (#874).
- */
 import { expect, test } from "./fixtures";
 
 const GB = 8;

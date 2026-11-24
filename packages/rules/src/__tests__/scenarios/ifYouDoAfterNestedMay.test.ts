@@ -1,7 +1,6 @@
 /**
- * "If that card is X, you may play that card. If you do, Y" (ST13-007, ST13-010, ST13-014): Y happens only when the
- * card was really played. The "you may" sits inside the "If that card is X" clause, so the payoff has to ask
- * `_affected` instead of trusting that the prompt was accepted (#213 did this for a "you may" at the top level).
+ * The "you may" sits inside the "If that card is X" clause, so the payoff has to ask `_affected` instead of trusting
+ * that the prompt was accepted.
  */
 import { describe, expect, it } from "vitest";
 import { addModifier } from "../../engine/modifiers.js";
@@ -25,7 +24,6 @@ function setUp(card: string, revealed: string, opts: { cannotPlay: boolean; decl
   // The played Character's own [On Play] may ask something; this test is about the Leader.
   while (h.choice?.request?.type === "confirm") h.decline();
   h.forced();
-  // "Up to 1 of your Leader": the payoff asks which card gets the power.
   if (h.choice?.request?.type === "select") h.pick(h.state.players[0].leader.id);
   return h;
 }
@@ -53,8 +51,8 @@ describe.each(CASES)("$card $name: play the revealed Life card, then the Leader 
 });
 
 /**
- * ST22-015: the nested "you may add 1 card from your Life to your hand" never writes `_affected`, so the payoff must
- * trust the accepted prompt, not the stale `_affected` left by the earlier (empty) Newgate play.
+ * The nested "you may" never writes `_affected`, so the payoff must trust the accepted prompt, not the stale
+ * `_affected` left by the earlier (empty) Newgate play.
  */
 describe("ST22-015 I Am Whitebeard!!", () => {
   function run(opts: { decline: boolean }) {

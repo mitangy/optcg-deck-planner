@@ -1,19 +1,11 @@
 import { GroupBuyLine, GroupBuyMember, GroupBuyMemberQty } from "../../api";
-import { MemberSwatch, memberColorIndex } from "./memberColors";
+import { MemberSwatch } from "./memberColors";
 
-export function cardShellClass(
-  base: string,
-  line: GroupBuyLine,
-  members: GroupBuyMember[],
-  excluded: boolean,
-): string {
-  const active = line.members.filter((m) => m.qty > 0);
-  const sole =
-    active.length === 1 ? ` gb-user-${memberColorIndex(active[0].user_id, members)}` : "";
-  return `${base}${excluded ? " excluded" : ""}${sole}`;
+/** The member colour shows on the rail beside the card, not as a tint over the whole row (#1361). */
+export function cardShellClass(base: string, excluded: boolean): string {
+  return `${base}${excluded ? " excluded" : ""}`;
 }
 
-/** Earliest member (member-list order) who still wants copies of this card. */
 function primaryWantingMember(
   line: GroupBuyLine,
   members: GroupBuyMember[],
@@ -49,7 +41,7 @@ export function groupBuyLineValue(line: GroupBuyLine, key: string) {
     case "who":
       return line.members.map((m) => m.display_name).join(", ");
     case "market":
-      return line.market_price;
+      return line.bought_arts?.length ? (line.bought_each ?? null) : line.market_price;
     case "est":
       return line.remaining_cost;
     default:

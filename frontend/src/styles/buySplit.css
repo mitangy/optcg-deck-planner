@@ -1,6 +1,3 @@
-/* Buy split (#906): the still-needed price is the control that splits the buy between the base
-   art and alt arts. The plain variant (no alts, or nothing left to buy) is the same box, so
-   rows never shift between the two. */
 .buy-split {
   display: inline-block;
   max-width: 100%;
@@ -35,7 +32,6 @@
   white-space: nowrap;
 }
 
-/* #1166: reads as a button: gold-tinted edge and fill, plus an action line under the amount. */
 .buy-split-btn {
   border-color: color-mix(in srgb, var(--gold) 45%, var(--line));
   background: color-mix(in srgb, var(--gold) 8%, var(--card));
@@ -57,7 +53,6 @@
   max-width: 100%;
 }
 
-/* Always one line (a pick never changes the trigger's height); ellipsis if it ever runs out of room. */
 .buy-split-action {
   display: flex;
   align-items: center;
@@ -178,7 +173,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Base is read-only: it takes whatever the alts leave. Same width as a stepper so the rows line up. */
 .buy-split-base-qty {
   min-width: 5.3rem;
   text-align: right;
@@ -195,7 +189,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Phone: a bottom sheet pinned to the screen's bottom edge with 44px tap targets. */
 .buy-split-sheet {
   position: fixed;
   inset: auto 0 0 0;
@@ -206,7 +199,6 @@
   border-bottom: 0;
 }
 
-/* Dims the page behind the phone sheet, one layer under the panel (z-index 90). A tap on it closes the sheet. */
 .buy-split-backdrop {
   position: fixed;
   inset: 0;
@@ -243,13 +235,11 @@
   min-width: 7.1rem;
 }
 
-/* The trigger sits on its own line under a count or a meta line. */
 .buy-split-line {
   display: block;
   margin-top: 0.25rem;
 }
 
-/* In the desktop table the amount's box is as wide as its action line ("1 alt + 1 base + 1 ★"), so a pick never widens the column. */
 .desktop-table .buy-split-box {
   min-width: 7.4rem;
 }
@@ -258,4 +248,26 @@
   .buy-split-box {
     min-height: 2.75rem;
   }
+}
+
+.gb-transit-chip {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  max-width: 100%;
+  min-height: 1.5rem;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 0.8rem;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  text-decoration: none;
+}
+
+.gb-transit-chip:hover {
+  background: var(--bg);
 }

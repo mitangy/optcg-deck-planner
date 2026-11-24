@@ -29,7 +29,6 @@ export const AttackScene: React.FC = () => {
   const hit = f - IMPACT;
   const restP = sp(f, IMPACT + 4, {damping: 12, stiffness: 120});
   const shake = prog(f, IMPACT, IMPACT + 14, Easing.linear);
-  // arrow geometry (start near attacker top-right, end at the target's top-left)
   const ax = a.leftX + w * 0.25, ay = a.cy - a.cardH * 0.5 + 20;
   const bx = a.rightX - w * 0.1, by = a.cy - a.cardH * 0.36;
   const lift = a.arcLift;

@@ -1,16 +1,9 @@
-/**
- * Pure deck statistics (no React, no network) so the planner and duel-web can share it.
- * Input is a card list plus the compact per-card atlas exported by
- * `packages/rules` (`npm run export-planner-stats` -> packages/deck-analytics/deckStats.json).
- */
-
 import { normalizeCardId } from "@optcg/card-core";
 
 export type StatsCardType = "character" | "event" | "stage" | "leader";
 
 export type StatsSearch = { look: number; filter: Record<string, unknown> };
 
-/** One card in `deckStats.json` (short keys keep the download small). */
 export type StatsAtlasCard = {
   /** Printed name, plus name_alias names in `al`. */
   n?: string;
@@ -39,7 +32,6 @@ export type StatsAtlasCard = {
   gc?: StatsCounterGrant[];
 };
 
-/** Counter becomes `v` (or printed + `v` with `add`); `t` / `tr` narrow by type / any trait; `nc` only cards without a printed counter. */
 export type StatsCounterGrant = { v: number; add?: 1; t?: StatsCardType[]; tr?: string[]; nc?: 1 };
 
 export type StatsAtlas = Record<string, StatsAtlasCard>;
@@ -55,29 +47,20 @@ export type GrantedCounter = { id: string; name: string; copies: number; value: 
 export type RuleViolation = { rule: string; cardIds: string[] };
 
 export type DeckStats = {
-  /** Copies counted (leader, DON!! and unknown ids excluded). */
   total: number;
-  /** Copies whose id is missing from the atlas (not counted anywhere else). */
   unknown: number;
   byType: { character: number; event: number; stage: number };
-  /** Index 0..10; index 10 holds every card costing 10 or more. */
   costCurve: CostBucket[];
-  /** Characters only, floor(power / 1000) * 1000, contiguous from lowest to highest bucket. */
   powerCurve: { power: number; count: number }[];
   counter: {
     totalCounter: number;
-    /** Total counter over all counted copies; cards without a counter count as 0. */
     average: number;
     none: number;
     c1000: number;
     c2000: number;
-    /** Printed counters other than 1000 / 2000. */
     other: number;
-    /** Event cards with a [Counter] ability. */
     events: number;
-    /** Cards whose counter comes from printed text rather than the counter box (self or Leader grants). */
     granted: GrantedCounter[];
-    /** Whether [Counter] events' base +power is included in the totals. */
     eventsCounted: boolean;
   };
   keywords: NameCount[];
@@ -92,7 +75,6 @@ export type DeckStats = {
     id: string;
     colors: string[];
     ruleViolations: RuleViolation[];
-    /** Card ids sharing no color with the leader. */
     offColorIds: string[];
   } | null;
 };
@@ -119,7 +101,6 @@ const ROLE_LABEL: Record<string, string> = {
   lifeGain: "Life gain",
 };
 
-/** Counter a card has in hand: printed, then its own printed grant, then the Leader's grants. */
 export function effectiveCounter(
   card: StatsAtlasCard,
   leader: StatsAtlasCard | undefined,
@@ -149,7 +130,6 @@ export function effectiveCounter(
   return { value, source };
 }
 
-/** Mirrors `deckConstructionErrors` in packages/rules (deck_rule statics on Leaders). */
 export function ruleOffends(rule: string, card: StatsAtlasCard): boolean {
   const [kind, arg] = rule.split(":");
   if (kind === "max_cost") return (card.cost ?? 0) > Number(arg);

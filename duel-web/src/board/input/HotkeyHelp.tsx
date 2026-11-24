@@ -20,7 +20,6 @@ const KEYS: { keys: string; text: string }[] = [
   { keys: "?", text: "This list." },
 ];
 
-/** Keyboard shortcut list; same sheet as Gameplay settings. */
 export function HotkeyHelpSheet({ onClose }: { onClose: () => void }) {
   return (
     <Dialog open onClose={onClose} className="sheet-backdrop" panelClassName="sheet" label="Keyboard shortcuts">

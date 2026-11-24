@@ -1,4 +1,3 @@
-/* Version + "am I on the latest deploy?" line (Settings › About, lobby footer). */
 .version-status {
   display: flex;
   flex-wrap: wrap;

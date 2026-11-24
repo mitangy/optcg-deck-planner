@@ -26,6 +26,25 @@ describe("loadSettings", () => {
   });
 });
 
+describe("profile picture setting (#1383)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("keeps a stored card id, drops anything that is not text, and follows the account (#1383)", () => {
+    stubStored({ profileCard: "OP01-001" });
+    expect(loadSettings().profileCard).toBe("OP01-001");
+    stubStored({ profileCard: 7 });
+    expect(loadSettings().profileCard).toBe("");
+    stubStored({});
+    expect(syncedSettings(loadSettings()).profileCard).toBe("");
+    stubStored({ profileCard: "OP01-001" });
+    expect(syncedSettings(loadSettings()).profileCard).toBe("OP01-001");
+    stubStored({});
+    expect(mergeRemoteSettings(loadSettings(), { profileCard: "ST01-012" }).profileCard).toBe("ST01-012");
+  });
+});
+
 describe("DON!! art setting (#440)", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
@@ -113,7 +132,6 @@ describe("response stops migration", () => {
     phone(true);
     stubStored({});
     expect(loadSettings().responseStops).toBe("auto");
-    // A stored choice still wins over the device default.
     stubStored({ responseStops: "always" });
     expect(loadSettings().responseStops).toBe("always");
     phone(false);
@@ -187,7 +205,6 @@ describe("hand layout", () => {
     expect(loadSettings()).toMatchObject({ handLayout: "fan", handFanPos: "" });
     stubStored({ handLayout: "fanRight" });
     expect(loadSettings()).toMatchObject({ handLayout: "fan", handFanPos: "0.88,1" });
-    // A spot saved since then wins over the old right fan.
     stubStored({ handLayout: "fanRight", handFanPos: "0.2,0.5" });
     expect(loadSettings().handFanPos).toBe("0.2,0.5");
   });
@@ -202,7 +219,6 @@ describe("hand layout", () => {
   it("turns the old Opponent hand, top right switch into the hand pinned top right (#297)", () => {
     stubStored({ oppHandTopRight: true });
     expect(loadSettings().oppHandSpot).toBe("right");
-    // A spot picked since wins, and off keeps the side panel.
     stubStored({ oppHandTopRight: true, oppHandSpot: "left" });
     expect(loadSettings().oppHandSpot).toBe("left");
     stubStored({ oppHandTopRight: false });
@@ -304,7 +320,6 @@ describe("account settings", () => {
       handLayout: "fan",
       handFanPos: "",
     });
-    // A spot the account saved since then still wins.
     expect(
       mergeRemoteSettings(loadSettings(), { handLayout: "fanRight", handFanPos: "0.4,1" }).handFanPos,
     ).toBe("0.4,1");
@@ -372,7 +387,6 @@ describe("Bigger playing area is on unless chosen off (#556)", () => {
     expect(loadSettings().bigBoard).toBe(true);
     stubStored({ bigBoard: false, bigBoardChosen: true });
     expect(loadSettings().bigBoard).toBe(false);
-    // The same holds for the copy kept on the account.
     stubStored({});
     expect(mergeRemoteSettings(loadSettings(), { bigBoard: false }).bigBoard).toBe(true);
     expect(mergeRemoteSettings(loadSettings(), { bigBoard: false, bigBoardChosen: true }).bigBoard).toBe(false);

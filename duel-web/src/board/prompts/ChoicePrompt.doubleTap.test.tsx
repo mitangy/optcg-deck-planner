@@ -53,7 +53,6 @@ const choice = (options: ChoiceOptionView[], min: number, max: number): PendingC
 const inHand = (id: string, instanceId: string): ChoiceOptionView => ({ id, defId: "ST01-003", zone: "hand", ownerSeat: 1, instanceId, eligible: true });
 const onField = (id: string, instanceId: string): ChoiceOptionView => ({ id, defId: "ST01-004", zone: "character", ownerSeat: 0, instanceId, eligible: true });
 
-/** The prompt plus a stand-in for the board, whose field tiles are what the prompt's board clicks hit. */
 function mount(c: PendingChoiceView) {
   const sent: Intent[] = [];
   host = document.createElement("div");
@@ -73,7 +72,7 @@ function mount(c: PendingChoiceView) {
   return sent;
 }
 
-/** Two clicks then the dblclick a desktop browser adds, each a separate event like a real double-click. */
+// Each click is a separate event, like a real double-click.
 function doubleClick(el: Element) {
   act(() => el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));
   act(() => el.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true })));

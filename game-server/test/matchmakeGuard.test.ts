@@ -3,7 +3,6 @@ import { assertProductionAuthConfig, requireGameToken } from "../src/env.js";
 import { gameFirstSeat, gameSeed } from "../src/matchmakeGuard.js";
 import { parseCreateOptions } from "../src/protocol.js";
 
-/** Runs `fn` with REQUIRE_GAME_TOKEN=true, as on the deployed server. */
 async function withTokensRequired<T>(fn: () => Promise<T> | T): Promise<T> {
   const prev = process.env.REQUIRE_GAME_TOKEN;
   process.env.REQUIRE_GAME_TOKEN = "true";
@@ -19,6 +18,13 @@ describe("shuffle seeds", () => {
   it("ignores a client-chosen seed when tokens are required (#318)", async () => {
     const seeds = await withTokensRequired(() => [1, 2, 3].map(() => parseCreateOptions({ seed: 42 }).seed));
     assert.ok(seeds.some((s) => s !== 42), `seeds ${seeds.join(",")}`);
+  });
+
+  it("marks a seed as pinned only when the client's value was honoured (#1350)", async () => {
+    assert.equal(parseCreateOptions({ seed: 42 }).seedPinned, true);
+    assert.equal(parseCreateOptions({}).seedPinned, false);
+    const pinned = await withTokensRequired(() => [1, 2, 3, 4].map(() => parseCreateOptions({ seed: 42 }).seedPinned));
+    assert.deepEqual(pinned, [false, false, false, false]);
   });
 
   it("does not derive the seed from the clock (#318)", () => {

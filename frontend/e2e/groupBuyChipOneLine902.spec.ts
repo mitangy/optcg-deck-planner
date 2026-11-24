@@ -1,6 +1,3 @@
-/**
- * A who-wants chip on a group buy art tile stays on one line, even with a two-word name (#902).
- */
 import { expect, test } from "./fixtures";
 
 const GB = 11;
@@ -95,7 +92,6 @@ for (const layout of ["List", "Grid"] as const) {
       return tops.size;
     });
     expect(lines).toBe(1);
-    // The whole name fits: not cut short with an ellipsis.
     const clipped = await text.evaluate((el) => el.scrollWidth > el.clientWidth + 1);
     expect(clipped).toBe(false);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/${testInfo.project.name}-${layout.toLowerCase()}-chip.png`, fullPage: true });

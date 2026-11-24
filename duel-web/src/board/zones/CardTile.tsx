@@ -31,6 +31,7 @@ import {
 import { usePointerDrag } from "../input/usePointerDrag";
 import { StatusRow } from "../panels/StatusIcon";
 import { donUnderLayers } from "../don/donUnder";
+import { cardAriaLabel } from "./cardLabel";
 
 const COLOR_CHIP: Record<string, string> = {
   red: "#c62828",
@@ -46,65 +47,37 @@ type Props = {
   rested?: boolean;
   power?: number;
   printedPower?: number | null;
-  /** Live cost of a Character in play (includes +cost effects). */
   fieldCost?: number;
   attachedDonCount?: number;
   compact?: boolean;
   selected?: boolean;
   frame?: "default" | "leader";
-  /** Status / CC chips (Rested, Summoning sick, Stun, …). */
   statusLabels?: string[];
-  /** Primary click (hand select / intent targeting). */
   onClick?: () => void;
-  /**
-   * Fire onClick immediately instead of waiting out the double-click window.
-   * Use for idempotent toggles (select/deselect) so the highlight is instant —
-   * a double-click toggles twice (no net change) and then opens inspect.
-   * Leave off for one-shot actions (e.g. declaring an attack on a target).
-   */
+  // Idempotent toggles: a double-click toggles twice (no net change) and then opens inspect, so firing immediately is safe.
   instantClick?: boolean;
-  /**
-   * Prompt targets (#1287): a second click within the double-click window cancels
-   * the deferred single click and calls this instead, and a `dblclick` no longer
-   * opens inspect. Timed here, not from `dblclick`: iOS doesn't reliably fire it.
-   * Unset: a double-click inspects, as everywhere else.
-   */
+  // Timed here, not from `dblclick`: iOS doesn't reliably fire it.
   onDoubleActivate?: () => void;
-  /** When true, single click opens inspect instead of onClick (trash viewer only). */
   inspectOnClick?: boolean;
-  /** Long-press / double-click inspect when true (field cards without onClick). */
   inspectGestures?: boolean;
-  /** HTML5 drag stays off; pointer drag when set. */
   dragEnabled?: boolean;
   dragPayload?: unknown;
   onDragStart?: () => void;
   onDragEnd?: (clientX: number, clientY: number) => void;
   onDragCancel?: () => void;
-  /** touch-action before a drag lifts (default pan-x, for scrolling hand rows). */
   dragTouchAction?: "pan-x" | "pan-y" | "none";
-  /** data-dnd-drop value for give_don / play_trash targets. */
   dropAttr?: string | null;
   dropHighlight?: boolean;
   classNameExtra?: string;
-  /** Seat that owns this card instance (art resolution). */
   ownerSeat?: Seat;
-  /** Copy rank of an any-number card (engine view `artCopy`): which art "One of each art" shows (#1292). */
   artCopy?: number;
-  /** Seat controlling the UI (alt-art picker writes here). */
   viewingSeat?: Seat;
-  /** Server-authoritative play cost (Teach tax, etc.) when in Main. */
   playCost?: number;
-  /** An effect stops you playing this hand card this turn: the caption says so. */
   blocked?: HandBlock;
-  /** Board instance id → `data-instance-id` (battle overlay anchor) + live hover preview tracking. */
   instanceId?: string;
-  /** Hand card id → `data-motion-id`, so draw / play / discard animations can find it. */
   motionId?: string;
-  /** Show the Counter value badge (hand cards). */
   showCounter?: boolean;
-  /** Own hand card an effect revealed to the opponent this turn: shows a small "Revealed" marker (#491). */
   revealed?: boolean;
-  /** Inline custom properties (hand fan pose). */
   style?: CSSProperties;
 };
 
@@ -145,8 +118,7 @@ export function CardTile({
   style,
 }: Props) {
   const entry = useMemo(() => lookupCard(defId), [defId]);
-  // Failure state is keyed by URL (not defId) so picking a different alt art
-  // after a failed load gets a fresh attempt instead of staying on the fallback.
+  // Keyed by URL (not defId) so picking a different alt art after a failed load gets a fresh attempt.
   const [failedSrc, setFailedSrc] = useState<string | null | undefined>(null);
   const [localFallbackFor, setLocalFallbackFor] = useState<string | null | undefined>(null);
   const [inspectOpen, setInspectOpen] = useState(false);
@@ -172,7 +144,6 @@ export function CardTile({
   );
   const labels = tileStatusLabels(statusLabels, rested);
 
-  // Live in-play state for the hover preview (field instances only).
   const labelsKey = (statusLabels ?? []).join("|");
   const live = useMemo<PreviewLive | undefined>(
     () =>
@@ -187,7 +158,6 @@ export function CardTile({
     if (instanceId && live) refreshPreviewLive(instanceId, live);
   }, [instanceId, live]);
 
-  /** The mouse is over this tile: a tile played or K.O.'d from under it gets no pointerleave, so unmounting ends the hover (#529). */
   const hoveredRef = useRef(false);
   useEffect(
     () => () => {
@@ -231,7 +201,6 @@ export function CardTile({
     enabled: dragEnabled,
     payload: dragPayload ?? null,
     onDragStart: () => {
-      // Drag arms at 8px; long-press cancel is 12px — abort inspect once drag starts.
       longPressRef.current?.cancel();
       clickDeferRef.current?.cancel();
       onDragStart?.();
@@ -259,7 +228,6 @@ export function CardTile({
     .join(" ");
 
   function handleClick(e: MouseEvent) {
-    // Long-press already opened inspect — suppress the synthetic click.
     if (longPressRef.current?.consumeActivated()) {
       e.preventDefault();
       e.stopPropagation();
@@ -295,8 +263,7 @@ export function CardTile({
 
   function handlePointerDown(e: PointerEvent) {
     if (e.pointerType === "mouse" && e.button !== 0) return;
-    // Mouse press-and-hold on a draggable card is the start of a drag, not an
-    // inspect (desktop inspects via double-click / the "i" chip).
+    // Mouse press-and-hold on a draggable card is the start of a drag, not an inspect.
     if (!(e.pointerType === "mouse" && dragEnabled)) {
       longPressRef.current?.onPointerDown(e);
     }
@@ -342,12 +309,18 @@ export function CardTile({
     inspectOnClick || inspectGestures || Boolean(onClick) || dragEnabled;
   const interactive = Boolean(onClick || inspectOnClick || dragEnabled || inspectGestures);
 
+  const tileLabel = cardAriaLabel({
+    name: entry.name,
+    power: pb?.current,
+    cost: cb?.current ?? entry.cost,
+    rested: Boolean(rested),
+    attachedDon: attachedDonCount,
+  });
+
   const body = (
     <>
       {donLayers.length ? (
-        // DON!! cards tucked under this card, fanned out below / beside it.
-        // Farthest layer first so the nearest paints on top. Purely visual:
-        // the numeric count lives in the DON!! badge below.
+        // Farthest layer first so the nearest paints on top.
         <span className="don-under" aria-hidden>
           {[...donLayers].reverse().map((l) => (
             <span
@@ -375,8 +348,6 @@ export function CardTile({
           <span className="card-fallback-id">{entry.id}</span>
         </div>
       )}
-      {/* Badges live in an overlay that counter-rotates on rested (sideways)
-          tiles so power / DON!! / statuses stay upright and readable. */}
       {revealed ? (
         <span className="hand-revealed-badge" title="Revealed to opponent" aria-label="Revealed to opponent">
           Revealed
@@ -396,8 +367,7 @@ export function CardTile({
               >
                 <span className="power-base">{pb.base}</span>
                 {pb.delta !== 0 ? (
-                  // Narrow (phone) tiles show only this, so the stack stays short
-                  // enough for the status row under it (see .card-overlays).
+                  // Narrow tiles show only this, so the stack stays short enough for the status row under it.
                   <span className={`power-now ${pb.delta > 0 ? "power-mod-up" : "power-mod-down"}`}>
                     {pb.current}
                   </span>
@@ -430,7 +400,6 @@ export function CardTile({
                   ))}
               </span>
             ) : null}
-            {/* Stacked under power so narrow (mobile) tiles never overlap badges. */}
             {attachedDonCount ? (
               <span className="don-badge" aria-label={`DON!! ×${attachedDonCount}`}>
                 <span className="don-badge-word">DON</span>×{attachedDonCount}
@@ -496,7 +465,6 @@ export function CardTile({
     },
   };
 
-  // A card the viewer may not see (a replay's hidden hand): a plain card back, nothing to inspect or hover.
   if (defId === "HIDDEN") {
     return (
       <div className={`${className} card-tile-hidden`} style={style} role="img" aria-label="Hidden card" {...dropProps}>
@@ -511,6 +479,7 @@ export function CardTile({
         <button
           type="button"
           className={className}
+          aria-label={tileLabel}
           onClick={handleClick}
           onClickCapture={dragBind.onClickCapture}
           onKeyDown={(e) => {
@@ -527,7 +496,7 @@ export function CardTile({
           {body}
         </button>
       ) : (
-        <div className={className} style={style} {...dropProps} {...pointerHandlers}>
+        <div className={className} style={style} role="group" aria-label={tileLabel} {...dropProps} {...pointerHandlers}>
           {body}
         </div>
       )}

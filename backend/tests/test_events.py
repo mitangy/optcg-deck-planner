@@ -1,4 +1,3 @@
-"""Stress Test Sunday giveaway: eligibility, join, and the seeded draw (#794)."""
 
 from __future__ import annotations
 
@@ -12,7 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.duel import events as ev
 from app.duel.models import DuelEvent, DuelMatch, EventDraw, EventEntry
-from tests.test_admin import ADMIN_EMAIL, login, mk
+from tests.test_admin import ADMIN_EMAIL, login
+from tests.test_admin import mk as _mk
 from tests.test_admin import api  # noqa: F401  (fixture)
 from tests.test_duel import client  # noqa: F401  (fixture)
 
@@ -22,6 +22,12 @@ MID = START + timedelta(hours=1)
 BEFORE = START - timedelta(days=3)
 AFTER = END + timedelta(hours=2)
 _n = [0]
+OLD_ACCOUNT = START - timedelta(days=60)
+
+
+def mk(SessionLocal, email: str, role: str = "user", **kw) -> int:
+    kw.setdefault("created_at", OLD_ACCOUNT)
+    return _mk(SessionLocal, email, role, **kw)
 
 
 @pytest.fixture(autouse=True)
@@ -67,11 +73,8 @@ def stats_for(S, uid: int) -> tuple[int, int]:
 
 
 def trio(S):
-    """Three real players; a plays one game against each of b and c, then one more against b."""
     return mk(S, "a@x.test"), mk(S, "b@x.test"), mk(S, "c@x.test")
 
-
-# ------------------------------------------------------------------ pure rules
 
 def test_eligibility_needs_opt_in_games_and_distinct_opponents_794():
     ok = dict(opted_in=True, excluded=False, games=3, opponents=2)
@@ -90,8 +93,8 @@ def test_ranking_follows_the_published_hmac_formula_794():
     )
     assert ev.rank_eligible(seed, EVENT.id, ids) == expected
     assert ev.rank_eligible(seed, EVENT.id, reversed(ids)) == expected
-    assert ev.rank_eligible("cd" * 32, EVENT.id, ids) != expected  # another seed, another order
-    assert ev.rank_eligible(seed, "other-event", ids) != expected  # the event id is part of the message
+    assert ev.rank_eligible("cd" * 32, EVENT.id, ids) != expected
+    assert ev.rank_eligible(seed, "other-event", ids) != expected
     assert ev.seed_hash(seed) == hashlib.sha256(seed.encode()).hexdigest()
 
 
@@ -109,8 +112,6 @@ def test_the_banner_event_stays_for_a_week_after_it_ends_794(api):
         assert ev.current_event(db, END + timedelta(days=6)) == EVENT
         assert ev.current_event(db, END + timedelta(days=8)) is None
 
-
-# ------------------------------------------------------------------ counting games
 
 def test_games_count_from_the_start_inclusive_to_the_end_exclusive_794(api):
     c, S = api
@@ -194,8 +195,6 @@ def test_banned_staff_and_guest_accounts_are_excluded_794(api):
     assert got[admin] == (False, "staff")
     assert got[guest] == (False, "guest")
 
-
-# ------------------------------------------------------------------ routes: public
 
 def test_current_event_is_hidden_when_none_is_near_794(api, clock):
     c, S = api
@@ -287,12 +286,8 @@ def test_signed_in_players_see_their_own_progress_794(api, clock):
     assert p == {"games": 3, "opponents": 2, "eligible": True}
 
 
-# ------------------------------------------------------------------ routes: admin and the draw
-
 def setup_players(S, n: int = 4) -> list[int]:
-    """n opted-in players who each beat the eligibility bar by playing the others."""
-    # Accounts made well before the event, so the new-account flag (#809) never depends on today's date.
-    ids = [mk(S, f"p{i}@x.test", created_at=START - timedelta(days=60)) for i in range(n)]
+    ids = [mk(S, f"p{i}@x.test", created_at=START - timedelta(days=30)) for i in range(n)]
     for uid in ids:
         optin(S, uid)
     for i, uid in enumerate(ids):
@@ -324,7 +319,7 @@ def test_admin_counters_count_the_window_and_eligible_players_794(api, clock):
     ids = setup_players(S)
     outsider = mk(S, "o@x.test")
     play(S, outsider, ids[0])
-    play(S, outsider, ids[0], at=START - timedelta(hours=1))  # outside the window
+    play(S, outsider, ids[0], at=START - timedelta(hours=1))
     guest = mk(S, "guest-k@localhost")
     play(S, guest, ids[0])
     admin_login(c, S)
@@ -431,7 +426,7 @@ def test_a_forfeit_moves_the_next_player_up_794(api, clock):
     c.post(f"/admin/events/{EVENT.id}/commit")
     url = f"/admin/events/{EVENT.id}/forfeit"
     clock["now"] = AFTER
-    assert c.post(url, json={"user_id": 1}).status_code == 409  # not drawn yet
+    assert c.post(url, json={"user_id": 1}).status_code == 409
     draw = c.post(f"/admin/events/{EVENT.id}/draw").json()["draw"]
     ranking = [r["user_id"] for r in draw["ranking"]]
     assert c.post(url, json={"user_id": 99999}).status_code == 404
@@ -445,7 +440,6 @@ def test_a_forfeit_moves_the_next_player_up_794(api, clock):
 
 
 def test_the_event_stays_reachable_through_the_reply_window_795(api, clock):
-    """The rules say a winner has 7 days to reply, so the forfeit lands ~8 days after the end."""
     c, S = api
     ids = setup_players(S, 5)
     admin_login(c, S)
@@ -456,15 +450,12 @@ def test_the_event_stays_reachable_through_the_reply_window_795(api, clock):
     ranking = [r["user_id"] for r in draw["ranking"]]
 
     clock["now"] = END + timedelta(days=8)
-    # The lobby banner still stops showing the ended event after a week, as before.
     assert c.get("/duel/events/current").json() == {"event": None}
-    # The public rules page loads it by id and still shows the seed and eligible ids.
     pub = c.get(f"/duel/events/{EVENT.id}")
     assert pub.status_code == 200
     body = pub.json()["event"]
     assert body["id"] == EVENT.id and body["status"] == "drawn"
     assert body["seed"] == draw["seed"] and sorted(body["eligible_user_ids"]) == sorted(ids)
-    # The admin tab finds the event and can still forfeit a winner.
     latest = c.get("/admin/events/latest")
     assert latest.status_code == 200 and latest.json()["id"] == EVENT.id
     out = c.post(f"/admin/events/{EVENT.id}/forfeit", json={"user_id": ranking[0]}).json()["draw"]
@@ -477,8 +468,6 @@ def test_event_lookup_by_id_is_public_and_404s_for_unknown_ids_795(api, clock):
     assert c.get(f"/duel/events/{EVENT.id}").json()["event"]["id"] == EVENT.id
     assert c.get("/admin/events/latest").status_code == 401
 
-
-# ------------------------------------------------------------------ advisory flags (#809)
 
 OLD = START - timedelta(days=60)
 
@@ -524,7 +513,7 @@ def test_new_opponents_flag_needs_every_counted_opponent_to_be_new_809(api):
         play(S, all_new, alt)
     play(S, mixed, alt1)
     play(S, mixed, veteran)
-    play(S, quiet, alt1, turns=2)  # does not count, so no counted opponents
+    play(S, quiet, alt1, turns=2)
     f = flags_by_id(S)
     assert "new_opponents" in f[all_new]
     assert "new_opponents" not in f[mixed]
@@ -540,18 +529,17 @@ def test_isolated_group_flag_is_a_small_closed_cluster_of_counted_games_809(api)
     ring(S, four)
     five = [acct(S, f"five{i}@x.test") for i in range(5)]
     ring(S, five)
-    # A 3-ring bridged to the big group only by a game that does not count stays isolated.
     shaky = [acct(S, f"shaky{i}@x.test") for i in range(3)]
     ring(S, shaky)
     play(S, shaky[0], five[0], turns=2)
-    guest = mk(S, "guest-z@localhost")  # a guest between the ring and the big group is no bridge
+    guest = mk(S, "guest-z@localhost")
     play(S, shaky[1], guest)
     play(S, guest, five[1])
     lone = acct(S, "lone@x.test")
     f = flags_by_id(S)
     assert all("isolated_group" in f[u] for u in alts + four + shaky)
     assert all("isolated_group" not in f[u] for u in five)
-    assert "isolated_group" not in f[lone]  # no counted game
+    assert "isolated_group" not in f[lone]
 
 
 def test_a_counted_game_into_a_big_group_ends_the_isolation_809(api):
@@ -594,12 +582,12 @@ def test_flags_come_in_a_fixed_order_809(api):
 
 def test_admin_json_and_csv_carry_flags_and_flagged_players_still_win_809(api, clock):
     c, S = api
-    ids = setup_players(S, 4)  # a closed ring of ranked veterans: flagged isolated_group
+    ids = setup_players(S, 4)
     wide = [acct(S, f"w{i}@x.test") for i in range(6)]
     for i, uid in enumerate(wide):
         for off in (1, 2, 3):
             play(S, uid, wide[(i + off) % 6])
-    newbie = acct(S, "newbie@x.test", START - timedelta(days=1))  # flagged but not eligible
+    newbie = acct(S, "newbie@x.test", START - timedelta(days=1))
     admin_login(c, S)
     out = c.get(f"/admin/events/{EVENT.id}").json()
     rows = {p["user_id"]: p for p in out["participants"]}
@@ -618,8 +606,6 @@ def test_admin_json_and_csv_carry_flags_and_flagged_players_still_win_809(api, c
     draw = c.post(f"/admin/events/{EVENT.id}/draw").json()["draw"]
     assert sorted(r["user_id"] for r in draw["ranking"]) == sorted(ids + wide)
 
-
-# ------------------------------------------------------------------ admin create / edit / delete (#1019)
 
 def payload(**over) -> dict:
     base = {
@@ -725,9 +711,9 @@ def test_admin_moves_the_event_date_and_the_public_page_follows_1019(api, clock)
     assert out.status_code == 200
     pub = c.get(f"/duel/events/{EVENT.id}").json()["event"]
     assert pub["starts_at"] == new_start.isoformat() and pub["ends_at"] == new_end.isoformat()
-    clock["now"] = MID  # the old window: now the event has not started
+    clock["now"] = MID
     assert c.get(f"/duel/events/{EVENT.id}").json()["event"]["status"] == "upcoming"
-    setup_players(S)  # their games sit in the old window
+    setup_players(S)
     assert c.get(f"/admin/events/{EVENT.id}").json()["counters"]["games_in_window"] == 0
     c.patch(f"/admin/events/{EVENT.id}", json={"starts_at": START.isoformat(), "ends_at": END.isoformat()})
     assert c.get(f"/admin/events/{EVENT.id}").json()["counters"]["games_in_window"] > 0
@@ -751,7 +737,6 @@ def test_rules_version_changes_only_when_the_rules_change_1019(api, clock):
         v = c.patch(url, json=change).json()["rules_version"]
         assert v not in seen
         seen.add(v)
-    # Re-sending the form unchanged is not a rules change either.
     cur = c.get(url).json()
     again = c.patch(url, json={k: cur[k] for k in ("title", "starts_at", "ends_at", "min_games", "prize")}).json()
     assert again["rules_version"] == cur["rules_version"]
@@ -792,7 +777,6 @@ def test_edits_that_change_who_wins_are_refused_after_the_draw_1019(api, clock):
         assert r.status_code == 409 and "draw already ran" in r.json()["detail"], change
     cur = c.get(url).json()
     assert (cur["winners_count"], cur["min_games"], cur["starts_at"]) == (3, 3, START.isoformat())
-    # Wording can still be fixed, and re-sending the locked values unchanged is fine.
     ok = c.patch(url, json={"prize_details": "Gift cards by email", "winners": 3, "starts_at": START.isoformat(), "title": "Stress Test Sunday!"})
     assert ok.status_code == 200 and ok.json()["prize_details"] == "Gift cards by email" and ok.json()["title"] == "Stress Test Sunday!"
 
@@ -805,7 +789,7 @@ def test_the_start_cannot_move_once_a_seed_is_committed_and_the_event_began_1019
     c.post(url + "/commit")
     later = (START + timedelta(days=1)).isoformat()
     later_end = (END + timedelta(days=1)).isoformat()
-    assert c.patch(url, json={"starts_at": later, "ends_at": later_end}).status_code == 200  # not started yet
+    assert c.patch(url, json={"starts_at": later, "ends_at": later_end}).status_code == 200
     clock["now"] = START + timedelta(days=1, minutes=5)
     r = c.patch(url, json={"starts_at": (START + timedelta(days=2)).isoformat(), "ends_at": (END + timedelta(days=2)).isoformat()})
     assert r.status_code == 409 and "start can't move" in r.json()["detail"]
@@ -830,7 +814,6 @@ def test_placement_events_have_no_seed_commit_or_draw_1019(api, clock):
     assert c.post(f"/admin/events/{eid}/commit").status_code == 409
     with S() as db:
         assert db.scalar(select(func.count()).select_from(EventDraw)) == 0
-        # Even with a seed on file (say, left from when it was a draw event) nothing can be drawn.
         db.add(EventDraw(event_id=eid, seed="ab" * 32, seed_hash=ev.seed_hash("ab" * 32)))
         db.commit()
     clock["now"] = END + timedelta(days=15)
@@ -903,5 +886,4 @@ def test_the_latest_event_is_the_one_that_ends_last_1019(api, clock):
     assert c.get("/admin/events/latest").json()["id"] == EVENT.id
     new = create(c)
     assert c.get("/admin/events/latest").json()["id"] == new["id"]
-    # The public banner still prefers the soonest live or upcoming event.
     assert c.get("/duel/events/current").json()["event"]["id"] == EVENT.id

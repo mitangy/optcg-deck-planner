@@ -6,40 +6,18 @@ import "./ui.css";
 export type DialogProps = {
   open: boolean;
   onClose: () => void;
-  /** Classes of the full-screen backdrop. It is also the `role="dialog"` element. */
   className?: string;
-  /** Classes of the panel. A click outside the panel closes the dialog. */
   panelClassName?: string;
-  /** Accessible name, when the panel has no `DialogTitle`. */
   label?: string;
-  /** `alertdialog` for a notice that needs an answer. Default `dialog`. */
   role?: "dialog" | "alertdialog";
-  /**
-   * Whether a click or tap outside the panel calls `onClose` (default true). With `false`
-   * only Escape does, for an editor where a stray click must not throw the work away.
-   */
+  /** With false only Escape closes, for an editor where a stray click must not throw the work away. */
   closeOnOutsideClick?: boolean;
-  /** Ref of the panel element (a swipe-to-dismiss sheet moves it). */
   panelRef?: Ref<HTMLDivElement>;
-  /** Extra attributes and handlers for the panel element. */
   panelProps?: Omit<ComponentPropsWithoutRef<"div">, "className" | "children">;
-  /**
-   * Opt in to enter and leave transitions (default false: the dialog unmounts the moment `open` turns false).
-   * The backdrop and the panel then stay mounted until their CSS transition ends and carry `data-closed`
-   * (hidden state), `data-enter` and `data-leave`, e.g. `.my-panel { transition: transform 200ms }`
-   * `.my-panel[data-closed] { transform: translateX(-100%) }`. With no transition in CSS (reduced motion)
-   * it unmounts at once. Focus return, Escape and outside click behave the same.
-   */
   transition?: boolean;
   children: ReactNode;
 };
 
-/**
- * A modal over the page. Headless UI gives it a focus trap (focus starts inside
- * and returns to the trigger on close), Escape and outside-click close, a
- * portal to the end of `<body>`, and a page scroll lock. The look comes from
- * `className` / `panelClassName`; ui.css only places the backdrop.
- */
 export function Dialog({
   open,
   onClose,
@@ -81,5 +59,4 @@ export function Dialog({
   );
 }
 
-/** Names the dialog (`aria-labelledby`); use it for the visible heading. */
 export { DialogTitle };

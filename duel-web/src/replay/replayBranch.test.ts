@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { backToGameStep, currentState, openBranch, playMove, undoMove, type Branch, type MoveApplier, type RecordedMove } from "./replayBranch";
 
-// A toy game: the state is the list of moves made so far, a move named "bad" is illegal.
 type S = string[];
 type I = { type: string; n?: number; b?: number };
 const apply: MoveApplier<S, I, string> = (state, seat, intent) =>

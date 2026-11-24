@@ -1,4 +1,3 @@
-/** Test helper: four real meta decks (blue, red/green, black, red) copied from the meta deck file. */
 import { readFileSync } from "node:fs";
 import type { MetaDeck } from "./sabotage";
 

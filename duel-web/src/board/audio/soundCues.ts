@@ -5,12 +5,7 @@ import { motionCues, type MotionCue } from "../motion/motionCues";
 import { latestOpponentPlay } from "../motion/opponentPlay";
 import { playLifeLostCue, playOpponentPlayCue, playOppLifeLostCue } from "./turnAlert";
 
-/**
- * Whether the newest opponent play is a new one worth a cue. `prevId` is the
- * play seen last time: undefined before the first look (mount: never a cue),
- * null when there was none. A play id that disappeared from the log means the
- * log was replaced (resync / undo), which is not a new play either.
- */
+// A play id gone from the log means the log was replaced (resync / undo), not a new play.
 export function opponentPlayCueDue(
   prevId: string | null | undefined,
   nextId: string | null,
@@ -21,11 +16,6 @@ export function opponentPlayCueDue(
   return true;
 }
 
-/**
- * Which damage cue a view change earns. Your own Life loss wins over the
- * opponent's when both happen at once; spectators have no "you", so they only
- * ever get the soft one.
- */
 export function lifeDamageCue(
   cues: readonly MotionCue[],
   spectating: boolean,
@@ -35,11 +25,6 @@ export function lifeDamageCue(
   return lost("opp") ? "opp" : null;
 }
 
-/**
- * Play a short cue once per new opponent card use and once per Life loss.
- * `enabled` = alerts apply (not spectating / match over); `sound` = the master
- * Sounds setting. State is tracked even while muted so unmuting never replays.
- */
 export function useSoundCues(
   view: PlayerView | null,
   battleLog: readonly BattleLogEntry[],

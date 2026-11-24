@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { clampPromptOffset, parsePromptPos, serializePromptPos } from "./promptDrag";
 
 const view = { width: 1000, height: 800 };
-// A 400x200 prompt sitting at the bottom centre.
 const base = { left: 300, right: 700, top: 580, bottom: 780 };
 
 describe("clampPromptOffset (dragging a prompt, #324)", () => {

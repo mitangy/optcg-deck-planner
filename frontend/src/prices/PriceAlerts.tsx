@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { useLightboxPanel } from "./lightboxPanel";
-import { Dialog, Popover, PopoverButton, PopoverPanel, Select } from "@optcg/ui/popups";
+import { Dialog, Popover, PopoverButton, PopoverPanel, useConfirm } from "@optcg/ui/popups";
 import {
   api,
   money,
@@ -14,52 +14,44 @@ import {
 } from "../api";
 import { CardArtImg, CardThumb } from "../ui/CardThumb";
 import { qk } from "../cache/queryKeys";
+import {
+  alertDistance,
+  alertStatus,
+  artLabel,
+  chipTarget,
+  cleanCardName,
+  formatTarget,
+  groupAlerts,
+  lastHitLine,
+  recentHitCount,
+  recentHitLine,
+  shortArtName,
+  type AlertStatus,
+} from "./alertList";
 
-// ---------------------------------------------------------------- helpers
+export { alertStatus, type AlertStatus };
 
 const DIRECTION_OPTIONS = [
-  { value: "below" as AlertDirection, label: "At or below" },
-  { value: "above" as AlertDirection, label: "At or above" },
+  { value: "below" as AlertDirection, label: "Drops to" },
+  { value: "above" as AlertDirection, label: "Rises to" },
 ];
 
 const dayFmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
 
-export type AlertStatus = { label: string; tone: "watching" | "hit" | "met" | "paused" };
-
-/** The chip on an alert row: what is it doing right now. */
-export function alertStatus(a: Pick<PriceAlert, "paused" | "armed" | "triggered_at" | "triggered_price" | "met_now" | "direction" | "current_price">): AlertStatus {
-  if (a.paused) return { label: "Paused", tone: "paused" };
-  if (!a.armed && a.triggered_at) {
-    const when = dayFmt.format(new Date(a.triggered_at));
-    const hitPrice = a.triggered_price ?? a.current_price;
-    return {
-      label: hitPrice != null ? `Hit ${when} at ${money(hitPrice)}` : `Hit ${when}`,
-      tone: "hit",
-    };
-  }
-  if (a.met_now) {
-    return { label: a.direction === "below" ? "Already below target" : "Already above target", tone: "met" };
-  }
-  return { label: "Watching", tone: "watching" };
-}
-
-/** A starting target about 10% away from the current price, in the direction being watched. */
 export function defaultTargetPrice(price: number | null | undefined, direction: AlertDirection): string {
   if (price == null || !(price > 0)) return "";
   const t = direction === "below" ? price * 0.9 : price * 1.1;
   return (Math.round(t * 100) / 100).toFixed(2);
 }
 
-/** Price of one art: product 0 is the base (cheapest plain printing), otherwise that printing. */
 export function artPrice(printings: readonly PrintingView[] | undefined, productId: number): number | null {
   if (!printings) return null;
   if (productId > 0) return printings.find((p) => p.product_id === productId)?.market_price ?? null;
   return printings.find((p) => !p.is_special)?.market_price ?? null;
 }
 
-/** Parses a typed target; null when it is not a usable price. */
 export function parseTarget(raw: string): number | null {
-  const n = Number(raw.replace(/^\$/, "").trim());
+  const n = Number(raw.replace(/^\$/, "").replace(/,/g, "").trim());
   if (!raw.trim() || !Number.isFinite(n) || n <= 0 || n > 100000) return null;
   return Math.round(n * 100) / 100;
 }
@@ -74,8 +66,6 @@ export function timeAgo(iso: string, now = Date.now()): string {
   const d = Math.floor(h / 24);
   return d < 30 ? `${d}d ago` : dayFmt.format(new Date(iso));
 }
-
-// ---------------------------------------------------------------- data hooks
 
 export function usePriceAlerts() {
   return useQuery({ queryKey: qk.priceAlerts(), queryFn: api.priceAlerts });
@@ -94,9 +84,103 @@ function useAlertActions() {
   return { save, patch, remove };
 }
 
-// ---------------------------------------------------------------- editor form
+function DirectionToggle({
+  value,
+  onChange,
+  label,
+  disabled = false,
+}: {
+  value: AlertDirection;
+  onChange: (d: AlertDirection) => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="alert-dir" role="radiogroup" aria-label={label}>
+      {DIRECTION_OPTIONS.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={o.value === value}
+          disabled={disabled}
+          className={`alert-dir-btn${o.value === value ? " on" : ""}`}
+          onClick={() => o.value !== value && onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
-/** Target + direction (+ delivery toggles) form shared by the Watch dialog and the lightbox. */
+/** Money input: shows "1,900.00" at rest and the raw text while you type. */
+function TargetInput({
+  value,
+  onChange,
+  onBlur,
+  label,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  onBlur?: () => void;
+  label: string;
+  placeholder?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  const n = parseTarget(value);
+  const shown = focused || n == null ? value : formatTarget(n);
+  return (
+    <label className="alert-money">
+      <span className="sr-only">{label}</span>
+      <span aria-hidden="true">$</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={shown}
+        placeholder={placeholder}
+        aria-invalid={value !== "" && n == null}
+        onFocus={() => setFocused(true)}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => {
+          setFocused(false);
+          onBlur?.();
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && onBlur) (e.target as HTMLInputElement).blur();
+        }}
+      />
+    </label>
+  );
+}
+
+function EmailCheck({
+  checked,
+  disabled,
+  emailEnabled,
+  onChange,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  emailEnabled: boolean;
+  onChange: (v: boolean) => void;
+}) {
+  return (
+    <label className={`alert-check${emailEnabled ? "" : " off"}`}>
+      <input
+        type="checkbox"
+        checked={emailEnabled && checked}
+        disabled={disabled || !emailEnabled}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      {emailEnabled ? "Email" : "Email is off"}
+    </label>
+  );
+}
+
+const QUICK_PCTS = [10, 20, 30];
+
 function AlertForm({
   cardId,
   productId,
@@ -130,7 +214,7 @@ function AlertForm({
   }, [price, direction, touched]);
 
   const parsed = parseTarget(target);
-  const noChannel = !email && !inApp;
+  const noChannel = !(email && emailEnabled) && !inApp;
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -152,34 +236,37 @@ function AlertForm({
     <form className={`alert-form${compact ? " compact" : ""}`} onSubmit={submit}>
       <p className="alert-form-now muted">Now {money(price)}</p>
       <div className="alert-form-row">
-        <Select
-          value={direction}
-          onChange={(d) => setDirection(d)}
-          options={DIRECTION_OPTIONS}
-          aria-label="Alert direction"
-          className="alert-dir"
+        <DirectionToggle value={direction} onChange={setDirection} label="Alert direction" />
+        <TargetInput
+          value={target}
+          label="Target price in dollars"
+          placeholder="0.00"
+          onChange={(v) => {
+            setTouched(true);
+            setTarget(v);
+          }}
         />
-        <label className="alert-money">
-          <span className="sr-only">Target price in dollars</span>
-          <span aria-hidden="true">$</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={target}
-            placeholder="0.00"
-            aria-invalid={target !== "" && parsed == null}
-            onChange={(e) => {
+      </div>
+      <div className="alert-form-chips" role="group" aria-label="Quick targets">
+        {QUICK_PCTS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            className="alert-chip-btn"
+            disabled={!(price != null && price > 0)}
+            aria-label={`Target ${p}% ${direction === "below" ? "under" : "over"} the current price`}
+            onClick={() => {
               setTouched(true);
-              setTarget(e.target.value);
+              setTarget(chipTarget(price, direction, p));
             }}
-          />
-        </label>
+          >
+            {direction === "below" ? "\u2212" : "+"}
+            {p}%
+          </button>
+        ))}
       </div>
       <div className="alert-form-checks">
-        <label className="alert-check" title={emailEnabled ? undefined : "Email isn't switched on yet"}>
-          <input type="checkbox" checked={email} onChange={(e) => setEmail(e.target.checked)} />
-          Email
-        </label>
+        <EmailCheck checked={email} emailEnabled={emailEnabled} onChange={setEmail} />
         <label className="alert-check">
           <input type="checkbox" checked={inApp} onChange={(e) => setInApp(e.target.checked)} />
           In app
@@ -202,9 +289,6 @@ function AlertForm({
   );
 }
 
-// ---------------------------------------------------------------- alert pill
-
-/** A set alert as a chip (#1028): bell, "Below $15.00", what it is doing now, and Edit / Remove. */
 function AlertPill({
   alert,
   editing,
@@ -248,9 +332,6 @@ function AlertPill({
   );
 }
 
-// ---------------------------------------------------------------- lightbox control
-
-/** Under an enlarged card art: set, edit or remove the price alert for that exact art. */
 export function LightboxPriceAlertControl({ cardId, productId = 0 }: { cardId: string; productId?: number }) {
   const alertsQ = usePriceAlerts();
   const existing = alertsQ.data?.alerts.find((a) => a.card_id === cardId && a.product_id === productId);
@@ -304,12 +385,9 @@ export function LightboxPriceAlertControl({ cardId, productId = 0 }: { cardId: s
   );
 }
 
-// ---------------------------------------------------------------- watch dialog (page)
-
 export function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClose: () => void }) {
   const alertsQ = usePriceAlerts();
   const printingsQ = useQuery({ queryKey: qk.cardPrintings(card.card_id), queryFn: () => api.cardPrintings(card.card_id) });
-  // Search can list an alt art as its own row; its price and image are then the alt's, not the base's.
   const rowAlt = card.alt_product_id ?? 0;
   const [productId, setProductId] = useState(rowAlt);
   const [saved, setSaved] = useState<PriceAlert | null>(null);
@@ -320,9 +398,9 @@ export function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClos
   const price = productId === 0 ? basePrice : artPrice(printingsQ.data, productId);
   const existing = alertsQ.data?.alerts.find((a) => a.card_id === card.card_id && a.product_id === productId);
 
-  const tiles: { id: number; name: string; price: number | null; image: string }[] = [
-    { id: 0, name: "Base", price: basePrice, image: baseImage },
-    ...alts.map((p) => ({ id: p.product_id, name: p.name, price: p.market_price, image: p.image_url })),
+  const tiles: { id: number; name: string; full?: string; price: number | null; image: string }[] = [
+    { id: 0, name: "Base art", full: "Base", price: basePrice, image: baseImage },
+    ...alts.map((p) => ({ id: p.product_id, name: shortArtName(p.name, card.name, card.card_id), full: p.name, price: p.market_price, image: p.image_url })),
   ];
 
   return (
@@ -330,7 +408,7 @@ export function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClos
       <div className="alert-dialog-head">
         <div>
           <p className="eyebrow">{card.card_id}</p>
-          <h2>{card.name}</h2>
+          <h2>{cleanCardName(card.name, card.card_id)}</h2>
         </div>
         <button type="button" className="ghost" onClick={onClose}>
           Close
@@ -339,7 +417,7 @@ export function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClos
       {saved ? (
         <div className="alert-dialog-done">
           <p>
-            <strong>Watching.</strong> We'll tell you when {saved.art_name === "Base" ? "the base art" : saved.art_name}{" "}
+            <strong>Watching.</strong> We'll tell you when {saved.art_name === "Base" ? "the base art" : shortArtName(saved.art_name, saved.card_name, saved.card_id)}{" "}
             {saved.direction === "below" ? "falls to" : "rises to"} {money(saved.target_price)}.
           </p>
           {saved.met_now ? (
@@ -364,7 +442,7 @@ export function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClos
                 aria-checked={t.id === productId}
                 className={`alert-art-tile${t.id === productId ? " selected" : ""}`}
                 onClick={() => setProductId(t.id)}
-                title={t.name}
+                title={t.full ?? t.name}
               >
                 <CardArtImg src={t.image || undefined} cardId={card.card_id} alt="" className="thumb" />
                 <span className="alert-art-name">{t.name}</span>
@@ -388,81 +466,164 @@ export function WatchDialog({ card, onClose }: { card: CatalogCardResult; onClos
   );
 }
 
-// ---------------------------------------------------------------- alert rows
+function BuyButton({ alert }: { alert: PriceAlert }) {
+  if (!alert.tcgplayer_url) return null;
+  return (
+    <a className="btn primary alert-buy" href={alert.tcgplayer_url} target="_blank" rel="noreferrer">
+      Buy on TCGPlayer
+    </a>
+  );
+}
+
+function alertNames(alert: PriceAlert) {
+  const card = cleanCardName(alert.card_name, alert.card_id);
+  const art = artLabel(alert);
+  return { card, art, full: alert.is_alt ? `${card} · ${art}` : card };
+}
+
+function useDeleteAlert(alert: PriceAlert, remove: ReturnType<typeof useAlertActions>["remove"]) {
+  const { confirm, confirmDialog } = useConfirm();
+  const ask = async (): Promise<boolean> => {
+    const { full } = alertNames(alert);
+    const ok = await confirm({
+      title: "Delete this alert?",
+      message: `You will stop hearing about ${full}. This can't be undone.`,
+      confirmLabel: "Delete",
+    });
+    if (ok) remove.mutate(alert.id);
+    return ok;
+  };
+  return { ask, confirmDialog };
+}
+
+function AlertEditDialog({ alert, emailEnabled, onClose }: { alert: PriceAlert; emailEnabled: boolean; onClose: () => void }) {
+  const { patch, remove } = useAlertActions();
+  const { ask, confirmDialog } = useDeleteAlert(alert, remove);
+  const { card, art } = alertNames(alert);
+  return (
+    <Dialog open onClose={onClose} className="alert-dialog" panelClassName="alert-dialog-panel" label={`Edit price alert for ${card}`}>
+      <div className="alert-dialog-head">
+        <div>
+          <p className="eyebrow">{alert.card_id}</p>
+          <h2>{card}</h2>
+          <p className="muted alert-dialog-art">{art}</p>
+        </div>
+        <button type="button" className="ghost" onClick={onClose}>
+          Close
+        </button>
+      </div>
+      <AlertForm
+        cardId={alert.card_id}
+        productId={alert.product_id}
+        price={alert.current_price}
+        existing={alert}
+        emailEnabled={emailEnabled}
+        onSaved={onClose}
+      />
+      <div className="alert-dialog-more">
+        <button
+          type="button"
+          className="btn secondary alert-dlg-act"
+          disabled={patch.isPending}
+          onClick={() => patch.mutate({ id: alert.id, patch: { paused: !alert.paused } }, { onSuccess: onClose })}
+        >
+          {alert.paused ? "Resume" : "Pause"}
+        </button>
+        <button
+          type="button"
+          className="btn secondary danger alert-dlg-act"
+          disabled={remove.isPending}
+          onClick={async () => {
+            if (await ask()) onClose();
+          }}
+        >
+          Delete
+        </button>
+      </div>
+      {confirmDialog}
+    </Dialog>
+  );
+}
 
 function AlertRow({ alert, emailEnabled }: { alert: PriceAlert; emailEnabled: boolean }) {
   const { patch, remove } = useAlertActions();
   const [target, setTarget] = useState(alert.target_price.toFixed(2));
+  const [editing, setEditing] = useState(false);
   useEffect(() => setTarget(alert.target_price.toFixed(2)), [alert.target_price]);
   const status = alertStatus(alert);
   const busy = patch.isPending || remove.isPending;
   const parsed = parseTarget(target);
+  const { ask, confirmDialog } = useDeleteAlert(alert, remove);
+  const { card, art, full } = alertNames(alert);
+  const distance = alertDistance(alert);
+  const lastHit = lastHitLine(alert);
+  const showBuy = status.tone === "hit" || status.tone === "met";
+  const sign = alert.direction === "below" ? "\u2264" : "\u2265";
 
   function commitTarget() {
     if (parsed == null) return setTarget(alert.target_price.toFixed(2));
     if (parsed !== alert.target_price) patch.mutate({ id: alert.id, patch: { target_price: parsed } });
   }
 
-  const name = `${alert.card_name}${alert.is_alt ? ` (${alert.art_name})` : ""}`;
   return (
-    <li className={`alert-row${alert.paused ? " paused" : ""}`} data-alert-id={alert.id}>
+    <li className={`alert-row tone-${status.tone}${alert.paused ? " paused" : ""}`} data-alert-id={alert.id}>
       <div className="alert-art">
-        <CardThumb src={alert.image_url || undefined} cardId={alert.card_id} alt={name} productId={alert.product_id} />
+        <CardThumb src={alert.image_url || undefined} cardId={alert.card_id} alt={full} productId={alert.product_id} />
       </div>
       <div className="alert-card">
         <div className="card-id">{alert.card_id}</div>
-        <div className="alert-card-name">{alert.card_name}</div>
-        <div className="muted alert-card-art">{alert.is_alt ? alert.art_name : "Base art"}</div>
+        <Link className="alert-card-name" to={`/cards/${encodeURIComponent(alert.card_id)}`}>
+          {card}
+        </Link>
+        <div className="muted alert-card-art">{art}</div>
         <span className={`alert-chip ${status.tone}`}>{status.label}</span>
+        {lastHit ? <div className="muted alert-lasthit">{lastHit}</div> : null}
       </div>
       <div className="alert-now">
-        <span className="alert-col-label">Market</span>
         {alert.tcgplayer_url ? (
-          <a href={alert.tcgplayer_url} target="_blank" rel="noreferrer">
+          <a href={alert.tcgplayer_url} target="_blank" rel="noreferrer" className="alert-now-price">
             {money(alert.current_price)}
           </a>
         ) : (
-          <span>{money(alert.current_price)}</span>
+          <span className="alert-now-price">{money(alert.current_price)}</span>
         )}
+        {distance ? (
+          <span className={`muted alert-distance${distance.atTarget ? " at" : ""}`}>
+            {distance.text.split(" · ").map((part, i) => (
+              <span key={i}>
+                {i > 0 ? " · " : null}
+                <span className="alert-distance-part">{part}</span>
+              </span>
+            ))}
+          </span>
+        ) : null}
       </div>
       <div className="alert-target">
-        <span className="alert-col-label">Alert me when price is</span>
+        <span className="alert-target-text">
+          {sign} {money(alert.target_price)}
+        </span>
         <div className="alert-target-controls">
-          <Select
+          <DirectionToggle
             value={alert.direction}
             onChange={(direction) => patch.mutate({ id: alert.id, patch: { direction } })}
-            options={DIRECTION_OPTIONS}
-            aria-label={`Direction for ${name}`}
-            className="alert-dir"
+            label={`Direction for ${full}`}
             disabled={busy}
           />
-          <label className="alert-money">
-            <span className="sr-only">{`Target price for ${name}`}</span>
-            <span aria-hidden="true">$</span>
-            <input
-              type="text"
-              inputMode="decimal"
-              value={target}
-              aria-invalid={parsed == null}
-              onChange={(e) => setTarget(e.target.value)}
-              onBlur={commitTarget}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-              }}
-            />
-          </label>
+          <TargetInput
+            value={target}
+            label={`Target price for ${full}`}
+            onChange={setTarget}
+            onBlur={commitTarget}
+          />
         </div>
       </div>
       <div className="alert-toggles">
-        <label className="alert-check" title={emailEnabled ? undefined : "Email isn't switched on yet"}>
-          <input
-            type="checkbox"
-            checked={alert.notify_email}
-            disabled={busy}
-            onChange={(e) => patch.mutate({ id: alert.id, patch: { notify_email: e.target.checked } })}
-          />
-          Email
-        </label>
+        <EmailCheck
+          checked={alert.notify_email}
+          emailEnabled={emailEnabled}
+          disabled={busy}
+          onChange={(v) => patch.mutate({ id: alert.id, patch: { notify_email: v } })}
+        />
         <label className="alert-check">
           <input
             type="checkbox"
@@ -474,9 +635,10 @@ function AlertRow({ alert, emailEnabled }: { alert: PriceAlert; emailEnabled: bo
         </label>
       </div>
       <div className="alert-actions">
+        {showBuy ? <BuyButton alert={alert} /> : null}
         <button
           type="button"
-          className="ghost alert-act"
+          className="btn secondary alert-act alert-act-pause"
           disabled={busy}
           onClick={() => patch.mutate({ id: alert.id, patch: { paused: !alert.paused } })}
         >
@@ -484,36 +646,91 @@ function AlertRow({ alert, emailEnabled }: { alert: PriceAlert; emailEnabled: bo
         </button>
         <button
           type="button"
-          className="ghost danger alert-act"
+          className="btn secondary danger alert-act alert-act-delete"
           disabled={busy}
-          aria-label={`Delete alert for ${name}`}
-          onClick={() => remove.mutate(alert.id)}
+          aria-label={`Delete alert for ${full}`}
+          onClick={() => void ask()}
         >
           Delete
         </button>
       </div>
+      <button type="button" className="btn secondary alert-edit" aria-label={`Edit alert for ${full}`} onClick={() => setEditing(true)}>
+        Edit
+      </button>
       {patch.isError || remove.isError ? (
         <p className="error alert-row-error">{((patch.error ?? remove.error) as Error).message}</p>
       ) : null}
+      {editing ? <AlertEditDialog alert={alert} emailEnabled={emailEnabled} onClose={() => setEditing(false)} /> : null}
+      {confirmDialog}
     </li>
   );
 }
 
-// ---------------------------------------------------------------- page
+function GhostRow({ onWatch }: { onWatch: () => void }) {
+  return (
+    <div className="alerts-empty">
+      <div className="alert-row ghost-row" aria-hidden="true">
+        <div className="alert-art">
+          <div className="ghost-art" />
+        </div>
+        <div className="alert-card">
+          <div className="alert-card-name">Monkey.D.Luffy</div>
+          <div className="muted alert-card-art">Super Alternate Art</div>
+          <span className="alert-chip watching">Watching</span>
+        </div>
+        <div className="alert-now">
+          <span className="alert-now-price">$212.40</span>
+          <span className="muted alert-distance">$22.40 above target · 11% to go</span>
+        </div>
+        <div className="alert-target">
+          <span className="alert-target-text">{"\u2264"} $190.00</span>
+          <div className="alert-target-controls">
+            <div className="alert-dir">
+              <span className="alert-dir-btn on">Drops to</span>
+              <span className="alert-dir-btn">Rises to</span>
+            </div>
+            <span className="alert-money">$ 190.00</span>
+          </div>
+        </div>
+      </div>
+      <h2>No alerts yet</h2>
+      <p className="muted">
+        Watch a card and we tell you when its TCGPlayer price drops or rises to your target. Alt arts are
+        tracked separately from the base art.
+      </p>
+      <button type="button" className="btn primary alert-empty-btn" onClick={onWatch}>
+        Watch a card
+      </button>
+    </div>
+  );
+}
 
 export function PriceAlertsPage({
   renderSearch,
 }: {
-  /** Catalog search drawer (lives in App.tsx); `renderAction` supplies the per-result button. */
   renderSearch: (renderAction: (card: CatalogCardResult) => ReactNode) => ReactNode;
 }) {
   const alertsQ = usePriceAlerts();
   const [watching, setWatching] = useState<CatalogCardResult | null>(null);
+  const pageRef = useRef<HTMLElement>(null);
   const alerts = alertsQ.data?.alerts ?? [];
   const emailEnabled = alertsQ.data?.email_enabled ?? false;
+  const groups = groupAlerts(alerts);
+  const hitLine = recentHitLine(recentHitCount(alerts));
+
+  function openSearch() {
+    const wrap = pageRef.current?.querySelector(".alerts-add");
+    const toggle = wrap?.querySelector<HTMLButtonElement>(".filter-drawer-toggle");
+    if (toggle && toggle.getAttribute("aria-expanded") !== "true") toggle.click();
+    window.setTimeout(() => {
+      const input = wrap?.querySelector<HTMLInputElement>("input[type=search]");
+      input?.focus();
+      input?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 80);
+  }
 
   return (
-    <section className="alerts-page">
+    <section className="alerts-page" ref={pageRef}>
       <div className="page-head">
         <div>
           <p className="eyebrow">Price alerts</p>
@@ -522,6 +739,7 @@ export function PriceAlertsPage({
             Get told when a card's TCGPlayer market price hits your target. Checked when prices update: hourly
             for new sets, daily for the rest.
           </p>
+          {hitLine ? <p className="alerts-hits">{hitLine}</p> : null}
         </div>
       </div>
       {alertsQ.data && !emailEnabled ? (
@@ -541,30 +759,36 @@ export function PriceAlertsPage({
 
       {alertsQ.isLoading ? <p className="muted">Loading your alerts…</p> : null}
       {alertsQ.error ? <p className="error">{(alertsQ.error as Error).message}</p> : null}
-      {alertsQ.data && alerts.length === 0 ? (
-        <div className="alerts-empty">
-          <h2>No alerts yet</h2>
-          <p className="muted">
-            Search for a card above and press Watch, or tap any card art and press Price alert. Alt arts are
-            tracked separately from the base art.
-          </p>
-        </div>
-      ) : null}
+      {alertsQ.data && alerts.length === 0 ? <GhostRow onWatch={openSearch} /> : null}
       {alerts.length > 0 ? (
-        <ul className="alert-list">
-          {alerts.map((a) => (
-            <AlertRow key={a.id} alert={a} emailEnabled={emailEnabled} />
+        <div className="alert-lists">
+          <div className="alert-row alert-colhead" aria-hidden="true">
+            <span />
+            <span>Card</span>
+            <span>Market</span>
+            <span>Alert me when price is</span>
+            <span>Notify</span>
+            <span />
+          </div>
+          {groups.map((g) => (
+            <section key={g.key} className="alert-group" aria-label={g.title}>
+              <h2 className="alert-group-title">
+                {g.title} <span className="alert-group-count">{g.alerts.length}</span>
+              </h2>
+              <ul className="alert-list">
+                {g.alerts.map((a) => (
+                  <AlertRow key={a.id} alert={a} emailEnabled={emailEnabled} />
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       ) : null}
       {watching ? <WatchDialog card={watching} onClose={() => setWatching(null)} /> : null}
     </section>
   );
 }
 
-// ---------------------------------------------------------------- bell
-
-/** Unread count as shown on the bell; nothing at 0. */
 export function BellBadge({ unread }: { unread: number }) {
   if (unread <= 0) return null;
   return (
@@ -589,7 +813,6 @@ function BellPanel({ items, close }: { items: AppNotification[]; close: () => vo
     mutationFn: (ids?: number[]) => api.markNotificationsRead(ids),
     onSuccess: () => qc.invalidateQueries({ queryKey: qk.notifications() }),
   });
-  // Dots reflect what was unread when the panel opened; opening is what marks them read.
   const unreadAtOpen = useRef(new Set(items.filter((n) => !n.read_at).map((n) => n.id)));
   const markedRef = useRef(false);
   useEffect(() => {
@@ -603,9 +826,6 @@ function BellPanel({ items, close }: { items: AppNotification[]; close: () => vo
     <>
       <div className="bell-head">
         <h2 className="head-popover-title">Notifications</h2>
-        <button type="button" className="ghost" disabled={read.isPending || items.length === 0} onClick={() => read.mutate(undefined)}>
-          Mark all read
-        </button>
       </div>
       {items.length === 0 ? (
         <p className="muted bell-empty">Nothing yet. Price alerts you set will show up here.</p>
@@ -641,13 +861,17 @@ function BellPanel({ items, close }: { items: AppNotification[]; close: () => vo
   );
 }
 
-export function NotificationsBell() {
-  const q = useQuery({
+export function useNotifications() {
+  return useQuery({
     queryKey: qk.notifications(),
     queryFn: () => api.notifications(30),
     refetchInterval: 5 * 60_000,
     refetchOnWindowFocus: true,
   });
+}
+
+export function NotificationsBell() {
+  const q = useNotifications();
   const unread = q.data?.unread ?? 0;
   return (
     <Popover as="div" className="bell">
@@ -664,7 +888,7 @@ export function NotificationsBell() {
         role="dialog"
         aria-label="Notifications"
         className="head-popover-panel bell-panel"
-        style={{ width: "min(360px, calc(100vw - 16px))" }}
+        style={{ width: "min(22.5rem, calc(100vw - 16px))" }}
       >
         {({ close }: { close: () => void }) => <BellPanel items={q.data?.items ?? []} close={close} />}
       </PopoverPanel>

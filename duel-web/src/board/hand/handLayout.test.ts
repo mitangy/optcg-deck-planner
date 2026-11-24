@@ -3,7 +3,6 @@ import { spectatorFans, spectatorHandGrid, usesPhoneFan, usesRailHand, usesSidew
 
 describe("hand layout (#271)", () => {
   it("portrait phones keep the fan when the hand grows past 8 cards (#445)", () => {
-    // Hand sizes are not an input: a 9+ card hand used to flip to the scrolling Grid whatever the setting said.
     expect(usesPhoneFan(false, "fan")).toBe(true);
     expect(usesPhoneFan(false, "auto")).toBe(true);
   });
@@ -23,7 +22,6 @@ describe("hand layout (#271)", () => {
 
   it("a big screen held sideways fans the hand only when Fan is picked (#1262)", () => {
     expect(usesSidewaysFan(true, true, "fan")).toBe(true);
-    // Automatic keeps the right column, which has room for the hand there.
     expect(usesSidewaysFan(true, true, "auto")).toBe(false);
     expect(usesSidewaysFan(true, true, "grid")).toBe(false);
   });

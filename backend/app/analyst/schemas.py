@@ -1,4 +1,3 @@
-"""Log Pose (analyst) request/response models."""
 
 from __future__ import annotations
 
@@ -18,7 +17,6 @@ class AnalystTokenStatus(BaseModel):
 
 class AnalystTokenCreated(BaseModel):
     token: str
-    # Full URL to add in Claude as a custom connector; null when ANALYST_PUBLIC_URL is unset.
     connector_url: str | None
 
 
@@ -88,16 +86,12 @@ class AnalystLessonReview(BaseModel):
 
 class AnalystChatSession(BaseModel):
     enabled: bool
-    # A short-lived token for the analyst's /chat and /review-match (Authorization: Bearer).
     token: str | None = None
-    expires_at: str | None = None  # ISO 8601, UTC
+    expires_at: str | None = None
     chat_url: str | None = None
-    # Signed-in player who is not enabled but may ask: "none" | "pending" | "denied" (null when requests are closed).
     access: Literal["none", "pending", "denied"] | None = None
-    # Only when enabled: whether this player can answer requests, and how many are waiting.
     owner: bool | None = None
     pending_requests: int | None = None
-    # Only when not enabled but able to ask: the free spots (how many in all and how many are left) and the monthly credit a spot brings.
     free_spots: int | None = None
     spots_left: int | None = None
     free_credit_usd: float | None = None
@@ -108,7 +102,6 @@ class AnalystAccessRequestIn(BaseModel):
 
 
 class AnalystAccessRequested(BaseModel):
-    # "approved" when a free spot was left, "pending" when the player is on the waitlist.
     access: Literal["pending", "approved"]
 
 
@@ -124,10 +117,8 @@ class AnalystAccessRow(BaseModel):
     created_at: str | None = None
     decided_at: str | None = None
     auto_approved: bool = False
-    # This month's credit and how much of it the player has used (credit_usd is null for owners).
     credit_usd: float | None = None
     credit_spent_usd: float = 0.0
-    # When a player out of credit asked for more.
     topup_requested_at: str | None = None
 
 
@@ -157,13 +148,11 @@ class AnalystChatBudget(BaseModel):
     monthly_cap_usd: float
     allowed: bool
     model: str
-    # This month's credit (null for owners, who have none to run out of), how much of it the player has used, and when it refills.
     credit_usd: float | None = None
     credit_spent_usd: float = 0.0
     credit_resets_at: str = ""
     # Why the player can't ask right now: monthly (everyone's cap), credit (their own), daily (their day's cap); precedence in that order.
     refusal: Literal["credit", "daily", "monthly"] | None = None
-    # The player's own average chat cost, to say how many questions are left.
     avg_chat_cost_usd: float | None = None
     topup_requested: bool = False
 
@@ -220,7 +209,6 @@ class AnalystUsageSummary(BaseModel):
     groups: list[AnalystUsageGroup]
 
 
-# general | match:<id> | deck:planner:<digits> | deck:duel:<id> (#970).
 ANALYST_SCOPE_PATTERN = r"^(general|match:[A-Za-z0-9_-]{1,64}|deck:planner:[0-9]{1,12}|deck:duel:[A-Za-z0-9_-]{1,64})$"
 
 
@@ -242,7 +230,6 @@ class AnalystThreadsOut(BaseModel):
 
 class AnalystStoredMessage(BaseModel):
     role: Literal["user", "assistant"]
-    # Claude API content: a string or a list of content blocks.
     content: str | list[dict]
 
 
@@ -304,7 +291,6 @@ class AnalystDeckEdit(BaseModel):
     version: Literal[1]
     target: AnalystDeckEditTarget
     summary: str = Field(max_length=300)
-    # True when the player asked Log Pose to make this change: the app applies it once to the open deck (#726).
     apply: bool = False
     lines: list[AnalystDeckEditLine] = Field(min_length=1, max_length=12)
     base: list[AnalystDeckCard] = Field(default_factory=list, max_length=80)
@@ -339,12 +325,40 @@ class AnalystDraftsIn(BaseModel):
     drafts: list[AnalystDeckDraft] = Field(min_length=1, max_length=2)
 
 
+class AnalystCardListRow(BaseModel):
+    id: str = Field(pattern=CARD_ID_PATTERN)
+    name: str = Field(max_length=120)
+    type: Literal["leader", "character", "event", "stage"]
+    colors: list[str] = Field(default_factory=list, max_length=6)
+    cost: int | None = Field(default=None, ge=0, le=99)
+    power: int | None = Field(default=None, ge=0, le=99999)
+    counter: int | None = Field(default=None, ge=0, le=99999)
+    reason: str = Field(default="", max_length=300)
+    any_number: bool = False
+
+
+class AnalystCardList(BaseModel):
+    """Cards Log Pose found for a description, shown as a list with Add buttons for the open deck (#1450)."""
+
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    version: Literal[1]
+    kind: Literal["card_list"]
+    title: str = Field(min_length=1, max_length=80)
+    cards: list[AnalystCardListRow] = Field(min_length=1, max_length=24)
+    leader_id: str | None = Field(default=None, pattern=CARD_ID_PATTERN)
+
+
+class AnalystCardListsIn(BaseModel):
+    card_lists: list[AnalystCardList] = Field(min_length=1, max_length=4)
+
+
 class AnalystDisplayMessage(BaseModel):
     role: Literal["user", "assistant"]
     text: str
     citations: list[AnalystCitation] = Field(default_factory=list)
     proposals: list[AnalystDeckEdit] = Field(default_factory=list)
     drafts: list[AnalystDeckDraft] = Field(default_factory=list)
+    card_lists: list[AnalystCardList] = Field(default_factory=list)
 
 
 class AnalystThreadView(BaseModel):
@@ -385,7 +399,6 @@ class AnalystBriefLookupOut(BaseModel):
     opponent_id: str
     deck: list[AnalystBriefDeckLine]
     key: str
-    # The game the ticket was minted for ("" when it names none); the chat scopes its thread to it (#970).
     match_id: str = ""
     brief: AnalystBriefOut | None = None
 
@@ -396,9 +409,6 @@ class AnalystReviewOut(BaseModel):
     citations: list[AnalystCitation] = Field(default_factory=list)
     created_at: str | None
 
-
-# ---------------------------------------------------------------- bot self-play corpus (refactor 2.1c)
-# Field order follows app/analyst/bots.py, so the JSON is unchanged.
 
 class BotRejected(BaseModel):
     index: int
@@ -463,7 +473,6 @@ class HumanBotGameOut(BaseModel):
 
 class HumanBotGamesOut(BaseModel):
     games: list[HumanBotGameOut]
-    # Pass as after_id for the next page; unchanged (the given after_id) when nothing is left.
     next_after_id: int
 
 

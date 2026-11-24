@@ -170,7 +170,6 @@ def test_signed_public_link_serves_the_image_without_a_session_389(client):
     assert res.headers["content-type"] == "image/jpeg"
     assert res.headers["cache-control"].startswith("public")
     assert res.headers["x-content-type-options"] == "nosniff"
-    # The owner-only route still needs the session.
     assert c.get(f"/duel/cosmetics/{mat['id']}/image").status_code == 401
 
 
@@ -208,7 +207,6 @@ def test_public_links_are_signed_with_the_dedicated_secret_389(client, monkeypat
     c, S = client
     luffy = _user(S, "luffy")
     path = _upload(_as(c, luffy), "playmat", JPEG)["items"][0]["public_path"]
-    # Rotating COSMETIC_URL_SECRET (not SESSION_SECRET) retires every old link.
     monkeypatch.setenv("COSMETIC_URL_SECRET", "rotated-cosmetic-secret")
     get_settings.cache_clear()
     assert c.get(path).status_code == 404
@@ -231,5 +229,4 @@ def test_public_playmat_link_is_rate_limited_per_ip_682(client, monkeypatch: pyt
     monkeypatch.setattr(duel_prefs._public_image_rate, "max_calls", 2)
     scraper = {"x-forwarded-for": "203.0.113.7"}
     assert [c.get(mat["public_path"], headers=scraper).status_code for _ in range(3)] == [200, 200, 429]
-    # Another viewer is not held up by the scraper.
     assert c.get(mat["public_path"], headers={"x-forwarded-for": "203.0.113.8"}).status_code == 200

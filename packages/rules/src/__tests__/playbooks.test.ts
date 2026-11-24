@@ -8,33 +8,32 @@ import { createSeededRng } from "../rng.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { Intent, Seat } from "../types.js";
 
-const L = "OP01-001"; // plain 5000 Leader without an Activate: Main
-const STRONG_LEADER = "OP02-001"; // 6000
+const L = "OP01-001";
+const STRONG_LEADER = "OP02-001";
 const ROSINANTE = "OP12-061";
 const KAIDO = "OP17-058";
 const SABO = "OP13-004";
 const ROCKS = "OP17-039";
 const BUGGY = "OP09-042";
-const LAW = "ST10-010"; // Trafalgar Law, cost 4, 5000
-const ROSINANTE_AND_LAW = "EB04-038"; // cost 6, also counts as Trafalgar Law
-const ROSI_CHAR = "OP12-108"; // Donquixote Rosinante, cost 1
-const BORSALINO = "EB04-058"; // cost 5, 6000
-const ALVIDA_9 = "EB05-021"; // cost 9, Cross Guild
-const CROC_MIHAWK = "ST25-003"; // cost 8, Cross Guild
-const MIHAWK = "OP09-048"; // cost 6, Cross Guild
-const LAW_6000 = "P-093"; // cost 4, 6000
-const SAKAZUKI = "OP16-065"; // cost 7, 8000
-const WEAK_BLOCKER = "EB01-017"; // cost 2
-const RAFFLESIA = "OP01-028"; // Counter Event, cost 1
-const REBECCA = "OP04-039"; // Leader with a cheap [Activate: Main] (rest 1 DON!!)
-const PUDDING = "OP08-058"; // [When Attacking] optional: turn 2 Life face-up
-const CHOPPER = "OP04-010"; // [On Play] choose an {Animal}
+const LAW = "ST10-010";
+const ROSINANTE_AND_LAW = "EB04-038";
+const ROSI_CHAR = "OP12-108";
+const BORSALINO = "EB04-058";
+const ALVIDA_9 = "EB05-021";
+const CROC_MIHAWK = "ST25-003";
+const MIHAWK = "OP09-048";
+const LAW_6000 = "P-093";
+const SAKAZUKI = "OP16-065";
+const WEAK_BLOCKER = "EB01-017";
+const RAFFLESIA = "OP01-028";
+const REBECCA = "OP04-039";
+const PUDDING = "OP08-058";
+const CHOPPER = "OP04-010";
 const ANIMAL = "OP17-028";
 
 type Opts = Partial<BotOptions>;
 const normal = (h: Harness, seat: Seat, opts: Opts = {}): Intent => chooseBotIntent(h.view(seat), { level: "normal", rng: createSeededRng(1), ...opts })!;
 
-/** Play the bot's moves for `seat` until it ends the turn, has no move, or `steps` run out. Returns the intents sent. */
 function drive(h: Harness, seat: Seat, opts: Opts = {}, steps = 30): Intent[] {
   const rng = createSeededRng(1);
   const sent: Intent[] = [];
@@ -117,7 +116,6 @@ describe("leader playbooks: Rosinante (#1173)", () => {
 });
 
 describe("leader playbooks: Kaido (#1173)", () => {
-  /** Seat 0 (Kaido, 5000) attacks `target`; opposing Characters `rested` are rested. Returns the pending [When Attacking] cost prompt's harness. */
   function attacking(opp: { id: string; rested: boolean }[], target: "leader" | number) {
     const h = new Harness({ leaders: [KAIDO, L] });
     h.don(0, 3);
@@ -127,10 +125,6 @@ describe("leader playbooks: Kaido (#1173)", () => {
     expect(h.choice).toMatchObject({ seat: 0, cardDefId: KAIDO, request: { type: "confirm" } });
     return { h, cards };
   }
-  /**
-   * Let seat `seat`'s bot answer the Leader's prompts until it is asked which Character to shrink; returns that Character's
-   * instance id, or null when the bot declined (or was never asked).
-   */
   function shrunk(h: Harness, seat: Seat, opts: Opts = {}): string | null {
     for (let k = 0; k < 6 && h.choice; k += 1) {
       const answer = normal(h, seat, opts);
@@ -149,7 +143,6 @@ describe("leader playbooks: Kaido (#1173)", () => {
     const { h, cards } = attacking(opp, 1);
     expect(shrunk(h, 0)).toBe(cards[1]!.id);
     const off = attacking(opp, 1);
-    // Generic: always pays, and shrinks the most valuable Character.
     expect(shrunk(off.h, 0, { playbooks: false })).toBe(off.cards[0]!.id);
   });
 
@@ -170,7 +163,6 @@ describe("leader playbooks: Kaido (#1173)", () => {
     expect(normal(h, 0)).toEqual({ type: "resolve_pending_choice", accept: false });
   });
 
-  /** Seat 0's Character `attacker` attacks seat 1's Kaido Leader (5000) with seat 1 holding the cost prompt. */
   function defending(attacker: string, others: string[] = []) {
     const h = new Harness({ leaders: [L, KAIDO] });
     h.don(1, 3);
@@ -185,7 +177,6 @@ describe("leader playbooks: Kaido (#1173)", () => {
     expect(shrunk(h, 1)).toBe(cards[0]!.id);
     // At 7000 - 2000 = 5000 an attacker still ties the Leader, so the shrink saves nothing: only a drop below 5000 does.
     expect(normal(defending(ALVIDA_9).h, 1)).toEqual({ type: "resolve_pending_choice", accept: false });
-    // An attacker that does not reach the Leader anyway is left alone.
     const weak = defending(FILLER);
     expect(normal(weak.h, 1)).toEqual({ type: "resolve_pending_choice", accept: false });
     expect(normal(weak.h, 1, { playbooks: false })).toEqual({ type: "resolve_pending_choice", accept: true });
@@ -264,7 +255,6 @@ describe("leader playbooks: Buggy (#1173)", () => {
       drive(h, 0, { playbooks });
       expect(fieldOf(h, 0).includes(ALVIDA_9)).toBe(expected);
       if (expected) {
-        // Neither Cross Guild Character was paid for with a trashed hand card.
         expect(h.state.players[0].trash.filter((d) => d === FILLER).length).toBeGreaterThan(0);
         expect(h.state.players[0].trash).not.toContain(CROC_MIHAWK);
       }
@@ -299,7 +289,6 @@ describe("leader playbook plumbing (#1173)", () => {
     register({ leaderId: L, donReserve: () => 2 });
     expect(costOf(normal(h, 0))).toBeLessThanOrEqual(1);
     delete PLAYBOOKS[L];
-    // Two active DON!! with a reserve of 2: a give would break it.
     const g = new Harness({ leaders: [L, STRONG_LEADER] });
     g.don(0, 2);
     expect(normal(g, 0).type).toBe("give_don");

@@ -53,7 +53,6 @@ describe("shopping list button while loading", () => {
     await act(async () => add.click());
     expect(h.setShoppingExtra).not.toHaveBeenCalled();
 
-    // Only the list has loaded: owned counts still pending, so still locked.
     await act(async () => h.shopping!({ items: [{ card_id: "OP01-001", owned: 0, still_need: 3, need: 3, extra_qty: 3, deck_need: 0 }] }));
     await flush();
     expect(host.querySelector<HTMLButtonElement>('button[aria-label="Buy more OP01-001"]')!.disabled).toBe(true);

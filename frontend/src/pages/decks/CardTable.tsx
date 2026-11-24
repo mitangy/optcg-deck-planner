@@ -1,22 +1,22 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { CardView, money } from "../../api";
 import { remainingCostForCard } from "../shopping/deckCost";
 import { BuySplit, canSplitBuy } from "../shopping/BuySplit";
 import { CollectorDeckChip } from "../collection/CollectorLine";
-import { type CardLayout } from "../../ui/CardLayout";
+import { type CardLayout, type ListDensity } from "../../ui/CardLayout";
 import { nameWithBreaks } from "../../ui/cardName";
 import { StackedThumb } from "../../ui/CardThumb";
 import { isDonCardType } from "../../cards/donCards";
 import { GridCard, MobileCard } from "../../ui/PlannerCard";
 import { baseTileFor, mainImageUrl, shownProductId } from "../../cards/altArt";
 import { AltArtsRow, MarketPrice } from "../../cards/MarketPrice";
-import { OwnedCell, StillNeededCell, ownedCellIsTotal, stillNeededText, totalOwned } from "../collection/OwnedCells";
+import { AltChip, AltStripRow, CardBodies, altTrayId, useExpandedAlts, useFoldGridAlts, useWideListRows } from "../../cards/AltTray";
+import { OwnedCell, StillNeededCell, toBuyText, totalOwned } from "../collection/OwnedCells";
 import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../ui/columnSort";
 import { busyProductFor } from "../../cache/busyKey";
 import { OwnedInput } from "../OwnedInputs";
 import { COLSORT_DECK_KEY } from "../../storage/keys";
 
-/** "4 go to Luffy first" when earlier leaders use some of the owned copies. */
 function OwnedClaimNote({ card }: { card: CardView }) {
   const earlier = card.earlier_leaders_need ?? 0;
   const claimed = Math.min(card.owned, earlier);
@@ -33,7 +33,6 @@ function OwnedClaimNote({ card }: { card: CardView }) {
   );
 }
 
-/** Copies drawn as a stack: the deck's count, except DON!! (it runs up to ten identical cards). */
 function stackCopies(c: CardView): number | undefined {
   return c.section === "don" || isDonCardType(c.card_type) ? undefined : c.needed;
 }
@@ -46,6 +45,8 @@ function deckColumnValue(c: CardView, key: string) {
       return totalOwned(c.owned, c.alts_owned);
     case "still":
       return c.still_need;
+    case "needed":
+      return c.needed;
     case "market":
       return c.market_price;
     case "type":
@@ -57,11 +58,15 @@ function deckColumnValue(c: CardView, key: string) {
   }
 }
 
+const STRIP_COLS = 5;
+const COMPACT_STRIP_COLS = STRIP_COLS + 1;
+
 export function CardTable({
   cards,
   onOwnedSaved,
   showAltArts,
   layout = "list",
+  density = "comfortable",
   editing = false,
   onNeededChange,
   neededBusyId = null,
@@ -76,29 +81,24 @@ export function CardTable({
   onOwnedSaved: () => void;
   showAltArts: boolean;
   layout?: CardLayout;
+  density?: ListDensity;
   editing?: boolean;
   onNeededChange?: (cardId: string, needed: number) => void;
   neededBusyId?: string | null;
   onAltOwnedChange?: (cardId: string, productId: number, qty: number) => void;
-  /** `${cardId}:${productId}` while an alt owned save is in flight. */
   altOwnedBusyKey?: string | null;
-  /** Owner pages only: pick which art the card shows (0 = base). */
   onDisplayArtChange?: (cardId: string, productId: number) => void;
-  /** Owner pages only: saves how many still-needed copies are bought as one alt art (#906). */
   onAltBuyChange?: (cardId: string, productId: number, qty: number) => void;
-  /** Owner pages only: want an alt art as a collector copy on top of the deck's copies (#1035). */
   onCollectorChange?: (cardId: string, productId: number, qty: number) => void;
-  /** `${cardId}:${productId}` while a collector save is in flight. */
   collectorBusyKey?: string | null;
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_DECK_KEY);
-  // The still-needed line is the buy-split trigger on cards with alt arts (owner pages only).
   const buySplit = (c: CardView) =>
     onAltBuyChange && canSplitBuy(c) ? (
       <BuySplit
         card={c}
         amount={money(remainingCostForCard(c))}
-        prefix="Left "
+        prefix="To buy "
         onPick={(productId, qty) => onAltBuyChange(c.card_id, productId, qty)}
         busyProductId={busyProductFor(altOwnedBusyKey, c.card_id)}
         plainWhenIdle={false}
@@ -106,12 +106,26 @@ export function CardTable({
       />
     ) : null;
   const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
-  // With editable alt tiles on screen, the base count is edited under the Base tile.
+  const wide = useWideListRows();
+  const compact = layout === "list" && density === "compact";
+  const { open: openAlts, toggle: toggleAlts } = useExpandedAlts();
+  const foldGrid = useFoldGridAlts() && layout === "grid";
+  const altCol = showAltArts && !wide && !compact;
+  const hasAlts = (c: CardView) => showAltArts && (c.alt_arts?.length ?? 0) > 0;
+  const altChip = (c: CardView) =>
+    (compact || foldGrid) && hasAlts(c) ? (
+      <AltChip
+        alts={c.alt_arts ?? []}
+        trayKey={`${c.section}-${c.card_id}`}
+        expanded={openAlts.has(`${c.section}-${c.card_id}`)}
+        onToggle={toggleAlts}
+      />
+    ) : null;
   const ownedCell = (c: CardView) => (
     <OwnedCell
-      isTotal={ownedCellIsTotal(showAltArts, c.alt_arts?.length ?? 0, Boolean(onAltOwnedChange))}
       owned={c.owned}
       altsOwned={c.alts_owned}
+      editedInTiles={hasAlts(c) && Boolean(onAltOwnedChange)}
       stepper={<OwnedInput cardId={c.card_id} value={c.owned} onSaved={onOwnedSaved} />}
     />
   );
@@ -158,9 +172,11 @@ export function CardTable({
             imageSrc={mainImageUrl(c)}
             imageProductId={shownProductId(c)}
             copies={stackCopies(c)}
+            alts={hasAlts(c) && (!foldGrid || openAlts.has(`${c.section}-${c.card_id}`)) ? altRow(c) : undefined}
+            altCount={c.alt_arts?.length ?? 0}
             meta={
               <>
-                {[stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                {[toBuyText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
                 {c.collector_want ? <CollectorDeckChip count={c.collector_want} /> : null}
                 {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
               </>
@@ -192,9 +208,7 @@ export function CardTable({
                   TCGPlayer
                 </a>
               )}
-              {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
-                <div className="grid-card-alts">{altRow(c)}</div>
-              )}
+              {foldGrid ? <div className="grid-card-alt-chip">{altChip(c)}</div> : null}
           </GridCard>
         ))}
       </div>
@@ -203,34 +217,43 @@ export function CardTable({
 
   return (
     <>
-      <div className="table-wrap desktop-table">
+      <div className={`table-wrap desktop-table${compact ? " density-compact" : ""}`}>
         <table className="data-table deck-table">
           <thead>
             <tr>
               <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
               <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="Still needed" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+              {editing && onNeededChange ? (
+                <SortableTh label="In deck" colKey="needed" firstDir="desc" sort={sort} onSort={onSort} />
+              ) : (
+                <SortableTh label="To buy" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+              )}
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Type" colKey="type" firstDir="asc" sort={sort} onSort={onSort} className="col-type" />
               <SortableTh label="Cost" colKey="cost" firstDir="asc" sort={sort} onSort={onSort} />
-              {showAltArts ? <th>Alt arts</th> : null}
+              {altCol ? <th>Alt arts</th> : null}
             </tr>
           </thead>
-          <tbody>
-            {tableCards.map((c) => (
-              <tr key={`${c.section}-${c.card_id}`} data-card-id={c.card_id} className={c.still_need > 0 ? "need" : "done"}>
-                <td className="card-cell">
+          <CardBodies wide={wide || compact}>
+            {tableCards.map((c) => {
+              const key = `${c.section}-${c.card_id}`;
+              const stripped = compact ? hasAlts(c) && openAlts.has(key) : wide && hasAlts(c);
+              const rowClass = c.still_need > 0 ? "need" : "done";
+              const rows = [
+              <tr key="main" data-card-id={c.card_id} className={`${rowClass}${wide ? " alt-main-row" : ""}${stripped && !compact ? " has-strip" : ""}`}>
+                <td className="card-cell" rowSpan={stripped && !compact ? 2 : undefined}>
                   <div className="card-cell-inner">
                     <StackedThumb copies={stackCopies(c)} src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} productId={shownProductId(c)} />
-                    <div>
+                    <div className="card-cell-text">
                       <div className="card-id">{c.card_id}</div>
-                      <div>{nameWithBreaks(c.name)}</div>
+                      <div className="card-cell-name" title={c.name}>{compact ? c.name : nameWithBreaks(c.name)}</div>
                       <CollectorDeckChip count={c.collector_want} />
                       {c.tcgplayer_url && (
                         <a href={c.tcgplayer_url} target="_blank" rel="noreferrer">
                           TCGPlayer
                         </a>
                       )}
+                      {altChip(c)}
                     </div>
                   </div>
                 </td>
@@ -240,16 +263,14 @@ export function CardTable({
                 </td>
                 <td className="need-cell">
                   {editing && onNeededChange ? (
-                    <>
-                      <span className="still-need-num">{c.still_need}</span>
-                      <span className="still-need-of">of</span>
+                    <span title={c.still_need > 0 ? `To buy ${c.still_need} of ${c.needed}` : `Have all ${c.needed}`}>
                       <NeededStepper
                         cardId={c.card_id}
                         value={c.needed}
                         busy={neededBusyId === c.card_id}
                         onChange={onNeededChange}
                       />
-                    </>
+                    </span>
                   ) : (
                     <>
                       <StillNeededCell still={c.still_need} need={c.needed} />
@@ -262,14 +283,29 @@ export function CardTable({
                 </td>
                 <td className="col-type">{c.card_type || "—"}</td>
                 <td>{c.cost ?? "—"}</td>
-                {showAltArts ? <td className="alt-arts-cell">{altRow(c)}</td> : null}
-              </tr>
-            ))}
-          </tbody>
+                {altCol ? <td className="alt-arts-cell">{altRow(c)}</td> : null}
+              </tr>,
+              ];
+              if (stripped) {
+                rows.push(
+                  <AltStripRow key="strip" colSpan={compact ? COMPACT_STRIP_COLS : STRIP_COLS} className={rowClass} id={compact ? altTrayId(key) : undefined}>
+                    {altRow(c)}
+                  </AltStripRow>,
+                );
+              }
+              return wide || compact ? (
+                <tbody key={key} className="card-rows">
+                  {rows}
+                </tbody>
+              ) : (
+                <Fragment key={key}>{rows[0]}</Fragment>
+              );
+            })}
+          </CardBodies>
         </table>
       </div>
 
-      <div className="mobile-card-list">
+      <div className={`mobile-card-list${compact ? " density-compact" : ""}`}>
         {cards.map((c) => (
           <MobileCard
             key={`${c.section}-${c.card_id}`}
@@ -284,7 +320,9 @@ export function CardTable({
             rarity={c.rarity}
             meta={
               <>
-                {[c.color, stillNeededText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                <span className="mobile-card-meta-text">
+                  {[c.color, toBuyText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                </span>
                 {c.collector_want ? <CollectorDeckChip count={c.collector_want} /> : null}
                 {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
               </>
@@ -300,6 +338,7 @@ export function CardTable({
                         TCGPlayer
                       </a>
                     ) : null}
+                    {altChip(c)}
                   </div>
                   <div className="mobile-card-owned">
                     <span>Owned</span>
@@ -321,8 +360,10 @@ export function CardTable({
                 />
               </div>
             ) : null}
-            {showAltArts && (c.alt_arts?.length ?? 0) > 0 && (
-              <div className="mobile-card-alts">{altRow(c)}</div>
+            {hasAlts(c) && (!compact || openAlts.has(`${c.section}-${c.card_id}`)) && (
+              <div id={compact ? altTrayId(`${c.section}-${c.card_id}`) : undefined} className="mobile-card-alts">
+                {altRow(c)}
+              </div>
             )}
           </MobileCard>
         ))}

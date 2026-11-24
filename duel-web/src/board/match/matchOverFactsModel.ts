@@ -1,21 +1,12 @@
 import type { MatchHistoryEntry } from "../../history/historyApi";
 
 export type MatchOverFacts = {
-  /** "Ended on turn 9", from the board's turn counter. */
   turns: string;
-  /** "Bounty 1012 → 1028 (+16)" for a ranked game once the result is saved, else null. */
   rating: string | null;
-  /** Where the turn-by-turn log lives (History), or null while there is none. */
   logPath: string | null;
-  /** The replay page for this game, or null until the saved match says a replay can be watched. */
   replayPath: string | null;
 };
 
-/**
- * What the match-over card adds under the result. `record` is the saved match
- * (History's entry for this game); it lands a moment after the game ends and
- * never exists for guests, so every part that needs it stays null until then.
- */
 export function matchOverFacts(turnNumber: number, record: MatchHistoryEntry | null): MatchOverFacts {
   const delta = record ? record.rating_after - record.rating_before : 0;
   return {
@@ -29,15 +20,10 @@ export function matchOverFacts(turnNumber: number, record: MatchHistoryEntry | n
   };
 }
 
-/** Seconds to wait before each try at fetching the saved match; the server saves it a moment after the game. */
+// The server saves the match a moment after the game.
 export const RECORD_RETRY_DELAYS_S = [0, 2, 5, 10, 20];
 
-/**
- * Fetches the saved match on the RECORD_RETRY_DELAYS_S schedule until a finished
- * entry lands, then hands it to `onRecord`. A miss (404) or an entry that is not
- * finished yet (the live game's per-turn save, which has no rating) is retried.
- * Returns a cancel function.
- */
+// A 404, or an entry not finished yet (the live per-turn save has no rating), is retried.
 export function pollMatchRecord(
   matchId: string,
   load: (matchId: string) => Promise<MatchHistoryEntry>,

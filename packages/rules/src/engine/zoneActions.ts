@@ -1,6 +1,3 @@
-/**
- * Zone actions shared by effects and procedure: K.O., playing cards, life to hand.
- */
 import { abilitiesFor } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { InstanceId, ResolutionFrame, Seat } from "../types.js";
@@ -12,17 +9,11 @@ import { B } from "../effects/bindings.js";
 
 const MAX_CHARACTERS = 5;
 
-// ---------------------------------------------------------------------------
-// Zone actions shared by effects and procedure
-// ---------------------------------------------------------------------------
-
 export interface RemovalCause {
-  /** Seat whose effect caused the removal; undefined for battle / rules. */
   byEffectOf?: Seat;
   battle?: boolean;
 }
 
-/** K.O. a Character (no replacement check). Queues On K.O. and "when K.O.'d" triggers. */
 export function performKo(sim: Sim, loc: Located, cause: RemovalCause): void {
   const { state } = sim;
   // [DON!! xN] gates read the card as it was on the field: leaving returns its DON!!.
@@ -47,10 +38,6 @@ export function performKo(sim: Sim, loc: Located, cause: RemovalCause): void {
   if (loc.zone === "character") dispatchEvent(state, "character_left_field", { seat: loc.seat, card: entry, ...(cause.byEffectOf != null ? { byEffectOf: cause.byEffectOf } : {}) });
 }
 
-/**
- * Play a card onto its owner's field without paying its cost. A 6th Character
- * first asks its owner to trash one Character; the card waits in `resolving`.
- */
 export function beginPlay(sim: Sim, seat: Seat, entry: { id: InstanceId; defId: string }, rested: boolean, costPaid = 0, fromZone = "hand"): void {
   const { state } = sim;
   const def = getCardDef(entry.defId);
@@ -78,8 +65,8 @@ export function moveToZone(sim: Sim, loc: Located, zone: "hand" | "deck" | "tras
   // Visibility is judged before the move (face-up Life indexes shift once taken).
   const fromPublic = isOnField(loc) || loc.zone === "trash" || (loc.zone === "life" && Boolean(state.players[loc.seat].faceUpLife[loc.index]));
   const toPublic = zone === "trash" || (zone === "life" && Boolean(opts.faceUp));
-  // Neither end public → only the owner may learn the card (projectGameEvents
-  // hides it from everyone else). Deck / face-down Life on both ends → nobody.
+  // Neither end public: only the owner may learn the card (projectGameEvents hides it from everyone else). Deck /
+  // face-down Life on both ends: nobody.
   const hidden = !fromPublic && !toPublic;
   const ownerKnows = !hidden || loc.zone === "hand" || zone === "hand";
   const entry = takeCard(state, loc);

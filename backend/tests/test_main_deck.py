@@ -92,13 +92,11 @@ def test_additional_cards_compare_against_explicit_main(db):
     assert by_id["OP01-019"] == "additional"
     assert by_id["DON-001"] == "don"
 
-    # Main deck itself has no Additional Cards section.
     main_detail = get_deck_detail(db, user, main.id)
     assert main_detail.is_main is True
     assert main_detail.prior_decks == []
     assert all(c.section in ("main", "don") for c in main_detail.cards)
 
-    # Earlier non-main deck still compares only to Main (not itself as baseline).
     first_detail = get_deck_detail(db, user, first.id)
     assert first_detail.prior_decks == ["Main list"]
     first_by_id = {c.card_id: c.section for c in first_detail.cards}
@@ -257,13 +255,11 @@ def test_list_decks_groups_by_leader_with_main_first(db):
     db.commit()
 
     names = [d.name for d in list_decks(db, user)]
-    # Leaders sorted by name (Luffy before Zoro); Main first within group; no-leader last.
     assert names == ["Luffy Core", "Luffy Tech", "Zoro Core", "Orphan"]
     summaries = {d.name: d for d in list_decks(db, user)}
     assert summaries["Luffy Core"].is_main is True
     assert summaries["Luffy Tech"].is_main is False
     assert summaries["Zoro Core"].is_main is True
-    # IDs still resolve for detail after reordering.
     assert get_deck_detail(db, user, luffy_variant.id).prior_decks == ["Luffy Core"]
     assert get_deck_detail(db, user, luffy_main.id).is_main is True
     assert get_deck_detail(db, user, zoro_main.id).is_main is True
@@ -281,9 +277,9 @@ def test_list_decks_reports_owned_copies_excluding_don(db):
         {"OP01-016": 4, "OP01-017": 2, "DON-001": 10},
         sort_order=0,
     )
-    set_owned(db, user, "OP01-016", 6)  # capped at the 4 this deck needs
+    set_owned(db, user, "OP01-016", 6)
     set_owned(db, user, "OP01-017", 1)
-    set_owned(db, user, "DON-001", 10)  # DON!! never counts toward main progress
+    set_owned(db, user, "DON-001", 10)
 
     summary = next(d for d in list_decks(db, user) if d.id == deck.id)
     assert summary.main_cards == 6
@@ -336,7 +332,6 @@ def test_deck_summary_matches_its_list_entry_and_ignores_other_players_main_deck
     cards = {"OP01-001": 1, "OP01-016": 4}
     first = _make_leader_deck(db, me, "First", cards, sort_order=1)
     second = _make_leader_deck(db, me, "Second", cards, sort_order=2)
-    # Another player's marked Main for the same leader must not decide who is Main for me.
     _make_leader_deck(db, other, "Theirs", cards, sort_order=0, is_main=True)
 
     listed = {d.id: d for d in list_decks(db, me)}

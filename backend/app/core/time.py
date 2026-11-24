@@ -11,7 +11,6 @@ from datetime import datetime, timezone
 
 
 def utcnow() -> datetime:
-    """The current time as an aware UTC datetime."""
     return datetime.now(timezone.utc)
 
 
@@ -21,5 +20,4 @@ def as_utc(dt: datetime) -> datetime:
 
 
 def as_utc_or_none(dt: datetime | None) -> datetime | None:
-    """``as_utc`` that lets None through, for nullable columns."""
     return None if dt is None else as_utc(dt)

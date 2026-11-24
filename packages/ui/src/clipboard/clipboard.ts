@@ -1,4 +1,3 @@
-/** Copy text; falls back to a hidden textarea where the async API is missing or blocked. */
 export async function copyText(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard?.writeText) {
@@ -24,7 +23,6 @@ export async function copyText(text: string): Promise<boolean> {
   }
 }
 
-/** Read clipboard text; null when the API is unavailable or permission is denied. */
 export async function readClipboardText(): Promise<string | null> {
   try {
     if (!navigator.clipboard?.readText) return null;

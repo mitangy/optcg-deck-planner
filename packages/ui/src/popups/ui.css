@@ -1,9 +1,4 @@
-/*
- * Structure only: where the backdrop and menu sit. Colours, radii and shadows
- * come from the host app through --ui-* variables (the same token bridge as
- * site-legal's --fb-* and patch-notes' --wn-*); map them in the app's CSS.
- * :where() keeps specificity at zero so an app class on the same element wins.
- */
+/* :where() keeps specificity at zero so an app class on the same element wins. */
 
 :where(.ui-dialog) {
   position: fixed;
@@ -24,7 +19,6 @@
   max-width: 100%;
 }
 
-/* Opt-in look for a panel with no styles of its own: panelClassName="ui-surface". */
 :where(.ui-surface) {
   color: var(--ui-ink, inherit);
   background: var(--ui-panel-bg, Canvas);
@@ -62,11 +56,6 @@
   outline: none;
 }
 
-/*
- * Select (the replacement for a native <select>): a button with the chosen label and an opaque list.
- * Tokens: --ui-field-bg / --ui-field-border / --ui-field-radius for the closed button, --ui-accent for the
- * open / focus ring and the check mark, --ui-selected for the chosen row, --ui-active for the active (keyboard / hover) row.
- */
 :where(.ui-select) {
   display: flex;
   flex-direction: column;
@@ -99,7 +88,6 @@
   cursor: pointer;
 }
 
-/* One size whatever is picked: the value ellipsizes and the chevron stays put. */
 :where(.ui-select-value) {
   min-width: 0;
   flex: 1 1 auto;
@@ -128,7 +116,6 @@
   cursor: not-allowed;
 }
 
-/* Floats in a portal; opaque so nothing shows through, at least as wide as the button. */
 :where(.ui-select-list) {
   width: max-content;
   min-width: var(--button-width, 8rem);
@@ -156,7 +143,6 @@
   background: var(--ui-selected, rgb(128 128 128 / 0.12));
 }
 
-/* The active row wins over the chosen one. */
 :where(.ui-select-list .ui-select-option[data-focus]) {
   background: var(--ui-active, var(--ui-hover, rgb(128 128 128 / 0.2)));
 }
@@ -193,4 +179,39 @@
   color: var(--ui-accent, currentColor);
   font-weight: 700;
   text-align: center;
+}
+
+:where(.ui-confirm) {
+  display: grid;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 26rem;
+  padding: 1.25rem;
+  box-shadow: var(--shadow-lift, none);
+}
+
+:where(.ui-confirm-title) {
+  margin: 0;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+:where(.ui-confirm-message) {
+  margin: 0;
+  color: var(--ui-muted, inherit);
+  overflow-wrap: anywhere;
+}
+
+:where(.ui-confirm-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+:where(.ui-confirm-actions .btn) {
+  flex: 1 1 8rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  margin: 0;
 }

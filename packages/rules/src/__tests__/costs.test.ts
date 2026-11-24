@@ -5,19 +5,16 @@ import { powerOf } from "../engine/queries.js";
 import { Harness } from "../testing/harness.js";
 import type { Seat } from "../types.js";
 
-// Paying costs: DON!! returns, exact-cost checks and cost selections.
+const KAROO = "ST01-003";
+const BLACK_MARIA = "OP08-074";
+const SHIRAHOSHI = "OP05-082";
+const MORIA_LEADER = "OP14-080";
+const PERONA = "ST12-005";
+const LOLA = "OP06-094";
+const ALVIDA = "OP15-003";
+const ALVIDA_EAST_BLUE = "OP03-023";
+const SAI = "OP01-012";
 
-const KAROO = "ST01-003"; // vanilla 3000
-const BLACK_MARIA = "OP08-074"; // [Activate: Main] [Once Per Turn] Add up to 5 DON!! rested. Then, at the end of this turn, return DON!! from your field until you have the same number as your opponent.
-const SHIRAHOSHI = "OP05-082"; // 1-cost, [Activate: Main] You may rest this Character and place 2 cards from your trash at the bottom of your deck: ...
-const MORIA_LEADER = "OP14-080"; // [Activate: Main] [Once Per Turn] You may KO 1 of your {Thriller Bark Pirates} type Characters: ...
-const PERONA = "ST12-005"; // {Thriller Bark Pirates} Character, no text
-const LOLA = "OP06-094"; // {Thriller Bark Pirates} Character, no text
-const ALVIDA = "OP15-003"; // [Activate: Main] [Once Per Turn] You may give 1 of your opponent's rested DON!! to 1 of your opponent's Characters: ...
-const ALVIDA_EAST_BLUE = "OP03-023"; // vanilla 1-cost {East Blue}
-const SAI = "OP01-012"; // vanilla 2-cost 4000
-
-/** End the active seat's turn; the other seat's turn begins. */
 function endTurn(h: Harness): void {
   h.act(h.state.activeSeat, { type: "end_turn" });
 }
@@ -41,7 +38,6 @@ describe("returning DON!! to the DON!! deck", () => {
     expect(p.costArea.filter((d) => !d.rested)).toHaveLength(2);
     expect(p.costArea.filter((d) => d.rested)).toHaveLength(6);
     expect(p.donDeck).toHaveLength(2);
-    // DON!! in the DON!! deck are active.
     expect(p.donDeck.some((d) => d.rested)).toBe(false);
   });
 
@@ -111,15 +107,15 @@ describe("paying a cost needs exactly enough", () => {
 });
 
 describe("Events, selections and costs", () => {
-  const SABO = "OP15-046"; // [On Play] If your Leader has the {Dressrosa} type, activate up to 1 {Dressrosa} type Event from your hand.
-  const KYROS = "EB01-040"; // {Dressrosa} Leader
-  const BARRIER_BULLS = "OP15-019"; // {Dressrosa} Event, [Main] Draw 1 card and your Leader gains +1000 power until the end of your opponent's next End Phase.
-  const LUFFY = "OP15-119"; // 7000, when your opponent activates an Event or [Blocker], reveal a Life card: +1000 power per cost.
-  const ROBIN = "ST01-008"; // 3-cost
-  const LOKI = "OP17-119"; // [On Play] K.O. your opponent's Characters with a total cost of 4 or less.
-  const SAI = "OP01-012"; // vanilla 2-cost
-  const WIRE = "OP01-053"; // vanilla 2-cost
-  const TASHIGI = "OP14-029"; // [Activate: Main] [Once Per Turn] You may rest 2 of your cards: +2000 power until the end of your opponent's next End Phase.
+  const SABO = "OP15-046";
+  const KYROS = "EB01-040";
+  const BARRIER_BULLS = "OP15-019";
+  const LUFFY = "OP15-119";
+  const ROBIN = "ST01-008";
+  const LOKI = "OP17-119";
+  const SAI = "OP01-012";
+  const WIRE = "OP01-053";
+  const TASHIGI = "OP14-029";
 
   it("activating an Event from the hand with Sabo counts as an Event activation for the opponent's Luffy (#649)", () => {
     const h = new Harness({ leaders: [KYROS, "ST01-001"] });
@@ -130,7 +126,6 @@ describe("Events, selections and costs", () => {
     h.play(0, SABO);
     h.pick(BARRIER_BULLS);
     expect(h.state.players[0].trash).toContain(BARRIER_BULLS);
-    // Luffy revealed the 3-cost Life card: +3000.
     expect(powerOf(h.state, 1, luffy!)).toBe(7000 + 3000);
   });
 
@@ -157,7 +152,6 @@ describe("Events, selections and costs", () => {
       h.don(0, active, rested);
       return h.try(0, { type: "activate_ability", sourceId: tashigi!.id, abilityId }).ok;
     };
-    // Tashigi plus one active DON!! pay the 2 cards; Tashigi plus one rested DON!! cannot.
     expect(activate(1, 0)).toBe(true);
     expect(activate(0, 1)).toBe(false);
   });

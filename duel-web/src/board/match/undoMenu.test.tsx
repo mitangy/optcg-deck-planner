@@ -108,7 +108,6 @@ describe("undo menu markup (#536)", () => {
     unmount = null;
   });
 
-  /** The open menu's markup: the list is in a portal, so read the whole body. */
   async function html(s: UndoState): Promise<string> {
     const host = document.createElement("div");
     document.body.appendChild(host);

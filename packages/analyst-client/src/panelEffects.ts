@@ -2,13 +2,10 @@ import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import type { Dock } from "./panelDock";
 import { growOrigin, popFrames, POP_MS, slideFrames, type Rect } from "./panelMotion";
 
-/** Plays the panel's open / close animation on `panelRef`. */
 export function usePanelMotion(
   panelRef: RefObject<HTMLDivElement | null>,
   { closing, pending, embedded, edge, dock, origin, onExited }: { closing: boolean; pending: boolean; embedded: HTMLElement | null; edge: boolean; dock: Dock; origin: () => Rect; onExited: () => void },
 ) {
-  // Pops out of the compass when it opens and shrinks back into it when it closes. A docked panel slides from its
-  // edge, and one inside the board just appears. No animation (reduced motion, no Web Animations) is an instant open / close.
   const playing = useRef<Animation | null>(null);
   const phase = useRef<"in" | "out" | null>(null);
   useLayoutEffect(() => {
@@ -46,13 +43,18 @@ export function usePanelMotion(
   }, [closing, pending, embedded, edge, dock, origin, onExited]);
 }
 
-/** Beside a modal on desktop: tells the page which side the panel is on and how wide, so the modal makes room. */
 export function useLayerRoom(panelRef: RefObject<HTMLDivElement | null>, { inLayer, phone, closing, dock }: { inLayer: boolean; phone: boolean; closing: boolean; dock: Dock }) {
   useEffect(() => {
     const el = panelRef.current;
-    if (!inLayer || phone || closing || !el) return;
+    if (!inLayer || closing || !el) return;
     const root = document.documentElement;
+    // A phone's bottom sheet is capped (panel.css) so the layer's card stays visible above it.
     const apply = () => {
+      if (phone) {
+        root.dataset.lpLayer = "sheet";
+        root.style.setProperty("--lp-layer-h", `${el.offsetHeight}px`);
+        return;
+      }
       root.dataset.lpLayer = dock === "left" ? "left" : "right";
       root.style.setProperty("--lp-layer-w", `${el.offsetWidth}px`);
     };
@@ -63,11 +65,11 @@ export function useLayerRoom(panelRef: RefObject<HTMLDivElement | null>, { inLay
       ro?.disconnect();
       delete root.dataset.lpLayer;
       root.style.removeProperty("--lp-layer-w");
+      root.style.removeProperty("--lp-layer-h");
     };
   }, [inLayer, phone, closing, dock]);
 }
 
-/** Phones: the sheet covers the screen, so the page behind must not scroll; it also follows the visual viewport so the composer stays above the keyboard. */
 export function usePhoneViewport(panelRef: RefObject<HTMLDivElement | null>, phone: boolean) {
   useEffect(() => {
     if (!phone) return;

@@ -1,9 +1,4 @@
-/**
- * Fixed-seed fuzz smoke for PR CI: the same games every run, so a failure is
- * reproducible from the printed seed (`npx tsx src/sim/fuzz.ts 1 <seed>`).
- *
- * Usage: npx tsx src/sim/fuzzSmoke.ts [games] [firstSeed]
- */
+/** Fixed seeds: the same games every run, so a failure is reproducible from the printed seed. */
 import { fuzzGame } from "./fuzz.js";
 
 export const SMOKE_FIRST_SEED = 1;

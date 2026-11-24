@@ -1,4 +1,3 @@
-/** Duel-web ↔ FastAPI tournaments (single elimination and round robin among friends). */
 import type { components } from "@optcg/api-client";
 import { apiCall } from "../api/http";
 import type { TimerPreset } from "../home/timerPreset";
@@ -55,7 +54,6 @@ export type Tournament = {
   winner: Person | null;
   players: TournamentPlayer[];
   matches: TournamentMatch[];
-  /** Round robin only. */
   standings: StandingRow[];
   rounds: number;
   me: { user_id: number; role: TournamentRole | null; can_join: boolean; can_start: boolean };
@@ -72,6 +70,8 @@ export type PlayResult = {
   action: "join" | "host" | "wait" | "hosted";
   room_id?: string;
   server_url?: string | null;
+  /** Only on "host": proves to the game server that the room it opens is this match's tournament room. */
+  ticket?: string | null;
 };
 
 export const call = apiCall;
@@ -106,7 +106,6 @@ export function removeTournamentPlayer(code: string, userId: number): Promise<To
   return call<Tournament>(`${base(code)}/players/${userId}`, { method: "DELETE" }, "Could not remove");
 }
 
-/** Claim the match room (no body), or report the room you just opened. */
 export function playTournamentMatch(
   code: string,
   matchId: number,

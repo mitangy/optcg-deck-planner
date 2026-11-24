@@ -1,10 +1,3 @@
-/**
- * Whole-catalog fuzzer: random legal decks (all printed cards, any support
- * status), random legal intents and random choice answers. Checks invariants
- * after every step and that every legal intent is accepted.
- *
- * Usage: npx tsx src/sim/fuzz.ts [games] [seed]
- */
 import { listCardDefs } from "../cards/definitions.js";
 import { abilitiesFor } from "../cards/abilities.js";
 import { applyIntent, assertInvariants, createMatch, listLegalIntents, skipMulligans } from "../engine.js";
@@ -13,8 +6,8 @@ import { assertConservation, assertSnapshotContinues, cardCounts } from "./invar
 import type { ChoiceRequest, Intent, MatchState, PendingChoice, Seat } from "../types.js";
 
 export function actingSeat(state: MatchState): Seat {
-  if (state.phase === "mulligan") return state.players[0].mulliganDone ? 1 : 0;
   if (state.pendingChoices.length > 0) return state.pendingChoices[0]!.seat;
+  if (state.phase === "mulligan") return state.players[0].mulliganDone ? 1 : 0;
   if ((state.phase === "block" || state.phase === "counter") && state.battle) return state.battle.attackerSeat === 0 ? 1 : 0;
   return state.activeSeat;
 }
@@ -41,7 +34,6 @@ function shuffleIds<T>(rng: Rng, items: T[]): T[] {
   return rng.shuffle(items);
 }
 
-/** Random valid answer for a choice (not just the default). */
 export function randomAnswer(rng: Rng, choice: PendingChoice): Intent {
   if (choice.kind === "order_effects") return { type: "order_pending_effects", orderedIds: shuffleIds(rng, (choice.unorderedChoices ?? []).map((c) => c.id)) };
   const r: ChoiceRequest | undefined = choice.request;
@@ -72,13 +64,8 @@ export function randomAnswer(rng: Rng, choice: PendingChoice): Intent {
 
 export interface FuzzResult { finished: boolean; intents: number; error?: string; deckIds: string[] }
 
-/** Intents between snapshot round-trip checks (each costs two extra engine runs). */
 const SNAPSHOT_EVERY = 60;
 
-/**
- * Plays one random game. Errors are prefixed with the seed and the index of the
- * intent being applied; replay with `npx tsx src/sim/fuzz.ts 1 <seed>`.
- */
 export function fuzzGame(seed: number, maxIntents = 1500, focus?: string[]): FuzzResult {
   const rng = createSeededRng(seed);
   const a = randomDeck(rng, focus);
@@ -121,10 +108,6 @@ export function fuzzGame(seed: number, maxIntents = 1500, focus?: string[]): Fuz
   return { finished: state.winner !== null, intents, deckIds };
 }
 
-/**
- * Sweep: focused decks cycling through every catalog card (4 copies each of
- * `chunk` cards per deck), reporting abilities that never activated.
- */
 export function sweep(chunk = 10, gamesPerChunk = 2, base = 90000): { errors: string[]; activated: Set<string> } {
   const ids = mainCards.map((d) => d.id);
   const errors: string[] = [];

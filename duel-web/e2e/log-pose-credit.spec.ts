@@ -1,8 +1,3 @@
-/**
- * Log Pose's monthly credit in the panel (#446): the meter, the low-credit line, the notice that replaces the input
- * when a limit stops the player, asking for more, deleting a chat and claiming a free spot. The analyst and the API
- * are faked in the browser; the panel and the Settings page behind it are the real ones.
- */
 import type { Page } from "@playwright/test";
 import { test, expect, FAKE_API } from "./fixtures";
 
@@ -63,7 +58,6 @@ const openPanel = async (page: Page) => {
   await page.goto("/");
   await page.locator(".lp-compass").click();
   await page.locator(".lp-panel").waitFor();
-  // The panel grows out of the compass; measure only once it has settled.
   await expect.poll(() => page.locator(".lp-panel").evaluate((el) => el.getAnimations().length)).toBe(0);
 };
 
@@ -83,13 +77,11 @@ test("out of credit, the input becomes a notice with a way to ask for more and t
   const panel = page.locator(".lp-panel");
   await expect(panel.getByText("You've used this month's free $5.00 of Log Pose. It refills on November 1.")).toBeVisible();
   await expect(panel.getByRole("textbox", { name: "Message Log Pose" })).toHaveCount(0);
-  // The chat stays to read.
   await expect(panel.getByText("Yes, keep the two-drops.")).toBeVisible();
   const ask = panel.getByRole("button", { name: "Ask for more" });
   await ask.click();
   await expect(panel.getByRole("button", { name: "Request sent" })).toBeDisabled();
   expect(st.requests).toContain("POST /analyst/access/topup");
-  // The app's own Claude link lives in Settings, so the panel takes the player there and gets out of the way.
   await panel.getByRole("button", { name: "Use Log Pose in your own Claude" }).click();
   await expect(page).toHaveURL(/\/settings#log-pose$/);
   await expect(page.locator(".lp-panel")).toHaveCount(0);
@@ -115,7 +107,6 @@ test("a limit that stops an answer keeps the text and swaps the input for the no
   const panel = page.locator(".lp-panel");
   const input = panel.getByRole("textbox", { name: "Message Log Pose" });
   await input.fill("Is Zoro good?");
-  // By the time the answer stops, the planner says the credit is gone.
   st.credit = credit({ credit_spent_usd: 5.1, refusal: "credit" });
   await input.press("Enter");
   await expect(panel.getByText("Checking the Zoro matchup.")).toBeVisible();
@@ -146,7 +137,6 @@ test("deleting a chat asks first, deletes it and starts a fresh chat (#446)", as
   const before = await notice.boundingBox();
   await panel.getByRole("button", { name: "Delete this chat" }).click();
   await expect(panel.getByText("Delete this chat for good?")).toBeVisible();
-  // The question takes the line's place; nothing moves.
   expect(Math.abs((await notice.boundingBox())!.height - before!.height)).toBeLessThanOrEqual(1);
   await panel.getByRole("button", { name: "Keep" }).click();
   expect(st.requests).not.toContain("DELETE /analyst/chat/threads/1");
@@ -164,7 +154,6 @@ test("a player with a free spot left claims it and lands in the chat (#446)", as
   const panel = page.locator(".lp-panel");
   await expect(panel.getByRole("heading", { name: "Claim your free Log Pose credit" })).toBeVisible();
   await expect(panel.getByText("12 of 50 free spots left")).toBeVisible();
-  // Approved at once: the next session answer turns Log Pose on.
   st.session = { enabled: true, token: "chat.x", expires_at: new Date(Date.now() + 3_600_000).toISOString(), chat_url: ANALYST };
   await panel.getByRole("button", { name: "Claim free credit" }).click();
   await expect(panel.getByRole("textbox", { name: "Message Log Pose" })).toBeVisible();
@@ -207,7 +196,7 @@ test("owners switch between Requests and Usage and answer a top-up (#446)", asyn
   );
   await openPanel(page);
   const panel = page.locator(".lp-panel");
-  await expect(panel.getByText("$5.00 of $5.00 left this month")).toHaveCount(0); // owners have no credit meter
+  await expect(panel.getByText("$5.00 of $5.00 left this month")).toHaveCount(0);
   await panel.getByRole("button", { name: /^Requests/ }).click();
   await expect(panel.getByText("12 of 50 taken")).toBeVisible();
   await expect(panel.getByText("Asked for more credit")).toBeVisible();

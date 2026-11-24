@@ -1,7 +1,3 @@
-"""Catalog and ownership lookups shared by planner services, group buy and the social views (refactor D-02).
-
-Lived as private helpers in the former services module; other modules reached in with underscore imports.
-"""
 
 from __future__ import annotations
 
@@ -28,18 +24,20 @@ def alt_arts_map(
     wanted: dict[str, dict[int, int]] | None = None,
     owned: dict[str, dict[int, int]] | None = None,
     collector: dict[str, dict[int, int]] | None = None,
+    *,
+    catalog: dict[str, CatalogCard] | None = None,
+    primary_ids: dict[str, int] | None = None,
 ) -> dict[str, list[PrintingView]]:
-    """Special printings with different art than the preferred catalog row.
-
-    Excludes the primary product id and any special whose image_url matches the
-    preferred face (plain reprints that reuse base art).
-    """
+    """``catalog`` and ``primary_ids`` are what ``catalog_map`` / ``primary_product_ids``
+    return for (a superset of) ``card_ids``; pass them when the caller already has them."""
     if not card_ids:
         return {}
-    primary_ids = primary_product_ids(db, card_ids)
+    if primary_ids is None:
+        primary_ids = primary_product_ids(db, card_ids)
+    if catalog is None:
+        catalog = catalog_map(db, card_ids)
     preferred_image = {
-        row.card_id: (row.image_url or "").strip()
-        for row in db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_(card_ids))).all()
+        card_id: (catalog[card_id].image_url or "").strip() for card_id in card_ids if card_id in catalog
     }
     rows = db.scalars(
         select(CatalogPrinting).where(
@@ -90,7 +88,6 @@ def owned_map(db: Session, user_id: int) -> dict[str, int]:
 
 
 def alt_owned_map(db: Session, user_id: int) -> dict[str, dict[int, int]]:
-    """card_id -> product_id -> copies of that alt printing the user owns (qty > 0)."""
     rows = db.scalars(select(OwnedPrinting).where(OwnedPrinting.user_id == user_id)).all()
     out: dict[str, dict[int, int]] = defaultdict(dict)
     for row in rows:
@@ -100,7 +97,6 @@ def alt_owned_map(db: Session, user_id: int) -> dict[str, dict[int, int]]:
 
 
 def primary_product_ids(db: Session, card_ids: set[str]) -> dict[str, int]:
-    """Preferred TCGPlayer product id per card number (standard printing, then cheapest)."""
     if not card_ids:
         return {}
     rows = db.scalars(select(CatalogPrinting).where(CatalogPrinting.card_id.in_(card_ids))).all()

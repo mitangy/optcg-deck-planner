@@ -1,4 +1,4 @@
-import { seatLog, type Seat } from "@optcg/rules";
+import { seatLog, type MatchReplay, type Seat } from "@optcg/rules";
 import {
   LatestOnlySender,
   type MatchProgressPayload,
@@ -8,9 +8,14 @@ import {
 import type { DuelCore } from "./context.js";
 import { BOT_SEAT } from "./bots.js";
 
-/** Builds and sends what the backend keeps of a game: its result, per-turn progress snapshots, and solo (bot / practice) reports. */
+/** The key predicts the rest of the game's shuffles, so a snapshot of a game still being played leaves it out. */
+function withoutKeyUnlessOver(replay: MatchReplay, over: boolean): MatchReplay {
+  if (over || replay.rngKey === undefined) return replay;
+  const { rngKey: _key, ...rest } = replay;
+  return rest;
+}
+
 export class MatchPersistence {
-  /** Turn of the last progress snapshot, so the log is saved once per turn. */
   private progressTurn: number | null = null;
   private progress: LatestOnlySender<{ matchId: string; payload: MatchProgressPayload }>;
 
@@ -26,12 +31,10 @@ export class MatchPersistence {
     );
   }
 
-  /** Clear everything tied to one game so a rematch starts clean. */
   resetPerGameState() {
     this.progressTurn = null;
   }
 
-  /** After a state change: save the game's log once per turn while it is still being played. */
   noteTurn() {
     const { match } = this.core.game;
     if (match && match.winner === null && match.turnNumber !== this.progressTurn) {
@@ -40,7 +43,6 @@ export class MatchPersistence {
     }
   }
 
-  /** The two account ids a result or progress snapshot is saved under, or why it isn't saved. */
   ingestSeats(): [number, number] | { skip: string } {
     const s0 = this.core.game.matchUserIds?.[0];
     const s1 = this.core.game.matchUserIds?.[1];
@@ -52,10 +54,6 @@ export class MatchPersistence {
     return [s0, s1];
   }
 
-  /**
-   * A finished bot or practice game as the solo-game report, or null for a game between two
-   * different accounts (which is a match). Practice is one account in both seats; it has no winner.
-   */
   private soloGamePayload(winner: Seat, reason: string): SoloGamePayload | null {
     const { game } = this.core;
     const ids = game.matchUserIds;
@@ -75,12 +73,12 @@ export class MatchPersistence {
       opponent_leader_id: game.replay?.players[1 - humanSeat].leaderId,
       turns,
       reason,
-      // Bot games keep their replay so they can be investigated and trained on (#1202); practice keeps nothing.
+      // Bot games keep their replay; practice keeps nothing.
       ...(game.bot && game.replay ? { replay: { ...game.replay, intents: [...game.replay.intents], end: { winner, reason } } } : {}),
     };
   }
 
-  /** Fire and forget: match_over never waits on the API, and a few quick retries are all a stats row is worth. */
+  /** match_over never waits on the API, and a few quick retries are all a stats row is worth. */
   private reportSoloGame(payload: SoloGamePayload): Promise<void> {
     const { game, io, time } = this.core;
     if (!this.core.config.outboxEnabled) {
@@ -102,10 +100,9 @@ export class MatchPersistence {
 
   async writebackResult(winner: Seat, reason: string) {
     const { game, io, time } = this.core;
-    // Bot and practice games are not matches: they are counted for the admin page, and a bot game's replay is kept for training (#1202).
     const solo = this.soloGamePayload(winner, reason);
     if (solo) {
-      void this.reportSoloGame(solo); // never awaited: match_over does not wait on the API
+      void this.reportSoloGame(solo);
       return;
     }
     const seats = this.core.ingestSeats();
@@ -131,14 +128,7 @@ export class MatchPersistence {
     }
   }
 
-  /**
-   * Save the game's log so far (both seats' logs and the replay), so a game that
-   * never reaches a result (server restart, both players gone) still has one.
-   * Sent at the start of every turn and when the room closes without a result.
-   * `reveal` adds the opponent's hands to each log; only a game that can no
-   * longer be played (the room closing) gets them, and is marked `closed` so
-   * the backend lets the players watch its recording (#476).
-   */
+  // Opponent hands are revealed only for a game that can no longer be played (the room closing), which is then marked `closed`.
   saveProgress(reveal = false): Promise<void> {
     const seats = this.core.ingestSeats();
     if (!Array.isArray(seats) || !this.core.game.replay) return Promise.resolve();
@@ -151,10 +141,11 @@ export class MatchPersistence {
       seat0_user_id: s0,
       seat1_user_id: s1,
       ranked: game.ranked,
+      tournament: game.tournament,
       seat0_leader_id: game.replay?.players[0].leaderId,
       seat1_leader_id: game.replay?.players[1].leaderId,
       turns: game.match?.turnNumber,
-      replay: game.replay ? { ...game.replay, intents: [...game.replay.intents] } : undefined,
+      replay: game.replay ? { ...withoutKeyUnlessOver(game.replay, reveal), intents: [...game.replay.intents] } : undefined,
       seat_logs: this.seatLogs(reveal),
     };
   }
@@ -170,10 +161,7 @@ export class MatchPersistence {
     };
   }
 
-  /**
-   * Each player's turn-by-turn log for their match history. The opponent's hidden
-   * cards stay hidden unless `reveal` (the game is over or cut off).
-   */
+  // The opponent's hidden cards stay hidden unless `reveal`.
   private seatLogs(reveal: boolean): MatchResultPayload["seat_logs"] {
     const { game, io } = this.core;
     if (!game.replay) return undefined;

@@ -20,38 +20,23 @@ import type { DockHosts, GameAskResult, LogPoseGame, LogPosePage, OwnClaude } fr
 export type { DockHosts, GameAskResult, LogPoseGame, LogPosePage, OwnClaude } from "./types";
 
 type LogPoseValue = {
-  /** null until the session endpoint answers. */
   enabled: boolean | null;
   apiBase: string;
   session: SessionManager;
   setPage: (owner: object, page: LogPosePage | null) => void;
-  /** Registers the deck the page has open, so Apply cards for it can save changes. */
   setEditor: (owner: object, editor: DeckEditor | null) => void;
-  /** Registers an element the panel renders into while it is set (a modal that would make the panel inert). */
   setLayer: (owner: object, el: HTMLElement | null) => void;
-  /** Registers the live game the page has open. */
   setGame: (owner: object, game: LogPoseGame | null) => void;
-  /** Opens the panel. `quiet` keeps the keyboard where it is (the composer isn't focused), for a panel that opens by itself. */
   openPanel: (opts?: { quiet?: boolean }) => void;
   closePanel: () => void;
-  /** The panel is open (and not hidden by the page). It turns false the moment it is closed, while the panel is still shrinking into the compass. */
+  /** Turns false the moment the panel is closed, while it is still shrinking into the compass. */
   panelOpen: boolean;
-  /** The side the player docked the panel to (remembered), or null while it floats. */
   dock: Dock;
   setDock: (dock: Dock) => void;
-  /** A board registers its side columns so the panel can dock into them (see useLogPoseDockHost). */
   setDockHost: (owner: object, hosts: DockHosts | null) => void;
-  /** Log Pose can answer here: the session is enabled and the page doesn't hide it. */
   available: boolean;
-  /** Opens the panel and, with an ask, puts that question to Log Pose. Returns false when it isn't available. */
   openLogPose: (ask?: LogPoseAsk) => boolean;
-  /**
-   * Sends a message about the live game as the player, without opening the panel (it waits for an answer in
-   * flight first). `auto` marks it as the board's own (shown as a muted line, sent with `autopilot` so Log Pose
-   * answers choices and plans on). Resolves when the answer has finished, with how it ended.
-   */
   askGame: (text: string, opts?: { auto?: boolean; signal?: AbortSignal }) => Promise<GameAskResult>;
-  /** Cancels the answer in flight, if any. */
   stopGameAsk: () => void;
 };
 
@@ -83,18 +68,15 @@ const LogPoseContext = createContext<LogPoseValue>({
   stopGameAsk: () => {},
 });
 
-/** A function that asks Log Pose a question and opens its panel, or null while Log Pose can't answer (signed out, not enabled, hidden page). */
 export function useLogPoseAsk(): ((ask: LogPoseAsk) => void) | null {
   const { available, openLogPose } = useContext(LogPoseContext);
   return useMemo(() => (available ? (ask: LogPoseAsk) => void openLogPose(ask) : null), [available, openLogPose]);
 }
 
-/** Whether chat is on for this user (false outside a provider), plus the session for review streams. */
 export function useLogPose() {
   return useContext(LogPoseContext);
 }
 
-/** Registers the page's context and starter prompts while the calling component is mounted. */
 export function useLogPosePage(page: LogPosePage | null) {
   const { setPage } = useContext(LogPoseContext);
   const { pinned, ...plain } = page ?? {};
@@ -103,46 +85,28 @@ export function useLogPosePage(page: LogPosePage | null) {
   useRegisterSlot(setPage, value);
 }
 
-/**
- * Registers the deck the calling page has open while it is mounted (null for none). Unlike the page context this
- * is kept as a value, not through JSON, because it carries the app's save function: memoize the editor so it
- * only changes when the deck does.
- */
+// Kept as a value (it carries the app's save function), so memoize the editor to change only when the deck does.
 export function useLogPoseDeckEditor(editor: DeckEditor | null) {
   const { setEditor } = useContext(LogPoseContext);
   useRegisterSlot(setEditor, editor);
 }
 
-/**
- * Lets the panel open inside a modal (e.g. an enlarged card) instead of behind it: while `el` is set, the panel
- * renders into it, so the modal's focus trap and inert page leave it usable. Escape closes the panel before the modal.
- * The panel sets `html[data-lp-layer]` (the side it is on) and `--lp-layer-w` (its width) so the modal can make room.
- */
 export function useLogPoseLayer(el: HTMLElement | null) {
   const { setLayer } = useContext(LogPoseContext);
   useRegisterSlot(setLayer, el);
 }
 
-/**
- * Registers the live game the calling page shows while it is mounted (null for none). Kept as a value like the
- * deck editor: memoize it, and let `context()` read the latest game from a ref.
- */
+// Kept as a value like the deck editor: memoize it and let `context()` read the latest game from a ref.
 export function useLogPoseGame(game: LogPoseGame | null) {
   const { setGame } = useContext(LogPoseContext);
   useRegisterSlot(setGame, game);
 }
 
-/**
- * The docking state, for a board that shows Log Pose in a side column: `dock` is the side the player chose, `open`
- * whether the panel is open. Render a host element in that column only while both hold (so a closed panel leaves
- * no empty slot), and register it with `useLogPoseDockHost`.
- */
 export function useLogPoseDock() {
   const { dock, panelOpen, setDock } = useContext(LogPoseContext);
   return { dock, open: panelOpen, setDock };
 }
 
-/** Registers the board's dock hosts while the calling component is mounted (see DockHosts). */
 export function useLogPoseDockHost(columns: boolean, left: HTMLElement | null, right: HTMLElement | null, sides?: DockSides) {
   const { setDockHost } = useContext(LogPoseContext);
   const sideL = sides?.left;
@@ -154,10 +118,6 @@ export function useLogPoseDockHost(columns: boolean, left: HTMLElement | null, r
   useRegisterSlot(setDockHost, value);
 }
 
-/**
- * Mount once around the app. Asks the API whether chat is on for this user and, when it is,
- * shows the compass launcher and the chat panel (unless `hidden`, e.g. during a match).
- */
 export function LogPoseProvider({
   apiBase,
   hidden = false,
@@ -169,17 +129,11 @@ export function LogPoseProvider({
   children,
 }: {
   apiBase: string;
-  /** Hide the compass and panel (e.g. on a live match); the chat keeps its state. */
   hidden?: boolean;
-  /** Show the compass (default). Off: the panel still opens (e.g. from a button on the page) but no launcher is drawn. */
   launcher?: boolean;
-  /** Page info for routes whose page component doesn't call useLogPosePage. */
   defaultPage?: LogPosePage | null;
-  /** Who is signed in, when the app knows (e.g. user id): the session is asked again when it changes. */
   account?: string | number | null;
-  /** Links and card data for the sources Log Pose cites (all optional). */
   sources?: SourceHooks;
-  /** Where "Use Log Pose in your own Claude" goes for a player out of credit (their personal connector). Without it the button isn't shown. */
   ownClaude?: OwnClaude;
   children: ReactNode;
 }) {
@@ -202,7 +156,6 @@ export function LogPoseProvider({
   const [unread, setUnread] = useState(false);
   const [quiet, setQuiet] = useState(false);
   const compassAt = useRef<Rect | null>(null);
-  /** Remembers where the compass is as the panel opens, so the panel grows out of it. */
   const noteCompass = () => {
     const r = document.querySelector(".lp-compass")?.getBoundingClientRect();
     compassAt.current = r ? { left: r.left, top: r.top, width: r.width, height: r.height } : null;
@@ -214,7 +167,6 @@ export function LogPoseProvider({
   const [game, setGame] = useOwnedSlot<LogPoseGame>();
 
   const gameRef = useRef<LogPoseGame | null>(null);
-  // The chat this page belongs to: the live game's match, else the page's deck or match, else the general chat.
   const activeKey = game?.scope?.key ?? page?.scope?.key ?? defaultPage?.scope?.key ?? GENERAL_SCOPE.key;
   const activeTitle = game?.scope?.title ?? page?.scope?.title ?? defaultPage?.scope?.title ?? GENERAL_SCOPE.title;
   const active = useMemo<LogPoseScope>(() => ({ key: activeKey, title: activeTitle }), [activeKey, activeTitle]);
@@ -257,7 +209,6 @@ export function LogPoseProvider({
     if (!openRef.current) setMounted(false);
   }, []);
 
-  // Docking (desktop only): a side the player chose, how wide the strip is outside a game, and the board's side columns.
   const wideEnough = useMediaQuery(DRAWER_QUERY);
   const [dock, setDockState] = useState<Dock>(() => readDock());
   const [dockW, setDockW] = useState(() => readDockW());
@@ -326,12 +277,10 @@ export function LogPoseProvider({
     if (!open && mounted && !session) setMounted(false);
   }, [open, mounted, session]);
 
-  // Signed-in players who can ask for access get the compass too, opening a request form instead of the chat.
   const chatOn = enabled === true;
   const requestable = session !== null && !session.enabled && session.access !== undefined;
   const chrome = logPoseChrome({ enabled, hidden, launcher, open: open || mounted, requestable });
 
-  // A panel docked to the screen edge (outside a game) keeps the page out from under it: the page gets room on that side.
   const edgeDock = chrome.panel && !inGame ? dockedTo : null;
   useEffect(() => {
     if (!edgeDock) return;

@@ -1,10 +1,3 @@
-/**
- * The game review (#967) as the replay page shows it, as pure logic over a `GameReview` so it is easy to test.
- * Engine-free on purpose (types and the class table only): the worker is what carries the engine.
- *
- * Step convention: the state before intent `m.step` is the position that was judged, so the move is the one that
- * led to replay step `m.step + 1`, and the badge shows while the scrubber is there.
- */
 import type { GameReview, ReviewedMove, TurnSummary } from "@optcg/rules/review/gameReview";
 import { CLASS_SEVERITY, MOVE_CLASSES, type MoveClass } from "@optcg/rules/review/classify";
 
@@ -22,22 +15,16 @@ export const CLASS_LABEL: Record<MoveClass, string> = {
   blunder: "Blunder",
 };
 
-/** What the review's result says about the position now: the move that led here, or why there is none. */
 export type MoveStatus =
   | { kind: "move"; move: ReviewedMove }
-  /** On a line of the viewer's own: the review grades the recording only. */
   | { kind: "line" }
   | { kind: "start" }
-  /** The move was not reviewed because it was the only legal one. */
   | { kind: "forced" }
-  /** The review has not got that far yet. */
   | { kind: "pending" }
-  /** The review stopped before this move (the engine could not replay it). */
   | { kind: "stopped" };
 
 export type ReviewProgress = { done: boolean; progress: number };
 
-/** The move that led to `step` on the recording, or why nothing is shown. Nothing is graded on a line of the viewer's own. */
 export function moveStatus(review: GameReview | null, run: ReviewProgress, step: number, onBranch: boolean, total: number): MoveStatus {
   if (onBranch) return { kind: "line" };
   if (step <= 0) return { kind: "start" };
@@ -48,7 +35,6 @@ export function moveStatus(review: GameReview | null, run: ReviewProgress, step:
   return { kind: "forced" };
 }
 
-/** The seat's win chance (points) at `step`: the latest turn-start estimate at or before it. */
 export function winAt(review: GameReview | null, step: number, seat: Seat): number | null {
   if (!review) return null;
   let found: number | null = null;
@@ -59,17 +45,14 @@ export function winAt(review: GameReview | null, step: number, seat: Seat): numb
   return found;
 }
 
-/** What "Show best" opens: a line from the position the move was made in, with the best move already played. */
 export function showBestRequest(move: ReviewedMove): { step: number; moves: { seat: Seat; intent: ReviewedMove["best"]["intent"] }[] } {
   return { step: move.step, moves: [{ seat: move.seat, intent: move.best.intent }] };
 }
 
-/** Classes that get a tick on the scrubber: the moments worth going to. */
 export const TICK_CLASSES: readonly MoveClass[] = ["great", "inaccuracy", "mistake", "blunder"];
 
 export type Tick = { step: number; frac: number; cls: MoveClass; seat: Seat };
 
-/** Scrubber ticks for every moment worth going to, both players', at the step the move leads to (0..1 along the track). */
 export function reviewTicks(review: GameReview | null, total: number): Tick[] {
   if (!review || total <= 0) return [];
   const ticks: Tick[] = [];
@@ -83,7 +66,6 @@ export function reviewTicks(review: GameReview | null, total: number): Tick[] {
 
 export type TurnMark = "good" | "mistake";
 
-/** The viewer's own turns worth a mark in the turn list: a good turn, or one with a mistake or blunder. */
 export function turnMarks(review: GameReview | null, seat: Seat): Map<number, TurnMark> {
   const marks = new Map<number, TurnMark>();
   if (!review) return marks;
@@ -101,10 +83,6 @@ export type KeyMoment =
 
 const KEY_CLASSES: readonly MoveClass[] = ["great", "mistake", "blunder"];
 
-/**
- * Blunders, mistakes, great moves and good turns of both players, in the order they happened.
- * `step` is where "go there" lands: after the move, or at the start of the good turn.
- */
 export function keyMoments(review: GameReview | null): KeyMoment[] {
   if (!review) return [];
   const out: KeyMoment[] = [];
@@ -116,21 +94,17 @@ export function keyMoments(review: GameReview | null): KeyMoment[] {
     const start = review.evals.find((e) => !e.final && e.turn === t.turn && e.activeSeat === t.seat);
     if (start) out.push({ kind: "goodTurn", step: start.step, seat: t.seat, turn: t.turn, gain: t.gain });
   }
-  // Moves before a good turn that starts on the same step.
   return out.sort((a, b) => a.step - b.step || Number(a.kind === "goodTurn") - Number(b.kind === "goodTurn"));
 }
 
-/** A turn as the review names it: "T5", or "Mulligan" for the choice before the first turn begins (turn number 0, #986). */
 export function turnLabel(turn: number): string {
   return turn < 1 ? "Mulligan" : `T${turn}`;
 }
 
-/** Percent for display: whole numbers, never "-0". */
 export function pct(n: number): string {
   return `${Math.round(Math.min(100, Math.max(0, n)))}%`;
 }
 
-/** A class's count in the summary table's row order. */
 export function summaryRows(review: GameReview | null): { cls: MoveClass; counts: [number, number] }[] {
   return MOVE_CLASSES.map((cls) => ({ cls, counts: [review?.seats[0].counts[cls] ?? 0, review?.seats[1].counts[cls] ?? 0] as [number, number] }));
 }

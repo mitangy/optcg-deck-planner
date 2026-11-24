@@ -1,8 +1,3 @@
-/**
- * Skip an Extra copy in one group buy (#1269): two cards each need 4 plus 1 Extra alt copy;
- * unticking Shanks' $180 Manga Extra leaves Luffy's $12 Parallel Extra in the buy.
- * Set PR_SHOTS_DIR to save before/after screenshots.
- */
 import { expect, test } from "./fixtures";
 
 const GB = 13;

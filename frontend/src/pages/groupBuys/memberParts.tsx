@@ -1,11 +1,19 @@
 import { AltArtsRow, MarketPrice } from "../../cards/MarketPrice";
-import { GroupBuyLine, GroupBuyMember, GroupBuyMemberQty, money } from "../../api";
-import { mySelectedArtsTotal } from "./groupBuyArt";
+import { GroupBuyBoughtArt, GroupBuyLine, GroupBuyMember, GroupBuyMemberQty, money } from "../../api";
+import { boughtAlts, lineEach, mySelectedArtsTotal } from "./groupBuyArt";
 import { MemberSwatch, memberColor } from "./memberColors";
 
-/** Member's shopping "Copies needed" mode; hidden once quantities are frozen. */
+/** Next to a name the host typed in for someone who does not use the app. */
+export function OfflineTag() {
+  return (
+    <span className="gb-offline-tag" title="Added by the host. They are not on the app, so the host buys and hands over their cards.">
+      not on the app
+    </span>
+  );
+}
+
 export function MemberModeTag({ member }: { member: GroupBuyMember }) {
-  if (member.sum_across_leaders == null) return null;
+  if (member.sum_across_leaders == null || member.is_offline) return null;
   const separate = member.sum_across_leaders;
   return (
     <span
@@ -36,15 +44,19 @@ export function MemberBreakdown({
           <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
           <span>
             {m.display_name} ×{m.qty}
-            {m.is_custom ? "*" : ""}
           </span>
+          {members.find((x) => x.user_id === m.user_id)?.is_offline ? <OfflineTag /> : null}
+          {m.is_custom && !members.find((x) => x.user_id === m.user_id)?.is_offline ? (
+            <span className="group-buy-custom-tag" title="Custom quantity, not Shopping still-need">
+              custom
+            </span>
+          ) : null}
         </span>
       ))}
     </span>
   );
 }
 
-/** Who wants this art (productId 0 = the Base tile, which holds the preferred printing's wants). */
 export function ArtWantChips({
   line,
   productId,
@@ -74,7 +86,6 @@ export function ArtWantChips({
   );
 }
 
-/** Passive note on an alt tile whose Extra copy the viewer left out of this group buy (#1269). */
 export function SkippedBadge({ line, productId }: { line: GroupBuyLine; productId: number }) {
   const skipped = (line.my_extras ?? []).some((e) => e.product_id === productId && e.skipped > 0);
   if (!skipped) return null;
@@ -87,10 +98,60 @@ export function SkippedBadge({ line, productId }: { line: GroupBuyLine; productI
   );
 }
 
-/** View-only alt row: Base plus the alts somebody wants, with who wants each; no steppers or Show. */
-export function readOnlyAltRow(line: GroupBuyLine, members: GroupBuyMember[]) {
+/** The alt arts somebody in the group buy wants (or, once ordered, the ones bought); the read-only view shows only those. */
+export function wantedAlts(line: GroupBuyLine) {
+  if (line.bought_arts?.length) return boughtAlts(line);
   const wanted = new Set((line.art_wants ?? []).map((w) => w.product_id));
-  const alts = (line.alt_arts ?? []).filter((a) => wanted.has(a.product_id));
+  return (line.alt_arts ?? []).filter((a) => wanted.has(a.product_id));
+}
+
+/** What one bought art cost: "Bought ×2 · $7.00 each", or "Market" when no receipt price was kept. */
+function BoughtTag({ art }: { art: GroupBuyBoughtArt }) {
+  return (
+    <span className="alt-art-wants">
+      <span
+        className="group-buy-who-chip gb-bought-chip"
+        data-testid="gb-bought-chip"
+        title={art.paid ? "Price paid per copy" : "No receipt price, so this is the market price"}
+      >
+        Bought ×{art.qty}
+        {art.my_qty > 0 ? ` (you ${art.my_qty})` : ""}
+        {art.unit_price != null ? ` · ${money(art.unit_price)}${art.paid ? " each" : " mkt"}` : ""}
+      </span>
+    </span>
+  );
+}
+
+/** Once a card is in a seller order its arts are fixed: a read-only list of what was bought (#1443). */
+export function boughtAltRow(line: GroupBuyLine) {
+  const bought = new Map((line.bought_arts ?? []).map((b) => [b.product_id ?? 0, b]));
+  const alts = boughtAlts(line).map((a) => ({ ...a, wanted: 0, owned: 0, collector: 0 }));
+  if (!alts.length) return null;
+  return (
+    <AltArtsRow
+      base={
+        bought.has(0)
+          ? {
+              name: line.name,
+              image_url: line.base_image_url || undefined,
+              market_price: line.preferred_market_price ?? null,
+              product_id: line.preferred_product_id ?? null,
+            }
+          : null
+      }
+      alts={alts}
+      cardId={line.card_id}
+      tileExtra={(productId) => {
+        const art = bought.get(productId);
+        return art ? <BoughtTag art={art} /> : null;
+      }}
+    />
+  );
+}
+
+export function readOnlyAltRow(line: GroupBuyLine, members: GroupBuyMember[]) {
+  if (line.bought_arts?.length) return boughtAltRow(line);
+  const alts = wantedAlts(line);
   if (!alts.length) return null;
   return (
     <AltArtsRow
@@ -125,22 +186,47 @@ export function MemberColorRail({
   );
 }
 
-/**
- * Price under a group-buy card. With copies in the viewer's buy it is the total
- * across the arts they picked (breakdown in the tooltip); otherwise the usual
- * clickable unit price. Both states keep one line of the same height.
- */
-export function GroupBuyCardPrice({ line }: { line: GroupBuyLine }) {
-  if (line.my_qty <= 0) {
-    return <MarketPrice price={line.market_price} productId={line.product_id} />;
-  }
+/** Yours: what the signed-in member pays for their own copies of this line, on its own line. */
+export function GroupBuyYours({ line }: { line: GroupBuyLine }) {
+  if (line.my_qty <= 0) return null;
   const t = mySelectedArtsTotal(line);
   return (
     <span className="gb-arts-total" title={t.breakdown} data-testid="gb-arts-total">
-      <span className="gb-arts-total-amount">{money(t.total)}</span>
+      <span className="gb-arts-total-cap muted">Yours</span>{" "}
+      <span className="gb-arts-total-amount">{money(t.total)}</span>{" "}
       <span className="gb-arts-total-cap muted">
-        Your {t.copies} {t.copies === 1 ? "copy" : "copies"}
+        · {t.copies} {t.copies === 1 ? "copy" : "copies"}
       </span>
     </span>
+  );
+}
+
+/** Each: the market price of the shown art, or what was paid per copy once the card is in an order (#1443). */
+export function LineEach({ line }: { line: GroupBuyLine }) {
+  const each = lineEach(line);
+  if (!each.bought) return <MarketPrice price={each.price} productId={each.productId} />;
+  if (each.price == null) return <span className="muted">—</span>;
+  const paid = (line.bought_arts ?? []).every((b) => b.paid);
+  return (
+    <span title={paid ? "Price paid per copy" : "Market price of the art bought (no receipt price)"} data-testid="gb-bought-each">
+      {money(each.price)}
+    </span>
+  );
+}
+
+/** Each (the shown art's market price), Line total (what the whole pool pays for the line) and Yours, in one vocabulary. */
+export function GroupBuyPrices({ line }: { line: GroupBuyLine }) {
+  return (
+    <div className="gb-prices">
+      <span className="gb-price-line gb-price-each">
+        <span className="muted">Each</span>{" "}
+        <LineEach line={line} />
+      </span>
+      <span className="gb-price-line gb-price-total">
+        <span className="muted">Line total</span>{" "}
+        <span className="gb-price-amount">{money(line.remaining_cost)}</span>
+      </span>
+      <GroupBuyYours line={line} />
+    </div>
   );
 }

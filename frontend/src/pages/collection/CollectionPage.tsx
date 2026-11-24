@@ -3,14 +3,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { api, money, OwnedCard } from "../../api";
-import { CardLayoutToggle, useCardLayout } from "../../ui/CardLayout";
+import { useCardLayout, useListDensity } from "../../ui/CardLayout";
+import { FilterCheck, ListToolbar } from "../../ui/ListToolbar";
 import {
-  CardSearchInput,
   COLOR_ORDER,
   compareCardOrder,
   OWNED_DEFAULT_SORTS,
   OWNED_SORT_KEYS,
-  SortMenu,
   useCardSorts,
   usePersistedChoice,
   usePersistedOpen,
@@ -18,12 +17,7 @@ import {
   type SortKey,
 } from "../../ui/cardListControls";
 import { CardWorkspace } from "../../ui/CardWorkspace";
-import {
-  CollectionFilterMenu,
-  CollectionStatCards,
-  ColorFilterChips,
-  TypeFilterChips,
-} from "../../ui/CollectionToolbar";
+import { CollectionStatStrip } from "../../ui/CollectionToolbar";
 import { COLLECTION_TYPES, filterOwnedCards, typesPresent } from "./collectionView";
 import { useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
 import { collectionTotals, holdsCopies, invalidateOwnedViews } from "./ownedCollection";
@@ -64,6 +58,7 @@ export function CollectionPage() {
     defaults: OWNED_DEFAULT_SORTS,
   });
   const [layout, setLayout] = useCardLayout();
+  const [density, setDensity] = useListDensity("collection");
   const [search, setSearch] = useState("");
   const [showDons, setShowDons] = usePersistedOpen(COLLECTION_SHOW_DONS_KEY, true);
   const [showAltArts, setShowAltArts] = useShowAltArts();
@@ -73,7 +68,6 @@ export function CollectionPage() {
   const [scanOpen, setScanOpen] = useState(false);
   const [droppedImage, setDroppedImage] = useState<Blob | null>(null);
   const [pageDragging, setPageDragging] = useState(false);
-  // Same as Shopping: drop a card image anywhere on the page to scan it.
   useImageDrop({
     enabled: !scanOpen,
     onImage: (blob) => {
@@ -85,7 +79,6 @@ export function CollectionPage() {
 
   const allItems = data?.items ?? [];
   const ownedById = useMemo(() => new Map(allItems.map((i) => [i.card_id, i.owned])), [allItems]);
-  // Type chips only list types the collection has; a remembered type that is gone counts as All.
   const types = useMemo(() => typesPresent(allItems.filter((i) => showDons || !isDonCard(i))), [allItems, showDons]);
   const type = types.includes(typeChoice) ? typeChoice : "";
   const items = useMemo(() => {
@@ -101,7 +94,6 @@ export function CollectionPage() {
   const shown = useMemo(() => collectionTotals(items.filter(holdsCopies)), [items]);
   const narrowed = items.length !== allItems.length;
 
-  // Filters that differ from their defaults (Show DON!! and Show alt arts start on).
   const activeFilters = (sparesOnly ? 1 : 0) + (showDons ? 0 : 1) + (showAltArts ? 0 : 1);
 
   function toggleColor(color: string) {
@@ -139,82 +131,74 @@ export function CollectionPage() {
 
   return (
     <section>
-      <div className="page-head collection-head">
-        <div>
+      <div className="page-head shopping-head collection-head">
+        <div className="shopping-head-title">
           <p className="eyebrow">Cards you own</p>
           <h1>Collection</h1>
         </div>
+        <div className="shopping-head-stats">
+          <CollectionStatStrip data={data} />
+        </div>
+        <div className="page-head-actions">
+          <CollectionAddPanel ownedById={ownedById} onScan={() => setScanOpen(true)} onOwnedSaved={onOwnedSaved} />
+        </div>
       </div>
-      <CollectionStatCards data={data} />
-
-      <CollectionAddPanel
-        ownedById={ownedById}
-        defaultOpen={allItems.length === 0}
-        onScan={() => setScanOpen(true)}
-        onOwnedSaved={onOwnedSaved}
-      />
 
       {allItems.length === 0 ? (
         <p className="muted">
-          No owned cards yet. Add some above, or set Owned on the <Link to="/">shopping list</Link> or a{" "}
+          No owned cards yet. Use Add cards, or set Owned on the <Link to="/">shopping list</Link> or a{" "}
           <Link to="/decks">deck</Link>. Owned is shared, so every deck counts these copies.
         </p>
       ) : (
         <>
           <CardWorkspace
             rail={
-          <div className="list-toolbar collection-toolbar">
-            <div className="collection-toolbar-row">
-              <CardSearchInput value={search} onChange={setSearch} icon placeholder="Search name, ID, color…" />
-              <ColorFilterChips selected={colors} onToggle={toggleColor} onClear={() => setColors([])} />
-            </div>
-            <div className="collection-toolbar-row">
-              {types.length > 0 ? (
-                <TypeFilterChips types={types} value={type} onChange={setTypeChoice} />
-              ) : (
-                <span />
-              )}
-              <div className="collection-toolbar-tools">
-                <SortMenu sorts={sorts} onChange={setSorts} onlyNeed={false} keys={OWNED_SORT_KEYS} columnSortKey={COLSORT_COLLECTION_KEY} />
-                <CollectionFilterMenu badge={activeFilters}>
-                  <div className="collection-filter-list">
-                    <label>
-                      <input type="checkbox" checked={sparesOnly} onChange={(e) => setSparesOnly(e.target.checked)} />
-                      Not in a deck
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={showDons} onChange={(e) => setShowDons(e.target.checked)} />
-                      Show DON!!
-                    </label>
-                    <label>
-                      <input type="checkbox" checked={showAltArts} onChange={(e) => setShowAltArts(e.target.checked)} />
-                      Show alt arts
-                    </label>
-                  </div>
-                  <p className="need-mode-note muted">
-                    Value is owned copies × the standard printing&apos;s TCGPlayer market price.
-                  </p>
-                </CollectionFilterMenu>
-                <CardLayoutToggle layout={layout} onChange={setLayout} icons />
-              </div>
-            </div>
-          </div>
+          <ListToolbar
+            search={{ value: search, onChange: setSearch, placeholder: "Search name, ID, color…" }}
+            colors={{ selected: colors, onToggle: toggleColor, onClear: () => setColors([]) }}
+            types={{ types, value: type, onChange: setTypeChoice }}
+            sort={{ sorts, onChange: setSorts, onlyNeed: false, keys: OWNED_SORT_KEYS, columnSortKey: COLSORT_COLLECTION_KEY }}
+            filterBadge={activeFilters}
+            filters={
+              <>
+                <div className="collection-filter-list">
+                  <FilterCheck checked={sparesOnly} onChange={setSparesOnly}>
+                    Not in a deck
+                  </FilterCheck>
+                  <FilterCheck checked={showDons} onChange={setShowDons}>
+                    Show DON!!
+                  </FilterCheck>
+                  <FilterCheck checked={showAltArts} onChange={setShowAltArts}>
+                    Show alt arts
+                  </FilterCheck>
+                </div>
+                <p className="need-mode-note muted">
+                  Value is owned copies × the standard printing&apos;s TCGPlayer market price.
+                </p>
+              </>
+            }
+            layout={layout}
+            onLayout={setLayout}
+            density={density}
+            onDensity={setDensity}
+          />
             }
           >
 
           {altArt.error && <p className="error">{altArt.error}</p>}
-          {/* Always present, so narrowing the list never shifts the cards below it. */}
-          <p className="collection-count muted" role="status">
-            {narrowed ? `Showing ${shown.cards} of ${allItems.length} cards` : `${allItems.length} ${allItems.length === 1 ? "card" : "cards"}`}
-            {" · "}
-            {shown.copies} {shown.copies === 1 ? "copy" : "copies"} · {money(shown.value)}
-          </p>
+          {/* The head already shows the unfiltered totals, so this line only appears while a filter changes them. */}
+          {narrowed ? (
+            <p className="collection-count muted" role="status">
+              Showing {shown.cards} of {allItems.length} cards · {shown.copies} {shown.copies === 1 ? "copy" : "copies"} · {money(shown.value)}
+            </p>
+          ) : null}
           {items.length === 0 ? (
             <p className="muted">No owned cards match the current search and filters.</p>
           ) : (
             <CollectionItemsView
               items={items}
               layout={layout}
+              density={density}
               onOwnedSaved={onOwnedSaved}
               showAltArts={showAltArts}
               altRow={altRow}

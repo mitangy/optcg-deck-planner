@@ -11,31 +11,20 @@ import {
 } from "../../protocol.js";
 import type { DuelCore, WireBody } from "./context.js";
 
-/** Per-action snapshots kept for undo (unranked rooms only). */
 const UNDO_HISTORY_LIMIT = 40;
 
-/** The state just before one applied intent; undoing restores it. */
 export type UndoSnapshot = {
-  /** serializeMatch() output — a deep copy the engine can never mutate. */
   match: string;
   turnNumber: number;
-  /** Replay intents up to this state, so an undo drops the rewound ones. */
   intentCount: number;
-  /** Seat that took the action this snapshot precedes. */
   seat: Seat;
-  /** Short description of that action ("play Nami"). */
   label: string;
-  /** Why this action exposed hidden cards ("cards were drawn"); absent when it did not (#536). */
   revealReason?: string;
 };
 
-/** The undo history of an unranked game and the request / accept handshake that rewinds it. */
 export class UndoHistory {
-  /** States before each applied action, oldest first (unranked rooms only). */
   stack: UndoSnapshot[] = [];
-  /** Oldest snapshots fell off the stack (UNDO_HISTORY_LIMIT), so the earliest kept turn may be cut short. */
   private undoTruncated = false;
-  /** The open request the other seat can accept, or null. */
   request: UndoStateMessage["pending"] = null;
   private undoRequestSeq = 0;
   private lastUndoStateKey = "";
@@ -47,7 +36,6 @@ export class UndoHistory {
     >,
   ) {}
 
-  /** Clear everything tied to one game so a rematch starts clean. */
   resetPerGameState() {
     this.stack = [];
     this.undoTruncated = false;
@@ -55,14 +43,10 @@ export class UndoHistory {
     this.lastUndoStateKey = "";
   }
 
-  /**
-   * Snapshot the state an undo of `intent` would restore. Call before the
-   * intent is applied; null when undo does not apply (ranked, mulligan, over).
-   */
   captureSnapshot(seat: Seat, intent: Intent): UndoSnapshot | null {
     const { game } = this.core;
     const m = game.match;
-    if (game.ranked || !m) return null;
+    if (game.competitive || !m) return null;
     if (m.phase === "mulligan" || m.winner !== null) return null;
     return {
       match: serializeMatch(m),
@@ -73,16 +57,10 @@ export class UndoHistory {
     };
   }
 
-  /**
-   * Bookkeeping after every state change. Pushes the snapshot taken before the
-   * applied action; one that revealed hidden cards carries the reason, and an
-   * undo that would take it back needs a forced request (#497, #536). A state
-   * change also voids any open undo request, since it named an action relative
-   * to the old state.
-   */
+  // A state change voids any open undo request: it named an action relative to the old state.
   recordStep(snap: UndoSnapshot | null, before: MatchState | null, events: GameEvent[]) {
     const after = this.core.game.match;
-    if (this.core.game.ranked || !after) return;
+    if (this.core.game.competitive || !after) return;
     if (snap && before) {
       const reason = revealReason(before, after, events);
       this.stack.push(reason ? { ...snap, revealReason: reason } : snap);
@@ -95,11 +73,6 @@ export class UndoHistory {
     this.broadcastState();
   }
 
-  /**
-   * Index of the snapshot `scope` rewinds to, or null when it cannot (nothing
-   * to undo, or the whole turn is no longer in the history). A turn is every
-   * action since the first one of the last action's turn, by either seat.
-   */
   private targetIndex(scope: UndoScope): number | null {
     const last = this.stack.length - 1;
     if (last < 0) return null;
@@ -135,13 +108,13 @@ export class UndoHistory {
 
   state(): WireBody<UndoStateMessage> {
     const { game } = this.core;
-    const enabled = !game.ranked;
+    const enabled = !game.competitive;
     const over = !game.match || game.match.winner !== null || game.matchOverSent;
     const top = enabled && !over ? (this.stack.at(-1) ?? null) : null;
     let options: UndoStateMessage["options"] = null;
     let blockedReason: string | null = null;
     if (!enabled) {
-      blockedReason = "No undo in ranked";
+      blockedReason = "No undo in ranked or tournament games";
     } else if (!over) {
       options = { action: this.option("action"), turn: this.option("turn") };
       if (!options.action.available && !options.turn.available) {
@@ -170,7 +143,6 @@ export class UndoHistory {
     this.core.io.broadcast("undo_state", state);
   }
 
-  /** An undo message from a seated player. */
   handle(client: Client, seat: Seat, message: unknown) {
     const { game, io, bots } = this.core;
     let action: UndoAction;
@@ -183,7 +155,7 @@ export class UndoHistory {
       io.sendParseError(client, e);
       return;
     }
-    if (game.ranked) {
+    if (game.competitive) {
       io.sendError(client, "unauthorized", "Undo is only available in private matches");
       return;
     }
@@ -234,7 +206,6 @@ export class UndoHistory {
       }
       case "cancel":
       case "decline": {
-        // The requester cancels; the other seat declines.
         if (!req) return;
         if ((action === "cancel") !== (req.from === seat)) {
           io.sendError(client, "unauthorized", "Not your undo request to answer");
@@ -279,10 +250,7 @@ export class UndoHistory {
     this.stack.length = idx!;
     game.match = deserializeMatch(snap.match);
     game.replay?.intents.splice(snap.intentCount);
-    // Restore the state exactly: match.rng and deck order come back with the
-    // snapshot (the engine draws from match.rng), so drawing again gives the same
-    // cards as before the undo (#449). Nothing is recorded in the replay; older
-    // replays may still carry `reseeds` from the #369 behavior and keep working.
+    // match.rng and deck order come back with the snapshot, so drawing again gives the same cards. Nothing is recorded in the replay.
     this.request = null;
     io.log("info", "undo_applied", {
       matchId: game.matchId,

@@ -14,17 +14,14 @@ import { seedOf } from "./sabotage";
 
 export type Slot = "first" | "second";
 export type Variant = "A" | "B";
-/** AB: variant A's answer is shown first. */
 export type Order = "AB" | "BA";
 export type Verdict = Variant | "tie";
 
 export type PairInput = {
   question: string;
   deck: string;
-  /** The two answers, in the order they are shown. */
   first: string;
   second: string;
-  /** Cards swapped into the list on purpose to make it worse; given to the judge only when asked. */
   planted?: string[];
 };
 
@@ -39,7 +36,6 @@ export const PAIR_SCHEMA = {
   properties: { better: { type: "string", enum: ["first", "second", "tie"] }, why: { type: "string" } },
 };
 
-/** The judge's prompt for one pair, in the order given. */
 export function pairPrompt(i: PairInput): { system: string; user: string } {
   const known = i.planted?.length ? `<known>The player's list was altered on purpose before it was sent: these cards were swapped in and do not belong in the deck: ${i.planted.join(", ")}.</known>\n` : "";
   return {
@@ -48,7 +44,6 @@ export function pairPrompt(i: PairInput): { system: string; user: string } {
   };
 }
 
-/** The slot the judge picked, or null when the reply is not a verdict. */
 export function parseSlot(text: string): { better: Slot | "tie"; why: string } | null {
   let raw: unknown;
   try {
@@ -67,7 +62,6 @@ export function parseSlot(text: string): { better: Slot | "tie"; why: string } |
   return { better: o.better, why: typeof o.why === "string" ? o.why : "" };
 }
 
-/** Maps the picked slot back to the variant that was in it. */
 export function variantOf(order: Order, better: Slot | "tie"): Verdict {
   if (better === "tie") return "tie";
   return (better === "first") === (order === "AB") ? "A" : "B";
@@ -78,13 +72,11 @@ export function orderFor(seed: number, caseId: string): Order {
   return seedOf(seed, `order:${caseId}`) % 2 === 0 ? "AB" : "BA";
 }
 
-/** Whether a case is also judged in the other order: a seeded `share` of the cases. */
 export function judgedBothWays(seed: number, caseId: string, share: number): boolean {
   return seedOf(seed, `both:${caseId}`) / 4294967296 < share;
 }
 
 export type LlmReply = { text: string; usage?: Usage; model?: string };
-/** One call to a judge model with a system prompt and a user message. */
 export type PairLlm = (p: { system: string; user: string }) => Promise<LlmReply>;
 
 export type Judgment = { order: Order; better: Slot | "tie"; verdict: Verdict; why: string; usage?: Usage; model?: string; invalid?: boolean };
@@ -99,7 +91,6 @@ export async function judgeOnce(llm: PairLlm, input: { question: string; deck: s
 
 export type CaseComparison = { case: string; judgments: Judgment[]; verdict: Verdict };
 
-/** One verdict for a case: the single judgment, or when judged both ways, the verdict both agree on, else a tie (the judge followed the slot, not the advice). */
 export function combine(judgments: readonly Judgment[]): Verdict {
   const [one, two] = judgments;
   if (!one) return "tie";
@@ -133,13 +124,9 @@ export function preference(results: readonly CaseComparison[]): Preference {
 }
 
 export type PositionBias = {
-  /** Cases judged in both orders. */
   pairs: number;
-  /** Of those, how many gave the same verdict (ties count) in both orders. */
   consistent: number;
-  /** Share whose verdict changed with the order. */
   flipRate: number | null;
-  /** Among decisive judgments in those cases: (first-slot picks - second-slot picks) / decisive. 0 is no preference for a slot; +1 always the first. */
   slotBias: number | null;
 };
 
@@ -155,8 +142,6 @@ export function positionBias(results: readonly CaseComparison[]): PositionBias {
     slotBias: picks.length ? (first - (picks.length - first)) / picks.length : null,
   };
 }
-
-// ——— the real judge ———
 
 type CreateClient = { beta: { messages: { create: (p: never) => Promise<{ model: string; content: { type: string; text?: string }[]; usage: Usage }> } } };
 

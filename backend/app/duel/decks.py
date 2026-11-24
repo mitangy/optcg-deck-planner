@@ -1,7 +1,3 @@
-"""Saved-deck limits and row lookups shared by the duel-decks routes and the planner link (refactor D-02).
-
-Read the limits as ``decks.MAX_DECKS`` (module attribute, at call time): tests patch them here.
-"""
 
 from __future__ import annotations
 
@@ -12,7 +8,6 @@ from app.duel.models import DuelSavedDeck
 
 MAX_DECKS = 200
 MAX_DECK_CHARS = 16 * 1024
-# Live decks plus tombstones; keeps delete-spam from growing a user's rows forever.
 MAX_ROWS = 1000
 
 

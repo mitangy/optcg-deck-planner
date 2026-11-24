@@ -1,7 +1,3 @@
-/**
- * One case through the whole deck-advice eval (#678): ask Log Pose, read the edits, check the edited deck is legal,
- * score how much of the sabotage the edits undid, and play the original and edited decks against the meta field.
- */
 import type { BotLevel } from "@optcg/rules";
 import type { CallModel, Usage } from "../../src/chat";
 import { askLogPose, type AskDeps } from "./ask";
@@ -11,14 +7,11 @@ import type { Copies, MetaDeck } from "./sabotage";
 import { compareSims, simulate, type SimDeck, type SimResult, type SimRun, type WinRateChange } from "./sim";
 
 export type SimConfig = {
-  /** Every meta deck; the case's own source deck is left out of its field. */
   field: readonly MetaDeck[];
-  /** Games against each opponent. */
   games: number;
   seed: number;
   levels: [BotLevel, BotLevel];
   run: SimRun;
-  /** Finished simulations by deck and settings, shared between cases (a meta deck is the ceiling of its sabotaged copy). */
   cache: Map<string, Promise<SimResult>>;
 };
 
@@ -26,15 +19,10 @@ export type SimRow = {
   opponents: number;
   games_per_opponent: number;
   levels: [BotLevel, BotLevel];
-  /** The deck the player had. */
   before: SimResult;
-  /** After the edits; null when there were no legal edits to play. */
   after: SimResult | null;
-  /** After minus before. */
   change: Omit<WinRateChange, "before" | "after"> | null;
-  /** The un-sabotaged meta deck, for sabotaged cases. */
   ceiling: SimResult | null;
-  /** After minus ceiling: how far the edited deck is from the original meta deck. */
   vs_ceiling: Omit<WinRateChange, "before" | "after"> | null;
 };
 
@@ -45,7 +33,6 @@ export type AnswerRow = {
   k: number | null;
   model: string | undefined;
   answer: string;
-  /** The answer plus the edits it proposed, as a reader of the Apply card would see them. This is what a judge compares. */
   shown: string;
   edit_source: AdviceEdits["source"];
   edits: AdviceEdits["deltas"];
@@ -68,7 +55,6 @@ export type AnswerRow = {
 export type PipelineDeps = {
   ask: AskDeps;
   base: CallModel;
-  /** Ban list problems for an edited deck (live ban list), when it could be loaded. */
   extraProblems?: Parameters<typeof applyAdvice>[4];
   sim: SimConfig | null;
 };
@@ -76,7 +62,6 @@ export type PipelineDeps = {
 const expand = (leaderId: string, cards: readonly Copies[]): SimDeck => ({ leaderId, deck: cards.flatMap((c) => Array.from({ length: c.copies }, () => c.id)) });
 const signature = (d: SimDeck) => `${d.leaderId}:${[...d.deck].sort().join(",")}`;
 
-/** Plays a deck against the field for a case, reusing an identical earlier simulation. */
 export function simDeck(cfg: SimConfig, c: Pick<AdviceCase, "source" | "leaderId">, cards: readonly Copies[]): Promise<SimResult> {
   const mine = expand(c.leaderId, cards);
   const field = cfg.field.filter((_, i) => i !== c.source).map((d) => ({ leaderId: d.leaderId, deck: d.deck }));

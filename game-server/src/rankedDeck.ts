@@ -1,7 +1,6 @@
-import { ensureDefsForPlayers, unsupportedCardsForDeck } from "@optcg/rules";
+import { deckConstructionErrors, ensureDefsForPlayers, unsupportedCardsForDeck } from "@optcg/rules";
 import { bad, type PlayerDeckWire } from "./protocol.js";
 
-/** Throw (code bad_protocol) when a deck names a card the engine has no definition for. */
 export function assertKnownDeck(deck: PlayerDeckWire): void {
   try {
     ensureDefsForPlayers([deck]);
@@ -10,11 +9,11 @@ export function assertKnownDeck(deck: PlayerDeckWire): void {
   }
 }
 
-/** Why a deck can't play ranked (cards the engine doesn't fully resolve), or null. */
 export function rankedDeckProblem(deck: PlayerDeckWire): string | null {
   const issues = unsupportedCardsForDeck(deck);
-  if (issues.length === 0) return null;
-  return `Ranked deck contains unsupported cards: ${issues
-    .map((issue) => `${issue.cardId} (${issue.support})`)
-    .join(", ")}`;
+  if (issues.length > 0) {
+    return `Ranked deck contains unsupported cards: ${issues.map((issue) => `${issue.cardId} (${issue.support})`).join(", ")}`;
+  }
+  const [illegal] = deckConstructionErrors(deck.leaderId, deck.deck);
+  return illegal ? `Ranked deck is not legal: ${illegal}` : null;
 }

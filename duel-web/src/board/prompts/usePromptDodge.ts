@@ -2,16 +2,9 @@ import { useEffect, type RefObject } from "react";
 import { promptSide } from "./promptPlacement";
 import { findInstanceBox } from "../layout/useTrackedBoxes";
 
-/** Matches `.arena.arena-wide .ability-prompt { bottom: 1.25rem }` in board.css. */
 const BOTTOM_GAP_REM = 1.25;
 const TOP_GAP_PX = 8;
 
-/**
- * Desktop: while a battle is on, keep the centred effect prompt off the card
- * being hit. Tracks the prompt and the two cards (rAF, writes only when the
- * side changes) and sets `--prompt-top` / `--prompt-bottom` on the wrapper,
- * which the prompt inherits. The prompt is fixed, so moving it shifts nothing.
- */
 export function usePromptDodge(
   wrapRef: RefObject<HTMLElement | null>,
   battle: { defenderId: string; attackerId: string } | null,
@@ -28,7 +21,6 @@ export function usePromptDodge(
       if (next === "top") {
         wrap.style.setProperty("--prompt-top", `${topPx}px`);
         wrap.style.setProperty("--prompt-bottom", "auto");
-        // The pop-up grows down from the top, not up from the bottom (popupScale.css).
         wrap.dataset.top = "";
       } else {
         wrap.style.removeProperty("--prompt-top");
@@ -41,14 +33,10 @@ export function usePromptDodge(
       const el = wrap.querySelector<HTMLElement>(".ability-prompt");
       const mat = document.querySelector<HTMLElement>(".arena .playmat");
       const defender = findInstanceBox(defenderId);
-      // A prompt the player dragged stays where they put it (usePromptDrag):
-      // flipping it to the other end with the drag offset applied could throw
-      // it off screen (#335).
       const placedByPlayer = wrap.dataset.dragged != null;
       if (el && mat && defender && el.offsetHeight > 0 && !placedByPlayer) {
         const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
         const rect = el.getBoundingClientRect();
-        // Scaled by the Pop-up size setting, like the rect.
         const height = rect.height;
         const topTop = mat.getBoundingClientRect().top + TOP_GAP_PX;
         const next = promptSide({

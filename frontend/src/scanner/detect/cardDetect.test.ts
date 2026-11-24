@@ -22,10 +22,8 @@ const rect = (x: number, y: number, w: number, h: number): Quad => [
   { x: x + w, y: y + h },
   { x, y: y + h },
 ];
-/** A portrait card, 63:88. */
 const card = (x: number, y: number, w = 126) => rect(x, y, w, Math.round((w * 88) / 63));
 
-/** A flat or noisy ImageData, for the blank-pocket check. */
 function flat(w: number, h: number, value: (x: number, y: number) => number): ImageData {
   const data = new Uint8ClampedArray(w * h * 4);
   for (let y = 0; y < h; y += 1) {
@@ -41,18 +39,14 @@ function flat(w: number, h: number, value: (x: number, y: number) => number): Im
 describe("isCardShaped", () => {
   it("accepts a card in either orientation and rejects other boxes (#701)", () => {
     expect(isCardShaped(card(0, 0))).toBe(true);
-    // Lying on its side: same card, long side across.
     expect(isCardShaped(rect(0, 0, 176, 126))).toBe(true);
-    // Perspective squeezes the ratio a little; still a card.
     expect(isCardShaped(rect(0, 0, 80, 126))).toBe(true);
-    // A long thin box, a square, and a wide landscape box are not cards.
     expect(isCardShaped(rect(0, 0, 40, 400))).toBe(false);
     expect(isCardShaped(rect(0, 0, 100, 100))).toBe(false);
     expect(isCardShaped(rect(0, 0, 300, 126))).toBe(false);
   });
 
   it("rejects a quad whose opposite sides disagree (#701)", () => {
-    // Mean sides give a card-like ratio, but one side is twice the other.
     const kite: Quad = [
       { x: 0, y: 0 },
       { x: 126, y: 0 },
@@ -83,7 +77,6 @@ describe("suppressNested", () => {
   });
 
   it("keeps two adjacent cards (#701)", () => {
-    // Different sizes, so neither can pass for the other's duplicate.
     const a = card(100, 100);
     const b = card(232, 100, 104);
     expect(suppressNested([a, b])).toHaveLength(2);
@@ -168,7 +161,6 @@ describe("inferGridCells", () => {
   });
 });
 
-/** A binary edge map with the given segments drawn one pixel thick. */
 function edgeMap(w: number, h: number, segments: [Pt, Pt][]): EdgeMap {
   const data = new Uint8Array(w * h);
   for (const [a, b] of segments) {
@@ -197,7 +189,6 @@ describe("splitBlock", () => {
   });
 
   it("leaves one sideways card whole, though it is as wide as two cards (#701)", () => {
-    // Outline plus an art box: nothing runs down the middle.
     const edges = edgeMap(320, 260, [...outline(block), ...outline(rect(60, 60, 200, 80))]);
     expect(splitBlock(edges, block)).toBeNull();
   });
@@ -227,7 +218,6 @@ describe("isBlankQuad", () => {
   });
 });
 
-/** Paint a printed-looking card: white edge, coloured body, an inner art box. */
 function paintCard(img: ImageData, quad: Quad, hue: number) {
   const inside = (p: Pt, q: Quad) => {
     for (let i = 0; i < 4; i += 1) {
@@ -246,7 +236,6 @@ function paintCard(img: ImageData, quad: Quad, hue: number) {
   for (let y = Math.floor(Math.min(...ys)); y <= Math.ceil(Math.max(...ys)); y += 1) {
     for (let x = Math.floor(Math.min(...xs)); x <= Math.ceil(Math.max(...xs)); x += 1) {
       if (!inside({ x, y }, quad)) continue;
-      // Find (u, v) by sampling is costly; invert approximately for near-affine quads.
       const dx = quad[1].x - quad[0].x;
       const dy = quad[1].y - quad[0].y;
       const ex = quad[3].x - quad[0].x;
@@ -298,7 +287,6 @@ function rotated(cx: number, cy: number, w: number, h: number, deg: number): Qua
   ].map(([x, y]) => ({ x: cx + x * Math.cos(r) - y * Math.sin(r), y: cy + x * Math.sin(r) + y * Math.cos(r) })) as Quad;
 }
 
-/** Fraction of `truth` cards matched by a detection with IoU of at least 0.8. */
 function recovered(found: Quad[], truth: Quad[]) {
   return truth.filter((t) => found.some((f) => quadIoU(f, t) > 0.8)).length;
 }
@@ -323,12 +311,10 @@ describe("findCardQuads (OpenCV)", () => {
     const cv = await loadCv();
     const truth: Quad[] = [];
     for (let r = 0; r < 3; r += 1) for (let c = 0; c < 3; c += 1) truth.push(card(60 + c * 150, 60 + r * 200, 126));
-    // A dark sheet behind them, as in a real binder page.
     const img = scene(560, 700, [30, 32, 48], truth);
     const found = findCardQuads(cv, img, { fallback: false, fillGrid: false });
     expect(found).toHaveLength(9);
     expect(recovered(found, truth)).toBe(9);
-    // Reading order: top row first, left to right.
     expect(found[0].every((p) => p.y < 260)).toBe(true);
     expect(found[1][0].x).toBeGreaterThan(found[0][0].x);
   }, 30000);
@@ -344,7 +330,6 @@ describe("findCardQuads (OpenCV)", () => {
     const img = scene(600, 600, [150, 110, 70], truth);
     const found = findCardQuads(cv, img, { fallback: false, fillGrid: false });
     expect(found).toHaveLength(4);
-    // Orientation of the corners may be any of the four; compare shapes by IoU.
     expect(recovered(found, truth)).toBe(4);
     for (const q of found) {
       const across = Math.hypot(q[1].x - q[0].x, q[1].y - q[0].y);

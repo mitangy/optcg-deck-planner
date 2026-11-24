@@ -12,8 +12,6 @@ import { CardTile } from "./CardTile";
 import { TrashViewerPanel } from "./TrashViewer";
 import { ZonePile } from "./ZonePile";
 
-// "One of each art" (#1292): every place that draws a copy of an any-number card passes its copy rank on.
-
 const SLEEPTIDS = "OP18-093";
 const standard = () => resolveCardImageUrl(SLEEPTIDS, { ownerSeat: 1 })!;
 const copyArt = (artCopy: number) => resolveCardImageUrl(SLEEPTIDS, { ownerSeat: 0, artCopy })!;
@@ -71,7 +69,6 @@ describe("One of each art on the board (#1292)", () => {
   });
 
   it("a face-up Life card shows the art of its copy (#1292)", () => {
-    // Two cards in Life, the second (index 1) face up: drawn as face 0 of 2.
     const el = render(
       <ZonePile label="Life" count={2} variant="life" faceUp={[{ index: 1, defId: SLEEPTIDS, artCopy: 2 }]} ownerSeat={0} />,
     );

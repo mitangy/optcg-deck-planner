@@ -1,4 +1,3 @@
-/** One distinct card id in a deck, with copy count for the stack badge. */
 export type CardStack = {
   defId: string;
   count: number;
@@ -9,7 +8,6 @@ export type DeckStacks = {
   main: CardStack[];
 };
 
-/** Group main-deck copies by unique defId; leader is always a ×1 stack. */
 export function groupDeckStacks(leaderId: string, cards: string[]): DeckStacks {
   const counts = new Map<string, number>();
   for (const id of cards) {
@@ -22,4 +20,24 @@ export function groupDeckStacks(leaderId: string, cards: string[]): DeckStacks {
     leader: { defId: leaderId, count: 1 },
     main,
   };
+}
+
+export type CostGroup = {
+  cost: number;
+  stacks: CardStack[];
+  /** Total copies in the group, so the heading reads as the deck curve. */
+  cards: number;
+};
+
+/** Cheapest first; inside a cost the stacks keep the order they came in. */
+export function groupStacksByCost(stacks: readonly CardStack[], costOf: (defId: string) => number): CostGroup[] {
+  const groups = new Map<number, CostGroup>();
+  for (const s of stacks) {
+    const cost = costOf(s.defId);
+    const g = groups.get(cost) ?? { cost, stacks: [], cards: 0 };
+    g.stacks.push(s);
+    g.cards += s.count;
+    groups.set(cost, g);
+  }
+  return [...groups.values()].sort((a, b) => a.cost - b.cost);
 }

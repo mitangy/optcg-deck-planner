@@ -13,7 +13,6 @@ const deck = (id: number, sort_order: number, leader: string | null, name?: stri
 
 describe("Include decks grouped by leader (#1184)", () => {
   it("makes one group per leader, ordered by each leader's earliest deck, decks in their order", () => {
-    // Luffy and Zoro decks interleave; Zoro's earliest deck (sort 0) comes before Luffy's (sort 1).
     const groups = groupDecksByLeader([
       deck(10, 0, "OP01-025", "Zoro"),
       deck(11, 1, "OP01-001", "Luffy"),

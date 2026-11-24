@@ -1,4 +1,3 @@
-"""The catalog sync token and the ops admin token open different routes (refactor 0.4, D-06)."""
 
 from __future__ import annotations
 
@@ -15,10 +14,8 @@ from tests.db_support import make_test_engine
 
 CATALOG = {"X-Catalog-Token": "catalog-secret"}
 OPS = {"X-Ops-Token": "ops-secret"}
-# The ops token in the old header too, so existing curl users and the workflow keep working.
 OPS_LEGACY_HEADER = {"X-Catalog-Token": "ops-secret"}
 
-# One route per guarded family: (method, path, json)
 CATALOG_ROUTES = [
     ("GET", "/admin/sync-catalog/status", None),
     ("POST", "/catalog/price-history/import", {"day": "2026-01-01", "prices": {}}),
@@ -116,7 +113,7 @@ def test_unset_ops_token_logs_the_fallback_warning_once(monkeypatch: pytest.Monk
 def test_starting_a_catalog_sync_needs_the_catalog_token_not_the_ops_token(split_client, monkeypatch: pytest.MonkeyPatch):
     from app.routers import api
 
-    monkeypatch.setattr(api, "try_claim_sync_slot", lambda: False)  # never start a real sync
+    monkeypatch.setattr(api, "try_claim_sync_slot", lambda: False)
     for headers in ({}, OPS, OPS_LEGACY_HEADER):
         assert split_client.post("/admin/sync-catalog", headers=headers).status_code == 401, headers
     ok = split_client.post("/admin/sync-catalog", headers=CATALOG)

@@ -1,5 +1,3 @@
-/* /play-one-piece-tcg-online: public how-to-play page (#804). Colours come from the theme variables. */
-
 .play-online {
   max-width: 760px;
 }
@@ -132,7 +130,6 @@
   font-size: inherit;
 }
 
-/* Static copy of a page the app draws differently (home, leaderboard): in the HTML for crawlers, hidden from browsers that run the app (#914). */
 .js .prerender-shell {
   visibility: hidden;
 }

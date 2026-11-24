@@ -2,8 +2,10 @@ import { useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
+import { BuildTag } from "@optcg/ui/appShell";
 import { submitFeedback } from "./feedback";
 import { LogPoseProvider } from "@optcg/analyst-client";
+import { ErrorBoundary } from "@optcg/ui/errorBoundary";
 import {
   defaultLogPosePage,
   openDeckFor,
@@ -32,20 +34,21 @@ import {
 } from "./lazyPages";
 import { LoginPage } from "../auth/LoginPage";
 import { PublicSharePage } from "../pages/PublicSharePage";
+import { useLogPoseCardLightbox } from "../pages/decks/logPoseCard";
 import { MetaRoute, CardRoute, HomeRoute, RequireAuth } from "./routeGuards";
 
 export default function App() {
   const { pathname } = useLocation();
   const logPosePage = useMemo(() => defaultLogPosePage(pathname), [pathname]);
-  // Shares RequireAuth's cached /auth/me query; signing in or out asks for the chat session again.
   const { data: me } = useMe();
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const navigate = useNavigate();
-  // A deck Log Pose builds opens the import page with the list filled in (#726).
-  const sources = useMemo(() => ({ ...PLANNER_SOURCE_HOOKS, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o)) }), [navigate]);
+  const { openCard, lightbox: cardLightbox } = useLogPoseCardLightbox();
+  const sources = useMemo(() => ({ ...PLANNER_SOURCE_HOOKS, openCard, openDeck: openDeckFor((to) => navigate(to)), openNewDeck: openNewDeckFor((to, o) => navigate(to, o)) }), [navigate, openCard]);
   return (
     <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={sources}>
       <RouteMeta signedIn={!!me} />
+      <ErrorBoundary resetKey={pathname}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
@@ -142,7 +145,8 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <SiteFooter Link={Link} onFeedback={() => setFeedbackOpen(true)} />
+      </ErrorBoundary>
+      <SiteFooter Link={Link} onFeedback={() => setFeedbackOpen(true)} trailing={<BuildTag />} />
       {feedbackOpen ? (
         <FeedbackDialog
           title="Send feedback"
@@ -150,6 +154,7 @@ export default function App() {
           onClose={() => setFeedbackOpen(false)}
         />
       ) : null}
+      {cardLightbox}
     </LogPoseProvider>
   );
 }

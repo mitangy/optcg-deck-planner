@@ -1,5 +1,3 @@
-/* Keep the <td> as a real table-cell so row borders stay continuous.
-   Flex the inner wrapper instead — display:flex on td breaks border-collapse. */
 .card-cell {
   min-width: 14rem;
   vertical-align: middle;
@@ -12,16 +10,11 @@
   min-width: 0;
 }
 
-/* Deck table: let the text block shrink so long dotted names wrap at the dots
-   (see nameWithBreaks); dotless words may break anywhere as a last resort. */
 .deck-main .card-cell-inner > div:not(.thumb) {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
-/* Desktop list tables (#961): the art fills the Card column and the text sits under it, centred.
-   The column keeps a definite width (about its old min-width) so it never grows the table sideways;
-   art is capped so a wide table does not stretch it. Grid cards, the phone list and alt tiles are untouched. */
 .data-table .card-cell {
   width: 14rem;
 }
@@ -36,7 +29,7 @@
 .data-table .card-cell-inner > :is(.thumb-btn, .thumb) {
   display: block;
   width: 100%;
-  max-width: 220px;
+  max-width: 13.75rem;
   height: auto;
   aspect-ratio: 63 / 88;
 }
@@ -55,8 +48,6 @@
 
 .data-table {
   min-width: 720px;
-  /* separate + 0 spacing draws each cell's border-bottom in full so lines
-     don't fragment around flex cells, sticky headers, or tinted rows. */
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -65,7 +56,6 @@
   display: none;
 }
 
-/* When JS only mounts the mobile list (group buy), keep it in flow. */
 .mobile-card-list.mobile-card-list-mounted {
   display: grid;
   gap: var(--space-3);
@@ -85,6 +75,16 @@
   font-weight: 700;
   text-align: center;
   -moz-appearance: textfield;
+}
+
+.owned-total {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  line-height: normal;
+  cursor: default;
+  user-select: text;
 }
 
 .owned::-webkit-outer-spin-button,
@@ -128,8 +128,6 @@
   background: var(--bg-deep);
 }
 
-/* Want stepper: Owned-stepper look with a read-only count and a one-line note
-   that always reserves its height, so state changes never shift the row. */
 .want-cell {
   display: inline-flex;
   flex-direction: column;
@@ -301,7 +299,6 @@
   max-width: 100%;
 }
 
-/* Sign-in: a parchment notice pinned over the night sea. */
 .login {
   min-height: 100%;
   min-height: 100svh;
@@ -502,7 +499,6 @@ button.ghost.danger:not(:disabled):hover {
   margin: 0.35rem 0 0;
 }
 
-/* Headline numbers under a page title (Shopping). */
 .stat-strip {
   display: flex;
   flex-wrap: wrap;
@@ -545,7 +541,6 @@ button.ghost.danger:not(:disabled):hover {
   color: var(--gold-ink);
 }
 
-/* Est. cost split (#1182): wraps between parts, never inside one, and stays narrow on phones. */
 .stat-note.stat-split {
   max-width: 13rem;
   font-weight: 500;
@@ -571,7 +566,6 @@ button.ghost.danger:not(:disabled):hover {
   min-width: 0;
 }
 
-/* Shared deck head: the title block takes the free width and wraps, so the button keeps its spot in both states. */
 .share-head {
   flex-wrap: nowrap;
 }
@@ -585,7 +579,6 @@ button.ghost.danger:not(:disabled):hover {
   flex: 0 0 auto;
 }
 
-/* Same width for "Add to my decks" / "Adding…" / "Sign in to add" so the button never resizes. */
 .page-head-actions .share-copy-btn {
   min-width: 11rem;
   white-space: nowrap;
@@ -632,66 +625,6 @@ button.ghost.danger:not(:disabled):hover {
   margin: 0 0 1rem;
 }
 
-.buy-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  margin: 0 0 0.75rem;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
-  border-radius: var(--radius-12);
-  background: var(--gold-soft);
-  min-width: 0;
-}
-
-.buy-bar-summary {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 0.25rem 0.75rem;
-  min-width: 0;
-  line-height: 1.35;
-}
-
-.buy-bar-summary strong {
-  font-weight: 700;
-}
-
-.buy-bar-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.45rem;
-  min-width: 0;
-}
-
-.buy-bar-actions .btn {
-  min-height: 2rem;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.85rem;
-  width: auto;
-  margin-top: 0;
-  border-radius: var(--radius-pill);
-}
-
-.buy-bar-actions .btn.secondary {
-  background: var(--card);
-  border-color: color-mix(in srgb, var(--gold) 60%, var(--line));
-}
-
-.buy-bar-actions .btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
-.buy-bar-actions .ghost {
-  min-width: 0;
-  min-height: 2rem;
-  padding: 0.3rem 0.45rem;
-  font-size: 0.85rem;
-}
-
 .buy-bar-msg {
   margin: 0;
   padding: 0;
@@ -725,11 +658,19 @@ button.ghost.danger:not(:disabled):hover {
   cursor: pointer;
 }
 
-tr.selected-row td,
+/* A selected row is a light tint and an accent edge; the ticked box carries the rest (#1342). */
+tr.selected-row td {
+  background: color-mix(in srgb, var(--gold) 12%, transparent);
+}
+
+tr.selected-row td:first-child {
+  box-shadow: inset 0.2rem 0 0 var(--gold);
+}
+
 .mobile-card.selected-row,
 .grid-card-wrap.selected-row .grid-card {
-  outline: 2px solid color-mix(in srgb, var(--gold) 70%, transparent);
-  outline-offset: -2px;
+  background: color-mix(in srgb, var(--gold) 12%, var(--card));
+  box-shadow: inset 0.2rem 0 0 var(--gold), var(--shadow);
 }
 
 .mobile-card.selectable,
@@ -834,6 +775,44 @@ tr.selected-row td,
   transition: width 0.2s ease;
 }
 
+/* Wide enough: the owned meter is one row, toggle, the sentence and the bar side by side (#1342). */
+@media (min-width: 900px) {
+  .deck-progress {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 1rem;
+    margin-bottom: 0.7rem;
+    padding: 0.5rem 1rem;
+  }
+
+  .deck-progress-head {
+    display: contents;
+  }
+
+  .deck-progress-text {
+    display: block;
+    flex: 0 0 auto;
+    min-height: 0;
+    white-space: nowrap;
+  }
+
+  .deck-progress-line {
+    display: inline;
+    min-height: 0;
+  }
+
+  .deck-progress-line + .deck-progress-line::before {
+    content: " · ";
+  }
+
+  .deck-progress-bar {
+    flex: 1 1 8rem;
+    min-width: 8rem;
+    margin-top: 0;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -904,8 +883,7 @@ tr.selected-row td,
 
 .card-grid {
   display: grid;
-  /* Extra width for the external select column beside each card (matches list). */
-  grid-template-columns: repeat(auto-fill, minmax(196px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(12.25rem, 1fr));
   gap: 0.85rem;
 }
 
@@ -913,12 +891,10 @@ tr.selected-row td,
   display: grid;
   grid-template-columns: 2.25rem minmax(0, 1fr);
   column-gap: 0.15rem;
-  /* Stretch so every card in a grid row is as tall as the tallest (#877); the select stays on top. */
   align-items: stretch;
   min-width: 0;
 }
 
-/* Narrow (tap-to-select) grid: no checkbox column. */
 .grid-card-wrap.selectable {
   grid-template-columns: minmax(0, 1fr);
 }
@@ -952,15 +928,14 @@ tr.selected-row td,
 
 .grid-card-media .thumb,
 .grid-card-media .thumb-btn .thumb {
-  width: 156px;
-  height: 218px;
+  width: 9.75rem;
+  height: 13.625rem;
 }
 
 .grid-card-media .thumb-btn {
   display: block;
 }
 
-/* Outside the card, same width/alignment as the list view select column. */
 .grid-card-select {
   align-self: start;
   display: flex;
@@ -1012,8 +987,6 @@ tr.selected-row td,
   font-size: 0.9rem;
 }
 
-/* Compact stepper so the +/− controls fit inside the narrow grid card
-   (a full-size stepper is wider than the card and overflows the container). */
 .grid-card-owned .owned-wrap {
   gap: var(--space-1);
 }
@@ -1071,7 +1044,6 @@ tr.selected-row td,
   border: 1px solid var(--line);
   border-radius: var(--radius-14);
   background: var(--card);
-  /* visible so the Sort menu panel is not clipped */
   overflow: visible;
 }
 
@@ -1216,7 +1188,6 @@ tr.selected-row td,
 
 .sort-menu-panel {
   z-index: var(--z-menu);
-  /* It used to inherit this from the .filters row it sat in; the panel now floats in a portal. */
   color: var(--muted);
   width: min(20rem, calc(100vw - 2rem));
   max-height: min(24rem, calc(100dvh - 6rem));
@@ -1324,7 +1295,6 @@ td {
   vertical-align: middle;
 }
 
-/* Include decks grouped by leader (#1184): groups wrap side by side, chips wrap inside each. */
 .deck-filter-groups {
   display: flex;
   flex-wrap: wrap;
@@ -1359,8 +1329,6 @@ span.deck-filter-group-head {
   overflow-wrap: anywhere;
 }
 
-/* Desktop grid (#1212): the select checkbox is an overlay in the tile's corner, not its own column,
-   and Owned + Want / In deck sit side by side. Phones (tap-to-select, <=800px) keep the stacked layout. */
 @media (min-width: 801px) {
   .grid-card-wrap {
     position: relative;
@@ -1370,7 +1338,7 @@ span.deck-filter-group-head {
   .grid-card-select {
     position: absolute;
     top: 0.55rem;
-    left: 0.55rem;
+    right: 0.55rem;
     z-index: var(--z-raise-2);
     width: auto;
     min-width: 1.75rem;
@@ -1393,7 +1361,6 @@ span.deck-filter-group-head {
     grid-column: 1 / -1;
   }
 
-  /* Two steppers fit one tile: slightly smaller buttons, and a column wide enough for both. */
   .grid-card-steppers .owned-btn {
     width: 1.7rem;
     height: 1.7rem;
@@ -1410,6 +1377,434 @@ span.deck-filter-group-head {
   }
 
   .card-grid:has(.grid-card-steppers) {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(13.75rem, 1fr));
   }
+}
+
+/* Page head: title, totals and the Buy button share one row; Add cards, Share and group buy sit at its right end. */
+.page-head.shopping-head {
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: var(--space-2) var(--space-3);
+}
+
+.shopping-head-title {
+  min-width: 0;
+}
+
+.shopping-head h1 {
+  font-size: clamp(1.6rem, 1.3rem + 1vw, 2rem);
+}
+
+.shopping-head-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+  padding-bottom: 0.2rem;
+}
+
+.shopping-head .add-cards-btn .head-popover-chevron {
+  display: none;
+}
+
+.shopping-head .stat-strip {
+  margin: 0;
+  gap: 0.35rem 0.9rem;
+}
+
+.shopping-head .btn {
+  padding-inline: 0.7rem;
+}
+
+.tcg-buy-label {
+  display: inline-grid;
+  justify-items: center;
+}
+
+.tcg-buy-label > span {
+  grid-area: 1 / 1;
+}
+
+.tcg-buy-label > span[aria-hidden="true"] {
+  visibility: hidden;
+}
+
+.shopping-head .page-head-actions {
+  margin-left: auto;
+  padding-bottom: 0.2rem;
+}
+
+.shopping-head .head-popover-icon {
+  display: inline-flex;
+}
+
+.tcg-buy {
+  position: relative;
+  display: inline-flex;
+  align-items: normal;
+  flex: 0 0 auto;
+}
+
+.tcg-buy .btn.tcg-buy-main {
+  width: auto;
+  margin-top: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  white-space: nowrap;
+}
+
+.tcg-buy .btn.tcg-buy-caret {
+  width: auto;
+  margin-top: 0;
+  min-width: 2.4rem;
+  padding-inline: 0.6rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 1px solid color-mix(in srgb, currentColor 35%, transparent);
+}
+
+/* Selection bar and export message: over the page edge, so ticking a card moves nothing (#1342). */
+.buy-dock {
+  position: fixed;
+  z-index: var(--z-menu);
+  left: 0;
+  right: 0;
+  bottom: calc(var(--bottom-nav-h, 0px) + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  justify-content: center;
+  padding: 0 max(0.75rem, env(safe-area-inset-right, 0px)) 0.75rem max(0.75rem, env(safe-area-inset-left, 0px));
+  pointer-events: none;
+}
+
+html[data-lp-dock="right"] .buy-dock {
+  right: var(--lp-dock-w, 380px);
+}
+
+html[data-lp-dock="left"] .buy-dock {
+  left: var(--lp-dock-w, 380px);
+}
+
+/* The Log Pose compass floats at the bottom right; leave it clear. */
+body:has(.lp-compass) .buy-dock {
+  padding-right: 4.75rem;
+}
+
+.buy-dock-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem 0.9rem;
+  box-sizing: border-box;
+  width: min(100%, 72rem);
+  min-width: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line));
+  border-radius: var(--radius-14);
+  background: var(--card);
+  box-shadow: var(--shadow-lift);
+  pointer-events: auto;
+}
+
+.buy-dock-summary {
+  min-width: 0;
+  line-height: 1.35;
+}
+
+.buy-dock-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  min-width: 0;
+}
+
+.buy-dock-msg {
+  display: flex;
+  flex: 1 0 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  max-height: 7rem;
+  margin: 0;
+  overflow: auto;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.buy-dock-msg .ghost {
+  flex: 0 0 auto;
+  min-height: 1.75rem;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.82rem;
+}
+
+/* Room for the last row above the dock; --buy-dock-h is measured in ShoppingBuyDock. */
+.has-buy-dock {
+  padding-bottom: calc(var(--buy-dock-h, 0px) + var(--bottom-nav-h, 0px) + 1rem);
+}
+
+/* Used in stays body size even where wide screens enlarge the other value cells. */
+.data-table.shopping-table tr.alt-main-row > td.used-in {
+  height: auto;
+  font-size: 0.88rem;
+  font-weight: 400;
+}
+
+.head-popover-panel .shopping-add {
+  margin: 0;
+}
+
+/* Inside the narrow Add cards panel the search and filter rows must shrink to it, not to the input's own width. */
+:is(.shopping-add, .collection-add) .deck-editor-filters :is(.card-search, .deck-editor-filter-row) {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (max-width: 800px) {
+  .page-head.shopping-head {
+    align-items: normal;
+  }
+
+  .shopping-head-stats {
+    width: 100%;
+  }
+
+  .shopping-head .page-head-actions {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+
+  .shopping-head .page-head-actions .btn {
+    flex: 1 1 auto;
+    width: auto;
+    padding: 0.45rem 0.5rem;
+    font-size: 0.85rem;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .shopping-head .page-head-actions .head-popover {
+    flex: 1 1 auto;
+  }
+
+  .shopping-head .page-head-actions .head-popover-icon,
+  .shopping-head .page-head-actions .head-popover-chevron {
+    display: none;
+  }
+
+  .shopping-head .stat-strip {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    gap: 0.35rem 1.1rem;
+  }
+
+  .shopping-head .stat-value {
+    font-size: 1.15rem;
+  }
+
+  .shopping-head .stat-note.stat-split {
+    display: none;
+  }
+
+  .shopping-head-stats .tcg-buy {
+    flex: 1 1 100%;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 2.75rem;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-caret {
+    min-height: 2.75rem;
+  }
+
+  .shopping-head .page-head-actions {
+    margin-left: 0;
+    padding-bottom: 0;
+  }
+
+  .buy-dock-actions {
+    flex: 1 1 100%;
+  }
+
+  .buy-dock-actions .tcg-buy {
+    flex: 1 1 auto;
+  }
+
+  .buy-dock-actions .tcg-buy-main {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+}
+
+/* Phone: a shorter head so the list starts higher (#1342). Same elements, tighter sizes. */
+@media (max-width: 600px) {
+  .page-head.shopping-head {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.3rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .shopping-head .page-head-actions {
+    gap: 0.3rem;
+  }
+
+  .shopping-head .page-head-actions .btn {
+    min-height: 2.25rem;
+    padding-block: 0.25rem;
+  }
+
+  .shopping-head-title .eyebrow {
+    display: none;
+  }
+
+  .shopping-head h1 {
+    font-size: 1.25rem;
+    line-height: 1.1;
+  }
+
+  /* Title and Buy share one row, totals sit under them: the wrapper stops being a box so its children join the head's flow. */
+  .shopping-head-stats {
+    display: contents;
+  }
+
+  .shopping-head-title {
+    flex: 1 1 0;
+    align-self: center;
+  }
+
+  .shopping-head-stats .tcg-buy {
+    order: 1;
+    flex: 0 0 auto;
+  }
+
+  .shopping-head .stat-strip {
+    order: 2;
+  }
+
+  .shopping-head .page-head-actions {
+    order: 3;
+    flex: 1 1 100%;
+  }
+
+  .shopping-head .stat-value {
+    font-size: 1.05rem;
+    line-height: 1.1;
+  }
+
+  .shopping-head .stat-strip {
+    gap: 0.2rem 1rem;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main,
+  .shopping-head-stats .tcg-buy .tcg-buy-caret {
+    min-height: 2.25rem;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main {
+    flex: 0 1 auto;
+    padding-inline: 0.55rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* Short landscape screens (phones turned sideways): the head is one tight row so cards start in view (#1342). */
+@media (max-height: 500px) and (orientation: landscape) {
+  .page-head.shopping-head {
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.4rem;
+  }
+
+  .shopping-head-title {
+    flex: 0 1 auto;
+  }
+
+  .shopping-head-title .eyebrow {
+    display: none;
+  }
+
+  .shopping-head h1 {
+    font-size: 1.1rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .shopping-head-stats {
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    align-items: center;
+    padding-bottom: 0;
+    gap: 0.4rem;
+  }
+
+  .shopping-head .stat-strip {
+    gap: 0.1rem 0.5rem;
+  }
+
+  .shopping-head .stat-label {
+    font-size: 0.6rem;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+  }
+
+  .shopping-head .stat-value {
+    font-size: 0.95rem;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .shopping-head .stat-note {
+    display: none;
+  }
+
+  .shopping-head .page-head-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    padding-bottom: 0;
+    gap: 0.25rem;
+  }
+
+  .shopping-head .page-head-actions .btn {
+    min-height: 2.25rem;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.8rem;
+    white-space: nowrap;
+  }
+
+  .shopping-head .page-head-actions .head-popover-icon,
+  .shopping-head .page-head-actions .head-popover-chevron {
+    display: none;
+  }
+
+  .shopping-head-stats .tcg-buy .tcg-buy-main,
+  .shopping-head-stats .tcg-buy .tcg-buy-caret {
+    min-height: 2.25rem;
+    font-size: 0.8rem;
+    padding-inline: 0.5rem;
+    white-space: nowrap;
+  }
+}
+
+tr.covered td,
+.mobile-card.covered,
+.grid-card.covered {
+  background: var(--card);
+}
+
+.mobile-card.covered,
+.grid-card.covered {
+  border-color: var(--gold);
 }

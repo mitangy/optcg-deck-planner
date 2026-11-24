@@ -1,40 +1,46 @@
 export type MatchMenuItemId = "copy-room" | "copy-spectate" | "settings" | "fullscreen" | "mute-tab" | "reload" | "report-player" | "report" | "hide-art" | "concede" | "leave";
 
-/**
- * Which entries the phone HUD's ⋯ menu shows, in display order (destructive
- * ones last). Reload rejoins the saved match; Report a problem opens the feedback dialog. Concede is for live players only; hotseat has no room to share. Spectators can share the watch link too. Mute this tab is listed in every match unless the toolbar has its button (`muteInBar`). Full screen is listed only when the page offers it and no toolbar button already does (`fullscreenInBar`). A replay has no room to share.
- */
 export function matchMenuItems(o: {
   spectating: boolean;
   over: boolean;
   hotseat: boolean;
   fullscreenOffered: boolean;
-  /** The Full screen button sits in the toolbar itself (the computer's action row), so the menu leaves it out. */
   fullscreenInBar?: boolean;
-  /** The Mute this tab button sits in the toolbar itself (the computer's bars), so the menu leaves it out (#934). */
   muteInBar?: boolean;
   canConcede: boolean;
-  /** A recorded game: there is no room to share and nothing to concede. */
   replay?: boolean;
-  /** The other seat is a person who can be reported (online play, not a bot, practice or recording). */
   canReportPlayer?: boolean;
-  /** Some other player's custom playmat or card back is showing, so there is art to hide (#812). */
   hideArtOffered?: boolean;
 }): MatchMenuItemId[] {
   const items: MatchMenuItemId[] = [];
   if (!o.hotseat) items.push("copy-room", "copy-spectate");
   items.push("settings");
   if (o.fullscreenOffered && !o.fullscreenInBar) items.push("fullscreen");
-  // Every match, spectating and replays included: a watch tab is the one that needs it (#934).
   if (!o.muteInBar) items.push("mute-tab");
-  // A Home Screen app has no browser reload button or pull-to-refresh.
   items.push("reload");
   if (o.canReportPlayer && !o.replay) items.push("report-player");
   if (o.hideArtOffered && !o.hotseat) items.push("hide-art");
-  // Every match, hotseat, demo and spectating included: a bug report needs no room.
+  // A bug report needs no room.
   items.push("report");
   if (o.canConcede && !o.spectating && !o.over) items.push("concede");
   items.push("leave");
-  // A recording has no room to share and nothing to concede.
   return o.replay ? items.filter((id) => id !== "copy-room" && id !== "copy-spectate" && id !== "concede") : items;
+}
+
+// Room links first, then the match's own view and help rows, then the Full screen and Mute icon pair, then the ways out at the bottom.
+export type MatchMenuGroups = {
+  room: MatchMenuItemId[];
+  view: MatchMenuItemId[];
+  icons: MatchMenuItemId[];
+  exits: MatchMenuItemId[];
+};
+
+export function groupMatchMenu(items: readonly MatchMenuItemId[]): MatchMenuGroups {
+  const pick = (ids: readonly MatchMenuItemId[]) => items.filter((id) => ids.includes(id));
+  return {
+    room: pick(["copy-room", "copy-spectate"]),
+    view: pick(["settings", "hide-art", "reload", "report-player", "report"]),
+    icons: pick(["fullscreen", "mute-tab"]),
+    exits: pick(["concede", "leave"]),
+  };
 }

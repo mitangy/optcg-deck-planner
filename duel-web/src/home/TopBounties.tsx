@@ -7,13 +7,11 @@ import { pinnedYou } from "./bounties";
 const TOP_N = 5;
 const NONE: LeaderboardEntry[] = [];
 
-/** The five highest Bounties, with your own rank pinned under them when you are further down. Hidden when empty or failed. */
 export function TopBounties({ me }: { me: RatingMe | null | undefined }) {
   const res = useAsyncResource(() => fetchLeaderboard(TOP_N), []);
   return <TopBountiesCard entries={res.status === "ready" ? res.data : NONE} me={me} />;
 }
 
-/** The card itself; hidden when there is nothing to show. */
 export function TopBountiesCard({ entries, me }: { entries: LeaderboardEntry[]; me: RatingMe | null | undefined }) {
   if (entries.length === 0) return null;
   const you = pinnedYou(
@@ -34,10 +32,11 @@ export function TopBountiesCard({ entries, me }: { entries: LeaderboardEntry[]; 
         </Link>
       </div>
       <ol className="bounty-list">
-        {entries.slice(0, TOP_N).map((e, i) => (
+        {entries.slice(0, TOP_N).map((e) => (
           <li key={e.user_id} className={`bounty-row${me && e.user_id === me.user_id ? " me" : ""}`}>
-            <span className="bounty-rank">{i + 1}</span>
+            <span className="bounty-rank">{e.rank}</span>
             <span className="bounty-name">{e.username || e.name}</span>
+            {me && e.user_id === me.user_id ? <span className="bounty-you">You</span> : null}
             <BountyAmount amount={e.rating} />
           </li>
         ))}

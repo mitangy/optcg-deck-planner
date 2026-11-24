@@ -1,7 +1,3 @@
-/**
- * Gameplay switches that hide a UI aid (#301): each aid shows by default on
- * the demo board and is gone with its switch off.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -13,10 +9,6 @@ async function openDemo(page: Page, query: string, settings: Record<string, unkn
   await page.locator(".board-root").waitFor();
 }
 
-/**
- * An attack your summoning-sick Character can't make: a short mouse drag on
- * desktop, tap it then tap the opposing Leader on a phone.
- */
 async function tryAttackWithSickCharacter(page: Page) {
   const sick = page.locator('.side-you [data-instance-id="y-c1"]');
   if (test.info().project.name === "phone-375") {
@@ -116,7 +108,8 @@ test("phones show no S key tab on the hand Sort button (#340)", async ({ page })
   await openDemo(page, "", {});
   const sort = page.locator(".hand-sort-btn:visible").first();
   await expect(sort).toBeVisible();
-  expect(await sort.evaluate((el) => getComputedStyle(el, "::after").content)).toBe("none");
+  // On touch the ::after is an empty, invisible hit area (#1343); it must not print the key.
+  expect(await sort.evaluate((el) => getComputedStyle(el, "::after").content)).not.toContain("S");
 });
 
 test("an unplayable hand card is grayed out at full opacity (#356)", async ({ page }) => {
@@ -125,7 +118,6 @@ test("an unplayable hand card is grayed out at full opacity (#356)", async ({ pa
   await expect(card).toBeAttached();
   const style = await card.evaluate((el) => ({
     opacity: getComputedStyle(el).opacity,
-    // The gray sits on the tile's children (not the caption), see #673.
     filters: [...el.children].filter((c) => !c.classList.contains("card-caption")).map((c) => getComputedStyle(c).filter),
   }));
   expect(style.opacity).toBe("1");
@@ -140,7 +132,6 @@ test("a hand Character blocked by an effect says Can't play with the reason, an 
   await expect(meta).toBeVisible();
   await expect(meta).toHaveText("Can't play");
   await expect(meta).toHaveAttribute("title", "Cost 1. An effect stops you playing Character cards this turn.");
-  // Events in the demo hand (ST01-014, OP01-029) stay playable.
   expect(await blocked.count()).toBe(4);
   expect(await page.locator(`${HAND_CARD}`).count()).toBe(6);
 });
@@ -153,7 +144,6 @@ for (const dim of [true, false]) {
     const meta = tile.locator(".meta");
     await expect(meta).toHaveText("Can't play");
     await expect(meta).toHaveCSS("color", "rgb(255, 107, 107)");
-    // No ancestor up to the tile may gray the caption.
     const filters = await meta.evaluate((el) => {
       const out: string[] = [];
       for (let n: Element | null = el; n; n = n.parentElement) {
@@ -163,7 +153,6 @@ for (const dim of [true, false]) {
       return out;
     });
     for (const f of filters) expect(f).not.toContain("grayscale");
-    // The art still grays when the setting is on.
     const art = await tile.evaluate((el) => [...el.children].filter((c) => !c.classList.contains("card-caption")).map((c) => getComputedStyle(c).filter));
     expect(art.some((f) => f.includes("grayscale"))).toBe(dim);
   });

@@ -1,21 +1,16 @@
-/**
- * Spectate links (#346): `/watch/<room id>` opens straight into spectating, and
- * a bad or finished room says so back in the lobby.
- */
 import type { BrowserContext, Page } from "@playwright/test";
+import { SEATED_SPECTATOR_MESSAGE } from "@optcg/duel-protocol";
 import { test, expect, mintGameToken, FAKE_API, GAME_SERVER, RED_VANILLA } from "./fixtures";
 
-// A desktop spectator's two hands are both the match's hand fan; the far one is the mirror (.hand-fan-top, #1007).
 const NEAR_FAN = ".hand-fan:not(.hand-fan-top)";
 const FAR_FAN = ".hand-fan-top";
 const NEAR_HAND = `:is(.rail-hand-cards, .hand-row-inner, ${NEAR_FAN} .hand-fan-cards, .hand-dock-cards) .card-tile`;
 const FAR_HAND = `:is(${FAR_FAN} .hand-fan-cards .card-tile, .spec-far-cards .card-tile, .opp-fan-face, .opp-hand-face) >> visible=true`;
 const ENDED_MESSAGE = "That match has ended or the spectate link is wrong.";
 
-async function newWatcher(browser: import("@playwright/test").Browser, use: object): Promise<{ ctx: BrowserContext; page: Page }> {
+async function newWatcher(browser: import("@playwright/test").Browser, use: object, uid = 99): Promise<{ ctx: BrowserContext; page: Page }> {
   const ctx = await browser.newContext({ ...use, permissions: ["clipboard-read", "clipboard-write"] });
   const page = await ctx.newPage();
-  // The two-column board with no card preview pop-up and the normal-size board, as before #529 and #556 (what these layouts were written for).
   await page.addInitScript(() => {
     const key = "optcg-duel:settings";
     const cur = JSON.parse(localStorage.getItem(key) || "{}");
@@ -26,7 +21,7 @@ async function newWatcher(browser: import("@playwright/test").Browser, use: obje
     if (path === "/health") return route.fulfill({ json: { ok: true } });
     if (path === "/duel/guest-token") {
       return route.fulfill({
-        json: { token: mintGameToken(99, "watcher"), expires_at: 0, user_id: 99, email: "watcher@e2e.test", rating: 1000, games_played: 0 },
+        json: { token: mintGameToken(uid, "watcher"), expires_at: 0, user_id: uid, email: "watcher@e2e.test", rating: 1000, games_played: 0 },
       });
     }
     return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
@@ -89,8 +84,7 @@ test("a spectator who arrives before the match starts sees waiting, not an error
     return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
   await page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;
@@ -100,15 +94,45 @@ test("a spectator who arrives before the match starts sees waiting, not an error
   const { ctx, page: spec } = await newWatcher(browser, info.project.use);
   await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
   await expect(spec.getByText("Waiting for the match to start…").first()).toBeVisible({ timeout: 30_000 });
-  // The server's "match_not_ready" is not a problem to report.
   await spec.waitForTimeout(800);
   await expect(spec.locator(".error-banner")).toHaveCount(0);
   await expect(spec).toHaveURL(/\/duel$/);
   await ctx.close();
 });
 
+test("opening the watch link of a match you are seated in says so on the lobby, with no board (#1371)", async ({ page, browser }, info) => {
+  const created = page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
+  await page.route(`${FAKE_API}/**`, (route) => {
+    const path = new URL(route.request().url()).pathname;
+    if (path === "/health") return route.fulfill({ json: { ok: true } });
+    if (path === "/duel/guest-token") {
+      return route.fulfill({
+        json: { token: mintGameToken(1, "host"), expires_at: 0, user_id: 1, email: "host@e2e.test", rating: 1000, games_played: 0 },
+      });
+    }
+    return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
+  });
+  await page.goto("/");
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
+  await page.getByRole("button", { name: "Create room" }).click();
+  const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
+  const roomId = (body.room?.roomId ?? body.roomId)!;
+  await expect(page.locator(".room-invite-id")).toHaveText(roomId);
+
+  // Same account (uid 1) in a second browser: it already holds the seat.
+  const { ctx, page: spec } = await newWatcher(browser, info.project.use, 1);
+  await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
+  await expect(spec.getByText(SEATED_SPECTATOR_MESSAGE)).toBeVisible({ timeout: 30_000 });
+  // A phone sees it without scrolling.
+  await expect(spec.getByRole("alert").filter({ hasText: SEATED_SPECTATOR_MESSAGE })).toBeInViewport();
+  await expect(spec).toHaveURL(/\/$/);
+  await expect(spec.locator(".board-root")).toHaveCount(0);
+  await spec.screenshot({ path: info.outputPath("watch-own-match.png") });
+  if (process.env.SHOTS_DIR) await spec.screenshot({ path: `${process.env.SHOTS_DIR}/watch-own-match-${info.project.name}.png` });
+  await ctx.close();
+});
+
 test("a spectator copies a link from the HUD or the menu that opens the same match (#346)", async ({ page, duel, browser }, info) => {
-  // A practice match is hotseat for its player (no room to share); the watcher is an online seat.
   const roomId = await practiceRoomId(page, duel);
   const { ctx, page: spec } = await newWatcher(browser, info.project.use);
   await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
@@ -127,7 +151,6 @@ test("a spectator copies a link from the HUD or the menu that opens the same mat
     await spec.screenshot({ path: info.outputPath("hud-watch-link.png") });
     await btn.click();
     await expect(btn).toHaveText("Copied");
-    // The label flips without resizing the button or the chip beside the other controls.
     expect(await btn.boundingBox()).toEqual(before);
     expect(await spec.locator(".room-chip").boundingBox()).toEqual(chip);
   }
@@ -148,7 +171,6 @@ const topOf = (bs: Box[]) => Math.min(...bs.map((b) => b.y));
 const intersects = (a: Box, b: Box) =>
   a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 
-/** Every box lies inside the window (nothing clipped off an edge). */
 function expectOnScreen(bs: Box[], width: number, height: number) {
   for (const b of bs) {
     expect(b.x).toBeGreaterThanOrEqual(0);
@@ -161,12 +183,10 @@ function expectOnScreen(bs: Box[], width: number, height: number) {
 test("a desktop spectator sees both hands as fans, near at the bottom and far along the top, whatever the Hand setting (#346)", async ({ page, duel, browser }, info) => {
   test.skip(info.project.name !== "desktop-1280", "desktop layout");
   const roomId = await practiceRoomId(page, duel);
-  // No fixture override here: the watcher's Hand setting is the default "auto" (the Grid on a 720px window).
   const { ctx, page: spec } = await newWatcher(browser, info.project.use);
   await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
   await expect(spec.locator(`${NEAR_FAN} .hand-fan-cards .card-tile`)).toHaveCount(5, { timeout: 30_000 });
   await expect(spec.locator(`${FAR_FAN} .hand-fan-cards .card-tile`)).toHaveCount(5);
-  // The Grid hand and the small rail fan are gone: the fans are the only hands.
   await expect(spec.locator(".rail-hand, .opp-hand-fan, .opp-hand-hint:visible")).toHaveCount(0);
   await spec.waitForTimeout(1500);
 
@@ -176,18 +196,13 @@ test("a desktop spectator sees both hands as fans, near at the bottom and far al
   const oppMat = (await spec.locator(".side-field.side-opp").boundingBox())!;
   const youMat = (await spec.locator(".side-field.side-you").boundingBox())!;
   const board = (await spec.locator(".playmat").boundingBox())!;
-  // Both fans start tucked, like a match hand: only a strip of the cards shows, in the strip the board keeps free
-  // (the far cards' bottoms above the opponent's mat, the near cards' tops below yours).
   expect(far[2]!.y + far[2]!.height).toBeLessThanOrEqual(oppMat.y + 1);
   expect(far[2]!.y).toBeLessThan(board.y);
   expect(near[2]!.y).toBeGreaterThanOrEqual(youMat.y + youMat.height - 1);
   expect(near[2]!.y + near[2]!.height).toBeGreaterThan(vp.height);
-  // The far fan is centred over the board column.
   const farMid = (Math.min(...far.map((b) => b.x)) + Math.max(...far.map((b) => b.x + b.width))) / 2;
   expect(Math.abs(farMid - (board.x + board.width / 2))).toBeLessThan(24);
-  // The far cards are the near cards' size.
   expect(Math.abs(near[0]!.width - far[0]!.width)).toBeLessThan(1);
-  // Mirrored arc: the outer cards of the near fan sit lower than its middle card, those of the far fan higher, and the far cards stay upright.
   expect(near[2]!.y + near[2]!.height).toBeLessThan(near[0]!.y + near[0]!.height);
   expect(far[2]!.y).toBeGreaterThan(far[0]!.y + far[0]!.height * 0.06);
   const tilts = await spec.locator(`${FAR_FAN} .hand-fan-cards .card-tile`).evaluateAll((els) =>
@@ -197,7 +212,6 @@ test("a desktop spectator sees both hands as fans, near at the bottom and far al
     }),
   );
   for (const deg of tilts) expect(deg).toBeLessThan(45);
-  // Reading a far card: pointing at its visible strip shows it in the preview column (and raises the fan).
   const mid = far[2]!;
   await spec.mouse.move(mid.x + mid.width / 2, mid.y + mid.height - 6);
   await expect(spec.locator(".card-preview:not(.card-preview-empty) .card-preview-name")).toBeVisible();
@@ -219,7 +233,6 @@ test("a portrait phone spectator sees a row of small cards for each hand (#346)"
   await expect(spec.locator(".spec-far-cards .card-tile")).toHaveCount(5);
   const far = await boxes(spec, ".spec-far-cards .card-tile");
   const oppMat = (await spec.locator(".side-field.side-opp").boundingBox())!;
-  // The strip sits above the top mat and clear of the Chat button and Battle log pill that float over the top of the board.
   expect(bottomOf(far)).toBeLessThanOrEqual(oppMat.y);
   expect(topOf(far)).toBeGreaterThanOrEqual((await spec.locator(".playmat").boundingBox())!.y);
   for (const pill of [spec.getByRole("button", { name: "Chat" }), spec.locator(".battle-log")]) {
@@ -247,11 +260,9 @@ test.describe("landscape phone", () => {
       return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
     });
     await page.goto("/");
-    await page.getByRole("button", { name: "Play", exact: true }).click();
-    await page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
+    await page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
     await page.getByRole("button", { name: "Create room" }).click();
     await expect(page.locator(".room-invite-id")).toBeVisible({ timeout: 30_000 });
-    // The waiting board used to drop its mat (and the card on it) into the 44px icon-rail column.
     const card = (await page.locator(".room-invite").boundingBox())!;
     expect(card.x).toBeGreaterThanOrEqual(0);
     expect(card.width).toBeGreaterThan(300);
@@ -264,7 +275,6 @@ test.describe("landscape phone", () => {
   test("a landscape phone spectator sees both hands as small card grids in the right column, clear of the mats (#346)", async ({ page, duel, browser }, info) => {
     test.skip(info.project.name !== "phone-375", "one landscape run is enough");
     const roomId = await practiceRoomId(page, duel);
-    // The watcher is its own context: give it this describe's landscape window, not the project's.
     const { ctx, page: spec } = await newWatcher(browser, { ...info.project.use, viewport: { width: 812, height: 375 } });
     await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
     await expect(spec.locator(".rail-hand-spec .card-tile")).toHaveCount(5, { timeout: 30_000 });
@@ -272,7 +282,6 @@ test.describe("landscape phone", () => {
     const near = await boxes(spec, ".rail-hand-spec .card-tile");
     const far = await boxes(spec, ".spec-far-cards .card-tile");
     expectOnScreen([...near, ...far], 812, 375);
-    // The far fan is above the near one, and neither touches a mat.
     expect(bottomOf(far)).toBeLessThanOrEqual(topOf(near));
     for (const mat of await boxes(spec, ".side-field")) {
       for (const card of [...near, ...far]) expect(intersects(card, mat)).toBe(false);
@@ -283,7 +292,6 @@ test.describe("landscape phone", () => {
   });
 });
 
-/** The label pill's look: every style that could make the two pills differ. */
 async function labelStyle(page: Page, scope: string) {
   return page.locator(`${scope} .hand-label`).first().evaluate((el) => {
     const cs = getComputedStyle(el);
@@ -299,7 +307,6 @@ async function labelStyle(page: Page, scope: string) {
   });
 }
 
-/** The desktop Hand pill's look (the match's hand button, in both fans): every style that could make the two differ. */
 async function toggleStyle(page: Page, scope: string) {
   return page.locator(`${scope} .hand-fan-toggle`).evaluate((el) => {
     const keys = ["font-size", "font-weight", "font-family", "letter-spacing", "padding-left", "padding-right", "min-height", "color", "background-color", "border-top-color", "border-radius", "text-transform"];
@@ -327,22 +334,18 @@ test("the two desktop hand buttons match and line up, and each fan is draggable 
       await expect(spec.locator(`${NEAR_FAN} .hand-fan-cards .card-tile`)).toHaveCount(5, { timeout: 30_000 });
       await expect(spec.locator(`${FAR_FAN} .hand-fan-cards .card-tile`)).toHaveCount(5);
 
-      // One pill: the match's Hand button in both fans, same styles, named for the seat, with the count.
       expect(await toggleStyle(spec, NEAR_FAN)).toEqual(await toggleStyle(spec, FAR_FAN));
       await expect(spec.locator(`${NEAR_FAN} .hand-fan-toggle`)).toHaveText(/seat1 hand\s*5/i);
       await expect(spec.locator(`${FAR_FAN} .hand-fan-toggle`)).toHaveText(/seat2 hand\s*5/i);
-      // Same x: the pills line up, inside the board column.
       const near = (await spec.locator(`${NEAR_FAN} .hand-fan-toggle`).boundingBox())!;
       const far = (await spec.locator(`${FAR_FAN} .hand-fan-toggle`).boundingBox())!;
       expect(Math.abs(near.x - far.x)).toBeLessThan(1);
       const board = (await spec.locator(".playmat").boundingBox())!;
       expect(near.x).toBeGreaterThanOrEqual(board.x);
       expectOnScreen([near, far], size.width, size.height);
-      // Let the opening draw animation finish before the picture.
       await spec.waitForTimeout(1500);
       await spec.screenshot({ path: info.outputPath(`fans-desktop-${size.width}x${size.height}.png`) });
 
-      // Default spots reserve their strips; both grips are there.
       const oppMat = () => spec.locator(".side-field.side-opp").boundingBox().then((b) => b!);
       const oppY0 = (await oppMat()).y;
       const oppH0 = (await oppMat()).height;
@@ -359,32 +362,26 @@ test("the two desktop hand buttons match and line up, and each fan is draggable 
         await spec.mouse.up();
       };
 
-      // Far fan: drag it down into the board's right side. It floats fully shown and the board takes the strip back.
       await drag(farGrip, { x: size.width * 0.78, y: size.height * 0.5 });
       await expect(spec.locator(`${FAR_FAN}.hand-fan-float`)).toHaveCount(1);
       await expect(spec.locator(".arena-fan-top")).toHaveCount(0);
       const floating = await boxes(spec, `${FAR_FAN}.hand-fan-float .hand-fan-cards .card-tile`);
       expectOnScreen(floating, size.width, size.height);
       expect(floating).toHaveLength(5);
-      // The board takes the far strip back: the mats grow or shift into it.
       await expect.poll(async () => Math.abs((await oppMat()).y - oppY0) + ((await oppMat()).height - oppH0)).toBeGreaterThan(8);
       const saved = await spec.evaluate(() => JSON.parse(localStorage.getItem("optcg-duel:settings") ?? "{}") as Record<string, unknown>);
       expect(saved.spectatorFarFanPos).toMatch(/^[\d.]+,[\d.]+$/);
       expect(saved.handFanPos ?? "").toBe("");
-      // The pills are the same wherever the fans are.
       expect(await toggleStyle(spec, FAR_FAN)).toEqual(await toggleStyle(spec, NEAR_FAN));
       await spec.screenshot({ path: info.outputPath(`fans-desktop-${size.width}x${size.height}-far-moved.png`) });
 
-      // Near fan: drag it up into the board's left side, off the bottom edge.
       await drag(nearGrip, { x: size.width * 0.3, y: size.height * 0.6 });
       await expect(spec.locator(`${NEAR_FAN}.hand-fan-float`)).toHaveCount(1);
       expectOnScreen(await boxes(spec, `${NEAR_FAN} .hand-fan-cards .card-tile`), size.width, size.height);
-      // Both strips are reclaimed: the mats grow into them.
       await expect(spec.locator(".arena-fan-center")).toHaveCount(0);
       await expect.poll(async () => (await spec.evaluate(() => JSON.parse(localStorage.getItem("optcg-duel:settings") ?? "{}") as Record<string, string>)).spectatorNearFanPos).toMatch(/^[\d.]+,[\d.]+$/);
       if (size.width === 1440) await spec.screenshot({ path: info.outputPath("fans-desktop-1440x900-dragged.png") });
 
-      // Dragging each back to its own default spot puts the strips back.
       const board2 = (await spec.locator(".playmat").boundingBox())!;
       const farBox = (await spec.locator(`${FAR_FAN}.hand-fan-float`).boundingBox())!;
       await drag(spec.locator(`${FAR_FAN} .hand-fan-grip`), {
@@ -435,7 +432,6 @@ test("a desktop spectator redocks each moved hand by dropping its grip back wher
     expect(Math.abs(held.x - 900), `${fan.name} grip stays under the pointer (x)`).toBeLessThan(20);
     expect(Math.abs(held.y - 400), `${fan.name} grip stays under the pointer (y)`).toBeLessThan(20);
 
-    // Out on the board the dock outline shows but is not lit; the drop floats.
     await expect(spec.locator(fan.target)).toBeVisible();
     await expect(spec.locator(fan.target)).not.toHaveClass(/is-active/);
     await spec.mouse.up();
@@ -443,7 +439,6 @@ test("a desktop spectator redocks each moved hand by dropping its grip back wher
     await expect(spec.locator(".spec-dock-target")).toHaveCount(0);
     expect(await setting(fan.key)).toMatch(/^[\d.]+,[\d.]+$/);
 
-    // Grip back to where it was: the outline lights up, and releasing redocks.
     const out = await centre(grip);
     await spec.mouse.move(out.x, out.y);
     await spec.mouse.down();
@@ -461,7 +456,6 @@ test("a desktop spectator redocks each moved hand by dropping its grip back wher
 test("both phone layouts label the two hands with the same pill, lined up (#346)", async ({ page, duel, browser }, info) => {
   test.skip(info.project.name !== "phone-375", "phone layout");
   const roomId = await practiceRoomId(page, duel);
-  // Portrait: both labels centred over their strips.
   const { ctx, page: spec } = await newWatcher(browser, info.project.use);
   await spec.goto(`/watch/${encodeURIComponent(roomId)}`);
   await expect(spec.locator(".hand-row-spec-grid .card-tile")).toHaveCount(5, { timeout: 30_000 });
@@ -471,7 +465,6 @@ test("both phone layouts label the two hands with the same pill, lined up (#346)
   const farP = await labelBox(spec, FAR_LABEL);
   expect(Math.abs(nearP.x + nearP.width / 2 - (farP.x + farP.width / 2))).toBeLessThan(1);
   expect(Math.abs(nearP.x + nearP.width / 2 - 375 / 2)).toBeLessThan(2);
-  // The far label clears the Chat button and the Battle log pill beside it.
   for (const pill of [spec.getByRole("button", { name: "Chat" }), spec.locator(".battle-log")]) {
     expect(intersects(farP, (await pill.first().boundingBox())!)).toBe(false);
   }
@@ -479,7 +472,6 @@ test("both phone layouts label the two hands with the same pill, lined up (#346)
   await spec.screenshot({ path: info.outputPath("fans-phone-375x812.png") });
   await ctx.close();
 
-  // Landscape: both left-aligned in the right column.
   const land = await newWatcher(browser, { ...info.project.use, viewport: { width: 812, height: 375 } });
   await land.page.goto(`/watch/${encodeURIComponent(roomId)}`);
   await expect(land.page.locator(".rail-hand-spec .card-tile")).toHaveCount(5, { timeout: 30_000 });
@@ -493,11 +485,8 @@ test("both phone layouts label the two hands with the same pill, lined up (#346)
   expect(duel.errors).toEqual([]);
 });
 
-// —— Spectators' fans mirror the players' own hand order (#346) ——
-
 const HAND_CARDS = ":is(.rail-hand-cards, .hand-row-inner, .hand-fan-cards, .hand-dock-cards) > .card-tile";
 const motionIds = (page: Page) => page.locator(HAND_CARDS).evaluateAll((els) => els.map((e) => e.getAttribute("data-motion-id")));
-/** A card tile's name line ("Nico Robin"), the same on a player's tile and a spectator's. */
 const tileNames = (page: Page, selector: string) =>
   page.locator(selector).evaluateAll((els) =>
     els.map((e) => /([A-Za-z][^\d]*? Cost \d+)/.exec(((e as HTMLElement).innerText || "").replace(/\s+/g, " "))?.[1]?.trim() ?? ""),
@@ -513,7 +502,6 @@ async function newPlayer(browser: import("@playwright/test").Browser, use: objec
     localStorage.clear();
     localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify(d));
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
-    // The fanned hand: its cards are all fully on screen to drag.
     localStorage.setItem("optcg-duel:settings", JSON.stringify({ handLayout: "fan" }));
   }, decks);
   await page.route(`${FAKE_API}/**`, (route) => {
@@ -530,7 +518,6 @@ async function newPlayer(browser: import("@playwright/test").Browser, use: objec
 }
 
 test("a spectator's fans follow each player's Sort and card drags (#346)", async ({ browser }, info) => {
-  // Two real online players in a private room (practice is hotseat and sends no hand order).
   const host = await newPlayer(browser, info.project.use, 21, "host");
   const created = host.page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
   await host.page.route(`${GAME_SERVER}/matchmake/create/**`, (route) => {
@@ -538,8 +525,7 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
     return route.continue({ postData: JSON.stringify({ ...body, seed: 7 }) });
   });
   await host.page.goto("/");
-  await host.page.getByRole("button", { name: "Play", exact: true }).click();
-  await host.page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
+  await host.page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
   await host.page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;
@@ -549,7 +535,6 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   await guest.page.goto(`/?join=${encodeURIComponent(roomId)}`);
   await guest.page.getByRole("button", { name: "Join room" }).click();
 
-  // The spectator's own Sort setting is on: it must not re-sort what it is shown.
   const watch = await newWatcher(browser, info.project.use);
   await watch.page.addInitScript(() => localStorage.setItem("optcg-duel:settings", JSON.stringify({ sortHandByCost: true })));
   await watch.page.goto(`/watch/${encodeURIComponent(roomId)}`);
@@ -561,7 +546,6 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   await expect(host.page.locator(HAND_CARDS)).toHaveCount(5, { timeout: 30_000 });
   await expect(guest.page.locator(HAND_CARDS)).toHaveCount(5, { timeout: 30_000 });
 
-  // The spectator watches seat 0's camera: near = seat 0's hand, far = seat 1's. Which player is which seat is the server's call.
   const players = [host.page, guest.page];
   const nearIds = () => watch.page.locator(specNear).evaluateAll((els) => els.map((e) => e.getAttribute("data-motion-id")));
   const farNames = () => tileNames(watch.page, specFar);
@@ -572,7 +556,6 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   const click = async (page: Page) =>
     page.locator(".hand-rail-btn", { hasText: "Sort" }).locator("visible=true").first().click();
 
-  // Sort the near player's hand: the spectator's near fan reorders to match, ids and all.
   const unsortedNear = await motionIds(nearPlayer);
   await click(nearPlayer);
   await expect.poll(() => motionIds(nearPlayer)).not.toEqual(unsortedNear);
@@ -580,7 +563,6 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   await expect.poll(nearIds, { timeout: 10_000 }).toEqual(sortedNear);
   await watch.page.screenshot({ path: info.outputPath("hand-order-near-sorted.png") });
 
-  // Sort the far player's hand: the far fan follows (compared by card name, the far tiles carry no ids).
   const unsortedFar = await tileNames(farPlayer, HAND_CARDS);
   expect(await farNames()).toEqual(unsortedFar);
   await click(farPlayer);
@@ -588,8 +570,6 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   const sortedFar = await tileNames(farPlayer, HAND_CARDS);
   await expect.poll(farNames, { timeout: 10_000 }).toEqual(sortedFar);
 
-  // Unsort the near hand and drag its last card (the one nothing overlaps) to the second spot:
-  // the spectator sees the dragged order, not the sort.
   await click(nearPlayer);
   await expect.poll(() => motionIds(nearPlayer)).toEqual(unsortedNear);
   if (!phone) {

@@ -5,8 +5,6 @@ import { forOpponent } from "../engine/perspective.js";
 import { Harness } from "../testing/harness.js";
 import type { GameEvent, PendingChoice } from "../types.js";
 
-// Hidden information must never reach a viewer who should not see it (#487).
-
 const SECRET = "ST01-014";
 const OTHER = "ST01-009";
 
@@ -47,7 +45,6 @@ describe("pending choice projection (#487)", () => {
       expect(nested.sourceInstanceId).toBeUndefined();
       expect(nested.request).toEqual({ type: "select", min: 0, max: 0, options: [] });
     }
-    // The owner still sees the card and options, but never the internal bindings.
     const own = projectPendingChoice(parent, 0).unorderedChoices![0]!;
     expect(own.bindings).toBeUndefined();
     expect(own.resolutionFrameId).toBeUndefined();

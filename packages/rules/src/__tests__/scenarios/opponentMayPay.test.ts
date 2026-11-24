@@ -1,21 +1,12 @@
-/**
- * "Your opponent may PAY. If they do not, Y" (#515). The opponent is only offered PAY when they can pay it in
- * full; paying part of it never counts as doing it. Every row gives the opponent a hand/Life/DON!! count one
- * short of the cost or exactly enough, and pairs accept with decline.
- *
- * The opponent draws one card at the start of their turn, so rows list their hand without it and name that card
- * in `deckTop`.
- */
 import { runScenarios, mine, theirs, type CardScenario } from "../../testing/scenario.js";
 
-const KAROO = "ST01-003"; // vanilla 1-cost 3000
-const VIVI = "ST01-009"; // vanilla 2-cost 4000
-const ROBIN = "ST01-008"; // vanilla 3-cost 5000
-const KOMACHIYO = "OP01-010"; // vanilla 1-cost 3000
-const MOHJI = "OP02-060"; // vanilla 1-cost 3000
+const KAROO = "ST01-003";
+const VIVI = "ST01-009";
+const ROBIN = "ST01-008";
+const KOMACHIYO = "OP01-010";
+const MOHJI = "OP02-060";
 
 const rows: CardScenario[] = [
-  // OP17-117 Maser Saber: [Trigger] Your opponent may trash 3 cards from their hand. If they do not, KO up to 1 of your opponent's Characters with a cost of 6 or less.
   {
     card: "OP17-117", name: "does not offer the trash with 2 cards in hand, so the K.O. comes next (#515)",
     me: { life: ["OP17-117", KAROO, KAROO] },
@@ -45,7 +36,6 @@ const rows: CardScenario[] = [
     expect: { opp: { hand: [VIVI, KOMACHIYO, KAROO], field: [ROBIN], trash: [MOHJI] }, pending: "none" },
   },
 
-  // OP05-099 Amazon: [On Your Opponent's Attack] You may rest this Character: Your opponent may trash 1 card from the top of their Life cards. If they do not, give up to 1 of your opponent's Leader or Character cards -2000 power during this turn.
   {
     card: "OP05-099", name: "does not offer the Life trash with 0 Life, so the -2000 comes next (#515)",
     me: { field: ["OP05-099"] },
@@ -75,7 +65,6 @@ const rows: CardScenario[] = [
     expect: { opp: { life: [VIVI], trash: [], power: { [ROBIN]: 3000 } }, pending: "none" },
   },
 
-  // OP15-059 Amazon: [On Your Opponent's Attack] You may rest this Character: Your opponent may return 1 of their active DON!! cards to their DON!! deck. If they do not, give up to 1 of your opponent's Leader or Character cards -2000 power during this turn.
   {
     card: "OP15-059", name: "does not offer the DON!! return with no active DON!!, so the -2000 comes next (#515)",
     me: { field: ["OP15-059"] },

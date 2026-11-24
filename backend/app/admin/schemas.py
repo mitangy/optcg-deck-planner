@@ -1,7 +1,7 @@
-"""Admin request/response models: feedback."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -37,17 +37,12 @@ class FeedbackOut(BaseModel):
     reporter: str
     status: str
     created_at: str
-    # GitHub issue opened for a Discord ticket: https://github.com/<repo>/issues/<n>
     github_issue: int | None = None
 
 
 class FeedbackStatusIn(BaseModel):
     status: str = Field(pattern=r"^(open|fixed|wontfix)$")
 
-
-# ---------------------------------------------------------------- admin page responses (refactor 2.1c)
-# Field order follows the dicts the routes build, so the JSON is unchanged. These are the contract the
-# generated TypeScript types come from (tools/ci/openapi-types.cjs).
 
 Role = Literal["user", "moderator", "admin"]
 GameMode = Literal["ranked", "friends", "private", "bot", "practice"]
@@ -121,16 +116,13 @@ class OverviewLogPose(BaseModel):
 
 class AdminOverview(BaseModel):
     generated_at: str
-    # The window of the day charts and `top_leaders`.
     days: int
     accounts: OverviewAccounts
     signups_by_day: list[SignupDay]
     active: OverviewActive
     matches_by_day: list[MatchDay]
     matches: OverviewMatches
-    # The last `days` days, up to 25.
     top_leaders: list[LeaderCount]
-    # Kept for older clients: always the last 30 days.
     top_leaders_30d: list[LeaderCount]
     planner: OverviewPlanner
     log_pose: OverviewLogPose
@@ -144,7 +136,6 @@ class DayMatchSeat(BaseModel):
 
 
 class DayMatch(BaseModel):
-    # The id the replay page takes: /replay/:id.
     id: str
     created_at: str | None
     ranked: bool
@@ -159,21 +150,17 @@ class AdminDayMatches(BaseModel):
 
 
 class EvalGroup(BaseModel):
-    # Whole or half points; an int stays an int in the JSON.
     correct: float | int
     total: int
 
 
 class EvalRun(BaseModel):
-    # Which eval. Runs recorded before suites existed are "main".
     suite: Literal["main", "review_facts", "puzzles", "deck_advice"]
     run_at: str
     label: str
     model: str
-    # The score, null for a run that only has a headline metric.
     correct: float | None
     total: int | None
-    # The headline when a suite is not a score, e.g. "Wrong claims per review".
     metric_name: str | None
     metric_value: float | None
     lower_is_better: bool
@@ -204,7 +191,6 @@ class BotGames(BaseModel):
 
 class AdminBots(BaseModel):
     bot_games: BotGames
-    # The window of `bot_games.by_day`.
     days: int
     evals: list[EvalRun]
 
@@ -287,12 +273,9 @@ class AdminUser(BaseModel):
     created_at: str
     banned_at: str | None
     ban_reason: str | None
-    # First-touch source captured at sign-up (#905). Null: unknown (account predates tracking); `{}`: direct.
     signup_source: SignupSourceOut | None
-    # Ranked + friends + private games (bot and practice are in `games` only).
     matches: int
     last_match_at: str | None
-    # Games per mode (#988).
     games: GameCounts
 
 
@@ -307,13 +290,11 @@ class AdminUserMatchOpponent(BaseModel):
 
 
 class AdminUserMatch(BaseModel):
-    # Match id (opens /replay/:id when `replay`), or the solo game key.
     id: str
     created_at: str
     mode: GameMode
     leader_id: str | None
     opponent_leader_id: str | None
-    # Null for bot and practice.
     opponent: AdminUserMatchOpponent | None
     bot_level: str | None
     won: bool | None
@@ -390,7 +371,6 @@ class AdminUserDetail(BaseModel):
     online: UserOnline
     rating: UserRating | None
     modes: list[UserModeTally]
-    # When the first bot / practice game of any account was saved; null while none has been.
     solo_tracked_since: str | None
     top_leaders: list[LeaderCount]
     recent_matches: list[AdminUserMatch]
@@ -428,7 +408,6 @@ class ReportRow(BaseModel):
     note: str
     match_id: str
     source: str
-    # The saved match exists, so /replay/:id opens.
     match_finished: bool
     has_image: bool
     cosmetic_id: int | None
@@ -454,7 +433,6 @@ class UploadRow(BaseModel):
     mime: str
     size: int
     created_at: str
-    # The owner has it switched on as their playmat / card back.
     in_use: bool
     report_count: int
     taken_down_at: str | None
@@ -498,3 +476,47 @@ class TrafficOut(BaseModel):
     days: int
     vercel: dict[str, Any]
     render: dict[str, Any]
+
+
+class AdminSeasonCurrent(BaseModel):
+    number: int
+    name: str
+    started_at: datetime | None = None
+    players: int
+
+
+class AdminSeasonPreviewRow(BaseModel):
+    user_id: int
+    name: str
+    rank: int
+    rating: int
+    soft_after: int
+    hard_after: int
+    games: int
+
+
+class AdminSeasonPast(BaseModel):
+    number: int
+    name: str
+    started_at: datetime | None = None
+    ended_at: datetime
+    reset_mode: str | None = None
+    players: int
+
+
+class AdminSeasons(BaseModel):
+    current: AdminSeasonCurrent
+    preview: list[AdminSeasonPreviewRow]
+    past: list[AdminSeasonPast]
+
+
+class AdminSeasonStartIn(BaseModel):
+    mode: Literal["soft", "hard"]
+    name: str | None = Field(default=None, max_length=64)
+    confirm: str = Field(max_length=200)
+
+
+class AdminSeasonStarted(BaseModel):
+    number: int
+    name: str
+    started_at: datetime | None = None

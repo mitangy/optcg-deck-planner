@@ -7,7 +7,6 @@ import type { OfficialLibrary } from "./official/library";
 
 const catalog = loadCatalog();
 
-// Mono-red Luffy: 12 distinct plain red cards at 4 plus 2 more, 50 in all.
 const LEADER = "ST01-001";
 const MAIN = [
   ...["ST01-003", "ST01-004", "ST01-005", "ST01-006", "ST01-007", "ST01-008", "ST01-009", "ST01-010", "ST01-011", "ST01-012", "ST01-013", "ST01-014"].map((id) => ({ id, copies: 4 })),

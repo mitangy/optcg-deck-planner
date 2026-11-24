@@ -7,11 +7,10 @@
  */
 import { replayApply, replayStart, type MatchReplay, type Seat } from "@optcg/rules";
 import { emptyTally, tallyIntent, type LineTally } from "@optcg/rules/src/sim/selfPlay";
-import { cardName, plannerCall, type PlannerApi } from "./matches";
+import { cardName, linePhrase, plannerCall, type PlannerApi } from "./matches";
 
 export type { LineTally };
 
-/** Replay one game and tally the advanced lines each seat played, plus the turn the game ended on. */
 export function tallyReplay(replay: MatchReplay): { tallies: [LineTally, LineTally]; turns: number } {
   const tallies: [LineTally, LineTally] = [emptyTally(), emptyTally()];
   const lastActivated: [string[], string[]] = [[], []];
@@ -27,7 +26,6 @@ export function tallyReplay(replay: MatchReplay): { tallies: [LineTally, LineTal
   return { tallies, turns: state.turnNumber };
 }
 
-/** The named lines a side played in one game; keep in step with lines_of in backend/app/analyst/bots.py. */
 export function linesOf(t: Partial<LineTally>): Set<string> {
   const out = new Set<string>();
   if ((t.leaderActivations ?? 0) > 0) out.add("leader_activation");
@@ -47,7 +45,6 @@ export function linesOf(t: Partial<LineTally>): Set<string> {
 
 export type BotGameUpload = { index: number; replay: MatchReplay; tallies: [LineTally, LineTally]; turns: number; levels?: string };
 
-/** Games from a JSONL file: one replay per line, or { replay, tallies } wrappers. Blank and unparseable lines are skipped and counted. */
 export function parseJsonl(text: string): { replays: { replay: MatchReplay; tallies?: [LineTally, LineTally] }[]; skipped: number } {
   const replays: { replay: MatchReplay; tallies?: [LineTally, LineTally] }[] = [];
   let skipped = 0;
@@ -69,7 +66,6 @@ export function parseJsonl(text: string): { replays: { replay: MatchReplay; tall
 export const MAX_BATCH_GAMES = 25;
 export const DEFAULT_BATCH_BYTES = 6 * 1024 * 1024;
 
-/** Split games into request bodies of at most `maxGames` games and about `maxBytes` of JSON. A single game over the size alone goes by itself. */
 export function toBatches(games: BotGameUpload[], maxBytes = DEFAULT_BATCH_BYTES, maxGames = MAX_BATCH_GAMES): BotGameUpload[][] {
   const out: BotGameUpload[][] = [];
   let cur: BotGameUpload[] = [];
@@ -90,7 +86,6 @@ export function toBatches(games: BotGameUpload[], maxBytes = DEFAULT_BATCH_BYTES
 
 export type UploadResult = { accepted: number; duplicates: number; rejected: { index: number; reason: string }[] };
 
-/** Send games to POST /analyst/bot-games in batches. The batch id plus each game's index make a re-run add nothing. */
 export async function uploadBotGames(api: PlannerApi, batchId: string, levels: string, games: BotGameUpload[], opts: { maxBytes?: number } = {}): Promise<UploadResult> {
   const total: UploadResult = { accepted: 0, duplicates: 0, rejected: [] };
   for (const batch of toBatches(games, opts.maxBytes)) {
@@ -106,7 +101,6 @@ export async function uploadBotGames(api: PlannerApi, batchId: string, levels: s
   return total;
 }
 
-/** Play vs Bot games from GET /analyst/human-bot-games (#1202): the replay and the bot's level, nothing about the player. */
 export type HumanBotGame = { id: number; created_at: string; bot_level: string | null; replay: MatchReplay };
 
 /**
@@ -127,13 +121,10 @@ export async function fetchHumanBotGames(api: PlannerApi, onPage: (games: HumanB
   }
 }
 
-// ——— lessons both sources agree on ———
-
 export type Rec = { games: number; wins: number | null; win_rate: number | null; too_few_games?: boolean };
 export type LineRow = { line: string; description?: string; with: Rec; without: Rec };
 export type RealLine = { line: string; withGames: number; withWins: number; withoutGames: number; withoutWins: number };
 
-/** Win counts per line over real games of one leader: each game is the lines the leader's side played and whether it won. */
 export function realLineStats(games: { lines: Set<string>; won: boolean }[]): RealLine[] {
   const names = new Set(games.flatMap((g) => [...g.lines]));
   return [...names].map((line) => {
@@ -147,7 +138,6 @@ export type LessonCandidate = { line: string; description: string; direction: "b
 
 export type CompareOptions = { minBotGames?: number; minRealGames?: number; minGapPoints?: number };
 
-/** Lines where bot games and real games point the same way by at least minGapPoints, each with enough games on both sides of the line. */
 export function compareLines(bot: LineRow[], real: RealLine[], opts: CompareOptions = {}): LessonCandidate[] {
   const minBot = opts.minBotGames ?? 20;
   const minReal = opts.minRealGames ?? 8;
@@ -165,7 +155,7 @@ export function compareLines(bot: LineRow[], real: RealLine[], opts: CompareOpti
     if (Math.sign(botDiff) !== Math.sign(realDiff) || Math.abs(botDiff) < gap || Math.abs(realDiff) < gap) continue;
     out.push({
       line: b.line,
-      description: b.description ?? b.line,
+      description: linePhrase(b.line),
       direction: botDiff > 0 ? "better" : "worse",
       bot: { withRate: b.with.win_rate, withoutRate: b.without.win_rate, withGames: b.with.games, withoutGames: b.without.games },
       real: { withRate: realWith, withoutRate: realWithout, withGames: r.withGames, withoutGames: r.withoutGames },
@@ -176,33 +166,27 @@ export function compareLines(bot: LineRow[], real: RealLine[], opts: CompareOpti
 
 const pc = (x: number) => `${Math.round(x * 100)}%`;
 
-/** A draft lesson's text. It says both numbers are correlations and keeps bot and real counts apart. */
 export function lessonText(c: LessonCandidate, leaderName: string): string {
   const side = (s: LessonCandidate["bot"]) => `${pc(s.withRate)} vs ${pc(s.withoutRate)} (${s.withGames} and ${s.withoutGames} games)`;
   return (
-    `With ${leaderName}, games where ${c.description} were won ${c.direction === "better" ? "more" : "less"} often than games without it: ` +
-    `${side(c.real)} in real games, and ${side(c.bot)} in bot simulations. A pattern in the games, not proof of cause.`
+    `With ${leaderName}, ${c.description} went with ${c.direction === "better" ? "more" : "fewer"} wins: ` +
+    `${side(c.real)} in real games, and ${side(c.bot)} in bot simulations (win rate with it vs without). A pattern in the games, not proof of cause.`
   ).slice(0, 1000);
 }
 
 export type LessonDraftInput = { text: string; leader_id: string; opponent_id?: string; cards: string[] };
 
-/** Card numbers a line is about (up to 10), for the lesson's card list. */
 export function cardsOfLine(line: string): string[] {
   return [...new Set(line.match(/[A-Z]{2,4}\d{2}-\d{3}|P-\d{3}/g) ?? [])].slice(0, 10);
 }
 
-// ——— weekly run over every leader (#915) ———
-
 export const DEFAULT_MIN_LEADER_GAMES = 60;
 export const DEFAULT_MAX_PER_LEADER = 3;
 
-/** Leaders in the all-leaders sim answer with at least minGames simulated games, most-played first. */
 export function leadersWithGames(sim: { leaders?: { leader: string; games: number }[] }, minGames = DEFAULT_MIN_LEADER_GAMES): string[] {
   return (sim.leaders ?? []).filter((l) => l.games >= minGames).map((l) => l.leader);
 }
 
-/** The strongest `max` candidates (compareLines already sorts them by how far both sources move), one per line. */
 export function topCandidates(found: LessonCandidate[], max: number): LessonCandidate[] {
   const seen = new Set<string>();
   const out: LessonCandidate[] = [];
@@ -215,7 +199,6 @@ export function topCandidates(found: LessonCandidate[], max: number): LessonCand
   return out;
 }
 
-/** The bot and real numbers behind a lesson, short enough for the review list. */
 export function evidenceSummary(c: LessonCandidate): string {
   const side = (s: LessonCandidate["bot"]) => `${pc(s.withRate)} vs ${pc(s.withoutRate)} (${s.withGames}/${s.withoutGames} games)`;
   return `${c.line}: bot ${side(c.bot)}; real ${side(c.real)}`.slice(0, 500);
@@ -223,14 +206,12 @@ export function evidenceSummary(c: LessonCandidate): string {
 
 export type BotLessonPost = LessonDraftInput & { evidence: string };
 
-/** Save one lesson through the service secret. The planner skips a lesson it already has (any status): `skipped` is true then. */
 export async function postBotLesson(api: PlannerApi, lesson: BotLessonPost): Promise<{ skipped: boolean }> {
   return plannerCall<{ skipped: boolean }>(api, null, "/analyst/bot-lessons", true, lesson);
 }
 
 export type LeaderRun = { leader: string; botLines: number; realGames: number; lessons: (LessonCandidate & { text: string })[] };
 
-/** Bot line stats for a leader, the same lines tallied over its real archive games, and the lines both agree on (best `max`). */
 export async function lessonsForLeader(api: PlannerApi, leader: string, opts: { opponent?: string; realGames?: number; max?: number } = {}): Promise<LeaderRun> {
   const realMax = opts.realGames ?? 60;
   const query = new URLSearchParams({ leader, levels: "hard/hard" });

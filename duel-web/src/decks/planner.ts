@@ -1,7 +1,3 @@
-/**
- * Deck planner ↔ duel decks. The decks themselves are kept in sync by the account (the server mirrors both
- * ways, #1017); this file carries what the server cannot: the planner's shown art, and deep links.
- */
 import { lookupCard } from "../cards/atlas";
 import { loadCardData } from "../cards/cardData";
 import { productIdFromImageUrl } from "../cards/productId";
@@ -23,9 +19,7 @@ export type PlannerCard = {
   card_type?: string;
   section?: string;
   needed: number;
-  /** Printings the planner lists for this card; `owned` picks the shown art when none is chosen. */
   alt_arts?: { product_id: number; owned?: number | null }[];
-  /** Planner art choice: null/absent = automatic, 0 = base art, else a product id. */
   display_art?: number | null;
 };
 
@@ -50,15 +44,10 @@ export function fetchPlannerDeck(id: number, timeoutMs = DEFAULT_TIMEOUT_MS): Pr
   return plannerJson(`/decks/${id}`, {}, timeoutMs);
 }
 
-/** DON!! rows are a separate deck in the planner; duel has no use for them. */
 function isDonCard(c: PlannerCard): boolean {
   return c.section === "don" || (c.card_type ?? "").trim().toLowerCase().startsWith("don");
 }
 
-/**
- * Planner deck → decklist text for `validateImportedList`. The leader comes from
- * `leader_card_id` exactly once (the planner also lists it among `cards`); DON!! is dropped.
- */
 export function plannerDeckToDecklist(deck: PlannerDeckDetail): string {
   const leaderId = deck.leader_card_id?.trim().toUpperCase() || null;
   const counts = new Map<string, number>();
@@ -72,10 +61,6 @@ export function plannerDeckToDecklist(deck: PlannerDeckDetail): string {
   return lines.join("\n");
 }
 
-/**
- * Product id of the art the planner shows for a card (0 = base). Same rule as `featuredAlt` in the
- * planner's `altArt.ts`: base when chosen, the chosen alt when listed, else the most-owned alt.
- */
 export function plannerShownProductId(card: PlannerCard): number {
   const chosen = card.display_art;
   if (chosen === 0) return 0;
@@ -89,7 +74,6 @@ export function plannerShownProductId(card: PlannerCard): number {
   return best?.product_id ?? 0;
 }
 
-/** Duel alt art ids (`p1`, …) for the alt arts the planner shows; cards on base art or without a matching alt are left out (#1003). */
 export function plannerDeckArt(deck: PlannerDeckDetail): Record<string, string> {
   const out: Record<string, string> = {};
   for (const c of deck.cards) {
@@ -105,7 +89,6 @@ export function plannerDeckArt(deck: PlannerDeckDetail): Record<string, string> 
   return out;
 }
 
-/** Validate a fetched planner deck and upsert its linked local copy (deep links). */
 export function importPlannerDeckDetail(detail: PlannerDeckDetail): ImportIntoDeckResult {
   return upsertPlannerDeck({
     plannerId: detail.id,
@@ -115,12 +98,6 @@ export function importPlannerDeckDetail(detail: PlannerDeckDetail): ImportIntoDe
   });
 }
 
-/**
- * Best-effort refresh before a match: take on the art the planner now shows for the deck's cards (a card
- * whose art here still equals what the last refresh set follows the planner; one you changed here keeps
- * your pick, #1003). Cards and name are not touched, the account sync owns those. Any failure (offline,
- * timeout) keeps the local copy as-is.
- */
 export async function refreshLinkedDeck(
   deck: SavedDeck,
   timeoutMs: number,
@@ -129,7 +106,6 @@ export async function refreshLinkedDeck(
   if (!deck.plannerDeckId) return deck;
   try {
     const detail = await fetchDeck(deck.plannerDeckId, timeoutMs);
-    // Alt art ids come from the card data, which loads on its own (B-02).
     await loadCardData();
     return applyPlannerArt(deck.id, plannerDeckArt(detail)) ?? deck;
   } catch {
@@ -137,7 +113,6 @@ export async function refreshLinkedDeck(
   }
 }
 
-/** Alt arts a deck shows (leader + main deck) that the planner can display: one entry per card with a product id (#1017). */
 export function deckArtForPlanner(
   deck: Pick<SavedDeck, "leaderId" | "cards" | "artPrefs">,
 ): { defId: string; productId: number; altId: string }[] {
@@ -152,7 +127,6 @@ export function deckArtForPlanner(
   return out;
 }
 
-/** Choose the art the planner shows for a card (`PUT /owned/{id}/display`). Global per card in the planner. */
 export function setPlannerDisplayArt(
   cardId: string,
   productId: number | null,
@@ -168,12 +142,6 @@ export function setPlannerDisplayArt(
   );
 }
 
-/**
- * Show the alt arts picked in a linked duel deck in the planner too: every alt whose id differs from
- * `plannerArt[card]` (what the planner was last set to) is sent, and the ones that went through are
- * recorded in `plannerArt`. Best effort: a failing card is left for the next call, never thrown.
- * Resolves to the saved deck when something was recorded (#1017).
- */
 export async function pushDeckArtToPlanner(
   deckId: string,
   setArt: (cardId: string, productId: number) => Promise<unknown> = setPlannerDisplayArt,
@@ -189,7 +157,6 @@ export async function pushDeckArtToPlanner(
   return Object.keys(done).length > 0 ? recordPlannerArt(deckId, done) : undefined;
 }
 
-/** `pushDeckArtToPlanner` for every linked deck, one after another so the planner is not flooded. */
 export async function pushLinkedDeckArt(
   setArt?: (cardId: string, productId: number) => Promise<unknown>,
 ): Promise<void> {
@@ -204,7 +171,6 @@ export type PlannerDeepLink = {
   name: string;
 };
 
-/** `/decks?planner=<id>` with optional `#list=…&name=…` fallback. Null when neither is present. */
 export function parsePlannerDeepLink(search: string, hash: string): PlannerDeepLink | null {
   const rawId = new URLSearchParams(search).get("planner");
   const plannerId = rawId && /^\d+$/.test(rawId) && Number(rawId) > 0 ? Number(rawId) : null;
@@ -214,10 +180,6 @@ export function parsePlannerDeepLink(search: string, hash: string): PlannerDeepL
   return { plannerId, list, name: h.get("name")?.trim() || "Planner deck" };
 }
 
-/**
- * Resolve a deep link to a local deck: the planner deck when signed in and the
- * fetch works, otherwise the `list` fallback. Never imports an invalid deck.
- */
 export async function applyPlannerDeepLink(
   link: PlannerDeepLink,
   signedIn: boolean,

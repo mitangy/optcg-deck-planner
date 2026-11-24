@@ -1,4 +1,3 @@
-"""Log Pose analyst: personal connector tokens and the reads the analyst service makes for a player."""
 
 from __future__ import annotations
 
@@ -224,7 +223,6 @@ def put_sharing(
 
 
 def _match_ids(evidence: str | None) -> list[str]:
-    """Player lessons keep a JSON list of match ids; bot lessons keep a JSON object with a summary instead."""
     try:
         value = json.loads(evidence or "[]")
     except ValueError:
@@ -249,7 +247,7 @@ def _lesson_out(row: AnalystLesson) -> AnalystLessonOut:
 
 def _lessons(db: Session, user: User, status: str, leader: str | None, player_only: bool = False) -> list[AnalystLessonOut]:
     q = select(AnalystLesson).where(AnalystLesson.user_id == user.id)
-    if player_only:  # bot lessons are owned by the admin but are not their own (#916)
+    if player_only:
         q = q.where(AnalystLesson.source == "player")
     if status != "all":
         q = q.where(AnalystLesson.status == status)
@@ -357,9 +355,6 @@ def delete_lesson(
     return Response(status_code=204)
 
 
-# --- Imported OPTCGSim games (#1030) -------------------------------------------------------------
-# Every query filters on user_id: a player only ever reads or deletes their own rows.
-
 
 def sim_games_user(
     request: Request,
@@ -367,7 +362,6 @@ def sim_games_user(
     settings: Annotated[Settings, Depends(get_settings)],
     x_analyst_token: Annotated[str | None, Header()] = None,
 ) -> User:
-    """The Log Pose link owner (X-Analyst-Token) for the analyst, or the signed-in player for duel-web."""
     if x_analyst_token:
         return analyst_user(db, settings, x_analyst_token)
     return get_current_user(request, db, settings)

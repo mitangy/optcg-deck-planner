@@ -1,8 +1,3 @@
-/**
- * Emit compact per-card deck stats for the planner SPA.
- * Usage: npm run export-planner-stats -- [outfile]
- * Default: packages/deck-analytics/deckStats.json
- */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { buildPlannerStats, serializePlannerStats } from "./plannerStats.js";

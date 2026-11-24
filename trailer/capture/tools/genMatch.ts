@@ -1,8 +1,3 @@
-/**
- * Plays one bot-vs-bot game on the local rules engine with the trailer's decks and writes the recording the faked
- * history API serves for the Log Pose and replay clips: assets/match.json.   npx tsx tools/genMatch.ts [seed ...]
- * Picks the first seed (from the arguments, else 1..60) in which Miko (seat 0, Straw Hats) wins in 8 to 12 turns.
- */
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { playBotGame } from "../../../packages/rules/src/sim/selfPlay";

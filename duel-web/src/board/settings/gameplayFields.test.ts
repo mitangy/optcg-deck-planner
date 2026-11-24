@@ -80,7 +80,6 @@ describe("Show on screen rows by device (#449)", () => {
 });
 
 describe("Gameplay settings groups (#496)", () => {
-  // Every row the Gameplay fields can render: the switches and the selects. A row left out of the groups would vanish from the UI.
   const ALL_ROWS: RowKey[] = [
     "endTurnConfirm", "responseStops", "handLayout", "screenOrientation", "oppHandSpot", "sidePanels", "textSize", "lifeFan", "sideColumns",
     "animationSpeed", "cardSpotlight", "showOnScreen",
@@ -160,7 +159,6 @@ describe("Spectating settings (#937)", () => {
     expect(playing).toContain("endTurnConfirm");
     expect(watching).not.toContain("endTurnConfirm");
     expect(watching).not.toContain("oneTapActions");
-    // Shared rows stay: a spectator sees the board size and hears sounds.
     expect(watching).toContain("bigBoard");
     expect(watching).toContain("turnSound");
     expect(watching).toContain("handCounters");

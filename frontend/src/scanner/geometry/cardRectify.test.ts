@@ -16,11 +16,9 @@ const unit: Quad = [
   { x: 0, y: 200 },
 ];
 
-/** Build an ImageData with a filled quad over a flat background. */
 function scene(w: number, h: number, corners: Quad, fg = [30, 30, 200], bg = [240, 240, 240]) {
   const data = new Uint8ClampedArray(w * h * 4);
   const inside = (px: number, py: number) => {
-    // Even-odd test against the polygon edges.
     let hit = false;
     for (let i = 0, j = 3; i < 4; j = i++) {
       const a = corners[i];
@@ -109,7 +107,6 @@ describe("findCardQuad", () => {
     ];
     const quad = findCardQuad(scene(200, 200, card));
     expect(quad).not.toBeNull();
-    // Corners land within a pixel or two of truth.
     for (let i = 0; i < 4; i += 1) {
       expect(Math.abs(quad![i].x - card[i].x)).toBeLessThanOrEqual(2);
       expect(Math.abs(quad![i].y - card[i].y)).toBeLessThanOrEqual(2);
@@ -132,7 +129,6 @@ describe("findCardQuad", () => {
   });
 
   it("returns null when nothing card-shaped is present", () => {
-    // A tiny blob is not a card.
     const speck: Quad = [
       { x: 90, y: 90 },
       { x: 100, y: 90 },

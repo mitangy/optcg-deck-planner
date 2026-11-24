@@ -20,16 +20,11 @@ type Props = {
   entries: readonly BattleLogEntry[];
   collapsed?: boolean;
   onToggle?: () => void;
-  /** Wide layouts: fixed open panel with a plain heading (no toggle). */
   alwaysOpen?: boolean;
-  /** Seat controlling the UI (art picks in the inspect sheet). */
   viewingSeat?: Seat;
 };
 
-/**
- * Text-presentation glyphs (U+FE0E keeps ⚔/✖ from rendering as emoji) so the
- * icon column stays a fixed width on every platform.
- */
+// U+FE0E keeps ⚔/✖ from rendering as emoji, so the icon column stays a fixed width on every platform.
 export const TONE_ICON: Partial<Record<LogTone, string>> = {
   play: "▸",
   attack: "⚔︎",
@@ -74,7 +69,6 @@ function CardName({
   );
 }
 
-/** A card-use line's small picture: hover previews, click or right-click inspects (same as the name). */
 function LogThumb({
   use,
   label,
@@ -111,7 +105,6 @@ const FILTERS: { id: BattleLogFilter; label: string }[] = [
   { id: "plays", label: "Plays" },
 ];
 
-/** Accessible label, e.g. "Opponent played Nami, turn 5" (no who when spectating). */
 export function thumbLabel(use: CardUse, turn: number, viewingSeat?: Seat): string {
   const name = lookupCard(use.defId).name;
   const who = viewingSeat == null ? "" : use.ownerSeat === viewingSeat ? "You " : "Opponent ";

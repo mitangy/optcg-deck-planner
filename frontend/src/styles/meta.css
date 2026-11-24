@@ -1,13 +1,23 @@
-/* ---- Meta (tournament decks) ---- */
 .meta-page {
   min-width: 0;
 }
 
-.meta-controls {
+/* One toolbar above the leader grid and above a leader's lists (#1359). */
+.meta-toolbar {
+  margin-bottom: 1rem;
+}
+
+.meta-toolbar .card-search {
+  flex: 1 1 16rem;
+}
+
+.meta-toolbar-selects {
   display: flex;
-  gap: var(--space-3);
-  align-items: end;
   flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-left: auto;
+  min-width: 0;
 }
 
 .meta-select {
@@ -19,11 +29,29 @@
 
 .meta-select .ui-select-button {
   min-width: 9rem;
+  min-height: 2.5rem;
+}
+
+.meta-check {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 2.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.meta-check input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin: 0;
 }
 
 .meta-leader-grid,
 .meta-deck-list,
-.meta-card-grid {
+.meta-card-grid,
+.meta-techs-list {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -31,7 +59,7 @@
 
 .meta-leader-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(20rem, 100%), 1fr));
   gap: var(--space-4);
 }
 
@@ -40,20 +68,36 @@
   display: flex;
 }
 
-.meta-leader-card {
+.meta-leader-card,
+.meta-leader-head {
+  position: relative;
   display: flex;
   gap: 0.85rem;
   align-items: flex-start;
-  flex: 1;
   min-width: 0;
+  overflow: hidden;
   background: var(--card);
   border: 1px solid var(--line);
   border-radius: var(--radius-16);
-  padding: 1rem;
+  padding: 1rem 1rem 1rem 1.2rem;
   box-shadow: var(--shadow);
   color: inherit;
   text-decoration: none;
+}
+
+.meta-leader-card {
+  flex: 1;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* The leader's colour (two colours split top and bottom) down the left edge. */
+.meta-leader-card::before,
+.meta-leader-head::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background: var(--stripe, var(--line-strong));
 }
 
 a.meta-leader-card:hover,
@@ -69,8 +113,8 @@ a.meta-leader-card:focus-visible {
 
 .meta-leader-art {
   flex: 0 0 auto;
-  width: 72px;
-  height: 100px;
+  width: 4.5rem;
+  height: 6.25rem;
   object-fit: cover;
   border-radius: var(--radius-10);
   border: 1px solid var(--line);
@@ -82,9 +126,11 @@ a.meta-leader-card:focus-visible {
   background: var(--bg-deep);
 }
 
+/* A size container: the stats switch to 2x2 by the room the body has, not by the screen. */
 .meta-leader-body {
   min-width: 0;
   flex: 1;
+  container-type: inline-size;
 }
 
 .meta-leader-body h2 {
@@ -99,12 +145,34 @@ a.meta-leader-card:focus-visible {
   font-size: 0.85rem;
 }
 
+.meta-share-bar {
+  height: 4px;
+  margin-top: 0.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+
+.meta-share-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gold);
+}
+
 .meta-stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, auto));
-  justify-content: start;
-  gap: 0.25rem 1rem;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
   margin: 0.6rem 0 0;
+}
+
+@container (max-width: 15rem) {
+  .meta-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    justify-content: stretch;
+  }
 }
 
 .meta-stats > div {
@@ -117,29 +185,69 @@ a.meta-leader-card:focus-visible {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .meta-stats dd {
   margin: 0;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.meta-stats dd.meta-few-value {
+  color: var(--muted);
+}
+
+.meta-few-tag {
+  display: block;
+  width: max-content;
+  margin-top: 0.1rem;
+  padding: 0 0.4rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.5;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .meta-stats-spacer {
   min-height: 2.6rem;
 }
 
+/* A leader's own page: big art, its stats and share bar beside it. */
 .meta-leader-head {
-  display: flex;
   gap: var(--space-4);
-  align-items: flex-start;
-  flex-wrap: wrap;
   margin-bottom: 1rem;
-  min-width: 0;
+  padding: 1.1rem 1.2rem 1.1rem 1.5rem;
 }
 
-.meta-filters {
-  margin-left: auto;
+.meta-leader-head .meta-leader-art {
+  width: 8rem;
+  height: auto;
+  aspect-ratio: 72 / 100;
+}
+
+.meta-leader-head .meta-leader-body {
+  align-self: center;
+  max-width: 34rem;
+}
+
+.meta-leader-head .meta-stats {
+  justify-content: start;
+  column-gap: 2.25rem;
+}
+
+.meta-leader-head .meta-stats dd {
+  font-size: 1.35rem;
+  line-height: 1.25;
+}
+
+.meta-leader-head .meta-share-bar {
+  height: 6px;
 }
 
 .meta-state {
@@ -149,6 +257,11 @@ a.meta-leader-card:focus-visible {
 .meta-state .btn.secondary {
   width: auto;
   margin-top: 0.5rem;
+}
+
+.meta-empty p {
+  margin: 0;
+  font-weight: 600;
 }
 
 .meta-deck-list {
@@ -165,11 +278,20 @@ a.meta-leader-card:focus-visible {
   box-shadow: var(--shadow);
 }
 
+/* Title left, actions right on the same line (stacked on phones). */
+.meta-deck-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
 .meta-deck-head {
   display: flex;
   align-items: center;
   gap: 0.6rem;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 2.75rem;
   padding: 0.35rem 0;
   border: none;
@@ -209,11 +331,19 @@ a.meta-leader-card:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+.meta-deck-own {
+  min-height: 1.3em;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
 .meta-deck-actions {
   display: flex;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+  align-items: center;
   gap: var(--space-2);
-  margin-top: 0.25rem;
 }
 
 .meta-deck-actions .btn {
@@ -222,14 +352,60 @@ a.meta-leader-card:focus-visible {
   min-height: 2.5rem;
   padding: 0.5rem 0.95rem;
   font-size: 0.9rem;
+  white-space: nowrap;
 }
 
 .meta-deck-actions .btn.primary {
   min-width: 7.5rem;
 }
 
-.meta-deck-actions .btn.secondary:not(a) {
-  min-width: 6.5rem;
+/* Copy list and View on Limitless: compact icon buttons beside the one primary action. */
+.meta-deck-actions .btn.meta-icon-btn {
+  flex: 0 0 auto;
+  width: 2.5rem;
+  min-width: 0;
+  padding: 0;
+}
+
+.meta-ext-icon {
+  flex: none;
+}
+
+.meta-techs {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0.15rem 0 0 1.15rem;
+  min-width: 0;
+}
+
+.meta-techs-label {
+  flex: none;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.meta-techs-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.meta-tech {
+  flex: 0 0 auto;
+  width: 2.25rem;
+}
+
+.meta-tech .meta-card-count {
+  right: 2px;
+  bottom: 2px;
+  padding: 0 0.25rem;
+  font-size: 0.65rem;
+  line-height: 1.35;
 }
 
 .meta-deck-error {
@@ -258,7 +434,7 @@ a.meta-leader-card:focus-visible {
 
 .meta-card {
   flex: 0 0 auto;
-  width: 72px;
+  width: 4.5rem;
 }
 
 .meta-deck-groups {
@@ -296,7 +472,7 @@ a.meta-leader-card:focus-visible {
   padding: 0.05rem 0.4rem;
   border-radius: var(--radius-pill);
   background: var(--sea-night);
-  color: var(--gold-soft);
+  color: #f6e8c6;
   font-size: 0.75rem;
   font-weight: 700;
   pointer-events: none;
@@ -328,37 +504,84 @@ a.meta-card-name:focus-visible {
   font-size: 0.85rem;
 }
 
-@media (max-width: 400px) {
-  .meta-stats {
-    grid-template-columns: repeat(2, minmax(0, auto));
+.meta-credit .meta-ext-icon {
+  margin-left: 0.25rem;
+  vertical-align: -0.1em;
+}
+
+@media (max-width: 800px) {
+  .meta-toolbar .color-filter-btn,
+  .meta-toolbar .color-filter-clear {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .meta-select .ui-select-button,
+  .meta-check {
+    min-height: 2.75rem;
   }
 }
 
-@media (max-width: 520px) {
-  .meta-controls,
-  .meta-select,
-  .meta-select .ui-select-button {
+@media (max-width: 640px) {
+  .meta-toolbar-selects {
     width: 100%;
+    margin-left: 0;
+  }
+
+  .meta-toolbar-selects .meta-select {
+    flex: 1 1 9rem;
   }
 
   .meta-select .ui-select-button {
+    min-width: 0;
     flex: 1;
+  }
+
+  .meta-select {
     min-width: 0;
   }
 
-  .meta-filters {
-    margin-left: 0;
-    width: 100%;
+  .meta-leader-head {
+    gap: 0.85rem;
+    padding: 0.9rem 0.9rem 0.9rem 1.2rem;
+  }
+
+  .meta-leader-head .meta-leader-art {
+    width: 5.5rem;
+  }
+
+  .meta-leader-head .meta-stats dd {
+    font-size: 1.15rem;
+  }
+
+  .meta-deck-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .meta-deck-actions {
+    padding-bottom: 0.1rem;
   }
 
   .meta-deck-actions .btn {
+    min-height: 2.75rem;
+  }
+
+  .meta-deck-actions .btn.primary {
     flex: 1 1 auto;
+  }
+
+  .meta-deck-actions .btn.meta-icon-btn {
+    width: 2.75rem;
+  }
+
+  .meta-techs {
+    margin-left: 0;
+    margin-top: 0.5rem;
   }
 }
 
-
-/* Log Pose docked to a side (#432): the top bar has less room than the window, so it lays out like the narrow
-   one (brand and user on a row, the nav under them) whenever the room left beside the panel is under 1200px. */
 html[data-lp-dock] .topbar {
   container: topbar / inline-size;
 }
@@ -405,13 +628,8 @@ html[data-lp-dock] .topbar {
   .topbar .user > * {
     white-space: nowrap;
   }
-
-  .topbar .build-tag {
-    display: none;
-  }
 }
 
-/* Base art tile beside the alt arts once an owned alt is the main image. */
 .alt-art-base {
   border-style: dashed;
 }
@@ -421,9 +639,6 @@ html[data-lp-dock] .topbar {
   color: var(--muted);
 }
 
-/* Photo scan review tray (Collection). The dialog keeps one fixed height while
-   reviewing, so editing rows never resizes it; only the list scrolls and the
-   footer stays pinned. */
 .scan-dialog.multi {
   width: min(36rem, 100%);
 }
@@ -644,7 +859,6 @@ button.ghost.scan-tray-fix {
   background: var(--card);
 }
 
-/* Sharing switch + delete line (#852). Fixed-size controls; nothing here changes size while saving. */
 .scan-share {
   flex: none;
   padding-top: 0.5rem;
@@ -757,7 +971,6 @@ button.ghost.scan-tray-fix {
     padding-block: 0.3rem;
   }
 
-  /* One line for the footer so the list keeps the height. */
   .scan-tray-foot {
     display: flex;
     align-items: center;
@@ -779,8 +992,6 @@ button.ghost.scan-tray-fix {
   }
 }
 
-/* Show / Shown control under each alt-art tile (#702). Same box for both so
-   switching the displayed art never moves neighbouring controls. */
 .alt-show-btn,
 .alt-shown-chip {
   box-sizing: border-box;

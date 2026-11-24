@@ -1,7 +1,3 @@
-/**
- * Meta page (#443): leaders from the faked /meta API, a leader's decklists, the
- * Top 8 filter, expanding a list, and Create deck. Runs at desktop-1200 and phone-375.
- */
 import { expect, formatIssues, test, DECK_ID } from "./fixtures";
 import { expectStationary } from "./audit";
 
@@ -40,10 +36,11 @@ test("expanding a decklist keeps its trigger in place and Create deck posts the 
   expect(planner.createdDecks[0].decklist).toMatch(/^1xOP17-039\n/);
 });
 
-test("signed out, Create deck sends the visitor to sign in (#443)", async ({ page, planner }) => {
+test("signed out, Sign in to create sends the visitor to sign in (#443, #1359)", async ({ page, planner }) => {
   planner.signOut();
   await planner.open("/meta?leader=OP17-039");
-  await page.getByRole("button", { name: "Create deck" }).first().click();
+  await expect(page.getByRole("button", { name: "Create deck" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Sign in to create" }).first().click();
   await expect(page).toHaveURL(/\/login/);
   expect(planner.createdDecks).toEqual([]);
 });

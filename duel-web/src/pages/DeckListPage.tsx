@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { DeckConfigHeader } from "../layout/DeckConfigHeader";
 import { isIncompleteDeck } from "../decks/deckStatus";
@@ -7,20 +7,22 @@ import { resolveCardImageUrl } from "../decks/artPrefs";
 import { useArtFallback } from "../cards/useArtFallback";
 import {
   deleteDeck,
+  duplicateDeck,
   ensureDefaultDeck,
   ensureTestDecks,
   listSavedDecks,
   setSelectedDeckId,
   type SavedDeck,
 } from "../decks/storage";
+import { useCopyDeckList, useToast } from "../decks/useCopyDeckList";
 import { applyPlannerDeepLink, parsePlannerDeepLink } from "../decks/planner";
 import { ensureAuth } from "../auth/session";
 import { googleLoginUrl, type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
-import { Listbox, ListboxButton, ListboxList, ListboxOption, Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
+import { Dialog, DialogTitle, Listbox, ListboxButton, ListboxList, ListboxOption, Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
 import { colorFill } from "../board/preview/PreviewBadges";
-import { MAX_MAIN_DECK_SIZE } from "../decks/editDeck";
+import { MAX_DECK_NAME_LENGTH, MAX_MAIN_DECK_SIZE, saveDeckDraft } from "../decks/editDeck";
 import {
   DECK_SORTS,
   filterDecks,
@@ -69,18 +71,29 @@ function ChevronIcon() {
   );
 }
 
-/** One saved deck: leader art with its colours, name, leader, main-deck count and a "…" menu of what you can do with it. */
 function DeckCard({
   deck,
   onOpen,
   onPlay,
   onDelete,
+  onCopyList,
+  onDuplicate,
+  onRename,
+  highlight,
 }: {
   deck: SavedDeck;
   onOpen: () => void;
   onPlay: () => void;
   onDelete: () => void;
+  onCopyList: () => void;
+  onDuplicate: () => void;
+  onRename: () => void;
+  highlight: boolean;
 }) {
+  const slotRef = useRef<HTMLLIElement>(null);
+  useEffect(() => {
+    if (highlight) slotRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [highlight]);
   const leader = lookupCard(deck.leaderId);
   const { src: leaderArt, fail: failLeaderArt } = useArtFallback(
     resolveCardImageUrl(deck.leaderId, { deck, size: "thumb" }),
@@ -92,9 +105,9 @@ function DeckCard({
   const colorNames = leader.colors.map((c) => c.charAt(0).toUpperCase() + c.slice(1));
 
   return (
-    <li className="deck-card-slot">
+    <li ref={slotRef} className={`deck-card-slot${highlight ? " is-new" : ""}`}>
       <div className="deck-list-row deck-card">
-        <button type="button" className="deck-card-open" aria-label={`Edit ${deck.name}`} onClick={onOpen}>
+        <button type="button" className="deck-card-open" aria-label={`Open ${deck.name}`} onClick={onOpen}>
           <span className="deck-card-art">
             {leaderArt ? (
               <img className="deck-card-img" src={leaderArt} alt="" loading="lazy" onError={failLeaderArt} />
@@ -151,9 +164,14 @@ function DeckCard({
               Built-in
             </span>
           )}
-          <button type="button" className="deck-card-play" aria-label={`Play with ${deck.name}`} onClick={onPlay}>
-            Play <span aria-hidden>→</span>
-          </button>
+          <span className="deck-card-actions">
+            <button type="button" className="deck-card-play" aria-label={`Edit ${deck.name}`} onClick={onOpen}>
+              Edit
+            </button>
+            <button type="button" className="deck-card-play" aria-label={`Play with ${deck.name}`} onClick={onPlay}>
+              Play <span aria-hidden>→</span>
+            </button>
+          </span>
         </div>
         <Menu>
           <MenuButton type="button" className="deck-card-menu-btn" aria-label={`Actions for ${deck.name}`}>
@@ -161,15 +179,22 @@ function DeckCard({
           </MenuButton>
           <MenuList anchor={MENU_ANCHOR} className="deck-card-menu">
             <MenuItem>
-              <button type="button" className="deck-card-menu-item" onClick={onOpen}>
-                Edit
+              <button type="button" className="deck-card-menu-item" onClick={onCopyList}>
+                Copy deck list
               </button>
             </MenuItem>
             <MenuItem>
-              <button type="button" className="deck-card-menu-item" onClick={onPlay}>
-                Play with this deck
+              <button type="button" className="deck-card-menu-item" onClick={onDuplicate}>
+                Duplicate
               </button>
             </MenuItem>
+            {canDelete ? (
+              <MenuItem>
+                <button type="button" className="deck-card-menu-item" onClick={onRename}>
+                  Rename
+                </button>
+              </MenuItem>
+            ) : null}
             {canDelete ? (
               <MenuItem>
                 <button type="button" className="deck-card-menu-item is-danger" onClick={onDelete}>
@@ -184,7 +209,59 @@ function DeckCard({
   );
 }
 
-/** Search box and sort menu above the deck cards. */
+function RenameDialog({ deck, onClose, onSaved }: { deck: SavedDeck; onClose: () => void; onSaved: (name: string) => void }) {
+  const [name, setName] = useState(deck.name);
+  const [error, setError] = useState<string | null>(null);
+
+  function submit(e: FormEvent) {
+    e.preventDefault();
+    const result = saveDeckDraft(deck.id, { name, leaderId: deck.leaderId, cards: deck.cards });
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    onSaved(result.deck.name);
+  }
+
+  return (
+    <Dialog open onClose={onClose} className="leave-dialog-backdrop" panelClassName="leave-dialog">
+      <form className="deck-rename-form" onSubmit={submit}>
+        <DialogTitle as="h2">Rename deck</DialogTitle>
+        <label className="deck-rename-label" htmlFor="deck-rename-input">
+          Deck name
+        </label>
+        <input
+          id="deck-rename-input"
+          className="deck-rename-input"
+          data-autofocus
+          value={name}
+          maxLength={MAX_DECK_NAME_LENGTH}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "deck-rename-error" : undefined}
+          autoComplete="off"
+          onChange={(e) => {
+            setName(e.target.value);
+            setError(null);
+          }}
+        />
+        {error ? (
+          <p id="deck-rename-error" className="error-text" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="leave-dialog-actions">
+          <button type="submit" className="btn btn-primary">
+            Save
+          </button>
+          <button type="button" className="btn btn-secondary" onClick={onClose}>
+            Cancel
+          </button>
+        </div>
+      </form>
+    </Dialog>
+  );
+}
+
 function DeckToolbar({
   query,
   onQuery,
@@ -236,12 +313,15 @@ export function DeckListPage() {
   const navigate = useNavigate();
   const [tick, setTick] = useState(0);
   const syncedDecks = useSavedDecksVersion();
-  /** `null` until /auth/me answers; the status line below the header holds its space meanwhile. */
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [linkErr, setLinkErr] = useState<string | null>(null);
   const deepLinkHandled = useRef(false);
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<DeckSort>(loadDeckSort);
+  const { say, toast } = useToast();
+  const { copyList, dialog: copyDialog } = useCopyDeckList(say);
+  const [renaming, setRenaming] = useState<SavedDeck | null>(null);
+  const [newId, setNewId] = useState<string | null>(null);
 
   function openImported(result: ImportIntoDeckResult) {
     if (!result.ok) {
@@ -313,9 +393,18 @@ export function DeckListPage() {
     setTick((n) => n + 1);
   }
 
+  function duplicate(deck: SavedDeck) {
+    const copy = duplicateDeck(deck.id);
+    if (!copy) return;
+    setQuery("");
+    setNewId(copy.id);
+    refresh();
+    say(`Duplicated as “${copy.name}”.`);
+  }
+
   return (
     <div className="app-shell">
-      <div className="deck-config deck-config-wide deck-list-page">
+      <div className="deck-config deck-config-page deck-list-page">
         <DeckConfigHeader
           back={{ to: "/", label: "Home", ariaLabel: "Back to home" }}
           heading={
@@ -343,7 +432,6 @@ export function DeckListPage() {
           </div>
         </DeckConfigHeader>
 
-        {/* One line whatever the sign-in state, so the decks below never move when it loads. */}
         <p className={`${linkErr ? "error-text" : "meta"} deck-sync-note`} role={linkErr ? "alert" : undefined}>
           {linkErr ??
             (signedIn === null ? null : signedIn ? (
@@ -395,6 +483,10 @@ export function DeckListPage() {
                           }}
                           onPlay={() => playWith(deck)}
                           onDelete={() => confirmDelete(deck)}
+                          onCopyList={() => void copyList(deck)}
+                          onDuplicate={() => duplicate(deck)}
+                          onRename={() => setRenaming(deck)}
+                          highlight={deck.id === newId}
                         />
                       ))}
                     </ul>
@@ -403,6 +495,19 @@ export function DeckListPage() {
           )}
         </section>
       </div>
+      {toast}
+      {renaming ? (
+        <RenameDialog
+          deck={renaming}
+          onClose={() => setRenaming(null)}
+          onSaved={(name) => {
+            setRenaming(null);
+            refresh();
+            say(`Renamed to “${name}”.`);
+          }}
+        />
+      ) : null}
+      {copyDialog}
     </div>
   );
 }

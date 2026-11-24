@@ -1,12 +1,3 @@
-/**
- * Writes the bots' default deck prior (#635) from a meta-decks file: npm run export-deck-prior -- --in meta-decks.json [--out src/bot/deckPrior.json]
- * The input is [{ leaderId, deck: [50 ids] }] (the Limitless top-finish export). Rerun it when the meta changes.
- *
- * Optional (#1030): --sim-opp exports.json,dir adds the OPPONENT decks of OPTCGSim games (every *.json in a directory) to the lists.
- * Start from --in when given, otherwise from the committed prior. Identical lists are kept once. Because a few dozen games from one
- * account are a narrow sample, --sim-opp REQUIRES an explicit --out and never touches src/bot/deckPrior.json by default:
- *   npm run export-deck-prior -w @optcg/rules -- --sim-opp /path/optcgsim-matches.json --out /tmp/deckPrior.merged.json
- */
 import { readFileSync, writeFileSync } from "node:fs";
 import { priorToFile, type DeckPriorFile } from "../bot/defaultPrior.js";
 import { expandSimInputs } from "../sim/fitValue.js";

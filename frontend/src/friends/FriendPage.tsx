@@ -7,9 +7,10 @@ import { FriendCollection } from "./FriendCollection";
 import { FriendSpares } from "./FriendSpares";
 import { TradeTray } from "./TradeTray";
 import { friendsApi, type FriendProfile } from "./friendsApi";
-import { counterPrefill, type TrayLine } from "./tradeLogic";
+import { askToLines, counterPrefill, parseAskParam, youNeedCopies, type TrayLine } from "./tradeLogic";
 import { Empty, LoadError, Tabs } from "./ui";
 import { useFriend } from "./useFriend";
+import { useFriendSpares } from "./useFriendSpares";
 import { qk } from "../cache/queryKeys";
 
 type FriendTab = "decks" | "collection" | "spares";
@@ -18,13 +19,12 @@ function availableTabs(p: FriendProfile): FriendTab[] {
   return [p.decks_shared ? "decks" : null, p.collection_shared ? "collection" : null, p.trades_open ? "spares" : null].filter(Boolean) as FriendTab[];
 }
 
-function summaryLine(p: FriendProfile): string {
+function summaryParts(p: FriendProfile): string[] {
   const parts: string[] = [];
   if (p.deck_count != null) parts.push(`${p.deck_count} deck${p.deck_count === 1 ? "" : "s"}`);
   if (p.total_copies != null) parts.push(`${p.total_copies} cards (${p.unique_cards ?? 0} different)`);
   if (p.total_value != null) parts.push(money(p.total_value));
-  if (p.spare_cards != null) parts.push(`${p.spare_cards} spare card${p.spare_cards === 1 ? "" : "s"}`);
-  return parts.join(" · ");
+  return parts;
 }
 
 export function FriendPage() {
@@ -40,7 +40,12 @@ export function FriendPage() {
   const counterId = Number(params.get("counter")) || null;
   const trades = useQuery({ queryKey: qk.trades(), queryFn: friendsApi.trades, enabled: counterId != null });
 
-  // The offer tray lives here so it survives switching tabs.
+  const spares = useFriendSpares(friend?.user_id ?? 0, Boolean(friend) && profile.data?.trades_open === true);
+  const [othersOpen, setOthersOpen] = useState(false);
+  const [scrollToken, setScrollToken] = useState(0);
+  const askRaw = params.get("ask");
+  const askedRef = useRef(false);
+
   const [lines, setLines] = useState<TrayLine[]>([]);
   const [message, setMessage] = useState("");
   const prefilled = useRef<number | null>(null);
@@ -54,6 +59,22 @@ export function FriendPage() {
     setLines(counterPrefill(counterTrade));
     setMessage("");
   }, [counterTrade, friend]);
+
+  const spareData = spares.data;
+  useEffect(() => {
+    if (!askRaw || askedRef.current || !profile.data) return;
+    if (profile.data.trades_open && !spareData) return;
+    askedRef.current = true;
+    if (spareData) setLines((prev) => askToLines(parseAskParam(askRaw), [...spareData.you_need, ...spareData.their_spares], prev));
+    setParams(
+      (prev) => {
+        const q = new URLSearchParams(prev);
+        q.delete("ask");
+        return q;
+      },
+      { replace: true },
+    );
+  }, [askRaw, profile.data, spareData, setParams]);
 
   if (listLoading) return <p className="muted friends-loading">Loading…</p>;
   if (listError) return <LoadError error={listError} />;
@@ -78,6 +99,12 @@ export function FriendPage() {
     q.set("tab", next);
     setParams(q, { replace: true });
   };
+  const youNeed = spareData ? youNeedCopies(spareData.you_need) : 0;
+  const addGive = () => {
+    setTab("spares");
+    setOthersOpen(true);
+    setScrollToken((n) => n + 1);
+  };
   const trayOpen = lines.length > 0 || counterTrade != null;
 
   return (
@@ -88,8 +115,32 @@ export function FriendPage() {
       <div className="page-head">
         <div>
           <h1>{friend.username}</h1>
-          <p className="muted">{p ? summaryLine(p) || "Not sharing anything yet." : " "}</p>
+          <p className="muted">
+            {p ? (
+              <>
+                {summaryParts(p).join(" · ")}
+                {p.trades_open && youNeed > 0 ? (
+                  <>
+                    {summaryParts(p).length > 0 ? " · " : ""}
+                    <button type="button" className="ghost linkish" onClick={() => setTab("spares")}>
+                      {youNeed} you need
+                    </button>
+                  </>
+                ) : null}
+                {summaryParts(p).length === 0 && !(p.trades_open && youNeed > 0) ? "Not sharing anything yet." : null}
+              </>
+            ) : (
+              " "
+            )}
+          </p>
         </div>
+        {p?.trades_open && tab !== "spares" ? (
+          <div className="page-head-actions">
+            <button type="button" className="btn primary" onClick={() => setTab("spares")}>
+              Offer a trade
+            </button>
+          </div>
+        ) : null}
       </div>
       {!p ? (
         <p className="muted">Loading…</p>
@@ -100,7 +151,12 @@ export function FriendPage() {
           <Tabs label={`${friend.username}'s pages`} active={tab ?? tabs[0]!} onChange={setTab} tabs={tabs.map((k) => ({ key: k, label: label[k] }))} />
           {tab === "decks" && p.decks_shared && <FriendDecks friendId={friend.user_id} username={friend.username} />}
           {tab === "collection" && p.collection_shared && <FriendCollection friendId={friend.user_id} username={friend.username} />}
-          {tab === "spares" && p.trades_open && <FriendSpares friendId={friend.user_id} username={friend.username} lines={lines} onLines={setLines} />}
+          {tab === "spares" && p.trades_open && <FriendSpares friendId={friend.user_id} username={friend.username} lines={lines}
+              onLines={setLines}
+              othersOpen={othersOpen}
+              onOthersOpen={setOthersOpen}
+              scrollToken={scrollToken}
+            />}
           {tab && !tabs.includes(tab) && (
             <Empty title={`${friend.username} isn't sharing their ${tab === "spares" ? "spares" : tab}`}>It may be off, or they may have changed it.</Empty>
           )}
@@ -113,6 +169,7 @@ export function FriendPage() {
         onLines={setLines}
         message={message}
         onMessage={setMessage}
+        onAddGive={addGive}
         counterId={counterTrade?.id ?? null}
         onClear={() => {
           setLines([]);

@@ -220,14 +220,11 @@ def test_search_does_not_fuzzy_match_unrelated_words_848(db):
 
     assert search_catalog(db, q="xylophone") == []
     assert search_catalog(db, q="zzzz") == []
-    # Two typos away from "Nami": too far for a 4-letter token.
     assert search_catalog(db, q="xamu") == []
-    # A short token must match a word's start; one typo is not allowed there.
     assert search_catalog(db, q="nmi") == []
 
 
 def test_search_ranks_substring_matches_above_fuzzy_only_ones_848(db):
-    # "Lufy Sword" is an exact substring hit but pricier; the fuzzy hit is cheaper.
     db.add_all(
         [
             CatalogCard(card_id="OP01-001", name="Luffy", group_name="Romance Dawn", market_price=1.0),
@@ -266,7 +263,6 @@ def test_reset_deck_owned_zeros_cards_in_deck(db):
     deck = add_deck_with_cards(db, user, "Reset me", {"OP01-016": 4, "OP01-025": 2})
     set_owned(db, user, "OP01-016", 3)
     set_owned(db, user, "OP01-025", 1)
-    # Card not in this deck should be left alone.
     set_owned(db, user, "OP99-001", 5)
 
     reset_count, detail = reset_deck_owned(db, user, deck.id)
@@ -305,12 +301,10 @@ def test_upsert_requires_confirm_over_main_limit(db):
     )
     assert detail.main_cards == MAIN_DECK_LIMIT + 1
 
-    # Already over the limit — further adds should not require re-confirm.
     add_catalog(db, "OP99-998", name="Another", product_id=998, market=1.0)
     detail = upsert_deck_card(db, user, deck.id, "OP99-998", 1)
     assert detail.main_cards == MAIN_DECK_LIMIT + 2
 
-    # Drop back to the limit, then crossing again requires confirm.
     detail = upsert_deck_card(db, user, deck.id, "OP99-999", 0)
     detail = upsert_deck_card(db, user, deck.id, "OP99-998", 0)
     assert detail.main_cards == MAIN_DECK_LIMIT

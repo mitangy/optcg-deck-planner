@@ -1,17 +1,3 @@
-/**
- * The Log Pose copilot on a practice board (#416), clicked through the real UI against a real game server.
- *
- * The game server mints the brief ticket for real. The two Log Pose services are faked in the browser: the planner
- * API's chat session (Log Pose on, with a token) and the analyst's /chat, which reads the game context the board
- * sends, checks it only holds what this seat can see, and answers with a short text and a Turn plan built from the
- * snapshot's own ids (give 1 DON!! to the Leader, attack the opposing Leader, end the turn). The answer is held until
- * the spec releases it, so the board can be measured while Log Pose is thinking.
- *
- * What it proves: the Log Pose button is there only with the setting on, on the desktop bar, the phone bar and the
- * landscape rail; the panel says it is looking at this game; the game context carries your hand and nothing of the
- * opponent's hand; the plan card sends nothing until Play this turn; the plan then plays out (DON!!, attack, end
- * turn) with a "step N of M" pill and Stop; Stop leaves the rest unsent; and none of it moves the board.
- */
 import { test, expect, mintGameToken, FAKE_API, type Page, keepBothHands, type DeckList } from "./fixtures";
 
 const ANALYST = "http://127.0.0.1:8766";
@@ -37,13 +23,8 @@ type Snap = {
 type ChoiceSnap = { id: string; prompt: string; kind: string; request?: { type: string; min?: number; max?: number; rest?: string; options?: { id: string; defId?: string; eligible: boolean }[] } };
 type ChatBody = { message?: string; context?: { page?: string; game?: { ticket: string; snapshot: Snap & { choice?: ChoiceSnap | null }; autopilot?: boolean } } };
 type SseEvents = [string, unknown][];
-/** Answers a /chat request itself, or returns null to get the default plan. `n` counts the requests so far (1 = the first). */
 type Answer = (body: ChatBody, n: number) => Promise<SseEvents | null> | SseEvents | null;
 
-/**
- * Settings stored before the app loads. The fixture's own init script wipes localStorage once per session, so this also
- * re-applies the patch after a clear, whichever script runs first.
- */
 async function setSettings(page: Page, patch: Record<string, unknown>) {
   await page.addInitScript((p) => {
     const key = "optcg-duel:settings";
@@ -77,7 +58,6 @@ async function stubLogPose(page: Page, answer?: Answer) {
     if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: CORS });
     const body = JSON.parse(req.postData() ?? "{}") as ChatBody;
     const headers = { ...CORS, "content-type": "text/event-stream" };
-    // The matchup brief's own peek: nothing saved.
     if (new URL(req.url()).pathname !== "/chat") return route.fulfill({ status: 200, headers, body: sse([["done", { cached: false }]]) });
     chats.push(body);
     const snap = body.context?.game?.snapshot;
@@ -111,19 +91,12 @@ async function stubLogPose(page: Page, answer?: Answer) {
   return {
     chats,
     release: () => release(),
-    /** Hold the next answer again. */
     hold: () => {
       held = new Promise<void>((resolve) => (release = resolve));
     },
   };
 }
 
-/**
- * Slows what the browser sends to the game server (never what comes back), so a plan's steps can be watched one by
- * one: with a delay set, each message lands that long after it was sent. Order is kept, also across a delay change:
- * a message never goes out before one sent earlier, so dropping the delay to 0 can't let a click overtake a
- * delayed plan step (#445).
- */
 async function slowGameServer(page: Page) {
   await page.addInitScript(() => {
     const w = window as unknown as { __sendDelay: number };
@@ -157,12 +130,10 @@ async function shot(page: Page, name: string) {
 async function endTurn(page: Page) {
   const end = page.locator(".intent-btn-primary", { hasText: /End turn/ });
   await end.click();
-  // With the confirm-end-turn setting on, the same button asks for a second tap.
   const again = page.locator(".intent-btn-primary", { hasText: /(Tap|Click) again|End turn\?/ });
   if (await again.isVisible().catch(() => false)) await again.click();
 }
 
-/** Both mulligans kept, then each seat passes once: it is your (seat 0) turn 3, the first one that may attack. */
 async function reachTurnThree(page: Page) {
   const root = page.locator(".board-root");
   await keepBothHands(page);
@@ -174,14 +145,12 @@ async function reachTurnThree(page: Page) {
   await expect(root).toHaveAttribute("data-seat", "0");
 }
 
-/** The Leader's power badge as read on the board: "5000" before a DON!!, "6000" with one on it. */
 const leaderPower = async (page: Page) => ((await page.locator(".side-field.side-you .zone-leader .power-badge").first().innerText()) ?? "").replace(/\s+/g, " ").trim();
 
 const panel = (page: Page) => page.getByRole("dialog", { name: /Log Pose/ });
 const logPoseButton = (page: Page) => page.getByRole("button", { name: "Log Pose", exact: true });
 const pill = (page: Page) => page.locator(".copilot-pill");
 
-/** Ask for a plan: open the panel, tap the starter, hold while Log Pose "thinks", then let the plan arrive. */
 async function askForPlan(page: Page, lp: Awaited<ReturnType<typeof stubLogPose>>, button: ReturnType<typeof logPoseButton>) {
   await button.click();
   await expect(panel(page)).toBeVisible();
@@ -202,7 +171,6 @@ function checkContext(body: ChatBody) {
   expect(body.context?.page).toBe("duel-board");
   expect(snap.yourTurn).toBe(true);
   expect(snap.you.hand.length).toBeGreaterThan(0);
-  // The opponent's hand is a count, never cards; the other seat's revealed hands are not in the request at all.
   expect(typeof snap.opponent.hand).toBe("number");
   expect(snap.revealedHands).toBeUndefined();
   expect(JSON.stringify(body)).not.toContain("revealedHands");
@@ -216,7 +184,6 @@ async function checkCopilot(page: Page, duel: { startPractice: (o: { seed: numbe
   await duel.startPractice({ seed: 7 });
   const button = logPoseButton(page);
   await expect(button).toBeVisible();
-  // The label shows on the desktop bar; the phone bar and the rail carry the compass alone.
   if (mode === "desktop") await expect(button).toContainText("Log Pose");
   else await expect(button).not.toContainText("Log Pose");
   if (mode === "landscape") await expect(button).toHaveClass(/lp-rail-btn/);
@@ -239,7 +206,6 @@ async function checkCopilot(page: Page, duel: { startPractice: (o: { seed: numbe
   const power0 = await leaderPower(page);
   expect(power0).toBe("5000");
 
-  // Ask for a plan; the answer is held, so Log Pose is still thinking while the panel is measured.
   await askForPlan(page, lp, button);
   await stable("with the panel open");
   checkContext(lp.chats[0]!);
@@ -252,21 +218,19 @@ async function checkCopilot(page: Page, duel: { startPractice: (o: { seed: numbe
   await card.scrollIntoViewIfNeeded();
   await shot(page, `${shotName}_plan`);
 
-  // Nothing reaches the game before approval: the Leader has no DON!!, the turn is still turn 3.
   await page.waitForTimeout(600);
   expect(await leaderPower(page)).toBe(power0);
   await expect(page.locator(".board-root")).toHaveAttribute("data-turn", "3");
   await expect(pill(page)).toHaveCount(0);
   await stable("with the plan card shown");
 
-  // Close the panel (the board stays put), then approve from the panel again.
   await page.getByRole("button", { name: "Close Log Pose" }).click();
   await expect(panel(page)).toHaveCount(0);
   await stable("with the panel closed");
   await button.click();
   await expect(panel(page)).toBeVisible();
   // From here every intent takes a moment to land, so the steps can be watched.
-  // Long enough that the checks below finish before the next step lands, even on a busy runner (#445).
+  // Long enough that the checks below finish before the next step lands, even on a busy runner.
   await wire.setDelay(8000);
   await card.getByRole("button", { name: "Play this turn" }).click();
   await expect(pill(page)).toBeVisible();
@@ -275,7 +239,6 @@ async function checkCopilot(page: Page, duel: { startPractice: (o: { seed: numbe
   await expect(card.getByRole("status")).toContainText(/Playing step \d of 3/);
   await expect(card.getByRole("button", { name: "Play this turn" })).toHaveCount(0);
   await expect(card.getByRole("button", { name: "Stop" })).toBeVisible();
-  // The DON!! is on the Leader before the attack is sent.
   await expect.poll(() => leaderPower(page), { timeout: 20_000 }).toBe("6000");
   await expect(page.locator(".board-root")).toHaveAttribute("data-seat", "0");
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "main");
@@ -288,19 +251,15 @@ async function checkCopilot(page: Page, duel: { startPractice: (o: { seed: numbe
   await shot(page, `${shotName}_running`);
   await wire.setDelay(0);
 
-  // The attack happens: the device passes to the defender (practice), who is asked to block / counter.
   await expect(page.locator(".board-root")).toHaveAttribute("data-seat", "1", { timeout: 15_000 });
   await finishOpponentDefence(page);
-  // Back with the plan's seat: the attack landed and the plan ends the turn.
   await expect(page.locator(".board-root")).toHaveAttribute("data-turn", "4", { timeout: 20_000 });
   await expect(pill(page)).toHaveCount(0);
-  // The attack landed: the defender (now on turn) lost a Life card to hand.
   const life = page.locator(".turn-player-you .turn-player-stats dt", { hasText: /^life$/i }).locator("xpath=following-sibling::dd[1]");
   if (await life.isVisible().catch(() => false)) await expect(life).toHaveText("4");
   expect(duel.errors).toEqual([]);
 }
 
-/** Everything in the top bar fits: the status (turn, whose turn) is not cut off by the buttons next to the Log Pose button. */
 async function expectTopBarFits(page: Page) {
   const cut = await page.evaluate(() => {
     const bar = document.querySelector<HTMLElement>(".arena .hud-bar");
@@ -319,11 +278,6 @@ async function expectTopBarFits(page: Page) {
   expect(cut, "top bar").toEqual([]);
 }
 
-/**
- * The desktop text buttons (Log Pose, the match menu) hug their label with the same padding on both sides (#463): content
- * (text + icon) is at least 8px from each border, left and right within 2px, and nothing overflows the box.
- * Returns how many were measured so a caller can refuse a vacuous pass.
- */
 async function expectTopBarButtonsPadded(page: Page) {
   const rows = await page.evaluate(() => {
     const out: { name: string; left: number; right: number; over: number }[] = [];
@@ -360,7 +314,6 @@ async function expectTopBarButtonsPadded(page: Page) {
   }
 }
 
-/** The pill floats over the board's top edge: it must clear the hand, the End turn control, the top bar and the rail. */
 async function expectPillClear(page: Page) {
   const p = (await pill(page).boundingBox())!;
   expect(p).not.toBeNull();
@@ -380,14 +333,10 @@ async function expectPillClear(page: Page) {
   }
 }
 
-/**
- * The practice seat answers the attack: no block, no counter, then the Life check. A seat with nothing to block with
- * may be passed on by the board itself, so each button is clicked only if it is still on offer.
- */
 async function finishOpponentDefence(page: Page) {
   const lifeCheck = page.getByRole("button", { name: /^(No Trigger|Add to hand)$/ });
   // The button that answers each battle step. Matching the step keeps a stale "Pass block" (still on screen as the
-  // Counter step starts) from going out twice: the game refuses it, and a refused move stops the plan (#445).
+  // Counter step starts) from going out twice: the game refuses it, and a refused move stops the plan.
   const answers: Record<string, RegExp> = { block: /^Pass block$/, counter: /^(Pass counter|Take hit)$/, damage: /^Resolve$/ };
   let answered: string | null = null;
   await expect
@@ -420,14 +369,11 @@ test("the Log Pose button is not on the board while the copilot and brief settin
 });
 
 test("the matchup brief's Log Pose panel sees your opening hand with the copilot setting off (#620)", async ({ page, duel }, info) => {
-  // The phone's brief opens only on a tap; the wiring under test is the same.
   test.skip(info.project.name === "phone-375", "the desktop brief opens the panel by itself");
   const lp = await stubLogPose(page);
   lp.release();
   await duel.startPractice({ seed: 7 });
-  // Mulligan step: the brief opened the panel over the board; no keep yet.
   await expect(page.locator(".board-root")).toHaveAttribute("data-phase", "mulligan");
-  // The one Log Pose button (the brief's entry) is on the bar: the copilot setting is off but the panel still opens (#993).
   await expect(logPoseButton(page)).toHaveCount(1);
   await expect(panel(page)).toBeVisible();
   await panel(page).locator(".lp-input").fill("Should I mulligan?");
@@ -483,11 +429,10 @@ test("Stop on the pill leaves the rest of the plan unsent (#416)", async ({ page
   await expect(card).toBeVisible();
 
   // Long enough that closing the panel and tapping Stop beat the first step's answer on a busy runner; the attack
-  // goes out as soon as that answer lands, so a short delay lets it slip past Stop (#445).
+  // goes out as soon as that answer lands, so a short delay lets it slip past Stop.
   await wire.setDelay(6000);
   await card.getByRole("button", { name: "Play this turn" }).click();
   await expect(pill(page)).toContainText(/step 1 of 3/);
-  // A phone's panel covers the board and its pill: close it, then stop from the pill.
   await page.getByRole("button", { name: "Close Log Pose" }).click();
   await expect(panel(page)).toHaveCount(0);
   await pill(page).getByRole("button", { name: "Stop" }).click();
@@ -497,7 +442,6 @@ test("Stop on the pill leaves the rest of the plan unsent (#416)", async ({ page
   await expect(card.getByRole("button", { name: "Play this turn" })).toHaveCount(0);
   await expect(card.getByRole("button", { name: "Stop" })).toHaveCount(0);
 
-  // The step that was already on its way lands (the Leader gets its DON!!); the attack and End turn are never sent.
   await expect.poll(() => leaderPower(page), { timeout: 20_000 }).toBe("6000");
   await page.waitForTimeout(4000);
   await expect(root).toHaveAttribute("data-turn", "3");
@@ -525,9 +469,6 @@ test("the Settings page has the Log Pose copilot switch, off until it is turned 
   await shot(page, info.project.name === "phone-375" ? "settings_375" : "settings_1280");
 });
 
-// ——— Log Pose plays the turn (#725) ———
-
-/** Nami (On Play: look at 5, take up to 1 Straw Hat Crew that isn't Nami) and Chopper: playing Nami raises a real choice for the player. */
 const NAMI_DECK: DeckList = { leaderId: "ST01-001", cards: [...Array(25).fill("OP01-016"), ...Array(25).fill("ST01-006")] };
 
 const PLAY_NAMI_FIRST = (snap: Snap) => {
@@ -536,11 +477,6 @@ const PLAY_NAMI_FIRST = (snap: Snap) => {
   return nami.id;
 };
 
-/**
- * The stubbed Log Pose for "Play my turn": the first answer plans Nami, a DON!!, and an attack, with no End turn and
- * `autoplay` on. The look Nami raises is answered when it is asked about (after `gate`, if one is given), by taking the
- * first card it may take; and asking for the rest of the turn gets a plan that just ends it.
- */
 function playMyTurnAnswers(gate?: Promise<void>): Answer {
   return async (body, n) => {
     const snap = body.context?.game?.snapshot;
@@ -586,13 +522,11 @@ function playMyTurnAnswers(gate?: Promise<void>): Answer {
   };
 }
 
-/** Type "Play my turn" in the panel, as the player would. */
 async function sayPlayMyTurn(page: Page) {
   await panel(page).locator(".lp-input").fill("Play my turn");
   await panel(page).locator(".lp-input").press("Enter");
 }
 
-/** The prompt the board raises for the player's own look (Nami's On Play). */
 const lookPrompt = (page: Page) => page.getByRole("button", { name: /Take none & finish|Confirm/ });
 
 async function checkAutoplay(page: Page, duel: { startPractice: (o: { seed: number; you?: DeckList }) => Promise<void>; errors: string[] }, mode: "desktop" | "portrait" | "landscape", shotName: string) {
@@ -607,7 +541,6 @@ async function checkAutoplay(page: Page, duel: { startPractice: (o: { seed: numb
   await expect(panel(page)).toBeVisible();
   await sayPlayMyTurn(page);
 
-  // No tap on Play this turn: the plan starts by itself, with Log Pose's pill up.
   const card = panel(page).getByRole("region", { name: "Turn plan" });
   await expect(card).toBeVisible();
   await expect(card.getByRole("button", { name: "Play this turn" })).toHaveCount(0);
@@ -616,7 +549,6 @@ async function checkAutoplay(page: Page, duel: { startPractice: (o: { seed: numb
   expect(lp.chats[0]!.message).toBe("Play my turn");
   expect(lp.chats[0]!.context?.game?.autopilot).toBeUndefined();
 
-  // Nami's look is the player's own prompt on the board; Log Pose is asked about it, once, as the player, with autopilot on.
   await expect.poll(() => lp.chats.length, { timeout: 20_000 }).toBe(2);
   const asked = lp.chats[1]!;
   expect(asked.message).toMatch(/^\(auto\) Answer my pending choice/);
@@ -626,11 +558,9 @@ async function checkAutoplay(page: Page, duel: { startPractice: (o: { seed: numb
   await expect(card.getByRole("status")).toContainText(/Log Pose is answering the prompt/);
   await expect(pill(page)).toContainText(/choosing/);
   await expect(lookPrompt(page)).toBeVisible();
-  // Its own request shows as a muted line, not a bubble of the player's.
   await expect(panel(page).locator(".lp-auto-line")).toContainText("Answer my pending choice");
   await expect(panel(page).locator(".lp-msg-user")).toHaveCount(1);
   await shot(page, `${shotName}_choosing`);
-  // The pill is never cut off by the panel beside it (landscape) and stays on screen.
   const pillBox = (await pill(page).boundingBox())!;
   const panelBox = (await panel(page).boundingBox())!;
   if (mode === "landscape" || mode === "desktop") expect(pillBox.x + pillBox.width, "the pill is not under the panel").toBeLessThanOrEqual(panelBox.x + 1);
@@ -638,13 +568,10 @@ async function checkAutoplay(page: Page, duel: { startPractice: (o: { seed: numb
 
   releaseChoice();
   await expect(panel(page).locator(".lp-auto-choice")).toContainText("Took Tony Tony.Chopper");
-  // The answer was applied: the prompt closes and the plan goes on to the DON!! and the attack.
   await expect(lookPrompt(page)).toHaveCount(0);
   await expect(pill(page)).toContainText(/step 3 of 3/, { timeout: 20_000 });
   await shot(page, `${shotName}_playing`);
 
-  // The attack lands on the defender (a phone's panel covers the board, so close it first); once the battle is over
-  // the plan had no End turn, so Log Pose is asked for the rest.
   await shot(page, `${shotName}_playing_panel_open`);
   await page.getByRole("button", { name: "Close Log Pose" }).click();
   await expect(panel(page)).toHaveCount(0);
@@ -691,7 +618,6 @@ test("Stop while Log Pose is deciding a choice leaves the choice to the player a
   await page.getByRole("button", { name: "Close Log Pose" }).click();
   await pill(page).getByRole("button", { name: "Stop" }).click();
   await expect(pill(page)).toHaveCount(0);
-  // Even if Log Pose's answer had landed now, it is not applied: the prompt is still the player's.
   releaseChoice();
   await page.waitForTimeout(1500);
   await expect(lookPrompt(page)).toBeVisible();
@@ -699,7 +625,6 @@ test("Stop while Log Pose is deciding a choice leaves the choice to the player a
   await logPoseButton(page).click();
   await expect(panel(page).locator(".lp-auto-choice")).toHaveCount(0);
   await expect(panel(page).getByRole("region", { name: "Turn plan" }).getByRole("status")).toContainText(/Stopped/);
-  // The player answers it themselves and nothing else is sent for them.
   await panel(page).getByRole("button", { name: "Close Log Pose" }).click();
   await lookPrompt(page).click();
   await expect(lookPrompt(page)).toHaveCount(0);
@@ -715,10 +640,8 @@ test("One Log Pose button in a match when both the brief and copilot are on (#99
   const button = logPoseButton(page);
   await expect(button).toHaveCount(1);
   await expect(button).toBeVisible();
-  // Nothing else in the top bar opens Log Pose: no second Brief / Matchup brief button.
   await expect(page.locator(".arena .hud-bar .hud-brief-btn")).toHaveCount(1);
   await expect(page.getByRole("button", { name: /Brief/ })).toHaveCount(0);
-  // The phone bar settles first: on a wide screen the panel opens itself for the mulligan, on a phone it waits.
   await expect(button).toHaveAttribute("aria-expanded", /true|false/);
   const wasOpen = (await button.getAttribute("aria-expanded")) === "true";
   if (wasOpen) {
@@ -729,10 +652,7 @@ test("One Log Pose button in a match when both the brief and copilot are on (#99
   await button.click();
   await expect(panel(page)).toBeVisible();
   await expect(button).toHaveAttribute("aria-expanded", "true");
-  // The brief rides pinned at the top of the same panel.
   await expect(panel(page).locator(".match-brief-pinned")).toBeVisible();
-  // A phone's panel is a sheet over the top bar, so there it closes from its own Close button; on a wide screen
-  // the same button closes it again.
   if (info.project.name === "phone-375") await panel(page).getByRole("button", { name: "Close Log Pose" }).click();
   else await button.click();
   await expect(panel(page)).toHaveCount(0);
@@ -753,7 +673,6 @@ test.describe("landscape phone, one Log Pose rail button (#993)", () => {
       await expect(button).toHaveCount(1);
       await expect(button).toHaveClass(/lp-rail-btn/);
       await expect(page.getByRole("button", { name: /Brief/ })).toHaveCount(0);
-      // Battle log and Log Pose (a practice game has no chat): the rail never grows a second Log Pose button.
       await expect(page.locator(".lp-rail .lp-rail-btn")).toHaveCount(2);
       await button.click();
       await expect(panel(page)).toBeVisible();

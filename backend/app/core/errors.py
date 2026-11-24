@@ -16,11 +16,10 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 
 
 class DomainError(Exception):
-    """A request the API refuses. `detail` is the response's `detail` (the message by default)."""
-
     status_code = 400
 
     def __init__(
@@ -63,5 +62,13 @@ async def _domain_error_response(_request: Request, exc: Exception) -> JSONRespo
     )
 
 
+async def _integrity_error_response(_request: Request, _exc: Exception) -> JSONResponse:
+    # Two first writes of the same row racing on a unique constraint: the loser retries.
+    return JSONResponse(
+        {"detail": "That change conflicted with another one. Try again."}, status_code=409
+    )
+
+
 def register(app: FastAPI) -> None:
     app.add_exception_handler(DomainError, _domain_error_response)
+    app.add_exception_handler(IntegrityError, _integrity_error_response)

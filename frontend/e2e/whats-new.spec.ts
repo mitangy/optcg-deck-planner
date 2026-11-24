@@ -1,7 +1,3 @@
-/**
- * What's new (#450): the public /whats-new page and the once-per-update card on
- * the signed-in pages. Runs at desktop-1200 and phone-375.
- */
 import type { Page } from "@playwright/test";
 import { expect, formatIssues, test } from "./fixtures";
 import { PATCH_NOTES } from "../../packages/patch-notes/src/notes";
@@ -22,7 +18,6 @@ async function seedLastSeen(page: Page, day: string | null) {
 
 const card = (page: Page) => page.getByRole("region", { name: "What's new" });
 
-/** The newest note the planner shows; the card lists the newest few, so an older title drops out as notes are added. */
 const newestPlannerNote = PATCH_NOTES.find((n) => n.app !== "duel")!.title;
 
 test("the card shows after an update, overlays the page, and Got it keeps it away after a reload (#450)", async ({ page, planner }) => {
@@ -56,6 +51,8 @@ test("See all opens the public list with planner notes only, and the footer link
   await card(page).getByRole("link", { name: "See all" }).click();
   await expect(page).toHaveURL(/\/whats-new$/);
   await expect(page.getByRole("heading", { name: "What’s new", level: 1 })).toBeVisible();
+  // The list opens on the recent updates; a search reaches the older ones. "art" matches both apps' October 8 notes, so only the planner one may show (#1390).
+  await page.getByRole("searchbox", { name: "Search updates" }).fill("art");
   await expect(page.getByRole("heading", { name: "October 8, 2026" })).toBeVisible();
   await expect(page.getByText("Fairer deck price for alt arts")).toBeVisible();
   await expect(page.getByText("Choose your DON!! art")).toHaveCount(0);

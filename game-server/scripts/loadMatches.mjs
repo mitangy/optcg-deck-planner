@@ -1,17 +1,3 @@
-/**
- * Capacity probe: keep MATCHES concurrent duels running with bot players that
- * pick random legal intents after THINK_MS. Finished games are replaced so the
- * count stays steady. Prints one JSON line with intents and errors per sample.
- * Server-side CPU / RSS are sampled by the caller from /proc.
- *
- * Never point this at production. Run a local server (cap it with a cgroup to
- * mimic a plan's CPU), then:
- *   DECKS=decks.json MATCHES=400 THINK_MS=5000 node scripts/loadMatches.mjs
- * DECKS is a JSON array of { leaderId, deck } player decks (the join `deck` shape). GS_URL may list
- * several comma-separated servers of one pool: each game is created on the
- * next one and its second player joins through another, which exercises the
- * Redis driver and PUBLIC_ADDRESS routing (docs/scaling.md).
- */
 import { Client } from "@colyseus/sdk";
 import { readFileSync } from "node:fs";
 

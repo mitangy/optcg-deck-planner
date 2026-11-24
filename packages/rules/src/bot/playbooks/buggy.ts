@@ -1,9 +1,4 @@
-/**
- * OP09-042 Buggy (#1173). [Activate: Main] rest 5 DON!! + trash 1 card from hand: play up to 1 {Cross Guild} Character from hand.
- * The generic policy never uses it (5 DON!! is not "cheap"). It pays off for a Cross Guild Character that cannot be hard-cast
- * this turn: cost 7+ and above my active DON!!. The follow-up picks (which Character to play, which card to trash) are
- * the generic select logic: the highest-valued Character, the lowest-valued card.
- */
+/** The generic policy never uses it (5 DON!! is not "cheap"). */
 import { getCardDef } from "../../cards/definitions.js";
 import type { Intent } from "../../types.js";
 import type { BotView } from "../types.js";

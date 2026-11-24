@@ -1,18 +1,34 @@
 import { describe, expect, it } from "vitest";
 import type { EvalRun, EventFlag } from "./adminApi";
-import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, spendText, formatCount, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel } from "./adminLogic";
+import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, spendText, formatCount, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, canStartSeason, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel, nextUserSort, firstSortDir, parseUserSort } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
 });
-/** A review-facts run: wrong claims per review, lower is better. */
 const facts = (run_at: string, wrongPerReview: number, over: Partial<EvalRun> = {}): EvalRun => ({
   ...run(run_at, 0), suite: "review_facts", correct: null, total: null, metric_name: "Wrong claims per review", metric_value: wrongPerReview, lower_is_better: true, ...over,
 });
 
+describe("start a new season (#1405)", () => {
+  it("enables Start only when the current season's name is typed exactly, ignoring stray spaces around it", () => {
+    expect(canStartSeason("Season 1", "Season 1")).toBe(true);
+    expect(canStartSeason("  Season 1 ", "Season 1")).toBe(true);
+    expect(canStartSeason("", "Season 1")).toBe(false);
+    expect(canStartSeason("season 1", "Season 1")).toBe(false);
+    expect(canStartSeason("Season 2", "Season 1")).toBe(false);
+    expect(canStartSeason("Season", "Season 1")).toBe(false);
+    expect(canStartSeason("", "")).toBe(false);
+  });
+
+  it("gives the Seasons tab to the admin only", () => {
+    expect(tabsForRole("admin").some((t) => t.id === "seasons")).toBe(true);
+    expect(tabsForRole("moderator").some((t) => t.id === "seasons")).toBe(false);
+  });
+});
+
 describe("admin tabs per role (#667)", () => {
-  it("shows the admin all seven tabs, a moderator Reports, Uploads then Users, and anyone else none (#667, #812)", () => {
-    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "bots", "traffic", "hosting", "event", "reports", "uploads", "users"]);
+  it("shows the admin every tab (Seasons included), a moderator Reports, Uploads then Users, and anyone else none (#667, #812)", () => {
+    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "seasons", "bots", "traffic", "hosting", "event", "reports", "uploads", "users"]);
     expect(tabsForRole("moderator").map((t) => t.id)).toEqual(["reports", "uploads", "users"]);
     expect(tabsForRole("user")).toEqual([]);
     expect(tabsForRole(undefined)).toEqual([]);
@@ -33,7 +49,6 @@ describe("bot games eval verdict (#667)", () => {
     const after = run("2026-10-21T09:00:00Z", 50, { D: { correct: 10, total: 10 }, A: { correct: 15, total: 15 } });
     const v = evalVerdict([baseline, improved, after], "2026-10-19T02:00:00Z");
     if (v.kind !== "compared") throw new Error("expected a comparison");
-    // Against the later pre-bot run (97.0%), not the baseline.
     expect(v.text).toBe("Log Pose accuracy improved: 97.0% before bot games, 100.0% after (+3.0 points).");
     expect(v.groups.map((g) => [g.group, g.before, g.after])).toEqual([
       ["A", "100.0%", "100.0%"],
@@ -131,7 +146,6 @@ describe("eval history per suite (#679)", () => {
   });
 
   it("keeps the bot-games verdict to the main suite (#679)", () => {
-    // A review-facts run after the first bot game, with a supported/checkable score, is not a main eval run.
     const v = evalVerdict([run("2026-10-08T00:00:00Z", 40), facts("2026-10-20T00:00:00Z", 0.5, { correct: 45, total: 50 })], "2026-10-19T02:00:00Z");
     expect(v.kind).toBe("no-eval-since");
   });
@@ -318,5 +332,31 @@ describe("traffic tab helpers (#1020)", () => {
     expect(countryName("US")).toBe("United States");
     expect(countryName("zz9")).toBe("zz9");
     expect(deviceLabel("mobile")).toBe("Mobile");
+  });
+});
+
+describe("Users list header sorting (#1323)", () => {
+  it("starts text columns A to Z and counts and Joined with the biggest first", () => {
+    expect(nextUserSort(null, "user")).toEqual({ key: "user", dir: "asc" });
+    expect(nextUserSort(null, "source")).toEqual({ key: "source", dir: "asc" });
+    expect(nextUserSort({ key: "user", dir: "asc" }, "role")).toEqual({ key: "role", dir: "asc" });
+    expect(nextUserSort({ key: "user", dir: "asc" }, "ranked")).toEqual({ key: "ranked", dir: "desc" });
+    expect(nextUserSort(null, "practice")).toEqual({ key: "practice", dir: "desc" });
+    expect(nextUserSort({ key: "role", dir: "desc" }, "joined")).toEqual({ key: "joined", dir: "desc" });
+    expect(firstSortDir("bot")).toBe("desc");
+  });
+
+  it("flips the direction when the active column is clicked again", () => {
+    expect(nextUserSort({ key: "bot", dir: "desc" }, "bot")).toEqual({ key: "bot", dir: "asc" });
+    expect(nextUserSort({ key: "bot", dir: "asc" }, "bot")).toEqual({ key: "bot", dir: "desc" });
+    expect(nextUserSort({ key: "user", dir: "asc" }, "user")).toEqual({ key: "user", dir: "desc" });
+  });
+
+  it("restores a remembered sort and ignores anything unusable", () => {
+    expect(parseUserSort('{"key":"friends","dir":"asc"}')).toEqual({ key: "friends", dir: "asc" });
+    expect(parseUserSort('{"key":"actions","dir":"asc"}')).toBeNull();
+    expect(parseUserSort('{"key":"user","dir":"up"}')).toBeNull();
+    expect(parseUserSort("not json")).toBeNull();
+    expect(parseUserSort(null)).toBeNull();
   });
 });

@@ -78,7 +78,6 @@ function gameToken(uid: number): string {
   return `${body}.${b64url(createHmac("sha256", getGameTokenSecret()).update(body).digest())}`;
 }
 
-/** "Play vs Bot" rooms (#631): seat 1 is the server's bot. */
 export function botRoomTests(getServer: () => ColyseusTestServer) {
   describe("bot rooms", () => {
     const saved = { ...botPacing };
@@ -110,7 +109,6 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       assert.equal(last(bag).activeSeat, 0);
       assert.ok(internals(room).match.players[1].mulliganDone, "the bot answered its mulligan");
 
-      // Ending the human's turn hands the game to the bot, which plays and gives it back.
       humanSend(human, { type: "end_turn" });
       await waitUntil(() => internals(room).match.turnNumber >= 3 && last(bag).activeSeat === 0 && last(bag).legalIntents.length > 0);
       assert.ok(internals(room).replay!.intents.filter((i) => i.seat === 1).length > 1, "the bot played its turn");
@@ -184,7 +182,6 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       });
     });
 
-    /** Run a signed-in bot game with the API calls captured; `finish` ends it. */
     async function soloGameOf(
       finish: (room: DuelRoom, human: ClientRoom) => void,
       opts: { level?: "easy" | "normal" | "hard"; botLeader?: string; persistSoloGame?: (p: SoloGamePayload) => Promise<void> } = {},
@@ -310,7 +307,6 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       await waitUntil(() => bag.over !== undefined);
       human.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "request" });
       await waitUntil(() => bag.rematch.some((r) => r.requested[0] && r.requested[1]));
-      // The conceding human lost, so they pick the turn order.
       // Count welcomes now: the sync in attach() can already have produced a second one.
       const welcomesBefore = bag.welcomes.length;
       human.send("rematch", { protocolVersion: PROTOCOL_VERSION, action: "first" });
@@ -324,7 +320,6 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
       type Patchable = { applySeatIntent(seat: number, intent: unknown): { ok: boolean; message?: string } };
       const original = (room as unknown as Patchable).applySeatIntent.bind(room);
       let rejected = 0;
-      // The bot's first answer (its mulligan) is turned away once, like a rejected pick on a prompt.
       Object.assign(room, {
         applySeatIntent: (seat: number, intent: unknown) => {
           if (seat === 1 && rejected === 0) {
@@ -359,7 +354,6 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
     });
 
     describe("hard bot in a worker thread (#635)", () => {
-      /** A pool whose `run` is the test's own function; records every job it was asked to run. */
       function stubPool(run: (job: BotJobInput, timeoutMs: number) => Promise<BotJobOutput>): { pool: BotPool; jobs: BotJobInput[]; cancelled: number[] } {
         const jobs: BotJobInput[] = [];
         const cancelled: number[] = [];
@@ -407,6 +401,32 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
         assert.deepEqual(bag.errors, []);
       });
 
+      it("a Hard job that times out counts as a fallback and bot_game_over reports it with the Hard move count (#1351)", async () => {
+        const { pool, jobs } = stubPool(async () => { throw new Error("bot job timed out after 4000 ms"); });
+        setSharedBotPool(pool);
+        const room = await createHard();
+        const human = await getServer().connectTo(room, join("human", 0));
+        const bag = attach(human);
+        await waitUntil(() => bag.welcomes.length > 0);
+        humanSend(human, { type: "end_turn" });
+        await waitUntil(() => internals(room).match.turnNumber >= 3 && last(bag).activeSeat === 0);
+        assert.ok(jobs.length > 0);
+        assert.ok(room.bots.stats.fallbacks > 0, "the timeout was counted");
+        assert.equal(room.bots.stats.fallbacks, room.bots.stats.hardMoves, "every move here was a fallback");
+        const lines: string[] = [];
+        const origLog = console.log;
+        console.log = (...a: unknown[]) => { lines.push(a.map(String).join(" ")); };
+        try {
+          human.send("concede", { protocolVersion: PROTOCOL_VERSION });
+          await waitUntil(() => bag.over !== undefined);
+        } finally { console.log = origLog; }
+        const over = lines.map((l) => { try { return JSON.parse(l) as Record<string, unknown>; } catch { return null; } }).find((o) => o?.event === "bot_game_over");
+        assert.ok(over, "bot_game_over was logged");
+        assert.equal(over.fallbacks, room.bots.stats.fallbacks);
+        assert.equal(over.hardMoves, room.bots.stats.hardMoves);
+        assert.ok((over.fallbacks as number) > 0);
+      });
+
       it("when the human concedes mid-search the room cancels the search, and the late answer changes nothing (#635)", async () => {
         let release: (r: BotJobOutput) => void = () => undefined;
         const { pool, jobs, cancelled } = stubPool(() => new Promise<BotJobOutput>((resolve) => { release = resolve; }));
@@ -447,7 +467,6 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
 
       it("each search carries the bot's record of its turn so far, and the room notes the move it plays (#635)", async () => {
         const { pool, jobs } = stubPool(async (job) => {
-          // A main-phase move that is not the end of the turn, once; then the turn ends.
           const { listLegalIntents } = await import("@optcg/rules");
           const legal = listLegalIntents(job.state, job.seat);
           const play = jobs.length <= 3 ? legal.find((i) => i.type === "play_card") : undefined;
@@ -473,7 +492,6 @@ export function botRoomTests(getServer: () => ColyseusTestServer) {
         await waitUntil(() => bag.welcomes.length > 0);
         humanSend(human, { type: "end_turn" });
         await waitUntil(() => jobs.length === 1);
-        // The room's state moves on while the first search runs (an undo, here replaced by a state swap).
         room.game.match = { ...room.game.match! };
         const before = internals(room).replay!.intents.length;
         releases[0]!({ id: 1, intent: { type: "end_turn" }, searched: true, ms: 1 });

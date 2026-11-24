@@ -1,6 +1,3 @@
-/**
- * Selectors and filters: candidate cards and filter matching.
- */
 import { getCardDef } from "../cards/definitions.js";
 import type { CmpOp, Filter, Selector } from "../effects/types.js";
 import type { BindingValue, CardDef, MatchState, Seat } from "../types.js";
@@ -9,10 +6,6 @@ import { type EvalCtx, namesOfDef, seatsFor } from "./evalCtx.js";
 import { locateCard } from "./statics.js";
 import { attributesOf, basePowerOf, costOf, counterOf, hasKeyword, powerOf } from "./stats.js";
 import { evalValue } from "./evaluate.js";
-
-// ---------------------------------------------------------------------------
-// Selectors and filters
-// ---------------------------------------------------------------------------
 
 const ZONES: Record<string, ZoneName[]> = {
   leader: ["leader"],
@@ -32,12 +25,10 @@ const ZONES: Record<string, ZoneName[]> = {
   don_field: [],
 };
 
-/** DON!! cards in the cost area as pseudo-locations (zone "don", defId "DON"). */
 export function donEntries(state: MatchState, seat: Seat): Located[] {
   return state.players[seat].costArea.map((d, index) => ({ seat, zone: "don", index, id: d.id, defId: "DON" }));
 }
 
-/** DON!! attached to Leader / Characters, as "don" pseudo-locations after the cost area. */
 export function attachedDonEntries(state: MatchState, seat: Seat): Located[] {
   const p = state.players[seat];
   return p.attachedDons.map((d, i) => ({ seat, zone: "don", index: p.costArea.length + i, id: d.id, defId: "DON" }));

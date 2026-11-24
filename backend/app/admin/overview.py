@@ -1,4 +1,3 @@
-"""Player and planner analytics behind GET /admin/overview (#667), taken out of the admin router (refactor 3.9d)."""
 
 from __future__ import annotations
 
@@ -21,7 +20,6 @@ TOP_LEADERS_LIMIT = 25
 
 
 def last_days(now: datetime, n: int) -> list[date]:
-    """The last n UTC days, oldest first, ending today."""
     today = now.date()
     return [today - timedelta(days=i) for i in range(n - 1, -1, -1)]
 
@@ -46,7 +44,13 @@ def build_overview(db: Session, days: int) -> dict:
     guest = is_guest()
 
     def users(*where) -> int:
-        return int(db.scalar(select(func.count()).select_from(User).where(*where)) or 0)
+        # "Not on the app" group buy members (#1445) are names, not accounts.
+        return int(
+            db.scalar(
+                select(func.count()).select_from(User).where(User.placeholder_group_buy_id.is_(None), *where)
+            )
+            or 0
+        )
 
     total = users()
     guests = users(guest)
@@ -62,7 +66,7 @@ def build_overview(db: Session, days: int) -> dict:
 
     window = last_days(now, days)
     window_start = datetime.combine(window[0], datetime.min.time(), tzinfo=timezone.utc)
-    signups = db.execute(select(User.created_at, guest).where(User.created_at >= window_start)).all()
+    signups = db.execute(select(User.created_at, guest).where(User.created_at >= window_start, User.placeholder_group_buy_id.is_(None))).all()
     real_by_day = bucket_by_day([c for c, g in signups if not g], window)
     guest_by_day = bucket_by_day([c for c, g in signups if g], window)
 
@@ -111,7 +115,6 @@ def build_overview(db: Session, days: int) -> dict:
         return [{"leader_id": lid, "games": int(g), "wins": int(w or 0)} for lid, g, w in rows]
 
     leaders_window = top_leaders(window_start)
-    # Kept under its old name for older clients: always the last 30 days, whatever the window.
     leaders_30d = leaders_window if days == 30 else top_leaders(d30)
 
     month = month_start(now)

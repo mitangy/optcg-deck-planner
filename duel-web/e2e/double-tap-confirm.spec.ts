@@ -1,8 +1,3 @@
-/**
- * Double-click / double-tap a card while an effect asks you to choose (#1287):
- * it picks the card and confirms in one go, with One-tap actions off. Phones
- * use two quick taps (our own timing: iOS doesn't reliably fire dblclick).
- */
 import { test, expect } from "./fixtures";
 import type { Locator, Page } from "@playwright/test";
 
@@ -18,7 +13,6 @@ async function openDemo(page: Page, query: string) {
   await page.locator(".board-root").waitFor();
 }
 
-/** A double-click on desktop, two quick taps on phones. */
 async function doubleActivate(page: Page, target: Locator) {
   if (test.info().project.name === "phone-375") {
     await target.scrollIntoViewIfNeeded();

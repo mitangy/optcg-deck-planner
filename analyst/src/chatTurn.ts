@@ -3,6 +3,7 @@ import { PlannerApiError, plannerCall } from "./matches";
 import { buildTools } from "./server";
 import { answerChoiceTool, gameContextBlock, turnPlanTool, verifyGame } from "./copilot";
 import { parseEditLines } from "./editLines";
+import { cardListTool, type CardList } from "./cardList";
 import { newDeckTool, type NewDeckDraft } from "./newDeck";
 import { checkTextEdits, deckEditTool, type ContextDeck, type DeckEditProposal } from "./proposals";
 import { claimStream, currentModel, recordRefusal, recordUsage, refusalNow, type Budget } from "./budget";
@@ -12,7 +13,6 @@ import { MAX_TOOL_ROUNDS, newRounds, runToolRounds, type ClientActions } from ".
 import type { chatBody } from "./schemas";
 import type { Block, ChatDeps, Message, SseEvent } from "./types";
 
-/** What the model wrote in the turn so far, as text. */
 function textWritten(turn: Message[]): string {
   return turn
     .filter((m) => m.role === "assistant")
@@ -58,18 +58,15 @@ export function contextBlock(ctx: z.infer<typeof chatBody>["context"]): string |
   return lines.length ? `<context>\n${lines.join("\n")}\n</context>` : null;
 }
 
-/** Earlier assistant turns without their thinking blocks: a signature is bound to the system prompt and tools it was made under, which can differ now (#424). */
 function withoutOldThinking(history: Message[]): Message[] {
   return history.flatMap((m) => {
     if (m.role !== "assistant" || !Array.isArray(m.content)) return [m];
     const kept = m.content.filter((b) => b.type !== "thinking" && b.type !== "redacted_thinking");
-    // A turn that was only thinking (cut off by max_tokens, say) has nothing left to resend: drop it (#425).
     if (!kept.length) return m.content.length ? [] : [m];
     return [kept.length < m.content.length ? { ...m, content: kept } : m];
   });
 }
 
-/** The turn's user message and the text answered so far as one assistant message (tool calls dropped), or null when nothing was said. */
 export function answeredSoFar(turn: Message[]): Message[] | null {
   const text = turn
     .filter((m) => m.role === "assistant" && Array.isArray(m.content))
@@ -79,7 +76,6 @@ export function answeredSoFar(turn: Message[]): Message[] | null {
   return text ? [turn[0]!, { role: "assistant", content: [{ type: "text", text }] }] : null;
 }
 
-/** One chat turn: the player's message, as many tool rounds as the model needs, the answer streamed. */
 export async function runChat(deps: ChatDeps, token: string, body: z.infer<typeof chatBody>, emit: (e: SseEvent) => void, signal: AbortSignal) {
   const release = await claimStream(deps.api, token, "chat");
   try {
@@ -119,8 +115,9 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
   };
   const proposals: DeckEditProposal[] = [];
   const drafts: NewDeckDraft[] = [];
-  // Always registered, so a propose_deck_edit tool_use kept in the history still matches a tool.
-  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), newDeckTool(deps.catalog, deps.knowledge), turnPlanTool(deps.catalog, game), answerChoiceTool(deps.catalog, game)];
+  const cardLists: CardList[] = [];
+  // Always registered, so a propose_deck_edit / show_cards tool_use kept in the history still matches a tool (show_cards refuses itself in the duel app).
+  const tools = [...buildTools(deps.catalog, undefined, { api, token }, deps.knowledge, body.context?.deck?.leaderId), deckEditTool(deps.catalog, deps.knowledge, body.context?.deck), newDeckTool(deps.catalog, deps.knowledge), cardListTool(deps.catalog, body.context?.deck), turnPlanTool(deps.catalog, game), answerChoiceTool(deps.catalog, game)];
   const clientActions: ClientActions = {
     proposal: (p) => {
       proposals.push(p);
@@ -129,6 +126,10 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
     deck_draft: (d) => {
       drafts.push(d);
       emit({ event: "deck_draft", data: d });
+    },
+    card_list: (l) => {
+      cardLists.push(l);
+      emit({ event: "card_list", data: l });
     },
     plan: (p) => emit({ event: "plan", data: p }),
     choice: (a) => emit({ event: "choice", data: a }),
@@ -176,6 +177,11 @@ async function chatTurn(deps: ChatDeps, token: string, body: z.infer<typeof chat
       if (finished && drafts.length) {
         await plannerCall(api, token, `/analyst/chat/threads/${threadId}/drafts`, true, { drafts }).catch((err) =>
           console.error("saving new deck drafts failed", err instanceof Error ? err.message : err),
+        );
+      }
+      if (finished && cardLists.length) {
+        await plannerCall(api, token, `/analyst/chat/threads/${threadId}/card_lists`, true, { card_lists: cardLists }).catch((err) =>
+          console.error("saving card lists failed", err instanceof Error ? err.message : err),
         );
       }
     }

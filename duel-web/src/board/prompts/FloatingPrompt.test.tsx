@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import type { PendingChoiceView } from "../../net/protocol";
 import { FloatingPrompt } from "./FloatingPrompt";
 
-// Card art and settings read localStorage; server rendering has no storage.
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 
 function lookChoice(): PendingChoiceView {

@@ -51,7 +51,6 @@ describe("deck edit proposals (#400)", () => {
 
   it("is ready when every touched card is at its before count (#400)", () => {
     expect(proposalState(proposal(), editor(before))).toMatchObject({ kind: "ready", drifted: false });
-    // Only the added card has moved: the removed one is still at before, but the card is no longer ready.
     expect(proposalState(proposal(), editor([...before, { id: "ST01-016", copies: 2 }])).kind).not.toBe("ready");
     expect(proposalState(proposal(), editor([{ id: "ST01-015", copies: 0 }, { id: "ST01-016", copies: 2 }])).kind).not.toBe("ready");
   });
@@ -74,7 +73,6 @@ describe("deck edit proposals (#400)", () => {
     expect(conflict).toEqual({ kind: "conflict", drifted: false, changed: [{ id: "ST01-015", now: 3 }] });
     const drift = proposalState(proposal(), editor([{ id: "ST01-015", copies: 2 }, { id: "ST01-003", copies: 3 }]));
     expect(drift).toMatchObject({ kind: "ready", drifted: true });
-    // A card the model never saw also counts as drift.
     expect(proposalState(proposal(), editor([...before, { id: "ST01-009", copies: 1 }])).drifted).toBe(true);
   });
 
@@ -107,6 +105,11 @@ describe("deck edit proposals (#400)", () => {
   it("keeps an answer that has only a new deck (#726)", () => {
     expect(isEmptyAnswer({ text: "", drafts: [{ id: "d1" }] })).toBe(false);
     expect(isEmptyAnswer({ text: "", drafts: [] })).toBe(true);
+  });
+
+  it("keeps an answer that has only a card list (#1450)", () => {
+    expect(isEmptyAnswer({ text: "", cardLists: [{ id: "l1" }] })).toBe(false);
+    expect(isEmptyAnswer({ text: "", cardLists: [] })).toBe(true);
   });
 
   it("keeps an answer that has only a turn plan (#416)", () => {
@@ -161,7 +164,6 @@ describe("auto-applying the edits Log Pose was asked to make (#726)", () => {
     expect(kept).toHaveLength(200);
     expect(kept.at(-1)).toBe("e204");
     expect(kept).not.toContain("t1");
-    // What is stored is capped too, and an oversized list left by an older version is still read as the newest 200.
     expect(JSON.parse(data.get(AUTO_APPLIED_KEY)!)).toHaveLength(200);
     data.set(AUTO_APPLIED_KEY, JSON.stringify(Array.from({ length: 250 }, (_, i) => `o${i}`)));
     expect(readAutoApplied(storage)).toHaveLength(200);

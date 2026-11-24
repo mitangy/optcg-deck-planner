@@ -1,8 +1,3 @@
-/**
- * Decks sync with the planner at all times for signed-in players (#1017): the Decks page says so instead of
- * offering a planner column or "Add to planner", and a linked deck's alt art pick reaches the planner.
- * The API is faked: /auth/me signs in, /duel/decks is an empty account, PUT /owned/:id/display records the art.
- */
 import type { Page } from "@playwright/test";
 import { test, expect, FAKE_API, RED_VANILLA } from "./fixtures";
 
@@ -49,10 +44,9 @@ test("the Decks page says decks sync with the planner and offers no planner colu
   await expect(note).toBeVisible();
   await expect(page.getByRole("heading", { name: "From your planner" })).toHaveCount(0);
   await page.getByRole("button", { name: "Actions for Red Alt" }).click();
-  await expect(page.getByRole("menuitem", { name: "Play with this deck" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Copy deck list" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Add to planner" })).toHaveCount(0);
   await page.keyboard.press("Escape");
-  // Nothing sideways, and the deck cards use the full width the planner column used to share.
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
   const card = await page.locator(".deck-card").first().boundingBox();
@@ -61,8 +55,6 @@ test("the Decks page says decks sync with the planner and offers no planner colu
 });
 
 test("an alt art picked in a linked deck's editor is set as the planner's art too (#1017)", async ({ page }, info) => {
-  // Phones hide the card's Artwork row; the pick is made in the card preview there.
-  test.skip(info.project.name === "phone-375", "the Artwork row is desktop-only");
   const artPuts: { card: string; product_id: number }[] = [];
   await fakeAccount(page, artPuts);
   await seed(page, true);
@@ -72,8 +64,8 @@ test("an alt art picked in a linked deck's editor is set as the planner's art to
   expect(artPuts).toEqual([]);
 
   const stack = page.locator("article.deck-stack", { hasText: ALT_CARD });
-  await stack.locator(".deck-stack-art-select").click();
-  await page.getByRole("option").nth(1).click();
+  await stack.getByRole("button", { name: /^Artwork for / }).click();
+  await page.getByRole("menuitem").nth(1).click();
   await expect.poll(() => artPuts.length).toBe(1);
   expect(artPuts[0].card).toBe(ALT_CARD);
   expect(artPuts[0].product_id).toBeGreaterThan(0);

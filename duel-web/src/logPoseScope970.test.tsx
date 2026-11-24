@@ -9,7 +9,6 @@ import type { LogPoseGame, LogPosePage } from "@optcg/analyst-client";
 const registered = vi.hoisted(() => ({
   pages: [] as (LogPosePage | null)[],
   games: [] as (LogPoseGame | null)[],
-  // One object for every call, as the real provider's value is: hooks list its functions as effect dependencies.
   lp: {
     enabled: true,
     apiBase: "",
@@ -27,7 +26,6 @@ vi.mock("@optcg/analyst-client", async (orig) => {
   const real = await orig<typeof import("@optcg/analyst-client")>();
   return {
     ...real,
-    // The panel itself is not under test: record what each page tells it, and say chat is on.
     useLogPosePage: (page: LogPosePage | null) => void registered.pages.push(page),
     useLogPoseGame: (game: LogPoseGame | null) => void registered.games.push(game),
     useLogPoseDeckEditor: () => {},
@@ -89,7 +87,6 @@ async function mount(path: string, route: string, el: React.ReactElement) {
   await settle();
 }
 
-/** A game server ticket: header.payload.signature, the payload carrying the match id as `mid`. */
 const ticket = (mid: string) => `h.${btoa(JSON.stringify({ mid })).replace(/=+$/, "")}.s`;
 const entry = (o: Partial<MatchHistoryEntry> = {}): MatchHistoryEntry => ({
   match_id: "m_1", created_at: "2026-11-04T10:00:00Z", ranked: false, your_seat: 0, won: true, reason: "concede", turns: 5,
@@ -124,7 +121,6 @@ describe("the chat each duel-web page opens (#970)", () => {
   it("keys a live game by the match id in its ticket, the id the history page uses (#970)", () => {
     expect(liveMatchScope(ticket("m_77"), "Luffy", "Zoro")).toEqual({ key: "match:m_77", title: "Luffy vs Zoro" });
     expect(matchLogScope("m_77", "Luffy", "Zoro")?.key).toBe("match:m_77");
-    // A ticket that can't be read has no match id, so the board falls back to the general chat.
     expect(liveMatchScope("not-a-ticket.with.dots!", "Luffy", "Zoro")).toBeUndefined();
   });
 

@@ -26,7 +26,7 @@ def test_alt_owned_lowers_still_need_on_deck_detail_625(db):
 
     card = deck_svc.get_deck_detail(db, user, deck.id).cards[0]
 
-    assert card.owned == 1  # base stepper value stays base copies
+    assert card.owned == 1
     assert card.alts_owned == 2
     assert card.still_need == 1
     assert card.alt_arts[0].owned == 2
@@ -68,7 +68,7 @@ def test_alt_owned_only_covers_what_earlier_leaders_leave_625(db):
     second = next(c for c in deck_svc.get_deck_detail(db, user, d2.id).cards if c.card_id == "OP01-016")
 
     assert first.still_need == 0
-    assert second.still_need == 2  # 4 owned alts - 3 taken by the earlier leader
+    assert second.still_need == 2
 
 
 def test_set_alt_owned_rejects_non_special_printing_625(db):
@@ -143,13 +143,11 @@ def test_collection_items_carry_alt_arts_with_owned_counts_and_display_art_723(d
     assert res.status_code == 200
     items = {i["card_id"]: i for i in res.json()["items"]}
     nami = items["OP01-016"]
-    # Every alt printing is listed, the unowned one at 0; the card keeps its own counts and value.
     assert {a["product_id"]: a["owned"] for a in nami["alt_arts"]} == {100: 2, 101: 0}
     assert nami["display_art"] == 101
     assert nami["owned"] == 1
     assert nami["alts_owned"] == 2
     assert nami["value"] == 41.0
-    # A card with no alt printings has none listed and no choice.
     assert items["OP01-017"]["alt_arts"] == []
     assert items["OP01-017"]["display_art"] is None
 
@@ -175,7 +173,6 @@ def test_display_art_unowned_alt_shows_on_shopping_and_deck_702(db):
 
     assert shopping_svc.shopping_list(db, user).items[0].display_art == 100
     assert deck_svc.get_deck_detail(db, user, deck.id).cards[0].display_art == 100
-    # Display choice never changes owned counts or still-needed.
     item = shopping_svc.shopping_list(db, user).items[0]
     assert item.alts_owned == 0
     assert item.still_need == 4

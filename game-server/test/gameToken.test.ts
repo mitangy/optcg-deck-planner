@@ -8,7 +8,6 @@ function b64url(buf: Buffer): string {
   return buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
 }
 
-/** Mirror of backend app.game_tokens.mint_game_token. */
 function mint(payload: Record<string, unknown>): string {
   const body = b64url(Buffer.from(JSON.stringify(payload), "utf8"));
   const sig = b64url(createHmac("sha256", getGameTokenSecret()).update(body).digest());

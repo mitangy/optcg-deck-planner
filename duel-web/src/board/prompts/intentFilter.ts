@@ -1,20 +1,16 @@
 import type { Intent } from "../../net/protocol";
 
-/** Intent types that are always available regardless of card selection. */
 const GLOBAL_INTENT_TYPES = new Set<string>([
   "end_turn",
   "pass_block",
   "pass_counter",
-  // Life-trigger legacy name + generalized pending-choice (ability prompts PR).
   "resolve_trigger",
   "resolve_pending_choice",
   "mulligan",
 ]);
 
 export type IntentSelection = {
-  /** Selected hand card index, or null if none selected. */
   handIndex?: number | null;
-  /** Selected board card instance id (leader/character/stage), or null if none selected. */
   boardId?: string | null;
 };
 
@@ -33,16 +29,12 @@ function matchesHand(intent: Intent, handIndex: number): boolean {
   }
 }
 
-/** True when a legal intent references this board instance id in any actionable role. */
 export function matchesBoardId(intent: Intent, boardId: string): boolean {
-  // Activate:Main is filtered by the ability source (leader/character/stage), not
-  // the DON!! recipient — so selecting Stage/Luffy surfaces Activate in IntentBar.
   const type: string = intent.type;
   if (type === "activate_ability" || type === "activate_leader") {
     const activation = intent as { sourceId?: string; targetId?: string };
     if (activation.sourceId === boardId) return true;
-    // Legacy activate_leader without sourceId: treat as leader-sourced when the
-    // selected id is the give target only if sourceId is absent (tests/compat).
+    // Without sourceId (legacy), the selected id is the give target.
     if (type === "activate_leader" && activation.sourceId == null) {
       return activation.targetId === boardId;
     }
@@ -57,14 +49,6 @@ export function matchesBoardId(intent: Intent, boardId: string): boolean {
   );
 }
 
-/**
- * Contextual actions for the current selection:
- * - Nothing selected: phase-global actions (end_turn, pass_*, resolve_*, mulligan).
- *   Tap a board card for attack / Activate:Main / give_don targets.
- * - Hand card selected: play_card / counter_from_hand / counter_event for that index + globals.
- * - Board card selected: intents where that id is the attacker, activator/target, give_don
- *   target, or blocker + globals.
- */
 export function filterIntentsForSelection(
   intents: Intent[],
   selection: IntentSelection,
@@ -81,16 +65,10 @@ export function filterIntentsForSelection(
   return intents.filter(isGlobalIntent);
 }
 
-/** True when the board instance has any non-global legal action available. */
 export function hasBoardActions(intents: Intent[], boardId: string): boolean {
   return intents.some((i) => matchesBoardId(i, boardId));
 }
 
-/**
- * Legal attack target instance ids for a selected attacker. `opponentLeaderId` resolves
- * the leader-kind target (which carries no instanceId on the wire) to a concrete id so
- * board tiles can be highlighted/tapped for a second-tap attack.
- */
 export function attackTargetIdsForAttacker(
   intents: Intent[],
   attackerId: string,
@@ -107,7 +85,6 @@ export function attackTargetIdsForAttacker(
   return [...ids];
 }
 
-/** Find the declare_attack intent for this attacker/target pair, if legal. */
 export function findAttackIntent(
   intents: Intent[],
   attackerId: string,

@@ -1,8 +1,3 @@
-/**
- * Desktop Life stack alignment (#768): Life spans two grid rows, so it used to
- * float vertically centred. It now sits at the top of your mat, level with the
- * Characters row, and the opponent's mat (turned 180°) mirrors it at the bottom.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -41,7 +36,6 @@ for (const [name, bigBoard] of [["bigBoard on", true], ["bigBoard off", false]] 
       const tag = await box(page, `.side-${side} .mat-order`);
       const life = await box(page, `.side-${side} .zone-pile-life`);
       expect(overlaps(tag, life), `${side} tag ${JSON.stringify(tag)} over Life ${JSON.stringify(life)}`).toBe(false);
-      // Under your Life label, above the opponent's stack (their mat is mirrored).
       if (side === "you") expect(tag.y).toBeGreaterThanOrEqual(life.y + life.height - 1);
       else expect(tag.y + tag.height).toBeLessThanOrEqual(life.y + 1);
     }
@@ -55,6 +49,5 @@ test("Landscape phones keep Life centred in its column (#768)", async ({ page },
   await expect(page.locator(".arena.arena-lp")).toBeVisible();
   const life = await box(page, ".side-you .zone-life");
   const chars = await box(page, ".side-you .zone-characters");
-  // Centred spans two rows, so its top sits well below the Characters row's top.
   expect(life.y - chars.y).toBeGreaterThan(8);
 });

@@ -1,5 +1,6 @@
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import type { AppName } from "./helpers";
+import { NoteCards } from "./NoteCards";
 import { loadUnseen, markAllSeen } from "./lastSeen";
 import { usePatchNotes } from "./loadNotes";
 import { WHATS_NEW_PATH } from "./paths";
@@ -9,25 +10,19 @@ export type WhatsNewLinkProps = { to: string; className?: string; onClick?: () =
 
 const SHOWN = 3;
 
-/**
- * The once-per-update card: the newest few notes this browser hasn't seen, with
- * "See all" and "Got it". Fixed to the bottom corner, so showing or dismissing
- * it never moves the page. `Link` is the app's router link. Either button
- * records every current note as seen, so the card stays away until the next update.
- *
- * The notes are a separate chunk, fetched after mount (the card is a fixed overlay, so nothing
- * moves when it appears). `notes` skips the fetch: tests and pre-rendering pass them in.
- */
+// The notes are a separate chunk, fetched after mount; `notes` skips the fetch (tests and pre-rendering pass them in).
 export function WhatsNewCard({
   app,
   Link,
   to = WHATS_NEW_PATH,
   notes,
+  cardHref,
 }: {
   app: AppName;
   Link: ComponentType<WhatsNewLinkProps>;
   to?: string;
   notes?: readonly PatchNote[];
+  cardHref?: (id: string) => string;
 }) {
   const fetched = usePatchNotes();
   const all = notes ?? fetched;
@@ -39,6 +34,7 @@ export function WhatsNewCard({
   const [open, setOpen] = useState(true);
   if (!open || !all || !unseen || unseen.length === 0) return null;
 
+  // See all only closes the card: the page it opens records the visit after it has marked what is new.
   const dismiss = () => {
     markAllSeen(app, undefined, all);
     setOpen(false);
@@ -54,12 +50,13 @@ export function WhatsNewCard({
           <li key={`${note.date}-${note.title}`}>
             <strong>{note.title}</strong>
             <span>{note.text}</span>
+            {note.cards?.length ? <NoteCards cards={note.cards} cardHref={cardHref} compact /> : null}
           </li>
         ))}
       </ul>
       {more > 0 ? <p className="wn-card-more">+{more} more</p> : null}
       <div className="wn-card-actions">
-        <Link to={to} className="wn-card-link" onClick={dismiss}>
+        <Link to={to} className="wn-card-link" onClick={() => setOpen(false)}>
           See all
         </Link>
         <button type="button" className="wn-card-dismiss" onClick={dismiss}>

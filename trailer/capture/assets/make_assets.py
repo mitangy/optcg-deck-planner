@@ -1,5 +1,3 @@
-"""Original playmat and card-back art for the trailer's custom-art clip (no third-party artwork).
-   python3 make_assets.py  ->  playmat.png (2400x1400), cardback.png (630x880)"""
 import math, random
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
@@ -15,12 +13,10 @@ def playmat():
         c = lerp(top, mid, t / 0.45) if t < 0.45 else lerp(mid, bot, (t - 0.45) / 0.55)
         for x in range(W): px[x, y] = c
     d = ImageDraw.Draw(img, "RGBA")
-    # sun
     cx, cy, r = W // 2, int(H * 0.40), 250
     for i in range(14, 0, -1):
         d.ellipse([cx - r - i * 26, cy - r - i * 26, cx + r + i * 26, cy + r + i * 26], fill=(255, 220, 150, 9))
     d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(255, 238, 190, 255))
-    # sea bands with highlights
     rnd = random.Random(4)
     for k in range(34):
         y = int(H * 0.46 + (k / 34) ** 1.5 * H * 0.54)
@@ -29,7 +25,6 @@ def playmat():
         for _ in range(14):
             x = rnd.randint(0, W); wl = rnd.randint(60, 240) * (1 + k / 16)
             d.line([x, y + 3, x + wl, y + 3], fill=(255, 215, 170, 70 if k < 12 else 28), width=3)
-    # compass rose
     d.ellipse([cx - 560, int(H * .78) - 560, cx + 560, int(H * .78) + 560], outline=(255, 236, 190, 70), width=4)
     for ang in range(0, 360, 45):
         a = math.radians(ang)

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { claimMatchRoom } from "./playLoop";
+import { claimMatchRoom, tournamentCreateOptions } from "./playLoop";
 import type { PlayResult } from "./tournamentApi";
 
 function script(results: PlayResult[]) {
@@ -13,6 +13,23 @@ describe("claiming a tournament match room (#997)", () => {
     const { play, sleep } = script([{ action: "host" }]);
     expect(await claimMatchRoom(play, sleep)).toEqual({ action: "host" });
     expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("keeps the ticket the API signs for the host, and only for the host (#1344)", async () => {
+    const hosted = script([{ action: "host", ticket: "tr1.a.b" }]);
+    expect(await claimMatchRoom(hosted.play, hosted.sleep)).toEqual({ action: "host", ticket: "tr1.a.b" });
+    const joined = script([{ action: "join", room_id: "r1", ticket: "tr1.a.b" }]);
+    expect(await claimMatchRoom(joined.play, joined.sleep)).not.toHaveProperty("ticket");
+  });
+
+  it("the room the host creates carries the ticket, unranked, with both seats on the host's deck and the timer (#1344)", () => {
+    const wire = { leaderId: "OP01-001", deck: ["ST01-003"] };
+    expect(tournamentCreateOptions(wire, { turnSeconds: 30 }, "tr1.a.b")).toEqual({
+      ranked: false,
+      tournamentTicket: "tr1.a.b",
+      players: [wire, wire],
+      timer: { turnSeconds: 30 },
+    });
   });
 
   it("joins the room the opponent opened, with its server (#997)", async () => {

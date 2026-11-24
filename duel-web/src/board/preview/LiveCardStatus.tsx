@@ -2,7 +2,6 @@ import type { PreviewLive } from "./cardPreview";
 import { statusTone, statusTooltip } from "../panels/statusIcons";
 import { costBreakdown, formatPowerDelta, powerBreakdown } from "./powerDisplay";
 
-/** Current power + active statuses for an in-play card (preview panel / inspect). */
 export function LiveCardStatus({
   live,
   atlasPower,
@@ -14,7 +13,6 @@ export function LiveCardStatus({
   atlasPower?: number;
   atlasCost?: number;
   className?: string;
-  /** Spell out what each status does (card inspect; the hover panel stays compact). */
   describe?: boolean;
 }) {
   const pb = powerBreakdown(live.power, live.printedPower, atlasPower);

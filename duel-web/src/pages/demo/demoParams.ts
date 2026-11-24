@@ -14,11 +14,6 @@ import {
   withWaiting,
 } from "../../board/fixtures/demoViews";
 
-/**
- * Pile / cost-area overrides for layout QA, e.g. `/demo?don=10&rested=10&dondeck=0`
- * or `/demo?deck=0&trash=0&life=0`; `hand=N` sets the size of your hand; `faceup=N` turns the top N Life cards face up.
- * Applied to both seats so each mat is checked.
- */
 export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): PlayerView {
   const don = intParam(params, "don");
   const rested = intParam(params, "rested");
@@ -54,7 +49,6 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
       deckCount: deck ?? base.you.deckCount,
       lifeCount: life ?? base.you.lifeCount,
       faceUpLife: faceUpFor(life ?? base.you.lifeCount, base.you.faceUpLife),
-      // `?hand=19`: a big hand (the fan must stay on screen), cycling the sample cards.
       hand:
         hand == null
           ? base.you.hand
@@ -77,21 +71,17 @@ export function applyDemoZoneParams(base: PlayerView, params: URLSearchParams): 
   };
 }
 
-/** `?turn0&pickedby=coin|0|1`: how the turn order was decided, for the mulligan banner's opening line (#549). */
 export function demoPickedBy(v: string | null): Seat | null | undefined {
   if (v === "coin") return null;
   return v === "0" ? 0 : v === "1" ? 1 : undefined;
 }
 
-/** The static `/demo` view for the URL flags in `params` (the page layers its stateful flags on top). */
 export function buildDemoView(params: URLSearchParams): PlayerView {
   const prompt = params.get("prompt");
   const base = applyDemoZoneParams(
     (prompt && DEMO_PROMPT_VIEWS[prompt === "search" ? "look" : prompt]) || DEMO_VIEW,
     params,
   );
-  // `?attacked`: an opposing Character is attacking your Leader, so a centred
-  // prompt dodges your Leader (usePromptDodge) while you answer it.
   const attacked: PlayerView = params.has("attacked")
     ? {
         ...base,
@@ -110,8 +100,6 @@ export function buildDemoView(params: URLSearchParams): PlayerView {
     params.has("dons") ? withAttachedDon(withStatuses) : withStatuses,
     params,
   );
-  // `?green`: swap in a Green Leader and a Green Character (y-c3), to check
-  // the attack-ready glow stays visible on green art (#449).
   const colored: PlayerView = params.has("green")
     ? {
         ...board,
@@ -122,11 +110,6 @@ export function buildDemoView(params: URLSearchParams): PlayerView {
         },
       }
     : board;
-  // `?cantattack`: your main phase where only the Leader may attack, so the
-  // summoning-sick / rested Characters show the "can't attack" warning.
-  // `?unaffordable` is the same with only 1 active DON!!, so the costlier hand
-  // cards are grayed out (#356). Add `&attackready` to let y-c3 attack too,
-  // so the attack-ready glow shows on a Character as well (#412).
   const mainPhase: PlayerView = params.has("cantattack") || params.has("unaffordable") || params.has("blocked")
     ? {
         ...(params.has("unaffordable") ? withOneActiveDon(colored) : colored),
@@ -164,18 +147,12 @@ export function buildDemoView(params: URLSearchParams): PlayerView {
   return view;
 }
 
-/** The opening dice roll's step a `/demo?dice=` flag starts at (the buttons then play it on locally). */
 const DEMO_DICE_STEPS = ["call", "roll", "choose"] as const;
 
 function winnerOf(call: DiceCall, roll: number, caller: Seat, roller: Seat): Seat {
   return (call === "high" ? roll >= 4 : roll <= 3) ? caller : roller;
 }
 
-/**
- * `?dice=call|roll|choose`: the opening dice roll (#1190) at that step, with you on seat 0 (`&diceroller=0` rolls
- * yourself, the default is the opponent rolling so you call; `&spectate` watches). `&dicecall=low` and `&diceroll=N`
- * set the call and the roll for the later steps. Null when the flag is absent or unknown.
- */
 export function demoDiceStart(params: URLSearchParams, now: number = Date.now()): DiceStateMessage | null {
   const step = DEMO_DICE_STEPS.find((s) => s === params.get("dice"));
   if (!step) return null;
@@ -198,10 +175,6 @@ export function demoDiceStart(params: URLSearchParams, now: number = Date.now())
   };
 }
 
-/**
- * What the demo's buttons do to `state`: a call moves to the roll, a roll draws `diceroll` (or a random face) and
- * moves to the choice, and first / second end the roll with its result. Returns the next state or the finished result.
- */
 export function demoDiceNext(
   state: DiceStateMessage,
   action: DiceAction,

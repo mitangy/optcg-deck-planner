@@ -14,6 +14,7 @@ export function BuyQtyEditor({
   deckQty = 0,
   extras = [],
   onExtraSkip,
+  offlineName,
 }: {
   cardId: string;
   qty: number;
@@ -24,11 +25,11 @@ export function BuyQtyEditor({
   onSave: (qty: number) => void;
   onReset: () => void;
   onExclude: () => void;
-  /** Copies bought for the viewer's decks; shown above the Extra copies (#1269). */
   deckQty?: number;
-  /** The viewer's Extra copies on this card; each can be left out of this group buy (#1269). */
   extras?: GroupBuyMyExtra[];
   onExtraSkip?: (productId: number, skip: number) => void;
+  /** The host is setting this member's copies (#1445): no Shopping list behind it, so no "suggested" or Extras. */
+  offlineName?: string;
 }) {
   const [draft, setDraft] = useState(String(qty));
 
@@ -46,7 +47,7 @@ export function BuyQtyEditor({
     if (n !== qty) onSave(n);
   }
 
-  const showExtras = !excluded && extras.length > 0 && Boolean(onExtraSkip);
+  const showExtras = !offlineName && !excluded && extras.length > 0 && Boolean(onExtraSkip);
 
   return (
     <div className={`group-buy-qty${excluded ? " excluded" : ""}`}>
@@ -108,7 +109,9 @@ export function BuyQtyEditor({
         </div>
       ) : (
         <div className="group-buy-qty-meta muted">
-          {excluded ? (
+          {offlineName ? (
+            <span className="group-buy-qty-default">For {offlineName}</span>
+          ) : excluded ? (
             <span>Excluded from group buy</span>
           ) : isCustom ? (
             <>
@@ -118,11 +121,20 @@ export function BuyQtyEditor({
               </button>
             </>
           ) : (
-            <span>From shopping</span>
+            <span className="group-buy-qty-default">From shopping</span>
           )}
         </div>
       )}
-      {excluded ? (
+      {offlineName ? (
+        <button
+          type="button"
+          className="btn secondary group-buy-exclude-btn"
+          disabled={disabled || qty <= 0}
+          onClick={onExclude}
+        >
+          Take off {offlineName}&apos;s list
+        </button>
+      ) : excluded ? (
         <button
           type="button"
           className="btn secondary group-buy-exclude-btn"
@@ -145,7 +157,6 @@ export function BuyQtyEditor({
   );
 }
 
-/** One Extra copy line: tick to include it in this buy, or a 0..wanted stepper when several are wanted. */
 function ExtraRow({
   extra,
   disabled,

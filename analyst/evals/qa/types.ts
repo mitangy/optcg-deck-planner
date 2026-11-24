@@ -1,5 +1,5 @@
 /**
- * Log Pose eval: case, gold, grade and result types. See analyst/README.md ("Evals").
+ * Log Pose eval: case, gold, grade and result types.
  *
  * Rule: no Bandai text in the case files. A FAQ row is referenced by card id plus `qh`, the
  * shortHash of its question (the same hash that makes `ruling:general#<hash>` ids); the official
@@ -24,11 +24,9 @@ export type ChatContext = { app?: "duel" | "planner"; page?: string; matchId?: s
 type Base = {
   id: string;
   question: string;
-  /** An OPTCGSim deck list sent under the question, as the player would paste it. */
   deck?: string;
   context?: ChatContext;
   cites: Cites;
-  /** Tools the case needs; it is skipped when the chat does not offer them. */
   requiresTools?: string[];
 };
 
@@ -71,12 +69,10 @@ export type DCheck = "edits_legal" | "no_invented_rate";
 
 export type CaseD = Base & {
   group: "D";
-  /** Rubric items beyond the six standard ones (R7 and up). */
   focus: string[];
   checks?: DCheck[];
 };
 
-/** Extra cases gated on tools that are not on main yet. They are not counted in the 50. */
 export type CaseE = Base & {
   group: "E";
   focus: string[];
@@ -98,7 +94,6 @@ export type Gold = {
   mention?: number;
   percent?: number;
   hits?: number;
-  /** Accepted written forms of a date. */
   dates?: string[];
   number?: number;
   can?: string[];

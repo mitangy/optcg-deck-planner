@@ -95,6 +95,14 @@ describe("deck sync (#619)", () => {
     expect(api.putAccountDeck.mock.calls[0][1].plannerArt).toEqual({ "OP09-118": "p2" });
   });
 
+  it("sends the no-merge flag of a copied deck so the account keeps it (#1400)", async () => {
+    api.fetchAccountDecks.mockResolvedValue({ decks: [] });
+    await syncDecks(7);
+    saveDeck({ id: "cp", name: "X (copy)", leaderId: "ST01-001", cards: [], noMerge: true });
+    await flushDeckSync();
+    expect(api.putAccountDeck.mock.calls[0][1].noMerge).toBe(true);
+  });
+
   it("adopts the planner art map of a newer account copy (#1003)", async () => {
     api.fetchAccountDecks.mockResolvedValue({ decks: [] });
     await syncDecks(7);
@@ -177,13 +185,12 @@ describe("deck sync (#619)", () => {
     setSelectedDeckId("theirs");
     clearAccountDecks();
     const ids = listSavedDecks().map((d) => d.id).sort();
-    expect(ids).toEqual(["test-op16-black", "test-op17-red"]);
+    expect(ids).toEqual(["starter-op13-luffy", "test-op16-black", "test-op17-red"]);
     expect(getSelectedDeckId()).not.toBe("theirs");
-    // A different player signing in next does not inherit or upload anything of the first.
     api.fetchAccountDecks.mockResolvedValue({ decks: [] });
     api.putAccountDecks.mockClear();
     await syncDecks(8);
-    expect(api.putAccountDecks.mock.calls[0][0].map((d: { id: string }) => d.id).sort()).toEqual(["test-op16-black", "test-op17-red"]);
+    expect(api.putAccountDecks.mock.calls[0][0].map((d: { id: string }) => d.id).sort()).toEqual(["starter-op13-luffy", "test-op16-black", "test-op17-red"]);
   });
 
   it("a deck deleted before sync starts stays deleted (#624)", async () => {
@@ -191,7 +198,6 @@ describe("deck sync (#619)", () => {
     api.fetchAccountDecks.mockResolvedValue({ decks: [wire("x", Date.now() - 5000)] });
     await syncDecks(7);
     stopDeckSync();
-    // /auth/me is slow or failed: no sync is running when the player deletes the deck.
     deleteDeck("x");
     await syncDecks(7);
     await vi.advanceTimersByTimeAsync(700);
@@ -218,7 +224,6 @@ describe("deck sync (#619)", () => {
     clearAccountDecks();
     api.fetchAccountDecks.mockResolvedValue({ decks: [] });
     await syncDecks(8);
-    // The kept deck is a guest deck now: it is offered to the next account like any guest deck.
     expect(api.putAccountDecks.mock.calls[0][0].map((d: { id: string }) => d.id)).toContain("rejected");
   });
 

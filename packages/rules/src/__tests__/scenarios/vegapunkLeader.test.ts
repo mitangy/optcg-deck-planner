@@ -1,14 +1,10 @@
-/**
- * Vegapunk (OP07-097) [Activate: Main]: select up to 1 {Egghead} card with a cost of 5 or less from your hand and play
- * it or add it to the top of your Life cards face-up. An Event can't be played this way (official Q&A), so it can only
- * go to Life, and picking nothing asks nothing more (#592).
- */
+/** An Event can't be played this way (official Q&A), so it can only go to Life. */
 import { runScenarios, mine, type CardScenario } from "../../testing/scenario.js";
 
 const VEGAPUNK = "OP07-097";
-const EVENT = "OP07-115"; // {Egghead} Event, cost 1
-const SHAKA = "OP07-101"; // {Egghead} Character, cost 5
-const KAROO = "ST01-003"; // vanilla, not {Egghead}
+const EVENT = "OP07-115";
+const SHAKA = "OP07-101";
+const KAROO = "ST01-003";
 const ABILITY = "op07-097#m0";
 
 const rows: CardScenario[] = [

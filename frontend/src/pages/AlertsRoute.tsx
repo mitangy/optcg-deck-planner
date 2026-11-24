@@ -8,7 +8,8 @@ export function AlertsRoute() {
       renderSearch={(renderAction) => (
         <CatalogAddDrawer
           className="alerts-add"
-          summary="Search for a card to watch"
+          label="Watch a card"
+          summary="search by name or ID"
           storageKey={ALERTS_ADD_OPEN_KEY}
           defaultOpen={false}
           idleHint="Search the catalog by name or ID to watch a card's price"

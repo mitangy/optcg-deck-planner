@@ -52,7 +52,6 @@ describe("a pasted combat log (#1030)", () => {
     expect(first.combatLog).toBe(LOG);
     const second = logToGame(LOG, 1, false, "paste-k")!;
     expect(second).toMatchObject({ playerName: "PlayerB#2", playerLeader: "OP16-060", oppLeader: "OP16-080", result: "Lost" });
-    // The cards each side took out of its deck, as copies of a card number.
     expect(first.decklist).toEqual(expect.arrayContaining([expect.stringMatching(/^\dxOP16-(104|109|119)$/)]));
     expect(first.decklist).not.toEqual(second.decklist);
   });

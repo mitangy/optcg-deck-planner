@@ -1,4 +1,3 @@
-/** `npm run eval:judge-agreement -- <out/variant>`: judge vs Miko per rubric item; writes <dir>/agreement.md. */
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";

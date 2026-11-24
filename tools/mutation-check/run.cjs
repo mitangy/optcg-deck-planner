@@ -1,23 +1,4 @@
 #!/usr/bin/env node
-/**
- * Mutation check: prove each test fails when the behavior it claims is broken.
- *
- * Every mutation applies an "opposite condition" to production code (or a data
- * file), runs the owning test suite, and requires the listed tests to fail.
- * Files are always restored, including on Ctrl+C.
- *
- *   node tools/mutation-check/run.cjs [suite ...] [--only <regex>] [--check-anchors]
- *
- * --check-anchors only verifies that every mutation's anchors still match
- * exactly once and json patches apply (no tests run); exit 1 when any is stale.
- * An anchor with no exact match falls back to a whitespace-tolerant match
- * (anchors.cjs); --check-anchors lists those so they can be cleaned up.
- * --locate-stale [suite] [--locate-scope <dir>] finds where stale anchors moved.
- *
- * Suites: see SUITES below (default: all). Exit code 1 when any
- * mutation survives or its anchor no longer matches the source exactly once.
- * See README.md for how to add mutations alongside new tests.
- */
 "use strict";
 const fs = require("fs");
 const os = require("os");
@@ -28,9 +9,7 @@ const { applyAnchor } = require("./anchors.cjs");
 
 const REPO = path.resolve(__dirname, "../..");
 
-// Python must compile the mutated source every run. Two same-size edits saved in
-// the same second look unchanged to the .pyc mtime+size check, so a stale
-// bytecode cache would run the previous mutation instead (#615).
+// Python must compile the mutated source every run: two same-size edits saved in the same second look unchanged to the .pyc mtime+size check, so a stale bytecode cache would run the previous mutation.
 function pythonEnv() {
   return { ...process.env, PYTHONDONTWRITEBYTECODE: "1", PYTHONPYCACHEPREFIX: path.join(os.tmpdir(), "mutation-check-nopyc") };
 }
@@ -62,7 +41,6 @@ const SUITES = {
   ci: require("./suites/ci.cjs"),
 };
 
-// Unknown flags are tolerated (strict: false), as before; positionals are the suite names.
 const { values: flags, positionals: suiteNames } = parseArgs({
   args: process.argv.slice(2),
   options: {
@@ -81,9 +59,7 @@ const only = flags.only !== undefined ? new RegExp(flags.only) : null;
 const locateScope = flags["locate-scope"] ?? null;
 const selected = suiteNames.length ? suiteNames : Object.keys(SUITES);
 
-// --check-anchors: verify every mutation still applies (each anchor matches
-// exactly once, json patches run) without running any tests. Read-only, so it
-// needs neither the lock nor the restore journal.
+// Read-only, so it needs neither the lock nor the restore journal.
 if (flags["check-anchors"]) {
   for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite ${name}; expected ${Object.keys(SUITES).join(", ")}`); process.exit(2); }
   let stale = 0;
@@ -106,8 +82,6 @@ if (flags["check-anchors"]) {
   process.exit(stale ? 1 : 0);
 }
 
-// --locate-stale: for every stale anchor, find the tracked file it moved to.
-// Read-only, like --check-anchors.
 if (flags["locate-stale"]) {
   for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite ${name}; expected ${Object.keys(SUITES).join(", ")}`); process.exit(2); }
   const { locateStale } = require("./locate.cjs");
@@ -151,7 +125,6 @@ for (const name of selected) if (!SUITES[name]) { console.error(`Unknown suite $
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { restoreAll(); process.exit(130); });
 process.on("exit", restoreAll);
 
-/** Failed test names for a runner. */
 const runners = {
   vitest(cwd, _suite, mutation) {
     const report = path.join(os.tmpdir(), `mutation-check-${process.pid}.json`);
@@ -209,7 +182,6 @@ const runners = {
     const failed = [...out.matchAll(/^FAILED (\S+)/gm)].map((m) => m[1]);
     return { failed, total: Number(summary?.[1] ?? 0) + failed.length };
   },
-  // Node's built-in test runner (tools/ci). A mutation's `args` narrows the files.
   "node-test"(cwd, suite, mutation) {
     let out = "";
     try { out = execSync(`node --test --test-reporter=tap ${mutation?.args ?? suite.args}`, { cwd, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 600000 }); } catch (e) { out = String(e.stdout ?? ""); }
@@ -230,13 +202,6 @@ const runners = {
   },
 };
 
-/**
- * Resolve a mutation's edits against the current sources without writing:
- * returns { error } when an anchor does not match exactly once or a json patch
- * throws, else { next } mapping each file to its mutated text, plus { loose }
- * when any anchor needed the whitespace-tolerant fallback. `read` supplies
- * the pristine text of a file.
- */
 function planEdits(mutation, read) {
   const edits = mutation.edits ?? (mutation.json ? [{ json: mutation.json, patch: mutation.patch }] : [{ file: mutation.file, from: mutation.from, to: mutation.to }]);
   const next = new Map();

@@ -17,5 +17,4 @@ try {
     if (sub) Config.setBrowserExecutable(path.join(root, sub, 'chrome-headless-shell'));
   }
 } catch {
-  /* no playwright browsers here: use remotion's own */
 }

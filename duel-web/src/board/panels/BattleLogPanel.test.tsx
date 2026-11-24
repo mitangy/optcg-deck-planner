@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-// Every card currently has official art, so the card preview list can be empty: use a fixed one (#1299).
+// Every card currently has official art, so the card preview list can be empty: use a fixed one.
 vi.mock("../../../../packages/ui/src/cardArt/previewArt.json", () => ({ default: ["OP18-003", "OP18-031"] }));
 
 import { lookupCard } from "../../cards/atlas";
@@ -13,9 +13,7 @@ import { resolveCardImageUrl } from "../../decks/artPrefs";
 import type { BattleLogEntry, LogTone } from "../match/battleLog";
 import { BattleLogPanel } from "./BattleLogPanel";
 
-// A card with preview art and a TCGPlayer image in the catalog: the first try is the
-// TCGPlayer CDN (which can 403 for new cards), then the thumbnail falls back to the preview.
-// Taken from the preview list, so it follows sync_preview_art.py as previews come and go.
+// The first try is the TCGPlayer CDN (which can 403 for new cards), then the thumbnail falls back to the preview.
 const PREVIEWED = previewIds.find((id) => (catalog as Record<string, { imageUrl?: string }>)[id]?.imageUrl)!;
 
 function line(id: string, tone: LogTone, turn: number, defId: string, ownerSeat: 0 | 1, text = "x"): BattleLogEntry {
@@ -39,7 +37,7 @@ beforeEach(() => {
   try {
     localStorage.removeItem("duel.battleLogFilter");
   } catch {
-    // no storage in this environment
+    // No storage in this environment.
   }
 });
 afterEach(() => {
@@ -79,7 +77,7 @@ describe("Battle log card thumbnails (#1243)", () => {
 
   it("the thumbnail falls back to preview art when TCGPlayer art fails (#604)", () => {
     const first = resolveCardImageUrl(PREVIEWED, { ownerSeat: 0 })!;
-    // Guard: the first try is a CDN url, so the fallback is what the test is about.
+    // The first try is a CDN url, so the fallback is what the test is about.
     expect(first).toMatch(/^https:\/\/tcgplayer-cdn\./);
     const el = mount([line("a", "play", 1, PREVIEWED, 0)]);
     const img = el.querySelector<HTMLImageElement>(".log-thumb img")!;

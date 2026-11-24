@@ -151,7 +151,6 @@ describe("sources and citations (#390)", () => {
       const blocks = seen[0]!.messages[0].content as { type: string; text?: string }[];
       const refs = blocks.filter((b) => b.type === "text" && b.text?.startsWith("Card reference:"));
       expect(refs).toHaveLength(1);
-      // After the per-turn sources, before the closing instruction.
       expect(blocks.indexOf(refs[0]!)).toBe(blocks.length - 2);
       expect(blocks[blocks.length - 1]!.text).toContain("Write the post-game analysis.");
       return refs[0]!.text!.split("\n");

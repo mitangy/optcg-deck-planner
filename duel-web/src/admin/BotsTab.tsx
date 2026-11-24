@@ -38,14 +38,12 @@ function RunSortHead({ label, k, sort, onSort, className }: { label: string; k: 
   );
 }
 
-/** One eval suite: its trend line, and a table of every run with how it compares to the run before. */
 function SuiteHistory({ suite, runs, markerAt, markerLabel }: { suite: SuiteInfo; runs: EvalRun[]; markerAt: number | null; markerLabel: string }) {
   const groups = [...new Set(runs.flatMap((e) => Object.keys(e.groups)))].sort();
   const [sort, setSort] = useState<SortState<RunSortKey>>({ key: "date", dir: "asc" });
   const [flash, setFlash] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
-  // Each row's change is worked out oldest first, then the rows are sorted: sorting never changes what "previous" means.
   const rows = sortedRunRows(runs, sort);
   const onSort = (k: RunSortKey) => setSort((cur) => nextSort(cur, k, k === "date" ? "asc" : "desc"));
   const jumpTo = (id: string) => {

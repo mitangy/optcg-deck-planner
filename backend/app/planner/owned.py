@@ -1,10 +1,10 @@
-"""Owned collection, alt-art owned counts and per-user printing choices."""
 
 from __future__ import annotations
 
 from collections import defaultdict
 
-from sqlalchemy import select
+from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.errors import Invalid, NotFound
@@ -56,20 +56,6 @@ def set_user_card_printing(
     qty: int,
     deck_ids: list[int] | None = None,
 ) -> tuple[int, int]:
-    """Set a shopping-level alt-art want across the matching decks.
-
-    Default (max across decks): every deck gets ``qty`` clamped to its own Need,
-    so the shopping max equals what was asked for (or the most any deck fits).
-
-    With ``user.sum_across_leaders`` shopping adds leaders together, so writing
-    ``qty`` to every deck would double-count. Instead ``qty`` is split across
-    leader groups in deck order (fill the first leader up to what it fits, then
-    the next); decks sharing a leader get the same value, and leftover groups
-    are cleared.
-
-    Returns (qty as shopping will now show it, decks_updated). Used by shopping /
-    group buy so all views stay synced.
-    """
     card_id = card_id.strip().upper()
     if not card_id:
         raise Invalid("card_id is required")
@@ -90,7 +76,6 @@ def set_user_card_printing(
         wanted = set(deck_ids)
         decks = [d for d in decks if d.id in wanted]
 
-    # Leader groups in deck order, each holding the decks that use this card.
     groups: dict[str, list[tuple[Deck, DeckCard]]] = {}
     for deck in decks:
         deck_card = next((c for c in deck.cards if c.card_id == card_id), None)
@@ -142,28 +127,25 @@ def set_user_card_printing(
 def owned_collection(
     db: Session, user: User, deck_ids: list[int] | None = None
 ) -> OwnedCollectionResponse:
-    """Every card the user owns (qty > 0) with its estimated market value.
-
-    Base copies are tracked per card number and valued at the standard
-    printing's market price (the same price the shopping list shows). Alt-art
-    copies are tracked per printing: each is valued at its own market price, and
-    a card owned only through alts is listed too. ``owned`` is base copies;
-    ``alts_owned`` is alt copies; total_copies counts both.
-    """
     base = {card_id: qty for card_id, qty in owned_map(db, user.id).items() if qty > 0}
     alt_owned = alt_owned_map(db, user.id)
     card_ids = set(base) | set(alt_owned)
-    # Every alt printing of these cards (owned or not) with the user's count, and the art they chose to show.
-    alts = alt_arts_map(db, card_ids, owned=alt_owned, collector=_collector_map(db, user.id))
+    catalog = catalog_map(db, card_ids)
+    product_ids = primary_product_ids(db, card_ids)
+    alts = alt_arts_map(
+        db,
+        card_ids,
+        owned=alt_owned,
+        collector=_collector_map(db, user.id),
+        catalog=catalog,
+        primary_ids=product_ids,
+    )
     display_choices = _display_choice_map(db, user.id)
-    # Still-to-buy copies on the list for the ticked decks (+ directly added cards).
     buying = {
         item.card_id: item.still_need
         for item in shopping_list(db, user, deck_ids=deck_ids).items
         if item.still_need > 0
     }
-    catalog = catalog_map(db, card_ids)
-    product_ids = primary_product_ids(db, card_ids)
     alt_prices: dict[int, float | None] = {}
     if alt_owned:
         pids = {pid for by_pid in alt_owned.values() for pid in by_pid}
@@ -236,7 +218,6 @@ def owned_collection(
 
 
 def set_alt_owned(db: Session, user: User, card_id: str, product_id: int, qty: int) -> int:
-    """Set how many copies of one alt printing the user owns (0 removes the row)."""
     card_id = card_id.upper().strip()
     _assert_special_printing(db, card_id, product_id)
     row = db.scalar(
@@ -260,7 +241,6 @@ def set_alt_owned(db: Session, user: User, card_id: str, product_id: int, qty: i
 
 
 def set_collector_want(db: Session, user: User, card_id: str, product_id: int, qty: int) -> int:
-    """Set how many collector copies of one alt printing the user wants (0 removes the row)."""
     card_id = card_id.upper().strip()
     _assert_special_printing(db, card_id, product_id)
     row = db.scalar(
@@ -286,7 +266,6 @@ def set_collector_want(db: Session, user: User, card_id: str, product_id: int, q
 def set_display_art(
     db: Session, user: User, card_id: str, product_id: int | None
 ) -> int | None:
-    """Choose which art a card shows (None = automatic, 0 = base, >0 = printing)."""
     card_id = card_id.upper().strip()
     row = db.scalar(
         select(CardDisplayChoice).where(
@@ -332,12 +311,24 @@ def set_owned(db: Session, user: User, card_id: str, qty: int) -> int:
     return row.qty
 
 
-def add_owned(db: Session, user: User, items: list[tuple[str, int]]) -> list[tuple[str, int]]:
-    """Add copies to Owned for several cards in one commit.
+def increment_owned(db: Session, user_id: int, card_id: str, delta: int) -> None:
+    """Add ``delta`` copies in SQL, so a concurrent write or a stale loaded row cannot be lost."""
+    bump = (
+        update(Owned)
+        .where(Owned.user_id == user_id, Owned.card_id == card_id)
+        .values(qty=Owned.qty + delta)
+        .execution_options(synchronize_session="fetch")
+    )
+    if db.execute(bump).rowcount:
+        return
+    try:
+        with db.begin_nested():
+            db.add(Owned(user_id=user_id, card_id=card_id, qty=delta))
+    except IntegrityError:
+        db.execute(bump)
 
-    Repeated ids are summed. Unknown card ids reject the whole batch (LookupError)
-    so a typo never leaves a partial add.
-    """
+
+def add_owned(db: Session, user: User, items: list[tuple[str, int]]) -> list[tuple[str, int]]:
     wanted: dict[str, int] = {}
     for card_id, add in items:
         key = card_id.upper().strip()
@@ -345,30 +336,18 @@ def add_owned(db: Session, user: User, items: list[tuple[str, int]]) -> list[tup
     for key in wanted:
         if db.get(CatalogCard, key) is None:
             raise NotFound(f"Card not found in catalog: {key}")
-    rows = {
-        r.card_id: r
-        for r in db.scalars(
-            select(Owned).where(Owned.user_id == user.id, Owned.card_id.in_(wanted))
-        )
-    }
-    out: list[tuple[str, int]] = []
     for key, add in wanted.items():
-        row = rows.get(key)
-        if row is None:
-            row = Owned(user_id=user.id, card_id=key, qty=add)
-            db.add(row)
-        else:
-            row.qty += add
-        out.append((key, row.qty))
+        increment_owned(db, user.id, key, add)
+    totals = dict(
+        db.execute(
+            select(Owned.card_id, Owned.qty).where(Owned.user_id == user.id, Owned.card_id.in_(wanted))
+        ).all()
+    )
     db.commit()
-    return out
+    return [(key, totals[key]) for key in wanted]
 
 
 def reset_deck_owned(db: Session, user: User, deck_id: int) -> tuple[int, DeckDetail]:
-    """Set Owned qty to 0 for every card_id present in the deck.
-
-    Owned is shared across decks, so this also clears those cards elsewhere.
-    """
     deck = db.scalar(
         select(Deck)
         .where(Deck.id == deck_id, Deck.user_id == user.id)
@@ -387,7 +366,6 @@ def reset_deck_owned(db: Session, user: User, deck_id: int) -> tuple[int, DeckDe
             if row.qty != 0:
                 row.qty = 0
                 reset_count += 1
-        # Alt copies count as owned too, so "I own none of these" clears them.
         for alt_row in db.scalars(
             select(OwnedPrinting).where(
                 OwnedPrinting.user_id == user.id, OwnedPrinting.card_id.in_(card_ids)

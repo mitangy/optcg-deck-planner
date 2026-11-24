@@ -15,16 +15,16 @@ const HANCOCK = "OP14-041";
 const ENEL = "OP05-098";
 const LUFFY79 = "OP17-079";
 const LUFFY_ACE = "ST30-001";
-const WEAK_1000 = "OP14-109"; // Blocker, 1000
-const NAMI = "OP01-016"; // Straw Hat Crew, 2000, cost 1
-const DA_7000 = "OP18-106"; // vanilla Double Attack, 7000
+const WEAK_1000 = "OP14-109";
+const NAMI = "OP01-016";
+const DA_7000 = "OP18-106";
 const LAW_6000 = "P-093";
 const WEAK_BLOCKER = "EB01-017";
-const BORSALINO = "EB04-058"; // cost 5, 6000
-const SAUL = "OP17-089"; // gains +12 cost
-const GERD = "OP17-081"; // gains +12 cost if the Leader is Elbaph
-const BIG_7000 = "EB01-002"; // cost 5, 7000
-const MID_6000 = "OP07-033"; // cost 5, 6000
+const BORSALINO = "EB04-058";
+const SAUL = "OP17-089";
+const GERD = "OP17-081";
+const BIG_7000 = "EB01-002";
+const MID_6000 = "OP07-033";
 const LAW_4 = "ST10-010";
 const LUFFY_3 = "OP14-034";
 const LUFFY_4 = "OP12-015";
@@ -39,7 +39,6 @@ const normal = (h: Harness, seat: Seat, opts: Opts = {}): Intent => chooseBotInt
 const playedDef = (h: Harness, seat: Seat, i: Intent): string => (i.type === "play_card" ? h.state.players[seat].hand[i.handIndex]!.defId : i.type);
 const giveToLeader = (h: Harness, seat: Seat, i: Intent): boolean => i.type === "give_don" && i.targetId === h.state.players[seat].leader.id;
 
-/** Bot answers for seat `seat` until the battle and all prompts are settled. */
 function settle(h: Harness, seat: Seat, opts: Opts = {}): void {
   const rng = createSeededRng(1);
   for (let k = 0; k < 20; k += 1) {
@@ -79,7 +78,6 @@ describe("leader playbooks: end-of-turn DON!! for Luffy (OP13-001) and Hancock (
 });
 
 describe("leader playbooks: Luffy (OP13-001) on defense (#1178)", () => {
-  /** Seat 1 (Luffy, 5000, 1 DON!! attached, `active` active) is attacked by seat 0's `attacker`, on its Leader or on the rested Nami. */
   function attacked(attacker: string, target: "leader" | "nami" | "other", active = 4): Harness {
     const h = new Harness({ leaders: [L, LUFFY13] });
     h.don(1, active);
@@ -92,7 +90,6 @@ describe("leader playbooks: Luffy (OP13-001) on defense (#1178)", () => {
     expect(h.choice).toMatchObject({ seat: 1, cardDefId: LUFFY13 });
     return h;
   }
-  /** The DON!! count the bot rests and the card it boosts, answering both prompts. */
   function answers(h: Harness, opts: Opts = {}): { rested: number; boosted: string | null } {
     const first = normal(h, 1, opts);
     if (first.type !== "resolve_pending_choice") throw new Error("not an answer");
@@ -109,7 +106,6 @@ describe("leader playbooks: Luffy (OP13-001) on defense (#1178)", () => {
     // 5000 vs 7000: +2000 ties, +4000 wins.
     const h = attacked(DA_7000, "leader");
     expect(answers(h)).toEqual({ rested: 2, boosted: h.state.players[1].leader.id });
-    // The generic answer rests nothing for this prompt.
     expect(answers(attacked(DA_7000, "leader"), { playbooks: false }).rested).toBe(0);
   });
 
@@ -131,7 +127,6 @@ describe("leader playbooks: Luffy (OP13-001) on defense (#1178)", () => {
 });
 
 describe("leader playbooks: Enel (OP05-098) lets a hit on its last Life through (#1178)", () => {
-  /** Seat 1 (Enel) with `life` Life, a Blocker, counters in hand and a 7000 attacker (seat 0) hitting its Leader. */
   function enel(life: number, opts: { attacker?: string; deck?: number; target?: "leader" | "character" } = {}) {
     const h = new Harness({ leaders: [L, ENEL] });
     h.don(1, 3);
@@ -244,9 +239,7 @@ describe("leader playbooks: Luffy & Ace (ST30-001) (#1178)", () => {
     expect(verdict([FILLER, FILLER, FILLER, FILLER, FILLER])).toBe("mulligan");
     expect(verdict([LUFFY_4, FILLER, FILLER, FILLER, FILLER])).toBeUndefined();
     expect(verdict([NAMI, FILLER, FILLER, FILLER, FILLER])).toBeUndefined();
-    // A cost 4 Character that is not a Luffy does not count.
     expect(verdict([LAW_4, NAMI_EB, FILLER, FILLER, FILLER])).toBeUndefined();
-    // A Luffy outside the 4-5 cost range is not the one this plan wants.
     expect(verdict([LUFFY_3, NAMI_EB, FILLER, FILLER, FILLER])).toBeUndefined();
     expect(verdict([LUFFY_6, NAMI_EB, FILLER, FILLER, FILLER])).toBeUndefined();
   });

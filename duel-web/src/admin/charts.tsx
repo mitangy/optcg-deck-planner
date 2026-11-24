@@ -13,7 +13,6 @@ export function Tile({ label, value, sub }: { label: string; value: ReactNode; s
 
 export type Series = { key: string; label: string; color: string };
 
-/** The 7 / 14 / 30 / 90 day switch. Its size never depends on loading, so a refetch does not move it. */
 export function RangePicker({ value, onChange, label, busy }: { value: number; onChange: (days: RangeDays) => void; label: string; busy?: boolean }) {
   return (
     <div className="adm-range" role="group" aria-label={label} aria-busy={busy || undefined}>
@@ -27,7 +26,6 @@ export function RangePicker({ value, onChange, label, busy }: { value: number; o
   );
 }
 
-/** A floating box over a chart. It is absolutely positioned and never takes part in layout. */
 function Tip({ xPct, yPct, children }: { xPct: number; yPct?: number; children: ReactNode }) {
   const p = tipPlacement(xPct, yPct);
   const style =
@@ -40,12 +38,6 @@ function Tip({ xPct, yPct, children }: { xPct: number; yPct?: number; children: 
   );
 }
 
-/**
- * Stacked daily bars as inline SVG. Bars are drawn in a fixed 0..100 box that stretches to the container;
- * labels live in HTML so they never distort. `marker` is an optional day index to flag with a vertical line.
- * Hovering, tapping or arrowing to a day shows its counts in a tooltip; the legend turns series on and off, and the
- * scale follows the series still shown. With `onSelectDay`, picking a day (click, tap, Enter) reports it.
- */
 export function BarChart({
   days,
   series,
@@ -80,7 +72,6 @@ export function BarChart({
   const tip = at !== null ? tooltipFor(days[at]!, at, series, values, hidden) : null;
   const selected = selectedDay ? days.indexOf(selectedDay) : -1;
 
-  // A tap on a phone leaves the tooltip up; a tap anywhere else, or Escape, puts it away.
   useEffect(() => {
     if (at === null) return;
     const away = (e: PointerEvent) => {
@@ -227,18 +218,11 @@ export type TrendPoint = {
   at: number;
   value: number;
   label: string;
-  /** The id of this run's row in the table below, so the dot can jump to it. */
   id: string;
-  /** UTC date of the run, "2026-10-19". */
   date: string;
   spend: number | null;
 };
 
-/**
- * One value per run over time on a time axis, with an optional vertical marker at `markerAt`. `scale` is the Y range
- * and `format` writes a value for the axis, the dots and the tooltips (a score is "87.0%", a metric "0.85").
- * Each dot is a button: hovering or focusing it shows the run, and `onSelectPoint` fires when it is picked.
- */
 export function TrendChart({
   points,
   scale,

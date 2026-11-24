@@ -1,0 +1,66 @@
+/*
+ * Phones (portrait, and held sideways): text is never below 12px and links and
+ * buttons on the home page are at least 44px tall (#1391). Imported last so it
+ * wins over the base rules; padding and negative margins keep the look the same.
+ */
+@media (max-width: 479px), (orientation: landscape) and (max-height: 499px) {
+  .home-deck-label {
+    font-size: max(12px, 0.62rem);
+  }
+
+  /* Inline link in the one-line live status: 44px tall hit area without moving the text. */
+  .live-invite-link {
+    display: inline-block;
+    padding: 14px 4px;
+    margin: -14px -4px;
+  }
+
+  .voyage-stat > span {
+    font-size: max(12px, 0.66rem);
+  }
+
+  .friends-title,
+  .tcard-title,
+  .only-duel-label {
+    font-size: max(12px, 0.68rem);
+  }
+
+  .mode-tile-blurb {
+    font-size: max(12px, 0.7rem);
+  }
+
+  .mode-tile-tag {
+    font-size: 12px;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .bounties-see-all {
+    min-height: 44px;
+    margin-block: -4px;
+  }
+
+  .event-rules-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    margin-block: -6px;
+  }
+
+  .home-deck-edit {
+    min-height: 44px;
+    bottom: calc(0.9rem - 7px);
+  }
+
+  .friend-more,
+  .friend-remove {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 499px) {
+  .home-deck-edit {
+    bottom: calc(0.5rem - 7px);
+  }
+}

@@ -24,7 +24,6 @@ export const FeaturesScene: React.FC = () => {
           const y = (i - 1.5) * g.dy;
           const o = prog(f, p.at, p.at + 8);
           const next = PANELS[i + 1]?.at;
-          // 1 while this is the newest panel on the stack, 0 once the next one lands
           const act = prog(f, p.at + 4, p.at + 16) * (next === undefined ? 1 : 1 - prog(f, next + 2, next + 14));
           const grow = 1 + 0.06 * act;
           const line = prog(f, p.at + 14, p.at + 34);

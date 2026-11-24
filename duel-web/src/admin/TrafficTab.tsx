@@ -5,7 +5,6 @@ import { BarChart, RangePicker, Tile } from "./charts";
 import { Card } from "./HostingTab";
 
 
-/** A short ranked list: the name (cut with an ellipsis, full text on hover) and its visitors, right-aligned. */
 function TopList({ title, rows, name }: { title: string; rows: TrafficRow[]; name: (key: string) => string }) {
   return (
     <section className="adm-toplist" aria-label={title}>

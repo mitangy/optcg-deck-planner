@@ -1,15 +1,8 @@
-/**
- * "Show on screen" switches (#449): Card preview and Chat can be
- * hidden; the Battle log always stays and has no switch. Everything is shown
- * by default. Hidden desktop panels keep their place in the saved layout, the
- * rest of the column takes the room, and a column with nothing left collapses.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
 async function openDemo(page: Page, settings: Record<string, unknown>, size?: { width: number; height: number }) {
   if (size) await page.setViewportSize(size);
-  // The two-column layout with the preview docked in it (the pop-up and one column are #529's defaults).
   await page.addInitScript(
     (s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)),
     { previewPopup: false, sideColumns: "both", ...settings },
@@ -85,7 +78,6 @@ test.describe("desktop panels", () => {
 
     await page.getByRole("button", { name: "Gameplay settings" }).click();
     await page.getByRole("dialog", { name: "Gameplay settings" }).getByRole("checkbox", { name: "Chat", exact: true }).check();
-    // Back at the end of the left column, not the right one it started in.
     await expect(page.locator('[data-panel-col="left"] [data-panel="chat"]')).toBeVisible();
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem("optcg-duel:settings")!).panelLayout)).toBe(layout);
   });

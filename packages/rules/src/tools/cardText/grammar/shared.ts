@@ -1,13 +1,9 @@
-/**
- * Helpers shared by the grammar's condition, cost, effect and static rule tables.
- */
 import type { Duration, Keyword, Rel, Target } from "../../../effects/types.js";
 import { exactly, leaderOf, upTo, v } from "../../../effects/builders.js";
 import { parseCardPhrase, type CardPhrase, type Ctx, type PhraseOptions } from "../phrases.js";
 
 export type Rule<T> = [RegExp, (m: RegExpExecArray, ctx: Ctx) => T | null];
 
-/** One grammar rule: when `re` matches the (normalized) clause, `build` turns the match into DSL data, or null to fall through. */
 export const rule = <T>(re: RegExp, build: (m: RegExpExecArray, ctx: Ctx) => T | null): Rule<T> => [re, build];
 
 export function firstMatch<T>(text: string, rules: Rule<T>[], ctx: Ctx): T | null {
@@ -76,7 +72,6 @@ export function toTarget(p: CardPhrase, bind?: string): Target {
   }
 }
 
-/** Targets on the field ("KO up to 1 of your opponent's Characters"). */
 export function fieldTarget(text: string, ctx: Ctx, bind = "_last"): Target | null {
   const t = text.trim();
   if (

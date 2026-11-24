@@ -1,4 +1,3 @@
-/* —— Report player dialog (reports/ReportPlayerDialog) — reuses the feedback dialog shell above —— */
 .report-card {
   max-width: 480px;
 }
@@ -162,7 +161,6 @@
   color: var(--chrome-bright);
 }
 
-/* The buttons stay in reach while a long form scrolls inside a short window. */
 .report-card .feedback-actions {
   position: sticky;
   bottom: 0;
@@ -206,7 +204,6 @@
   }
 }
 
-/* Moderator warning notice (warnings/WarningNotice) — builds on the .moved-card shell. */
 .warning-card .warning-message {
   margin: 0 0 0.7rem;
   padding: 0.6rem 0.7rem;

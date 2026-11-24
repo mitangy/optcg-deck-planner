@@ -1,12 +1,3 @@
-/**
- * Card action popover and Attach DON!! confirm stay fully on screen (#449).
- * Both used to go above the card whenever it was more than ~80 px from the top
- * of the window, ignoring their own height: a Leader scrolled or squeezed near
- * the top got a popover whose +1 / +2 row ran off the screen.
- *
- * `?cantattack&dons` is your main phase with DON!! to give: the Leader's popover
- * holds a +1 / +2 row and an Attack button.
- */
 import { test, expect } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -18,7 +9,6 @@ async function openDemo(page: Page, params = "cantattack&dons") {
   await expect(page.locator(LEADER)).toBeVisible();
 }
 
-/** Slide the Leader's cell so the card's top edge sits `top` px from the top of the window. */
 async function moveLeaderTo(page: Page, top: number) {
   await page.evaluate(
     ({ sel, top }) => {
@@ -32,7 +22,6 @@ async function moveLeaderTo(page: Page, top: number) {
   );
 }
 
-/** Every button of the overlay is inside the window and is what a tap at its centre reaches. */
 async function expectButtonsReachable(page: Page, overlay: string, note = "") {
   const report = await page.evaluate((sel) => {
     const root = document.querySelector(sel);
@@ -73,7 +62,6 @@ test("a Leader near the top of the window gets its +1 / +2 popover on screen and
 test("the popover stays on screen wherever the card sits, above, below or squeezed (#449)", async ({ page }) => {
   await openDemo(page);
   const vh = page.viewportSize()!.height;
-  // Near the top, mid-window and near the bottom edge.
   for (const top of [20, 90, Math.round(vh / 2), vh - 80]) {
     await moveLeaderTo(page, top);
     await page.locator(LEADER).dispatchEvent("click");
@@ -87,12 +75,10 @@ test("the popover stays on screen wherever the card sits, above, below or squeez
 test("the Attach DON!! confirm stays on screen for a Leader near the top (#449)", async ({ page }) => {
   await openDemo(page);
   await moveLeaderTo(page, 90);
-  // Select a DON!! in the cost area, then tap the Leader: "Attach DON!!" asks to confirm.
   await page.locator('.don-strip-you .don-chip-btn[data-don-id="d1"]').click({ force: true });
   await page.locator(LEADER).dispatchEvent("click");
   await expect(page.locator(".don-attach-confirm")).toBeVisible();
   await expectButtonsReachable(page, ".don-attach-confirm");
-  // The whole confirm, title row included, not just its buttons.
   expect((await page.locator(".don-attach-confirm").boundingBox())!.y).toBeGreaterThanOrEqual(0);
   await page.locator(".don-attach-ok").click();
   await expect
@@ -100,7 +86,6 @@ test("the Attach DON!! confirm stays on screen for a Leader near the top (#449)"
     .toEqual([{ type: "give_don", donId: "d1", targetId: "y-leader" }]);
 });
 
-// The confirm's button passed its click event on as the pending attach, which threw and sent nothing.
 test("tapping Attach DON!! on the confirm sends the give_don and closes it (#449)", async ({ page }) => {
   await openDemo(page);
   await page.locator('.don-strip-you .don-chip-btn[data-don-id="d1"]').click({ force: true });
@@ -112,7 +97,6 @@ test("tapping Attach DON!! on the confirm sends the give_don and closes it (#449
   await expect(page.locator(".don-attach-confirm")).toHaveCount(0);
 });
 
-// The confirm had a fixed 250px width while the font grew with the window and Text size, so the OK label spilled out.
 test("the Attach DON!! button fits its label on a big screen with Extra large text (#493)", async ({ page }) => {
   await page.addInitScript(() => {
     const key = "optcg-duel:settings";

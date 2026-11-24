@@ -1,7 +1,3 @@
-/**
- * Immutable ability registry: generated definitions (from official text) with
- * reviewed manual overrides taking precedence per card. Validated once at load.
- */
 import generatedRaw from "./generated/abilities.json" with { type: "json" };
 import { MANUAL_ABILITIES } from "./manualAbilities.js";
 import { compileAbilityProgram, compileStandalone, type Program } from "../effects/compile.js";
@@ -36,7 +32,6 @@ export interface AbilityRegistry {
   abilities: ReadonlyMap<string, { cardId: string; ability: Ability }>;
 }
 
-/** Build and validate a registry from raw records (exported for tests). */
 export function buildAbilityRegistry(records: Record<string, unknown>): AbilityRegistry {
   const errors: string[] = [];
   const cards = new Map<string, CardAbilities>();
@@ -63,7 +58,6 @@ for (const [id, record] of Object.entries(generated)) merged[id] = record;
 const manualErrors: string[] = [];
 for (const [id, record] of Object.entries(MANUAL_ABILITIES)) {
   if ("patch" in record) {
-    // Each patch ability replaces the unsupported generated clause its `text` starts.
     const base = generated[id];
     if (!base) { manualErrors.push(`manual[${id}]: no generated record to patch`); continue; }
     const covered = new Set<string>();
@@ -105,7 +99,6 @@ export function abilityById(abilityId: string): { cardId: string; ability: Abili
 }
 
 const programs = new Map<string, Program>();
-/** Compiled program for an ability. Triggered abilities with costs ask before paying. */
 export function programFor(abilityId: string): Program {
   const hit = programs.get(abilityId);
   if (hit) return hit;
@@ -116,12 +109,10 @@ export function programFor(abilityId: string): Program {
   return program;
 }
 
-/** The program the engine runs for an ability: triggered abilities with costs ask before paying, Activate: Main pays up front. */
 export function compileAbility(ability: Ability): Program {
   return compileAbilityProgram(ability, { optionalCosts: ability.trigger !== "activate_main" });
 }
 
-/** Compiled "instead" body of a replacement ability. */
 export function replacementProgramFor(abilityId: string): Program {
   const key = `${abilityId}#instead`;
   const hit = programs.get(key);
@@ -133,7 +124,6 @@ export function replacementProgramFor(abilityId: string): Program {
   return program;
 }
 
-/** Printed unconditional keyword (catalog display only; legality is dynamic). */
 export function hasPrintedKeyword(cardId: string, keyword: Keyword): boolean {
   return abilitiesFor(cardId).some((a) => a.trigger === "static" && !a.don && !(a.conditions?.length) && (a.statics ?? []).some((s) => s.s === "keyword" && s.target === "self" && s.keyword === keyword));
 }

@@ -1,60 +1,42 @@
 import { Link } from "react-router-dom";
 import { BountyAmount } from "../../Bounty";
 import { BrandWordmark } from "../../BrandMark";
-import { getPlannerUrl } from "../../config";
 import { NavMenu } from "../../nav/NavMenu";
+import { INLINE_NAV } from "../../nav/navItems";
 import { googleLoginUrl } from "../../net/api";
+import { ProfileAvatar } from "../../profile/ProfileAvatar";
+import { useDuelSettings } from "../../settings";
 
-/** The home page's own top bar (the other pages use `PageShell`): menu, wordmark, sign-in, account chip, shortcuts. */
 export function LobbyTopbar({ authMode, accountName, bounty }: { authMode: "guest" | "google" | "dev"; accountName: string; bounty: number | null }) {
+  const { profileCard, profileArt } = useDuelSettings();
   return (
     <header className="topbar">
       <div className="topbar-inner">
-        <div className="topbar-left">
-          <NavMenu />
-          <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
-            <BrandWordmark />
-          </Link>
-        </div>
+        <NavMenu className="topbar-menu" hideInline />
+        <Link to="/" className="topbar-mark" aria-label="OPTCG Duel home">
+          <BrandWordmark />
+        </Link>
+        <nav className="topbar-links" aria-label="Main">
+          {INLINE_NAV.map((item) => (
+            <Link key={item.href} to={item.href} className="topbar-link">
+              {item.label}
+            </Link>
+          ))}
+        </nav>
         <div className="topbar-right">
           {authMode === "guest" ? (
             <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
               Sign in
             </a>
           ) : null}
-          <Link to="/settings" className="account-chip" title="Account settings">
-            <span className="account-dot" data-mode={authMode} aria-hidden />
+          <Link to="/profile" className="account-chip" title="Your profile" aria-label={`Your profile: ${accountName}`}>
+            {profileCard ? <ProfileAvatar cardId={profileCard} artId={profileArt} name={accountName} size={22} /> : <span className="account-dot" data-mode={authMode} aria-hidden />}
             <span className="account-name">{accountName}</span>
             {bounty != null ? (
               <span className="account-rating" title="Bounty">
                 <BountyAmount amount={bounty} />
               </span>
             ) : null}
-          </Link>
-          <a
-            href={getPlannerUrl()}
-            target="_blank"
-            rel="noopener"
-            className="icon-btn topbar-in-menu"
-            aria-label="Deck planner"
-            title="Deck planner"
-          >
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
-              <path
-                fill="currentColor"
-                d="M8 2h11a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Zm0 2v14h11V4H8Zm2 3h7v2h-7V7Zm0 4h7v2h-7v-2ZM3 6h1v16h13v1a1 1 0 0 1-1 1H4a2 2 0 0 1-2-2V7a1 1 0 0 1 1-1Z"
-              />
-            </svg>
-            <span className="icon-btn-label">Planner</span>
-          </a>
-          <Link to="/history" className="icon-btn topbar-in-menu" aria-label="Match history" title="Match history">
-            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>
-              <path
-                fill="currentColor"
-                d="M13 3a9 9 0 0 0-9 9H1l3.9 3.9.07.14L9 12H6a7 7 0 1 1 2.05 4.95l-1.42 1.42A9 9 0 1 0 13 3Zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12Z"
-              />
-            </svg>
-            <span className="icon-btn-label">History</span>
           </Link>
           <Link to="/settings" className="icon-btn" aria-label="Settings" title="Settings">
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden>

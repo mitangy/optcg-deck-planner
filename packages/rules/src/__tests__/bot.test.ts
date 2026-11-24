@@ -10,17 +10,16 @@ import { onKoValue } from "../bot/value.js";
 import { FILLER, Harness } from "../testing/harness.js";
 import type { Intent } from "../types.js";
 
-const KAROO = FILLER; // cost 1, 3000, Counter 1000
-const BIG_COUNTER = "EB02-055"; // cost 4, 5000, Counter 2000
-const WEAK_BLOCKER = "EB01-017"; // cost 2, 2000, Blocker
-const STRONG_BLOCKER = "EB03-019"; // cost 6, 7000, Blocker
-const L = "OP01-001"; // 5000, no Activate: Main
-const STRONG_LEADER = "OP02-001"; // 6000
-const KO_EVENT = "ST08-015"; // [Main] K.O. up to 1 of your opponent's Characters with a cost of 2 or less.
+const KAROO = FILLER;
+const BIG_COUNTER = "EB02-055";
+const WEAK_BLOCKER = "EB01-017";
+const STRONG_BLOCKER = "EB03-019";
+const L = "OP01-001";
+const STRONG_LEADER = "OP02-001";
+const KO_EVENT = "ST08-015";
 
 const decks = (seed: number) => { const r = createSeededRng(seed); return [randomDeck(r), randomDeck(r)] as const; };
 
-/** Seat 0's Leader attacks seat 1's Leader, which is at `life` Life; returns the bot's (seat 1) move at the block step. */
 function underAttack(life: number, setup: (h: Harness) => void) {
   const h = new Harness({ leaders: [L, L] });
   h.life(1, ...Array.from({ length: life }, () => FILLER));
@@ -89,7 +88,6 @@ describe("bot defense (#631)", () => {
     const h = underAttack(1, (x) => x.hand(1, BIG_COUNTER, KAROO));
     h.act(1, { type: "pass_block" });
     expect(h.state.phase).toBe("counter");
-    // Needs +1000 to beat the 5000 attack: Karoo (1000, hand index 1), not the 2000 card.
     expect(bot(h, 1)).toEqual({ type: "counter_from_hand", handIndex: 1 });
   });
 
@@ -131,7 +129,7 @@ describe("bot main phase (#631)", () => {
   });
 
   it("powers its Leader up with DON!! to reach a stronger Leader, then attacks (#631)", () => {
-    const h = new Harness({ leaders: [L, STRONG_LEADER] }); // 5000 vs 6000
+    const h = new Harness({ leaders: [L, STRONG_LEADER] });
     h.don(0, 1);
     const give = bot(h, 0);
     expect(give).toMatchObject({ type: "give_don", targetId: h.state.players[0].leader.id });
@@ -176,7 +174,6 @@ describe("bot main phase (#631)", () => {
 });
 
 describe("bot redirects an attack with a Leader's [On Your Opponent's Attack] effect (#1169)", () => {
-  /** Seat 0's Leader attacks Teach (seat 1); returns the bot's (seat 1) answer to the redirect select. */
   function redirectAnswer(field: string[]) {
     const h = new Harness({ leaders: ["ST01-001", "OP16-080"] });
     const cards = field.length ? h.field(1, ...field) : [];
@@ -225,7 +222,6 @@ describe("bot redirects an attack with a Leader's [On Your Opponent's Attack] ef
 });
 
 describe("bots count a Character's [On K.O.] when choosing which one to lose (#1172)", () => {
-  /** Seat 0 (the bot) plays EB05-048, whose cost K.O.s one of its {Baroque Works} Characters; returns the card it gives up. */
   function koCostPick(field: string[]) {
     const h = new Harness({ leaders: [L, L] });
     const cards = h.field(0, ...field);
@@ -249,7 +245,6 @@ describe("bots count a Character's [On K.O.] when choosing which one to lose (#1
   });
 
   it("bot keeps the plain Character over a dearer one whose [On K.O.] pays it back when it must give one up (#1172)", () => {
-    // Taking OP01-080 (5) minus its bonus (2) = 3 beats OP01-085 (3.5, [On Play] only); by board value alone OP01-085 would go.
     const { chosen, cards } = koCostPick(["OP01-085", "OP01-080"]);
     expect(chosen.instanceId).toBe(cards[1]!.id);
   });
@@ -281,7 +276,6 @@ describe("bots count a Character's [On K.O.] when choosing which one to lose (#1
   });
 
   it("bot redirects an attack to the Character with [On K.O.] rather than a cheaper one that loses the same way (#1172)", () => {
-    // Seat 0's 5000 Leader beats both; Usopp-style OP16-102 (2.3) is dearer than OP09-095 (1.5) but pays back when K.O.'d.
     const h = new Harness({ leaders: ["ST01-001", "OP16-080"] });
     const cards = h.field(1, "OP09-095", "OP16-102");
     h.hand(1, "ST01-014");
@@ -308,11 +302,10 @@ describe("self-play recorder (#631)", () => {
 });
 
 describe("bot goes for lethal on board (#1192)", () => {
-  const KAWAMATSU = "OP12-023"; // 6000
-  const ZORO = "OP01-025"; // 5000
-  const NEWGATE = "ST30-003"; // cost 8, 6000: worth more than a Leader hit (11 vs 10) once rested
-  const JOZU = "OP16-007"; // 8000 [Blocker]
-  /** Seat 0 (Leader 5000 + `mine`) attacks seat 1, which has 2 Life, a rested Newgate and `theirs` besides. */
+  const KAWAMATSU = "OP12-023";
+  const ZORO = "OP01-025";
+  const NEWGATE = "ST30-003";
+  const JOZU = "OP16-007";
   function board(mine: string[], theirs: string[]) {
     const h = new Harness({ leaders: [L, L] });
     h.clearHands();
@@ -329,12 +322,12 @@ describe("bot goes for lethal on board (#1192)", () => {
   };
 
   it("Normal attacks the Leader when its attackers outnumber the opponent's Life and active Blockers, instead of K.O.ing rested Characters (#1192)", () => {
-    expect(target(board([KAWAMATSU, ZORO], []))).toBe("leader"); // Leader + 2 Characters vs 2 Life
-    expect(target(board([KAWAMATSU, ZORO, ZORO], [JOZU]))).toBe("leader"); // 4 attackers vs 2 Life + 1 active Blocker
+    expect(target(board([KAWAMATSU, ZORO], []))).toBe("leader");
+    expect(target(board([KAWAMATSU, ZORO, ZORO], [JOZU]))).toBe("leader");
   });
 
   it("Normal still K.O.s the rested Character when one attacker is short of lethal or a Blocker stops the count (#1192)", () => {
-    expect(target(board([KAWAMATSU], []))).toBe("character"); // 2 attackers vs 2 Life
-    expect(target(board([KAWAMATSU, ZORO], [JOZU]))).toBe("character"); // 3 attackers vs 2 Life + 1 active Blocker
+    expect(target(board([KAWAMATSU], []))).toBe("character");
+    expect(target(board([KAWAMATSU, ZORO], [JOZU]))).toBe("character");
   });
 });

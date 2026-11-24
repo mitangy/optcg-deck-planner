@@ -3,22 +3,15 @@ import { useEffect, useState, type ComponentPropsWithRef, type ReactNode } from 
 type Props = Omit<ComponentPropsWithRef<"button">, "children" | "onClick" | "title" | "disabled" | "className"> & {
   className?: string;
   label: string;
-  /** Shown after the first click; a second click within `armMs` confirms. */
   confirmLabel: ReactNode;
   title?: string;
-  /** Overrides the accessible name (icon-only labels). */
   ariaLabel?: string;
   disabled?: boolean;
   armMs?: number;
-  /** Size the button for the longer label so arming never shifts its neighbours. */
   reserveWidth?: boolean;
   onConfirm: () => void;
 };
 
-/**
- * Two-step button for destructive HUD actions (concede, undo) so a stray
- * click next to Leave never ends or rewinds a match.
- */
 export function ConfirmButton({
   className = "",
   label,
@@ -45,7 +38,6 @@ export function ConfirmButton({
 
   return (
     <button
-      // Extra props reach the button, so a Headless UI MenuItem can wrap it (role, ref, key handling).
       {...rest}
       type="button"
       className={`${className}${armed ? " armed" : ""}`}

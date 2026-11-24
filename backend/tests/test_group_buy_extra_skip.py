@@ -1,4 +1,3 @@
-"""Skip an Extra copy in one group buy without touching the Shopping list (#1269)."""
 
 from __future__ import annotations
 
@@ -11,8 +10,8 @@ from tests.conftest import add_catalog, add_deck_with_cards, make_user
 
 SHANKS = "OP01-001"
 LUFFY = "OP01-002"
-SHANKS_BASE, SHANKS_MANGA = 1001, 1009  # $2.50 base, $180 alt
-LUFFY_BASE, LUFFY_PARALLEL = 1002, 1010  # $1 base, $12 alt
+SHANKS_BASE, SHANKS_MANGA = 1001, 1009
+LUFFY_BASE, LUFFY_PARALLEL = 1002, 1010
 
 
 @pytest.fixture()
@@ -51,12 +50,11 @@ def test_skipping_one_cards_extra_leaves_the_other_cards_extra_in_the_buy_1269(d
     shanks, luffy = _line(after, SHANKS), _line(after, LUFFY)
 
     assert (shanks.my_qty, shanks.my_suggested_qty, shanks.my_deck_qty) == (4, 4, 4)
-    assert shanks.remaining_cost == 10.0  # 4 base copies, no $180 Manga
+    assert shanks.remaining_cost == 10.0
     assert _wants(shanks) == [(SHANKS_BASE, 4)]
     assert [(e.product_id, e.wanted, e.skipped) for e in shanks.my_extras] == [(SHANKS_MANGA, 1, 1)]
-    assert (luffy.my_qty, luffy.remaining_cost) == (5, 16.0)  # 4 base + the $12 Parallel
+    assert (luffy.my_qty, luffy.remaining_cost) == (5, 16.0)
     assert (LUFFY_PARALLEL, 1) in _wants(luffy)
-    # The Shopping list still wants the Manga copy.
     shop = shopping_svc.shopping_list(db, member, include_collector=True, show_collector=True)
     item = next(i for i in shop.items if i.card_id == SHANKS)
     assert [c.still_need for c in item.collector_wants] == [1]
@@ -70,7 +68,7 @@ def test_lowering_your_buy_drops_the_extra_before_a_deck_copy_1269(db, member, g
     line = _line(after, SHANKS)
 
     assert line.my_qty == 4
-    assert _wants(line) == [(SHANKS_BASE, 4)]  # four base copies, the Manga is what went
+    assert _wants(line) == [(SHANKS_BASE, 4)]
     assert line.remaining_cost == 10.0
 
 
@@ -81,11 +79,11 @@ def test_skipping_an_extra_in_a_locked_group_buy_is_refused_1269(db, member, gro
 
 
 def test_skipping_an_extra_keeps_a_custom_qty_the_extra_never_funded_1289(db, member, group):
-    group_buy.set_member_qty(db, member, group.id, SHANKS, 3)  # custom, below the 4 deck copies + Manga
+    group_buy.set_member_qty(db, member, group.id, SHANKS, 3)
     after = group_buy.set_extra_skip(db, member, group.id, SHANKS, SHANKS_MANGA, 1)
     line = _line(after, SHANKS)
 
-    assert line.my_qty == 3  # the Manga was never in a 3-copy buy, so no deck copy goes
+    assert line.my_qty == 3
     assert line.my_suggested_qty == 4
 
 
@@ -100,13 +98,13 @@ def test_unticking_an_extra_keeps_a_custom_qty_equal_to_the_deck_copies_1289(db,
 
 
 def test_skipping_an_extra_lowers_a_custom_qty_that_funded_it_by_the_same_copies_1269(db, member, group):
-    owned_svc.set_collector_want(db, member, SHANKS, SHANKS_MANGA, 2)  # suggested 6: 4 deck + 2 Manga
-    group_buy.set_member_qty(db, member, group.id, SHANKS, 5)  # custom: 4 deck + 1 Manga
+    owned_svc.set_collector_want(db, member, SHANKS, SHANKS_MANGA, 2)
+    group_buy.set_member_qty(db, member, group.id, SHANKS, 5)
     after = group_buy.set_extra_skip(db, member, group.id, SHANKS, SHANKS_MANGA, 1)
     line = _line(after, SHANKS)
 
     assert line.my_suggested_qty == 5
-    assert line.my_qty == 4  # the funded Manga copy leaves the buy; still a custom qty below the suggestion
+    assert line.my_qty == 4
 
 
 def test_leaving_a_group_buy_forgets_skipped_extras_on_rejoin_1289(db, member, group):

@@ -1,29 +1,12 @@
-/**
- * UI quality audit for whatever the page shows right now. Runs inside the
- * browser (`page.evaluate`) and returns one issue per problem:
- *
- * - `hscroll`   the page, or a panel, scrolls sideways
- * - `clipped`   text cut off by its own box (overflow hidden, no ellipsis)
- * - `spill`     text drawn outside its box, or outside a clipping ancestor
- * - `covered`   a control or a line of text hidden under another element
- * - `offscreen` a control or text cut off by the viewport edge
- *
- * Intentional overlap is exempt: anything under an open dialog or popover.
- * Ported from duel-web/e2e/audit.ts; also exports `expectStationary` for
- * CLAUDE.md UI-polish rules 1 and 6 (a trigger must not move when it toggles).
- */
 import { expect, type Locator, type Page } from "@playwright/test";
 
 export type AuditIssue = {
   kind: "hscroll" | "clipped" | "spill" | "covered" | "offscreen";
-  /** Short CSS-ish path of the element, e.g. `.intent-bar > button.intent-btn`. */
   where: string;
-  /** First 40 chars of the element's text. */
   text: string;
   detail: string;
 };
 
-/** Stable id for an issue (no pixel values), for known-issue lists. */
 export function issueKey(i: AuditIssue): string {
   return `${i.kind} ${i.where} "${i.text}"`;
 }
@@ -32,16 +15,13 @@ export function formatIssues(issues: AuditIssue[]): string {
   return issues.map((i) => `  ${issueKey(i)}: ${i.detail}`).join("\n");
 }
 
-/** Piles whose members overlap on purpose. The planner has none. */
 const DEFAULT_STACKS: string[] = [];
 
-/** Elements that intentionally hang off a screen edge. */
 const DEFAULT_OFFSCREEN_OK: string[] = [];
 
-/** Containers that scroll sideways on purpose. */
-const DEFAULT_HSCROLL_OK: string[] = [".topbar nav"];
+// The phone colour and type chips are one row that scrolls sideways on purpose (#1342).
+const DEFAULT_HSCROLL_OK: string[] = [".toolbar-chip-scroll"];
 
-/** Layers that intentionally sit over the page (what is under them is expected to be covered). */
 const DEFAULT_OVERLAYS = ["[role=dialog]", "[aria-modal=true]", ".market-sales", ".head-popover-panel", ".sort-menu-panel", ".stats-pill"];
 
 export async function auditPage(
@@ -49,7 +29,6 @@ export async function auditPage(
   opts: { stacks?: string[]; overlays?: string[]; offscreenOk?: string[]; ignore?: string[] } = {},
 ): Promise<AuditIssue[]> {
   const settle = () =>
-    // Let transitions and entrance animations finish; ignore infinite ones.
     page
       .waitForFunction(
         () => document.getAnimations().every((a) => a.playState !== "running" || a.effect?.getTiming().iterations === Infinity),
@@ -60,8 +39,6 @@ export async function auditPage(
   await settle();
   const style = await page.addStyleTag({ content: "*, *::before, *::after { pointer-events: auto !important; }" });
   try {
-    // The page scrolls: audit one viewport at a time, since covered-element
-    // sampling only sees what is on screen. Sticky headers are tested at every step.
     const seen = new Set<string>();
     const issues: AuditIssue[] = [];
     const { height, total, start } = await page.evaluate(() => ({
@@ -73,7 +50,9 @@ export async function auditPage(
       await page.evaluate((top) => window.scrollTo(0, top), y);
       await settle();
       // Scrolled content passes under the sticky header; that is not overlap.
-      const overlays = y > 0 ? [...(opts.overlays ?? DEFAULT_OVERLAYS), ".topbar"] : opts.overlays;
+      // The phone tab bar is fixed over whatever scrolls under it; the page reserves room for it at the end.
+      const base = [...(opts.overlays ?? DEFAULT_OVERLAYS), ".bottom-nav"];
+      const overlays = y > 0 ? [...base, ".topbar"] : base;
       for (const i of await runAudit(page, { ...opts, overlays })) {
         const k = `${i.kind}|${i.where}|${i.text}`;
         if (!seen.has(k)) {
@@ -119,7 +98,6 @@ function runAudit(
       }
       function visible(el: Element): boolean {
         const r = el.getBoundingClientRect();
-        // ≤ 2px: visually-hidden (screen-reader only) text.
         if (r.width <= 2 || r.height <= 2) return false;
         for (let cur: Element | null = el; cur; cur = cur.parentElement) {
           const s = getComputedStyle(cur);
@@ -127,7 +105,6 @@ function runAudit(
         }
         return true;
       }
-      /** One rect per rendered line of `el`'s own text. */
       function ownTextLines(el: Element): DOMRect[] {
         const range = document.createRange();
         const lines: DOMRect[] = [];
@@ -160,11 +137,9 @@ function runAudit(
       function add(kind: AuditIssue["kind"], el: Element, detail: string) {
         issues.push({ kind, where: where(el), text: textOf(el), detail });
       }
-      /** Nearest ancestor that clips its content. */
       function clippingAncestor(el: Element): Element | null {
         let child: Element = el;
         for (let cur = el.parentElement; cur && cur !== document.documentElement; child = cur, cur = cur.parentElement) {
-          // A fixed layer (the price panel) is not clipped by its ancestors' overflow.
           if (getComputedStyle(child).position === "fixed") return null;
           const s = getComputedStyle(cur);
           if (s.overflowX !== "visible" || s.overflowY !== "visible") return cur;
@@ -190,10 +165,11 @@ function runAudit(
         return false;
       }
 
-      /** Does `el` itself put pixels at (x, y)? Transparent wrappers do not. */
       function paintsAt(el: Element, x: number, y: number): boolean {
+        // A point that only reaches the element through its invisible ::after hit-slop is not painted by it.
+        const own = el.getBoundingClientRect();
+        if (x < own.left - 0.5 || x > own.right + 0.5 || y < own.top - 0.5 || y > own.bottom + 0.5) return false;
         if (/^(IMG|CANVAS|VIDEO|INPUT|SELECT|TEXTAREA)$/i.test(el.tagName)) return true;
-        // An <svg> box is transparent; its shapes hit-test on their painted geometry.
         if (el instanceof SVGElement) return !(el instanceof SVGSVGElement);
         const s = getComputedStyle(el);
         if (Number(s.opacity) < 0.05 || s.visibility === "hidden") return false;
@@ -225,8 +201,6 @@ function runAudit(
         });
       }
 
-      // A panel that scrolls sideways hides part of every row; only piles
-      // meant to scroll sideways (card rows, hands) may.
       for (const el of document.body.querySelectorAll("*")) {
         const s = getComputedStyle(el);
         if (!/(auto|scroll)/.test(s.overflowX) || el.scrollWidth <= el.clientWidth + 1) continue;
@@ -254,7 +228,6 @@ function runAudit(
           const t = Math.max(textBox.top, rect.top);
           textBox = new DOMRect(l, t, Math.max(0, Math.min(textBox.right, rect.right) - l), Math.max(0, Math.min(textBox.bottom, rect.bottom) - t));
         }
-        // Text cut off by its own box.
         if (textBox) {
           const clipsX = s.overflowX !== "visible" && el.scrollWidth > el.clientWidth + 1;
           const clipsY = s.overflowY !== "visible" && el.scrollHeight > el.clientHeight + 1;
@@ -265,7 +238,6 @@ function runAudit(
             if (over > 3) add("spill", el, `text runs ${over.toFixed(0)}px past its box`);
           }
           const clip = clippingAncestor(el);
-          // An ellipsis on the clipping box means the cut is the design.
           if (clip && !scrolls(clip) && getComputedStyle(clip).textOverflow !== "ellipsis") {
             const c = clip.getBoundingClientRect();
             const over = Math.max(c.left - textBox.left, textBox.right - c.right, c.top - textBox.top, textBox.bottom - c.bottom);
@@ -273,12 +245,10 @@ function runAudit(
           }
         }
 
-        // Clip to scroll containers: a log line scrolled out of view is hidden, not covered.
         let box = textBox ?? rect;
         let inScroller = false;
         for (let cur = el.parentElement; cur; cur = cur.parentElement) {
           if (!scrolls(cur)) {
-            // Text cut by an ancestor on purpose (ellipsis) is not off screen; only its visible part counts.
             if (getComputedStyle(cur).textOverflow === "ellipsis") {
               const c = cur.getBoundingClientRect();
               const l = Math.max(box.left, c.left);
@@ -303,8 +273,6 @@ function runAudit(
           if (over > 2) add("offscreen", el, `${over.toFixed(0)}px outside the viewport`);
         }
 
-        // Covered: sample each text line's centre (wrapped inline text has gaps
-        // in its bounding box), or the centre and four inset points of a control.
         const lines = textBox ? ownTextLines(el).filter((r) => r.right > box.left && r.left < box.right && r.bottom > box.top && r.top < box.bottom) : [];
         const pts: Array<[number, number]> = lines.length
           ? lines.slice(0, 5).flatMap((r) => [
@@ -324,26 +292,21 @@ function runAudit(
         let by: Element | null = null;
         pts.forEach(([x, y], idx) => {
           if (x < 0 || y < 0 || x >= vw || y >= vh) return;
-          // A line half cut by its scroll container has a centre outside what is visible.
           if (x < box.left - 1 || x > box.right + 1 || y < box.top - 1 || y > box.bottom + 1) return;
           sampled += 1;
           const top = topPainter(x, y);
-          // An ancestor paints below its descendants, so it never hides them.
           if (!top || top === el || el.contains(top) || top.contains(el)) return;
           if (intentionalOverlap(el, top)) return;
           blocked += 1;
           if (idx === 0) centreBlocked = true;
           by ??= top;
         });
-        // A control is broken if its centre is hidden; text if most of it is.
         if (by && ((isControl && centreBlocked) || blocked * 2 > sampled)) {
-          // A hand card's own badge path doesn't say it's in the hand; name the fan.
           const fan = (by as Element).closest(".hand-fan") && !el.closest(".hand-fan") ? " (in the hand fan)" : "";
           add("covered", el, `${blocked}/${sampled} points under ${where(by)}${fan}`);
         }
       }
 
-      // One report per element+kind.
       const seen = new Set<string>();
       return issues.filter((i) => {
         const k = `${i.kind}|${i.where}|${i.text}|${i.detail}`;
@@ -370,14 +333,9 @@ async function boxOf(trigger: Locator): Promise<Box> {
   return box;
 }
 
-/**
- * Run `toggle` (click to expand a price, open filters, open a dropdown) and
- * fail if `trigger` moved or resized by more than 1px. Returns once the page
- * has settled so the caller can audit the toggled state.
- */
 export async function expectStationary(trigger: Locator, toggle: () => Promise<void>, label: string): Promise<void> {
-  // Playwright scrolls a clipped target into view when it clicks; do that first so scrolling is not "movement".
-  await trigger.scrollIntoViewIfNeeded();
+  // Centre it, clear of the phone tab bar, so the click does not scroll the page by itself.
+  await trigger.evaluate((el) => el.scrollIntoView({ block: "center" }));
   const before = await boxOf(trigger);
   await toggle();
   await trigger.page().evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));

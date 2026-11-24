@@ -11,11 +11,11 @@ import { generateAbilities, serializeGenerated } from "../tools/cardText/generat
 describe("card data", () => {
   it("covers every catalog id (official list plus flagged bundled rows)", () => {
     const ids = listCardDataIds();
-    expect(ids.length).toBe(2995);
+    expect(ids.length).toBe(2996);
     const official = listCardDefs().filter((d) => d.dataSource === "bandai");
     expect(official.length).toBe(2969);
     expect(listCardDefs().filter((d) => d.dataSource === "bundled").length).toBe(0);
-    expect(listCardDefs().filter((d) => d.dataSource === "tcgplayer").length).toBe(26);
+    expect(listCardDefs().filter((d) => d.dataSource === "tcgplayer").length).toBe(27);
   });
 
   it("carries the confirmed ST01 and Teach corrections from official data", () => {
@@ -41,13 +41,11 @@ describe("card data", () => {
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["EB05-025", "op01-016_p1"] }])).not.toThrow();
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["OP99-999"] }])).toThrow("Unknown card def");
     expect(() => ensureDefsForPlayers([{ leaderId: "OP99-001", deck: [] }])).toThrow("Unknown or invalid leader");
-    // A real card that is not a Leader cannot lead a deck.
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-003", deck: [] }])).toThrow("Unknown or invalid leader");
     expect(getDefsHealthSnapshot().defsCount).toBe(before);
   });
 
   it("rejects a Leader card in the main deck (#266)", () => {
-    // ST01-001 is a real Leader; ST01-003 is a real Character. Parallel art must not slip a Leader through.
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["ST01-003", "ST01-001"] }])).toThrow("Leader ST01-001 cannot be used in the main deck");
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["st01-001_p1"] }])).toThrow("cannot be used in the main deck");
     expect(() => ensureDefsForPlayers([{ leaderId: "ST01-001", deck: ["ST01-003"] }])).not.toThrow();
@@ -63,7 +61,7 @@ describe("card data", () => {
   });
 
   it("records provenance for every card", () => {
-    expect(Object.keys(CARD_SOURCE_RECORDS).length).toBe(2995);
+    expect(Object.keys(CARD_SOURCE_RECORDS).length).toBe(2996);
     expect(cardSourceRecord("ST01-005")?.fields).toMatchObject({ identity: "verified", counter: "verified", errata: "unknown" });
     expect(cardSourceRecord("P-160")?.fields.identity).toBe("unverified");
   });
@@ -71,7 +69,7 @@ describe("card data", () => {
 
 describe("ability registry", () => {
   it("validates every card and matches deterministic regeneration", () => {
-    expect(ABILITY_REGISTRY.cards.size).toBe(2995);
+    expect(ABILITY_REGISTRY.cards.size).toBe(2996);
     const text = serializeGenerated(generateAbilities());
     const current = readFileSync(resolve(__dirname, "../cards/generated/abilities.json"), "utf8").replace(/\r\n/g, "\n");
     expect(current === text, "generated abilities.json is stale: run npx tsx src/tools/cardText/generate.ts").toBe(true);
@@ -97,13 +95,11 @@ describe("ability registry", () => {
 describe("support manifest and ranked gate", () => {
   it("labels every catalog card and blocks decks with unsupported cards", () => {
     const manifest = buildCardSupportManifest();
-    expect(Object.keys(manifest).length).toBe(2995);
+    expect(Object.keys(manifest).length).toBe(2996);
     expect(manifest["ST01-003"]).toBe("none");
     expect(manifest["ST01-006"]).toBe("keywords");
     expect(manifest["OP01-016"]).toBe("ok");
-    // Every catalog card's printed text is implemented (generated or reviewed manual definitions).
     expect(Object.values(manifest).filter((s) => s === "unsupported" || s === "partial")).toEqual([]);
-    // Unknown ids still play as unverified stubs and are blocked from ranked decks.
     expect(unsupportedCardsForDeck({ leaderId: "ST01-001", deck: ["ST01-003", "OP99-999"] })).toEqual([{ cardId: "OP99-999", support: "unverified" }]);
     expect(unsupportedCardsForDeck({ leaderId: "ST01-001", deck: ["ST01-003", "OP01-016"] })).toEqual([]);
   });

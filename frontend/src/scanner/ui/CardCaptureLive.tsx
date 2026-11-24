@@ -1,16 +1,3 @@
-/** Live camera capture of the full frame.
- *
- * The photo is the whole camera frame, uncropped, so a photo of several cards
- * keeps every card. The preview is letterboxed (`object-fit: contain`), so
- * what you see is exactly what gets captured.
- *
- * Requires `getUserMedia`, which itself requires a secure context — plain
- * `http://<lan-ip>` on a real phone does not qualify (see the phone-testing
- * skill). Callers must feature-detect with `isLiveCaptureSupported()` and
- * fall back to `<input capture>` when it's false, which has no such
- * requirement since it hands off to the native camera app instead of
- * streaming frames to JS.
- */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Dialog } from "@optcg/ui/popups";
@@ -30,11 +17,6 @@ type Props = {
   onCancel: () => void;
 };
 
-/**
- * The full-screen viewfinder, a dialog of its own: it mounts only while open, so closing it (cancel,
- * Escape, capture, or the scanner under it going away) unmounts `LiveCapture` and stops the camera.
- * Escape closes just this one; a stray tap on the picture must not, so only Escape does.
- */
 export function CardCaptureLive({ onCapture, onCancel }: Props) {
   return (
     <Dialog open onClose={onCancel} className="live-capture-overlay" label="Scan with camera" closeOnOutsideClick={false}>

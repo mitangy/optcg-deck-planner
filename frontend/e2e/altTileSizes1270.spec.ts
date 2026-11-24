@@ -1,9 +1,3 @@
-/**
- * One standard alt-art tile (#1270): on Shopping and a group buy, the Base tile and every alt tile have the same
- * width, every tile in a card's list is the same height (#1280: not just tiles sharing a row), every thumbnail
- * is the same size, and Extra copy / Show share one width inside the tile. List and Grid, at desktop-1200 and
- * phone-375.
- */
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
@@ -92,7 +86,6 @@ async function setLayout(page: Page, layout: "List" | "Grid") {
   await page.getByRole("group", { name: "Card layout" }).getByRole("button", { name: layout, exact: true }).click();
 }
 
-/** Size of every alt tile on screen (and its thumbnail), which list it is in, and its buttons' boxes. */
 async function tileSizes(page: Page) {
   return page.locator(".alt-art:visible").evaluateAll((tiles) =>
     tiles.map((t) => {
@@ -124,10 +117,8 @@ function expectOneSize(tiles: Awaited<ReturnType<typeof tileSizes>>) {
     expect(Math.abs(t.w - tiles[0].w), `tile width ${t.w} vs ${tiles[0].w}`).toBeLessThanOrEqual(1);
     expect(Math.abs(t.tw - 48), `thumb width ${t.tw}`).toBeLessThanOrEqual(1);
     expect(Math.abs(t.th - 67), `thumb height ${t.th}`).toBeLessThanOrEqual(1);
-    // Every tile in one card's list is the same height, also when each sits on its own row (#1280).
     const list = tiles.filter((o) => o.list === t.list);
     for (const o of list) expect(Math.abs(o.h - t.h), `tile height ${o.h} vs ${t.h} in one list`).toBeLessThanOrEqual(1);
-    // Extra copy, Show and Shown share one width and stay inside the tile (#1280).
     for (const b of t.buttons) {
       expect(Math.abs(b.w - t.buttons[0].w), `${b.text} width ${b.w} vs ${t.buttons[0].w}`).toBeLessThanOrEqual(1);
       expect(b.left, `${b.text} spills past the tile's left edge`).toBeGreaterThanOrEqual(0);
@@ -137,16 +128,20 @@ function expectOneSize(tiles: Awaited<ReturnType<typeof tileSizes>>) {
   }
 }
 
+// Phone Grid tiles fold their alts behind a chip (#1342): open every folded tray.
+async function openFoldedAlts(page: Page) {
+  const folded = page.locator('.alt-chip[aria-expanded="false"]:visible');
+  for (let i = 0; i < 12 && (await folded.count()) > 0; i++) await folded.first().click();
+}
+
 for (const layout of ["List", "Grid"] as const) {
   test(`Shopping ${layout}: Base and alt tiles share one width, height and thumbnail size (#1270, #1280)`, async ({ page, planner }) => {
-    // Base, a bought alt with ★ Extra copy (the tallest tile), and plain alts: on phone each row holds only
-    // some of them, so this also checks heights across rows, and on phone the list overflows the #877 scroll cap
-    // so a cap that squeezed the rows would push buttons out of their tiles (#1280).
     planner.manyAlts(IZO, 6);
     planner.collectors.set(`${IZO}:201`, 1);
     planner.altWants.set(`${IZO}:201`, 1);
     await planner.open("/");
     await setLayout(page, layout);
+    await openFoldedAlts(page);
     await expect(page.locator(".alt-art-base:visible").first()).toBeVisible();
     expectOneSize(await tileSizes(page));
   });
@@ -157,7 +152,6 @@ for (const layout of ["List", "Grid"] as const) {
     await expect(page.getByRole("heading", { name: "OP09 restock", level: 1 })).toBeVisible();
     await setLayout(page, layout);
     await expect(page.locator(".alt-art-base:visible").first()).toBeVisible();
-    // The tile that carries the Extra copy label, who-wants chips and the Skipped badge is the tallest content.
     await expect(page.locator(".alt-collector:visible").first()).toBeVisible();
     await expect(page.locator(".alt-art-wants:visible").first()).toBeVisible();
     expectOneSize(await tileSizes(page));

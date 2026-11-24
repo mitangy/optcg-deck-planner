@@ -17,7 +17,6 @@ const row = (c: string, rep: number, correct: 0 | 1, status: Row["status"] = "ok
 
 describe("eval statistics", () => {
   it("averages reps within a case before averaging cases (#403)", () => {
-    // X was run twice and right both times, Y once and wrong: 0.5 of the cases, not 2 of 3 attempts.
     const rows = [row("X", 0, 1), row("X", 1, 1), row("Y", 0, 0)];
     expect(caseMeans(rows, "correct")).toEqual(new Map([["X", 1], ["Y", 0]]));
     expect(score(rows, "correct")).toEqual({ n: 2, mean: 0.5, sum: 1 });

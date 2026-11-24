@@ -1,19 +1,14 @@
-/**
- * Leaders, continuous effects, Activate:Main abilities and manually
- * overridden cards. Static rows come in pairs: condition met, condition not met.
- */
 import { runScenarios, mine, theirs, type CardScenario } from "../../testing/scenario.js";
 
-const KAROO = "ST01-003"; // vanilla 1-cost 3000, red
-const VIVI = "ST01-009"; // vanilla 2-cost 4000, red
-const ROBIN = "ST01-008"; // vanilla 3-cost 5000
-const KOMACHIYO = "OP01-010"; // vanilla 1-cost, {Land of Wano}
-const MOHJI = "OP02-060"; // vanilla 1-cost 3000, blue
-const CHOPPER = "ST01-006"; // {Straw Hat Crew}
+const KAROO = "ST01-003";
+const VIVI = "ST01-009";
+const ROBIN = "ST01-008";
+const KOMACHIYO = "OP01-010";
+const MOHJI = "OP02-060";
+const CHOPPER = "ST01-006";
 const trash8 = Array.from({ length: 8 }, () => KAROO);
 
 const rows: CardScenario[] = [
-  // OP01-031 Kouzuki Oden: [Activate: Main] [Once Per Turn] You can trash 1 {Land of Wano} card from your hand: Set up to 2 of your DON!! cards as active.
   {
     card: "OP01-031", name: "trashes a Land of Wano card and sets 2 DON!! active",
     leaders: { me: "OP01-031" },
@@ -36,7 +31,6 @@ const rows: CardScenario[] = [
     expect: { me: { hand: ["OP01-036"], don: { active: 2, rested: 2 } } },
   },
 
-  // OP02-049 Emporio.Ivankov: [End of Your Turn] If you have 0 cards in your hand, draw 2 cards.
   {
     card: "OP02-049", name: "draws 2 at end of turn with an empty hand",
     leaders: { me: "OP02-049" },
@@ -52,7 +46,6 @@ const rows: CardScenario[] = [
     expect: { me: { hand: [KAROO], deckDelta: 0 } },
   },
 
-  // OP02-001 Edward.Newgate: [End of Your Turn] Add 1 card from the top of your Life cards to your hand.
   {
     card: "OP02-001", name: "adds the top Life card to hand at end of turn",
     leaders: { me: "OP02-001" },
@@ -61,7 +54,6 @@ const rows: CardScenario[] = [
     expect: { me: { hand: [VIVI], life: [KAROO, KAROO] } },
   },
 
-  // OP01-061 Kaido: [DON!! x1] [Your Turn] [Once Per Turn] When your opponent's Character is K.O.'d, add up to 1 DON!! card from your DON!! deck and set it as active.
   {
     card: "OP01-061", name: "adds an active DON!! when an opposing Character is K.O.'d",
     leaders: { me: "OP01-061" },
@@ -87,7 +79,6 @@ const rows: CardScenario[] = [
     expect: { opp: { field: [] }, me: { don: { active: 1, deck: 8 } } },
   },
 
-  // OP01-091 King: [Your Turn] If you have 10 DON!! cards on your field, give all of your opponent's Characters -1000 power.
   {
     card: "OP01-091", name: "gives opposing Characters -1000 power with 10 DON!!",
     leaders: { me: "OP01-091" },
@@ -103,7 +94,6 @@ const rows: CardScenario[] = [
     expect: { opp: { power: { [KAROO]: 3000, [VIVI]: 4000 } } },
   },
 
-  // OP01-072 Smiley: [DON!! x1] [Your Turn] This Character gains +1000 power for every card in your hand.
   {
     card: "OP01-072", name: "gains +1000 per hand card with 1 DON!! attached",
     me: { hand: [KAROO, KAROO, KAROO], field: [{ card: "OP01-072", don: 1 }] },
@@ -115,7 +105,6 @@ const rows: CardScenario[] = [
     expect: { me: { power: { "OP01-072": 1000 } } },
   },
 
-  // OP01-021 Franky: [DON!! x1] This Character can also attack your opponent's active Characters.
   {
     card: "OP01-021", name: "with 1 DON!! attacks an active Character",
     me: { field: [{ card: "OP01-021", don: 1 }] },
@@ -131,7 +120,6 @@ const rows: CardScenario[] = [
     expect: { opp: { field: [KAROO] } },
   },
 
-  // OP01-068 Gecko Moria: [Your Turn] This Character gains [Double Attack] if you have 5 or more cards in your hand.
   {
     card: "OP01-068", name: "has Double Attack with 5 cards in hand",
     me: { hand: [KAROO, KAROO, KAROO, KAROO, KAROO], field: ["OP01-068"] },
@@ -143,7 +131,6 @@ const rows: CardScenario[] = [
     expect: { me: { keywords: { "OP01-068": [] } } },
   },
 
-  // OP09-086 Jesus Burgess: cannot be K.O.'d by your opponent's effects; with a {Blackbeard Pirates} Leader, +1000 power for every 4 cards in your trash.
   {
     card: "OP09-086", name: "survives an opposing K.O. effect",
     me: { hand: ["OP01-054"], don: { active: 5 } },
@@ -163,7 +150,6 @@ const rows: CardScenario[] = [
     expect: { me: { power: { "OP09-086": 5000 } } },
   },
 
-  // EB01-020 Chambres (manual): [Main] If your Leader has the {Supernovas} type, return 1 of your Characters to the owner's hand, and play up to 1 Character card with a cost of 2 or less from your hand that is a different color than the returned Character.
   {
     card: "EB01-020", name: "returns a red Character and plays a blue one, not a red one",
     me: { hand: ["EB01-020", VIVI, MOHJI], don: { active: 1 }, field: [KAROO] },
@@ -184,7 +170,6 @@ const rows: CardScenario[] = [
     expect: { me: { field: [KAROO], hand: [VIVI, MOHJI] }, pending: "none" },
   },
 
-  // EB01-030 Loguetown (manual): [Activate: Main] You may place this card and 1 card from your hand at the bottom of your deck in any order: Draw 2 cards.
   {
     card: "EB01-030", name: "places itself and a hand card at the deck bottom, then draws 2",
     me: { stage: "EB01-030", hand: [KAROO], deckTop: [VIVI, ROBIN] },
@@ -198,7 +183,6 @@ const rows: CardScenario[] = [
     expect: { me: { stage: "EB01-030", hand: [], deckDelta: 0 } },
   },
 
-  // EB02-009 Thousand Sunny (manual): [Activate: Main] You may rest this Stage: Give up to 1 of your currently given DON!! cards to 1 of your {Straw Hat Crew} Characters.
   {
     card: "EB02-009", name: "moves a given DON!! from the Leader to a Straw Hat Crew Character",
     me: { stage: "EB02-009", field: [CHOPPER], leaderDon: 2 },

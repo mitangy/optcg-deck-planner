@@ -142,7 +142,6 @@ describe("createImageSlot", () => {
     expect(a.slot.current()).toBe("blob:1");
     expect(backend.data.has("mine")).toBe(true);
 
-    // A fresh slot over the same backend (page reload) sees the saved image.
     const b = makeSlot(backend);
     expect(await b.slot.load()).toBe("blob:1");
 

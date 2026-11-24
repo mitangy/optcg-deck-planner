@@ -485,6 +485,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/seasons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Seasons
+         * @description The current ranked season, what a reset would do to the top players, and past seasons (#1405).
+         */
+        get: operations["seasons_admin_seasons_get"];
+        put?: never;
+        /**
+         * Start Season
+         * @description End the current season and reset Bounty. `confirm` must be the current season's name, which also stops a double submit:
+         *     after the first call the current name is the new season's, so the repeat no longer matches (#1405).
+         */
+        post: operations["start_season_admin_seasons_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/sync-catalog": {
         parameters: {
             query?: never;
@@ -555,7 +580,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Users */
+        /**
+         * List Users
+         * @description The user list, staff first then newest unless `sort` names a column (#1323).
+         *
+         *     user = the name the tab shows (username, else name, else email), case-insensitive; role = alphabetical, which is
+         *     also privilege order (admin, moderator, user); joined = sign-up time; source = the text the tab shows, accounts
+         *     with an unknown source always last; ranked/friends/private/bot/practice = that mode's game count. Every sort
+         *     breaks ties by id ascending so a page boundary never repeats or drops a row.
+         */
         get: operations["list_users_admin_users_get"];
         put?: never;
         post?: never;
@@ -951,6 +984,28 @@ export interface paths {
          * @description A player deletes one of their threads: its messages and deck-edit cards go; its usage rows stay so cost totals don't change.
          */
         delete: operations["delete_thread_analyst_chat_threads__thread_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/analyst/chat/threads/{thread_id}/card_lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Card Lists
+         * @description The analyst keeps the card lists it showed in a turn next to the thread, so they come back on reload (#1450).
+         *
+         *     Each must come from a show_cards call stored in this thread; repeats are ignored. They share the proposals table.
+         */
+        post: operations["save_card_lists_analyst_chat_threads__thread_id__card_lists_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -2511,6 +2566,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/duel/seasons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Seasons
+         * @description The running ranked season and every ended one, newest first (#1405).
+         */
+        get: operations["seasons_duel_seasons_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/duel/seasons/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My Seasons
+         * @description The signed-in player's final line in each ended season, newest first.
+         */
+        get: operations["my_seasons_duel_seasons_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/duel/seasons/{number}/leaderboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Season Leaderboard
+         * @description Final standings of an ended season.
+         */
+        get: operations["season_leaderboard_duel_seasons__number__leaderboard_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/duel/settings": {
         parameters: {
             query?: never;
@@ -2916,6 +3031,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/group-buys/{group_id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Close Group Buy
+         * @description Finish the buy; copies that never arrived stay on members' Shopping lists.
+         */
+        post: operations["close_group_buy_group_buys__group_id__close_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/group-buys/{group_id}/complete": {
         parameters: {
             query?: never;
@@ -2987,6 +3122,63 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/group-buys/{group_id}/handoffs/me/received": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Group Buy Handoff Received
+         * @description Member: confirm the cards the host shipped or handed over arrived.
+         */
+        post: operations["post_group_buy_handoff_received_group_buys__group_id__handoffs_me_received_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/handoffs/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Group Buy Handoff
+         * @description Host: set how one member's arrived cards reach them, and whether they paid.
+         */
+        put: operations["put_group_buy_handoff_group_buys__group_id__handoffs__member_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/invite/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Group Buy Invite Reset */
+        post: operations["post_group_buy_invite_reset_group_buys__group_id__invite_reset_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/group-buys/{group_id}/leave": {
         parameters: {
             query?: never;
@@ -3021,6 +3213,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/group-buys/{group_id}/move-copies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Move Copies */
+        post: operations["post_move_copies_group_buys__group_id__move_copies_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/offline-members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Offline Member */
+        post: operations["post_offline_member_group_buys__group_id__offline_members_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/offline-members/{member_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Offline Member */
+        delete: operations["delete_offline_member_group_buys__group_id__offline_members__member_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Offline Member */
+        patch: operations["patch_offline_member_group_buys__group_id__offline_members__member_id__patch"];
+        trace?: never;
+    };
+    "/group-buys/{group_id}/offline-members/{member_id}/cards": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Post Offline Member Cards */
+        post: operations["post_offline_member_cards_group_buys__group_id__offline_members__member_id__cards_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/group-buys/{group_id}/order": {
         parameters: {
             query?: never;
@@ -3043,6 +3304,184 @@ export interface paths {
          * @description Update order notes, shipping cost, and shipping split (host).
          */
         patch: operations["patch_group_buy_order_group_buys__group_id__order_patch"];
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Group Buy Order
+         * @description Add one seller package (host). The first one moves locked -> ordered; Owned is untouched.
+         */
+        post: operations["post_group_buy_order_group_buys__group_id__orders_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/history/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import Group Buy Order History
+         * @description Add the chosen orders of an Order History page at once (host).
+         */
+        post: operations["import_group_buy_order_history_group_buys__group_id__orders_history_import_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/history/pdf": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Group Buy Order History Pdf
+         * @description Same as the paste preview for Order History pages saved as PDF (one per page, #1437).
+         *
+         *     `text` is what the dialog already holds; each file's text is added after it, so the list grows.
+         *     Returns the combined text to import with.
+         */
+        post: operations["preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/history/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Group Buy Order History
+         * @description Match every order on a pasted TCGplayer Order History page; saves nothing.
+         */
+        post: operations["preview_group_buy_order_history_group_buys__group_id__orders_history_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview Group Buy Order
+         * @description Match a pasted order and show who its copies would go to; saves nothing.
+         */
+        post: operations["preview_group_buy_order_group_buys__group_id__orders_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/{order_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Group Buy Order */
+        delete: operations["delete_group_buy_order_group_buys__group_id__orders__order_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Group Buy Order Details */
+        patch: operations["patch_group_buy_order_details_group_buys__group_id__orders__order_id__patch"];
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/{order_id}/arrival": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Group Buy Order Arrival
+         * @description Set how many copies of each line arrived (or all); members' Owned follows.
+         */
+        put: operations["put_group_buy_order_arrival_group_buys__group_id__orders__order_id__arrival_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/{order_id}/arrival/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Undo Group Buy Order Arrival */
+        post: operations["undo_group_buy_order_arrival_group_buys__group_id__orders__order_id__arrival_undo_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/group-buys/{group_id}/orders/{order_id}/lines": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Group Buy Order Lines
+         * @description Replace an order's cards (host) while nothing in it has arrived; allocation is redone.
+         */
+        put: operations["put_group_buy_order_lines_group_buys__group_id__orders__order_id__lines_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/group-buys/{group_id}/public": {
@@ -4231,6 +4670,81 @@ export interface components {
             /** Reports */
             reports: components["schemas"]["ReportRow"][];
         };
+        /** AdminSeasonCurrent */
+        AdminSeasonCurrent: {
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Players */
+            players: number;
+            /** Started At */
+            started_at?: string | null;
+        };
+        /** AdminSeasonPast */
+        AdminSeasonPast: {
+            /**
+             * Ended At
+             * Format: date-time
+             */
+            ended_at: string;
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Players */
+            players: number;
+            /** Reset Mode */
+            reset_mode?: string | null;
+            /** Started At */
+            started_at?: string | null;
+        };
+        /** AdminSeasonPreviewRow */
+        AdminSeasonPreviewRow: {
+            /** Games */
+            games: number;
+            /** Hard After */
+            hard_after: number;
+            /** Name */
+            name: string;
+            /** Rank */
+            rank: number;
+            /** Rating */
+            rating: number;
+            /** Soft After */
+            soft_after: number;
+            /** User Id */
+            user_id: number;
+        };
+        /** AdminSeasonStartIn */
+        AdminSeasonStartIn: {
+            /** Confirm */
+            confirm: string;
+            /**
+             * Mode
+             * @enum {string}
+             */
+            mode: "soft" | "hard";
+            /** Name */
+            name?: string | null;
+        };
+        /** AdminSeasonStarted */
+        AdminSeasonStarted: {
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Started At */
+            started_at?: string | null;
+        };
+        /** AdminSeasons */
+        AdminSeasons: {
+            current: components["schemas"]["AdminSeasonCurrent"];
+            /** Past */
+            past: components["schemas"]["AdminSeasonPast"][];
+            /** Preview */
+            preview: components["schemas"]["AdminSeasonPreviewRow"][];
+        };
         /** AdminUser */
         AdminUser: {
             /** Ban Reason */
@@ -4442,6 +4956,65 @@ export interface components {
             /** Text */
             text: string;
         };
+        /**
+         * AnalystCardList
+         * @description Cards Log Pose found for a description, shown as a list with Add buttons for the open deck (#1450).
+         */
+        AnalystCardList: {
+            /** Cards */
+            cards: components["schemas"]["AnalystCardListRow"][];
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "card_list";
+            /** Leader Id */
+            leader_id?: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Version
+             * @constant
+             */
+            version: 1;
+        };
+        /** AnalystCardListRow */
+        AnalystCardListRow: {
+            /**
+             * Any Number
+             * @default false
+             */
+            any_number: boolean;
+            /** Colors */
+            colors?: string[];
+            /** Cost */
+            cost?: number | null;
+            /** Counter */
+            counter?: number | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Power */
+            power?: number | null;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "leader" | "character" | "event" | "stage";
+        };
+        /** AnalystCardListsIn */
+        AnalystCardListsIn: {
+            /** Card Lists */
+            card_lists: components["schemas"]["AnalystCardList"][];
+        };
         /** AnalystChatBudget */
         AnalystChatBudget: {
             /** Allowed */
@@ -4633,6 +5206,8 @@ export interface components {
         };
         /** AnalystDisplayMessage */
         AnalystDisplayMessage: {
+            /** Card Lists */
+            card_lists?: components["schemas"]["AnalystCardList"][];
             /** Citations */
             citations?: components["schemas"]["AnalystCitation"][];
             /** Drafts */
@@ -4992,6 +5567,16 @@ export interface components {
             id: number;
             /** Name */
             name: string;
+        };
+        /** Body_preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post */
+        Body_preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post: {
+            /** Files */
+            files: string[];
+            /**
+             * Text
+             * @default
+             */
+            text: string;
         };
         /** BotBatchOut */
         BotBatchOut: {
@@ -5675,6 +6260,8 @@ export interface components {
              * @default 0
              */
             owned_copies: number;
+            /** Remaining Cost */
+            remaining_cost?: number | null;
             /** Sort Order */
             sort_order: number;
             /** Total Cards */
@@ -5748,6 +6335,8 @@ export interface components {
             leaderId: string;
             /** Name */
             name: string;
+            /** Nomerge */
+            noMerge?: boolean | null;
             /** Plannerart */
             plannerArt?: {
                 [key: string]: string;
@@ -5799,6 +6388,22 @@ export interface components {
             /** User Key */
             user_key: string;
         };
+        /** DuelEndedSeasonOut */
+        DuelEndedSeasonOut: {
+            /**
+             * Ended At
+             * Format: date-time
+             */
+            ended_at: string;
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Players */
+            players: number;
+            /** Started At */
+            started_at?: string | null;
+        };
         /**
          * DuelGuestTokenIn
          * @description Mint a game token for a stable browser guest id (always available).
@@ -5827,21 +6432,40 @@ export interface components {
          * @description Public rating data; account email is intentionally excluded.
          */
         DuelLeaderboardEntryOut: {
+            /** Bounty Change */
+            bounty_change?: number | null;
             /** Games Played */
             games_played: number;
+            /**
+             * Losses
+             * @default 0
+             */
+            losses: number;
             /** Name */
             name: string;
+            /** Provisional */
+            provisional: boolean;
+            /** Rank */
+            rank: number;
+            /** Rank Change */
+            rank_change?: number | null;
             /** Rating */
             rating: number;
             /** User Id */
             user_id: number;
             /** Username */
             username?: string | null;
+            /**
+             * Wins
+             * @default 0
+             */
+            wins: number;
         };
         /** DuelLeaderboardOut */
         DuelLeaderboardOut: {
             /** Entries */
             entries: components["schemas"]["DuelLeaderboardEntryOut"][];
+            season: components["schemas"]["DuelSeasonRefOut"];
         };
         /**
          * DuelLiveOut
@@ -5945,6 +6569,11 @@ export interface components {
             seat_logs?: {
                 [key: string]: unknown;
             }[] | null;
+            /**
+             * Tournament
+             * @default false
+             */
+            tournament: boolean;
             /** Turns */
             turns?: number | null;
             /** Winner Seat */
@@ -5998,6 +6627,11 @@ export interface components {
             seat_logs?: {
                 [key: string]: unknown;
             }[] | null;
+            /**
+             * Tournament
+             * @default false
+             */
+            tournament: boolean;
             /** Turns */
             turns?: number | null;
         };
@@ -6017,6 +6651,23 @@ export interface components {
             turns: number | null;
             /** Your Seat */
             your_seat: number;
+        };
+        /** DuelMySeasonOut */
+        DuelMySeasonOut: {
+            /** Losses */
+            losses: number;
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Provisional */
+            provisional: boolean;
+            /** Rank */
+            rank: number;
+            /** Rating */
+            rating: number;
+            /** Wins */
+            wins: number;
         };
         /** DuelPresenceEntry */
         DuelPresenceEntry: {
@@ -6065,6 +6716,11 @@ export interface components {
             losses: number;
             /** Name */
             name: string;
+            /**
+             * Provisional
+             * @default true
+             */
+            provisional: boolean;
             /** Rank */
             rank?: number | null;
             /** Rating */
@@ -6078,6 +6734,30 @@ export interface components {
              * @default 0
              */
             wins: number;
+        };
+        /** DuelSeasonBoardOut */
+        DuelSeasonBoardOut: {
+            /** Entries */
+            entries: components["schemas"]["DuelLeaderboardEntryOut"][];
+            season: components["schemas"]["DuelEndedSeasonOut"];
+        };
+        /**
+         * DuelSeasonRefOut
+         * @description The season a board belongs to. started_at is null for Season 1 (it began before launch).
+         */
+        DuelSeasonRefOut: {
+            /** Name */
+            name: string;
+            /** Number */
+            number: number;
+            /** Started At */
+            started_at?: string | null;
+        };
+        /** DuelSeasonsOut */
+        DuelSeasonsOut: {
+            current: components["schemas"]["DuelSeasonRefOut"];
+            /** Past */
+            past: components["schemas"]["DuelEndedSeasonOut"][];
         };
         /** DuelSettingsIn */
         DuelSettingsIn: {
@@ -6910,6 +7590,30 @@ export interface components {
             /** Pool Url */
             pool_url?: string | null;
         };
+        /** GroupBuyArrivalLineIn */
+        GroupBuyArrivalLineIn: {
+            /** Line Id */
+            line_id: number;
+            /** Qty Arrived */
+            qty_arrived: number;
+        };
+        /** GroupBuyArrivalUndo */
+        GroupBuyArrivalUndo: {
+            /** Expected Version */
+            expected_version: number;
+        };
+        /** GroupBuyArrivalUpdate */
+        GroupBuyArrivalUpdate: {
+            /**
+             * All
+             * @default false
+             */
+            all: boolean;
+            /** Expected Version */
+            expected_version: number;
+            /** Lines */
+            lines?: components["schemas"]["GroupBuyArrivalLineIn"][] | null;
+        };
         /** GroupBuyArtWantOut */
         GroupBuyArtWantOut: {
             /** Product Id */
@@ -6918,6 +7622,33 @@ export interface components {
             qty: number;
             /** User Id */
             user_id: number;
+        };
+        /**
+         * GroupBuyBoughtArtOut
+         * @description One art of a card that is in a seller order (#1443). ``product_id`` None is the base art.
+         */
+        GroupBuyBoughtArtOut: {
+            /**
+             * My Qty
+             * @default 0
+             */
+            my_qty: number;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /**
+             * Paid
+             * @default false
+             */
+            paid: boolean;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+            /** Unit Price */
+            unit_price?: number | null;
         };
         /** GroupBuyContributionUpdate */
         GroupBuyContributionUpdate: {
@@ -7001,6 +7732,11 @@ export interface components {
             order_notes: string;
             /** Ordered At */
             ordered_at?: string | null;
+            /**
+             * Orders
+             * @default []
+             */
+            orders: components["schemas"]["GroupBuyOrderOut"][];
             /** Public Path */
             public_path?: string | null;
             /**
@@ -7059,6 +7795,58 @@ export interface components {
             /** Skip */
             skip: number;
         };
+        /** GroupBuyHandoffUpdate */
+        GroupBuyHandoffUpdate: {
+            /** Note */
+            note?: string | null;
+            /** Paid */
+            paid?: boolean | null;
+            /** Qty Handed */
+            qty_handed?: number | null;
+            /** Status */
+            status?: ("waiting" | "shipped" | "handed_over") | null;
+            /** Tracking Url */
+            tracking_url?: string | null;
+        };
+        /** GroupBuyHistoryOrderPreview */
+        GroupBuyHistoryOrderPreview: {
+            /**
+             * Already Added
+             * @default false
+             */
+            already_added: boolean;
+            /**
+             * In Group Buy
+             * @default false
+             */
+            in_group_buy: boolean;
+            /** Lines */
+            lines: components["schemas"]["GroupBuyOrderPreviewLine"][];
+            /**
+             * Order Date
+             * @default
+             */
+            order_date: string;
+            /** Order Number */
+            order_number: string;
+            /**
+             * Seller Name
+             * @default
+             */
+            seller_name: string;
+            /**
+             * Tracking Number
+             * @default
+             */
+            tracking_number: string;
+            /**
+             * Tracking Url
+             * @default
+             */
+            tracking_url: string;
+            /** Unmatched */
+            unmatched: components["schemas"]["GroupBuyReceiptUnmatchedOut"][];
+        };
         /** GroupBuyInvitePreview */
         GroupBuyInvitePreview: {
             /** Host Name */
@@ -7087,6 +7875,11 @@ export interface components {
              */
             alt_arts: components["schemas"]["PrintingView"][];
             /**
+             * Arrived
+             * @default 0
+             */
+            arrived: number;
+            /**
              * Art Wants
              * @default []
              */
@@ -7096,6 +7889,13 @@ export interface components {
              * @default
              */
             base_image_url: string;
+            /**
+             * Bought Arts
+             * @default []
+             */
+            bought_arts: components["schemas"]["GroupBuyBoughtArtOut"][];
+            /** Bought Each */
+            bought_each?: number | null;
             /** Card Id */
             card_id: string;
             /**
@@ -7117,10 +7917,25 @@ export interface components {
              * @default
              */
             image_url: string;
+            /**
+             * In Order
+             * @default 0
+             */
+            in_order: number;
             /** Market Price */
             market_price?: number | null;
+            /**
+             * Member Arts
+             * @default []
+             */
+            member_arts: components["schemas"]["GroupBuyMemberArtOut"][];
             /** Members */
             members: components["schemas"]["GroupBuyMemberQtyOut"][];
+            /**
+             * My Arrived
+             * @default 0
+             */
+            my_arrived: number;
             /**
              * My Deck Qty
              * @default 0
@@ -7137,6 +7952,11 @@ export interface components {
              */
             my_extras: components["schemas"]["GroupBuyMyExtraOut"][];
             /**
+             * My In Order
+             * @default 0
+             */
+            my_in_order: number;
+            /**
              * My Is Custom
              * @default false
              */
@@ -7146,6 +7966,11 @@ export interface components {
              * @default 0
              */
             my_need: number;
+            /**
+             * My Not Ordered
+             * @default 0
+             */
+            my_not_ordered: number;
             /**
              * My Qty
              * @default 0
@@ -7163,6 +7988,16 @@ export interface components {
             my_used_in: string[];
             /** Name */
             name: string;
+            /**
+             * Not Ordered
+             * @default 0
+             */
+            not_ordered: number;
+            /**
+             * Not Ordered Members
+             * @default []
+             */
+            not_ordered_members: components["schemas"]["GroupBuyNotOrderedMemberOut"][];
             /** Preferred Market Price */
             preferred_market_price?: number | null;
             /** Preferred Product Id */
@@ -7184,6 +8019,23 @@ export interface components {
             /** Total Qty */
             total_qty: number;
         };
+        /**
+         * GroupBuyMemberArtOut
+         * @description How many copies of one art of a card a member has in this group buy (#1451); host view only.
+         */
+        GroupBuyMemberArtOut: {
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+            /**
+             * Qty Arrived
+             * @default 0
+             */
+            qty_arrived: number;
+            /** User Id */
+            user_id: number;
+        };
         /** GroupBuyMemberOut */
         GroupBuyMemberOut: {
             /**
@@ -7201,6 +8053,21 @@ export interface components {
             /** Display Name */
             display_name: string;
             /**
+             * Handoff Note
+             * @default
+             */
+            handoff_note: string;
+            /**
+             * Handoff Status
+             * @default
+             */
+            handoff_status: string;
+            /**
+             * Handoff Tracking Url
+             * @default
+             */
+            handoff_tracking_url: string;
+            /**
              * Include Extra Copies
              * @default false
              */
@@ -7210,6 +8077,26 @@ export interface components {
              * @default true
              */
             include_singles: boolean;
+            /**
+             * Is Offline
+             * @default false
+             */
+            is_offline: boolean;
+            /**
+             * Paid
+             * @default false
+             */
+            paid: boolean;
+            /**
+             * Qty Handed
+             * @default 0
+             */
+            qty_handed: number;
+            /**
+             * Ready To Hand Over
+             * @default 0
+             */
+            ready_to_hand_over: number;
             /**
              * Remaining Market
              * @default 0
@@ -7256,6 +8143,19 @@ export interface components {
             /** User Id */
             user_id: number;
         };
+        /** GroupBuyMoveCopies */
+        GroupBuyMoveCopies: {
+            /** Card Id */
+            card_id: string;
+            /** From User Id */
+            from_user_id: number;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+            /** To User Id */
+            to_user_id: number;
+        };
         /**
          * GroupBuyMyExtraOut
          * @description One of the viewer's Extra copies on a card, and how many they leave out of this buy (#1269).
@@ -7281,6 +8181,282 @@ export interface components {
              */
             wanted: number;
         };
+        /**
+         * GroupBuyNotOrderedMemberOut
+         * @description Copies of one card a member still has no seller order for (#1439).
+         */
+        GroupBuyNotOrderedMemberOut: {
+            /** Display Name */
+            display_name: string;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+            /** User Id */
+            user_id: number;
+        };
+        /** GroupBuyOfflineCardsPaste */
+        GroupBuyOfflineCardsPaste: {
+            /** Text */
+            text: string;
+        };
+        /** GroupBuyOfflineCardsResult */
+        GroupBuyOfflineCardsResult: {
+            /**
+             * Applied
+             * @default 0
+             */
+            applied: number;
+            detail: components["schemas"]["GroupBuyDetail"];
+            /**
+             * Unmatched
+             * @default []
+             */
+            unmatched: string[];
+        };
+        /** GroupBuyOfflineMemberBody */
+        GroupBuyOfflineMemberBody: {
+            /** Name */
+            name: string;
+        };
+        /** GroupBuyOrderAdded */
+        GroupBuyOrderAdded: {
+            detail: components["schemas"]["GroupBuyDetail"];
+            /** Order Id */
+            order_id: number;
+            /**
+             * Unmatched
+             * @default []
+             */
+            unmatched: components["schemas"]["GroupBuyReceiptUnmatchedOut"][];
+        };
+        /** GroupBuyOrderAllocationOut */
+        GroupBuyOrderAllocationOut: {
+            /** Display Name */
+            display_name: string;
+            /** Qty */
+            qty: number;
+            /** Qty Arrived */
+            qty_arrived: number;
+            /** User Id */
+            user_id: number;
+        };
+        /** GroupBuyOrderCreate */
+        GroupBuyOrderCreate: {
+            /** Lines */
+            lines?: components["schemas"]["GroupBuyOrderLineIn"][] | null;
+            /**
+             * Mark Arrived
+             * @default false
+             */
+            mark_arrived: boolean;
+            /**
+             * Order Number
+             * @default
+             */
+            order_number: string;
+            /**
+             * Receipt Text
+             * @default
+             */
+            receipt_text: string;
+            /**
+             * Seller Name
+             * @default
+             */
+            seller_name: string;
+            /**
+             * Tracking Url
+             * @default
+             */
+            tracking_url: string;
+        };
+        /** GroupBuyOrderHistoryImport */
+        GroupBuyOrderHistoryImport: {
+            /** Order Numbers */
+            order_numbers: string[];
+            /** Text */
+            text: string;
+        };
+        /** GroupBuyOrderHistoryImported */
+        GroupBuyOrderHistoryImported: {
+            detail: components["schemas"]["GroupBuyDetail"];
+            /** Order Ids */
+            order_ids: number[];
+            /**
+             * Unmatched
+             * @default []
+             */
+            unmatched: components["schemas"]["GroupBuyReceiptUnmatchedOut"][];
+        };
+        /** GroupBuyOrderHistoryPreview */
+        GroupBuyOrderHistoryPreview: {
+            /** Orders */
+            orders: components["schemas"]["GroupBuyHistoryOrderPreview"][];
+            /**
+             * Text
+             * @default
+             */
+            text: string;
+        };
+        /** GroupBuyOrderHistoryRequest */
+        GroupBuyOrderHistoryRequest: {
+            /** Text */
+            text: string;
+        };
+        /** GroupBuyOrderLineIn */
+        GroupBuyOrderLineIn: {
+            /** Card Id */
+            card_id: string;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+        };
+        /** GroupBuyOrderLineOut */
+        GroupBuyOrderLineOut: {
+            /**
+             * Allocations
+             * @default []
+             */
+            allocations: components["schemas"]["GroupBuyOrderAllocationOut"][];
+            /** Card Id */
+            card_id: string;
+            /** Id */
+            id: number;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty Arrived */
+            qty_arrived: number;
+            /**
+             * Qty Extra
+             * @default 0
+             */
+            qty_extra: number;
+            /** Qty Ordered */
+            qty_ordered: number;
+            /** Unit Price */
+            unit_price?: number | null;
+        };
+        /** GroupBuyOrderLinesUpdate */
+        GroupBuyOrderLinesUpdate: {
+            /** Expected Version */
+            expected_version?: number | null;
+            /** Lines */
+            lines?: components["schemas"]["GroupBuyOrderLineIn"][] | null;
+            /**
+             * Receipt Text
+             * @default
+             */
+            receipt_text: string;
+        };
+        /** GroupBuyOrderOut */
+        GroupBuyOrderOut: {
+            /** Arrived At */
+            arrived_at?: string | null;
+            /** Created At */
+            created_at: string;
+            /** Id */
+            id: number;
+            /**
+             * Lines
+             * @default []
+             */
+            lines: components["schemas"]["GroupBuyOrderLineOut"][];
+            /**
+             * Order Number
+             * @default
+             */
+            order_number: string;
+            /** Qty Allocated */
+            qty_allocated: number;
+            /** Qty Arrived */
+            qty_arrived: number;
+            /** Qty Extra */
+            qty_extra: number;
+            /** Qty Ordered */
+            qty_ordered: number;
+            /**
+             * Receipt Text
+             * @default
+             */
+            receipt_text: string;
+            /**
+             * Seller Name
+             * @default
+             */
+            seller_name: string;
+            /** Status */
+            status: string;
+            /**
+             * Tracking Url
+             * @default
+             */
+            tracking_url: string;
+            /** Version */
+            version: number;
+        };
+        /** GroupBuyOrderPatch */
+        GroupBuyOrderPatch: {
+            /** Expected Version */
+            expected_version?: number | null;
+            /** Order Number */
+            order_number?: string | null;
+            /** Seller Name */
+            seller_name?: string | null;
+            /** Tracking Url */
+            tracking_url?: string | null;
+        };
+        /** GroupBuyOrderPreview */
+        GroupBuyOrderPreview: {
+            /** Lines */
+            lines: components["schemas"]["GroupBuyOrderPreviewLine"][];
+            /** Unmatched */
+            unmatched: components["schemas"]["GroupBuyReceiptUnmatchedOut"][];
+        };
+        /** GroupBuyOrderPreviewAllocation */
+        GroupBuyOrderPreviewAllocation: {
+            /** Display Name */
+            display_name: string;
+            /** Qty */
+            qty: number;
+            /** User Id */
+            user_id: number;
+        };
+        /** GroupBuyOrderPreviewLine */
+        GroupBuyOrderPreviewLine: {
+            /**
+             * Allocations
+             * @default []
+             */
+            allocations: components["schemas"]["GroupBuyOrderPreviewAllocation"][];
+            /** Card Id */
+            card_id: string;
+            /**
+             * Name
+             * @default
+             */
+            name: string;
+            /** Product Id */
+            product_id?: number | null;
+            /** Qty */
+            qty: number;
+            /**
+             * Qty Extra
+             * @default 0
+             */
+            qty_extra: number;
+        };
+        /** GroupBuyOrderPreviewRequest */
+        GroupBuyOrderPreviewRequest: {
+            /** Receipt Text */
+            receipt_text: string;
+        };
         /** GroupBuyOrderUpdate */
         GroupBuyOrderUpdate: {
             /** External Order Id */
@@ -7303,6 +8479,8 @@ export interface components {
         GroupBuyQtyUpdate: {
             /** Qty */
             qty: number;
+            /** User Id */
+            user_id?: number | null;
         };
         /** GroupBuyReceiptApplyRequest */
         GroupBuyReceiptApplyRequest: {
@@ -7704,6 +8882,8 @@ export interface components {
             count: number;
             /** Image Url */
             image_url: string;
+            /** Market Price */
+            market_price?: number | null;
             /** Name */
             name: string;
         };
@@ -7715,6 +8895,8 @@ export interface components {
             image_url: string;
             /** Leader Id */
             leader_id: string;
+            /** Leader Market Price */
+            leader_market_price?: number | null;
             /** Name */
             name: string;
         };
@@ -8089,6 +9271,8 @@ export interface components {
             room_id?: string | null;
             /** Server Url */
             server_url?: string | null;
+            /** Ticket */
+            ticket?: string | null;
         };
         /** PlayerOut */
         PlayerOut: {
@@ -8627,6 +9811,23 @@ export interface components {
             /** Qty */
             qty: number;
         };
+        /**
+         * ShoppingGroupBuyRef
+         * @description Copies of a card still to arrive from one locked or ordered group buy.
+         */
+        ShoppingGroupBuyRef: {
+            /** Group Buy Id */
+            group_buy_id: number;
+            /**
+             * Ordered
+             * @default false
+             */
+            ordered: boolean;
+            /** Qty */
+            qty: number;
+            /** Title */
+            title: string;
+        };
         /** ShoppingItem */
         ShoppingItem: {
             /**
@@ -8676,10 +9877,20 @@ export interface components {
              */
             extra_qty: number;
             /**
+             * Group Buys
+             * @default []
+             */
+            group_buys: components["schemas"]["ShoppingGroupBuyRef"][];
+            /**
              * Image Url
              * @default
              */
             image_url: string;
+            /**
+             * In Group Buy
+             * @default 0
+             */
+            in_group_buy: number;
             /**
              * Leader Count
              * @default 1
@@ -9166,8 +10377,18 @@ export interface components {
         TradeSummaryOut: {
             /** Active */
             active: number;
+            /**
+             * Friend Requests
+             * @default 0
+             */
+            friend_requests: number;
             /** Incoming Pending */
             incoming_pending: number;
+            /**
+             * To Apply
+             * @default 0
+             */
+            to_apply: number;
         };
         /** TradesOut */
         TradesOut: {
@@ -10391,6 +11612,59 @@ export interface operations {
             };
         };
     };
+    seasons_admin_seasons_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSeasons"];
+                };
+            };
+        };
+    };
+    start_season_admin_seasons_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminSeasonStartIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminSeasonStarted"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     admin_sync_catalog_admin_sync_catalog_post: {
         parameters: {
             query?: never;
@@ -10492,6 +11766,8 @@ export interface operations {
                 include_guests?: number;
                 limit?: number;
                 offset?: number;
+                sort?: ("user" | "role" | "source" | "ranked" | "friends" | "private" | "bot" | "practice" | "joined") | null;
+                dir?: "asc" | "desc";
             };
             header?: never;
             path?: never;
@@ -11251,6 +12527,42 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_card_lists_analyst_chat_threads__thread_id__card_lists_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-analyst-service"?: string | null;
+                "x-analyst-token"?: string | null;
+            };
+            path: {
+                thread_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalystCardListsIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -12969,7 +14281,9 @@ export interface operations {
     };
     get_decks_decks_get: {
         parameters: {
-            query?: never;
+            query?: {
+                deck_ids?: number[] | null;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -12983,6 +14297,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeckSummary"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -13955,6 +15278,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                window?: "all" | "week" | "month";
             };
             header?: never;
             path?: never;
@@ -14244,6 +15568,79 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PlayerReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    seasons_duel_seasons_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuelSeasonsOut"];
+                };
+            };
+        };
+    };
+    my_seasons_duel_seasons_me_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuelMySeasonOut"][];
+                };
+            };
+        };
+    };
+    season_leaderboard_duel_seasons__number__leaderboard_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                number: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuelSeasonBoardOut"];
                 };
             };
             /** @description Validation Error */
@@ -15037,6 +16434,37 @@ export interface operations {
             };
         };
     };
+    close_group_buy_group_buys__group_id__close_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     complete_group_buy_group_buys__group_id__complete_post: {
         parameters: {
             query?: never;
@@ -15171,6 +16599,104 @@ export interface operations {
             };
         };
     };
+    post_group_buy_handoff_received_group_buys__group_id__handoffs_me_received_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_group_buy_handoff_group_buys__group_id__handoffs__member_id__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyHandoffUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_group_buy_invite_reset_group_buys__group_id__invite_reset_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     leave_group_buy_group_buys__group_id__leave_post: {
         parameters: {
             query?: never;
@@ -15220,6 +16746,180 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_move_copies_group_buys__group_id__move_copies_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyMoveCopies"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_offline_member_group_buys__group_id__offline_members_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOfflineMemberBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_offline_member_group_buys__group_id__offline_members__member_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_offline_member_group_buys__group_id__offline_members__member_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOfflineMemberBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_offline_member_cards_group_buys__group_id__offline_members__member_id__cards_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                member_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOfflineCardsPaste"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOfflineCardsResult"];
                 };
             };
             /** @description Validation Error */
@@ -15290,6 +16990,357 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_group_buy_order_group_buys__group_id__orders_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderAdded"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    import_group_buy_order_history_group_buys__group_id__orders_history_import_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderHistoryImport"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderHistoryImported"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_preview_group_buy_order_history_pdf_group_buys__group_id__orders_history_pdf_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderHistoryPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_group_buy_order_history_group_buys__group_id__orders_history_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderHistoryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderHistoryPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_group_buy_order_group_buys__group_id__orders_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderPreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderPreview"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_group_buy_order_group_buys__group_id__orders__order_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_group_buy_order_details_group_buys__group_id__orders__order_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_group_buy_order_arrival_group_buys__group_id__orders__order_id__arrival_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyArrivalUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    undo_group_buy_order_arrival_group_buys__group_id__orders__order_id__arrival_undo_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyArrivalUndo"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyDetail"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_group_buy_order_lines_group_buys__group_id__orders__order_id__lines_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                group_id: number;
+                order_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GroupBuyOrderLinesUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GroupBuyOrderAdded"];
                 };
             };
             /** @description Validation Error */

@@ -1,9 +1,7 @@
-/** Build-time only (the pre-render entry imports this, the browser bundle does not): fetch the snapshot, or fall back to the committed one. */
 import type { MetaDecksResponse, MetaLeadersResponse } from "../decks/meta";
 import fallbackJson from "./metaSnapshot.fallback.json";
 import { isSnapshot, pickSnapshotLeaders, SAMPLE_DECKS, SNAPSHOT_DAYS, type MetaSnapshot } from "./snapshot";
 
-/** The public API the site reads at run time too. Override with META_API_URL for a local backend. */
 export const DEFAULT_META_API = "https://optcg-api-nutb.onrender.com";
 
 type FetchLike = (url: string, init?: { signal?: AbortSignal }) => Promise<{ ok: boolean; status: number; json(): Promise<unknown> }>;
@@ -28,7 +26,6 @@ async function getJson<T>(fetchFn: FetchLike, url: string, timeoutMs: number): P
   }
 }
 
-/** Reads /meta/leaders and the recent top-8 lists of each popular leader. Throws when the leaders cannot be read. */
 export async function fetchSnapshot(opts: SnapshotOptions = {}): Promise<MetaSnapshot> {
   const fetchFn = opts.fetchFn ?? (fetch as unknown as FetchLike);
   const api = (opts.api ?? DEFAULT_META_API).replace(/\/+$/, "");
@@ -48,7 +45,6 @@ export async function fetchSnapshot(opts: SnapshotOptions = {}): Promise<MetaSna
       }
     }),
   );
-  // A leader with no list to show has nothing to say on its own page.
   const leaders = picked.filter((l) => decks[l.leader_id.toUpperCase()]);
   if (leaders.length === 0) throw new Error("no leader had a decklist");
   return {
@@ -64,7 +60,6 @@ export async function fetchSnapshot(opts: SnapshotOptions = {}): Promise<MetaSna
   };
 }
 
-/** Refresh after a build that reached the API: `cp dist/meta-snapshot.json src/leaders/metaSnapshot.fallback.json`. */
 export const FALLBACK_SNAPSHOT: MetaSnapshot = fallbackJson as unknown as MetaSnapshot;
 
 /** The live snapshot, or the committed one when the API cannot be reached: a build never fails over the meta. */

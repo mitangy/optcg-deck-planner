@@ -1,8 +1,3 @@
-/**
- * The lobby: the FastAPI backend is faked in the browser, like e2e/fixtures.ts.
- * As a guest it needs only /health and /auth/me (401 = signed out); signed in it
- * also reads the Bounty, the leaderboard, your last games and your friends.
- */
 import { test as base, expect, type Page } from "@playwright/test";
 import { FAKE_API, RED_VANILLA } from "./fixtures";
 
@@ -90,7 +85,7 @@ test("shows the deck's leader name as plain text, not a pill (#431)", async ({ p
 test("signed in at 1280x720, your voyage and Friends sit right of the deck and above the fold (#431)", async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== "desktop-1280", "the two-column layout starts at 1000px");
   await openLobby(page, { signedIn: true });
-  await expect(page.getByRole("link", { name: /vs Rival1/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^W vs Rival1/ })).toBeVisible();
   const deck = (await page.locator(".home-deck").boundingBox())!;
   const side = (await page.locator(".home-side").boundingBox())!;
   const friends = (await page.getByRole("region", { name: "Friends" }).boundingBox())!;
@@ -106,7 +101,9 @@ test.describe("phone landscape", () => {
   test("phone landscape fits Play and the deck on the first screen (#431)", async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== "desktop-1280", "viewport is set by the test; one project is enough");
     await openLobby(page);
-    await expect(page.locator(".home-brand")).toBeHidden();
+    // The headline stays, but as one short row (no kicker or rule) so Play and the deck still fit (#1391).
+    await expect(page.locator(".home-kicker")).toBeHidden();
+    expect((await page.locator(".home-hero").boundingBox())!.height).toBeLessThan(48);
     const vp = page.viewportSize()!;
     for (const sel of [".btn-play", ".home-deck"]) {
       const box = (await page.locator(sel).boundingBox())!;

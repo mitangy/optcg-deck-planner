@@ -1,7 +1,3 @@
-/**
- * Behavior fixtures for real cards, one per engine primitive family.
- * Card text comes from the official data; abilities from the generated registry.
- */
 import { describe, expect, it } from "vitest";
 import { FILLER, Harness } from "../testing/harness.js";
 
@@ -15,7 +11,6 @@ describe("On Play look (OP01-016 Nami)", () => {
     const r = h.choice!.request!;
     expect(r.type).toBe("look");
     if (r.type !== "look") return;
-    // Another Nami is excluded by name; the Karoo filler lacks the trait.
     expect(r.options.map((o) => o.eligible)).toEqual([false, true, false, true, true]);
     const rejected = h.try(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] });
     expect(rejected.ok).toBe(false);
@@ -32,7 +27,6 @@ describe("On Play look (OP01-016 Nami)", () => {
     h.state.players[0].deck.splice(2);
     h.state.players[0].zoneInstanceIds.deck.splice(2);
     h.deckTop(0);
-    // Two-card deck: look sees only two cards.
     h.play(0, "OP01-016");
     expect(h.try(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [], orderedOptionIds: ["o0"] }).ok).toBe(false);
     h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: [], orderedOptionIds: ["o1", "o0"] });
@@ -56,7 +50,6 @@ describe("Counter events and Life Triggers (ST01-014 Guard Point)", () => {
     expect(h.state.players[1].trash).toContain("ST01-014");
     h.act(1, { type: "pass_counter" });
     expect(h.state.players[1].characters.length).toBe(1);
-    // "During this battle" expires with the battle.
     expect(h.view(1).you.characters[0]!.power).toBe(3000);
   });
 
@@ -206,7 +199,6 @@ describe("Activate: Main", () => {
     expect(h.state.players[0].costArea.every((d) => d.rested)).toBe(true);
     h.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] });
     expect(h.state.players[0].hand.map((c) => c.defId)).toEqual(["OP09-093"]);
-    // Rested: cannot activate again.
     expect(h.legal(0).some((i) => i.type === "activate_ability" && i.sourceId === laffitte!.id)).toBe(false);
   });
 
@@ -264,7 +256,6 @@ describe("optional costs and K.O. (OP02-062 Luffy / OP01-006 Otama)", () => {
 });
 
 describe("OP09-093 Marshall.D.Teach negate durations", () => {
-  // Official text: 相手のキャラ1枚までを、次の相手のターン終了時まで、効果を無効にし、そのキャラはアタックできない。
   // The Character's negation and "cannot attack" share one duration; the Leader's negation is "this turn" only.
   it("Teach keeps the Character negated through the opponent's next turn but frees the Leader (#333)", () => {
     const h = new Harness({ leaders: ["OP09-081", "ST01-001"] });

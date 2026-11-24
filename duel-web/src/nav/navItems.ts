@@ -1,4 +1,3 @@
-/** The pages the menu links to, in the order it lists them. */
 export type NavItem = { href: string; label: string };
 
 export const NAV_ITEMS: readonly NavItem[] = [
@@ -6,23 +5,35 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { href: "/leaderboard", label: "Leaderboard" },
   { href: "/decks", label: "Decks" },
   { href: "/decks/meta", label: "Meta decks" },
+  { href: "/profile", label: "Profile" },
   { href: "/history", label: "Match history" },
   { href: "/tournaments", label: "Tournaments" },
   { href: "/whats-new", label: "What’s new" },
   { href: "/settings", label: "Settings" },
 ];
 
+const INLINE_HREFS = ["/decks", "/leaderboard", "/history", "/tournaments"];
+const INLINE_LABEL: Record<string, string> = { "/history": "History" };
+
+export const INLINE_NAV: readonly NavItem[] = INLINE_HREFS.map((href) => ({
+  href,
+  label: INLINE_LABEL[href] ?? NAV_ITEMS.find((i) => i.href === href)!.label,
+}));
+
+const SHOWN_INLINE = new Set([...INLINE_NAV.map((i) => i.href), "/settings"]);
+
+export function isShownInline(href: string): boolean {
+  return SHOWN_INLINE.has(href);
+}
+
 const ADMIN_ITEM: NavItem = { href: "/admin", label: "Admin" };
 
-/** The menu for a signed-in role: staff also get the Admin page. */
 export function navItemsFor(role: string | null | undefined): readonly NavItem[] {
   return role === "admin" || role === "moderator" ? [...NAV_ITEMS, ADMIN_ITEM] : NAV_ITEMS;
 }
 
-/** Meta decks owns exactly `/decks/meta`; every other `/decks/...` page belongs to Decks. */
 const EXACT_ONLY = new Set(["/", "/decks/meta"]);
 
-/** The menu item to mark as the current page, or null for a page the menu does not list. */
 export function activeNavHref(pathname: string): string | null {
   const path = pathname.replace(/\/+$/, "") || "/";
   for (const { href } of NAV_ITEMS) {

@@ -41,9 +41,7 @@ def _expression_indexes(engine: Engine) -> dict[str, str]:
 
 
 def _describe(engine: Engine) -> dict[str, dict]:
-    """Everything the schema comparison cares about, as plain sorted data."""
     with warnings.catch_warnings():
-        # "Skipped unsupported reflection of expression-based index": handled above.
         warnings.simplefilter("ignore", sa_exc.SAWarning)
         return _describe_tables(engine)
 
@@ -112,7 +110,6 @@ def _schema_from_alembic() -> dict[str, dict]:
 
 
 def test_alembic_head_builds_the_schema_the_models_declare() -> None:
-    # Built one after the other: on Postgres both use the same (wiped) database.
     expected = _schema_from_models()
     actual = _schema_from_alembic()
 

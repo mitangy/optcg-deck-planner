@@ -1,4 +1,3 @@
-/** Cost grammar: "you may COST:" prefixes → `Cost[]`. */
 import type { Cost } from "../../../effects/types.js";
 import { sel } from "../../../effects/builders.js";
 import { nameList, num, parseCardPhrase, withCostAreaDon, type Ctx } from "../phrases.js";
@@ -163,7 +162,6 @@ export function parseCosts(text: string, ctx: Ctx): Cost[] | null {
   if (combined) return [{ k: "rest_don", count: num(combined[1]!) }, { k: "rest_self" }];
   const direct = firstMatch(t, COST_RULES, ctx);
   if (direct) return [direct];
-  // Split on ", you may", " and you may", ", and", " and", ","
   const seps = [/,\s*(?:and\s+)?(?:you may\s+)?/i, /\s+and\s+(?:you may\s+)?/i, /\s+/];
   for (const sep of seps.slice(0, 2)) {
     const parts = t.split(sep);
@@ -192,7 +190,6 @@ export function parseCosts(text: string, ctx: Ctx): Cost[] | null {
     const b = a && parseCosts(carry2[1] + " " + carry2[3] + carry2[4], ctx);
     if (a && b) return [...excludingSelf(a), ...b];
   }
-  // "[RDON 1] you may rest this Character"
   const rdon = /^(\[RDON \d+\])\s+(.+)$/.exec(t);
   if (rdon) {
     const a = parseCosts(rdon[1]!, ctx);

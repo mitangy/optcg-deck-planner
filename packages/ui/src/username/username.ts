@@ -1,13 +1,8 @@
-/**
- * Client-side mirror of the backend username format rules (backend/app/usernames.py), shared by the
- * planner and the duel app. Only format/length are checked here for instant feedback; the API is
- * authoritative for reserved words, profanity, and uniqueness (422 / 409).
- */
+// Only format/length are checked here, for instant feedback; the API is authoritative for reserved words, profanity and uniqueness.
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 20;
 const USERNAME_RE = /^[A-Za-z0-9_-]+$/;
 
-/** Returns a user-facing problem, or null when the format looks valid. */
 export function usernameFormatError(raw: string): string | null {
   const v = raw.trim();
   if (v.length < USERNAME_MIN || v.length > USERNAME_MAX) {
@@ -19,7 +14,6 @@ export function usernameFormatError(raw: string): string | null {
   return null;
 }
 
-/** Signed-in accounts without a username must pick one before playing. */
 export function needsUsername(user: { username?: string | null } | null | undefined): boolean {
   return Boolean(user) && !user!.username;
 }

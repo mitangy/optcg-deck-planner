@@ -4,19 +4,13 @@ import { setAuthUser } from "./session";
 import { USERNAME_MAX, usernameFormatError } from "@optcg/ui/username";
 
 type Props = {
-  /** Prefill (current username or a server suggestion). */
   initial: string;
   submitLabel: string;
   onSaved: (user: AuthUser) => void;
-  /** When set, an unchanged value is a no-op instead of a PATCH. */
   current?: string | null;
   autoFocus?: boolean;
 };
 
-/**
- * Username input + save. Shared by the post-sign-in setup page and Settings.
- * The message row always reserves one line so errors never shift the layout.
- */
 export function UsernameForm({ initial, submitLabel, onSaved, current, autoFocus }: Props) {
   const inputId = useId();
   const [value, setValue] = useState(initial);

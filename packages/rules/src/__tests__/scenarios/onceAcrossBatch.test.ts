@@ -1,16 +1,11 @@
-/**
- * A [Once Per Turn] "When …" ability asks once when several cards it watches are K.O.'d at the same time (#600).
- */
 import { describe, expect, it } from "vitest";
 import { Harness } from "../../testing/harness.js";
 
-const SANDERSONIA = "OP16-111"; // {Kuja Pirates}, 5000 base power, cost 4
-const MARIGOLD = "OP16-113"; // {Kuja Pirates}, 5000 base power, cost 5
-const DEMON_FACE = "OP01-056"; // [Main] K.O. up to 2 of your opponent's rested Characters with a cost of 5 or less.
+const SANDERSONIA = "OP16-111";
+const MARIGOLD = "OP16-113";
+const DEMON_FACE = "OP01-056";
 const KAROO = "ST01-003";
 
-// OP14-041 Boa Hancock (Leader): [DON!! x1] [Once Per Turn] When one of your {Amazon Lily} or {Kuja Pirates} type
-// Characters with 5000 base power or more is K.O.'d, add up to 1 card from the top of your opponent's Life to their hand.
 describe("OP14-041 Boa Hancock Leader trigger (#600)", () => {
   function koBothSisters() {
     const h = new Harness({ leaders: ["OP14-041", "ST01-001"] });

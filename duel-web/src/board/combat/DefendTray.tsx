@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { artAfterError, isLocalCardsUrl, isPlaceholderArt, isTcgplayerCdnUrl } from "@optcg/ui/cardArt";
 import { resolveCardImageUrl } from "../../decks/artPrefs";
 import type { Seat } from "../../net/protocol";
-import type { DefendModel } from "./defendModel";
+import { defendVerdict, type DefendModel } from "./defendModel";
 import { usePointerDrag } from "../input/usePointerDrag";
 
 function Thumb({ defId, artCopy, ownerSeat }: { defId: string; artCopy?: number; ownerSeat: Seat }) {
@@ -21,7 +21,6 @@ function Thumb({ defId, artCopy, ownerSeat }: { defId: string; artCopy?: number;
           src={src}
           alt=""
           draggable={false}
-          // Same fallback as CardTile: CDN art first, then the preview / local mirror.
           onError={() => (!local && (isTcgplayerCdnUrl(primary) || isLocalCardsUrl(primary)) ? setLocal(true) : setFailed(true))}
           onLoad={(e) => {
             if (isPlaceholderArt(src, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)) {
@@ -37,14 +36,12 @@ function Thumb({ defId, artCopy, ownerSeat }: { defId: string; artCopy?: number;
   );
 }
 
-/** Drag a Counter chip onto the defending card: plays it at once. */
 export type CounterDragHandlers = {
   onStart: (cardId: string) => void;
   onEnd: (cardId: string, clientX: number, clientY: number) => void;
   onCancel: () => void;
 };
 
-/** A counter chip that is also a drag source (tap still stages / plays). */
 function CounterChipButton({
   cardId,
   className,
@@ -91,28 +88,23 @@ function power(n: number | null): string {
 
 type Props = {
   model: DefendModel;
-  /** `rail`: desktop right column, chips wrap so every value shows (no sideways scroll). */
   layout?: "tray" | "rail";
   ownerSeat: Seat;
-  /** Remaining response clock, 0-1, or null when the room has none. */
   clock: number | null;
   onToggleBlocker: (id: string) => void;
   onToggleCounter: (id: string) => void;
   onCounterEvent: (index: number) => void;
-  /** Block step: tap a Counter chip to skip the block and counter with it. */
   onSkipBlockCounter?: (id: string) => void;
-  /** Drag-to-counter from the chips (counter step, and block step to skip the block). */
   counterDrag?: CounterDragHandlers;
-  /** Phones only: the hand is hidden while the tray is up, so show its size (#660). */
   handCount?: number;
+  // Phone tray only: the Hand pill toggles this view in place of the chips, so Counters can be picked from the real hand (#1368).
+  handView?: ReactNode;
+  handOpen?: boolean;
+  onToggleHand?: () => void;
+  // False when the attack summary and verdict are shown above the Pass button instead.
+  summary?: boolean;
 };
 
-/**
- * Answering an attack in one place: the battle and what it takes to survive,
- * then the Blockers (block step) or Counter cards (counter step) as big
- * tappable chips. Staging is local; the primary button in the intent bar
- * sends it. Fixed height in portrait, so staging never moves the board.
- */
 export function DefendTray({
   model,
   layout = "tray",
@@ -124,22 +116,14 @@ export function DefendTray({
   onSkipBlockCounter,
   counterDrag,
   handCount,
+  handView,
+  handOpen = false,
+  onToggleHand,
+  summary = true,
 }: Props) {
   const m = model;
   const stagedSet = new Set(m.stagedIds);
-  const safe = m.remaining === 0;
-
-  let verdict: string;
-  if (m.gap == null || m.remaining == null) verdict = "Attack incoming";
-  else if (m.phase === "counter" && m.stagedIds.length > 0) {
-    const total = `+${m.stagedTotal}${m.stagedUnknown ? "+" : ""} staged`;
-    verdict = m.stagedUnknown
-      ? total
-      : safe
-        ? `${total} · Safe`
-        : `${total} · still short by ${m.remaining}`;
-  } else if (m.gap === 0) verdict = "Safe";
-  else verdict = `Need +${m.gap} to survive`;
+  const verdict = defendVerdict(m);
 
   const staged = m.phase === "counter" ? m.stagedIds.length : 0;
   const handAfter = handCount != null ? Math.max(handCount - staged, 0) : 0;
@@ -154,33 +138,49 @@ export function DefendTray({
           <span style={{ transform: `scaleX(${clock})` }} />
         </div>
       ) : null}
+      {summary ? (
+        <>
       <p className="defend-line">
         <span className="defend-line-text">
-          <strong>{m.attackerName}</strong> {power(m.attackerPower)} →{" "}
+          <strong>{m.attackerName}</strong> ({power(m.attackerPower)}) attacks{" "}
           {m.blocking ? "Blocker " : ""}
-          <strong>{m.defenderName}</strong> {power(m.defenderPower)}
-          {m.preview ? " (if it blocks)" : ""}
+          <strong>{m.defenderName}</strong> ({power(m.defenderPower)})
+          {m.preview ? " if it blocks" : ""}
         </span>
       </p>
       <div className="defend-verdict-row">
         <p
-          className={`defend-verdict${m.gap === 0 || (m.stagedIds.length > 0 && safe) ? " is-safe" : ""}`}
+          className={`defend-verdict${verdict.safe ? " is-safe" : ""}`}
           role="status"
         >
-          {verdict}
+          {verdict.text}
         </p>
         {handCount != null ? (
-          <span
+          <button
+            type="button"
             className="defend-hand"
-            aria-label={`Your hand: ${handCount} ${handCount === 1 ? "card" : "cards"}${
-              staged > 0 ? `, ${handAfter} after these counters` : ""
-            }`}
+            aria-expanded={handOpen}
+            aria-label={
+              handOpen
+                ? "Hide your hand"
+                : `Show your hand, ${handCount} ${handCount === 1 ? "card" : "cards"}${
+                    staged > 0 ? `, ${handAfter} after these counters` : ""
+                  }`
+            }
+            onClick={onToggleHand}
           >
             Hand {handCount}
             {staged > 0 ? ` → ${handAfter}` : ""}
-          </span>
+          </button>
         ) : null}
       </div>
+        </>
+      ) : null}
+      {handCount != null && handOpen && handView ? (
+        <div className="defend-hand-view" aria-label="Your hand">
+          {handView}
+        </div>
+      ) : (
       <div className="defend-chips">
         {m.phase === "block" ? (
           m.blockers.length === 0 && m.earlyCounters.length === 0 ? (
@@ -270,6 +270,7 @@ export function DefendTray({
           </>
         )}
       </div>
+      )}
     </section>
   );
 }

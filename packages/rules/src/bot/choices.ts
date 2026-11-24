@@ -1,8 +1,3 @@
-/**
- * Pending choices (searches, targets, orderings, optional effects) the bot owns.
- * `listLegalIntents` offers only the engine's default answer for these, so the bot builds its own
- * and keeps it inside the request's limits (counts, groups, distinct names).
- */
 import { getCardDef } from "../cards/definitions.js";
 import type { ChoiceOption, ChoiceRequest, Intent, PendingChoice } from "../types.js";
 import type { Rng } from "../rng.js";
@@ -19,13 +14,11 @@ function optionValue(view: BotView, o: ChoiceOption): number {
   return defValue(o.defId);
 }
 
-/** Like `optionValue`, but for a card the bot is about to lose to a K.O.: an own Character's [On K.O.] counts as a plus (#1172). */
 function koLossValue(view: BotView, o: ChoiceOption): number {
   const onBoard = o.instanceId ? findBoardCard(view, o.instanceId) : null;
   return onBoard?.mine && onBoard.card.id !== view.you.leader.id ? lossValue(view, onBoard.card) : optionValue(view, o);
 }
 
-/** The options of a prompt that can be picked, best first by the bot's own ranking (the search tries the likeliest ones first, #1171). */
 export function rankedEligible(view: BotView, options: ChoiceOption[]): ChoiceOption[] {
   return options.filter((o) => o.eligible).map((o) => ({ o, v: optionValue(view, o) })).sort((a, b) => b.v - a.v).map((x) => x.o);
 }
@@ -35,7 +28,6 @@ function optionName(o: ChoiceOption): string {
   try { return getCardDef(o.defId).name; } catch { return o.id; }
 }
 
-/** What the picks are for: opponent's cards are hurt, own cards are a cost to pay or something gained. */
 function purpose(view: BotView, choice: PendingChoice, o: ChoiceOption): Purpose {
   if (o.ownerSeat != null && o.ownerSeat !== view.seat) return "hurt";
   const text = choice.prompt.toLowerCase();
@@ -60,7 +52,6 @@ function canAssign(picked: string[], groups: Look["groups"]): boolean {
   return go(0);
 }
 
-/** What an option adds to a "total cost / total power at most X" limit; null when its card is hidden from the seat. */
 function limitStat(view: BotView, o: ChoiceOption, kind: "cost" | "power"): number | null {
   const onBoard = o.instanceId ? findBoardCard(view, o.instanceId) : null;
   if (onBoard && kind === "power") return onBoard.card.power;
@@ -71,14 +62,12 @@ function limitStat(view: BotView, o: ChoiceOption, kind: "cost" | "power"): numb
   } catch { return null; }
 }
 
-/** The attack the bot is defending against, as the id of the card it targets (null: the Leader); undefined when not defending. */
 function attackedId(view: BotView): string | null | undefined {
   const b = view.battle;
   if (!b || b.attackerSeat === view.seat) return undefined;
   return b.target.kind === "leader" ? view.you.leader.id : b.target.instanceId;
 }
 
-/** "Change the target of that attack" (#1169): move it off the card it is on, to a Character that survives if there is one. */
 function redirectTarget(view: BotView, eligible: ChoiceOption[]): ChoiceOption | null {
   const cur = attackedId(view);
   const attacker = findBoardCard(view, view.battle!.attackerId)?.card;
@@ -102,12 +91,10 @@ function answerSelect(view: BotView, choice: PendingChoice, r: Extract<ChoiceReq
   // The pick of a "K.O." (an effect's choice or a cost) is lost to a K.O., so an own Character's [On K.O.] makes it cheaper to give up (#1172).
   const value = kind === "cost" && /\bto K\.O\./.test(choice.prompt) ? koLossValue : optionValue;
   const scored = eligible.map((o) => ({ o, v: value(view, o) }));
-  // Hurt and gain take the best cards, a cost gives up the cheapest ones. Stable on ties (option order).
   scored.sort((a, b) => (kind === "cost" ? a.v - b.v : b.v - a.v));
   const want = kind === "cost" ? r.min : r.max;
   const picked: ChoiceOption[] = [];
   const names = new Set<string>();
-  // "Total cost / power of the picks at most X" (#635): the request carries the limit; a pick that would pass it is skipped.
   const limits = ([["cost", r.totalCostAtMost], ["power", r.totalPowerAtMost]] as const).filter((l): l is readonly ["cost" | "power", number] => l[1] != null);
   const used = { cost: 0, power: 0 };
   for (const { o } of scored) {
@@ -150,7 +137,6 @@ function answerOrder(view: BotView, r: Extract<ChoiceRequest, { type: "order" }>
   return { type: "resolve_pending_choice", accept: true, orderedOptionIds: ids, ...(r.allowTopOrBottom ? { topOptionIds: avg >= 3.5 ? ids : [] } : {}) };
 }
 
-/** The bot's answer for the front pending choice (always the seat's own), or a legal default when unsure. */
 export function chooseChoiceAnswer(view: BotView, level: BotLevel, rng: Rng, pb?: LeaderPlaybook): Intent {
   const legal = view.legalIntents;
   const fallback = legal[0]!;
@@ -161,9 +147,7 @@ export function chooseChoiceAnswer(view: BotView, level: BotLevel, rng: Rng, pb?
     // Activating a [Trigger] is almost always better than adding the card to hand.
     return legal.find((i) => i.type === "resolve_pending_choice" && i.accept) ?? fallback;
   }
-  // Easy sometimes just takes the engine's default answer.
   if (level === "easy" && rng.next() < 0.4) return fallback;
-  // The Leader's own ability (#1173): its playbook may know better than the generic answer. Only a legal-looking answer is used.
   if (pb?.answerChoice && choice.cardDefId === pb.leaderId) {
     const hinted = pb.answerChoice(view, choice);
     if (hinted && hinted.type === "resolve_pending_choice" && (hinted.accept || choice.optional)) return hinted;

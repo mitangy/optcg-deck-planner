@@ -6,8 +6,6 @@ import { deriveDefend } from "./defendModel";
 import { parseDropAttr, resolveDropIntents } from "./dragIntents";
 import { stubBattle } from "../fixtures/stubCard";
 
-// ST01-003 Karoo prints +1000; ST01-006 Chopper has no Counter;
-// ST01-014 Guard Point is a 1-cost [Counter] Event; ST01-016 Diable Jambe has no [Counter].
 const blockStep: Intent[] = [
   { type: "pass_block" },
   { type: "declare_block", blockerId: "y-c1" },
@@ -22,7 +20,6 @@ describe("skip the block by dragging a Counter (#300)", () => {
       { defenderId: "y-leader" },
     );
     expect(sent).toEqual([{ type: "pass_block" }]);
-    // Anywhere but the defender still does nothing.
     expect(
       resolveDropIntents({ type: "counter", handIndex: 0 }, parseDropAttr("counter:y-c1"), blockStep, {
         defenderId: "y-leader",
@@ -42,12 +39,17 @@ describe("skip the block by dragging a Counter (#300)", () => {
   it("only offers cards the counter step will take: a Counter above 0, or an affordable [Counter] Event", () => {
     expect(counterAfterBlock({ id: "a", defId: "ST01-003" }, 0)).toBe(true);
     expect(counterAfterBlock({ id: "b", defId: "ST01-006" }, 5)).toBe(false);
-    // The engine's live Counter wins over the printed one, both ways.
     expect(counterAfterBlock({ id: "a", defId: "ST01-003", counter: 0 }, 0)).toBe(false);
     expect(counterAfterBlock({ id: "b", defId: "ST01-006", counter: 1000 }, 0)).toBe(true);
     expect(counterAfterBlock({ id: "c", defId: "ST01-014" }, 1)).toBe(true);
     expect(counterAfterBlock({ id: "c", defId: "ST01-014" }, 0)).toBe(false);
     expect(counterAfterBlock({ id: "d", defId: "ST01-016" }, 5)).toBe(false);
+  });
+
+  it("offers a Stage in hand only when it carries a Counter, as under Franky OP18-021 (#1421)", () => {
+    expect(counterAfterBlock({ id: "s", defId: "OP18-075", counter: 3000 }, 0)).toBe(true);
+    expect(counterAfterBlock({ id: "s", defId: "OP18-075" }, 0)).toBe(false);
+    expect(counterAfterBlock({ id: "s", defId: "OP18-075", counter: 0 }, 0)).toBe(false);
   });
 
   it("waits out the block step, then plays the dragged card by id in the counter step", () => {
@@ -73,7 +75,6 @@ describe("skip the block by dragging a Counter (#300)", () => {
       { id: "y-h2", defId: "ST01-003" },
     ];
     const counterStep: Intent[] = [{ type: "pass_counter" }, { type: "counter_from_hand", handIndex: 1 }];
-    // Another card's counter is legal, but never the one the player dragged.
     expect(followUpCounter(counterStep, hand, "y-h1")).toEqual({ settled: true, intent: null });
   });
 

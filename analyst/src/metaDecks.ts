@@ -9,13 +9,11 @@ export type SelfPlayDeck = { name: string; leaderId: string; deck: string[] };
 type MetaLeaderRow = { leader_id: string; name?: string; decks: number };
 type MetaDeckRow = { placing: number | null; event?: string; date?: string; cards: { card_id: string; count: number }[] };
 
-/** The 50 card ids of a meta deck, copies repeated; null when the list is not exactly 50 cards. */
 export function expandDeck(cards: { card_id: string; count: number }[]): string[] | null {
   const ids = cards.flatMap((c) => Array.from({ length: Math.max(0, Math.trunc(c.count)) }, () => c.card_id));
   return ids.length === MAIN_DECK_SIZE ? ids : null;
 }
 
-/** The best-placed complete deck (placed decks first, then newest), or null when none is a full 50-card list. */
 export function bestDeck(decks: MetaDeckRow[]): { ids: string[]; deck: MetaDeckRow } | null {
   const ordered = [...decks].sort((a, b) => (a.placing ?? Infinity) - (b.placing ?? Infinity) || String(b.date ?? "").localeCompare(String(a.date ?? "")));
   for (const deck of ordered) {
@@ -31,7 +29,6 @@ async function getJson<T>(fetchImpl: typeof fetch, url: string): Promise<T> {
   return (await res.json()) as T;
 }
 
-/** One deck for each of the most-played leaders in the last `days` days, ordered by how many decks the leader had. */
 export async function fetchSelfPlayDecks(baseUrl: string, opts: { days?: number; leaders?: number; fetchImpl?: typeof fetch } = {}): Promise<SelfPlayDeck[]> {
   const fetchImpl = opts.fetchImpl ?? fetch;
   const days = opts.days ?? 30;

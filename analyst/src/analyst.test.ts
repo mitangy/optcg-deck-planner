@@ -7,7 +7,6 @@ import { searchCards } from "./search";
 
 const catalog = loadCatalog();
 
-/** OP01-001 Roronoa Zoro (red) with 50 red OP01 characters: 12 x4 + 1 x2. */
 const legalDeckText = [
   "1xOP01-001",
   ...["004", "005", "006", "007", "008", "009", "010", "011", "012", "013", "014", "015"].map((n) => `4xOP01-${n}`),
@@ -77,7 +76,6 @@ describe("card search", () => {
   });
 
   it("legalFor applies the leader's own deck rules (#244)", () => {
-    // OP12-001 Silvers Rayleigh: no cards costing 5 or more.
     const r = searchCards(catalog, { legalFor: "OP12-001", set: "EB01", types: ["character"], limit: 100 });
     const ids = r.cards.map((c) => c.id);
     expect(ids).toContain("EB01-003");
@@ -107,6 +105,24 @@ describe("card search", () => {
       expect(c.effects).toContain("ko");
       expect(c.effects).not.toContain("if");
     }
+  });
+
+  it("tags power and cost effects by direction so -power can be searched (#1450)", () => {
+    const fx = (id: string) => catalog.cards.get(id)!.effects;
+    // Brook: -2000 power to the opponent's Characters; Rafflesia: -2000 to a Leader or Character.
+    expect(fx("OP01-022")).toEqual(expect.arrayContaining(["power", "power_down"]));
+    expect(fx("OP01-028")).toContain("power_down");
+    // EB01-001 only gives itself +1000.
+    expect(fx("EB01-001")).toEqual(expect.arrayContaining(["power", "power_up"]));
+    expect(fx("EB01-001")).not.toContain("power_down");
+    // A scaled amount ({count, times}) takes the sign of its multiplier.
+    expect(fx("OP06-014")).toContain("power_up");
+    expect(fx("EB01-042")).toEqual(expect.arrayContaining(["cost", "cost_down"]));
+    expect(fx("EB02-041")).toContain("cost_up");
+    expect(fx("EB02-041")).not.toContain("cost_down");
+    const ids = searchCards(catalog, { colors: ["red"], traits: ["Straw Hat Crew"], effects: ["power_down"], limit: 100 }).cards.map((c) => c.id);
+    expect(ids).toContain("OP01-022");
+    expect(ids).not.toContain("EB01-001");
   });
 });
 

@@ -1,19 +1,5 @@
 name: Game server blue/green deploy
 
-# Deploys the idle game-server pool, waits until every process in it reports
-# this commit, then points new games at it. Games already running on the old
-# pool finish there; nothing is cut off. See docs/scaling.md.
-#
-# Needs (repo settings, per colour BLUE / GREEN):
-#   secrets.RENDER_DEPLOY_HOOKS_<COLOUR>  Render deploy hook URLs, space separated
-#   vars.GS_HEALTH_URLS_<COLOUR>          each process's base URL, space separated
-#   vars.GS_POOL_URL_<COLOUR>             the URL clients get for that pool
-#   vars.API_URL                          backend base URL
-#   secrets.OPS_ADMIN_TOKEN               admin token for the pool pointer (must match Render
-#                                         OPS_ADMIN_TOKEN). Until it exists the job falls back to
-#                                         secrets.CATALOG_SYNC_TOKEN, which the API accepts for the
-#                                         pool only while OPS_ADMIN_TOKEN is unset on Render.
-
 on:
   workflow_dispatch:
     inputs:

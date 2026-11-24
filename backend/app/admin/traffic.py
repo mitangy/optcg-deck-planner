@@ -1,9 +1,3 @@
-"""Traffic tab data for the admin page (#1020): Vercel Web Analytics and Render service metrics.
-
-Read server-side with the tokens already set for the Hosting tab, so no token reaches the browser. Each provider is
-cached per window for ten minutes; a provider without a token is {"configured": False}; a failed provider call is
-{"configured": True, "error": "..."}; one project or service that fails is a row with an "error" and the rest still load.
-"""
 
 from __future__ import annotations
 
@@ -27,15 +21,12 @@ _lock = threading.Lock()
 
 VERCEL = "https://api.vercel.com"
 RENDER = "https://api.render.com/v1"
-# (output key, Vercel dimension, row limit)
 _BREAKDOWNS = (("pages", "requestPath", 8), ("referrers", "referrerHostname", 8), ("countries", "country", 8), ("devices", "deviceType", 5))
-# Render rejects a query with too many points, so the resolution grows with the window.
 _RESOLUTIONS = (60, 300, 900, 3600, 21600, 86400)
 MAX_POINTS = 100
 
 
 def _run_all(fns: list[Callable[[], Any]]) -> list[Any]:
-    """Run the calls on a small pool; a call that raised gives its exception in place of a result."""
     def safe(fn: Callable[[], Any]) -> Any:
         try:
             return fn()
@@ -47,7 +38,6 @@ def _run_all(fns: list[Callable[[], Any]]) -> list[Any]:
 
 
 def _window(now: datetime, days: int) -> tuple[datetime, list[date]]:
-    """The first instant (UTC midnight) and every date of the last `days` days, today last."""
     today = now.date()
     dates = [today - timedelta(days=i) for i in range(days - 1, -1, -1)]
     return datetime(dates[0].year, dates[0].month, dates[0].day, tzinfo=timezone.utc), dates
@@ -60,8 +50,6 @@ def _stamp(dt: datetime) -> str:
 def _problem(e: Exception) -> str:
     return str(e) if isinstance(e, ProviderError) else "Unexpected response"
 
-
-# ---------------------------------------------------------------- Vercel Web Analytics
 
 def _vercel_project(client: httpx.Client, headers: dict, team: dict, project: dict, start: datetime, now: datetime, dates: list[date]) -> dict:
     base = {"projectId": project["id"], **team, "since": _stamp(start), "until": _stamp(now)}
@@ -79,7 +67,6 @@ def _vercel_project(client: httpx.Client, headers: dict, team: dict, project: di
     by_day = {str(r.get("timestamp", ""))[:10]: r for r in daily["data"]}
     out: dict[str, Any] = {
         "name": project.get("name"),
-        # Visitors are unique across the window, so the total is its own count and never the sum of the days.
         "totals": {"visitors": count["data"]["visitors"], "pageviews": count["data"]["pageviews"]},
         "daily": [
             {"date": d.isoformat(), "visitors": by_day.get(d.isoformat(), {}).get("visitors", 0), "pageviews": by_day.get(d.isoformat(), {}).get("pageviews", 0)}
@@ -95,7 +82,6 @@ def fetch_vercel(settings: Settings, client: httpx.Client, days: int) -> dict:
     headers = {"Authorization": f"Bearer {settings.vercel_token}"}
     team = {"teamId": settings.vercel_team_id} if settings.vercel_team_id else {}
     projects = _get(client, f"{VERCEL}/v9/projects", headers=headers, params=team).get("projects", [])
-    # The team also holds unrelated projects (a personal budget app); only the OPTCG sites belong here.
     projects = [p for p in projects if str(p.get("name", "")).startswith(PROJECT_PREFIX)]
     now = datetime.now(timezone.utc)
     start, dates = _window(now, days)
@@ -112,8 +98,6 @@ def fetch_vercel(settings: Settings, client: httpx.Client, days: int) -> dict:
     return {"projects": _run_all([one(p) for p in projects])}
 
 
-# ---------------------------------------------------------------- Render metrics
-
 def _label(series: dict, field: str) -> str | None:
     for lab in series.get("labels") or []:
         if lab.get("field") == field:
@@ -122,7 +106,6 @@ def _label(series: dict, field: str) -> str | None:
 
 
 def _summed(series: list[dict]) -> list[float]:
-    """One total per timestamp across instances, oldest first."""
     by_time: dict[str, float] = {}
     for s in series:
         for v in s.get("values") or []:
@@ -190,7 +173,6 @@ def fetch_render(settings: Settings, client: httpx.Client, days: int) -> dict:
     now = datetime.now(timezone.utc)
     start, dates = _window(now, window)
     services = [r.get("service", r) for r in rows]
-    # A suspended service has no traffic; a static site has no service metrics.
     services = [s for s in services if s.get("suspended") != "suspended" and s.get("type") != "static_site"]
 
     def one(s: dict) -> Callable[[], dict]:
@@ -204,8 +186,6 @@ def fetch_render(settings: Settings, client: httpx.Client, days: int) -> dict:
 
     return {"days": window, "services": _run_all([one(s) for s in services])}
 
-
-# ---------------------------------------------------------------- entry points
 
 _TOKENS = {"vercel": lambda s: s.vercel_token, "render": lambda s: s.render_api_key}
 _FETCHERS: dict[str, Callable[[Settings, httpx.Client, int], dict]] = {"vercel": fetch_vercel, "render": fetch_render}
@@ -227,7 +207,7 @@ def provider(settings: Settings, name: str, days: int, *, refresh: bool = False)
     except (KeyError, TypeError, AttributeError):
         data = {"configured": True, "error": "Unexpected response"}
     data["fetched_at"] = datetime.now(timezone.utc).isoformat()
-    if "error" not in data:  # a failed call is retried on the next load, not cached
+    if "error" not in data:
         with _lock:
             _cache[(name, days)] = (now, data)
     return data

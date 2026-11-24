@@ -1,10 +1,3 @@
-/**
- * Log Pose's Apply card (#400): the analyst suggests a deck edit, the card shows under the answer, Apply saves it
- * to the open deck through the editor's own save, and Undo puts it back. The analyst and the API are faked in the
- * browser; the deck editor, the card and the saved deck are the real ones.
- *
- * SHOTS=1 also saves screenshots of the card's states to test-results/shots/.
- */
 import type { Page } from "@playwright/test";
 import { test, expect, FAKE_API, RED_VANILLA } from "./fixtures";
 
@@ -97,11 +90,9 @@ test("applies a Log Pose deck edit and undoes it (#400)", async ({ page }, info)
   await shot(page, `${info.project.name}-1-ready`);
 
   await apply.click();
-  // The deck editor behind the panel now holds the change.
   await expect(card.getByText("✓ Applied")).toBeVisible();
   await expect(stack("ST01-010").getByLabel("2 copies")).toBeVisible();
   await expect(stack("ST01-006").getByLabel("2 copies")).toBeVisible();
-  // The control that said Apply keeps its place and size once it says Applied.
   const applied = await card.getByText("✓ Applied").boundingBox();
   expect(Math.abs(applied!.x - before!.x)).toBeLessThanOrEqual(1);
   expect(Math.abs(applied!.y - before!.y)).toBeLessThanOrEqual(1);
@@ -116,7 +107,6 @@ test("applies a Log Pose deck edit and undoes it (#400)", async ({ page }, info)
   if (!process.env.SHOTS) return;
 
   if (info.project.name === "phone-375") {
-    // Landscape phone: the drawer, with the card scrolled so its buttons show.
     await page.setViewportSize({ width: 812, height: 375 });
     await expect(panel).toBeVisible();
     await card.getByRole("button", { name: "Apply", exact: true }).scrollIntoViewIfNeeded();
@@ -128,7 +118,6 @@ test("applies a Log Pose deck edit and undoes it (#400)", async ({ page }, info)
   await page.setViewportSize({ width: 1200, height: 800 });
   await expect(card).toBeVisible();
   await shot(page, "desktop-ready");
-  // A touched card changed in the editor: the card says so instead of applying over it.
   await page.getByRole("button", { name: "Remove one Tony Tony.Chopper" }).click();
   await expect(card.getByRole("button", { name: "Ask again" })).toBeVisible();
   await shot(page, "desktop-conflict");

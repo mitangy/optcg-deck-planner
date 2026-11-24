@@ -15,7 +15,6 @@ import {
 
 const card = (id: string, defId: string) => ({ id, defId });
 
-/** The few view fields the store reads (seat, spectator, turn, board cards); the rest is the board's business. */
 function viewOf(seat: 0 | 1, opts: { turn?: number; spectator?: boolean; chars?: string[] } = {}): PlayerView {
   return {
     seat,
@@ -67,6 +66,14 @@ describe("match chat", () => {
 });
 
 describe("illegal-intent banner", () => {
+  it("a stale_intent rejection shows no banner, online or hotseat (#1351)", () => {
+    for (const mode of ["online", "hotseat"] as const) {
+      expect(classifyServerError({ code: "stale_intent", message: "x" }, { view: viewOf(0), mode }, "player")).toEqual({
+        kind: "ignore",
+      });
+    }
+  });
+
   it("a stale rejection clears only an illegal_intent banner (#304)", () => {
     const illegal = run(createInitialMatchState(), {
       type: "error",
@@ -90,12 +97,21 @@ describe("server errors", () => {
     ).toBe("banner");
   });
 
+  it("match_not_ready after the match is over reads as plain text without the code (#1432)", () => {
+    const err = { code: "match_not_ready", message: "Rematch isn't available right now" };
+    const over = { view: viewOf(0), mode: "online", matchOver: {} as NonNullable<MatchState["matchOver"]> } as const;
+    expect(classifyServerError(err, over, "player")).toEqual({ kind: "banner", text: "Rematch isn't available right now" });
+    expect(classifyServerError(err, { view: viewOf(0), mode: "online", matchOver: null }, "player")).toEqual({
+      kind: "banner",
+      text: "match_not_ready: Rematch isn't available right now",
+    });
+  });
+
   it("a full spectator list and an opponent no-show end the match locally with the reason", () => {
     expect(classifyServerError({ code: "room_full", message: "x" }, view, "spectator")).toEqual({
       kind: "reset",
       text: SPECTATOR_CAP_MESSAGE,
     });
-    // A player seat that finds the room full is a plain error, not the spectator cap.
     expect(classifyServerError({ code: "room_full", message: "Room is full" }, view, "player").kind).toBe("banner");
     const gone = run(started(), { type: "error", err: { code: "opponent_no_show", message: "Opponent never arrived" } });
     expect(gone.errorBanner).toBe("Opponent never arrived");
@@ -132,7 +148,6 @@ describe("welcome", () => {
     expect(again.battleLog).toEqual([]);
     expect(again.canReconnect).toBe(true);
 
-    // A resync mid-game (no match over yet) is a clean slate online too.
     const midGame = run(started(), { type: "events", events: [reveal], step: 1 });
     expect(matchReducer(midGame, { type: "welcome", info: welcomeOf(0) }).battleLog).toEqual([]);
   });
@@ -183,7 +198,6 @@ describe("opening dice roll (#1190)", () => {
     const started = matchReducer(rolling, { type: "welcome", info: welcomeOf(0, { dice: result }) });
     expect(started.dice).toBeNull();
     expect(started.firstSeatDice).toEqual(result);
-    // A rematch's welcome carries none, and clears the last game's.
     expect(matchReducer(started, { type: "welcome", info: welcomeOf(0, { dice: null }) }).firstSeatDice).toBeNull();
   });
 
@@ -234,6 +248,32 @@ describe("battle log", () => {
     expect(second.instances.has("c1")).toBe(true);
     expect(second.instances.has("c2")).toBe(true);
     expect(before.has("c2")).toBe(false);
+  });
+});
+
+describe("server restart warning (#1352)", () => {
+  it("shows the warning, and the close that follows ends the game for the lobby instead of offering a reconnect (#1352)", () => {
+    const warned = run(started(), { type: "serverRestarting", seconds: 10 });
+    expect(warned.serverRestart).toEqual({ seconds: 10 });
+    expect(warned.view).not.toBeNull();
+    for (const close of ["disconnect", "drop"] as const) {
+      const s = run(warned, { type: close });
+      expect(s).toMatchObject({ view: null, matchId: null, canReconnect: false, reconnecting: false, connected: false });
+      expect(s.errorBanner).toMatch(/restarted for an update/);
+    }
+  });
+
+  it("a close with no warning still offers to reconnect (#1352)", () => {
+    const s = run(started(), { type: "disconnect" });
+    expect(s).toMatchObject({ canReconnect: true, errorBanner: null });
+    expect(s.view).not.toBeNull();
+  });
+
+  it("a game that already ended shows no warning, and a new game clears it (#1352)", () => {
+    const over = run(started(), { type: "matchOver", result: { winner: 0, reason: "concede" } as never }, { type: "serverRestarting", seconds: 10 });
+    expect(over.serverRestart).toBeNull();
+    const warned = run(started(), { type: "serverRestarting", seconds: 10 });
+    expect(run(warned, { type: "welcome", info: welcomeOf(0) }).serverRestart).toBeNull();
   });
 });
 

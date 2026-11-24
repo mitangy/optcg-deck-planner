@@ -1,4 +1,3 @@
-/** `npm run eval:grade-export -- <out/variant>`: writes <dir>/grading.json for the grading page (no judge verdicts). */
 import { existsSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { exportForGrading } from "./human-grades";

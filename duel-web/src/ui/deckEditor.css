@@ -1,6 +1,3 @@
-/* —— Deck editor: Save / Discard and the leave-with-unsaved-edits dialog (#481) —— */
-
-/* Both buttons are always rendered with a fixed width, so Saved <-> Save never moves the row. */
 .deck-save-btn,
 .deck-discard-btn {
   min-width: 5.25rem;
@@ -58,7 +55,6 @@
   justify-content: center;
 }
 
-/* Settings > Appearance: a quiet heading over the look panels (#496). */
 .settings-section {
   display: flex;
   flex-direction: column;
@@ -76,3 +72,13 @@
   color: var(--chrome);
 }
 
+
+.deck-saved-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+}

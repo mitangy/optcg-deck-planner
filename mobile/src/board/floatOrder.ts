@@ -1,12 +1,5 @@
 import type { ChoiceRequestView } from "../net/protocol";
 
-/**
- * Pure helpers for the floating-card prompts (`FloatingPrompt.tsx`): cards laid
- * out left → right over the board, tapped to pick and dragged to reorder.
- * Mirrors duel-web/src/board/prompts/floatOrder.ts.
- */
-
-/** `list` with `id` moved to `index` (clamped); unchanged when `id` is absent. */
 export function moveId(list: readonly string[], id: string, index: number): string[] {
   if (!list.includes(id)) return [...list];
   const rest = list.filter((x) => x !== id);
@@ -14,11 +7,6 @@ export function moveId(list: readonly string[], id: string, index: number): stri
   return rest;
 }
 
-/**
- * Tap-to-sequence: tapping an unnumbered card gives it the next number and
- * slides it into that slot of the row; tapping a numbered card clears its
- * number (later numbers close the gap, the row stays as it is).
- */
 export function tapInOrder(
   order: readonly string[],
   tapped: readonly string[],
@@ -29,7 +17,6 @@ export function tapInOrder(
   return { order: moveId(order, id, nextTapped.length - 1), tapped: nextTapped };
 }
 
-/** Index of the slot whose center is closest to (x, y). */
 export function nearestSlot(centers: readonly { x: number; y: number }[], x: number, y: number): number {
   let best = 0;
   let bestD = Infinity;
@@ -43,11 +30,6 @@ export function nearestSlot(centers: readonly { x: number; y: number }[], x: num
   return best;
 }
 
-/**
- * Answer for a floated look (search) prompt. The row reads top of deck → bottom
- * of deck, so the cards left behind go back in row order. "Top or bottom"
- * sends them all to the same side: every card on top, or none.
- */
 export function floatLookAnswer(
   request: Extract<ChoiceRequestView, { type: "look" }>,
   row: readonly string[],
@@ -62,17 +44,13 @@ export function floatLookAnswer(
   };
 }
 
-/** Caption under each floating card (name + step buttons). */
 export const FLOAT_CAPTION_H = 36;
 
-/** Card width and cards per row for `count` cards in a `width` × `height` window. */
 export function floatCardSize(count: number, width: number, height: number): { perRow: number; cardW: number } {
   const portrait = height >= width;
   const perRow = portrait && count > 3 ? 3 : Math.max(1, count);
   const rows = Math.ceil(count / perRow);
   const gap = 8;
-  // Header, step buttons, note and actions take about 300px (150px in landscape,
-  // where the title and prompt share one line and the note is hidden).
   const chrome = portrait ? 300 : 150;
   const fitW = (width - 32 - gap * (perRow - 1)) / perRow;
   const fitH = ((height - chrome) / rows - FLOAT_CAPTION_H) * 0.716;

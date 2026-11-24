@@ -7,10 +7,6 @@ import type {ClipId, FocusKey, Rect} from './types';
 type Cam = {z: number; cx: number; cy: number};
 const lerp = (a: number, b: number, p: number) => a + (b - a) * p;
 
-/**
- * Camera for a focus rect inside a (W x H) window showing a clip of aspect `clipAspect`
- * with "cover" fit. Zoom is limited so the view never leaves the footage.
- */
 export const camFor = (rect: Rect, W: number, H: number, clipAspect: number): Cam => {
   const Hc = Math.max(H, W / clipAspect); // clip display size at z=1 (cover)
   const Wc = Hc * clipAspect;
@@ -38,16 +34,12 @@ type Props = {
   W: number;
   H: number;
   focus: FocusKey[];
-  /** seconds into the clip where playback starts */
   trimStart?: number;
   rate?: number;
-  /** seconds to hold the first frame before playing */
   delay?: number;
-  /** total scene length in frames, for the slow push-in */
   sceneFrames: number;
 };
 
-/** Plays a clip (trimmed, speed-adjusted, last frame held) with spring zoom/pan driven by focus keyframes. */
 export const FocusClip: React.FC<Props> = ({clip, W, H, focus, trimStart = 0, rate = 1, delay = 0, sceneFrames}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
@@ -58,8 +50,6 @@ export const FocusClip: React.FC<Props> = ({clip, W, H, focus, trimStart = 0, ra
 
   const delayF = Math.round(delay * fps);
   const playable = Math.max(1, Math.floor(((avail - trimStart) / rate) * fps));
-  // Never play past the scene's own end: during the crossfade out, hold its last frame so footage
-  // beyond this segment (another take spliced into the same clip) never flashes in.
   const lastF = Math.max(0, Math.min(playable, sceneFrames - delayF) - 1);
   const vf = Math.min(Math.max(0, frame - delayF), lastF);
 
@@ -71,7 +61,6 @@ export const FocusClip: React.FC<Props> = ({clip, W, H, focus, trimStart = 0, ra
 
   const Hc = Math.max(H, W / aspect);
   const Wc = Hc * aspect;
-  // translate so view-centre (cx,cy) sits at window centre; scale about the clip origin
   const tx = W / 2 - cam.cx * Wc * z;
   const ty = H / 2 - cam.cy * Hc * z;
 

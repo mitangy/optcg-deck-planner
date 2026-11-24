@@ -5,18 +5,14 @@ import { CardTile } from "./CardTile";
 import { readStored, writeStored } from "@optcg/ui/storage";
 
 type Props = {
-  /** Def ids, newest-first (top of trash first). */
   cards: readonly string[];
-  /** Copy rank per card, same order as `cards` (any-number cards, #1292). "By card" groups use their newest copy. */
   copies?: ReadonlyArray<number | null | undefined>;
   title: string;
   onClose: () => void;
   ownerSeat?: Seat;
   viewingSeat?: Seat;
-  /** Ordering note after the count; "newest first" for the trash. */
   note?: string;
   emptyText?: string;
-  /** Show the Newest / By card toggle (the real trash; not the face-up Life viewer). */
   sortable?: boolean;
 };
 
@@ -29,14 +25,9 @@ export function readTrashSort(): TrashSort {
 }
 
 export function writeTrashSort(sort: TrashSort): void {
-  // Private mode / blocked storage: the choice just won't persist.
   writeStored(TRASH_SORT_KEY, sort);
 }
 
-/**
- * One entry per distinct card, most copies first; equal counts keep the one
- * trashed most recently first (earliest index in the newest-first input).
- */
 export function groupTrashByCard(newestFirst: readonly string[]): { defId: string; count: number }[] {
   const groups = new Map<string, { defId: string; count: number }>();
   for (const defId of newestFirst) {
@@ -44,11 +35,9 @@ export function groupTrashByCard(newestFirst: readonly string[]): { defId: strin
     if (g) g.count += 1;
     else groups.set(defId, { defId, count: 1 });
   }
-  // Map keeps first-appearance order and sort is stable, so ties stay newest-first.
   return [...groups.values()].sort((a, b) => b.count - a.count);
 }
 
-/** Public trash browser — both seats can open either pile. */
 export function TrashViewer(props: Props) {
   const { onClose, title, sortable } = props;
   return (
@@ -64,7 +53,6 @@ export function TrashViewer(props: Props) {
   );
 }
 
-/** The panel itself (exported so it can be rendered without a dialog in tests). */
 export function TrashViewerPanel(props: Props) {
   return (
     <div className={`trash-viewer${props.sortable ? " is-sortable" : ""}`} onClick={(e) => e.stopPropagation()}>
@@ -163,7 +151,6 @@ function TrashViewerContent({
   );
 }
 
-/** Chronological trash (oldest→newest) → display order (newest first). */
 export function trashNewestFirst<T>(trash: readonly T[]): T[] {
   if (!trash.length) return [];
   return [...trash].reverse();

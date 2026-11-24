@@ -1,14 +1,19 @@
-/**
- * Routes that hide the legal footer: a match (online, hotseat, demo, replay) fills the
- * screen, and the sign-in hand-off redirects straight away.
- */
 const NO_FOOTER = ["/duel", "/hotseat", "/demo", "/replay", "/auth/complete"];
 
+const under = (pathname: string, p: string) => pathname === p || pathname.startsWith(`${p}/`);
+
 export function showsSiteFooter(pathname: string): boolean {
-  return !NO_FOOTER.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  return !NO_FOOTER.some((p) => under(pathname, p));
 }
 
-/** Reachable from every page, so the public landing pages are crawlable. */
+const FULL_FOOTER = ["/", "/watch", "/play-one-piece-tcg-online", "/optcg-sim-online", "/play-optcg-on-phone", "/leaders", "/terms", "/privacy", "/cookies", "/conduct", "/whats-new"];
+
+/** The lobby and the public/SEO and legal pages carry every link; other app pages get one compact line (#1343). */
+export function compactSiteFooter(pathname: string): boolean {
+  const path = pathname.replace(/\/+$/, "") || "/";
+  return !FULL_FOOTER.some((p) => path === p || (p !== "/" && under(path, p)));
+}
+
 export const FOOTER_LINKS = [
   { to: "/play-one-piece-tcg-online", label: "How to play online" },
   { to: "/optcg-sim-online", label: "OPTCG sim online" },
@@ -16,5 +21,4 @@ export const FOOTER_LINKS = [
   { to: "/leaders", label: "Top leaders" },
 ] as const;
 
-/** Our listing on a software directory. */
 export const FOOTER_EXTERNAL_LINKS = [{ href: "https://alternativeto.net/software/optcg-duel/", label: "OPTCG Duel on AlternativeTo" }] as const;

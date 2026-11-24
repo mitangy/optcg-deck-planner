@@ -1,44 +1,72 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useState } from "react";
 import { Link } from "react-router-dom";
 import { money } from "../api";
 import { CardThumb } from "../ui/CardThumb";
 import { invalidateOwnedViews } from "../pages/collection/ownedCollection";
-import { friendsApi, type Trade, type TradeLine, type TradeStatus } from "./friendsApi";
-import { otherUsername, tradeSides } from "./tradeLogic";
+import { UndoToast } from "../pages/collection/CollectorLine";
+import { friendsApi, type Trade, type TradeLine } from "./friendsApi";
+import { otherUsername, tradeSections, tradeSides, tradeStatusLabel, tradeStatusTone, UNDO_MS } from "./tradeLogic";
+import { useUndoableAction } from "./useUndoableAction";
 import { dateLabel, Empty, LoadError } from "./ui";
 import { qk } from "../cache/queryKeys";
 
-const STATUS_LABEL: Record<TradeStatus, string> = {
-  pending: "Waiting",
-  countered: "Countered",
-  accepted: "Agreed",
-  declined: "Declined",
-  cancelled: "Cancelled",
-  completed: "Traded",
-  expired: "Expired",
-};
-
 export function TradesPanel() {
+  const qc = useQueryClient();
   const { data, isLoading, error, refetch } = useQuery({ queryKey: qk.trades(), queryFn: friendsApi.trades });
+  const { pending, schedule, undo } = useUndoableAction();
+  const [hidden, setHidden] = useState<ReadonlySet<number>>(new Set());
+  const [failure, setFailure] = useState<string | null>(null);
+  const setHide = (id: number, on: boolean) =>
+    setHidden((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  const defer = (trade: Trade, message: string, api: (id: number) => Promise<Trade>) => {
+    setFailure(null);
+    setHide(trade.id, true);
+    schedule(trade.id, message, () => {
+      void api(trade.id)
+        .catch((e: unknown) => setFailure((e as Error).message || "That didn't go through."))
+        .then(() => Promise.all([qc.invalidateQueries({ queryKey: qk.trades() }), qc.invalidateQueries({ queryKey: qk.tradesSummary() })]))
+        .finally(() => setHide(trade.id, false));
+    });
+  };
+  const onUndo = () => {
+    if (pending) setHide(pending.id, false);
+    undo();
+  };
+  const dismissToast = useCallback(() => undefined, []);
   if (isLoading) return <p className="muted">Loading…</p>;
   if (error) return <LoadError error={error} onRetry={() => void refetch()} />;
-  const { incoming, outgoing, active, history } = data!;
-  if (incoming.length + outgoing.length + active.length + history.length === 0) {
+  const sections = tradeSections(data!)
+    .map((s) => ({ ...s, trades: s.trades.filter((t) => !hidden.has(t.id)) }))
+    .filter((s) => s.trades.length > 0);
+  if (sections.length === 0 && hidden.size === 0 && !failure) {
     return (
       <Empty title="No trades yet">Open a friend's page and pick their Spares tab to offer a trade. Offers you send and get show up here.</Empty>
     );
   }
   return (
     <div className="trades-panel">
-      <TradeSection title="Offers for you" trades={incoming} />
-      <TradeSection title="Active" trades={active} />
-      <TradeSection title="Waiting on them" trades={outgoing} />
-      <TradeSection title="History" trades={history} />
+      {failure ? (
+        <p className="error trade-error" role="alert">
+          {failure}
+        </p>
+      ) : null}
+      {sections.map((s) => (
+        <TradeSection key={s.key} title={s.title} trades={s.trades} onDefer={defer} />
+      ))}
+      {pending ? <UndoToast key={pending.id} message={pending.message} ms={UNDO_MS} onAction={onUndo} onDismiss={dismissToast} /> : null}
     </div>
   );
 }
 
-function TradeSection({ title, trades }: { title: string; trades: Trade[] }) {
+type Defer = (trade: Trade, message: string, api: (id: number) => Promise<Trade>) => void;
+
+function TradeSection({ title, trades, onDefer }: { title: string; trades: Trade[]; onDefer: Defer }) {
   if (trades.length === 0) return null;
   return (
     <section className="trade-section" aria-label={title}>
@@ -48,7 +76,7 @@ function TradeSection({ title, trades }: { title: string; trades: Trade[] }) {
       <ul className="trade-list">
         {trades.map((t) => (
           <li key={t.id}>
-            <TradeCard trade={t} />
+            <TradeCard trade={t} onDefer={onDefer} />
           </li>
         ))}
       </ul>
@@ -86,7 +114,7 @@ function SideLines({ title, lines, value }: { title: string; lines: TradeLine[];
   );
 }
 
-function TradeCard({ trade }: { trade: Trade }) {
+function TradeCard({ trade, onDefer }: { trade: Trade; onDefer: Defer }) {
   const qc = useQueryClient();
   const other = otherUsername(trade);
   const { iGive, iGet, iGiveValue, iGetValue } = tradeSides(trade);
@@ -121,7 +149,7 @@ function TradeCard({ trade }: { trade: Trade }) {
     <article className={`friend-card trade-card status-${trade.status}`} data-trade-id={trade.id}>
       <header className="trade-head">
         <h3>{heading}</h3>
-        <span className={`trade-status status-${trade.status}`}>{STATUS_LABEL[trade.status]}</span>
+        <span className={`trade-status status-${trade.status} tone-${tradeStatusTone(trade)}`}>{tradeStatusLabel(trade)}</span>
         <span className="muted trade-date">
           {trade.status === "pending" ? `Expires ${dateLabel(trade.expires_at)}` : dateLabel(trade.completed_at ?? trade.responded_at ?? trade.created_at)}
         </span>
@@ -148,13 +176,13 @@ function TradeCard({ trade }: { trade: Trade }) {
             <Link className="btn secondary compact" to={`/friends/${encodeURIComponent(trade.from_username)}?tab=spares&counter=${trade.id}`}>
               Counter
             </Link>
-            <button type="button" className="ghost danger" disabled={busy} onClick={() => run.mutate(friendsApi.declineTrade)}>
+            <button type="button" className="ghost danger" disabled={busy} onClick={() => onDefer(trade, `Declined offer from ${other}`, friendsApi.declineTrade)}>
               Decline
             </button>
           </>
         )}
         {outgoingOffer && (
-          <button type="button" className="ghost danger" disabled={busy} onClick={() => run.mutate(friendsApi.cancelTrade)}>
+          <button type="button" className="ghost danger" disabled={busy} onClick={() => onDefer(trade, `Cancelled your offer to ${other}`, friendsApi.cancelTrade)}>
             Cancel offer
           </button>
         )}
@@ -163,7 +191,7 @@ function TradeCard({ trade }: { trade: Trade }) {
             <button type="button" className="btn primary compact" disabled={busy} onClick={() => run.mutate(friendsApi.completeTrade)}>
               We traded
             </button>
-            <button type="button" className="ghost danger" disabled={busy} onClick={() => run.mutate(friendsApi.cancelTrade)}>
+            <button type="button" className="ghost danger" disabled={busy} onClick={() => onDefer(trade, `Cancelled trade with ${other}`, friendsApi.cancelTrade)}>
               Cancel trade
             </button>
           </>

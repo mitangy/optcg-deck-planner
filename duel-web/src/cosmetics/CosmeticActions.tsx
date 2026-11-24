@@ -3,7 +3,6 @@ import { chooseCosmetic, saveCosmetic } from "../account/cosmeticsSync";
 import { errorMessage } from "../lib/errors";
 import type { CosmeticKind } from "../net/prefsApi";
 
-/** Upload and reset state for one cosmetic slot (playmat, card back): a busy flag and the last error to show. */
 export function useCosmeticSlot(kind: CosmeticKind) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,17 +21,12 @@ export function useCosmeticSlot(kind: CosmeticKind) {
     },
     [kind],
   );
-  /** Back to the default art. */
   const reset = useCallback(() => {
     void chooseCosmetic(kind, null).catch((e: unknown) => setError(errorMessage(e, "Could not switch")));
   }, [kind]);
   return { busy, error, upload, reset };
 }
 
-/**
- * The buttons under a cosmetic's preview: pick an image (which opens the editor through `onPick`) and, once a
- * custom one is set, go back to the default. Render it inside the slot's `.btn-row`.
- */
 export function CosmeticActions({
   hasArt,
   busy,

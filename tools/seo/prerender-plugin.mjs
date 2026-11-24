@@ -1,20 +1,11 @@
-// Vite plugin that pre-renders public routes to static HTML after `vite build` (#914).
-//
-// Why a plugin and not a build step: Vercel runs `npx vite build`, so hooking `closeBundle`
-// means no buildCommand change. It builds a small SSR bundle of the app's prerender entry with
-// Vite itself (no headless browser), imports it, and writes the files it returns into `dist/`.
-//
-// The entry must export `prerender({ template }): Promise<{ file: string; content: string }[]>`.
-// `template` is the built `index.html`. Before the entry runs, the plugin saves that template
-// untouched as `_app.html`: the empty app shell every non-prerendered route is rewritten to (see
-// the vercel.json routes), so a private page never flashes the home page's markup.
+// Hooking `closeBundle` means Vercel's `npx vite build` needs no buildCommand change.
+// The template is saved untouched as `_app.html` before the entry runs: the empty app shell every non-prerendered route is rewritten to, so a private page never flashes the home page's markup.
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 /**
  * @param {{ name: string; entry: string; configFile: string; build: typeof import("vite").build }} opts
- * `build` is the app's own `vite` export, so the nested build uses the same Vite version as the outer one.
  */
 export function prerenderPlugin({ name, entry, configFile, build }) {
   let isSsrBuild = false;

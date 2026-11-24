@@ -9,21 +9,10 @@ import {
 
 const DEFAULT_THRESHOLD_PX = 8;
 
-/** Axis the nearest scroll container pans on (only touch / pen care). */
 export type PanAxis = "x" | "y" | "none";
 
 export type DragDecision = "wait" | "start" | "cancel";
 
-/**
- * Decide whether a pointer movement should begin a drag.
- *
- * A mouse never pans a scroll container by dragging, so any movement past the
- * threshold starts a drag in any direction (on desktop the hand lives in a
- * right-hand rail, so a drag to the board is mostly horizontal — the old
- * "horizontal means scroll" rule silently cancelled every desktop drag).
- * Touch / pen yield the gesture to native scrolling when it runs along the
- * scroll container's pan axis.
- */
 export function decideDragStart(opts: {
   dx: number;
   dy: number;
@@ -40,7 +29,6 @@ export function decideDragStart(opts: {
   return "start";
 }
 
-/** Nearest ancestor that actually scrolls (content overflows) → its pan axis. */
 export function detectPanAxis(el: Element | null): PanAxis {
   if (typeof window === "undefined" || !el) return "none";
   let node = el.parentElement;
@@ -58,30 +46,16 @@ export function detectPanAxis(el: Element | null): PanAxis {
 }
 
 type Options<T> = {
-  /** When false, pointer handlers are no-ops (clicks work normally). */
   enabled: boolean;
   payload: T;
   thresholdPx?: number;
   onDragStart?: (payload: T) => void;
-  /** Called after threshold crossed. */
   onDragEnd?: (payload: T, clientX: number, clientY: number) => void;
   onDragCancel?: () => void;
-  /**
-   * touch-action before the drag lifts. Hand rows scroll sideways, so the
-   * default keeps pan-x; a board card that has nowhere to scroll uses "none"
-   * so a sideways attack drag is never taken over by the browser.
-   */
+  // Hand rows scroll sideways, so the default keeps pan-x; a board card that has nowhere to scroll uses "none" so a sideways attack drag is never taken over by the browser.
   idleTouchAction?: "pan-x" | "pan-y" | "none";
 };
 
-/**
- * Pointer-based drag with a small movement threshold so clicks still work.
- * Keeps HTML5 `draggable` off — callers should leave `draggable={false}`.
- *
- * Works for mouse and touch. For touch / pen, pans along the nearest scroll
- * container's axis are left to native scrolling (see `decideDragStart`), and
- * pointer capture is delayed until the drag actually begins.
- */
 export function usePointerDrag<T>({
   enabled,
   payload,
@@ -103,8 +77,6 @@ export function usePointerDrag<T>({
     started: boolean;
   } | null>(null);
 
-  // Id of the armed press, so a window listener can clean up a press whose
-  // up / cancel never reached the card (pointer left it before capture).
   const [pressId, setPressId] = useState<number | null>(null);
 
   const reset = useCallback(() => {
@@ -113,8 +85,7 @@ export function usePointerDrag<T>({
     setPressId(null);
   }, []);
 
-  // Turning off mid-drag drops the handlers, so the up / cancel that would end
-  // the drag never arrives. End it here so callers can undo what drag start did (#364).
+  // Turning off mid-drag drops the handlers, so the up / cancel that would end the drag never arrives. End it here so callers can undo what drag start did.
   const onDragCancelRef = useRef(onDragCancel);
   onDragCancelRef.current = onDragCancel;
   useEffect(() => {
@@ -127,7 +98,6 @@ export function usePointerDrag<T>({
     if (pressId === null) return;
     const onWindowEnd = (e: PointerEvent) => {
       const s = startRef.current;
-      // The card's own up / cancel already ran if startRef is gone.
       if (!s || s.pointerId !== e.pointerId) return;
       reset();
       if (s.started) onDragCancelRef.current?.();
@@ -144,8 +114,7 @@ export function usePointerDrag<T>({
     (e: ReactPointerEvent) => {
       if (!enabled) return;
       if (e.button !== 0 && e.pointerType === "mouse") return;
-      // A touch drag ends without a click, so the swallow flag it set would
-      // eat the next real tap. A new press starts a new gesture.
+      // A touch drag ends without a click, so the swallow flag it set would eat the next real tap. A new press starts a new gesture.
       suppressClickRef.current = false;
       // A stuck drag must never survive a new press.
       if (startRef.current?.started) {
@@ -163,7 +132,6 @@ export function usePointerDrag<T>({
         started: false,
       };
       setPressId(e.pointerId);
-      // Do not capture yet — capturing on down blocks parent overflow-x scroll.
     },
     [enabled, onDragCancel, reset],
   );
@@ -189,7 +157,6 @@ export function usePointerDrag<T>({
         });
         if (decision === "wait") return;
         if (decision === "cancel") {
-          // Let the scroll container own this pan.
           s.armed = false;
           return;
         }
@@ -198,7 +165,7 @@ export function usePointerDrag<T>({
         try {
           (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
         } catch {
-          /* ignore */
+          // The pointer may already be gone.
         }
         onDragStart?.(payload);
       }
@@ -214,7 +181,7 @@ export function usePointerDrag<T>({
       try {
         (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
       } catch {
-        /* already released */
+        // Already released.
       }
       reset();
       if (cancelled) {
@@ -239,7 +206,6 @@ export function usePointerDrag<T>({
     [finish],
   );
 
-  /** Swallow the click that follows a completed drag (threshold crossed). */
   const onClickCapture = useCallback((e: ReactMouseEvent) => {
     if (!suppressClickRef.current) return;
     suppressClickRef.current = false;
@@ -256,7 +222,6 @@ export function usePointerDrag<T>({
           onPointerUp,
           onPointerCancel,
           onClickCapture,
-          // pan-x lets the hand row scroll; switches to none once dragging.
           style: {
             touchAction: dragging ? "none" : idleTouchAction,
           },

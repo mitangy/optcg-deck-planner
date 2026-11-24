@@ -3,7 +3,6 @@ import { combine, judgeCase, judgedBothWays, judgeOnce, orderFor, pairPrompt, pa
 
 const say = (better: "first" | "second" | "tie"): PairLlm => async () => ({ text: JSON.stringify({ better, why: "because" }) });
 const input = { question: "Tune it", deck: "1xL\n4xA", a: "ANSWER-FROM-A", b: "ANSWER-FROM-B" };
-/** A judge that likes the advice from one variant whichever slot it is in. */
 const likes = (variant: "A" | "B"): PairLlm => async ({ user }) => {
   const first = /<first_answer>([\s\S]*?)<\/first_answer>/.exec(user)![1]!;
   return { text: JSON.stringify({ better: first.endsWith(variant) ? "first" : "second", why: "" }) };

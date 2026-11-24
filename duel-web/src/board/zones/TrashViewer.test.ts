@@ -22,7 +22,6 @@ describe("trashNewestFirst", () => {
 
 describe("groupTrashByCard", () => {
   it("orders cards by copy count, not first appearance (#380)", () => {
-    // newest-first: A once, B three times, C twice
     expect(groupTrashByCard(["A", "B", "C", "B", "C", "B"])).toEqual([
       { defId: "B", count: 3 },
       { defId: "C", count: 2 },
@@ -31,7 +30,6 @@ describe("groupTrashByCard", () => {
   });
 
   it("breaks count ties by most recently trashed (#380)", () => {
-    // Z and Y both ×2; Y's newest copy (index 1) beats Z's (index 2). X ×1 last.
     expect(groupTrashByCard(["X", "Y", "Z", "Z", "Y"])).toEqual([
       { defId: "Y", count: 2 },
       { defId: "Z", count: 2 },

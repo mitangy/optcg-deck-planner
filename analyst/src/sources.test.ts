@@ -8,7 +8,6 @@ const catalog = loadCatalog();
 
 const results = (blocks: ToolContent[] | null) => (blocks ?? []).filter((b): b is SearchResultBlock => b.type === "search_result");
 const allSources = (blocks: ToolContent[] | null) => results(blocks).map((b) => b.source);
-/** The sources a tool's facts got, leaving out the note: source its loose notes are folded into (#394). */
 const sources = (blocks: ToolContent[] | null) => allSources(blocks).filter((s) => !s.startsWith("note:"));
 const texts = (b: SearchResultBlock) => b.content.map((c) => c.text);
 const adapt = (tool: ToolName, value: unknown) => adaptToolResult(tool, value);

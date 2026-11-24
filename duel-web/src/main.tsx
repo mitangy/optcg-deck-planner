@@ -17,6 +17,7 @@ import "./interactions.css";
 import "./popupScale.css";
 import "./auth/username.css";
 import "./deckList.css";
+import "./newDeck.css";
 import "./light.css";
 import "./metaDecks.css";
 import "./events/events.css";
@@ -25,16 +26,12 @@ import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
 
-// Only origin + path reach analytics: auth tokens sit in the hash and invite codes in `?join=`.
 const analyticsBeforeSend = createAnalyticsBeforeSend();
 
-// Before routing can rewrite the URL: remember where a new visitor came from (#905).
 captureFirstTouch();
-// Signed-in players get their settings and playmat / card back from the account.
 watchAccountSync();
-// Lobby and Settings say when a newer deploy is live than this bundle.
 startUpdateChecks();
-// A tab opened before a deploy asks for lazy-route chunks that no longer exist: reload instead of a blank page (#1052).
+// A tab opened before a deploy asks for lazy-route chunks that no longer exist: reload instead of a blank page.
 reloadOnStaleChunk();
 
 createRoot(document.getElementById("root")!).render(

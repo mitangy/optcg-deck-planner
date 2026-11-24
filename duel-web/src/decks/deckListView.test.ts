@@ -2,7 +2,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DECK_SORTS, filterDecks, loadDeckSort, parseDeckSort, saveDeckSort, sortDecks } from "./deckListView";
 
-// Leaders: OP11-041 Nami, OP13-079 Imu, OP15-002 Lucy. Name, leader and recency orders all differ.
 const ALPHA = { id: "a", name: "Alpha", leaderId: "OP11-041", updatedAt: 2 };
 const BRAVO = { id: "b", name: "Bravo", leaderId: "OP13-079", updatedAt: 1 };
 const CHARLIE = { id: "c", name: "Charlie", leaderId: "OP15-002", updatedAt: 3 };

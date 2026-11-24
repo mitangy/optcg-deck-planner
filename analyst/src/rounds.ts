@@ -5,6 +5,7 @@ import type { Refusal } from "./errors";
 import type { Block, ChatDeps, Message, ModelReply, SseEvent, Usage } from "./types";
 import type { ToolDef } from "./server";
 import type { ChoiceAnswer, TurnPlan } from "./copilot";
+import type { CardList } from "./cardList";
 import type { NewDeckDraft } from "./newDeck";
 import type { DeckEditProposal } from "./proposals";
 import { adaptToolResult, metaFor, type ClientActionName } from "./toolMeta";
@@ -30,10 +31,8 @@ function withCacheBreakpoint(messages: Message[]): Message[] {
   return out;
 }
 
-/** What each client action carries (the SSE event of the same name), without the tool_use id the loop adds. */
-type ClientActionPayloads = { proposal: DeckEditProposal; deck_draft: NewDeckDraft; plan: TurnPlan; choice: ChoiceAnswer };
+type ClientActionPayloads = { proposal: DeckEditProposal; deck_draft: NewDeckDraft; card_list: CardList; plan: TurnPlan; choice: ChoiceAnswer };
 
-/** Handlers for the tools whose result the app acts on, keyed by action. Adding an action is its payload here, `action` on the tool's `TOOL_META` entry and its handler. */
 export type ClientActions = { [K in ClientActionName]?: (payload: ClientActionPayloads[K]) => void };
 
 async function runTool(tools: ToolDef[], block: Block, clientActions?: ClientActions): Promise<Block> {
@@ -56,7 +55,6 @@ async function runTool(tools: ToolDef[], block: Block, clientActions?: ClientAct
   }
 }
 
-/** The usage a failed model call had already been billed, which the error carries. */
 export const partialUsageOf = (err: unknown): Usage => (err as { partialUsage?: Usage } | null)?.partialUsage ?? { input_tokens: 0, output_tokens: 0 };
 
 const addUsage = (a: Usage, b: Usage): Usage => ({
@@ -70,11 +68,9 @@ const addUsage = (a: Usage, b: Usage): Usage => ({
 type RoundsState = {
   turn: Message[];
   usage: Usage;
-  /** Dollars spent, priced call by call (a long Haiku 5.5 prompt costs more per token). */
   cost: number;
   finished: boolean;
   model?: string;
-  /** Tool calls the model made. */
   toolCalls: number;
   /** Set when the loop stopped between rounds because a limit was reached. */
   refusal?: Refusal;
@@ -83,20 +79,16 @@ export const newRounds = (...turn: Message[]): RoundsState => ({ turn, usage: { 
 
 type RoundsOptions = {
   deps: ChatDeps;
-  /** The model every call of the loop runs on. */
   model: string;
   system: Record<string, unknown>[];
   tools: ToolDef[];
-  /** Earlier messages sent ahead of the turn (a stored thread). */
   history?: Message[];
   emit: (e: SseEvent) => void;
   signal: AbortSignal;
   maxRounds: number;
   maxTokens: number;
   effort: "low" | "medium" | "high";
-  /** Handlers for deck edits and drafts (chat) and turn plans and choice answers (Log Pose copilot) the model proposes. */
   clientActions?: ClientActions;
-  /** Asked before every round after the first with what the answer has cost so far: a limit it returns stops the loop there. */
   recheck?: (cost: number) => Promise<Refusal | null>;
   /**
    * Called when a reply has no tool calls and at least one more round fits: a message it returns is added to the turn
@@ -105,12 +97,7 @@ type RoundsOptions = {
   afterAnswer?: (state: RoundsState) => Promise<Message | null>;
 };
 
-/**
- * The model's tool loop: call the model, run the tools it asks for, repeat until it answers or `maxRounds` run out.
- * Text and citations stream out as they arrive; the messages, the spend and whether it finished go on `state`.
- */
 export async function runToolRounds(state: RoundsState, o: RoundsOptions): Promise<RoundsState> {
-  // Text from separate rounds is kept apart by a blank line, as the stored thread shows it.
   let wroteText = false;
   for (let round = 0; round < o.maxRounds; round++) {
     if (round > 0 && o.recheck) {
@@ -144,7 +131,6 @@ export async function runToolRounds(state: RoundsState, o: RoundsOptions): Promi
         out.onCite,
       );
     } catch (err) {
-      // The tokens a dropped stream had already used are still billed.
       const partial = partialUsageOf(err);
       state.usage = addUsage(state.usage, partial);
       state.cost += costUsd(partial, o.model);
@@ -157,7 +143,6 @@ export async function runToolRounds(state: RoundsState, o: RoundsOptions): Promi
     state.turn.push({ role: "assistant", content: reply.content });
     const calls = reply.content.filter((b) => b.type === "tool_use");
     if (reply.stop_reason !== "tool_use" || calls.length === 0) {
-      // Obeying a check takes two rounds (a proposal, then the final text), so add it only when two remain (#692).
       const next = o.afterAnswer && round + 2 < o.maxRounds ? await o.afterAnswer(state) : null;
       if (next) {
         state.turn.push(next);

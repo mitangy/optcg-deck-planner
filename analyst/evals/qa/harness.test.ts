@@ -1,7 +1,3 @@
-/**
- * The runner end to end through the real chat loop: a scripted model, the fake planner and the offline judge.
- * No model call, no network, no library (so no A cases and no live C cases).
- */
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -44,7 +40,6 @@ describe("eval runner", () => {
     expect(r1.rows[0]).toMatchObject({ case: "C11", status: "ok", grade: { correct: 1, cited: 1, grounded: 1 }, rounds: 2, tool_calls: 1, model: CHAT_MODEL });
     expect(r1.rows[0]!.cost_usd).toBeGreaterThan(0);
     expect(r1.rows[0]!.usage!.input_tokens).toBeGreaterThan(0);
-    // The trace holds the saved turn, with the tool result the answer cites.
     const trace = JSON.parse(readFileSync(join(r1.dir, "traces", "C11_rep0.json"), "utf8"));
     expect(JSON.stringify(trace.turn)).toContain("odds:d50h8x1s");
 

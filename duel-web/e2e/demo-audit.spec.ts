@@ -1,8 +1,3 @@
-/**
- * UI audit of every /demo fixture screen (prompts, full board, statuses,
- * match over, …) at each project's screen size. The fixtures cover prompt
- * states a random playthrough rarely reaches.
- */
 import { test, expect, formatIssues, preferFan } from "./fixtures";
 import { isKnown } from "./known-issues";
 
@@ -18,10 +13,8 @@ const SCREENS = [
   "?undo=blocked",
   "?faceup=2",
   "?counter=block",
-  // The opening dice roll (#1190) at each step, for the caller, the roller and a spectator.
   ...["?dice=call", "?dice=roll", "?dice=roll&diceroller=0", "?dice=choose", "?dice=choose&dicecall=low&diceroll=5", "?dice=choose&spectate"],
   ...["don", "don2", "look", "satori", "rest", "select", "restgrid", "selectgrid", "confirm", "hand", "order", "effects", "mode"].map((p) => `?prompt=${p}`),
-  // Searches and effect ordering float by default; `?box` keeps the old pop-up.
   ...["look", "satori", "effects"].map((p) => `?box&prompt=${p}`),
 ];
 
@@ -36,7 +29,6 @@ for (const screen of SCREENS) {
   });
 }
 
-// The "Tilted board" setting leans both mats back in perspective (desktop only).
 for (const screen of ["?full", "?statuses", "?attack"]) {
   test(`/demo${screen} with the tilted board passes the UI audit`, async ({ page, duel }, info) => {
     await page.addInitScript(() =>
@@ -52,7 +44,6 @@ for (const screen of ["?full", "?statuses", "?attack"]) {
   });
 }
 
-// Searchers always float their cards; an old saved "Floating cards" off no longer brings the pop-up back.
 test("a searcher floats its cards even with Floating cards saved off (#288)", async ({ page }) => {
   await page.addInitScript(() =>
     localStorage.setItem("optcg-duel:settings", JSON.stringify({ floatingCards: false })),
@@ -63,8 +54,6 @@ test("a searcher floats its cards even with Floating cards saved off (#288)", as
   await expect(page.locator(".choice-prompt")).toHaveCount(0);
 });
 
-// A clicked hand card, Sort or Hand button keeps focus; the fan must still tuck
-// once the pointer leaves it, or it sits on your DON!! row (flat board).
 test("the centre hand fan tucks away after a click once the pointer leaves", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
   await preferFan(page);
@@ -78,15 +67,13 @@ test("the centre hand fan tucks away after a click once the pointer leaves", asy
   expect(await donCovered()).toBe(false);
 
   const card = page.locator(".hand-fan-cards > .card-tile").nth(2);
-  await card.click({ position: { x: 20, y: 15 } }); // select
-  await card.click({ position: { x: 20, y: 30 } }); // deselect; the card keeps focus
-  await page.locator(".hand-fan-head .hand-rail-btn").click(); // Sort keeps focus too
+  await card.click({ position: { x: 20, y: 15 } });
+  await card.click({ position: { x: 20, y: 30 } });
+  await page.locator(".hand-fan-head .hand-rail-btn").click();
   await page.mouse.move(640, 120);
   await expect.poll(donCovered, { timeout: 3000 }).toBe(false);
 });
 
-// A clicked Hand button keeps focus, and the next key press (S here) makes it
-// :focus-visible, which held the fan up after "Let the hand tuck away".
 test("the hand fan tucks away after Let the hand tuck away and a key press (#291)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
   await page.addInitScript(() =>
@@ -108,8 +95,6 @@ test("the hand fan tucks away after Let the hand tuck away and a key press (#291
   await expect.poll(fanUp, { timeout: 3000 }).toBe(false);
 });
 
-// The pointer is still on the Hand button after the click, so hover held the
-// fan up and "Let the hand tuck away" looked like it did nothing (#307).
 test("Let the hand tuck away lowers the fan at once, under the pointer (#307)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
   await page.addInitScript(() =>
@@ -120,14 +105,12 @@ test("Let the hand tuck away lowers the fan at once, under the pointer (#307)", 
   await page.locator(".board-root").waitFor();
   const fan = page.locator(".hand-fan");
   const lift = () => fan.evaluate((el) => new DOMMatrix(getComputedStyle(el).transform).m42);
-  await expect.poll(lift, { timeout: 3000 }).toBeLessThan(0); // raised
+  await expect.poll(lift, { timeout: 3000 }).toBeLessThan(0);
   await page.locator(".hand-fan-toggle").click();
-  // The pointer has not moved off the button.
   await expect.poll(lift, { timeout: 3000 }).toBeGreaterThan(20);
   await expect(page.locator(".hand-fan-toggle")).toHaveAttribute("title", "Keep the hand up (H)");
 });
 
-// A floating fan was always fully shown, so its tuck button did nothing (#307).
 test("a floating hand fan tucks to its handle and shows its cards on hover (#307)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
   await page.addInitScript(() =>
@@ -153,14 +136,11 @@ test("a floating hand fan tucks to its handle and shows its cards on hover (#307
   await page.mouse.move(640, 120);
   await expect.poll(cardsShown, { timeout: 3000 }).toBe(false);
 
-  await toggle.click(); // Keep the hand up
+  await toggle.click();
   await page.mouse.move(640, 120);
   await expect.poll(cardsShown, { timeout: 3000 }).toBe(true);
 });
 
-// H with the pointer away from the hand: the next hover raises it again. H
-// used to mark the hand as tucked under the pointer, so it stayed down (a
-// floating fan's cards hidden) until the pointer had left it once (#312).
 test("after H tucks a floating hand fan, hovering it raises it again (#312)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
   await page.addInitScript(() =>
@@ -184,9 +164,6 @@ test("after H tucks a floating hand fan, hovering it raises it again (#312)", as
   await expect.poll(cardsShown, { timeout: 3000 }).toBe(true);
 });
 
-// The tucked fan used to rise on hover of the whole container, so pointing at
-// Sort or Hand moved the buttons up from under the cursor. Only the cards raise
-// it, and once up it stays up while the pointer crosses to the buttons (#780).
 test("hovering the tucked hand fan's buttons doesn't raise it; hovering its cards does (#780)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
   await page.addInitScript(() =>
@@ -217,7 +194,7 @@ test("hovering the tucked hand fan's buttons doesn't raise it; hovering its card
 
   const card = page.locator(".hand-fan-cards > .card-tile").nth(2);
   const box = (await card.boundingBox())!;
-  await page.mouse.move(box.x + 20, box.y + 15); // the visible strip of a tucked card
+  await page.mouse.move(box.x + 20, box.y + 15);
   await expect.poll(lift, { timeout: 3000 }).toBeLessThan(0);
   await page.waitForTimeout(600);
   const raisedLift = await lift();
@@ -230,7 +207,6 @@ test("hovering the tucked hand fan's buttons doesn't raise it; hovering its card
   await expect.poll(lift, { timeout: 3000 }).toBe(tuckedLift);
 });
 
-// Clicking an empty card slot or a pile must not drop a blinking text caret on the mat.
 test("clicking board slots leaves no text caret on the mat (#246)", async ({ page }) => {
   await page.goto("/demo");
   await page.locator(".board-root").waitFor();
@@ -244,14 +220,11 @@ test("clicking board slots leaves no text caret on the mat (#246)", async ({ pag
   }
 });
 
-// The strip between the mats draws no divider line or diamond, but keeps its height for the prompt text (#449).
 test("an idle midline strip has no divider line and keeps the height of one with a prompt (#449)", async ({ page }) => {
-  // The strip exists in the floating-dock layout; with the buttons beside the board it is gone (#556).
   await page.addInitScript(() => localStorage.setItem("optcg-duel:settings", JSON.stringify({ actionsBeside: false })));
   await page.goto("/demo?cantattack");
   await page.locator(".board-root").waitFor();
   await expect(page.locator(".midline")).toHaveCount(1);
-  // The phone Rotate hint is the only thing an idle strip may hold.
   await expect(page.locator(".midline > :not(.rotate-hint)")).toHaveCount(0);
   await expect(page.locator(".midline-ornament")).toHaveCount(0);
   const idle = (await page.locator(".midline").boundingBox())!.height;
@@ -260,17 +233,16 @@ test("an idle midline strip has no divider line and keeps the height of one with
   expect((await page.locator(".midline").boundingBox())!.height).toBeCloseTo(idle, 0);
 });
 
-// The prompt text in the strip between the mats is chrome: double-clicking it must not select a word (#314).
-for (const [where, beside, sel] of [
-  ["midline", false, ".midline .prompt-text"],
-  ["caption under the buttons", true, ".dock-caption .prompt-text"],
+for (const [where, beside, sel, screen] of [
+  ["midline", false, ".midline .prompt-text", "?attacked"],
+  ["caption under the buttons", true, ".dock-caption .prompt-text", "?attacked"],
+  ["attack summary above the buttons", true, ".dock-heading-text", "?counter=block"],
 ] as const) {
   test(`double-clicking the ${where} prompt text selects nothing (#314, #556)`, async ({ page }, info) => {
     test.skip(beside && info.project.name !== "desktop-1280", "the dock caption is desktop only");
-    // A tall window keeps the caption in the column's flow; on a short one it floats and lets clicks through.
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.addInitScript((b) => localStorage.setItem("optcg-duel:settings", JSON.stringify({ actionsBeside: b })), beside);
-    await page.goto("/demo?attacked");
+    await page.goto(`/demo${screen}`);
     const text = page.locator(sel);
     await expect(text).toBeVisible();
     await text.dblclick();
@@ -279,7 +251,6 @@ for (const [where, beside, sel] of [
   });
 }
 
-// DON!! −N used to open a grid of DON!! cards: pick them off the board instead.
 test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits under, no pop-up (#258)", async ({ page }) => {
   await page.goto("/demo?prompt=don2");
   await page.locator(".board-root").waitFor();
@@ -291,11 +262,9 @@ test("DON!! −2 is paid by tapping a cost-area DON!! and the Leader it sits und
   await expect(page.locator(".field-bar-count")).toHaveText("Choose 2 · selected 2");
   await page.locator(".field-bar .btn-primary").click();
   const sent = await page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents);
-  // o3 is the first rested DON!!, o6 the first DON!! on the Leader.
   expect(sent).toEqual([{ type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o3", "o6"] }]);
 });
 
-// Keep hand open: H (or the Hide button) tucks the whole hand away and brings it back.
 test("H hides and shows the hand with Keep hand open (#259)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the fan is desktop only");
   await page.addInitScript(() =>
@@ -306,7 +275,6 @@ test("H hides and shows the hand with Keep hand open (#259)", async ({ page }) =
   await page.locator(".board-root").waitFor();
   await page.mouse.move(640, 120);
   const card = page.locator(".hand-fan-cards > .card-tile").nth(2);
-  // Any part of the card on screen and drawn (a tucked hand still shows its top edge).
   const cardShown = () =>
     card.evaluate((el) => {
       const r = el.getBoundingClientRect();
@@ -323,7 +291,6 @@ test("H hides and shows the hand with Keep hand open (#259)", async ({ page }) =
   await expect.poll(cardShown, { timeout: 3000 }).toBe(true);
 });
 
-// Status icons follow the card size (so the window) and the Text size setting.
 test("status icons scale with the card and the Text size setting (#259)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "one desktop size is enough");
   const iconRatio = async (textSize: string, w: number, h: number) => {
@@ -338,17 +305,13 @@ test("status icons scale with the card and the Text size setting (#259)", async 
   };
   await page.goto("/demo");
   const big = await iconRatio("medium", 2560, 1440);
-  // A big window's cards get proportionally big icons, not a fixed small cap.
   expect(big.icon / big.tile).toBeGreaterThan(0.15);
   const medium = await iconRatio("medium", 1440, 900);
   const xlarge = await iconRatio("xlarge", 1440, 900);
   expect(xlarge.icon).toBeGreaterThan(medium.icon);
-  // Never wider than a third of the card.
   expect(xlarge.icon).toBeLessThanOrEqual(xlarge.tile / 3);
 });
 
-// Side panels: drag a panel's grip into the other column; the layout is saved
-// with the settings and Reset layout puts every panel back.
 test("the Grid hand drags into the left column, stays after a reload, and Reset layout puts it back (#261)", async ({ page, duel }, info) => {
   test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
   await page.addInitScript(() => {
@@ -373,7 +336,6 @@ test("the Grid hand drags into the left column, stays after a reload, and Reset 
   await expect.poll(() => column("left")).toEqual(["preview", "hand", "log"]);
   expect(await column("right")).not.toContain("hand");
 
-  // The hand still works from its new column and nothing overlaps.
   const issues = (await duel.audit()).filter((i) => !isKnown(i));
   if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
   expect(issues, formatIssues(issues)).toEqual([]);
@@ -390,8 +352,6 @@ test("the Grid hand drags into the left column, stays after a reload, and Reset 
   expect(duel.errors).toEqual([]);
 });
 
-// Side panels resize: the rail's inner edge sets its width, the divider between two
-// panels moves height from one to the other; both are saved and Reset layout clears them.
 test("the right rail and the preview divider drag to resize, stay after a reload, and Reset layout restores them (#347)", async ({ page, duel }, info) => {
   test.skip(info.project.name !== "desktop-1280", "side panels resize on desktop only");
   await page.goto("/demo?full");
@@ -414,15 +374,12 @@ test("the right rail and the preview divider drag to resize, stay after a reload
   const log0 = await height("log");
   await drag(".col-resize-right", -80, 0);
   await expect.poll(width).toBeGreaterThan(w0 + 70);
-  // The left column keeps its width; the board gave the room.
   await drag(divider, 0, -40, 12);
   await expect.poll(() => height("preview")).toBeLessThan(preview0 - 30);
-  // Height moved to the panel below; the pair's total did not change.
   expect((await height("preview")) + (await height("log"))).toBeCloseTo(preview0 + log0, 0);
   const w1 = await width();
   const preview1 = await height("preview");
 
-  // A hovered handle shows its line; the audit checks the board at rest.
   await page.mouse.move(640, 20);
   const issues = (await duel.audit()).filter((i) => !isKnown(i));
   if (issues.length) await page.screenshot({ path: info.outputPath("audit.png") });
@@ -441,8 +398,6 @@ test("the right rail and the preview divider drag to resize, stay after a reload
   expect(duel.errors).toEqual([]);
 });
 
-// Dragging a divider or a column edge to its end must not squash a panel under its content:
-// Turn and clocks painted its Life / Hand / Deck / DON!! rows over the panel below it (#370).
 test("Turn and clocks keeps its content height and its column its width when dragged to the end (#370)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "side panels resize on desktop only");
   await page.goto("/demo?full");
@@ -471,7 +426,6 @@ test("Turn and clocks keeps its content height and its column its width when dra
   expect(squeezed.h).toBeGreaterThanOrEqual(natural - 1);
   expect(squeezed.content).toBeLessThanOrEqual(Math.ceil(squeezed.h));
 
-  // The column edge dragged as far as it goes keeps the Turn panel's stats readable.
   await drag(".col-resize-right", 900, 0);
   const w = (await page.locator('[data-panel-col="right"]').boundingBox())!.width;
   expect(w).toBeGreaterThanOrEqual(250);
@@ -479,8 +433,6 @@ test("Turn and clocks keeps its content height and its column its width when dra
   expect(narrow.contentW).toBeLessThanOrEqual(Math.ceil(narrow.w));
 });
 
-// A fanned hand parked against a screen edge reaches over the side column; where a card and the
-// column's resize handle overlap, the card wins: the handle neither lights up nor grabs the drag (#449).
 for (const side of ["left", "right"] as const) {
   test(`a hand card over the ${side} column edge gets the pointer, not the resize handle (#449)`, async ({ page }, info) => {
     test.skip(info.project.name !== "desktop-1280", "side panels resize on desktop only");
@@ -494,7 +446,6 @@ for (const side of ["left", "right"] as const) {
     const col = page.locator(`[data-panel-col="${side}"]`);
     await page.locator(".hand-fan").hover({ position: { x: 30, y: 8 }, force: true });
     await page.waitForTimeout(700);
-    // The middle of the patch where a fanned card and the handle overlap.
     const spot = await page.evaluate((cls) => {
       const h = document.querySelector(cls)!.getBoundingClientRect();
       for (const c of document.querySelectorAll(".hand-fan .card-tile")) {
@@ -518,7 +469,6 @@ for (const side of ["left", "right"] as const) {
     await page.mouse.move(x + (side === "right" ? -80 : 80), y, { steps: 6 });
     await page.mouse.up();
     expect(Math.abs((await col.boundingBox())!.width - w0)).toBeLessThan(2);
-    // Off the card the handle still grabs.
     const box = (await handle.boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + 120);
     await page.mouse.down();
@@ -528,8 +478,6 @@ for (const side of ["left", "right"] as const) {
   });
 }
 
-// Portrait phones have no side columns to resize; sideways phones get only their own
-// right-column grip (#1246), never the desktop column or panel handles.
 test("phones show no desktop panel resize handles (#347, #1246)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "the phone project only");
   await page.setViewportSize({ width: 375, height: 812 });
@@ -544,8 +492,6 @@ test("phones show no desktop panel resize handles (#347, #1246)", async ({ page 
   await expect(page.locator(".phone-resize-rail")).toHaveCount(1);
 });
 
-// One fan, moved by its grip anywhere on the screen; Drag handles off hides
-// every grip but keeps the layout.
 test("the fanned hand drags to the middle of the screen and floats there after a reload, and Drag handles off hides the grips (#261)", async ({ page, duel }, info) => {
   test.skip(info.project.name !== "desktop-1280", "the fan moves on desktop only");
   await preferFan(page);
@@ -557,12 +503,10 @@ test("the fanned hand drags to the middle of the screen and floats there after a
   const grip = (await page.locator(".hand-fan-grip").boundingBox())!;
   await page.mouse.move(grip.x + grip.width / 2, grip.y + grip.height / 2);
   await page.mouse.down();
-  // The docked fan's grip sits above its cards (the handle is stacked, #449), so aim higher to land clear of the End turn dock.
   await page.mouse.move(grip.x + 200, 230, { steps: 8 });
   await page.mouse.up();
   await expect(fan).toHaveClass(/hand-fan-float/);
   const box = (await fan.boundingBox())!;
-  // Fully shown above the bottom edge, not tucked off it.
   expect(box.y + box.height).toBeLessThan(720 - 100);
 
   const issues = (await duel.audit()).filter((i) => !isKnown(i));
@@ -584,7 +528,6 @@ test("the fanned hand drags to the middle of the screen and floats there after a
   expect(duel.errors).toEqual([]);
 });
 
-// The dock sits at z-index 17 above the fan's 16, so a fan dropped with its head row on End turn lost its grip (#1004).
 test("the moved hand's grip stays on top of End turn so it can be dragged again (#1004)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "the fan moves on desktop only");
   await page.addInitScript(() => {
@@ -608,7 +551,6 @@ test("the moved hand's grip stays on top of End turn so it can be dragged again 
   };
 
   const endTurn = await centre(".primary-dock .intent-btn-primary");
-  // The first drag out of the docked spot is not anchored to the grip; once the fan floats it is, so a second drag puts the grip's centre on End turn.
   await dragGrip(endTurn);
   await expect(fan).toHaveClass(/hand-fan-free/);
   await dragGrip(endTurn);
@@ -627,7 +569,6 @@ test("the moved hand's grip stays on top of End turn so it can be dragged again 
   await expect.poll(async () => Math.abs((await fan.boundingBox())!.y - before.y)).toBeGreaterThan(100);
 });
 
-// The Battle log's own heading sat above the grip, so its drag selected text instead.
 test("the Battle log drags by its grip into the right column (#261)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
   await page.goto("/demo?full");
@@ -645,8 +586,6 @@ test("the Battle log drags by its grip into the right column (#261)", async ({ p
   expect(await page.evaluate(() => getSelection()?.toString() ?? "")).toBe("");
 });
 
-// Tab goes through the field cards, then the hand, then out to the other
-// controls and back, instead of looping over the field cards (#262).
 test("Tab visits the field cards, the hand, then the other controls and comes back (#262)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "keyboard play is desktop");
   await page.goto("/demo?full");
@@ -670,12 +609,9 @@ test("Tab visits the field cards, the hand, then the other controls and comes ba
   expect(seen.slice(0, firstHand).every((s) => s === "field"), seen.join(", ")).toBe(true);
   const others = seen.filter((s) => s.startsWith("other:"));
   expect(others.some((s) => /concede/i.test(s)), seen.join(", ")).toBe(true);
-  // After the other controls, Tab comes back round to the cards.
   expect(seen.lastIndexOf("field")).toBeGreaterThan(seen.indexOf(others[0]!));
 });
 
-// Landscape phone: the "Waiting for opponent" pill fits in the right rail
-// instead of running off the screen (#262).
 test("the waiting pill stays on screen on a landscape phone (#262)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "landscape phone layout");
   await page.setViewportSize({ width: 812, height: 375 });
@@ -688,8 +624,6 @@ test("the waiting pill stays on screen on a landscape phone (#262)", async ({ pa
   expect(text).toBeLessThanOrEqual(1);
 });
 
-// A landscape phone narrower than 600px (iPhone SE, 568x320) gets the landscape layout, not the portrait one whose
-// hand panel fills the screen and squeezes the mats to nothing (#469).
 test("a small landscape phone gets the landscape board with readable cards (#469)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "landscape phone layout");
   for (const size of [{ width: 568, height: 320 }, { width: 640, height: 360 }]) {
@@ -704,8 +638,6 @@ test("a small landscape phone gets the landscape board with readable cards (#469
   }
 });
 
-// Deck editor (#262): art that fails to load falls back to the card id
-// instead of a broken image, and − count + stay on one row.
 async function openSeededDeck(page: import("@playwright/test").Page, failArt: boolean) {
   await page.addInitScript(() => {
     const cards = [...Array(4).fill("ST01-004"), ...Array(4).fill("ST01-005"), ...Array(2).fill("ST01-006")];
@@ -731,15 +663,13 @@ test("deck editor keeps − count + on one row (#262)", async ({ page }, info) =
   for (const width of [1280, 960]) {
     await page.setViewportSize({ width, height: 800 });
     await openSeededDeck(page, false);
-    const row = page.locator(".deck-stack-edit").first();
+    const row = page.locator(".deck-stack-stepper").first();
     const minus = (await row.getByRole("button", { name: /Remove one/ }).boundingBox())!;
     const plus = (await row.getByRole("button", { name: /Add one/ }).boundingBox())!;
     expect(Math.abs(minus.y - plus.y), `at ${width}px`).toBeLessThan(2);
   }
 });
 
-// 150 % zoom on a laptop (960x600): the centre fan's handle stays inside the
-// board column instead of covering the Battle log (#262).
 test("the centre fan handle stays off the Battle log at 960x600 (#262)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "the fan is desktop only");
   await page.setViewportSize({ width: 960, height: 600 });
@@ -751,8 +681,6 @@ test("the centre fan handle stays off the Battle log at 960x600 (#262)", async (
   expect(head.x).toBeGreaterThanOrEqual(col.x);
 });
 
-// 320px phone: the mulligan explainer stays short, so the board keeps
-// nearly the size it has once play starts instead of shrinking to a thumbnail (#262).
 test("the mulligan explainer leaves the board its size on a 320px phone (#262)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "small phone");
   await page.setViewportSize({ width: 320, height: 640 });
@@ -767,8 +695,6 @@ test("the mulligan explainer leaves the board its size on a 320px phone (#262)",
   expect(mulligan).toBeGreaterThanOrEqual(playing * 0.85);
 });
 
-// Light mode: secondary text on light panels meets WCAG AA (4.5:1) in every
-// crew theme (#262).
 const LIGHT_THEMES = ["nightSea", "strawHat", "donquixote", "marines", "wano", "heart", "fishMan", "thrillerBark", "disco"];
 const LIGHT_TEXT: Record<string, string[]> = {
   "/demo?full": [
@@ -778,7 +704,6 @@ const LIGHT_TEXT: Record<string, string[]> = {
     ".turn-order-badge:not(.first)",
     ".log-phase .log-text",
   ],
-  // The wordmark kicker is hidden on a wide window; the deck hero and the side column are what shows.
   "/": [".home-deck-label", ".friends-title"],
   "/settings": [".panel-title"],
 };
@@ -838,9 +763,6 @@ test("light mode secondary text meets 4.5:1 contrast in every theme (#262)", asy
   expect(low).toEqual([]);
 });
 
-// The phone's bottom bar says why it is empty instead of "No legal actions"
-// while you answer a prompt, and shows the wait on the opponent (#262). Desktop has no such
-// bar: the board dock shows the wait (#368).
 test("the action bar says to answer the prompt or shows the wait (#262)", async ({ page }, info) => {
   test.skip(info.project.name !== "phone-375", "the phone's bottom bar");
   await page.goto("/demo?prompt=select");
@@ -849,13 +771,11 @@ test("the action bar says to answer the prompt or shows the wait (#262)", async 
   await expect(page.locator(".intent-bar .waiting-opp")).toBeVisible();
 });
 
-// Desktop has no Actions panel: Keep opening hand and Mulligan sit side by side
-// in the board dock at the midline, and the wait for the opponent shows there too (#368).
-test("desktop mulligan puts Keep and Mulligan side by side in the board dock, with no Actions panel (#368)", async ({ page }, info) => {
+test("desktop mulligan puts Keep and Mulligan side by side under the opening hand, with no Actions panel (#368, #1343)", async ({ page }, info) => {
   test.skip(info.project.name !== "desktop-1280", "desktop board dock");
   await page.goto("/demo?turn0");
   await page.locator(".board-root").waitFor();
-  const dock = page.locator(".primary-dock");
+  const dock = page.locator(".mulligan-hand .primary-dock");
   const keep = dock.getByRole("button", { name: "Keep opening hand" });
   const redo = dock.getByRole("button", { name: /^Mulligan/ });
   await expect(keep).toBeVisible();
@@ -873,7 +793,6 @@ test("desktop mulligan puts Keep and Mulligan side by side in the board dock, wi
   await expect(page.locator(".intent-empty")).toHaveCount(0);
 });
 
-// Mulligan floats over the board in the desktop dock, so its fill must be opaque (#461).
 test("the Mulligan button has a solid background, not see-through (#461)", async ({ page }) => {
   await page.goto("/demo?turn0");
   await page.locator(".board-root").waitFor();
@@ -887,13 +806,13 @@ test("the Mulligan button has a solid background, not see-through (#461)", async
   expect(alpha, `background was ${bg}`).toBe(1);
 });
 
-// A battle in the midline must stand out from the felt: opaque fill and a gold edge (#539).
 test("the battle strip has a solid background and a gold edge (#539)", async ({ page }) => {
+  test.skip(test.info().project.name === "phone-375", "on a phone the defend tray opens with the same sentence, so the strip is not drawn (#1343)");
   await page.goto("/demo?counter");
   await page.locator(".board-root").waitFor();
   const strip = page.locator(".arena .midline .prompt");
   await expect(strip).toBeVisible();
-  await expect(strip).toContainText("→");
+  await expect(strip).toContainText("attacks");
   const { bg, border, chrome } = await strip.evaluate((el) => {
     const probe = document.createElement("span");
     probe.style.color = "var(--chrome)";
@@ -911,9 +830,6 @@ test("the battle strip has a solid background and a gold edge (#539)", async ({ 
   expect(border).toBe(chrome);
 });
 
-// The opponent hand pins to the playmat (beside the opponent's mat for left /
-// right, above it for centre) instead of its side panel, and drags back into a
-// column (#264, #462).
 test("the opponent hand pins to the mat, stays after a reload, and drags back to a column (#264)", async ({ page, duel }, info) => {
   test.skip(info.project.name !== "desktop-1280", "side panels move on desktop only");
   await page.goto("/demo?full");
@@ -930,13 +846,11 @@ test("the opponent hand pins to the mat, stays after a reload, and drags back to
   };
   const inColumn = () => page.locator('[data-panel-col] > [data-panel="oppHand"]').count();
 
-  // Over the top of the opponent's mat, right third: a dashed spot shows.
   await drag((m) => ({ x: m.x + m.width * 0.85, y: m.y + 10 }), ".side-field.side-opp");
   await expect(page.locator(".panel-drop-spot")).toBeVisible();
   await page.mouse.up();
   await expect(page.locator(".opp-hand-mat-right .opp-hand-corner")).toBeVisible();
   expect(await inColumn()).toBe(0);
-  // It sits in the open space beside the opponent's mat, not over its cards.
   const hand = (await page.locator(".opp-hand-mat").boundingBox())!;
   const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
   expect(hand.x).toBeGreaterThanOrEqual(mat.x + mat.width - 1);
@@ -947,7 +861,6 @@ test("the opponent hand pins to the mat, stays after a reload, and drags back to
   await page.reload();
   await expect(page.locator(".opp-hand-mat-right .opp-hand-corner")).toBeVisible();
 
-  // Back into the right column, above Turn and clocks.
   await drag((t) => ({ x: t.x + t.width / 2, y: t.y + 6 }), '[data-panel="turn"]');
   await expect(page.locator(".panel-drop-line")).toBeVisible();
   await page.mouse.up();
@@ -956,10 +869,6 @@ test("the opponent hand pins to the mat, stays after a reload, and drags back to
   expect(duel.errors).toEqual([]);
 });
 
-// Left / right: the hand fills the open space beside the opponent's mat, over
-// the mat's height, and the mat keeps the strip it would give up for the top
-// centre spot. A narrow window has no such space, so the hand stays above the
-// mat there (#462).
 for (const vp of [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
@@ -971,7 +880,6 @@ for (const vp of [
       const open = async (oppHandSpot: string) => {
         await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), {
           oppHandSpot,
-          // The normal-size board with the floating dock: this is about the strip the mat gives up.
           bigBoard: false,
           bigBoardChosen: true,
           actionsBeside: false,
@@ -988,9 +896,7 @@ for (const vp of [
       const hand = (await page.locator(".opp-hand-mat-side").boundingBox())!;
       const mat = (await page.locator(".side-field.side-opp").boundingBox())!;
       const playmat = (await page.locator(".playmat").boundingBox())!;
-      // No strip reserved: the mat is bigger than with the top centre spot.
       expect(mat.height).toBeGreaterThan(centreMat.height + 4);
-      // Entirely in the gutter between the mat and the playmat's edge...
       if (spot === "left") {
         expect(hand.x).toBeGreaterThanOrEqual(playmat.x - 1);
         expect(hand.x + hand.width).toBeLessThanOrEqual(mat.x + 1);
@@ -998,11 +904,9 @@ for (const vp of [
         expect(hand.x).toBeGreaterThanOrEqual(mat.x + mat.width - 1);
         expect(hand.x + hand.width).toBeLessThanOrEqual(playmat.x + playmat.width + 1);
       }
-      // ...over the opponent mat's height, not above it.
       expect(hand.y).toBeGreaterThanOrEqual(mat.y - 1);
       expect(hand.y + hand.height).toBeLessThanOrEqual(mat.y + mat.height + 1);
       expect(hand.width).toBeGreaterThan(30);
-      // Every card back stays inside the wrapper.
       const backs = await page.locator(".opp-hand-mat-side .opp-corner-card").evaluateAll((els) =>
         els.map((el) => {
           const r = el.getBoundingClientRect();
@@ -1016,8 +920,6 @@ for (const vp of [
         expect(b.t).toBeGreaterThanOrEqual(hand.y - 1);
         expect(b.b).toBeLessThanOrEqual(hand.y + hand.height + 1);
       }
-      // Laid out horizontally like a regular hand: each back sits right of the last,
-      // and the row is not stacked down the gutter.
       const cardH = backs[0].b - backs[0].t;
       for (let i = 1; i < backs.length; i++) expect(backs[i].l).toBeGreaterThan(backs[i - 1].l);
       const tops = backs.map((b) => b.t);
@@ -1030,8 +932,6 @@ for (const vp of [
   }
 }
 
-// The fan lines up with the top of the opponent mat and hugs the mat's side, with its count
-// under it, however wide the window is (#775; it was centred in the gutter, #582).
 for (const vp of [
   { width: 1280, height: 720 },
   { width: 1440, height: 900 },
@@ -1073,10 +973,8 @@ for (const vp of [
           };
         });
         expect(m.backs).toBeGreaterThan(0);
-        // Top of the cards on the top of the mat (not above it, not hanging down the gutter).
         expect(m.backT - m.matT).toBeLessThan(8);
         expect(m.backT - m.matT).toBeGreaterThan(-3);
-        // Hugging the mat's side, not centred in a gutter that can be far wider than the fan.
         if (spot === "right") {
           expect(m.backL).toBeGreaterThanOrEqual(m.matR);
           expect(m.backL - m.matR).toBeLessThan(16);
@@ -1086,7 +984,6 @@ for (const vp of [
           expect(m.matL - m.backR).toBeLessThan(16);
           expect(m.backL).toBeGreaterThanOrEqual(m.wrapL - 1);
         }
-        // The count is under the cards.
         expect(m.countT).toBeGreaterThanOrEqual(m.backB - 1);
       });
     }
@@ -1111,8 +1008,6 @@ test("the top centre opponent hand keeps a strip above the mat, and left / right
   }
 });
 
-// Block step: dragging a Counter onto the defender passes the block and plays
-// that Counter in one gesture (desktop: from the hand, phone: from the tray).
 test("dragging a Counter onto the defender in the block step skips the block and counters (#300)", async ({ page }) => {
   await page.goto("/demo?counter=block");
   await page.locator(".board-root").waitFor();
@@ -1122,11 +1017,8 @@ test("dragging a Counter onto the defender in the block step skips the block and
     : page.locator(":is(.hand-fan-cards, .rail-hand-cards, .hand-dock-cards, .hand-row-inner) > .card-tile").first();
   const leader = page.locator('.side-you .card-tile[data-instance-id="y-leader"]').first();
   await expect(source).toBeVisible();
-  // Let the turn splash clear: it sits over the Leader.
   await page.waitForTimeout(2500);
   const to = (await leader.boundingBox())!;
-  // The desktop fan overlaps and peeks up from the bottom edge: grab a point
-  // where the dragged card itself is on top.
   const [sx, sy] = await source.evaluate((el) => {
     const r = el.getBoundingClientRect();
     for (let y = r.top + 6; y < Math.min(r.bottom, innerHeight); y += 4) {
@@ -1138,7 +1030,6 @@ test("dragging a Counter onto the defender in the block step skips the block and
   });
   await page.mouse.move(sx, sy);
   await page.mouse.down();
-  // Small first steps on the card, or the drag never arms.
   for (let i = 1; i <= 4; i += 1) await page.mouse.move(sx, sy + i * 3);
   await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 12 });
   await page.mouse.up();
@@ -1147,19 +1038,14 @@ test("dragging a Counter onto the defender in the block step skips the block and
     .toEqual([{ type: "pass_block" }, { type: "counter_from_hand", handIndex: 0 }]);
 });
 
-// Block step: tapping a Counter under "skip block" in the Defend tray, then the
-// primary button, plays that Counter. Desktop's right-rail tray has no Confirm
-// step, so its tap must play the card; a staged one was dropped by "Resolve".
 test("a Counter tapped from the Defend tray in the block step is played, not left staged (#286)", async ({ page }) => {
   await page.goto("/demo?counter=block");
   await page.locator(".board-root").waitFor();
   const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
   const chip = page.locator('.defend-chip-early[data-hand-card-id="y-h1"]');
   await expect(chip).toBeVisible();
-  // Let the turn splash clear before tapping.
   await page.waitForTimeout(2500);
   await chip.click();
-  // The block step closes; the counter step opens.
   await expect(page.locator(".defend-chip-early")).toHaveCount(0);
   await expect.poll(sent).toContainEqual({ type: "pass_block" });
   await page.locator(".intent-btn-primary:visible").click();
@@ -1168,8 +1054,6 @@ test("a Counter tapped from the Defend tray in the block step is played, not lef
     .toEqual([{ type: "pass_block" }, { type: "counter_from_hand", handIndex: 0 }]);
 });
 
-// Hand sort off: a hand card dropped back on the hand moves there instead of
-// being played; dropped on the board it is still played.
 for (const handLayout of ["fan", "grid"]) {
   test(`${handLayout} hand cards drag to a new spot in the hand when Sort is off, and still play on the board (#294)`, async ({ page }) => {
     await page.addInitScript(
@@ -1185,11 +1069,9 @@ for (const handLayout of ["fan", "grid"]) {
     const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
     const touch = test.info().project.name === "phone-375";
     type Box = { x: number; y: number; width: number; height: number };
-    // Drag hand card `from` to a point worked out once the hand is raised under the pointer.
     const drag = async (from: number, to: (box: (i: number) => Promise<Box>) => Promise<{ x: number; y: number }>) => {
-      // A pointer left on a card's edge after the last drop can keep the fan rising and tucking.
       if (!touch) await page.mouse.move(4, 4);
-      // The last drop's slide (#338) and the fan's rise / tuck must settle before the cards are measured.
+      // The last drop's slide and the fan's rise / tuck must settle before the cards are measured.
       await page.waitForFunction(() =>
         document
           .getAnimations()
@@ -1205,7 +1087,6 @@ for (const handLayout of ["fan", "grid"]) {
       const start = { x: b.x + b.width / 2, y: b.y + b.height / 2 };
       const end = await to(box);
       if (touch) {
-        // Lift the card a little first: a sideways pan scrolls the hand row.
         const cdp = await page.context().newCDPSession(page);
         await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
         for (const p of [{ x: start.x, y: start.y - 16 }, { x: end.x, y: start.y - 16 }, end]) {
@@ -1225,7 +1106,6 @@ for (const handLayout of ["fan", "grid"]) {
     expect(before.length).toBeGreaterThan(3);
     const [h1, h2, h3, h4, ...rest] = before;
 
-    // Hand card 0 is playable: dropped on the right half of the third card it moves past it, unplayed.
     await drag(0, async (box) => {
       const third = await box(2);
       return { x: third.x + third.width * 0.85, y: third.y + third.height / 2 };
@@ -1233,7 +1113,6 @@ for (const handLayout of ["fan", "grid"]) {
     await expect.poll(order).toEqual([h2, h3, h1, h4, ...rest]);
     expect(await sent()).toEqual([]);
 
-    // A card with nothing to play moves too: the fourth card goes first.
     await drag(3, async (box) => {
       const first = await box(0);
       return { x: first.x + 6, y: first.y + first.height / 2 };
@@ -1241,7 +1120,6 @@ for (const handLayout of ["fan", "grid"]) {
     await expect.poll(order).toEqual([h4, h2, h3, h1, ...rest]);
     expect(await sent()).toEqual([]);
 
-    // Dropped on the board, a playable card is still played.
     await drag(3, async () => {
       const field = (await page.locator('.side-you [data-dnd-drop="play_field"]').first().boundingBox())!;
       return { x: field.x + field.width / 2, y: field.y + field.height / 2 };
@@ -1250,9 +1128,6 @@ for (const handLayout of ["fan", "grid"]) {
   });
 }
 
-// A playable hand card dropped anywhere outside the hand is played, not only on
-// the Characters / Stage zone (#552). Dropped back on the hand it never plays,
-// sorted or not. Phone landscape is covered as well as portrait.
 const dragAnywhere: Array<{ name: string; only?: string; viewport?: { width: number; height: number } }> = [
   { name: "" },
   { name: " (landscape)", only: "phone-375", viewport: { width: 812, height: 375 } },
@@ -1264,7 +1139,6 @@ for (const variant of dragAnywhere) {
       test.skip(variant.only != null && test.info().project.name !== variant.only, "phone only");
     });
 
-    // Drag the card at `from` to `to`: touch on phones, the mouse on desktop.
     async function dragCard(page: import("@playwright/test").Page, id: string, to: { x: number; y: number }) {
       const touch = test.info().project.name === "phone-375";
       const card = page.locator(`[data-motion-id="${id}"]`).first();
@@ -1284,7 +1158,6 @@ for (const variant of dragAnywhere) {
       if (touch) {
         const cdp = await page.context().newCDPSession(page);
         await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [start] });
-        // The landscape hand is a side rail that scrolls up and down, so lift it sideways there.
         const wide = (page.viewportSize()?.width ?? 0) > (page.viewportSize()?.height ?? 0);
         const lift = wide ? { x: start.x - 16, y: start.y } : { x: start.x, y: start.y - 16 };
         for (const p of [lift, { x: to.x, y: wide ? to.y : start.y - 16 }, to]) {
@@ -1301,7 +1174,6 @@ for (const variant of dragAnywhere) {
       await page.mouse.up();
     }
 
-    // A point on the opponent's side that is not any drop zone.
     async function emptySpot(page: import("@playwright/test").Page) {
       const spot = await page.evaluate(() => {
         const side = document.querySelector(".side-opp")!.getBoundingClientRect();
@@ -1337,7 +1209,6 @@ for (const variant of dragAnywhere) {
     // lifted it as a drag stuck to the pointer, and the next click anywhere played it.
     test(`a press released off the card does not lift it on the next hover or play it on the next click (#621)${variant.name}`, async ({ page }) => {
       test.skip(test.info().project.name === "phone-375", "mouse only: a touch press is captured by its card");
-      // With One-tap actions a click that selects a playable card plays it at once.
       await page.addInitScript(() =>
         localStorage.setItem("optcg-duel:settings", JSON.stringify({ oneTapActions: true })),
       );
@@ -1362,10 +1233,8 @@ for (const variant of dragAnywhere) {
       const spot = await emptySpot(page);
       await page.mouse.move(start.x, start.y);
       await page.mouse.down();
-      // One jump off the card, then let go there.
       await page.mouse.move(spot.x, spot.y, { steps: 1 });
       await page.mouse.up();
-      // Back over the card with no button held, moving across it.
       await page.mouse.move(start.x, start.y + 14, { steps: 1 });
       await page.mouse.move(start.x, start.y - 14, { steps: 3 });
       await page.waitForTimeout(200);
@@ -1389,15 +1258,12 @@ for (const variant of dragAnywhere) {
       const order = () => cards.evaluateAll((els) => els.map((e) => e.getAttribute("data-motion-id")));
       const sent = () => page.evaluate(() => (window as { __demoIntents?: unknown[] }).__demoIntents ?? []);
       const before = await order();
-      // y-h1 is hand card 0 (a playable one); sorting only moves it on screen.
       const id = before.find((x) => x === "y-h1") ?? before[0]!;
-      // Over a neighbouring card in the hand.
       const neighbour = (await cards.nth(before.indexOf(id) === 0 ? 1 : 0).boundingBox())!;
       await dragCard(page, id!, { x: neighbour.x + neighbour.width / 2, y: neighbour.y + neighbour.height / 2 });
       await page.waitForTimeout(500);
       expect(await sent()).toEqual([]);
       expect(await order()).toEqual(before);
-      // Dropped off the hand it is still played.
       const spot = await emptySpot(page);
       await dragCard(page, id!, spot);
       await expect.poll(sent).toEqual([{ type: "play_card", handIndex: 0 }]);
@@ -1405,9 +1271,6 @@ for (const variant of dragAnywhere) {
   });
 }
 
-// A floating fan over your field: a card dragged out of it and back down onto
-// a field zone under it is played. Coming back over the fan used to count as
-// a drop in the hand, so it was moved there instead (#294).
 test("a card dragged out of a floating fan onto the board under it is played, not reordered (#294)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "the floating fan is desktop only");
   await page.addInitScript(() =>
@@ -1423,7 +1286,6 @@ test("a card dragged out of a floating fan onto the board under it is played, no
   const fan = (await page.locator(".hand-fan").boundingBox())!;
   const field = (await page.locator('.side-you [data-dnd-drop="play_field"]').first().boundingBox())!;
   const drop = { x: field.x + field.width / 2, y: field.y + field.height / 2 };
-  // The field zone really is under the fan here.
   expect(drop.y).toBeGreaterThan(fan.y);
   expect(drop.y).toBeLessThan(fan.y + fan.height);
 
@@ -1432,7 +1294,6 @@ test("a card dragged out of a floating fan onto the board under it is played, no
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(start.x, start.y - 14, { steps: 4 });
-  // Out above the fan, then down onto the field under it.
   await page.mouse.move(drop.x, fan.y - 40, { steps: 10 });
   await page.mouse.move(drop.x, drop.y, { steps: 10 });
   await page.mouse.up();
@@ -1440,7 +1301,6 @@ test("a card dragged out of a floating fan onto the board under it is played, no
   expect(await order()).toEqual(before);
 });
 
-// The trash browser shows readable cards, not the tiny board tile (#287).
 test("trash viewer cards are big enough to read (#287)", async ({ page, duel }, info) => {
   await page.goto("/demo");
   await page.locator(".board-root").waitFor();
@@ -1454,10 +1314,8 @@ test("trash viewer cards are big enough to read (#287)", async ({ page, duel }, 
   expect(issues, formatIssues(issues)).toEqual([]);
 });
 
-// "By card" folds duplicate trash cards into one tile with a ×N badge (#380).
 test("trash viewer By card groups duplicates under a count badge (#380)", async ({ page, duel }) => {
   await page.addInitScript(() => localStorage.removeItem("duel.trashSort"));
-  // 8 trash cards cycling through 3 distinct ones.
   await page.goto("/demo?trash=8");
   await page.locator(".board-root").waitFor();
   await page.locator(".side-you .zone-trash .zone-pile").click();
@@ -1477,7 +1335,6 @@ test("trash viewer By card groups duplicates under a count badge (#380)", async 
   const issues = (await duel.audit()).filter((i) => !isKnown(i));
   expect(issues, formatIssues(issues)).toEqual([]);
 
-  // The choice sticks the next time a trash is opened.
   await page.keyboard.press("Escape");
   await page.locator(".side-you .zone-trash .zone-pile").click();
   await expect(tiles).toHaveCount(3);
@@ -1485,7 +1342,6 @@ test("trash viewer By card groups duplicates under a count badge (#380)", async 
   await expect(tiles).toHaveCount(8);
 });
 
-// The Battle log's card picture has no Artwork row for the opponent's card, your own Guard Point in your trash does (#287).
 test("an opponent's card opened from the Battle log offers no art change (#287)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "right-click is a mouse gesture");
   await page.goto("/demo?full");
@@ -1501,7 +1357,6 @@ test("an opponent's card opened from the Battle log offers no art change (#287)"
   await expect(page.locator(".card-inspect-alts")).toHaveCount(1);
 });
 
-// Right-click the trash for the top card's details; a left click still opens the whole trash (#287).
 test("right-clicking the trash shows the top card, left click opens the trash (#287)", async ({ page }) => {
   test.skip(test.info().project.name !== "desktop-1280", "right-click is a mouse gesture");
   await page.goto("/demo?full");
@@ -1519,12 +1374,8 @@ test("right-clicking the trash shows the top card, left click opens the trash (#
   await expect(page.locator(".card-inspect")).toHaveCount(0);
 });
 
-// "Opponent hand, top right" used to only restyle the side panel's fan on
-// desktop. It is now the top-right spot: pinned on the mat on desktop, the
-// right of the opponent's half on phones, where the switch still lives (#297).
 test("Opponent hand, top right pins the hand top right on desktop and phones (#297)", async ({ page, duel }, info) => {
   const desktop = info.project.name === "desktop-1280";
-  // A setting saved by an older build.
   await page.addInitScript(() => {
     if (!localStorage.getItem("optcg-duel:settings")) {
       localStorage.setItem("optcg-duel:settings", JSON.stringify({ oppHandTopRight: true }));
@@ -1545,7 +1396,6 @@ test("Opponent hand, top right pins the hand top right on desktop and phones (#2
   await page.goto("/settings");
   const toggle = page.getByLabel("Opponent hand, top right");
   if (desktop) {
-    // Desktop picks the spot from the Opponent hand position list instead.
     await expect(toggle).toHaveCount(0);
     await expect(page.getByLabel("Opponent hand position")).toHaveText(/Right of the mat/);
     return;
@@ -1559,7 +1409,6 @@ test("Opponent hand, top right pins the hand top right on desktop and phones (#2
   expect(duel.errors).toEqual([]);
 });
 
-// Face-up Life (Shiryu OP16-108 and friends) shows its art on both mats; portrait phones list the opponent's on the count chip.
 test("face-up Life cards show face up on both mats (#327)", async ({ page }) => {
   await page.goto("/demo?faceup=1");
   await page.locator(".board-root").waitFor();

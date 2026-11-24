@@ -1,4 +1,3 @@
-"""Planner request/response models: decks, owned cards, shopping, sharing, price alerts."""
 
 from __future__ import annotations
 
@@ -41,7 +40,6 @@ class DeckCardUpsert(BaseModel):
     """Set absolute copy count for a card in a deck. needed=0 removes the line."""
 
     needed: int = Field(ge=0, le=99)
-    # Soft confirm when projected main+leader copies would exceed MAIN_DECK_LIMIT (51).
     confirm_oversize: bool = False
 
 
@@ -61,14 +59,12 @@ class DeckSummary(BaseModel):
     total_cards: int
     main_cards: int = 0
     don_cards: int = 0
-    # Non-DON copies covered by the user's Owned counts (min(owned, needed) per
-    # card) — same math as the deck page progress bar; out of main_cards.
     owned_copies: int = 0
+    # Dollars left to finish the deck (what the deck page shows as "left"); null when not computed.
+    remaining_cost: float | None = None
     sort_order: int
-    # Effective main for this leader (explicit flag or earliest same-leader fallback).
     is_main: bool = False
     hidden_from_friends: bool = False
-    # Every listed card (needed > 0), so the Decks page can search "which decks run this card" (#1315).
     cards: list[DeckSummaryCard] = []
 
 
@@ -84,9 +80,7 @@ class CatalogCardResult(BaseModel):
     image_url: str = ""
     tcgplayer_url: str = ""
     group_name: str = ""
-    # Set on alt-art rows (search with alts=true); None = the base card row.
     alt_product_id: int | None = None
-    # Viewer's owned copies of that alt printing (alt rows only).
     owned: int = 0
 
 
@@ -99,16 +93,12 @@ class PrintingView(BaseModel):
     tcgplayer_url: str = ""
     group_name: str = ""
     is_special: bool = True
-    # Per-deck (or shopping max-across-decks) alt want for play; 0 when unset.
     wanted: int = 0
-    # Copies of this alt the user owns (per user, not per deck).
     owned: int = 0
-    # Collector copies the user wants of this printing on top of their decks (#1031).
     collector: int = 0
 
 
 class DisplayArtUpdate(BaseModel):
-    # None = automatic, 0 = base art, >0 = a special printing's product id.
     product_id: int | None = Field(default=None, ge=0)
 
 
@@ -183,11 +173,9 @@ class PriceHistoryResponse(BaseModel):
     name: str
     group_name: str = ""
     released: str | None = None
-    # The card's rarity (SR, SEC, L...): a base SR/SEC/Leader follows its own price curve.
     rarity: str | None = None
     current: float | None = None
     points: list[tuple[str, float]]
-    # Release dates of later plain reprints of this card in other sets (sorted, distinct).
     reprints: list[str] = []
 
 
@@ -209,14 +197,9 @@ class CardView(BaseModel):
     card_type: str = ""
     cost: int | str | None = None
     needed: int
-    # Total owned (shared across every deck — what the Owned stepper edits).
     owned: int
-    # Copies owned across this card's alt printings; they count toward still_need.
     alts_owned: int = 0
     still_need: int
-    # "Separate per leader": copies that leaders earlier in deck order need
-    # first. still_need = needed − (owned − earlier_leaders_need), floored at 0.
-    # Always 0 when copies are shared between leaders.
     earlier_leaders_need: int = 0
     earlier_leaders: list[str] = []
     market_price: float | None = None
@@ -224,13 +207,10 @@ class CardView(BaseModel):
     image_url: str = ""
     tcgplayer_url: str = ""
     product_id: int | None = None
-    section: str = "main"  # main | additional | don
+    section: str = "main"
     alt_arts: list[PrintingView] = []
-    # Every member's qty split across arts (alts first, rest on the preferred printing).
     art_wants: list[GroupBuyArtWantOut] = []
-    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
     display_art: int | None = None
-    # Collector copies the user wants of this card's alt printings, on top of the deck (#1031).
     collector_want: int = 0
 
 
@@ -239,7 +219,6 @@ class DeckDetail(BaseModel):
     name: str
     leader_card_id: str | None
     leader_name: str | None = None
-    # Name of the Main deck this list is compared against (empty when this is Main).
     prior_decks: list[str] = []
     is_main: bool = False
     hidden_from_friends: bool = False
@@ -261,10 +240,18 @@ class CollectorLine(BaseModel):
     image_url: str | None = None
     market_price: float | None = None
     want: int
-    # min(owned copies of this printing, want); still_need = want - have.
     have: int
     still_need: int
     remaining_cost: float | None = None
+
+
+class ShoppingGroupBuyRef(BaseModel):
+    """Copies of a card still to arrive from one locked or ordered group buy."""
+
+    group_buy_id: int
+    title: str
+    qty: int
+    ordered: bool = False
 
 
 class ShoppingItem(BaseModel):
@@ -276,7 +263,6 @@ class ShoppingItem(BaseModel):
     cost: int | str | None = None
     need: int
     owned: int
-    # Copies owned across this card's alt printings; they count toward still_need.
     alts_owned: int = 0
     still_need: int
     market_price: float | None = None
@@ -287,25 +273,18 @@ class ShoppingItem(BaseModel):
     product_id: int | None = None
     used_in: list[str]
     alt_arts: list[PrintingView] = []
-    # Viewer's chosen display art: None = automatic, 0 = base, >0 = product id.
     display_art: int | None = None
-    # Deck sort: group by earliest leader, then first same-leader deck that uses the card.
-    # Multi-leader cards use the earliest deck's leader as primary.
     deck_sort_key: str = ""
     primary_leader_card_id: str | None = None
     primary_leader_name: str | None = None
     leader_count: int = 1
-    # Per-leader Need (max within each leader), in deck order. Explains how
-    # ``need`` was combined; only set when more than one leader uses the card.
     need_by_leader: list[LeaderNeed] = Field(default_factory=list)
-    # Whether ``need`` sums need_by_leader (True) or takes its max (False).
     need_summed: bool = False
-    # Target copies added directly to Master Shopping (no deck); 0 when none.
     extra_qty: int = 0
-    # Need from selected decks alone (``need`` also folds in ``extra_qty`` by max).
     deck_need: int = 0
-    # Collector copies wanted on top of the decks, one line per alt printing (#1031).
     collector_wants: list[CollectorLine] = []
+    in_group_buy: int = 0
+    group_buys: list[ShoppingGroupBuyRef] = []
 
 
 class ShoppingResponse(BaseModel):
@@ -313,7 +292,6 @@ class ShoppingResponse(BaseModel):
     cards_still_needed: int
     remaining_market: float
     unique_cards: int
-    # Sum of collector wants across all lines (#1031).
     collector_copies: int = 0
 
 
@@ -325,22 +303,16 @@ class OwnedCardItem(BaseModel):
     card_type: str = ""
     cost: int | str | None = None
     owned: int
-    # Copies owned across alt printings (on top of ``owned``).
     alts_owned: int = 0
     market_price: float | None = None
     low_price: float | None = None
-    # owned × standard market + each alt's qty × its own market price; None when
-    # any owned copy has no price.
     value: float | None = None
     image_url: str = ""
     tcgplayer_url: str = ""
     product_id: int | None = None
     used_in: list[str] = []
-    # Copies still to buy for this card on the full shopping list (all decks + added directly).
     buying: int = 0
-    # Every alt printing of the card (owned or not), each with the user's owned count.
     alt_arts: list[PrintingView] = []
-    # The user's chosen art: None = automatic, 0 = base, >0 = a printing's product id.
     display_art: int | None = None
 
 
@@ -349,7 +321,6 @@ class OwnedCollectionResponse(BaseModel):
     unique_cards: int
     total_copies: int
     total_value: float
-    # Owned cards with no market price (left out of total_value).
     unpriced_cards: int
 
 
@@ -401,7 +372,6 @@ class ShareCreate(BaseModel):
     kind: str = Field(default="shopping", pattern="^(shopping|deck)$")
     deck_id: int | None = None
     deck_ids: list[int] | None = None
-    # Shopping shares: None keeps the link's current choice (new links include them).
     include_extras: bool | None = None
 
 
@@ -499,8 +469,6 @@ class NotificationsRead(BaseModel):
     ids: list[int] | None = Field(default=None, max_length=500)
 
 
-# ---------------------------------------------------------------- scan samples (refactor 2.1c)
-
 class ScanSamplesSaved(BaseModel):
     saved: int
 
@@ -527,9 +495,6 @@ class ScanSamplesExport(BaseModel):
     items: list[ScanSampleExportItem]
     next_after_id: int
 
-
-# ---------------------------------------------------------------- public meta deck browser (refactor 2.1c)
-# Field order follows planner/meta_decks.py, so the JSON is unchanged.
 
 class MetaRecord(BaseModel):
     wins: int
@@ -568,6 +533,7 @@ class MetaDeckCard(BaseModel):
     cost: str
     card_type: str
     image_url: str
+    market_price: float | None = None
 
 
 class MetaDeck(BaseModel):
@@ -589,6 +555,7 @@ class MetaDecks(BaseModel):
     leader_id: str
     name: str
     image_url: str
+    leader_market_price: float | None = None
     decks: list[MetaDeck]
 
 

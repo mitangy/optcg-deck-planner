@@ -1,8 +1,3 @@
-/**
- * One-tap actions (#502): a card whose pop-up holds a single button does it on
- * the first tap, and an effect that wants exactly N picks resolves on the Nth.
- * A pop-up with a real choice (several buttons) still opens.
- */
 import { test, expect } from "./fixtures";
 import type { Locator, Page } from "@playwright/test";
 
@@ -17,7 +12,6 @@ async function openDemo(page: Page, query: string, oneTap: boolean) {
   await page.locator(".board-root").waitFor();
 }
 
-/** A tap on phones, a click on desktop. */
 async function press(page: Page, target: Locator) {
   if (test.info().project.name === "phone-375") await target.tap();
   else await target.click();
@@ -107,7 +101,6 @@ for (const [name, size] of [["portrait", null], ["landscape", { width: 812, heig
     test(`one-tap answers DON!! -2 on the second pick without Confirm (#502) [${name}]`, async ({ page }) => {
       await openDemo(page, "?prompt=don2", true);
       await expect(page.locator(".field-bar")).toBeVisible();
-      // The Leader holds two DON!!: each tap on it picks one more (the field bar covers the cost area on landscape phones).
       await press(page, page.locator(YOU("y-leader")).first());
       await expect(page.locator(".field-bar-count")).toHaveText("Choose 2 · selected 1");
       expect(await sent(page)).toEqual([]);

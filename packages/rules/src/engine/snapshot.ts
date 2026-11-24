@@ -22,7 +22,6 @@ export function deserializeMatch(snapshot: string): MatchState {
   return state;
 }
 
-/** Reject snapshots from another rules/registry build or with corrupt continuations. */
 export function validateMatchContract(state: MatchState): void {
   if (!state || typeof state !== "object" || Array.isArray(state)) throw new IncompatibleSnapshotError("Snapshot must be an object");
   if (state.stateVersion !== MATCH_STATE_VERSION) throw new IncompatibleSnapshotError(`Unsupported match state version ${String(state.stateVersion)}`);

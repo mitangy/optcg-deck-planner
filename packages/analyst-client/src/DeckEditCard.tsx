@@ -1,5 +1,6 @@
 import { useContext, useEffect, useState } from "react";
 import { SourceHooksContext } from "./Sources";
+import { CardThumbButton } from "./CardThumbButton";
 import {
   applyOps,
   markAutoApplied,
@@ -19,7 +20,6 @@ const MINUS = "−";
 
 const errorMessage = (e: unknown) => (e instanceof Error && e.message.trim() ? e.message.trim() : "Couldn't save that change. Nothing was changed.");
 
-/** What Log Pose's `propose_deck_edit` shows under an answer: the changes with their reasons, the legality result and Apply / Dismiss (#400). */
 export function DeckEditCard({
   proposal,
   editor,
@@ -29,15 +29,10 @@ export function DeckEditCard({
   onNavigate,
 }: {
   proposal: DeckEditProposal;
-  /** The deck the app has open (null where no deck editor is mounted). */
   editor: DeckEditor | null;
-  /** Sends the "my deck changed" follow-up through the panel. */
   onAskAgain?: () => void;
-  /** Log Pose is answering: Ask again waits. */
   busy?: boolean;
-  /** The edit arrived in this session's answer, not from a saved thread: only a live edit Log Pose was asked to make is applied by itself (#726). */
   live?: boolean;
-  /** The app moved to another page from this card: the panel can get out of the way (phones). */
   onNavigate?: () => void;
 }) {
   const hooks = useContext(SourceHooksContext);
@@ -100,9 +95,9 @@ export function DeckEditCard({
               <span className="lp-edit-badge">{add ? `+${l.after - l.before}` : `${MINUS}${l.before - l.after}`}</span>
               <span className="lp-edit-name">
                 {hooks.card ? (
-                  <span className="lp-edit-thumb" aria-hidden="true">
+                  <CardThumbButton id={l.id} name={art?.name ?? l.name} className="lp-edit-thumb">
                     {art?.imageUrl ? <img src={art.imageUrl} alt="" loading="lazy" decoding="async" onError={(e) => (e.currentTarget.style.visibility = "hidden")} /> : null}
-                  </span>
+                  </CardThumbButton>
                 ) : null}
                 <span className="lp-edit-name-text" title={`${art?.name ?? l.name} (${l.id})`}>
                   {art?.name ?? l.name} <span className="lp-edit-id">{l.id}</span>

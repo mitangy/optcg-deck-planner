@@ -1,13 +1,5 @@
 name: Value model refit
 
-# Weekly (#915): refit the learned win-chance model (packages/rules/src/bot/valueWeights.json) on the last week of
-# Hard vs Hard self-play games (the `selfplay-games` artifact of bot-selfplay.yml) plus every Play vs Bot game players
-# have played (#1202, downloaded from the API when ANALYST_API_URL and ANALYST_SERVICE_SECRET are set; players who turned
-# off sharing with Log Pose are left out) and open a PR when the new model
-# beats the committed one on held-out games (fitValue.ts --gate) AND plays at least as strong: the candidate then plays
-# the committed weights in a paired Hard-vs-Hard batch (versus.ts) and must win >= 50% of the finished games. The refit makes
-# the same kind of model as the committed file (--like-compare: v2 MLP without the card bag, same hyperparameters).
-# Otherwise the job ends green with the report.
 on:
   schedule:
     - cron: "0 10 * * 1"
@@ -67,8 +59,7 @@ jobs:
       - name: Not accepted
         if: ${{ steps.fit.outputs.accept != 'true' }}
         run: echo "The refit did not beat the committed weights (or there were too few games); nothing to do. See the report above." | tee -a "$GITHUB_STEP_SUMMARY"
-      # Play-strength gate: a better log-loss does not always play better (the linear v1 model had a worse loss than hand tuning
-      # and lost 48-52; see HARD_DEFAULTS.evalMode). The candidate is the file the fit just wrote, A in the paired batch.
+      # A better log-loss does not always play better (the linear v1 model had a worse loss than hand tuning and lost 48-52).
       - name: Play the candidate against the committed weights
         id: versus
         if: ${{ steps.fit.outputs.accept == 'true' }}

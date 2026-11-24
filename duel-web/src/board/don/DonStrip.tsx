@@ -2,38 +2,28 @@ import { useEffect, useRef, type CSSProperties, type MouseEvent as ReactMouseEve
 import { DON_CARD_ART, fallbackToDefaultDon } from "./donArt";
 import { useClickCopy } from "../input/clickCopy";
 import { groupIntoPiles, type DonPiles } from "./donPiles";
+import { railTapDon } from "./donSelection";
 import { createLongPressController } from "../preview/inspectGestures";
 import { usePointerDrag } from "../input/usePointerDrag";
 
 type DonToken = { id: string; rested: boolean };
 
 type Props = {
-  /** Full cost-area tokens when known (your side). */
   tokens?: DonToken[];
-  /** Aggregate counts when only public info (opponent). */
   activeCount?: number;
   totalCount?: number;
-  /** Denominator for the "active/total" label when it differs from the chip count (attached DON!! included). */
   labelTotal?: number;
   side: "you" | "opp";
-  /** Chip face (a URL); the bundled DON!! art when absent (#440). */
   donArt?: string;
-  /** DON!! ids that have a legal give_don intent. */
   draggableDonIds?: ReadonlySet<string>;
-  /** DON!! ids currently carried by an in-progress drag (for opacity). */
   draggingDonIds?: ReadonlySet<string>;
-  /** DON!! ids toggled into the multi-select set. */
   selectedDonIds?: ReadonlySet<string>;
   onDonDragStart?: (donId: string) => void;
   onDonDragEnd?: (donId: string, clientX: number, clientY: number) => void;
   onDonDragCancel?: () => void;
-  /** Tap/click a legal chip to toggle it into the multi-select set. */
   onDonToggleSelect?: (donId: string) => void;
-  /** Tap the empty cost-area background to clear the multi-select set. */
   onClearDonSelection?: () => void;
-  /** Piles your DON!! sit in (#381); with `onDonPileMove` the rail renders one group per pile. */
   donPiles?: DonPiles;
-  /** Right-click / long-press a chip: offset it (and the selection it is in) to another pile. */
   onDonPileMove?: (donId: string) => void;
 };
 
@@ -77,7 +67,6 @@ function DonChip({
     enabled: canDrag,
     payload: token.id,
     onDragStart: (id) => {
-      // A drag that has begun is not a long-press.
       longPressRef.current?.cancel();
       onDonDragStart?.(id);
     },
@@ -98,7 +87,6 @@ function DonChip({
       )
     : `${token.rested ? "Rested DON!!" : "Active DON!!"}${pileHint ? ` — ${pileHint}` : ""}`;
 
-  // Touch / pen long-press moves the chip; a mouse uses right-click instead.
   const { onPointerDown: dragDown, onPointerMove: dragMove, onPointerUp: dragUp, onPointerCancel: dragCancel, ...dragRest } =
     bind as Partial<Record<"onPointerDown" | "onPointerMove" | "onPointerUp" | "onPointerCancel", (e: ReactPointerEvent) => void>> &
       Record<string, unknown>;
@@ -123,7 +111,6 @@ function DonChip({
   };
 
   function handleClick(e: ReactMouseEvent) {
-    // The long-press already moved the chip: do not also toggle selection.
     if (lp.consumeActivated()) {
       e.preventDefault();
       e.stopPropagation();
@@ -135,12 +122,10 @@ function DonChip({
   function handleContextMenu(e: ReactMouseEvent) {
     if (!onPileMove) return;
     e.preventDefault();
-    // Touch browsers also fire contextmenu after a long-press that already moved it.
     if (lp.activated) return;
     onPileMove(token.id);
   }
 
-  // Button host (not bare <img>) so pointer capture / touch drag is reliable.
   return (
     <button
       type="button"
@@ -150,13 +135,9 @@ function DonChip({
       aria-label={label}
       aria-pressed={canDrag ? isSelected : undefined}
       title={label}
-      // Never disabled: a choice that asks for DON!! (DON!! −N) picks chips
-      // straight off the board, and disabled buttons get no clicks. Without a
-      // give_don it has no click of its own, so it stays out of the Tab order.
       tabIndex={canDrag ? undefined : -1}
       data-don-id={token.id}
       data-don-rested={token.rested ? "true" : "false"}
-      // Keep HTML5 DnD off; pointer drag owns the gesture.
       draggable={false}
       onClick={onPileMove || canDrag ? handleClick : undefined}
       onContextMenu={onPileMove ? handleContextMenu : undefined}
@@ -198,27 +179,29 @@ export function DonStrip({
       id: `${side}-don-${i}`,
       rested: i >= (activeCount ?? 0),
     }));
-  // Active DON!! first, rested after — reads like a real cost area and keeps
-  // the rotated (wider) chips together at the end of the rail.
   const piled = Boolean(tokens && onDonPileMove);
   const groups = groupIntoPiles(raw, piled ? (donPiles ?? {}) : {});
   const items = groups.flat();
   const restedCount = items.length - raw.filter((t) => !t.rested).length;
-  // Chips overlap (never shrink) when the rail is too narrow; CSS derives the
-  // overlap from the count and total footprint (rested chips are ~1.4 wide).
   const railStyle = {
     "--don-count": items.length,
     "--don-units": items.length - restedCount + restedCount * 1.4,
-    // Chips overlap only within a pile; the gap between piles is fixed.
     "--don-piles": Math.max(groups.length, 1),
     "--don-gaps": Math.max(groups.length - 1, 0),
   } as CSSProperties;
 
   function handleRailClick(e: ReactMouseEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement;
-    if (!target.closest(".don-chip-btn")) {
+    if (target.closest(".don-chip-btn")) return;
+    const touch = typeof window !== "undefined" && window.matchMedia?.("(pointer: coarse)").matches;
+    const legal = touch && onDonToggleSelect ? items.filter((t) => draggableDonIds?.has(t.id)).map((t) => t.id) : [];
+    if (legal.length === 0) {
       onClearDonSelection?.();
+      return;
     }
+    const next = railTapDon(selectedDonIds ?? new Set(), legal);
+    if (next) onDonToggleSelect?.(next);
+    else onClearDonSelection?.();
   }
 
   function renderChip(t: DonToken) {
@@ -241,7 +224,6 @@ export function DonStrip({
   }
 
   function renderGroups() {
-    // One pile lays out exactly as a plain rail; wrappers only appear for 2+.
     if (groups.length <= 1) return items.map(renderChip);
     return groups.map((g, i) => (
       <div key={i} className="don-pile" data-don-pile={i}>
@@ -261,7 +243,6 @@ export function DonStrip({
         </span>
       </div>
       {selectedDonIds && selectedDonIds.size > 0 ? (
-        // Absolutely positioned so it never nudges the rail.
         <span className="don-select-count" role="status">
           {selectedDonIds.size} selected
         </span>

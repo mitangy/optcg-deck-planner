@@ -1,5 +1,3 @@
-/* —— Whose turn: active mat glow + turn splash —— */
-
 .arena .side-field.is-active-turn {
   border-color: var(--chrome);
   box-shadow:
@@ -18,7 +16,6 @@
     0 0 26px rgb(var(--sea-bright-rgb) / 0.35);
 }
 
-/* Turn-order tag on each mat: bigger and spelled out. */
 .arena .mat-order {
   padding: 0.15em 0.7em;
   font-size: clamp(0.58rem, 2cqw, 0.95rem);
@@ -57,13 +54,16 @@
   animation: turn-splash var(--splash-ms, 1500ms) ease forwards;
 }
 
-/* Desktop: over the opponent's mat (TurnSplash.tsx), smaller, so it never sits
-   on the End turn dock, the midline or your hand while you mulligan. */
+/* Smaller, so it never sits on the End turn dock, the midline or your hand while you mulligan. */
 .turn-splash-anchored .turn-splash-card {
   padding: 0.5rem 1.5rem 0.6rem;
   border-width: 1px;
   border-radius: var(--radius-10);
   gap: 0.15rem;
+}
+
+.turn-splash-above {
+  transform: translate(-50%, -100%);
 }
 
 .turn-splash-anchored .turn-splash-card strong {

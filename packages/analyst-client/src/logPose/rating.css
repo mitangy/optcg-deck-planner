@@ -1,6 +1,3 @@
-/* ——— Rating an answer: thumbs up / down and "This is wrong" (#679) ———
-   The row is always 36px tall (44px on touch) and the status has a slot of its own, so saving a vote moves nothing.
-   Only the note form opens, directly below the buttons. */
 .lp-fb {
   margin-top: 6px;
   min-width: 0;

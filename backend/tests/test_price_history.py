@@ -1,4 +1,3 @@
-"""Per-product price history (#946)."""
 
 from __future__ import annotations
 
@@ -34,7 +33,7 @@ def test_recording_a_day_again_overwrites_it_and_keeps_other_days_946(db):
     price_history.record_prices(db, date(2026, 3, 4), {7: 5.0})
     price_history.record_prices(db, date(2026, 3, 5), {7: 6.0})
     price_history.record_prices(db, date(2026, 3, 4), {7: 8.0})
-    price_history.record_prices(db, date(2026, 3, 5), {7: None})  # no price: keeps the stored one
+    price_history.record_prices(db, date(2026, 3, 5), {7: None})
     db.commit()
     assert price_history.history_points(db, 7) == [("2026-03-04", 8.0), ("2026-03-05", 6.0)]
 
@@ -83,7 +82,6 @@ def test_price_history_carries_the_cards_rarity_949(client):
         db.commit()
     assert c.get("/catalog/cards/OP01-001/price-history").json()["rarity"] == "SR"
     assert c.get("/catalog/cards/OP01-001/price-history?product_id=12").json()["rarity"] == "SR"
-    # No catalog card row: no rarity, not an error.
     assert c.get("/catalog/cards/OP02-002/price-history").json()["rarity"] is None
 
 
@@ -154,7 +152,7 @@ def test_hourly_refresh_records_catalog_products_and_the_latest_price_of_the_day
     price_refresh.apply_prices(db, {11: (4.0, 3.5), 500: (9.0, 9.0)}, morning)
     price_refresh.apply_prices(db, {11: (4.5, 3.5), 500: (9.0, 9.0)}, evening)
     assert price_history.history_points(db, 11) == [("2026-10-31", 4.5)]
-    assert price_history.history_points(db, 500) == []  # sealed product, not a catalog printing
+    assert price_history.history_points(db, 500) == []
 
 
 def test_price_history_lists_later_plain_reprints_of_the_card_1311(client):
@@ -163,11 +161,9 @@ def test_price_history_lists_later_plain_reprints_of_the_card_1311(client):
         db.add_all(
             [
                 _printing("OP01-001", 11, "Luffy", 30.0, group="Set A"),
-                # Later plain reprints, two in sets released the same day.
                 _printing("OP01-001", 12, "Luffy", 3.0, group="Set C"),
                 _printing("OP01-001", 13, "Luffy", 3.0, group="Set E"),
                 _printing("OP01-001", 14, "Luffy", 3.0, group="Set G"),
-                # Not reprints: an alt art or a marked name, an earlier set, the same set, an undated set.
                 _printing("OP01-001", 15, "Luffy (Alternate Art)", 9.0, special=1, group="Set D"),
                 _printing("OP01-001", 16, "Luffy (Reprint)", 9.0, group="Set D"),
                 _printing("OP01-001", 17, "Luffy", 3.0, group="Set Z"),
@@ -188,8 +184,6 @@ def test_price_history_lists_later_plain_reprints_of_the_card_1311(client):
 
     base = c.get("/catalog/cards/OP01-001/price-history?product_id=11").json()
     assert base["reprints"] == ["2025-06-01", "2026-01-10"]
-    # Seen from the first reprint, only the one after it counts.
     assert c.get("/catalog/cards/OP01-001/price-history?product_id=12").json()["reprints"] == ["2026-01-10"]
-    # No release date for the printing's own set: nothing to compare against.
     assert c.get("/catalog/cards/OP01-001/price-history?product_id=19").json()["reprints"] == []
     assert c.get("/catalog/cards/OP02-002/price-history").json()["reprints"] == []

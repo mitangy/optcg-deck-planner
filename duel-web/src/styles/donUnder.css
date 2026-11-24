@@ -1,12 +1,3 @@
-/* —— DON!! under a card ——
-   Attached DON!! cards peek out from beneath a Leader / Character, fanned down
-   and to the right (up and to the left on the opponent's mat, which is turned
-   180 degrees). The layers are children of the tile but sit behind it
-   (isolation + z-index -1) and are clipped to the L-shape outside the card's
-   own rectangle, so they never repaint the card's border. A tile with DON!!
-   under it gives up overflow: hidden, so the art and caption round their own
-   corners. Pointer events pass through: they are decoration; the numeric
-   count stays in the DON!! badge. */
 .card-tile.has-don-under {
   overflow: visible;
   isolation: isolate;
@@ -28,16 +19,10 @@
   pointer-events: none;
 }
 
-/* Turned with the mat, so the DON!! art reads upside down like it would across the table. */
 .side-opp .don-under {
   transform: rotate(180deg);
 }
 
-/* "Upright DON!! on rested cards": a rested tile is turned +90deg and scaled
-   (--rest-k = 1/1.4), so its local box is W x 1.4W. Counter-rotating the DON!!
-   container by -90deg and scaling by 0.714 gives an on-screen portrait box as
-   tall as the card is wide on screen. Local -y is the screen's right end, so
-   translateY(-24.5%) of 1.4W (= 0.343W) lines its top up with the tile's top. */
 .don-upright .card-tile.rested .don-under {
   transform: translateY(-24.5%) rotate(-90deg) scale(0.714);
 }
@@ -60,17 +45,12 @@
   );
   border-radius: var(--tile-r);
   background-color: #e9ece8;
-  /* Second layer: the bundled face shows if a chosen one fails to load (#440). */
   background-image: var(--don-face-art, url("/cards/DON.jpg")), url("/cards/DON.jpg");
-  /* Zoomed so the slivers that peek out show the white burst, not just the
-     card's black frame. */
   background-size: 150% 150%;
   background-position: 70% 55%;
   box-shadow: 0 0 0 1px #2f7f6f, 3px 4px 8px rgba(0, 0, 0, 0.45);
 }
 
-/* Portrait phones collapse the opponent's piles into a count row right above
-   their back row, so their DON!! fans down like yours instead of up over it. */
 @media (max-width: 899px) and (orientation: portrait) {
   .side-opp .don-under {
     transform: none;
@@ -113,8 +93,6 @@
   z-index: var(--fan-z-prev, auto);
 }
 
-/* Portrait phones fan the opponent's DON!! like yours (see .don-under above),
-   down out of their Leader onto their Characters, so their row goes on top. */
 @media (max-width: 899px) and (orientation: portrait) {
   .side-opp .characters-row {
     position: relative;
@@ -131,92 +109,11 @@
   }
 }
 
-/* Picker tiles are tiny and sit right on top of their caption: the "×n" badge
-   carries the count there, so skip the peeking cards. */
 .choice-option .don-under {
   display: none;
 }
 
-/* Deck editor on phones: compact rows (thumbnail, name, − n +) and a sticky count bar,
-   instead of half-width tiles with a Remove button and an Artwork select each. */
-.deck-count-bar {
-  display: none;
-}
-
 @media (max-width: 599px) {
-  .deck-count-bar {
-    position: sticky;
-    top: var(--sticky-head-h, 0px);
-    z-index: var(--z-raise-5);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-    padding: 0.4rem 0.6rem;
-    margin-bottom: 0.5rem;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-10);
-    background: var(--arena-panel);
-    font-size: 0.9rem;
-  }
-
-  .deck-count-bar .btn {
-    min-height: 40px;
-  }
-
-  .deck-stack-grid,
-  .deck-editor-leader .deck-stack-grid {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.4rem;
-  }
-
-  .deck-stack {
-    display: grid;
-    grid-template-columns: 56px minmax(0, 1fr);
-    align-items: center;
-    column-gap: 0.6rem;
-    padding: 0.3rem 0.5rem 0.3rem 0.3rem;
-  }
-
-  .deck-stack-art-btn {
-    width: 56px;
-  }
-
-  .card-stack.deck-stack-pile {
-    --card-stack-step-y: 3px;
-    --card-stack-step-x: 3px;
-  }
-
-  .deck-stack-badge {
-    right: 2px;
-    bottom: 2px;
-    min-width: 0;
-    padding: 0 0.3rem;
-    font-size: 0.65rem;
-  }
-
-  .deck-stack-meta {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.15rem 0.5rem;
-  }
-
-  .deck-stack-meta .deck-stack-name-btn {
-    min-height: 44px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-
-  .deck-stack-meta .deck-stack-id + .deck-stack-id,
-  .deck-stack-art-label,
-  .deck-stack-meta > .meta,
-  .deck-stack .deck-stack-remove {
-    display: none;
-  }
-
-  /* A long deck name takes two lines at most. */
   .deck-config-title {
     font-size: 1.25rem;
     display: -webkit-box;
@@ -225,35 +122,34 @@
     overflow: hidden;
     overflow-wrap: anywhere;
   }
-
-  .deck-stack-edit {
-    margin-top: 0;
-    flex-wrap: nowrap;
-  }
-
-  .deck-stack-qty {
-    min-width: 44px;
-    min-height: 44px;
-  }
-
-  .deck-edit-error {
-    grid-column: 1 / -1;
-  }
 }
 
-/* Settings: jump links so a long page is not a scroll hunt. */
 .settings-jump {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.4rem;
-  margin: 0 0 0.75rem;
+  flex-wrap: nowrap;
+  gap: 0.3rem;
+  /* One row: the chips scroll sideways on a narrow screen instead of wrapping. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.settings-jump::-webkit-scrollbar {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .settings-jump a {
+    min-height: 44px;
+  }
 }
 
 .settings-jump a {
+  flex: none;
+  white-space: nowrap;
   display: inline-flex;
   align-items: center;
   min-height: 36px;
-  padding: 0 0.7rem;
+  padding: 0 0.6rem;
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   color: var(--muted);
@@ -261,11 +157,16 @@
   text-decoration: none;
 }
 
+.settings-jump a[aria-current="true"] {
+  color: var(--ink);
+  border-color: var(--chrome);
+  background: rgb(var(--chrome-rgb) / 0.12);
+}
+
 .panel[id] {
   scroll-margin-top: 0.75rem;
 }
 
-/* A card name and the punctuation after it ("'s", ".") never wrap apart. */
 .log-glued {
   white-space: nowrap;
 }
@@ -273,7 +174,6 @@
   white-space: normal;
 }
 
-/* Lines up with the version text above instead of inset by the button's padding. */
 .about-feedback-btn {
   margin-left: -0.8rem;
 }

@@ -228,7 +228,6 @@ describe("privacy", () => {
     expect(getSpectatorView(state, 0).revealedHands).toBeUndefined();
     const revealed = getSpectatorView(state, 1, { revealHands: true });
     expect(revealed.revealedHands?.map((h) => h.map((c) => c.defId))).toEqual(hands);
-    // Old clients reject a spectator view with a hand on either side.
     expect(revealed.you.hand).toEqual([]);
     expect((revealed.opponent as { hand?: unknown }).hand).toBeUndefined();
   });
@@ -245,7 +244,6 @@ describe("privacy", () => {
     expect(own.request?.type).toBe("look");
     expect((own.request as { options: { defId?: string }[] }).options[0]!.defId).toBe("OP01-013");
     type LookView = { options: { defId?: string; eligible: boolean }[]; groups: { eligibleIds: string[] }[] };
-    // The owner sees which cards the search filter allows.
     expect((own.request as LookView).groups.some((g) => g.eligibleIds.length > 0)).toBe(true);
     for (const view of [opp, spectator]) {
       expect((view.request as LookView).options.every((o) => o.defId === "HIDDEN" && !o.eligible)).toBe(true);
@@ -282,19 +280,18 @@ describe("hidden-information leaks", () => {
     search.don(0, 7);
     search.deckTop(0, "OP01-013", FILLER, FILLER, FILLER, FILLER);
     search.play(0, "OP15-118");
-    search.accept(0); // DON!! -1 cost
+    search.accept(0);
     search.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"] });
     search.hand(0, FILLER);
     search.act(0, { type: "resolve_pending_choice", accept: true, selectedOptionIds: ["o0"], orderedOptionIds: ["o1", "o2", "o3", "o4"] });
     // lastEvents only covers the latest action, so capture the look's events before answering the discard.
     const lookEvents = search.state.lastEvents;
-    search.pick(FILLER); // then trash 1 card from hand: keep the searched card
+    search.pick(FILLER);
     expect(search.state.players[0].hand.map((c) => c.defId)).toEqual(["OP01-013"]);
     expect(lookEvents.length).toBeGreaterThan(0);
     for (const viewer of [1, null] as const) {
       expect(JSON.stringify(projectGameEvents(lookEvents, viewer))).not.toContain("OP01-013");
     }
-    // The searcher's owner sees which card they added (battle log).
     expect(projectGameEvents(lookEvents, 0)).toContainEqual(expect.objectContaining({ type: "card_moved", seat: 0, defId: "OP01-013", from: "deck", to: "hand", hidden: true }));
     const reveal = new Harness();
     reveal.hand(0, "OP01-016");
@@ -372,7 +369,6 @@ describe("Double Attack", () => {
 });
 
 describe("different card names", () => {
-  // OP13-082 Five Elders: play up to 5 {Five Elders} Characters with 5000 power and different card names from your trash.
   function fiveEldersPick() {
     const h = new Harness({ leaders: ["OP13-079", DEFAULT_LEADER_ID] });
     h.don(0, 3, 0);

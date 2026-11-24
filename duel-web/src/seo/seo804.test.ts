@@ -5,9 +5,8 @@ import { routeMetaFor, sitemapPaths, SITE_ORIGIN } from "./routeMetaTable";
 
 const read = (rel: string) => readFileSync(new URL(rel, import.meta.url), "utf8");
 
-// Realistic URLs for every route that holds one player's own data or a live session.
 const PRIVATE = [
-  "/duel", "/hotseat", "/settings", "/history", "/history/m_123", "/tournaments", "/tournaments/aB3dE5fG7h", "/replay/m_123", "/admin", "/admin/users/123", "/auth/complete",
+  "/duel", "/hotseat", "/settings", "/profile", "/history", "/history/m_123", "/tournaments", "/tournaments/aB3dE5fG7h", "/replay/m_123", "/admin", "/admin/users/123", "/auth/complete",
   "/welcome/username", "/demo", "/decks", "/decks/new", "/decks/abc123/configure", "/watch/room-7",
 ];
 const PUBLIC = ["/", "/play-one-piece-tcg-online", "/decks/meta", "/leaderboard", "/whats-new", "/terms", "/privacy", "/cookies", "/events/stress-test-2026-11/rules", "/leaders", "/leaders/op17-039-rocks-d-xebec"];
@@ -42,7 +41,6 @@ describe("duel route meta (#804)", () => {
 
 type VercelRoute = { src?: string; dest?: string; status?: number; handle?: string };
 
-/** What Vercel answers for a path once the filesystem (public/ files) has not matched: first route whose src matches wins. */
 function status(routes: VercelRoute[], path: string): number | null {
   const after = routes.slice(routes.findIndex((r) => r.handle === "filesystem") + 1);
   for (const r of after) {
@@ -67,7 +65,6 @@ describe("duel vercel.json routes (#804)", () => {
   });
 
   it("every page rule in vercel.json is a route of the app, so a removed route leaves no stale rule behind (refactor 3.4b)", () => {
-    // Not pages: the asset 404, the `/index.html` alias and the final 404 catch-all.
     const NOT_PAGES = new Set(["/assets/(.*)", "/index\\.html", "/(.*)"]);
     const pageRules = routes.slice(routes.findIndex((r) => r.handle === "filesystem") + 1).filter((r) => r.src && !NOT_PAGES.has(r.src));
     expect(pageRules.length).toBeGreaterThan(15);

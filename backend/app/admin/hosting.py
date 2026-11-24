@@ -1,8 +1,3 @@
-"""Hosting tab data for the admin page (#667): Vercel, Render and GitHub, read with the owner's tokens.
-
-Each provider is cached in memory for five minutes. A provider without a token is {"configured": False};
-a failed call is {"configured": True, "error": "..."}. Tokens are never returned and never put in an error.
-"""
 
 from __future__ import annotations
 
@@ -17,7 +12,6 @@ from app.core.config import Settings
 
 CACHE_SECONDS = 300
 TIMEOUT_SECONDS = 8.0
-# Tests swap this for an httpx.MockTransport; None means the real network.
 _transport: httpx.BaseTransport | None = None
 _cache: dict[str, tuple[float, dict]] = {}
 _lock = threading.Lock()
@@ -167,7 +161,7 @@ def provider(settings: Settings, name: str, *, refresh: bool = False) -> dict:
     except (KeyError, TypeError, AttributeError):
         data = {"configured": True, "error": "Unexpected response"}
     data["fetched_at"] = datetime.now(timezone.utc).isoformat()
-    if "error" not in data:  # a failed call is retried on the next load, not cached
+    if "error" not in data:
         with _lock:
             _cache[name] = (now, data)
     return data

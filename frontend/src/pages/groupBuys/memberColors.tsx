@@ -1,4 +1,3 @@
-/** Stable palette for group-buy members — fits the cream/teal product chrome. */
 const MEMBER_COLORS = [
   "#0f6a6a",
   "#c65911",

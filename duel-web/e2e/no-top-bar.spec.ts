@@ -1,8 +1,3 @@
-/**
- * No top bar with Bigger playing area on a computer (#468): the board takes the whole window height, and the bar's
- * buttons (Brief, Log Pose, Undo, the ⋯ match menu) move to a row at the top of a side column. F toggles full
- * screen. The viewports are set here, so the spec runs once (in the desktop project).
- */
 import { test, expect, FAKE_API } from "./fixtures";
 import type { Page } from "@playwright/test";
 
@@ -17,7 +12,6 @@ async function openDemo(page: Page, vp: { width: number; height: number }, setti
   await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), settings);
   await page.goto(`/demo${query}`);
   await page.locator(".board-root").waitFor();
-  // The board lays out in a frame or two after the media queries settle.
   await page.waitForTimeout(400);
 }
 
@@ -30,7 +24,6 @@ test("Bigger playing area on a computer has no top bar and the board starts at t
   expect(await top(page, ".playmat")).toBeLessThanOrEqual(4);
   expect(await top(page, ".arena-body")).toBeLessThanOrEqual(1);
 
-  // The bar's buttons ride in a row at the top of the right column.
   const row = page.locator(".arena-rail > .col-actions");
   await expect(row).toBeVisible();
   await expect(row.getByRole("button", { name: "Match menu" })).toBeVisible();
@@ -39,10 +32,8 @@ test("Bigger playing area on a computer has no top bar and the board starts at t
   expect(box.y).toBeLessThanOrEqual(1);
   expect(box.x).toBeGreaterThanOrEqual(rail.x - 1);
   expect(box.x + box.width).toBeLessThanOrEqual(rail.x + rail.width + 1);
-  // Right-aligned: the menu button is at the column's right edge.
   const menuBtn = (await row.getByRole("button", { name: "Match menu" }).boundingBox())!;
   expect(rail.x + rail.width - (menuBtn.x + menuBtn.width)).toBeLessThan(20);
-  // Nothing scrolls the page.
   expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(DESKTOP.height);
 });
 
@@ -68,12 +59,9 @@ test("the match menu opens right under its button, fully on screen, with Leave m
   expect(m.y).toBeGreaterThanOrEqual(0);
   expect(m.x + m.width).toBeLessThanOrEqual(DESKTOP.width);
   expect(m.y + m.height).toBeLessThanOrEqual(DESKTOP.height);
-  // Just under the button, not at the old top-bar spot.
   expect(m.y - (t.y + t.height)).toBeGreaterThanOrEqual(0);
   expect(m.y - (t.y + t.height)).toBeLessThanOrEqual(12);
-  // Opening it moves nothing.
   expect((await trigger.boundingBox())!).toEqual(t);
-  // It opens Settings like the old bar's gear did.
   await menu.getByRole("menuitem", { name: /Gameplay settings/ }).click();
   await expect(page.getByRole("dialog", { name: "Gameplay settings" })).toBeVisible();
 });
@@ -90,7 +78,6 @@ test("with the right column empty the action row moves to the left column and it
   await trigger.click();
   const t = (await trigger.boundingBox())!;
   const m = (await page.getByRole("menu", { name: "Match menu" }).boundingBox())!;
-  // Under its own button, not at the right edge of the window where the old top bar's menu opened.
   expect(m.x).toBeLessThan(t.x + t.width);
   expect(m.y - (t.y + t.height)).toBeLessThanOrEqual(12);
   expect(m.x).toBeGreaterThanOrEqual(0);
@@ -117,8 +104,6 @@ test("F toggles full screen on the board, with or without Bigger playing area (#
   }
 });
 
-// The narrowest side column (#796): every toolbar button stays inside the row, and Full screen has its own button.
-// A real practice game (hot-seat), so Brief, Log Pose and the "→ P2" switch are all there.
 const ANALYST = "http://127.0.0.1:8766";
 const CORS = {
   "access-control-allow-origin": process.env.E2E_PAGE_ORIGIN ?? "http://127.0.0.1:5174",
@@ -127,7 +112,6 @@ const CORS = {
   "access-control-allow-methods": "POST, OPTIONS",
 };
 
-// 200px is the narrowest a column can be dragged to (#796); the row's seven buttons (Mute this tab is the newest, #934) need all of it.
 for (const width of [200, 250]) {
   test(`every button in the action row fits a ${width}px side column and Full screen sits in the row, not the menu (#796)`, async ({ page, duel }) => {
     await page.setViewportSize(DESKTOP);
@@ -183,13 +167,10 @@ for (const width of [200, 250]) {
       expect(b.x, `${label} inside the column`).toBeGreaterThanOrEqual(col.x - 0.5);
       expect(b.x + b.width, `${label} inside the column`).toBeLessThanOrEqual(col.x + col.width + 0.5);
     }
-    // The hot-seat switch keeps its whole label: the icons give way, not "→ P2".
     expect(await row.locator(".hud-pass-btn").evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
-    // The row keeps its height and nothing inside it overflows.
     expect(rowBox.height).toBeLessThanOrEqual(46);
     expect(await row.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 
-    // The brief opens its Log Pose panel by itself on a computer; close it so it is not over the menu button.
     const lpPanel = page.getByRole("dialog", { name: /Log Pose/ });
     if (await lpPanel.isVisible()) {
       await lpPanel.getByRole("button", { name: /close/i }).click();

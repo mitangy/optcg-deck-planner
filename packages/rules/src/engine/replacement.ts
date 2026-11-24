@@ -1,6 +1,3 @@
-/**
- * Replacement effects and removal protection.
- */
 import { abilitiesFor, abilityById } from "../cards/abilities.js";
 import type { Ability, ReplacementEvent } from "../effects/types.js";
 import type { CardInstance, InstanceId, MatchState, ResolutionFrame, Seat } from "../types.js";
@@ -24,7 +21,6 @@ export function removalBlocked(state: MatchState, loc: Located, byEffectOf: Seat
   return false;
 }
 
-/** Replacement abilities that can apply to `loc` for any of `events`. */
 export function findReplacement(state: MatchState, loc: Located, events: ReplacementEvent[], byOpponent: boolean): { seat: Seat; card: CardInstance; ability: Ability } | null {
   const seat = loc.seat;
   for (const card of fieldCards(state.players[seat])) {
@@ -42,7 +38,6 @@ export function findReplacement(state: MatchState, loc: Located, events: Replace
       return { seat, card, ability };
     }
   }
-  // Replacement abilities granted by an Event for a duration.
   for (const m of state.modifiers) {
     if (m.target.kind !== "player" || m.target.seat !== seat || m.effect.type !== "granted") continue;
     const ability = abilityById(m.effect.abilityId)?.ability;
@@ -56,7 +51,6 @@ export function findReplacement(state: MatchState, loc: Located, events: Replace
   return null;
 }
 
-/** "If you would take damage, ... instead" (Gloriosa EB05-052): a replacement available to `seat` right now. */
 export function findDamageReplacement(state: MatchState, seat: Seat): { seat: Seat; card: CardInstance; ability: Ability } | null {
   const leader = locate(state, state.players[seat].leader.id);
   return leader ? findReplacement(state, leader, ["life_damage"], true) : null;
@@ -68,7 +62,6 @@ export function pushReplacementFrame(sim: Sim, hit: { seat: Seat; card: CardInst
   state.resolutionFrames.push({ id: alloc(state, "frame"), seat: hit.seat, sourceInstanceId: hit.card.id, sourceDefId: hit.card.defId, abilityId: hit.ability.id, window: "replacement", operationIndex: 0, bindings: { [B.target]: targetId, [V.last]: [targetId], ...(parentId ? { [B.parent]: parentId } : {}) }, program: "replacement" });
 }
 
-/** An effect is about to move a Character off the field (to hand, deck, trash or Life): "removed from the field by an effect". */
 export function removedByEffect(state: MatchState, frame: ResolutionFrame, loc: Located): void {
   if (loc.zone === "character") dispatchEvent(state, "character_removed_by_effect", { seat: loc.seat, card: loc, byEffectOf: frame.seat });
 }
@@ -89,8 +82,8 @@ export function coverBatch(state: MatchState, replFrame: ResolutionFrame, parent
   const source = locate(state, replFrame.sourceInstanceId)?.card ?? { id: replFrame.sourceInstanceId, defId: replFrame.sourceDefId, rested: false, attachedDonIds: [] };
   const actIndex = getBinding(parent, B.actIndex);
   const from = actIndex !== undefined ? actIndex + 1 : ids.length;
-  // Only a plain payment is shared by the batch; a replacement that acts on the protected card (Bege's "add it to Life",
-  // Sabo's "-1000 to it") saves just the one it was used for (#593).
+  // Only a plain payment is shared by the batch; a replacement that acts on the protected card (Bege's "add it to
+  // Life", Sabo's "-1000 to it") saves just the one it was used for.
   if (r.instead.do !== "pay") return;
   for (const id of ids.slice(from)) {
     const key = replKey(id);

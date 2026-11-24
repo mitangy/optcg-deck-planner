@@ -1,7 +1,3 @@
-/**
- * "Add to shopping list" under the enlarged card (#842): signed-in pages offer it,
- * public pages do not. Runs at desktop-1200 and phone-375.
- */
 import { SHARE_TOKEN, expect, formatIssues, test } from "./fixtures";
 
 test.afterEach(({ planner }) => {
@@ -10,7 +6,6 @@ test.afterEach(({ planner }) => {
 
 test("the enlarged card on Collection adds a single card to the shopping list (#842)", async ({ page, planner }) => {
   await planner.open("/collection");
-  // Chopper: three owned and in no deck, so nothing is on the shopping list for him yet.
   await page.locator('[data-card-id="EB01-006"]:visible').getByTitle("Expand card").click();
   const lightbox = page.getByRole("dialog", { name: "Expanded card art" });
   await expect(lightbox).toContainText("Owned 3");
@@ -19,13 +14,11 @@ test("the enlarged card on Collection adds a single card to the shopping list (#
   const before = await lightbox.locator(".shopping-extra-control").boundingBox();
 
   await add.click();
-  // One more copy than owned: target 4, so one to buy.
   await expect.poll(() => planner.extras.get("EB01-006")).toBe(4);
   expect(planner.requests).toContain("PUT /shopping/extras/EB01-006");
   await expect(lightbox.locator(".deck-editor-qty")).toHaveText("1");
   await expect(lightbox.getByRole("button", { name: "Add EB01-006 to shopping list" })).toHaveCount(0);
 
-  // Add and the stepper take the same slot, so the row does not jump.
   const after = await lightbox.locator(".shopping-extra-control").boundingBox();
   expect(Math.abs(after!.x + after!.width / 2 - (before!.x + before!.width / 2))).toBeLessThan(2);
   expect(Math.abs(after!.y - before!.y)).toBeLessThan(2);

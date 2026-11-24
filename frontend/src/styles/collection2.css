@@ -1,6 +1,3 @@
-/* ——— Collection redesign (#748) ———
-   Stat cards, round colour chips, type chips, a pill toolbar and art-first grid tiles.
-   Everything uses the page tokens, so light and dark both follow the theme. */
 .collection-head {
   margin-bottom: 0.85rem;
 }
@@ -36,7 +33,6 @@
   color: var(--muted);
 }
 
-/* Card-colour dots are the one place the planner hard-codes colour (they stand for the printed card colours). */
 .color-dot {
   display: inline-block;
   flex: 0 0 auto;
@@ -47,12 +43,12 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 28%, transparent);
 }
 
-.color-dot[data-color="red"] { --dot: #c0392f; }
-.color-dot[data-color="green"] { --dot: #2f8a55; }
-.color-dot[data-color="blue"] { --dot: #2b72b8; }
-.color-dot[data-color="purple"] { --dot: #7a4aa8; }
-.color-dot[data-color="black"] { --dot: #22282c; }
-.color-dot[data-color="yellow"] { --dot: #e2b020; }
+.color-dot[data-color="red"] { --dot: var(--card-red); }
+.color-dot[data-color="green"] { --dot: var(--card-green); }
+.color-dot[data-color="blue"] { --dot: var(--card-blue); }
+.color-dot[data-color="purple"] { --dot: var(--card-purple); }
+.color-dot[data-color="black"] { --dot: var(--card-black); }
+.color-dot[data-color="yellow"] { --dot: var(--card-yellow); }
 
 .color-chips {
   display: flex;
@@ -76,8 +72,8 @@
 }
 
 .collection-toolbar {
-  gap: 0.6rem;
-  margin-bottom: 0.85rem;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
 }
 
 .collection-toolbar-row {
@@ -121,14 +117,17 @@
 
 .collection-toolbar .card-search-input {
   border-radius: var(--radius-pill);
+  min-height: 2.5rem;
+  padding-block: 0.3rem;
 }
 
 .color-filter {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.4rem;
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .color-filter-btn,
@@ -197,6 +196,12 @@
   cursor: pointer;
 }
 
+.type-chip-n {
+  margin-left: 0.35em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
 .type-chip:hover {
   border-color: var(--gold);
 }
@@ -225,7 +230,6 @@
   gap: 0.45rem;
 }
 
-/* The badge keeps its footprint when empty, so the first filter on moves nothing. */
 .collection-filter-badge {
   display: inline-grid;
   place-items: center;
@@ -279,7 +283,6 @@
   min-height: 2.2rem;
 }
 
-/* The shared mobile rules stretch the sort button and the toggle to the full row; here they share it. */
 .collection-toolbar .sort-menu,
 .collection-toolbar .layout-toggle {
   width: auto;
@@ -295,7 +298,6 @@
   min-height: 1.35em;
 }
 
-/* Grid tiles: art first, copies badge on the art, then name, id + price, colours. */
 .collection-grid {
   grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: var(--space-3);
@@ -422,7 +424,6 @@
     text-align: left;
   }
 
-  /* Icon-only List / Grid on phones keeps the tools on one line. */
   .layout-toggle.with-icons .layout-label {
     position: absolute;
     width: 1px;
@@ -436,4 +437,232 @@
   .layout-toggle.with-icons button {
     padding-inline: 0.7rem;
   }
+}
+
+/* One toolbar for every card list (#1342). The Filters panel is an overlay, so opening it never moves the list. */
+.collection-filter-panel {
+  width: min(22rem, calc(100vw - 1rem));
+  max-height: min(34rem, calc(100dvh - 5rem));
+  overflow: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.collection-filter-panel .need-mode-note {
+  margin: 0;
+}
+
+.collection-filter-panel .deck-filter {
+  margin: 0;
+  padding: 0.75rem 0 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-top: 1px solid var(--line);
+}
+
+.collection-filter-panel .deck-filter-list {
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.hint-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.hint-toggle {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-round);
+  background: var(--card);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.hint-toggle:hover,
+.hint-toggle[aria-expanded="true"] {
+  border-color: var(--gold);
+  color: var(--ink);
+}
+
+.hint-head + .need-mode-note {
+  margin: 0 0 0.5rem;
+}
+
+.collection-toolbar .layout-toggle.density-toggle button {
+  min-height: 2.2rem;
+}
+
+.collection-toolbar .scan-open {
+  min-height: 2.5rem;
+}
+
+.collection-toolbar-tools > * {
+  flex: 0 0 auto;
+}
+
+@media (max-width: 720px) {
+  .collection-toolbar-row .card-search {
+    flex: 1 1 100%;
+  }
+
+  .color-filter {
+    gap: 0.25rem;
+    flex: 1 1 100%;
+  }
+
+  .collection-toolbar-tools {
+    width: 100%;
+    margin-left: 0;
+    gap: 0.4rem;
+  }
+
+  .collection-toolbar-tools .sort-menu {
+    flex: 1 1 8rem;
+  }
+
+  .collection-filter-panel {
+    width: calc(100vw - 1rem);
+  }
+}
+
+/* Phones: a short toolbar. Visuals stay small; the hit areas are grown in touch.css. */
+@media (max-width: 600px) {
+  .collection-toolbar {
+    gap: 0.4rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .collection-toolbar-row {
+    gap: 0.4rem;
+  }
+
+  .collection-toolbar-row .card-search {
+    flex: 1 1 8rem;
+  }
+
+  .color-filter-btn,
+  .color-filter-clear {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .color-filter {
+    flex: 1 1 100%;
+    justify-content: space-between;
+    gap: 0.25rem;
+  }
+
+  .color-filter-btn .color-dot {
+    width: 0.95rem;
+    height: 0.95rem;
+  }
+
+  .type-chip {
+    min-height: 2rem;
+    padding: 0.1rem 0.8rem;
+    font-size: 0.85rem;
+  }
+
+  .collection-toolbar .sort-menu-btn,
+  .collection-filter-btn {
+    min-height: 2.25rem;
+    padding: 0.25rem 0.75rem;
+  }
+
+  /* The button's name (aria-label) still says "Sort: Color › Set". */
+  .sort-menu-summary {
+    display: none;
+  }
+
+  .collection-toolbar-tools {
+    flex-wrap: nowrap;
+  }
+
+  .collection-toolbar-tools .sort-menu {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
+  .collection-toolbar .sort-menu-btn {
+    width: auto;
+  }
+
+  .collection-toolbar-tools .layout-toggle {
+    margin-left: auto;
+  }
+
+  .collection-toolbar .layout-toggle.with-icons button {
+    min-height: 1.9rem;
+    padding-inline: 0.55rem;
+  }
+
+  .collection-toolbar .scan-open {
+    min-height: 2.5rem;
+    padding-inline: 0.7rem;
+  }
+}
+
+@media (max-width: 800px) {
+  /* The Sort button is short on a phone, so its panel must not take the button's width. */
+  .sort-menu-panel {
+    width: min(22rem, calc(100vw - 1rem));
+  }
+
+  .collection-toolbar .sort-menu {
+    width: auto;
+  }
+}
+
+/* Phones and short landscape screens: colour dots and type chips on one row that scrolls sideways, no scrollbar (#1342). */
+.toolbar-chip-scroll {
+  flex-wrap: nowrap;
+  gap: 0.5rem;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  /* Room for the 44px hit areas (touch.css) that stick out of the 2.2rem chips; overflow would clip them. */
+  padding-block: 0.3rem;
+  margin-block: -0.3rem;
+}
+
+.toolbar-chip-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.toolbar-chip-scroll > * {
+  flex: 0 0 auto;
+}
+
+.toolbar-chip-scroll :is(.color-filter, .type-filter) {
+  flex-wrap: nowrap;
+  flex: 0 0 auto;
+  justify-content: flex-start;
+}
+
+.toolbar-chip-scroll .color-filter-btn,
+.toolbar-chip-scroll .color-filter-clear {
+  width: 2.2rem;
+  height: 2.2rem;
+}
+
+.toolbar-chip-scroll .type-chip {
+  min-height: 2.2rem;
+  white-space: nowrap;
 }

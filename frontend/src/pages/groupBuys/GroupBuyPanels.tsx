@@ -1,58 +1,101 @@
-import { GroupBuyDetail, money } from "../../api";
+import { GroupBuyDetail, GroupBuyMember, money } from "../../api";
 import { CollapsibleDrawer } from "../../ui/cardListControls";
 import { type ReactNode } from "react";
 import { MemberSwatch } from "./memberColors";
-import { MemberModeTag } from "./memberParts";
+import { MemberModeTag, OfflineTag } from "./memberParts";
+import { OfflineMemberMenu } from "./OfflineMembers";
 import { SHIPPING_SPLIT_LABELS } from "./shipping";
 import { MEMBERS_OPEN_KEY, SETTLEMENT_OPEN_KEY } from "../../storage/keys";
 
-/** Locked, ordered or purchased group buys show shipping, tax and what each member owes. */
 export function hasOrderPanel(detail: Pick<GroupBuyDetail, "status">): boolean {
   return detail.status === "locked" || detail.status === "ordered" || detail.status === "completed";
 }
 
-/** Members drawer: who is in, their copies and cost (plus ship / tax / owes once ordering starts). */
-export function GroupBuyMembersList({ detail }: { detail: GroupBuyDetail }) {
+export function GroupBuyMembersList({
+  detail,
+  onAddOffline,
+  onRenameOffline,
+  onRemoveOffline,
+}: {
+  detail: GroupBuyDetail;
+  /** Host only, until completed: add someone who is not on the app, then rename or remove them. */
+  onAddOffline?: () => void;
+  onRenameOffline?: (member: GroupBuyMember) => void;
+  /** Return nothing for a member who cannot be removed (they still have copies once locked). */
+  onRemoveOffline?: (member: GroupBuyMember) => (() => void) | undefined;
+}) {
   const members = detail.members ?? [];
   const showOrderPanel = hasOrderPanel(detail);
   return (
     <div className="group-buy-members">
       <CollapsibleDrawer
         label="Members"
-        summary={`${detail.member_count} · ${money(detail.grand_total || detail.remaining_market)}`}
+        summary={
+          <span className="gb-member-chips">
+            {members.map((m) => (
+              <span key={m.user_id} className="gb-member-chip">
+                <MemberSwatch userId={m.user_id} members={members} />
+                <span className="gb-member-chip-name">{m.display_name}</span>
+                {m.role === "host" ? <span className="gb-member-chip-host">host</span> : null}
+                {m.is_offline ? <span className="gb-member-chip-host">not on the app</span> : null}
+              </span>
+            ))}
+          </span>
+        }
+        hideSummaryWhenOpen
         storageKey={MEMBERS_OPEN_KEY}
-        defaultOpen
       >
         <ul>
           {members.map((m) => (
             <li key={m.user_id}>
-              <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
-              <strong>
-                {m.display_name}
-                {m.role === "host" ? " (host)" : ""}
-              </strong>
-              <MemberModeTag member={m} />
-              <span className="muted">
-                {" "}
-                · {m.cards_still_needed} copies · cards {money(m.card_cost ?? m.remaining_market)}
+              <span className="gb-member-name">
+                <MemberSwatch userId={m.user_id} members={members} title={m.display_name} />
+                <strong>
+                  {m.display_name}
+                  {m.role === "host" ? " (host)" : ""}
+                </strong>
+                <MemberModeTag member={m} />
+                {m.is_offline ? <OfflineTag /> : null}
+                {m.is_offline && onRenameOffline ? (
+                  <OfflineMemberMenu
+                    member={m}
+                    onRename={() => onRenameOffline(m)}
+                    onRemove={onRemoveOffline?.(m)}
+                  />
+                ) : null}
+              </span>
+              <span className="gb-member-stats muted">
+                <span>{m.cards_still_needed} copies</span>
+                <span>cards {money(m.card_cost ?? m.remaining_market)}</span>
                 {showOrderPanel ? (
                   <>
-                    {" "}
-                    · ship {money(m.shipping_share ?? 0)} · tax {money(m.tax_share ?? 0)}
-                    {" · owes "}
-                    <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
+                    <span>ship {money(m.shipping_share ?? 0)}</span>
+                    <span>tax {money(m.tax_share ?? 0)}</span>
+                    <span>
+                      owes <strong className="group-buy-owes">{money(m.total_owed ?? m.remaining_market)}</strong>
+                    </span>
+                    {m.role !== "host" && m.handoff_status ? (
+                      <span className={`gb-paid-tag${m.paid ? " on" : ""}`}>
+                        <span aria-hidden="true">{m.paid ? "✓ " : "○ "}</span>
+                        {m.paid ? "Paid" : "Not paid"}
+                      </span>
+                    ) : null}
                   </>
                 ) : null}
               </span>
             </li>
           ))}
         </ul>
+        {onAddOffline ? (
+          <button type="button" className="btn secondary gb-add-offline" data-testid="gb-add-offline" onClick={onAddOffline}>
+            Add someone not on the app
+          </button>
+        ) : null}
       </CollapsibleDrawer>
     </div>
   );
 }
 
-/** Shipping / tax / order notes as plain text, for anyone who cannot edit them. */
 export function GroupBuyOrderDetails({ detail }: { detail: GroupBuyDetail }) {
   return (
     <div className="group-buy-order-readonly">
@@ -76,40 +119,41 @@ export function GroupBuyOrderDetails({ detail }: { detail: GroupBuyDetail }) {
   );
 }
 
-/** Order & settlement drawer with the cards + shipping + tax total; `children` add what the host can edit. */
+/** "Nov 18": the day the order was placed, without the clock time. */
+export function shortOrderedDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
 export function GroupBuySettlement({
   detail,
-  readOnly = false,
   children,
 }: {
   detail: GroupBuyDetail;
-  /** The invite view skips the host-facing next-step hint. */
   readOnly?: boolean;
   children?: ReactNode;
 }) {
   return (
     <div className="group-buy-settlement">
-      <CollapsibleDrawer
-        label="Order & settlement"
-        summary={`${money(detail.grand_total)} total`}
-        storageKey={SETTLEMENT_OPEN_KEY}
-        defaultOpen
-      >
-        <p className="muted">
-          {readOnly ? null : (
-            <>
-              {detail.status === "locked"
-                ? "After checkout, mark ordered. Import a TCGPlayer receipt (required), then Mark purchased for matched copies only."
-                : detail.status === "ordered"
-                  ? "Order placed — settle costs below. Import a TCGPlayer receipt (required), then Mark purchased to update Owned for matched copies."
-                  : "Purchased — Owned updated for matched receipt cards. Settlement below is for your records. Hosts can Undo Mark purchased to restore the pool."}{" "}
-            </>
-          )}
-          Cards {money(detail.cards_subtotal)} + shipping {money(detail.shipping_cost)} + tax{" "}
-          {money(detail.tax_cost ?? 0)} ={" "}
-          <strong className="group-buy-owes">{money(detail.grand_total)}</strong>
-          {detail.ordered_at ? ` · ordered ${new Date(detail.ordered_at).toLocaleString()}` : ""}
-        </p>
+      <CollapsibleDrawer label="Order & settlement" storageKey={SETTLEMENT_OPEN_KEY} defaultOpen>
+        <dl className="gb-receipt" aria-label="Order totals">
+          <div>
+            <dt>Cards</dt>
+            <dd>{money(detail.cards_subtotal)}</dd>
+          </div>
+          <div>
+            <dt>Shipping</dt>
+            <dd>{money(detail.shipping_cost)}</dd>
+          </div>
+          <div>
+            <dt>Tax</dt>
+            <dd>{money(detail.tax_cost ?? 0)}</dd>
+          </div>
+          <div className="gb-receipt-total">
+            <dt>Total</dt>
+            <dd className="group-buy-owes">{money(detail.grand_total)}</dd>
+          </div>
+        </dl>
+        {detail.ordered_at ? <p className="gb-receipt-date muted">Ordered {shortOrderedDate(detail.ordered_at)}</p> : null}
         {children}
       </CollapsibleDrawer>
     </div>

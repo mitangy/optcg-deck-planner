@@ -1,15 +1,7 @@
 /**
- * Static lints over the compiled program of every ability, the same programs the engine runs
- * (`compileAbility`, `compileDelayed`, replacement bodies). Two bug classes the card audits kept finding:
- *
- *  1. unbound-read: an ability reads a variable that no step on any path to the read writes
- *     (OP08-096 read `_last` after a mill that bound nothing; OP11-088 read `_last` in an event trigger;
- *     ST22-001 read `_last` after a reveal cost; Koala OP09-103 read `_did` that nothing set).
- *  2. ungated-may-payoff: an "if you do / if they do not" payoff is gated on the bind of a `may` whose action is
- *     not a cost, so accepting and then paying partially (or not at all) still counts (#213, #515).
- *
- * Writes and reads are derived from the compiled instructions (`effects/compile.ts`) and the runtime
- * (`engine/vm.ts`, `engine/ops/`, `engine/choices.ts`); the tables below name the runtime code each one mirrors.
+ * Two bug classes the card audits kept finding: an ability reading a variable that no step on any path writes, and an
+ * "if you do / if they do not" payoff gated on the bind of a `may` whose action is not a cost, so accepting and then
+ * paying partially still counts.
  */
 import { ABILITY_REGISTRY, type AbilityRegistry, compileAbility } from "../../cards/abilities.js";
 import { compileDelayed, compileStandalone, delayedEffects, type Instr, type Program } from "../../effects/compile.js";
@@ -21,23 +13,12 @@ export interface LintFinding {
   kind: FindingKind;
   cardId: string;
   abilityId: string;
-  /** Where in the ability: its effect, a delayed effect, a replacement body or a header that never has variables. */
   where: string;
-  /** The variable involved. */
   name: string;
   reason: string;
 }
 
-// ---------------------------------------------------------------------------
-// Runtime facts
-// ---------------------------------------------------------------------------
-
-/**
- * Whether `dispatchEvent` hands the event's card to the queued ability, which binds it as `_event`
- * (`startAbility(..., { _event })` in engine/procedure.ts). One entry per `GameEventKind`, so adding a kind forces a decision.
- * Every `dispatchEvent` site of a `true` kind passes `card:`; `programLint.test.ts` re-checks that against the source.
- * `self_ko` is queued by `performKo` without an event card.
- */
+/** `self_ko` is queued by `performKo` without an event card. */
 export const EVENT_CARRIES_CARD: Record<GameEventKind, boolean> = {
   character_ko: true,
   character_played: true,
@@ -65,21 +46,11 @@ export const EVENT_CARRIES_CARD: Record<GameEventKind, boolean> = {
   battle_ended_vs_character: true,
 };
 
-/**
- * Effects that run through `forEachTarget` (or `play`) in `execActInner` and so reset and fill `_affected`.
- * Notably not `to_life`, `give_don`, `power`, ...: those never write it.
- */
 const WRITES_AFFECTED: ReadonlySet<string> = new Set(["ko", "rest", "to_hand", "to_deck", "to_trash", "play", "activate"]);
 
-/** Filter keys whose string value names a variable (`filterMatches` in engine/selectors.ts reads `ctx.vars[...]`). */
 const FILTER_VAR_KEYS = ["excludeVar", "inVar", "notColorsOfVar", "sameNameAsVar"] as const;
 const VAR_CONDS: ReadonlySet<string> = new Set(["var_count", "var_all_match", "var_any_match"]);
 
-// ---------------------------------------------------------------------------
-// Reads
-// ---------------------------------------------------------------------------
-
-/** Every variable a piece of DSL data reads. `{ ref: "event_card" }` reads `_event`. */
 export function readsOf(node: unknown, out: Set<string> = new Set()): Set<string> {
   if (Array.isArray(node)) { for (const item of node) readsOf(item, out); return out; }
   if (!node || typeof node !== "object") return out;
@@ -94,7 +65,6 @@ export function readsOf(node: unknown, out: Set<string> = new Set()): Set<string
   return out;
 }
 
-/** Keys that look like variable references but that `readsOf` does not know: a new DSL field the lint would miss. */
 export function unknownVarKeys(node: unknown, out: Set<string> = new Set()): Set<string> {
   if (Array.isArray(node)) { for (const item of node) unknownVarKeys(item, out); return out; }
   if (!node || typeof node !== "object") return out;
@@ -105,11 +75,6 @@ export function unknownVarKeys(node: unknown, out: Set<string> = new Set()): Set
   return out;
 }
 
-// ---------------------------------------------------------------------------
-// Definitions
-// ---------------------------------------------------------------------------
-
-/** One place that writes a variable. Only `may`/confirm definitions matter to the payoff lint. */
 type Def = { kind: "confirm"; hasCosts: boolean; label: string } | { kind: "other" };
 type Defs = Map<string, Set<Def>>;
 
@@ -122,7 +87,6 @@ function mergeInto(into: Defs, from: Defs): void {
   }
 }
 
-/** Variables bound before the first instruction. */
 function initialDefs(ability: Ability): Defs {
   const defs: Defs = new Map();
   const bind = (name: string, def: Def = OTHER) => { defs.set(name, new Set([def])); };
@@ -139,7 +103,6 @@ function initialDefs(ability: Ability): Defs {
   return defs;
 }
 
-/** What one instruction writes, mirroring `exec` / `execActInner` / the look resolution in engine/vm.ts, ops.ts and choices.ts. */
 function writesOf(instr: Instr, defOf: () => Def): { name: string; def: Def; keepOld?: boolean }[] {
   switch (instr.op) {
     case "select": case "mode": return [{ name: instr.bind, def: OTHER }];
@@ -156,10 +119,6 @@ function writesOf(instr: Instr, defOf: () => Def): { name: string; def: Def; kee
   }
 }
 
-// ---------------------------------------------------------------------------
-// Three-valued condition evaluation, for "can this payoff run when the may did nothing?"
-// ---------------------------------------------------------------------------
-
 function compare(a: number, op: CmpOp, b: number): boolean {
   switch (op) {
     case "<=": return a <= b;
@@ -171,10 +130,6 @@ function compare(a: number, op: CmpOp, b: number): boolean {
   }
 }
 
-/**
- * Evaluate `cond` when the named variables hold the given number of cards and everything else is unknown.
- * `undefined` means it depends on something else.
- */
 function evalWith(cond: Cond, counts: Readonly<Record<string, number>>): boolean | undefined {
   switch (cond.c) {
     case "var_count": {
@@ -196,17 +151,11 @@ function evalWith(cond: Cond, counts: Readonly<Record<string, number>>): boolean
   }
 }
 
-// ---------------------------------------------------------------------------
-// Dataflow over one program
-// ---------------------------------------------------------------------------
-
 interface ProgramResult {
   findings: Omit<LintFinding, "cardId" | "abilityId">[];
-  /** Variables bound when each `delay` instruction runs: the delayed effect starts with a copy of them. */
   delaySnapshots: Map<number, Defs>;
 }
 
-/** The `then` branch of the `jumpIfNot` at `index` contains only effects acting on `_affected` and has no `else`. */
 function payoffOnlyActsOnAffected(instrs: Instr[], index: number): boolean {
   const jump = instrs[index] as Extract<Instr, { op: "jumpIfNot" }>;
   // With an `else`, the branch ends in the `jump` over it, which is not an `act` and fails the check below.
@@ -266,30 +215,24 @@ function describe(instr: Instr): string {
   }
 }
 
-/** The payoff lint, at one `if`: does its condition lean on a `may` that can be accepted without doing anything? */
 function lintGate(instrs: Instr[], index: number, cond: Cond, defs: Defs, where: string, findings: ProgramResult["findings"]): void {
   for (const name of readsOf(cond)) {
     const mays = [...(defs.get(name) ?? [])].filter((d): d is Extract<Def, { kind: "confirm" }> => d.kind === "confirm" && !d.hasCosts);
     if (!mays.length) continue;
     const paysOffOnAccept = evalWith(cond, { [name]: 1 }) !== false;
     const paysOffOnDecline = evalWith(cond, { [name]: 0 }) !== false;
-    if (paysOffOnAccept === paysOffOnDecline) continue; // not gated on the may at all, or on both outcomes
+    if (paysOffOnAccept === paysOffOnDecline) continue;
     const labels = mays.map((m) => m.label).join(", ");
     if (paysOffOnDecline) {
       // "If they do not": any acceptance that pays nothing, or only part, would dodge the penalty.
       findings.push({ kind: "ungated-may-payoff", where, name, reason: `"if not" payoff on ${name} of a may without costs (${labels}): declining is not the only way to skip it` });
       continue;
     }
-    // "If you do": needs a cost (paid in full or not at all), or proof that an action happened.
     const requiresAffected = evalWith(cond, { [name]: 1, _affected: 0 }) === false;
     if (requiresAffected || payoffOnlyActsOnAffected(instrs, index)) continue;
     findings.push({ kind: "ungated-may-payoff", where, name, reason: `"if you do" payoff on ${name} of a may without costs (${labels}) that does not also require _affected: accepting and doing nothing still pays off` });
   }
 }
-
-// ---------------------------------------------------------------------------
-// Whole abilities and registries
-// ---------------------------------------------------------------------------
 
 function lintWithDelays(program: Program, initial: Defs, where: string, delayed: (index: number) => Program | undefined): Omit<LintFinding, "cardId" | "abilityId">[] {
   const result = lintProgram(program, initial, where);
@@ -301,7 +244,6 @@ function lintWithDelays(program: Program, initial: Defs, where: string, delayed:
   return findings;
 }
 
-/** Everything about one ability that is checked without running it. */
 export function lintAbility(cardId: string, ability: Ability): LintFinding[] {
   const found: Omit<LintFinding, "cardId" | "abilityId">[] = [];
   // Header gates, statics and event/replacement matchers are evaluated with no variables at all.
@@ -324,14 +266,12 @@ export function lintAbility(cardId: string, ability: Ability): LintFinding[] {
   return found.map((f) => ({ cardId, abilityId: ability.id, ...f }));
 }
 
-/** Lint every ability of the registry the engine uses (generated abilities with the manual overrides applied). */
 export function lintRegistry(registry: AbilityRegistry = ABILITY_REGISTRY): LintFinding[] {
   const out: LintFinding[] = [];
   for (const [cardId, record] of registry.cards) for (const ability of record.abilities) out.push(...lintAbility(cardId, ability));
   return out;
 }
 
-/** DSL fields that look like variable references but that the read table does not know about. */
 export function unknownVarFields(registry: AbilityRegistry = ABILITY_REGISTRY): { cardId: string; abilityId: string; key: string }[] {
   const out: { cardId: string; abilityId: string; key: string }[] = [];
   for (const [cardId, record] of registry.cards) for (const ability of record.abilities) for (const key of unknownVarKeys(ability)) out.push({ cardId, abilityId: ability.id, key });

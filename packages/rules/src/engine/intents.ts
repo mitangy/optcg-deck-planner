@@ -1,7 +1,6 @@
-/** Public engine facade: match creation, intent validation/application and legal-intent listing. */
 import { abilitiesFor, REGISTRY_HASH } from "../cards/abilities.js";
 import { ensureDefsForPlayers, getCardDef, normalizeCardDefId } from "../cards/definitions.js";
-import { createSeededRng, type Rng } from "../rng.js";
+import { createKeyedRng, createSeededRng, type Rng } from "../rng.js";
 import { MATCH_STATE_VERSION, RULES_PROTOCOL_VERSION, RULES_VERSION } from "./snapshot.js";
 import type { ApplyContext, ApplyResult, AttackTarget, CardInstance, CreateMatchConfig, Intent, MatchState, PendingChoice, PlayerDeckConfig, PlayerState, Seat } from "../types.js";
 import { addModifier } from "./modifiers.js";
@@ -15,7 +14,6 @@ function fail(state: MatchState, code: string, message: string): ApplyResult {
   return { ok: false, state, events: [], error: { code, message } };
 }
 
-/** "Under the rules of this game, your DON!! deck consists of N cards." */
 function donDeckSize(leaderId: string): number {
   for (const ability of abilitiesFor(leaderId)) for (const s of ability.statics ?? []) if (s.s === "deck_rule" && /^don_deck:\d+$/.test(s.rule)) return Number(s.rule.split(":")[1]);
   return 10;
@@ -44,20 +42,19 @@ function buildPlayer(state: MatchState, seat: Seat, cfg: PlayerDeckConfig, rng: 
   player.donTotal = player.donDeck.length;
   const dealt = cfg.deck.map((defId) => ({ defId: getCardDef(defId).id, id: alloc(state, "card") }));
   const shuffled = rng.shuffle(dealt);
-  // Ids allocated in decklist order would leak copy counts, and in draw order would leak the shuffle (#369):
-  // hand them out by an independent permutation.
-  // The permutation comes from its own stream derived from the seed, so the deck order, the draws and every later
-  // roll of the match rng are the same as without the flag.
+  // Ids allocated in decklist order would leak copy counts, and in draw order the shuffle: hand them out by an
+  // independent permutation from its own seed-derived stream, so deck order, draws and later rolls of the match rng
+  // stay the same as without the flag.
   if (state.privateChoicesV2) {
-    const idRng = createSeededRng((state.rng.seed ^ 0x5bd1e995 ^ Math.imul(seat + 1, 0x9e3779b1)) >>> 0);
+    const { key } = state.rng;
+    const idRng = key ? createKeyedRng(key, state.rng.seed, 0, seat + 1) : createSeededRng((state.rng.seed ^ 0x5bd1e995 ^ Math.imul(seat + 1, 0x9e3779b1)) >>> 0);
     const ids = idRng.shuffle(dealt.map((c) => c.id));
     shuffled.forEach((c, i) => { c.id = ids[i]!; });
   }
   player.deck = shuffled.map((c) => c.defId);
   player.zoneInstanceIds.deck = shuffled.map((c) => c.id);
-  // "At the start of the game, play up to 1 {Trait} type Stage card from your deck."
-  // One eligible Stage plays itself; two or more different ones ask the player
-  // (the opening hand is drawn once they choose).
+  // One eligible Stage plays itself; two or more different ones ask the player (the opening hand is drawn once they
+  // choose).
   for (const ability of abilitiesFor(leaderDef.id)) for (const st of ability.statics ?? []) {
     if (st.s !== "deck_rule" || !st.rule.startsWith("start_stage:") || player.stage) continue;
     const trait = st.rule.slice("start_stage:".length);
@@ -87,7 +84,6 @@ function drawOpeningHand(player: PlayerState): void {
   for (let i = 0; i < 5 && player.deck.length; i += 1) player.hand.push(makeCard(player.deck.shift()!, player.zoneInstanceIds.deck.shift()!));
 }
 
-/** Answer to the start-of-game Stage prompt: play it, shuffle the deck, then draw the opening hand. */
 function resolveStartStage(sim: Sim, choice: PendingChoice, selectedOptionIds: string[]): ApplyError {
   const request = choice.request;
   if (request?.type !== "select") return err("INVALID_CHOICE", "Choice has no options");
@@ -103,18 +99,18 @@ function resolveStartStage(sim: Sim, choice: PendingChoice, selectedOptionIds: s
   return null;
 }
 
-
 export function createMatch(config: CreateMatchConfig): MatchState {
   const players = config.players.map((p) => ({ leaderId: normalizeCardDefId(p.leaderId), deck: p.deck.map((id) => normalizeCardDefId(id)) })) as CreateMatchConfig["players"];
   ensureDefsForPlayers(players);
-  const rng = createSeededRng(config.seed);
+  const start = { seed: config.seed >>> 0, cursor: 0, ...(config.rngKey ? { key: config.rngKey } : {}) };
+  const rng = createSeededRng(config.rngKey ? start : config.seed);
   const firstSeat: Seat = config.firstSeat ?? 0;
   const state: MatchState = {
     stateVersion: MATCH_STATE_VERSION,
     rulesVersion: RULES_VERSION,
     protocolVersion: RULES_PROTOCOL_VERSION,
     registryHash: REGISTRY_HASH,
-    rng: { seed: config.seed >>> 0, cursor: 0 },
+    rng: start,
     players: [] as unknown as MatchState["players"],
     activeSeat: firstSeat,
     firstSeat,
@@ -190,7 +186,6 @@ function canAttackWith(state: MatchState, seat: Seat, card: CardInstance, target
 
 function attackableCharacter(state: MatchState, seat: Seat, attacker: CardInstance, target: CardInstance): boolean {
   if (!(target.rested || hasRestriction(state, seat, attacker, "can_attack_active")) || !attackTargetAllowed(state, seat, target)) return false;
-  // "Cannot attack your opponent's Characters with a base cost of 7 or less."
   return !cannotAttackMatching(state, seat, attacker, target);
 }
 
@@ -308,7 +303,7 @@ function applyInner(sim: Sim, intent: Intent, seat: Seat): ApplyError {
       const card = p.hand[intent.handIndex];
       if (!card) return err("INVALID_CARD", "No card at that hand index");
       const value = counterOf(state, seat, card);
-      if (getCardDef(card.defId).type !== "character" || value <= 0) return err("NO_COUNTER", "That card has no Counter");
+      if (!["character", "stage"].includes(getCardDef(card.defId).type) || value <= 0) return err("NO_COUNTER", "That card has no Counter");
       const defender = currentDefender(state);
       if (!defender) return err("NO_BATTLE", "No defender");
       const entry = takeCard(state, locate(state, card.id)!);
@@ -370,7 +365,6 @@ function applyInner(sim: Sim, intent: Intent, seat: Seat): ApplyError {
       }
       const dons = activeDon(p);
       for (let i = 0; i < cost; i += 1) dons[i]!.rested = true;
-      // Consume one-shot cost reductions that applied to this play.
       const cardLoc = locate(state, card.id)!;
       state.modifiers = state.modifiers.filter((m) => !(m.target.kind === "player" && m.target.seat === seat && m.effect.type === "play_cost" && m.effect.once && filterMatches(state, ctxFor(seat, card), m.effect.filter, cardLoc)));
       if (def.type === "character" && p.characters.length >= 5) {
@@ -455,7 +449,7 @@ function legalIntentsOf(state: MatchState, seat: Seat): Intent[] {
     out.push({ type: "pass_counter" });
     p.hand.forEach((c, handIndex) => {
       const def = getCardDef(c.defId);
-      if (def.type === "character" && counterOf(state, seat, c) > 0) out.push({ type: "counter_from_hand", handIndex });
+      if ((def.type === "character" || def.type === "stage") && counterOf(state, seat, c) > 0) out.push({ type: "counter_from_hand", handIndex });
       const ability = def.type === "event" ? mainAbility(def.id, "counter") : undefined;
       if (ability && abilityGateOpen(state, seat, c, ability) && activeDon(p).length >= playCostOf(state, seat, c)) out.push({ type: "counter_event", handIndex });
     });
@@ -484,7 +478,6 @@ function legalIntentsOf(state: MatchState, seat: Seat): Intent[] {
 
 export function skipMulligans(state: MatchState): MatchState {
   let s = state;
-  // Start-of-game Stage prompts take the first option.
   while (s.phase === "mulligan" && s.pendingChoices[0]) {
     const front = s.pendingChoices[0];
     const r = applyIntent(s, { type: "resolve_pending_choice", ...defaultAnswer(front), accept: true }, { seat: front.seat });

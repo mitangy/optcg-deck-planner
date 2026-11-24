@@ -5,11 +5,6 @@ import { leaderPath } from "../leaders/slug";
 import type { MetaSnapshot } from "../leaders/snapshot";
 import "../pages/playOnline.css";
 
-/**
- * Text for the crawlable HTML of `/` and `/leaderboard` (#914). The live pages are the lobby and the
- * ranked ladder, which only make sense with a session and a connection, so the pre-rendered copy is
- * a short public page with the same address, and the app replaces it as soon as it starts.
- */
 export function HomeShell({ snapshot }: { snapshot: MetaSnapshot }) {
   const top = snapshot.leaders.slice(0, 8);
   return (

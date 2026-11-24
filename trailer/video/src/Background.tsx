@@ -13,7 +13,6 @@ const wavePath = (w: number, y: number, amp: number, len: number, phase: number)
 const TICKS = Array.from({length: 120}, (_, i) => i);
 const MOTES = Array.from({length: 26}, (_, i) => i);
 
-/** Deep navy -> teal gradient with a slow compass rose, drifting sea lines and gold motes. */
 export const Background: React.FC<{cx: number; cy: number; compass: number}> = ({cx, cy, compass}) => {
   const frame = useCurrentFrame();
   const {width: W, height: H} = useVideoConfig();

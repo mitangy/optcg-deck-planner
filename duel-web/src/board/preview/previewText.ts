@@ -1,9 +1,4 @@
-/**
- * Card preview text (#348): splits a card's effect text into plain text and the
- * bracketed keyword tags the printed card draws as coloured chips ([On Play],
- * [Counter], [DON!! x1], …). Pure, so the panel renders segments as React nodes
- * and never injects HTML.
- */
+// Pure, so the panel renders segments as React nodes and never injects HTML.
 
 export type ChipKind = "timing" | "counter" | "trigger" | "once" | "keyword" | "don";
 
@@ -33,7 +28,6 @@ const TIMINGS = new Set([
   "on your opponent's attack",
 ]);
 
-/** Chip kind for the text between the brackets, or null when it is not a known tag. */
 export function chipKind(tag: string): ChipKind | null {
   const t = tag.trim().toLowerCase().replace(/[’‘]/g, "'");
   if (/^don!! ?x ?\d+$/.test(t)) return "don";
@@ -45,7 +39,6 @@ export function chipKind(tag: string): ChipKind | null {
   return null;
 }
 
-// A bracketed tag, or a bare "DON!! −2" cost (the printed card draws it as a chip too).
 const TAG_RE = /\[([^\[\]\n]{1,40})\]|DON!! ?[−–-]\d+/g;
 
 export function parsePreviewText(text: string): PreviewSegment[] {

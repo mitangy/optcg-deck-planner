@@ -7,11 +7,6 @@ type Rect = { left: number; top: number; right: number; bottom: number };
 
 const EDGE = 8;
 
-/**
- * Offset for a dragged prompt whose undragged box is `base`, kept inside the
- * viewport. A prompt taller or wider than the view keeps its top-left edge on screen.
- * `minTop` is the highest its top edge may go (below the phone top bar, #660).
- */
 export function clampPromptOffset(
   base: Rect,
   want: Offset,
@@ -25,7 +20,6 @@ export function clampPromptOffset(
   };
 }
 
-/** The saved `promptPos` ("x,y" pixels from centre); "" or anything unreadable is centred. */
 export function parsePromptPos(s: string): Offset {
   const [x, y, ...rest] = s.split(",");
   if (y === undefined || rest.length > 0 || !x.trim() || !y.trim()) return { x: 0, y: 0 };
@@ -39,24 +33,10 @@ export function serializePromptPos(o: Offset): string {
   return x === 0 && y === 0 ? "" : `${x},${y}`;
 }
 
-/** The prompt's header row is the grip; its buttons (Hide) still click. The Life check has no header: its tools row grips (#565). */
 const GRIP = ".ability-prompt > h3, .float-stage-free > .float-head, .life-trigger-card > .life-trigger-tools";
-/** The box a drag moves: a pop-up, or the effect-order stage (#449). */
 const BOX = ".ability-prompt, .float-stage-free";
 
-/**
- * Lets the player drag a centred prompt by its header. The offset lives on the
- * wrapper as `--prompt-dx` / `--prompt-dy` (the prompt's CSS `translate`).
- * Where a drag ends it is saved as the `promptPos` setting (`saved`), so the
- * next pop-up, or a reload, opens in the same spot (#422); double-click the
- * header to put it back. Only the player's own drags save: a spot squeezed
- * onto a small screen keeps the saved one. Fixed overlay: moving it shifts
- * nothing else.
- *
- * Desktop (`dock.dockable`): letting go with the pointer over a side column or
- * the screen's edge docks the pop-up there (`dock.setSide`, #449), and a drag
- * that pulls a docked pop-up loose floats it again where it was dropped.
- */
+// Only the player's own drags save: a spot squeezed onto a small screen keeps the saved one.
 export function usePromptDrag(
   wrapRef: RefObject<HTMLElement | null>,
   saved: string,
@@ -64,7 +44,6 @@ export function usePromptDrag(
 ) {
   const { dockable, setSide } = dock;
   const side = dockable ? dock.side : "";
-  /** Where a docked pop-up was let go, to float it there once it has left its column. */
   const dropAt = useRef<{ left: number; top: number } | null>(null);
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -83,17 +62,14 @@ export function usePromptDrag(
       } else {
         wrap.style.setProperty("--prompt-dx", `${o.x}px`);
         wrap.style.setProperty("--prompt-dy", `${o.y}px`);
-        // Tells usePromptDodge the player placed this prompt (#335).
         wrap.dataset.dragged = "";
       }
     };
-    /** The prompt's box without the drag offset. */
     const baseRect = (el: HTMLElement): Rect => {
       const r = el.getBoundingClientRect();
       return { left: r.left - offset.x, right: r.right - offset.x, top: r.top - offset.y, bottom: r.bottom - offset.y };
     };
     const view = () => ({ width: window.innerWidth, height: window.innerHeight });
-    /** Portrait phones: the top bar's bottom edge plus a gap, so a drag never covers Undo or the menu (#660). */
     const minTop = () => {
       const arena = wrap.closest<HTMLElement>(".arena");
       if (!arena || arena.classList.contains("arena-wide")) return EDGE;
@@ -111,7 +87,6 @@ export function usePromptDrag(
       const start = { x: e.clientX, y: e.clientY };
       const from = offset;
       let moved = false;
-      /** The column the pointer is over, other than the one the pop-up is already in. */
       const dropSide = (ev: PointerEvent) => {
         if (!dockable) return null;
         const to = dockAt(ev.clientX, window.innerWidth, columnSpans());
@@ -135,7 +110,6 @@ export function usePromptDrag(
         const dropped = ev.type === "pointerup";
         const to = dropped ? dropSide(ev) : null;
         if (to) {
-          // Dock (or switch columns): the saved floating spot stays for later.
           write({ x: 0, y: 0 });
           setSide(to);
         } else if (side) {
@@ -158,9 +132,6 @@ export function usePromptDrag(
         save(offset);
       }
     };
-    // A moved prompt must never end up out of reach (#335): re-clamp it when
-    // the window shrinks, a new or taller prompt opens in the same spot, it is
-    // shown again after Hide, or the battle dodge moves its base spot.
     const reclamp = () => {
       if (offset.x === 0 && offset.y === 0) return;
       const prompt = wrap.querySelector<HTMLElement>(BOX);
@@ -182,11 +153,9 @@ export function usePromptDrag(
     };
     const changes = new MutationObserver(watchPrompt);
     changes.observe(wrap, { childList: true, attributes: true, attributeFilter: ["hidden", "style"] });
-    // A docked pop-up sits in its column, not at the saved floating spot.
     write(side ? { x: 0, y: 0 } : parsePromptPos(saved));
     const prompt = wrap.querySelector<HTMLElement>(".ability-prompt");
     if (dropAt.current && !side && prompt) {
-      // Pulled out of its column: float it where it was let go.
       write({ x: 0, y: 0 });
       const base = baseRect(prompt);
       write(clampPromptOffset(base, { x: dropAt.current.left - base.left, y: dropAt.current.top - base.top }, view()));

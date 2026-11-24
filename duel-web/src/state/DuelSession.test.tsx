@@ -1,7 +1,7 @@
+import { useContext } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
-/** URL each SDK Client was built with (which game server it dials). */
 const sdkClientUrls: string[] = [];
 const sdkReconnect = vi.fn((_token: string) => new Promise<never>(() => {}));
 vi.mock("@colyseus/sdk", () => ({
@@ -18,7 +18,6 @@ vi.mock("@colyseus/sdk", () => ({
   },
 }));
 
-/** The duel room the fake SDK opens; `reclaim` plays the SDK's background seat reclaim. */
 const room = {
   roomId: "room-1",
   reconnectionToken: "room-1:tok",
@@ -53,8 +52,8 @@ vi.stubGlobal("sessionStorage", memoryStorage());
 
 const { DuelSessionProvider, useDuelSession } = await import("./DuelSession");
 const { rememberAssignedGameServer } = await import("../net/gameServer");
+const { MatchStoreContext } = await import("./useMatch");
 
-/** A fresh provider, as after a page load; returns its session API. */
 function mountSession(): ReturnType<typeof useDuelSession> {
   let session: ReturnType<typeof useDuelSession> | null = null;
   function Grab() {
@@ -75,16 +74,34 @@ describe("match resume across game server pools", () => {
     const before = mountSession();
     await before.connect({ serverUrl: "https://pool-a.example", gameToken: "t", preferredSeat: 0 }, 0);
 
-    // After the match started, a newer token (another tab, a fresh mint) is assigned pool B.
     rememberAssignedGameServer({ game_server_url: "https://pool-b.example" });
-    // A dropped socket comes back with a rotated token, which is saved again.
     await room.reclaim("room-1:tok2");
 
-    // Page reload: a new provider resumes from sessionStorage.
     sdkClientUrls.length = 0;
     const after = mountSession();
     void after.tryResumeFromStorage();
     await vi.waitFor(() => expect(sdkReconnect).toHaveBeenCalledWith("room-1:tok2"));
     expect(sdkClientUrls).toEqual(["https://pool-a.example"]);
+  });
+});
+
+describe("leaving a match", () => {
+  it("leaving after a rematch error clears the banner so the home page shows none (#1432)", async () => {
+    let session: ReturnType<typeof useDuelSession> | null = null;
+    let store: import("./matchStore").MatchStore | null = null;
+    function Grab() {
+      session = useDuelSession();
+      store = useContext(MatchStoreContext);
+      return null;
+    }
+    renderToStaticMarkup(
+      <DuelSessionProvider>
+        <Grab />
+      </DuelSessionProvider>,
+    );
+    store!.dispatch({ type: "setError", message: "match_not_ready: Rematch isn't available right now" });
+    expect(store!.getSnapshot().errorBanner).not.toBeNull();
+    await session!.leave();
+    expect(store!.getSnapshot().errorBanner).toBeNull();
   });
 });

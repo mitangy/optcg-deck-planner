@@ -1,11 +1,4 @@
-/**
- * A player's own hand order, as shown to spectators of unranked rooms.
- *
- * `order` is what the player sent (instance ids, left to right). Cards missing
- * from it (just drawn, not reported yet) are appended in engine order; ids no
- * longer in the hand are dropped, so a stale order can never name a card the
- * seat does not hold.
- */
+// Cards missing from the order (just drawn, not reported yet) are appended in engine order; ids no longer in the hand are dropped, so a stale order can never name a card the seat does not hold.
 export function applyHandOrder<T extends { id: string }>(hand: readonly T[], order: readonly string[]): T[] {
   const byId = new Map(hand.map((c) => [c.id, c]));
   const out: T[] = [];
@@ -19,7 +12,6 @@ export function applyHandOrder<T extends { id: string }>(hand: readonly T[], ord
   return out;
 }
 
-/** The ids of `ids` that are in `hand`, once each, in the order given. */
 export function idsInHand(hand: readonly { id: string }[], ids: readonly string[]): string[] {
   const held = new Set(hand.map((c) => c.id));
   const seen = new Set<string>();

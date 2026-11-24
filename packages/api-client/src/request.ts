@@ -1,18 +1,6 @@
-/**
- * The HTTP core both apps share: cookies, JSON headers, FastAPI `{detail}` error parsing, empty bodies and a
- * timeout. Each app binds it to its own base URL and default budget with `createRequest`, then wraps it in
- * whatever feature-level conventions it needs (planner `api.ts`, duel-web feature clients).
- */
-
-/**
- * A failed API call. `message` is what players see: the FastAPI `detail` string, or its JSON when `detail` is
- * not a string (validation errors are lists), or the status text.
- */
 export class ApiError extends Error {
   readonly status: number;
-  /** The parsed `detail` of a FastAPI error body (any JSON), or the status text when there was none. */
   readonly detail: unknown;
-  /** `detail.code` when the backend sent `{detail: {code}}`; "timeout" when the request ran out of time. */
   readonly code: string | undefined;
 
   constructor(status: number, detail: unknown, message?: string, code?: string) {
@@ -26,28 +14,19 @@ export class ApiError extends Error {
 }
 
 export type RequestOptions = RequestInit & {
-  /** A value sent as the JSON body (and sets the JSON Content-Type). Use instead of `body`. */
   json?: unknown;
-  /**
-   * Error text for a failure whose body has no string `detail`: the message becomes `${fallback} (${status})`
-   * instead of the status text or the body's JSON. A string `detail` still wins.
-   */
   fallback?: string;
-  /** Abort and throw an `ApiError` (code "timeout") after this long. Defaults to the client's `defaultTimeoutMs`. */
   timeoutMs?: number;
-  /** The fetch to call; tests inject one. */
   fetchImpl?: typeof fetch;
 };
 
 export type CreateRequestConfig = {
-  /** Read on every call, so an app can derive it from `window.location` or a test can change it. */
   baseUrl: () => string;
   defaultTimeoutMs: number;
 };
 
 export type Request = <T>(path: string, init?: RequestOptions) => Promise<T>;
 
-/** The caller's headers as a plain object, whatever form they came in (object, array of pairs or `Headers`). */
 function headerRecord(headers: HeadersInit | undefined): Record<string, string> {
   if (!headers) return {};
   if (Array.isArray(headers) || (typeof Headers !== "undefined" && headers instanceof Headers)) {
@@ -65,7 +44,9 @@ export function createRequest({ baseUrl, defaultTimeoutMs }: CreateRequestConfig
     const { timeoutMs = defaultTimeoutMs, fetchImpl = fetch, json, fallback, ...fetchInit } = init ?? {};
     const headers = headerRecord(fetchInit.headers);
     if (json !== undefined) fetchInit.body = JSON.stringify(json);
-    if (fetchInit.body) {
+    // A FormData body sets its own multipart Content-Type (with the boundary); forcing JSON would break the upload.
+    const isForm = typeof FormData !== "undefined" && fetchInit.body instanceof FormData;
+    if (fetchInit.body && !isForm) {
       const hasType = Object.keys(headers).some((k) => k.toLowerCase() === "content-type");
       if (!hasType) headers["Content-Type"] = "application/json";
     }

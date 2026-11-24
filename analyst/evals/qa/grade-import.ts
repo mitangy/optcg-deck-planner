@@ -1,4 +1,3 @@
-/** `npm run eval:grade-import -- <out/variant> <grades.json>`: adds the page's grades to evals/qa/human-grades.jsonl. */
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";

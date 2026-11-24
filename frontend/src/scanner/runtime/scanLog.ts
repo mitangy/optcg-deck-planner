@@ -7,7 +7,6 @@
  */
 
 export type ScanLogEntry = {
-  /** Milliseconds since the log was first written to. */
   at: number;
   stage: string;
   detail: string;
@@ -19,7 +18,6 @@ const entries: ScanLogEntry[] = [];
 const listeners = new Set<() => void>();
 let origin = 0;
 
-/** Record one step. Also mirrored to the console for devtools users. */
 export function scanLog(stage: string, detail: unknown = ""): void {
   if (!origin) origin = Date.now();
   const text =
@@ -56,12 +54,10 @@ export function subscribeScanLog(fn: () => void): () => void {
   return () => listeners.delete(fn);
 }
 
-/** Flatten the trail for copy-paste into a bug report. */
 export function formatScanLog(): string {
   return entries.map((e) => `+${e.at}ms  ${e.stage}${e.detail ? ` — ${e.detail}` : ""}`).join("\n");
 }
 
-/** Summarise a DataTransfer without touching data the browser may withhold. */
 export function describeDataTransfer(dt: DataTransfer | null): string {
   if (!dt) return "no dataTransfer";
   const parts: string[] = [];

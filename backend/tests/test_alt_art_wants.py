@@ -11,7 +11,7 @@ from tests.conftest import add_catalog, add_deck_with_cards, make_user, set_owne
 def test_clamp_alt_want_map_reduces_largest_first():
     assert clamp_alt_want_map({10: 3, 20: 2}, 4) == {10: 2, 20: 2}
     clamped = clamp_alt_want_map({10: 3, 20: 2}, 2)
-    assert clamped == {20: 2}  # largest (10:3) reduced to 0 and dropped
+    assert clamped == {20: 2}
     assert clamp_alt_want_map({10: 1}, 0) == {}
     assert clamp_alt_want_map({10: 1, 20: 1}, 5) == {10: 1, 20: 1}
 
@@ -67,14 +67,11 @@ def test_lowering_need_auto_clamps_alt_wants(db):
     detail = upsert_deck_card(db, user, deck.id, "OP01-016", 3, confirm_oversize=True)
     alts = {a.product_id: a.wanted for a in detail.cards[0].alt_arts}
     assert sum(alts.values()) == 3
-    # Largest-first: both were 2; product_id 100 reduced first among equals? sort (-qty, pid)
-    # Both qty 2, so lower product_id 100 is first in sort (-2, 100) before (-2, 200)
     assert alts[100] == 1
     assert alts[200] == 2
 
     detail = upsert_deck_card(db, user, deck.id, "OP01-016", 0, confirm_oversize=True)
     assert all(c.card_id != "OP01-016" for c in detail.cards)
-    # Re-add card — prior printings cleared
     detail = upsert_deck_card(db, user, deck.id, "OP01-016", 2, confirm_oversize=True)
     assert all(a.wanted == 0 for a in detail.cards[0].alt_arts)
 
@@ -93,15 +90,13 @@ def test_shopping_merges_max_alt_wants_across_decks_625(db):
     assert item.need == 4
     assert item.still_need == 4
     aa = next(a for a in item.alt_arts if a.product_id == 100)
-    assert aa.wanted == 2  # max across decks
-    # 2 picked alt copies at 18.0 + 2 standard copies at 1.2 (#906).
+    assert aa.wanted == 2
     assert item.remaining_cost == round(2 * 18.0 + 2 * 1.2, 2)
 
     set_owned(db, user, "OP01-016", 3)
     shop = shopping_list(db, user)
     item = next(i for i in shop.items if i.card_id == "OP01-016")
     assert item.still_need == 1
-    # Only one copy left to buy: it is the picked alt, not the standard art.
     assert item.remaining_cost == 18.0
 
 
@@ -119,7 +114,7 @@ def test_shopping_remaining_prices_picked_alt_copies_at_alt_price_906(db):
 
     set_user_card_printing(db, user, "OP01-016", 100, 1)
     shop = shopping_list(db, user)
-    assert shop.items[0].remaining_cost == 12.0  # 1 alt at 10 + 2 base at 1
+    assert shop.items[0].remaining_cost == 12.0
     assert shop.remaining_market == 12.0
 
 
@@ -133,20 +128,18 @@ def test_owning_a_picked_alt_does_not_price_it_again_in_remaining_908(db):
 
     set_user_card_printing(db, user, "OP01-016", 100, 2)
     item = shopping_list(db, user).items[0]
-    assert item.remaining_cost == 22.0  # 2 alt at 10 + 2 base at 1
+    assert item.remaining_cost == 22.0
 
-    # Owning both picked alts leaves 2 copies to buy, all standard art.
     set_alt_owned(db, user, "OP01-016", 100, 2)
     shop = shopping_list(db, user)
     assert shop.items[0].still_need == 2
     assert shop.items[0].remaining_cost == 2.0
     assert shop.remaining_market == 2.0
 
-    # Owning one of two picks: the other is still bought as the alt.
     set_alt_owned(db, user, "OP01-016", 100, 1)
     item = shopping_list(db, user).items[0]
     assert item.still_need == 3
-    assert item.remaining_cost == 12.0  # 1 alt at 10 + 2 base at 1
+    assert item.remaining_cost == 12.0
 
 
 def test_set_user_card_printing_syncs_across_decks(db):
@@ -162,7 +155,7 @@ def test_set_user_card_printing_syncs_across_decks(db):
 
     qty, updated = set_user_card_printing(db, user, "OP01-016", 100, 3)
     assert updated == 2
-    assert qty == 3  # deck A stores 3; deck B clamps to 2; max is 3
+    assert qty == 3
     rows = {
         r.deck_id: r.qty
         for r in db.scalars(select(DeckCardPrinting).where(DeckCardPrinting.card_id == "OP01-016"))
@@ -174,7 +167,6 @@ def test_set_user_card_printing_syncs_across_decks(db):
     item = next(i for i in shop.items if i.card_id == "OP01-016")
     assert next(a.wanted for a in item.alt_arts if a.product_id == 100) == 3
 
-    # Lowering from shopping syncs all decks down
     qty, updated = set_user_card_printing(db, user, "OP01-016", 100, 1)
     assert qty == 1
     rows = {
@@ -201,7 +193,6 @@ def _shop_alt_want(db, user, card_id, product_id):
 
 
 def test_set_user_card_printing_splits_across_leaders_when_summing(db):
-    """Sum mode: a shopping-level want is split across leaders, never double-counted."""
     from app.planner.owned import set_user_card_printing
 
     user = make_user(db, email="sum-aa@t.com", name="S", sub="sum-aa")
@@ -216,30 +207,26 @@ def test_set_user_card_printing_splits_across_leaders_when_summing(db):
     db.commit()
 
     item, _ = _shop_alt_want(db, user, "OP01-016", 100)
-    assert item.need == 7  # max(4, 2) + 3
+    assert item.need == 7
     assert [(b.need) for b in item.need_by_leader] == [4, 3]
     assert item.need_summed is True
 
-    # One click of + must show 1, not 1 per leader.
     qty, _ = set_user_card_printing(db, user, "OP01-016", 100, 1)
     assert qty == 1
     assert _shop_alt_want(db, user, "OP01-016", 100)[1] == 1
     assert _alt_rows(db, "OP01-016") == {luffy_a.id: 1, luffy_b.id: 1}
 
-    # 5 fills Luffy (4, Luffy B clamps to its own 2) then Sabo gets 1.
     qty, _ = set_user_card_printing(db, user, "OP01-016", 100, 5)
     assert qty == 5
     item, wanted = _shop_alt_want(db, user, "OP01-016", 100)
     assert wanted == 5
     assert _alt_rows(db, "OP01-016") == {luffy_a.id: 4, luffy_b.id: 2, sabo.id: 1}
-    assert item.remaining_cost == 5 * 10.0 + 2 * 1.0  # 5 picked alts + 2 base (#906)
+    assert item.remaining_cost == 5 * 10.0 + 2 * 1.0
 
-    # Asking for more than fits caps at the combined Need.
     qty, _ = set_user_card_printing(db, user, "OP01-016", 100, 99)
     assert qty == 7
     assert _shop_alt_want(db, user, "OP01-016", 100)[1] == 7
 
-    # Lowering clears later leaders first.
     qty, _ = set_user_card_printing(db, user, "OP01-016", 100, 2)
     assert qty == 2
     assert _alt_rows(db, "OP01-016") == {luffy_a.id: 2, luffy_b.id: 2}
@@ -258,7 +245,6 @@ def test_shopping_need_breakdown_in_max_mode(db):
     item = next(i for i in shopping_list(db, user).items if i.card_id == "OP01-016")
     assert item.need == 4
     assert item.need_summed is False
-    # Leader name when known, deck name for a leaderless deck.
     assert [(b.label, b.need) for b in item.need_by_leader] == [("Luffy", 4), ("Loose deck", 3)]
     assert loose.leader_card_id is None
 

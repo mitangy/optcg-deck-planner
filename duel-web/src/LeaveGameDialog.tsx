@@ -1,6 +1,5 @@
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 
-/** Asked before Log Pose's "Open in deck builder" takes the player off a game page (#728). */
 export function LeaveGameDialog({ open, onLeave, onStay }: { open: boolean; onLeave: () => void; onStay: () => void }) {
   return (
     <Dialog open={open} onClose={onStay} role="alertdialog" className="moved-overlay" panelClassName="moved-card">

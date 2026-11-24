@@ -2,7 +2,6 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { qk } from "./queryKeys";
 
-/** Fill each key, invalidate one prefix, and report which of the keys went stale. */
 async function staleAfter(prefix: readonly unknown[], keys: Record<string, readonly unknown[]>): Promise<string[]> {
   const qc = new QueryClient();
   for (const key of Object.values(keys)) qc.setQueryData(key, {});

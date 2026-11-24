@@ -23,18 +23,7 @@ function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-/**
- * "Cannon shot" battle overlay: a glowing powder-trail arc lobs from the
- * attacker to its target, a cannonball rides the arc on a loop, and a
- * spinning gunsight reticle marks the card being hit (red when it's yours,
- * gold when you're the one attacking). A faint dashed line shows the original
- * target when a Blocker redirected the attack.
- *
- * Fixed-position SVG over the viewport — never participates in layout. It is
- * drawn inside the board (not portaled to <body>) so it shares the board's
- * stacking context: prompts (z-index 45+) paint above it, cards and the dock
- * below. `dimmed` fades it while one of your prompts is open.
- */
+// Drawn inside the board (not portaled) so it shares the board's stacking context: prompts (z-index 45+) paint above it, cards and the dock below.
 export function AttackIndicator({ view, dimmed = false }: { view: PlayerView | null; dimmed?: boolean }) {
   const ends = battleEndpoints(view);
   const systemReduced = usePrefersReducedMotion();
@@ -74,7 +63,6 @@ export function AttackIndicator({ view, dimmed = false }: { view: PlayerView | n
         />
       ) : null}
 
-      {/* Attacker: lantern glow around the striking card. */}
       <rect
         className="atk-source"
         x={atkBox.left - 4}
@@ -98,8 +86,6 @@ export function AttackIndicator({ view, dimmed = false }: { view: PlayerView | n
                   dur={flightDur}
                   repeatCount="indefinite"
                   path={arc.d}
-                  // Same phase as `lag` seconds behind the ball, but negative so
-                  // the puff is already on the path at t=0 (never parked at 0,0).
                   begin={`${(lag - flightSec).toFixed(2)}s`}
                   keyPoints="0;1"
                   keyTimes="0;1"
@@ -122,7 +108,6 @@ export function AttackIndicator({ view, dimmed = false }: { view: PlayerView | n
           </g>
         ) : null}
 
-        {/* Impact splash, synced to each landing. */}
         {!reduced ? (
           <circle cx={arc.to.x} cy={arc.to.y} r={reticleR * 0.5} className="atk-impact">
             <animate
@@ -143,7 +128,6 @@ export function AttackIndicator({ view, dimmed = false }: { view: PlayerView | n
         ) : null}
       </g>
 
-      {/* Gunsight reticle on the target card. */}
       <Reticle box={tgtBox} />
 
     </svg>
@@ -156,7 +140,6 @@ function reticleRadius(box: Box): number {
   return Math.max(16, Math.min(box.width, box.height) * 0.36);
 }
 
-/** Glow filter, cannonball shading and arrowhead shared by the battle overlays. */
 function AttackDefs() {
   return (
     <defs>
@@ -187,7 +170,6 @@ function AttackDefs() {
   );
 }
 
-/** Spinning gunsight on a target card. */
 function Reticle({ box }: { box: Box }) {
   const c = boxCenter(box);
   const r = reticleRadius(box);
@@ -213,12 +195,6 @@ function Reticle({ box }: { box: Box }) {
   );
 }
 
-/**
- * Aim arrow while you drag an attacker: the powder trail is drawn from the
- * attacker to the pointer as soon as the drag starts, and snaps onto a legal
- * target (with its reticle) when the pointer is over one. No cannonball until
- * the attack is declared. Fixed-position SVG portal; never participates in layout.
- */
 export function DragAttackArrow({ attackerId }: { attackerId: string | null }) {
   const boxes = useTrackedBoxes(attackerId ? [attackerId] : null);
   const [pointer, setPointer] = useState<Pt | null>(null);

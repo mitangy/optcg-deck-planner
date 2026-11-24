@@ -1,18 +1,4 @@
 #!/usr/bin/env node
-/** Publish retrained embedder weights to blob storage under scan-data/training/ (#852).
- *
- *   BLOB_READ_WRITE_TOKEN=... node scripts/upload-embedder-training.mjs <model.onnx> <checkpoint.pt>
- *
- * Uploads model weights only (never crops). Prints the public ONNX URL on the
- * last line (`onnx_url=...`) and overwrites `card-embedder-latest.pt`.
- *
- *   BLOB_READ_WRITE_TOKEN=... node scripts/upload-embedder-training.mjs --wip <checkpoint.pt>
- *
- * Saves this run's checkpoint as `card-embedder-wip.pt` whether or not it was
- * published. The next run fine-tunes from it, so training builds up week to
- * week even before a model first beats the shipped one (the shipped model has
- * no published checkpoint to start from).
- */
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { put } from "@vercel/blob";

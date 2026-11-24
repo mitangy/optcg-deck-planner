@@ -1,9 +1,4 @@
-/**
- * Messages a duel room sends to a client, and the parsers a client runs on them.
- * Lenient where the server may be older than the client; strict where a bad payload would break the board
- * or leak hidden information. Parsers throw a plain `Error` (the client reports or ignores it, see
- * duel-web/src/net/duelClient.ts); the labels are for the error text.
- */
+// Lenient where the server may be older than the client; strict where a bad payload would break the board or leak hidden information.
 import { CHAT_MAX_LENGTH, PROTOCOL_VERSION, type ProtocolVersion, SKIN_DATA_URL, SKIN_MAX_CARD_BACK_CHARS, SKIN_MAX_PLAYMAT_CHARS, SKIN_PUBLIC_PATH, isProtocolVersion } from "./constants.js";
 import type { ErrorCode } from "./errors.js";
 import { asDonArtId } from "./clientMessages.js";
@@ -18,6 +13,7 @@ import type {
 
   MatchOverMessage,
   PlayerView,
+  ServerRestartingMessage,
   Seat,
   SeatPlayerInfo,
   SeatPlayers,
@@ -31,20 +27,17 @@ import type {
   ArtPrefsMap,
 } from "./types.js";
 
-/** A message body that must be an object. */
 function objectBody(raw: unknown, label: string): Record<string, unknown> {
   if (!raw || typeof raw !== "object") throw new Error(`${label} body required`);
   return raw as Record<string, unknown>;
 }
 
-/** A message body that must be an object carrying the current protocolVersion. */
 function versionedBody(raw: unknown, label: string): Record<string, unknown> {
   const o = objectBody(raw, label);
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
   return o;
 }
 
-/** A brief ticket as sent, or undefined unless every part is the right shape. */
 export function parseBriefTicket(raw: unknown): BriefTicketWire | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const o = raw as Record<string, unknown>;
@@ -66,18 +59,14 @@ function parseSeatPlayers(raw: unknown): SeatPlayers | undefined {
 }
 
 function asSkinImage(raw: unknown, maxChars: number, resolvePublicPath: (path: string) => string): string | null {
-  // Only image data URLs and API upload URLs are ever put in CSS `url(...)`;
-  // anything else is dropped.
+  // Only image data URLs and API upload URLs go into CSS `url(...)`; anything else is dropped.
   if (typeof raw !== "string" || raw.length > maxChars) return null;
   if (SKIN_DATA_URL.test(raw)) return raw;
   if (SKIN_PUBLIC_PATH.test(raw)) return resolvePublicPath(raw);
   return null;
 }
 
-/**
- * A player's skin. An account upload arrives as a path relative to the API; `resolvePublicPath` turns it
- * into the URL the page loads it from (the protocol package knows no app config).
- */
+// An account upload arrives as a path relative to the API; `resolvePublicPath` turns it into a URL (this package knows no app config).
 export function parseReceivedSkin(raw: unknown, resolvePublicPath: (path: string) => string): SkinMessage {
   const o = objectBody(raw, "skin");
   if (!isProtocolVersion(o.protocolVersion)) throw new Error("bad protocolVersion");
@@ -125,7 +114,6 @@ export function assertSpectatorPrivacy(view: PlayerView): void {
 const seatOf = (v: unknown): Seat | null => (v === 0 || v === 1 ? v : null);
 const callOf = (v: unknown): DiceCall | null => (v === "high" || v === "low" ? v : null);
 
-/** The finished dice roll of a welcome, or undefined unless every part is the right shape (lenient: it is only shown). */
 export function parseDiceResult(raw: unknown): DiceResult | undefined {
   if (!raw || typeof raw !== "object") return undefined;
   const o = raw as Record<string, unknown>;
@@ -184,6 +172,7 @@ export function parseWelcome(raw: unknown): WelcomeMessage {
     view,
     players: parseSeatPlayers(o.players),
     ranked: typeof o.ranked === "boolean" ? o.ranked : undefined,
+    tournament: typeof o.tournament === "boolean" ? o.tournament : undefined,
     firstSeatPickedBy:
       o.firstSeatPickedBy === null ? null : o.firstSeatPickedBy === 0 || o.firstSeatPickedBy === 1 ? o.firstSeatPickedBy : undefined,
     dice: o.dice === null ? null : parseDiceResult(o.dice),
@@ -201,10 +190,13 @@ export function parseView(raw: unknown): ViewMessage {
   } else {
     assertNoOpponentHand(view);
   }
-  return { protocolVersion: PROTOCOL_VERSION, view };
+  return { protocolVersion: PROTOCOL_VERSION, view, step: asStep(o.step) };
 }
 
-/** An `error` as a client receives it: a code from this protocol, or one an older / newer server invented. */
+function asStep(raw: unknown): number | undefined {
+  return typeof raw === "number" && Number.isSafeInteger(raw) && raw >= 0 ? raw : undefined;
+}
+
 export type ReceivedErrorMessage = {
   protocolVersion: ProtocolVersion;
   code: ErrorCode | (string & {});
@@ -259,12 +251,17 @@ export function parseTimer(raw: unknown): TimerMessage {
   };
 }
 
-/** Which seats are temporarily disconnected, and until when they may return. */
 export function parsePresence(raw: unknown): [number | null, number | null] {
   const o = versionedBody(raw, "presence");
   const a = Array.isArray(o.awayUntil) ? o.awayUntil : [];
   const at = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
   return [at(a[0]), at(a[1])];
+}
+
+export function parseServerRestarting(raw: unknown): ServerRestartingMessage {
+  const o = versionedBody(raw, "server_restarting");
+  const seconds = typeof o.seconds === "number" && Number.isFinite(o.seconds) ? Math.max(0, Math.round(o.seconds)) : 0;
+  return { protocolVersion: PROTOCOL_VERSION, seconds };
 }
 
 export function parseCosmetics(raw: unknown): CosmeticsMessage {
@@ -311,42 +308,31 @@ export function parseChatHistory(raw: unknown): ChatLine[] {
   return o.messages.map(asChatLine);
 }
 
-/** An open undo request awaiting the other seat's answer. */
 export type UndoPending = {
-  /** Server-assigned per request; an accept echoes it so a changed request is not applied unseen (#540). Absent from older servers. */
   id?: number;
   from: Seat;
   toTurn: number;
   action: UndoActionInfo | null;
   scope: UndoScope;
   steps: number;
-  /** Asked past a reveal. */
   force: boolean;
   revealReason: string | null;
 };
 
-/** Undo availability pushed by the server (enabled only in unranked rooms). */
 export type UndoState = {
   enabled: boolean;
-  /** Turn of the state an undo would restore right now; null when nothing to undo. */
   targetTurn: number | null;
-  /** The last action, which an undo would take back; null when nothing to undo. */
   action: UndoActionInfo | null;
-  /** Per-scope availability; null from an older server (then only the last action can be undone). */
   options: { action: UndoOption; turn: UndoOption } | null;
-  /** Why nothing can be requested plainly; null when something can. */
   blockedReason: string | null;
   pending: UndoPending | null;
 };
 
-/** Broadcast after an accepted undo. */
 export type UndoApplied = {
   toTurn: number;
-  /** Intent count after the rewind; absent from older servers. */
   toStep?: number;
   by: Seat;
   action: UndoActionInfo | null;
-  /** What went; "action" from older servers. */
   scope: UndoScope;
   steps?: number;
 };
@@ -416,15 +402,11 @@ export function parseUndoApplied(raw: unknown): UndoApplied {
   };
 }
 
-/** Rematch vote after a match ends (unranked rooms). */
 export type RematchState = {
-  /** Over, unranked, and both players still in the room. */
   available: boolean;
   requested: [boolean, boolean];
-  /** That seat's current request carries a different deck for the next game. */
   newDeck: [boolean, boolean];
   declinedBy: Seat | null;
-  /** Both agreed: the loser picks who goes first. */
   chooser: Seat | null;
 };
 

@@ -1,9 +1,7 @@
-/** Meta deck browser (#443): Limitless tournament data from the backend's public /meta endpoints, plus the pure helpers the page uses. */
 import { DECK_NAME_MAX, META_DEFAULT_DAYS, formatDeckRow as formatMetaDeckRow, formatPercent, metaDeckName, ordinal } from "@optcg/deck-analytics/metaFormat";
 import { apiCall, withTimeoutWording } from "../api/http";
 import { createDeckFromInput, listSavedDecks, setSelectedDeckId, type ImportIntoDeckResult, type SavedDeck } from "./storage";
 
-// One copy of the meta-deck text rules for both apps.
 export { DECK_NAME_MAX, META_DEFAULT_DAYS, formatPercent, metaDeckName, ordinal };
 
 export type MetaLeader = {
@@ -81,7 +79,6 @@ export function fetchMetaDecks(
   days: number,
   top8Only: boolean,
   timeoutMs = TIMEOUT_MS,
-  /** Newest lists to ask for; the API's own default (50) when left out. */
   limit?: number,
 ): Promise<MetaDecksResponse> {
   const q = new URLSearchParams({ leader: leaderId, days: String(days), top: top8Only ? "8" : "0" });
@@ -89,36 +86,27 @@ export function fetchMetaDecks(
   return metaJson(`/meta/decks?${q}`, timeoutMs);
 }
 
-/** "1st of 64 · Weekly Cup · Oct 5 · 6-0-0": the duel app's rows also name the event. */
 export function formatDeckRow(deck: MetaDeck): string {
   return formatMetaDeckRow(deck, { event: true });
 }
 
-/** Meta decks list the main deck only; the leader is separate. */
 export function metaDeckCardIds(deck: MetaDeck): string[] {
   return deck.cards.flatMap((c) => Array.from({ length: c.count }, () => c.card_id));
 }
 
-/** Order-independent identity of a list: leader plus the sorted main deck. */
 export function deckSignature(leaderId: string, cardIds: readonly string[]): string {
   return `${leaderId.toUpperCase()}|${[...cardIds].map((c) => c.toUpperCase()).sort().join(",")}`;
 }
 
-/** The saved deck holding exactly this list (same leader and cards), if any. */
 export function findSavedCopy(saved: readonly SavedDeck[], leaderId: string, deck: MetaDeck): SavedDeck | undefined {
   const want = deckSignature(leaderId, metaDeckCardIds(deck));
   return saved.find((d) => deckSignature(d.leaderId, d.cards) === want);
 }
 
-/** Saves the deck's own paste text as a new local deck. */
 export function addMetaDeck(leader: { leaderId: string; name: string }, deck: MetaDeck): ImportIntoDeckResult {
   return createDeckFromInput(metaDeckName(leader.name, leader.leaderId, deck), deck.text);
 }
 
-/**
- * "Play this deck online" (#914): saves the list as a deck unless an identical one is already saved,
- * and makes it the deck the lobby plays with. The caller then opens the lobby.
- */
 export function playMetaDeck(
   leader: { leaderId: string; name: string },
   deck: MetaDeck,
@@ -134,7 +122,6 @@ export function playMetaDeck(
   return { ok: true, deckId: result.deck.id, warnings: result.warnings };
 }
 
-/** Cards grouped by cost for the expanded list ("0", "1", … then everything unpriced). */
 export function groupByCost(cards: readonly MetaCard[]): { cost: string; cards: MetaCard[] }[] {
   const groups = new Map<string, MetaCard[]>();
   for (const c of cards) {

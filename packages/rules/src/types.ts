@@ -18,7 +18,6 @@ export type Phase =
 
 export type CardType = "leader" | "character" | "event" | "stage";
 
-/** Printed card metadata. Executable behavior lives in the ability registry. */
 export interface CardDef {
   id: CardDefId;
   name: string;
@@ -27,20 +26,15 @@ export interface CardDef {
   cost: number;
   power?: number;
   life?: number;
-  /** Printed Counter value; absent when the card has none. */
   counter?: number;
-  /** Events: timing tags present in the printed text. */
   eventTiming?: "main" | "counter";
   imageUrl?: string;
   attribute?: string;
-  /** Printed text excluding the [Trigger] clause (display only). */
   effectText?: string;
-  /** Printed [Trigger] clause (display only). */
   triggerText?: string;
   altArts?: { id: string; label: string; imageUrl: string }[];
   traits?: string[];
   hasTrigger?: boolean;
-  /** `bandai` when verified against the official card list snapshot. */
   dataSource?: "bandai" | "bundled" | "tcgplayer" | "stub";
 }
 
@@ -49,11 +43,8 @@ export interface CardInstance {
   defId: CardDefId;
   rested: boolean;
   attachedDonIds: InstanceId[];
-  /** Characters only: cannot attack until owner's next turn start unless Rush. */
   summoningSick?: boolean;
-  /** Absolute turn number this card entered the field. */
   playedTurn?: number;
-  /** Once-per-turn ability id → absolute turn number of last use. */
   usedAbilities?: Record<string, number>;
   statusLabels?: string[];
 }
@@ -62,7 +53,6 @@ export interface DonInstance {
   id: InstanceId;
   rested: boolean;
   attachedTo: InstanceId | null;
-  /** Stays rested through its owner's next Refresh Phase. */
   noRefresh?: boolean;
 }
 
@@ -74,15 +64,12 @@ export interface BattleState {
   attackerSeat: Seat;
   attackerId: InstanceId;
   target: AttackTarget;
-  /** Instance originally attacked (before Blocker/redirect). */
   originalTargetId?: InstanceId;
   blockerId?: InstanceId;
   /** Kept for client compatibility: always 0 (battle buffs are modifiers). */
   defenderPowerBonus: number;
   attackerPowerBonus: number;
-  /** Remaining damage to deal during the damage step. */
   damageRemaining?: number;
-  /** "Battles your opponent's Character" events were dispatched for this battle. */
   endDispatched?: boolean;
 }
 
@@ -113,7 +100,6 @@ export type ModifierExpiry =
 
 export interface Modifier {
   id: string;
-  /** Seat controlling the effect that created this modifier. */
   sourceSeat: Seat;
   sourceId?: InstanceId;
   target: { kind: "card"; id: InstanceId } | { kind: "player"; seat: Seat };
@@ -129,28 +115,23 @@ export type PendingChoiceKind =
   | "order_effects";
 
 export interface ChoiceOption {
-  /** Opaque handle submitted by clients. */
   id: string;
-  /** Card definition, or "HIDDEN" when the viewer may not see it. */
   defId?: CardDefId;
-  /** Human-readable label for non-card options. */
   label?: string;
   zone?: "leader" | "character" | "stage" | "hand" | "trash" | "deck" | "life" | "don" | "resolving";
   ownerSeat?: Seat;
-  /** Public field instance (never set for hidden-zone cards). */
   instanceId?: InstanceId;
   eligible: boolean;
   rested?: boolean;
 }
 
 export type ChoiceRequest =
-  /** Yes / no. `accept: false` declines. */
   | { type: "confirm" }
   /**
    * Pick between `min` and `max` eligible options. `distinctNames`: no two
    * picks may share a card name ("with different card names").
    */
-  | { type: "select"; min: number; max: number; options: ChoiceOption[]; distinctNames?: true; /** The picks' costs (or powers) must add up to at most this; the engine rejects a larger total (#635). */ totalCostAtMost?: number; totalPowerAtMost?: number }
+  | { type: "select"; min: number; max: number; options: ChoiceOption[]; distinctNames?: true; totalCostAtMost?: number; totalPowerAtMost?: number }
   /** Pick exactly one labeled mode. */
   | { type: "mode"; options: ChoiceOption[] }
   /** Order every option (first = placed first / top-most). */
@@ -169,35 +150,22 @@ export type ChoiceRequest =
       restLabel: string;
     };
 
-/**
- * A queued player decision. The front entry blocks all other intents until
- * resolved via `resolve_pending_choice` (or `order_pending_effects`).
- */
 export interface PendingChoice {
   id: string;
-  /** Resolution frame awaiting this choice (internal; stripped from views). */
   resolutionFrameId?: string;
   seat: Seat;
   kind: PendingChoiceKind;
   cardDefId: CardDefId;
   sourceInstanceId?: InstanceId;
-  /** True when declining (accept: false) is legal. */
   optional: boolean;
   prompt: string;
   request?: ChoiceRequest;
-  /** Seat allowed to see private option identities. */
   privateToSeat?: Seat;
-  /** Hide the source card identity and prompt from every other viewer. */
   hideCardDefFromOthers?: boolean;
-  /** life_trigger: the checked Life card has no [Trigger], so only declining (add to hand) is legal. Owner-only: stripped from every other view. */
   noTrigger?: boolean;
-  /** Optional-cost confirm: the cost depends on hidden cards and cannot be paid, so only declining is legal. Owner-only: stripped from every other view (#369). */
   unpayable?: boolean;
-  /** Public count retained when private options are redacted. */
   optionCount?: number;
-  /** order_effects: the simultaneous abilities to permute. */
   unorderedChoices?: PendingChoice[];
-  /** Internal: option id → card instance / value binding. Stripped from views. */
   bindings?: Record<string, string>;
 }
 
@@ -212,15 +180,12 @@ export interface PlayerState {
   deck: CardDefId[];
   trash: CardDefId[];
   life: CardDefId[];
-  /** Stable internal identities for cards in hidden/public non-field zones. */
   zoneInstanceIds: {
     deck: InstanceId[];
     trash: InstanceId[];
     life: InstanceId[];
   };
-  /** Parallel to `life`: true entries are publicly face-up. */
   faceUpLife: boolean[];
-  /** Cards being resolved (Events, accepted Life Triggers). */
   resolving: CardInstance[];
   donDeck: DonInstance[];
   costArea: DonInstance[];
@@ -228,17 +193,14 @@ export interface PlayerState {
   mulliganDone: boolean;
   turnsStarted: number;
   /**
-   * Instance ids of cards in `hand` that an effect revealed this turn (e.g. "reveal 2 Events from your hand"). They stay face up to
-   * the opponent until the next turn begins or the card leaves the hand (#491). Optional so older saved states still load.
+   * They stay face up to the opponent until the next turn begins or the card leaves the hand. Optional so older saved
+   * states still load.
    */
   revealedHandIds?: string[];
-  /** DON!! cards this player owns in total (10 unless a rule changes it). */
   donTotal?: number;
-  /** What happened this turn, for "during this turn" conditions. Reset when a turn starts. */
   turnLog?: TurnLog;
 }
 
-/** A triggered ability waiting to start resolution. */
 export interface QueuedTrigger {
   id: string;
   seat: Seat;
@@ -246,19 +208,13 @@ export interface QueuedTrigger {
   sourceDefId: CardDefId;
   abilityId: string;
   window: string;
-  /** Card that caused an event trigger (e.g. the K.O.'d Character). */
   eventCardId?: InstanceId;
-  /** Batch number: triggers queued by the same game action share a batch. */
   batch: number;
-  /** Set once the controller has ordered this trigger among simultaneous ones. */
   ordered?: boolean;
-  /** Delayed effect index (the ability's n-th `delay` node) instead of the ability itself. */
   delayIndex?: number;
-  /** Bindings captured by a delayed effect. */
   vars?: Record<string, BindingValue>;
 }
 
-/** Turn/battle procedure continuation, advanced when no effects are pending. */
 export type EngineStep =
   | { kind: "after_attack_triggers" }
   | { kind: "after_block_triggers" }
@@ -277,7 +233,8 @@ export interface MatchState {
   rulesVersion: string;
   protocolVersion: 5;
   registryHash: string;
-  rng: { seed: number; cursor: number };
+  /** `key` (hex) makes the match draw from a keyed stream; it never leaves the server before the game ends. */
+  rng: { seed: number; cursor: number; key?: string };
   players: [PlayerState, PlayerState];
   activeSeat: Seat;
   firstSeat: Seat;
@@ -285,36 +242,30 @@ export interface MatchState {
   turnNumber: number;
   battle: BattleState | null;
   pendingChoices: PendingChoice[];
-  /** Serializable continuations for executing ability programs (stack; last runs). */
   resolutionFrames: ResolutionFrame[];
   triggerQueue: QueuedTrigger[];
   modifiers: Modifier[];
   steps: EngineStep[];
   extraTurns: Seat[];
-  /** One-shot effects scheduled for the end of the current turn. */
   delayed: DelayedEffect[];
   winner: Seat | null;
   winReason: "leader_battle_at_zero_life" | "deck_out" | "card_effect" | null;
   nextId: number;
   triggerBatch: number;
   lastEvents: GameEvent[];
-  /** Every non-Banish Life hit opens a private Life check (#352). Absent/false: legacy flow where only [Trigger] cards pause. */
   lifeCheckEveryHit?: boolean;
   /**
-   * Private choices that hide hand/deck/Life contents from the opponent (#369): optional-cost confirms and hidden-zone
-   * selects are always asked (never skipped or auto-bound), the start-of-game Stage prompt appears for a single eligible
-   * Stage too, and deck instance ids are a random permutation (no decklist or draw order). Absent/false: legacy flow.
+   * Optional-cost confirms and hidden-zone selects are always asked (never skipped or auto-bound), the start-of-game
+   * Stage prompt appears for a single eligible Stage too, and deck instance ids are a random permutation, so no
+   * decklist or draw order leaks. Absent/false: legacy flow.
    */
   privateChoicesV2?: boolean;
 }
 
 export type BindingValue = string | string[] | number | boolean | null;
 
-/** A delayed effect: the `index`-th `delay` node of an ability, run at end of turn / battle. */
 export interface DelayedEffect {
-  /** "opponent_main": at the start of the controller's opponent's next Main Phase. */
   when?: "end_of_turn" | "end_of_battle" | "opponent_main";
-  /** Bindings captured when the delayed effect was created (e.g. the played card). */
   vars?: Record<string, BindingValue>;
   /** The effect acts on "this Character/Stage": it lapses if that card leaves the field (a card that changes zones is a new card). */
   selfBound?: boolean;
@@ -334,17 +285,15 @@ export interface ResolutionFrame {
   sourceDefId: CardDefId;
   abilityId: string;
   window: string;
-  /** Instruction pointer into the compiled program. */
   operationIndex: number;
   bindings: Record<string, BindingValue>;
-  /** Program kind: an ability, or an engine-generated interrupt program. */
   program?: "ability" | "replacement" | "trash_for_space" | "attack_tax";
 }
 
 export type GameEvent =
   | { type: "mulligan_resolved"; seat: Seat; didMulligan: boolean }
   | { type: "phase_changed"; phase: Phase; activeSeat: Seat }
-  | { type: "drew"; seat: Seat; count: number; /** Turn-start draw only: the drawn card, hidden from everyone but the drawer by projectGameEvents. */ defIds?: CardDefId[]; /** True for the Draw Phase draw (not an effect draw). */ turnDraw?: boolean }
+  | { type: "drew"; seat: Seat; count: number; defIds?: CardDefId[]; turnDraw?: boolean }
   | { type: "don_placed"; seat: Seat; count: number }
   | { type: "card_played"; seat: Seat; defId: CardDefId; instanceId: InstanceId; costPaid: number }
   | { type: "stage_replaced"; seat: Seat; trashedDefId: CardDefId }
@@ -384,11 +333,8 @@ export type Intent =
   | {
       type: "resolve_pending_choice";
       accept: boolean;
-      /** Selected option handles (select / look / mode). */
       selectedOptionIds?: string[];
-      /** Every unselected option handle in placement order (order / look). */
       orderedOptionIds?: string[];
-      /** Subset of `orderedOptionIds` placed on top when top-or-bottom is allowed. */
       topOptionIds?: string[];
     }
   | { type: "order_pending_effects"; orderedIds: string[] }
@@ -413,20 +359,19 @@ export interface PlayerDeckConfig {
 
 export interface CreateMatchConfig {
   seed: number;
+  /** 256-bit hex key: shuffles come from a keyed stream the seed cannot reproduce. Absent: seed-only legacy stream. */
+  rngKey?: string;
   firstSeat?: Seat;
   players: [PlayerDeckConfig, PlayerDeckConfig];
-  /** Default true. false keeps the legacy flow (non-[Trigger] Life damage goes to hand without a check), for replaying old games. */
+  /** false keeps the legacy flow (non-[Trigger] Life damage goes to hand without a check), for replaying old games. */
   lifeCheckEveryHit?: boolean;
-  /** Default true. false keeps the legacy private-choice flow (#369), for replaying old games. */
+  /** false keeps the legacy private-choice flow, for replaying old games. */
   privateChoicesV2?: boolean;
 }
 
 export interface TurnLog {
   turn: number;
-  /** Events activated by this player (def ids). */
   events: CardDefId[];
-  /** This player's Characters K.O.'d (def ids). */
   koed: CardDefId[];
-  /** Cards trashed from this player's hand by effects. */
   handTrashed: number;
 }

@@ -14,23 +14,17 @@ export const CARD_TYPE_OPTIONS = CATALOG_TYPE_FILTERS.map((t) => ({ value: t as 
 
 export const COLOR_OPTIONS = [{ value: "", label: "All colors" }, ...COLOR_ORDER.map((c) => ({ value: c as string, label: c }))];
 
-/** Row key for a catalog search result: a card's base row and each of its alt-art rows are distinct. */
 export function catalogRowKey(card: CatalogCardResult): string {
   return `${card.card_id}:${card.alt_product_id ?? 0}`;
 }
 
-/** "Alt art" chip beside the card id on alt-art search rows. Inline, so it never shifts the row. */
 export function AltArtChip({ card }: { card: CatalogCardResult }) {
   return card.alt_product_id ? <span className="alt-art-chip">Alt art</span> : null;
 }
 
-/**
- * Catalog search drawer shared by Collection and Master Shopping: the deck
- * editor's search box + color/type filters + result rows, with the per-row
- * action and an optional extra meta line supplied by the page.
- */
 export function CatalogAddDrawer({
   className,
+  label = "Add cards",
   summary,
   storageKey,
   defaultOpen,
@@ -38,12 +32,23 @@ export function CatalogAddDrawer({
   onScan,
   renderMeta,
   renderAction,
+  bare = false,
+  searchPlaceholder,
+  searchLabel,
+  searchIcon,
 }: {
   className?: string;
+  /** Drawer title (default "Add cards"). */
+  label?: string;
   summary: string;
   storageKey: string;
   defaultOpen: boolean;
   idleHint: string;
+  /** Render just the search and results, with no collapsible bar (for a panel that is already an overlay). */
+  bare?: boolean;
+  searchPlaceholder?: string;
+  searchLabel?: string;
+  searchIcon?: boolean | "search" | "filter";
   onScan?: () => void;
   renderMeta?: (card: CatalogCardResult) => ReactNode;
   renderAction: (card: CatalogCardResult) => ReactNode;
@@ -53,11 +58,10 @@ export function CatalogAddDrawer({
     typeKey: `${storageKey}_card_type`,
   });
 
-  return (
-    <div className={`deck-editor ${className ?? ""}`.trim()}>
-      <CollapsibleDrawer label="Add cards" summary={summary} storageKey={storageKey} defaultOpen={defaultOpen}>
+  const body = (
+    <>
         <div className="deck-editor-filters">
-          <CardSearchInput value={query} onChange={setQuery} />
+          <CardSearchInput value={query} onChange={setQuery} placeholder={searchPlaceholder} label={searchLabel} icon={searchIcon} />
           <div className="deck-editor-filter-row">
             <label className="deck-editor-select">
               <span className="sr-only">Color</span>
@@ -131,6 +135,14 @@ export function CatalogAddDrawer({
             })}
           </ul>
         )}
+    </>
+  );
+
+  if (bare) return <div className={`deck-editor ${className ?? ""}`.trim()}>{body}</div>;
+  return (
+    <div className={`deck-editor ${className ?? ""}`.trim()}>
+      <CollapsibleDrawer label={label} summary={summary} storageKey={storageKey} defaultOpen={defaultOpen}>
+        {body}
       </CollapsibleDrawer>
     </div>
   );

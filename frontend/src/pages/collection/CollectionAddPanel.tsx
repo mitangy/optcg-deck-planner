@@ -5,10 +5,10 @@ import { invalidateOwnedViews } from "./ownedCollection";
 import { OwnedInput } from "../OwnedInputs";
 import { useFullShoppingById } from "../shopping/lightboxActions";
 import { CatalogAddDrawer } from "./CatalogAddDrawer";
+import { HeadPopover } from "../../ui/HeadPopover";
 import { COLLECTION_ADD_OPEN_KEY } from "../../storage/keys";
 import { qk } from "../../cache/queryKeys";
 
-/** "Add" for a card you don't own yet, the Owned stepper once you do. Same footprint either way. */
 export function CollectionOwnedControl({
   cardId,
   owned,
@@ -21,7 +21,6 @@ export function CollectionOwnedControl({
   const qc = useQueryClient();
   const add = useMutation({
     mutationFn: () => api.setOwned(cardId, 1),
-    // Refetch so the new card joins the list with its catalog details and price.
     onSuccess: () => invalidateOwnedViews(qc),
   });
   return (
@@ -44,7 +43,6 @@ export function CollectionOwnedControl({
   );
 }
 
-/** Collection action for an alt-art row: "Add" at 0 owned, else a stepper over that alt's copies. */
 export function CollectionAltControl({ card, onSaved }: { card: CatalogCardResult; onSaved: () => void }) {
   const qc = useQueryClient();
   const productId = card.alt_product_id ?? 0;
@@ -60,7 +58,6 @@ export function CollectionAltControl({ card, onSaved }: { card: CatalogCardResul
   return (
     <span className="collection-owned-control">
       {owned > 0 ? (
-        // Same size as the base card's Owned stepper so rows keep one hit target.
         <span className="shopping-extra-control">
           <button
             type="button"
@@ -100,41 +97,56 @@ export function CollectionAltControl({ card, onSaved }: { card: CatalogCardResul
   );
 }
 
+function PlusIcon() {
+  return (
+    <svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round">
+      <path d="M10 4v12M4 10h12" />
+    </svg>
+  );
+}
+
+/** "Add cards" button in the page head; the catalog search opens over the list like on Shopping (#1342). */
 export function CollectionAddPanel({
   ownedById,
-  defaultOpen,
   onScan,
   onOwnedSaved,
 }: {
   ownedById: Map<string, number>;
-  defaultOpen: boolean;
   onScan: () => void;
   onOwnedSaved: () => void;
 }) {
   const shoppingById = useFullShoppingById(useSavedShoppingDeckIds());
   return (
-    <CatalogAddDrawer
-      className="collection-add"
-      summary="Search the catalog or scan a card"
-      storageKey={COLLECTION_ADD_OPEN_KEY}
-      defaultOpen={defaultOpen}
-      idleHint="Search the catalog by name or ID to add cards"
-      onScan={onScan}
-      renderMeta={(card) => {
-        const buying = shoppingById.get(card.card_id)?.still_need ?? 0;
-        return buying > 0 ? `Buying ${buying}` : null;
-      }}
-      renderAction={(card) =>
-        card.alt_product_id ? (
-          <CollectionAltControl card={card} onSaved={onOwnedSaved} />
-        ) : (
-          <CollectionOwnedControl
-            cardId={card.card_id}
-            owned={ownedById.get(card.card_id) ?? 0}
-            onSaved={onOwnedSaved}
-          />
-        )
-      }
-    />
+    <HeadPopover label="Add cards" icon={<PlusIcon />} className="btn secondary add-cards-btn" panelLabel="Add cards to your collection" width={600}>
+      {(close: () => void) => (
+        <CatalogAddDrawer
+          bare
+          className="collection-add"
+          summary=""
+          // The key only prefixes the remembered colour and card type.
+          storageKey={COLLECTION_ADD_OPEN_KEY}
+          defaultOpen
+          idleHint="Search the catalog by name or ID to add cards"
+          searchPlaceholder="Add a card from the catalog"
+          searchLabel="Add a card from the catalog"
+          searchIcon="search"
+          onScan={() => {
+            close();
+            onScan();
+          }}
+          renderMeta={(card) => {
+            const buying = shoppingById.get(card.card_id)?.still_need ?? 0;
+            return buying > 0 ? `Buying ${buying}` : null;
+          }}
+          renderAction={(card) =>
+            card.alt_product_id ? (
+              <CollectionAltControl card={card} onSaved={onOwnedSaved} />
+            ) : (
+              <CollectionOwnedControl cardId={card.card_id} owned={ownedById.get(card.card_id) ?? 0} onSaved={onOwnedSaved} />
+            )
+          }
+        />
+      )}
+    </HeadPopover>
   );
 }

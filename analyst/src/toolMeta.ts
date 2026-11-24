@@ -29,15 +29,11 @@ import {
   type ToolContent,
 } from "./sources";
 
-/** The SSE event a tool's answer is also sent to the app as, for the tools the app acts on (a card to apply, a plan to play). */
-export type ClientActionName = "proposal" | "deck_draft" | "plan" | "choice";
+export type ClientActionName = "proposal" | "deck_draft" | "card_list" | "plan" | "choice";
 
 type ToolMeta = {
-  /** The status line while the tool runs. */
   status: string;
-  /** Turns the tool's answer into citable sources; none keeps the plain text. */
   sources?: SourceAdapter;
-  /** Set when the app acts on the answer: the tool loop hands it to the matching `ClientActions` handler (see rounds.ts). */
   action?: ClientActionName;
 };
 
@@ -69,16 +65,15 @@ export const TOOL_META = {
   my_lessons: { status: "Reading your lessons", sources: lessonsAdapter },
   propose_deck_edit: { status: "Checking the suggested change", sources: proposalAdapter, action: "proposal" },
   propose_new_deck: { status: "Checking the new deck", sources: newDeckAdapter, action: "deck_draft" },
+  show_cards: { status: "Listing the cards", action: "card_list" },
   propose_turn_plan: { status: "Checking the turn plan", action: "plan" },
   answer_choice: { status: "Answering the prompt", action: "choice" },
 } satisfies Record<string, ToolMeta>;
 
 export type ToolName = keyof typeof TOOL_META;
 
-/** The status line and citation adapter of a tool. */
 export const metaFor = (name: ToolName): ToolMeta => TOOL_META[name];
 
-/** A tool's answer value as citable tool_result content, or null to keep the plain text. */
 export function adaptToolResult(tool: ToolName, value: unknown): ToolContent[] | null {
   return adaptValue((TOOL_META[tool] as ToolMeta).sources, tool, value);
 }

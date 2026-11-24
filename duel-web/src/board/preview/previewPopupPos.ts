@@ -2,13 +2,10 @@ export type PopupPos = { x: number; y: number };
 export type PopupSize = { width: number; height: number };
 export type Rect = { left: number; top: number; right: number; bottom: number };
 
-/** Space kept between the pop-up and the card it steps aside from. */
 export const POPUP_DODGE_GAP = 12;
 
-/** Keep the card preview pop-up this far inside the window edge. */
 export const POPUP_EDGE = 8;
 
-/** The saved `previewPopupPos` ("x,y" px of the pop-up's top-left); "" or anything unreadable is the default spot (null). */
 export function parsePreviewPopupPos(s: string): PopupPos | null {
   const [x, y, ...rest] = s.split(",");
   if (y === undefined || rest.length > 0 || !x.trim() || !y.trim()) return null;
@@ -20,10 +17,6 @@ export function serializePreviewPopupPos(pos: PopupPos): string {
   return `${Math.round(pos.x)},${Math.round(pos.y)}`;
 }
 
-/**
- * Keep the whole pop-up on screen (POPUP_EDGE from each side). A pop-up bigger
- * than the window keeps its top-left corner on screen.
- */
 export function clampPreviewPopupPos(pos: PopupPos, size: PopupSize, view: { width: number; height: number }): PopupPos {
   const clamp = (v: number, hi: number) => Math.max(POPUP_EDGE, Math.min(v, hi));
   return {
@@ -32,13 +25,7 @@ export function clampPreviewPopupPos(pos: PopupPos, size: PopupSize, view: { wid
   };
 }
 
-/**
- * Step the pop-up sideways off the card being hovered (#583): it sits above the
- * play area now, so over that card it would catch the pointer and the card could
- * not be clicked. Not touching the card (with POPUP_DODGE_GAP around it) leaves
- * it where it is. Otherwise it goes left of the card if that fits, else right,
- * else to the side with more room, keeping its height.
- */
+// It sits above the play area, so over the hovered card it would catch the pointer and the card could not be clicked.
 export function dodgePreviewPopup(pos: PopupPos, size: PopupSize, anchor: Rect, view: { width: number; height: number }): PopupPos {
   const g = POPUP_DODGE_GAP;
   const hits =
@@ -54,4 +41,34 @@ export function dodgePreviewPopup(pos: PopupPos, size: PopupSize, anchor: Rect, 
   else if (right + size.width <= view.width - POPUP_EDGE) x = right;
   else x = anchor.left - POPUP_EDGE >= view.width - POPUP_EDGE - anchor.right ? left : right;
   return clampPreviewPopupPos({ x, y: pos.y }, size, view);
+}
+
+export const POPUP_AVOID_GAP = 8;
+
+const overlaps = (p: PopupPos, size: PopupSize, r: Rect, gap: number) =>
+  p.x < r.right + gap && p.x + size.width > r.left - gap && p.y < r.bottom + gap && p.y + size.height > r.top - gap;
+
+// The pop-up never covers the action button (End turn, Keep opening hand): it steps to the nearest spot clear of the dock, and of the hovered card too where there is room for both (#1343).
+export function placePreviewPopup(
+  pos: PopupPos,
+  size: PopupSize,
+  anchor: Rect | null,
+  view: { width: number; height: number },
+  avoid: Rect[],
+): PopupPos {
+  const first = anchor ? dodgePreviewPopup(pos, size, anchor, view) : pos;
+  const hitsDock = (p: PopupPos) => avoid.some((r) => overlaps(p, size, r, POPUP_AVOID_GAP));
+  if (!hitsDock(first)) return first;
+  const g = POPUP_AVOID_GAP;
+  const candidates = avoid.flatMap((r) => [
+    { x: r.left - g - size.width, y: first.y },
+    { x: r.right + g, y: first.y },
+    { x: first.x, y: r.top - g - size.height },
+    { x: first.x, y: r.bottom + g },
+  ]).map((c) => clampPreviewPopupPos(c, size, view));
+  const clear = candidates.filter((c) => !hitsDock(c));
+  const clearOfCard = anchor ? clear.filter((c) => !overlaps(c, size, anchor, POPUP_DODGE_GAP)) : clear;
+  const pool = clearOfCard.length > 0 ? clearOfCard : clear;
+  const dist = (c: PopupPos) => Math.abs(c.x - first.x) + Math.abs(c.y - first.y);
+  return pool.reduce<PopupPos>((best, c) => (dist(c) < dist(best) ? c : best), pool[0] ?? first);
 }

@@ -1,8 +1,3 @@
-/**
- * Alt arts in every card list (#877): desktop tables give them their own last column (like group buys),
- * grid cards in a row are as tall as the tallest one, and a card with many alts shows about five tiles
- * and scrolls the rest inside its own box. Runs at desktop-1200 and phone-375.
- */
 import type { Locator, Page } from "@playwright/test";
 import { expect, formatIssues, test, GROUP_BUY_ID } from "./fixtures";
 
@@ -54,7 +49,6 @@ for (const list of LISTS) {
     expect(izo.tilesInAltCell).toBeGreaterThan(0);
     expect(izo.tilesInCardCell).toBe(0);
     expect(izo.altLeft).toBeGreaterThanOrEqual(izo.cardRight);
-    // A card without alts still gets the cell (a dash), so the column stays aligned down the table.
     const plain = geometry.rows.find((r) => !r.text.includes(IZO))!;
     expect(plain.lastIsAlt).toBe(true);
     expect(plain.tilesInAltCell).toBe(0);
@@ -85,14 +79,12 @@ for (const list of LISTS) {
     expect(izoRow.length).toBeGreaterThan(1);
     const tallest = Math.max(...izoRow.map((c) => c.height));
     for (const c of izoRow) expect(c.height).toBeCloseTo(tallest, 0);
-    // Izo's alt tiles make it the tall one; a neighbour without alts really was stretched (empty space under its content).
     expect(izoRow.some((c) => c.slack > 40)).toBe(true);
     const issues = await planner.audit();
     expect(issues, formatIssues(issues)).toEqual([]);
   });
 }
 
-/** What the alt box of the first matching card shows: tiles fully in view, whether it scrolls, and whether the last tile is reachable. */
 async function altBox(card: Locator) {
   const box = card.locator(".alt-arts").first();
   await expect(box).toBeVisible();
@@ -125,6 +117,13 @@ async function altBox(card: Locator) {
 }
 
 type Case = { name: string; path: string; card: (page: Page) => Locator; layout: "List" | "Grid" };
+
+// Phone Grid tiles fold their alts behind a chip (#1342): open every folded tray.
+async function openFoldedAlts(page: Page) {
+  const folded = page.locator('.alt-chip[aria-expanded="false"]:visible');
+  for (let i = 0; i < 12 && (await folded.count()) > 0; i++) await folded.first().click();
+}
+
 const byText = (page: Page, selector: string, text: string) => page.locator(selector).filter({ hasText: text });
 const SCROLL_CASES: Case[] = [
   { name: "deck list", path: "/decks/1", card: (p) => p.locator(`[data-card-id="${IZO}"]:visible`), layout: "List" },
@@ -140,15 +139,15 @@ for (const c of SCROLL_CASES) {
     planner.manyAlts(IZO, 8);
     await planner.open(c.path);
     await setLayout(page, c.layout);
+    if (c.layout === "Grid") await openFoldedAlts(page);
     const phoneList = testInfo.project.name === "phone-375" && c.layout === "List";
     const box = await altBox(c.card(page));
-    // Izo's 8 alts + the one in the fixture + the Base tile.
     expect(box.tiles).toBe(10);
     expect(box.scrolls).toBe(true);
     expect(box.overflowY).toBe("auto");
     expect(box.noSideways).toBe(true);
-    // Desktop table and grid stack one tile per row: five visible. The phone list fits two per row: three rows.
     if (phoneList) expect(box.before.rows).toBe(3);
+    else if (testInfo.project.name === "phone-375") expect([4, 5]).toContain(box.before.count); // 12px text makes the narrow phone tiles taller
     else expect(box.before.count).toBe(5);
     expect(box.lastReachable).toBe(true);
   });
@@ -162,7 +161,6 @@ test("group buy: a card with many alts shows about five tiles, then the alt box 
     await setLayout(page, layout);
     const card = byText(page, layout === "Grid" ? ".grid-card:visible" : ".desktop-table tbody tr:visible, .mobile-card:visible", KID);
     const box = await altBox(card);
-    // Kid's 8 alts + the Base tile.
     expect(box.tiles).toBe(9);
     expect(box.scrolls).toBe(true);
     expect(box.overflowY).toBe("auto");
@@ -181,7 +179,8 @@ for (const list of LISTS) {
       await page.setViewportSize({ width, height: 900 });
       await planner.open(list.path);
       const table = page.locator(".desktop-table");
-      await expect(table.locator("thead th").last()).toHaveText("Alt arts");
+      if (width < 1600) await expect(table.locator("thead th").last()).toHaveText("Alt arts");
+      else await expect(table.locator("tr.alt-strip-row").first()).toBeVisible();
       const fit = await table.evaluate((w) => ({ scroll: w.scrollWidth, client: w.clientWidth }));
       expect(fit.scroll, `${list.name} at ${width}px`).toBeLessThanOrEqual(fit.client);
     }

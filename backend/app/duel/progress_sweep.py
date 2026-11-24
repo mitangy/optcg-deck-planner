@@ -26,7 +26,6 @@ from app.analyst.tournament_sync import sync_loop
 
 log = logging.getLogger("uvicorn.error")
 
-# A live game sends a snapshot every turn; this long without one means nobody is running it.
 IDLE_AFTER_S = 30 * 60
 SWEEP_INTERVAL_S = 10 * 60
 FIRST_RUN_DELAY_S = 90
@@ -34,7 +33,6 @@ BATCH = 200
 
 
 def sweep_idle_progress(r, db: Session, now: datetime | None = None, idle_after_s: float = IDLE_AFTER_S) -> int:
-    """Save idle live snapshots to Postgres as open rows and drop the Redis copy. Returns how many were saved."""
     # The match lock and result check are the ingest route's own, so a result and a sweep cannot interleave.
     now = now or datetime.now(timezone.utc)
     saved = 0
@@ -58,14 +56,12 @@ def sweep_idle_progress(r, db: Session, now: datetime | None = None, idle_after_
             row.closed = False
             row.updated_at = live.updated_at
             saved += 1
-        # Finished games and snapshots of deleted accounts have nowhere to go; the live copy just goes.
         db.commit()
         duel_live.delete_progress(r, match_id, users)
     return saved
 
 
 def run_once() -> int | None:
-    """One sweep, or None when Redis is off or another API worker is already sweeping."""
     from app.core.db import PROGRESS_SWEEP_LOCK_KEY, SessionLocal, try_advisory_lock
 
     r = redis_client.get_redis()
@@ -77,7 +73,6 @@ def run_once() -> int | None:
         redis_client.report_failure("progress sweep")
         return None
     if not idle:
-        # Nothing to save: leave Postgres alone so Neon can scale to zero between games.
         return 0
     lock = try_advisory_lock(PROGRESS_SWEEP_LOCK_KEY)
     if lock is None:
@@ -97,7 +92,6 @@ def run_once() -> int | None:
 
 
 def start_background(settings) -> asyncio.Task | None:
-    """The sweep task when REDIS_URL is set (without Redis nothing lives outside Postgres), else None."""
     if not settings.redis_url.strip():
         return None
     return asyncio.create_task(sync_loop(run_once, first_delay=FIRST_RUN_DELAY_S, interval=SWEEP_INTERVAL_S))

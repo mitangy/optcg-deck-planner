@@ -1,10 +1,3 @@
-/**
- * A player's own games and decks, read from the planner API with their personal connector token.
- * Full replays need the analyst's service secret too; they are re-run here and narrated from the
- * player's seat. Each turn lists the player's own hand after the draw and both boards (public). The opponent's hand and
- * opening hand are named only once the game is over (the History page reveals them then too); the
- * player could not see them while it was being played.
- */
 import {
   describeEvents,
   getCardDef,
@@ -29,7 +22,6 @@ export class PlannerApiError extends Error {
   }
 }
 
-/** A planner API call: the player's token (when given), the service secret (when asked), JSON in and out. */
 export async function plannerCall<T>(api: PlannerApi, token: string | null, path: string, service = false, body?: unknown, method?: "PUT"): Promise<T> {
   const headers: Record<string, string> = {};
   if (token !== null) headers["X-Analyst-Token"] = token;
@@ -55,7 +47,6 @@ export async function plannerCall<T>(api: PlannerApi, token: string | null, path
   return (await res.json()) as T;
 }
 
-/** True when the planner still knows this personal token. */
 export async function tokenIsValid(api: PlannerApi, token: string): Promise<boolean> {
   try {
     await plannerCall(api, token, "/analyst/me");
@@ -106,7 +97,6 @@ export async function listMyDecks(api: PlannerApi, token: string): Promise<Plann
   return (await plannerCall<{ decks: PlannerDeck[] }>(api, token, "/analyst/decks")).decks;
 }
 
-/** An imported OPTCGSim game as the planner lists it (no combat log, no player names). */
 export type SimGameRow = {
   id: string;
   played_at: string | null;
@@ -143,20 +133,16 @@ export type NarrateOptions = {
   fromTurn?: number;
   toTurn?: number;
   maxLines?: number;
-  /** Add the viewer's estimated win chance at each turn start, and mark the biggest swings (reviews of finished games only; #635). */
   winChance?: boolean;
 };
 
-/** A turn start's estimated win chance for the viewer, from bot simulations. */
 export type WinChancePoint = { turn: number; winChance: number; change: number | null };
 
-/** Swings at least this many percentage points count as turning points; at most SWING_COUNT are marked. */
 export const SWING_MIN_POINTS = 8;
 export const SWING_COUNT = 3;
 
 const pctOf = (p: number) => Math.round(p * 100);
 
-/** Turns where the estimate moved most (either way) since the previous turn start, biggest first. */
 export function biggestSwings(points: WinChancePoint[]): WinChancePoint[] {
   return points
     .filter((p) => p.change !== null && Math.abs(p.change) >= SWING_MIN_POINTS)
@@ -170,13 +156,10 @@ type Narration = {
   openingHands: [(string | null)[], (string | null)[]];
   final: ReturnType<typeof replayMatch>;
   divergedAt: string | null;
-  /** Every card id that sat in a visible zone (leader, board, trash, hand of the viewer) at a turn snapshot. */
   seenCardIds: string[];
-  /** The viewer's estimated win chance at each turn start (empty unless asked for). */
   winChances: WinChancePoint[];
 };
 
-/** Lines kept in a narrated game unless the caller asks for another limit. */
 export const DEFAULT_MAX_LINES = 600;
 
 /** A deck as id, name and copies, sorted by card number so the list is stable. */
@@ -186,7 +169,6 @@ const deckList = (ids: string[]) => {
   return [...n].sort(([a], [b]) => a.localeCompare(b)).map(([id, copies]) => ({ id, name: cardName(id), copies }));
 };
 
-/** A hand card's name, with its counter value when it has one (the model has no card lookup in a review). */
 const handCardName = (id: string) => {
   const name = cardName(id);
   try {
@@ -197,7 +179,6 @@ const handCardName = (id: string) => {
   }
 };
 
-/** One side's public board on a single line: Leader, Characters, Stage, then the counts. */
 function boardLine(state: MatchState, seat: Seat, label: string): string {
   const p = state.players[seat];
   const piece = (c: CardInstance) =>
@@ -213,17 +194,9 @@ function boardLine(state: MatchState, seat: Seat, label: string): string {
   );
 }
 
-/**
- * Re-run a game and describe it turn by turn. With a seat, only what that seat could see is named
- * and lines say "you" and "opponent"; with view null (corpus games) every card is named and the
- * seats are Player A (seat 0) and Player B (seat 1). Each turn lists the hand(s) after the draw; with a
- * seat the opponent's hand is listed only when revealOpponent is set (a finished game).
- */
 function narrate(replay: MatchReplay, view: Seat | null, opts: NarrateOptions, revealOpponent = false): Narration {
-  // The estimate looks at the whole position, so it is given only for a seat's view of a finished game.
   const wantChance = view !== null && opts.winChance === true && revealOpponent;
   const winChances: WinChancePoint[] = [];
-  /** Index in `lines` just after each turn's hand and board lines, so swing notes can be placed there. */
   const chanceAt = new Map<number, number>();
   const fromTurn = opts.fromTurn ?? 1;
   const toTurn = opts.toTurn ?? Number.POSITIVE_INFINITY;
@@ -301,7 +274,6 @@ function narrate(replay: MatchReplay, view: Seat | null, opts: NarrateOptions, r
       const events = view === null ? step.events : projectGameEvents(step.events, view);
       for (const event of events) {
         if (event.type === "phase_changed") {
-          // The engine starts every turn (extra turns included) with a refresh phase and counts it.
           if (event.phase === "refresh") {
             turn += 1;
             active = event.activeSeat;
@@ -316,17 +288,14 @@ function narrate(replay: MatchReplay, view: Seat | null, opts: NarrateOptions, r
         if (turn < fromTurn || turn > toTurn) continue;
         for (const line of describeEvents([event])) push(label(line));
       }
-      // The step that opens a turn ends in its main phase, with the draw done: that is the hand to list.
       if (started) for (const line of handLines(step.state)) push(line);
       if (opened) noteChance(step.state, turn);
     });
   } catch (err) {
     divergedAt = err instanceof Error ? err.message : String(err);
-    // A replay that throws leaves `final` unassigned: report the last state that was reached.
     final = lastGood;
   }
   noteSeen(final);
-  // Turning points: a note after the estimate line of each of the biggest swings, placed from the back so earlier indexes hold.
   const swings = biggestSwings(winChances);
   for (const w of [...swings].sort((a, b) => b.turn - a.turn)) {
     const at = chanceAt.get(w.turn);
@@ -343,9 +312,7 @@ const narrationNotes = (n: Narration, maxLines: number | undefined, first: strin
   ...(n.truncated ? [`Log cut at ${maxLines ?? DEFAULT_MAX_LINES} lines; ask for a turn range with fromTurn/toTurn.`] : []),
 ];
 
-/** The game as a turn-by-turn log seen from one seat: your hidden cards named, the opponent's not. */
 export function narrateReplay(replay: MatchReplay, seat: Seat, opts: NarrateOptions = {}) {
-  // Same rule as the History page: the opponent's hand is shown for finished games only.
   const revealed = replay.end !== undefined && replay.end !== null;
   const n = narrate(replay, seat, opts, revealed);
   const you = n.final.players[seat];
@@ -358,7 +325,6 @@ export function narrateReplay(replay: MatchReplay, seat: Seat, opts: NarrateOpti
     yourLeaderId: replay.players[seat].leaderId,
     opponentLeaderId: replay.players[(1 - seat) as Seat].leaderId,
     yourDeck: deckList(replay.players[seat].deck),
-    // The deck list is hidden information until the game is over, like the hand.
     ...(revealed ? { opponentDeck: deckList(replay.players[(1 - seat) as Seat].deck) } : {}),
     cardsInGame: n.seenCardIds,
     yourOpeningHand: n.openingHands[seat],
@@ -393,7 +359,6 @@ export function narrateReplay(replay: MatchReplay, seat: Seat, opts: NarrateOpti
   };
 }
 
-/** A corpus game with every card named, its seats as Player A and Player B. */
 export function narrateGame(replay: MatchReplay, opts: NarrateOptions = {}) {
   const n = narrate(replay, null, opts);
   const sideState = (s: Seat) => {
@@ -424,7 +389,6 @@ export async function reviewMatch(api: PlannerApi, token: string, matchId: strin
   return reviewGame(body.match_id, body.replay, body.your_seat as Seat, opts);
 }
 
-/** The game a review reads, from a raw replay and the reviewed seat (no planner API). Carries the win chance per turn and marks the biggest swings (#635). */
 export function reviewGame(matchId: string, replay: MatchReplay, seat: Seat, opts: NarrateOptions = {}) {
   return { matchId, ...narrateReplay(replay, seat, { winChance: true, ...opts }) };
 }
@@ -433,7 +397,6 @@ export type ReviewGame = ReturnType<typeof reviewGame>;
 
 export type StatsQuery = { leader?: string; opponent?: string; days?: number; rankedOnly?: boolean };
 
-/** Leader and matchup win rates from recorded duels (aggregates only), named for reading. */
 export async function matchupStats(api: PlannerApi, q: StatsQuery) {
   if (!api.serviceSecret) throw new Error("Match stats aren't set up on this server (ANALYST_SERVICE_SECRET is unset).");
   const params = new URLSearchParams();
@@ -459,7 +422,6 @@ export function withCardNames(value: unknown, skip: readonly string[] = []): unk
 
 export type TournamentQuery = { leader?: string; opponent?: string; days?: number; minPlayers?: number };
 
-/** Leader and matchup results from Limitless TCG tournaments (aggregates and top lists, no player names), named for reading. */
 export async function tournamentStats(api: PlannerApi, q: TournamentQuery) {
   if (!api.serviceSecret) throw new Error("Tournament stats aren't set up on this server (ANALYST_SERVICE_SECRET is unset).");
   const params = new URLSearchParams();
@@ -468,7 +430,6 @@ export async function tournamentStats(api: PlannerApi, q: TournamentQuery) {
   if (q.days) params.set("days", String(q.days));
   if (q.minPlayers) params.set("min_players", String(q.minPlayers));
   const stats = await plannerCall<Record<string, unknown>>(api, null, `/analyst/tournaments/stats?${params}`, true);
-  // Events have ids of their own (not card numbers).
   return withCardNames(stats, ["events", "top_placings"]);
 }
 
@@ -500,7 +461,6 @@ export type CorpusQuery = {
 
 type CorpusSide = { leader: string; won: boolean; went_first: boolean | null; rating_band: string | null };
 
-/** Every shared game on optcgduel.app matching the filters, anonymized (opaque game ids, sides A and B). */
 export async function searchGames(api: PlannerApi, q: CorpusQuery) {
   if (!api.serviceSecret) throw new Error("The game archive isn't set up on this server (ANALYST_SERVICE_SECRET is unset).");
   const params = new URLSearchParams();
@@ -524,10 +484,8 @@ export async function searchGames(api: PlannerApi, q: CorpusQuery) {
   return { ...body, games: body.games.map((g) => ({ ...g, A: named(g.A), B: named(g.B) })) };
 }
 
-/** Bot self-play games have ids like b_...; player games in the archive g_.... */
 export const isBotGameId = (id: string): boolean => id.startsWith("b_");
 
-/** One corpus game replayed with every card named. */
 export async function replayGame(api: PlannerApi, gameId: string, opts: NarrateOptions = {}) {
   if (!api.serviceSecret) throw new Error("The game archive isn't set up on this server (ANALYST_SERVICE_SECRET is unset).");
   if (isBotGameId(gameId)) return replayBotGame(api, gameId, opts);
@@ -540,11 +498,8 @@ export async function replayGame(api: PlannerApi, gameId: string, opts: NarrateO
   return { gameId: body.game_id, date: body.date, ranked: body.ranked, ratingBands: body.rating_bands, ...narrateGame(body.replay, opts) };
 }
 
-// ——— bot self-play games and simulated stats (#635) ———
-
 const titleCase = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
 
-/** "bot game (Hard vs Hard self-play)" from a levels string like "hard/hard". */
 export function botLabel(levels?: string | null): string {
   const [a, b] = (levels ?? "").split("/");
   return a && b ? `bot game (${titleCase(a)} vs ${titleCase(b)} self-play)` : "bot game (self-play)";
@@ -554,7 +509,6 @@ export type BotCorpusQuery = Omit<CorpusQuery, "rankedOnly" | "days"> & { levels
 
 type BotSide = { leader: string; won: boolean | null; went_first: boolean | null };
 
-/** Bot self-play games on the engine matching the filters (ids b_...), labelled as bot games. */
 export async function searchBotGames(api: PlannerApi, q: BotCorpusQuery) {
   if (!api.serviceSecret) throw new Error("The bot game archive isn't set up on this server (ANALYST_SERVICE_SECRET is unset).");
   const params = new URLSearchParams();
@@ -575,7 +529,6 @@ export async function searchBotGames(api: PlannerApi, q: BotCorpusQuery) {
 
 export type MatchSource = "players" | "bots" | "both";
 
-/** search_matches over player games (default), bot games, or both side by side (limit and offset apply to each). */
 export async function searchAnyGames(api: PlannerApi, q: CorpusQuery & { source?: MatchSource; levels?: string }) {
   const source = q.source ?? "players";
   if (source === "players") return searchGames(api, q);
@@ -593,7 +546,6 @@ export async function searchAnyGames(api: PlannerApi, q: CorpusQuery & { source?
   };
 }
 
-/** One bot self-play game replayed with every card named: bots have no hidden information to protect. */
 export async function replayBotGame(api: PlannerApi, gameId: string, opts: NarrateOptions = {}) {
   if (!api.serviceSecret) throw new Error("The bot game archive isn't set up on this server (ANALYST_SERVICE_SECRET is unset).");
   const body = await plannerCall<{ game_id: string; date: string | null; levels: string; rules_version: string; replay: MatchReplay }>(
@@ -618,9 +570,49 @@ export type SimQuery = { leader?: string; opponent?: string; levels?: string; da
 
 const ID = "[A-Z]{2,4}\\d{2}-\\d{3}|P-\\d{3}";
 
-/** A simulated line in words, with card names: "optional_accepted:OP08-058" is the "you may" effect of that card, accepted. */
+const named = (id: string) => `${cardName(id) ?? id} (${id})`;
+
+/** A line kind this code does not know: never the raw key, the kind in words and any card ids in it named. */
+function humanizedLine(line: string): string {
+  const i = line.indexOf(":");
+  const kind = (i < 0 ? line : line.slice(0, i)).replace(/_/g, " ");
+  const ids = [...new Set(i < 0 ? [] : line.slice(i + 1).match(new RegExp(ID, "g")) ?? [])];
+  return ids.length ? `${kind}: ${ids.map(named).join(", ")}` : kind;
+}
+
+/** A line as a gerund phrase for a sentence ("accepting the optional effect of Nami (OP01-016)"), never a raw key (#1408). */
+export function linePhrase(line: string): string {
+  const i = line.indexOf(":");
+  const kind = i < 0 ? line : line.slice(0, i);
+  const rest = i < 0 ? "" : line.slice(i + 1);
+  const hasRest = i >= 0;
+  switch (kind) {
+    case "leader_activation":
+      return "using the Leader's Activate: Main";
+    case "activation":
+      return hasRest ? `using the Activate: Main of ${named(rest)}` : humanizedLine(line);
+    case "optional_accepted":
+      return hasRest ? `accepting the optional effect of ${named(rest)}` : humanizedLine(line);
+    case "optional_declined":
+      return hasRest ? `declining the optional effect of ${named(rest)}` : humanizedLine(line);
+    case "counter_event":
+      return hasRest ? `playing the Counter Event ${named(rest)}` : "playing a Counter Event";
+    case "cheat_out": {
+      const generic = "putting a Character into play with an effect instead of from hand";
+      if (!hasRest) return generic;
+      const m = new RegExp(`^(${ID}) via (${ID}|rules)$`).exec(rest);
+      if (m) return `putting ${named(m[1]!)} into play ${m[2] === "rules" ? "through the rules" : `with the effect of ${named(m[2]!)}`} instead of from hand`;
+      const ids = [...new Set(rest.match(new RegExp(ID, "g")) ?? [])];
+      return ids.length ? `${generic}: ${ids.map(named).join(", ")}` : generic;
+    }
+    case "main_event":
+      return hasRest ? `playing the Event ${named(rest)}` : humanizedLine(line);
+    default:
+      return humanizedLine(line);
+  }
+}
+
 export function lineDescription(line: string): string {
-  const named = (id: string) => `${cardName(id) ?? id} (${id})`;
   const [kind, rest = ""] = [line.split(":")[0]!, line.slice(line.indexOf(":") + 1)];
   const hasRest = line.includes(":");
   switch (kind) {
@@ -642,11 +634,10 @@ export function lineDescription(line: string): string {
     case "main_event":
       return `[Main] Event ${named(rest)} played`;
     default:
-      return line;
+      return humanizedLine(line);
   }
 }
 
-/** Simulated matchup win rates and line stats from bot self-play, named for reading. */
 export async function simStats(api: PlannerApi, q: SimQuery) {
   if (!api.serviceSecret) throw new Error("Simulated stats aren't set up on this server (ANALYST_SERVICE_SECRET is unset).");
   const params = new URLSearchParams();

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { money } from "../api";
 import { CardThumb } from "../ui/CardThumb";
@@ -16,21 +16,39 @@ type TrayProps = {
   onLines: (next: TrayLine[]) => void;
   message: string;
   onMessage: (next: string) => void;
-  /** Set while answering an offer from this friend: Send becomes a counter. */
   counterId: number | null;
   onClear: () => void;
+  onAddGive: () => void;
 };
 
-/** The offer being built. Fixed to the bottom of the screen so adding cards never moves the page. */
+const SHORT_VIEWPORT = "(max-height: 500px)";
+
+function useShortViewport(): boolean {
+  const query = () => (typeof window !== "undefined" && typeof window.matchMedia === "function" ? window.matchMedia(SHORT_VIEWPORT) : null);
+  const [short, setShort] = useState(() => query()?.matches ?? false);
+  useEffect(() => {
+    const mq = query();
+    if (!mq) return;
+    const on = () => setShort(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+  return short;
+}
+
 export function TradeTray(props: TrayProps) {
   if (props.lines.length === 0 && props.counterId == null) return null;
   return <TrayInner {...props} />;
 }
 
-function TrayInner({ friendId, username, lines, onLines, message, onMessage, counterId, onClear }: TrayProps) {
+function TrayInner({ friendId, username, lines, onLines, message, onMessage, counterId, onClear, onAddGive }: TrayProps) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
+  const short = useShortViewport();
+  const showMessage = !short || messageOpen || message.trim() !== "";
   const { capFor } = useFriendSpares(friendId);
   const totals = trayTotals(lines);
   const send = useMutation({
@@ -57,7 +75,17 @@ function TrayInner({ friendId, username, lines, onLines, message, onMessage, cou
           {title} <span className="muted">{side === "give" ? money(totals.giveValue) : money(totals.getValue)}</span>
         </h3>
         {rows.length === 0 ? (
-          <p className="muted tray-none">Nothing</p>
+          <>
+            <p className="muted tray-none">Nothing</p>
+            {side === "give" && (
+              <button type="button" className="btn secondary compact tray-add-give" onClick={() => {
+                  setOpen(false);
+                  onAddGive();
+                }}>
+                Add cards you give
+              </button>
+            )}
+          </>
         ) : (
           <ul className="tray-lines">
             {rows.map((l) => {
@@ -90,10 +118,16 @@ function TrayInner({ friendId, username, lines, onLines, message, onMessage, cou
             {group("give", "You give")}
             {group("get", "You get")}
           </div>
-          <label className="friend-field">
-            <span>Message (optional)</span>
-            <textarea value={message} maxLength={500} rows={2} placeholder={`Say hi to ${username}`} onChange={(e) => onMessage(e.target.value)} />
-          </label>
+          {showMessage ? (
+            <label className="friend-field">
+              <span>Message (optional)</span>
+              <textarea value={message} maxLength={500} rows={2} placeholder={`Say hi to ${username}`} onChange={(e) => onMessage(e.target.value)} />
+            </label>
+          ) : (
+            <button type="button" className="ghost linkish tray-add-message" onClick={() => setMessageOpen(true)}>
+              Add a message
+            </button>
+          )}
           {send.isError && (
             <p className="error" role="alert">
               {(send.error as Error).message}

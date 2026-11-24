@@ -1,30 +1,12 @@
-/** Locate a card in a photo and flatten it to a canonical rectangle.
- *
- * Everything downstream gets easier once this runs. On a raw photo the
- * collector number and the treatment star sit wherever the camera happened to
- * be — a 3° tilt was enough to lose them. On a rectified card they are always
- * at the same fractional coordinates, so reading them stops being a search and
- * becomes a lookup.
- */
 
 export type Pt = { x: number; y: number };
-/** Corners in order: top-left, top-right, bottom-right, bottom-left. */
 export type Quad = [Pt, Pt, Pt, Pt];
 
-/** Standard TCG card is 63×88mm. */
 export const CARD_ASPECT = 63 / 88;
 
-/** Output size for a rectified card — tall enough for small print to survive. */
 export const RECTIFIED_HEIGHT = 1120;
 export const RECTIFIED_WIDTH = Math.round(RECTIFIED_HEIGHT * CARD_ASPECT);
 
-/**
- * Solve the homography mapping `from` onto `to` (both 4 points).
- *
- * Direct linear transform: each correspondence contributes two rows, and the
- * 8 unknowns are solved by Gaussian elimination with partial pivoting.
- * Returns a row-major 3×3 with h22 fixed at 1, or null if degenerate.
- */
 export function computeHomography(from: Quad, to: Quad): number[] | null {
   const a: number[][] = [];
   const b: number[] = [];
@@ -59,7 +41,6 @@ export function computeHomography(from: Quad, to: Quad): number[] | null {
   return [b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7], 1];
 }
 
-/** Apply a 3×3 homography to a point. */
 export function applyHomography(h: number[], p: Pt): Pt {
   const d = h[6] * p.x + h[7] * p.y + h[8];
   if (!d) return { x: 0, y: 0 };
@@ -69,10 +50,8 @@ export function applyHomography(h: number[], p: Pt): Pt {
   };
 }
 
-/** Sort four unordered points into TL, TR, BR, BL. */
 export function orderCorners(points: Pt[]): Quad | null {
   if (points.length !== 4) return null;
-  // On any convex quad, x+y is extremal at the TL/BR diagonal and x−y at TR/BL.
   const bySum = [...points].sort((p, q) => p.x + p.y - (q.x + q.y));
   const byDiff = [...points].sort((p, q) => p.x - p.y - (q.x - q.y));
   const tl = bySum[0];
@@ -84,7 +63,6 @@ export function orderCorners(points: Pt[]): Quad | null {
   return [tl, tr, br, bl];
 }
 
-/** Shoelace area, used to reject slivers and mis-detections. */
 export function quadArea(q: Quad): number {
   let sum = 0;
   for (let i = 0; i < 4; i += 1) {
@@ -95,24 +73,11 @@ export function quadArea(q: Quad): number {
   return Math.abs(sum) / 2;
 }
 
-/**
- * Find the card's corners by separating it from the surrounding background.
- *
- * The background is sampled from the image border, on the assumption that the
- * card is the subject and does not reach the very edge of frame. Foreground is
- * anything far from that colour; its extreme points along the two diagonals
- * give the corners.
- *
- * Returns null when the result is not plausibly a card — too small, or the
- * wrong shape — so the caller can fall back to the unrectified image rather
- * than act on a bad crop.
- */
 export function findCardQuad(data: ImageData, minAreaFraction = 0.12): Quad | null {
   const { width: w, height: h } = data;
   const px = data.data;
   const at = (x: number, y: number) => (y * w + x) * 4;
 
-  // Median-ish background from a ring of border samples.
   const samples: number[][] = [];
   const step = Math.max(1, Math.floor(Math.min(w, h) / 40));
   for (let x = 0; x < w; x += step) {
@@ -134,7 +99,6 @@ export function findCardQuad(data: ImageData, minAreaFraction = 0.12): Quad | nu
   };
   const bg = [med(0), med(1), med(2)];
 
-  // Spread of the background tells us how far "different" has to be.
   let spread = 0;
   for (const s of samples) {
     spread += Math.abs(s[0] - bg[0]) + Math.abs(s[1] - bg[1]) + Math.abs(s[2] - bg[2]);
@@ -226,7 +190,6 @@ export function rectifyToCanvas(
   return out;
 }
 
-/** The warp behind `rectifyToCanvas`, with no canvas needed (works in Node). */
 export function rectifyToImageData(
   source: ImageData,
   quad: Quad,
@@ -239,7 +202,6 @@ export function rectifyToImageData(
     { x: outWidth, y: outHeight },
     { x: 0, y: outHeight },
   ];
-  // Map output → source so each destination pixel can be sampled directly.
   const h = computeHomography(dst, quad);
   if (!h) return null;
 
@@ -275,36 +237,14 @@ export function rectifyToImageData(
   return { data: tp, width: outWidth, height: outHeight, colorSpace: "srgb" } as ImageData;
 }
 
-/**
- * Fractional regions of a rectified card.
- *
- * These are the payoff: on a flattened card the collector number and the
- * treatment star are always here, so no search is required.
- */
 export const REGIONS = {
-  /** Bottom strip carrying "SET-NUM", the rarity badge and the cost circle. */
   idStrip: { x: 0.45, y: 0.93, w: 0.55, h: 0.055 },
-  /**
-   * The treatment star, measured rather than guessed: differencing a rectified
-   * alternate-art card against its base printing puts it at x 0.880–0.894,
-   * y 0.933–0.943. The region below carries margin for card-to-card drift.
-   */
   star: { x: 0.871, y: 0.9265, w: 0.032, h: 0.023 },
-  /** The rarity badge, directly under the star — the gold-treatment target. */
   badge: { x: 0.869, y: 0.9455, w: 0.036, h: 0.022 },
-  /** Card art, used for matching against reference printings. */
   art: { x: 0.06, y: 0.1, w: 0.88, h: 0.45 },
-  /**
-   * Name, type line and collector number — everything the scanner reads.
-   *
-   * Deliberately wider than the id strip alone: the printed card name is what
-   * rejects a misread digit that lands on another real card, so both have to
-   * come back from the same pass.
-   */
   readBand: { x: 0.03, y: 0.855, w: 0.94, h: 0.135 },
 } as const;
 
-/** Convert a fractional region to pixels on a rectified card. */
 export function regionToBox(
   region: { x: number; y: number; w: number; h: number },
   width = RECTIFIED_WIDTH,

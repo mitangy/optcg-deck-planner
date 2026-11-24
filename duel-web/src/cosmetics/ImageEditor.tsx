@@ -1,8 +1,3 @@
-/**
- * Modal editor shown after picking a playmat / card back: rotate, flip, zoom
- * and drag the image under a fixed-aspect crop frame. "Apply" hands back a
- * Blob already cropped to that aspect, so the slot's encoder is a no-op crop.
- */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Dialog } from "@optcg/ui/popups";
 import {
@@ -15,10 +10,8 @@ import {
 
 type Props = {
   file: File;
-  /** Crop frame width / height. */
   aspect: number;
   title: string;
-  /** Longest-side pixel cap for the cropped result handed back. */
   outputWidth: number;
   onCancel: () => void;
   onApply: (blob: Blob) => void;
@@ -39,7 +32,6 @@ function draw(
   ctx.scale(pxScale, pxScale);
   ctx.imageSmoothingQuality = "high";
   ctx.translate(w / 2 + st.panX, h / 2 + st.panY);
-  // Flips are screen-space, so apply them outside the rotation.
   ctx.scale(st.flipH ? -1 : 1, st.flipV ? -1 : 1);
   ctx.rotate((st.rot * Math.PI) / 2);
   ctx.scale(s, s);
@@ -118,7 +110,6 @@ export function ImageEditor({
     [img, frame.w, frame.h],
   );
 
-  // Re-clamp when the frame resizes (pan is in frame pixels).
   useEffect(() => change({}), [change]);
 
   useEffect(() => {
@@ -144,7 +135,6 @@ export function ImageEditor({
       return;
     }
     const k = width / frame.w;
-    // Pan is stored in preview pixels; draw() scales it via pxScale.
     draw(ctx, img, st, frame.w, frame.h, k);
     canvas.toBlob(
       (b) => (b ? onApply(b) : setError("Could not encode the image.")),
@@ -158,7 +148,6 @@ export function ImageEditor({
     <Dialog
       open
       onClose={onCancel}
-      // Only Escape cancels: a stray click beside the editor must not throw the crop away, and a drag can end outside it.
       closeOnOutsideClick={false}
       className="img-editor-backdrop"
       panelClassName="img-editor"

@@ -1,5 +1,3 @@
-"""sync_catalog's upsert behaviour: printing ids (and any phash) must survive
-across syncs unless the printing's row is genuinely absent upstream."""
 
 from __future__ import annotations
 
@@ -62,13 +60,12 @@ def test_second_sync_preserves_printing_id_and_phash(db, monkeypatch):
     db.commit()
     printing_id = row.id
 
-    # Re-run against identical upstream data (a second nightly sync).
     result2 = catalog_sync.sync_catalog(db)
     assert result2["printing_count"] == 1
 
     row2 = db.query(CatalogPrinting).filter_by(card_id="OP01-001", product_id=111).one()
-    assert row2.id == printing_id  # not a fresh row from delete-then-reinsert
-    assert row2.phash == "abcd1234abcd1234"  # untouched by the resync
+    assert row2.id == printing_id
+    assert row2.phash == "abcd1234abcd1234"
     assert row2.phash_source == row2.image_url
 
 
@@ -83,7 +80,6 @@ def test_price_update_does_not_reset_phash(db, monkeypatch):
     row.phash_source = row.image_url
     db.commit()
 
-    # Upstream price moved, but the image (and so the hash) is unchanged.
     _install_fake_tcgcsv(
         monkeypatch, groups, _group_urls(1, products, _prices())
     )
@@ -116,7 +112,6 @@ def test_printing_dropped_upstream_is_removed(db, monkeypatch):
     result = catalog_sync.sync_catalog(db)
     assert result["printing_count"] == 2
 
-    # TCGCSV stops listing product 222 on the next pull.
     products_after = {"results": [_luffy_product(product_id=111)]}
     _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, products_after, _prices()))
     result2 = catalog_sync.sync_catalog(db)
@@ -211,7 +206,6 @@ def test_failed_group_keeps_its_existing_printings_1218(db, monkeypatch):
     catalog_sync.sync_catalog(db)
     assert db.query(CatalogPrinting).count() == 2
 
-    # Second pull: TCGCSV errors on group 2 only.
     ok = catalog_sync._get_json
 
     def flaky(client, url):
@@ -263,3 +257,90 @@ def test_get_json_gives_up_after_three_attempts_1218(monkeypatch):
     with pytest.raises(httpx.ConnectError):
         catalog_sync._get_json(client, "https://x.test/a")
     assert client.calls == 3
+
+
+def _many_products(count: int, start: int = 0) -> tuple[dict[str, Any], dict[str, Any]]:
+    products, prices = [], []
+    for n in range(start, start + count):
+        product = _luffy_product(product_id=10_000 + n)
+        product["extendedData"][0]["value"] = f"OP01-{n + 1:03d}"
+        products.append(product)
+        prices.append({"productId": 10_000 + n, "subTypeName": "Normal", "marketPrice": 1.0, "lowPrice": 1.0})
+    return {"results": products}, {"results": prices}
+
+
+def _selects_during(db, fn) -> int:
+    from sqlalchemy import event
+
+    db.expunge_all()
+
+    seen: list[str] = []
+    engine = db.get_bind()
+
+    def count(conn, cursor, statement, params, context, executemany):  # noqa: ARG001
+        if statement.lstrip().upper().startswith("SELECT"):
+            seen.append(statement)
+
+    event.listen(engine, "before_cursor_execute", count)
+    try:
+        fn()
+    finally:
+        event.remove(engine, "before_cursor_execute", count)
+    return len(seen)
+
+
+def test_sync_does_not_query_once_per_card_1346(db, monkeypatch):
+    groups = [{"groupId": 1, "name": "OP01"}]
+
+    def run(count: int) -> int:
+        products, prices = _many_products(count)
+        _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, products, prices))
+        return _selects_during(db, lambda: catalog_sync.sync_catalog(db))
+
+    few = run(3)
+    many = run(40)
+    assert many <= few + 4
+
+
+def test_refresh_special_flags_does_not_query_once_per_card_1346(db):
+    from tests.conftest import add_catalog
+
+    def seed(count: int, offset: int) -> None:
+        for n in range(offset, offset + count):
+            add_catalog(db, f"OP02-{n + 1:03d}", name=f"Card {n}", product_id=20_000 + n, market=1.0)
+
+    seed(3, 0)
+    few = _selects_during(db, lambda: catalog_sync.refresh_special_flags(db))
+    seed(40, 3)
+    many = _selects_during(db, lambda: catalog_sync.refresh_special_flags(db))
+    assert many <= few + 1
+
+
+def test_sync_keeps_printings_when_upstream_would_wipe_a_large_share_1346(db, monkeypatch):
+    groups = [{"groupId": 1, "name": "OP01"}]
+    products, prices = _many_products(100)
+    _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, products, prices))
+    catalog_sync.sync_catalog(db)
+
+    products, prices = _many_products(20)
+    _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, products, prices))
+    result = catalog_sync.sync_catalog(db)
+
+    assert result["deletes_skipped"] is True
+    assert db.query(CatalogPrinting).count() == 100
+    meta = db.query(catalog_sync.CatalogMeta).one()
+    assert "deletes skipped" in meta.notes
+
+
+def test_sync_still_removes_a_small_share_of_printings_1346(db, monkeypatch):
+    groups = [{"groupId": 1, "name": "OP01"}]
+    products, prices = _many_products(100)
+    _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, products, prices))
+    catalog_sync.sync_catalog(db)
+
+    products, prices = _many_products(95)
+    _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, products, prices))
+    result = catalog_sync.sync_catalog(db)
+
+    assert result["deletes_skipped"] is False
+    assert db.query(CatalogPrinting).count() == 95

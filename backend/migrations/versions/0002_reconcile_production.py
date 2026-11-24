@@ -33,7 +33,6 @@ down_revision = "0001"
 branch_labels = None
 depends_on = None
 
-# (table, column, model default used to backfill NULLs, keeps its server default in 0001)
 _FALSE = sa.false()
 _COLUMNS: list[tuple[str, str, object, bool]] = [
     ("analyst_access", "auto_approved", _FALSE, False),
@@ -62,7 +61,6 @@ _INDEXES = [
 
 
 def _backfill(table: str, column: str, value: object) -> None:
-    # Typed columns: offline (--sql) mode renders literals and needs the type.
     kind = {float: sa.Float, int: sa.Integer, str: sa.String}.get(type(value))
     t = sa.table(table, sa.column(column, kind() if kind else sa.Boolean()))
     op.execute(t.update().where(t.c[column].is_(None)).values({column: value}))

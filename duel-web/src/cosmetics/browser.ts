@@ -1,7 +1,3 @@
-/**
- * Browser plumbing for cosmetic image slots: IndexedDB (with a localStorage
- * fallback), canvas cover-crop encode, and a React hook for the current URL.
- */
 import { useEffect, useState } from "react";
 import {
   coverCropRect,
@@ -15,7 +11,6 @@ import {
 } from "./imageSlot";
 
 const DB_NAME = "optcg-duel";
-/** v1 had only "playmat"; v2 adds "cardBack". Existing playmats are kept. */
 const DB_VERSION = 2;
 export const IDB_STORES = ["playmat", "cardBack"] as const;
 export type IdbStore = (typeof IDB_STORES)[number];
@@ -52,7 +47,6 @@ function idbBackend(store: IdbStore): BlobBackend {
         req.onsuccess = () => {
           result = req.result as T;
         };
-        // Resolve on commit so quota failures (raised at commit) surface.
         tx.oncomplete = () => resolve(result);
         tx.onabort = () => reject(tx.error ?? req.error);
         tx.onerror = () => reject(tx.error ?? req.error);
@@ -76,14 +70,12 @@ function safeLocalStorage(): Storage | null {
   }
 }
 
-/** IndexedDB, falling back to localStorage (small images) or memory. */
 export function cosmeticBackend(store: IdbStore): BlobBackend {
   const ls = safeLocalStorage();
   const secondary = ls ? localStorageBackend(ls, `optcg-duel:${store}:`) : memoryBackend();
   return fallbackBackend(idbBackend(store), secondary);
 }
 
-/** Ask the browser not to evict our stored art under storage pressure. */
 export function requestPersistentStorage(): void {
   try {
     void navigator.storage?.persist?.().catch(() => undefined);
@@ -108,7 +100,6 @@ function loadImage(file: Blob): Promise<HTMLImageElement> {
   });
 }
 
-/** Encoder that center cover-crops to `aspect` and re-encodes as `mime`. */
 export function coverCropEncoder(aspect: number, mime: string) {
   return async (file: Blob, step: EncodeStep): Promise<Blob> => {
     const img = await loadImage(file);
@@ -131,10 +122,6 @@ export function coverCropEncoder(aspect: number, mime: string) {
   };
 }
 
-/**
- * Downscale a stored image to a small data URL that fits `maxChars`, trying
- * each step in order. Used to share custom art with the opponent.
- */
 export async function shrinkToDataUrl(
   srcUrl: string,
   aspect: number,
@@ -160,7 +147,6 @@ export async function shrinkToDataUrl(
   return null;
 }
 
-/** Current URL for a slot (null when none), kept in sync across the app. */
 export function useSlotUrl(slot: ImageSlot): string | null {
   const [url, setUrl] = useState<string | null>(slot.current() ?? null);
   useEffect(() => {

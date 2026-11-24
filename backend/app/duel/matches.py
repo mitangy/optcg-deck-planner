@@ -1,14 +1,10 @@
-"""Match helpers the duel routes, the analyst, the report route and the idle-progress sweep share (refactor D-02).
-
-Also a player's match history (also read by the analyst) and the cut-off-game rules behind it.
-"""
 
 from __future__ import annotations
 
 import hashlib
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import or_, select, text
+from sqlalchemy import func, or_, select, text
 from sqlalchemy.orm import Session
 
 from app.core import redis_client
@@ -21,8 +17,22 @@ from app.duel.schemas import DuelMatchHistoryEntry
 from app.usernames import duel_display_name
 
 
+def ranked_pair_games_in_window(db: Session, user_a: int, user_b: int, hours: int) -> int:
+    """Ranked games between these two users, in either seat order, in the last `hours`."""
+    since = datetime.now(timezone.utc) - timedelta(hours=hours)
+    return db.scalar(
+        select(func.count(DuelMatch.id)).where(
+            DuelMatch.ranked.is_(True),
+            DuelMatch.created_at >= since,
+            or_(
+                (DuelMatch.seat0_user_id == user_a) & (DuelMatch.seat1_user_id == user_b),
+                (DuelMatch.seat0_user_id == user_b) & (DuelMatch.seat1_user_id == user_a),
+            ),
+        )
+    ) or 0
+
+
 def lock_match(db: Session, match_id: str) -> None:
-    """Serialize every write for one match_id (result and per-turn progress) until commit."""
     if db.get_bind().dialect.name == "sqlite":
         db.execute(text("BEGIN IMMEDIATE"))
     else:
@@ -38,7 +48,6 @@ def has_result(db: Session, match_id: str) -> bool:
 
 
 def latest_progress(db: Session, match_id: str) -> DuelMatchProgress | None:
-    """The newest snapshot of an unfinished game: Redis's live copy or Postgres's stored one."""
     stored = db.get(DuelMatchProgress, match_id)
     r = redis_client.get_redis()
     if r is None:
@@ -53,14 +62,12 @@ def latest_progress(db: Session, match_id: str) -> DuelMatchProgress | None:
     return live
 
 
-# A cut-off game whose room never reported closing (server crash) counts as closed after this long without a snapshot.
 PROGRESS_STALE_AFTER = timedelta(hours=24)
 
 
 def match_history(
     db: Session, user: User, limit: int, include_unfinished: bool = False
 ) -> list[DuelMatchHistoryEntry]:
-    """A player's recent duels from their own seat, newest first (also read by the analyst)."""
     limit = max(1, min(limit, 100))
     rows = db.scalars(
         select(DuelMatch)
@@ -85,7 +92,6 @@ def match_history(
 def _with_live_progress(
     db: Session, user: User, stored: list[DuelMatchProgress], limit: int
 ) -> list[DuelMatchProgress]:
-    """Postgres's unfinished games plus Redis's live ones (newest copy of each), minus finished ones."""
     r = redis_client.get_redis()
     if r is None:
         return stored
@@ -107,7 +113,6 @@ def _with_live_progress(
 
 
 def progress_closed(progress: DuelMatchProgress, now: datetime) -> bool:
-    """Nobody is playing this cut-off game any more: its room said so, or it went quiet for a day."""
     if progress.closed:
         return True
     updated = progress.updated_at
@@ -124,7 +129,6 @@ def _sort_time(iso: str | None) -> datetime:
 
 
 def unfinished_entries(db: Session, user: User, rows: list[DuelMatchProgress]) -> list[DuelMatchHistoryEntry]:
-    """Games with no result: no winner and no Bounty change, dated by their last saved turn."""
     if not rows:
         return []
     opponent_ids = {r.seat1_user_id if r.seat0_user_id == user.id else r.seat0_user_id for r in rows}
@@ -160,7 +164,6 @@ def unfinished_entries(db: Session, user: User, rows: list[DuelMatchProgress]) -
 
 
 def _chat_match_ids(db: Session, user: User, match_ids: list[str]) -> set[str]:
-    """Which of these games the player has an answered Log Pose chat about (#970)."""
     scopes = {f"match:{m}": m for m in match_ids}
     answered = select(AnalystMessage.id).where(AnalystMessage.thread_id == AnalystThread.id).exists()
     found = db.scalars(

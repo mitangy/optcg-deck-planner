@@ -1,5 +1,3 @@
-/* —— Arena / HUD —— */
-
 .board-root.arena {
   flex: 1;
   display: flex;
@@ -35,7 +33,6 @@
   grid-template-columns: auto 1fr auto;
   gap: var(--space-3);
   align-items: center;
-  /* Bar stays full-bleed; only its content clears the notch / status bar. */
   --hud-py: 0.55rem;
   --hud-px: 0.85rem;
   padding: calc(var(--hud-py) + var(--safe-t)) max(var(--hud-px), var(--safe-r)) var(--hud-py)

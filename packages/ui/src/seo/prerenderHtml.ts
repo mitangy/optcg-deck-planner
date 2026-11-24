@@ -1,20 +1,10 @@
-/**
- * String helpers for build-time pre-rendering (#914): they turn the built `index.html`
- * into a per-route page whose `<head>` and `#root` already hold the real content, so a
- * crawler that does not run JavaScript still sees it. No DOM, so they run in Node.
- */
-
 export type PrerenderHead = {
   title: string;
   description: string;
-  /** Absolute canonical URL. Left out for a noindex page. */
   canonical?: string;
-  /** Absolute URL of the share picture (og:image, twitter:image). */
   image?: string;
   noindex?: boolean;
-  /** Extra markup for the end of `<head>`, e.g. a JSON-LD script. */
   extraHead?: string;
-  /** Structured data (e.g. a FAQPage) written as `<script type="application/ld+json">`, escaped so it cannot close the tag. */
   jsonLd?: unknown;
 };
 
@@ -22,21 +12,18 @@ export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
-/** JSON that is safe inside a `<script>`: a `<` can never close the tag early. */
 export function jsonForScript(value: unknown): string {
   return JSON.stringify(value).replace(/</g, "\\u003c").replace(/\u2028/g, "\\u2028").replace(/\u2029/g, "\\u2029");
 }
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Sets `<meta {attr}="{key}" content>`; adds the tag at the end of `<head>` when the template has none. */
 function setMeta(html: string, attr: "name" | "property", key: string, content: string): string {
   const tag = `<meta ${attr}="${key}" content="${escapeHtml(content)}" />`;
   const re = new RegExp(`<meta\\s+${attr}="${escapeRe(key)}"[^>]*>`);
   return re.test(html) ? html.replace(re, () => tag) : html.replace("</head>", () => `    ${tag}\n  </head>`);
 }
 
-/** Replaces the page title, description, canonical link, robots tag and social tags of a built `index.html`. */
 export function applyHead(template: string, head: PrerenderHead): string {
   let html = template.replace(/<title>[\s\S]*?<\/title>/, () => `<title>${escapeHtml(head.title)}</title>`);
   html = setMeta(html, "name", "description", head.description);
@@ -63,11 +50,7 @@ export function applyHead(template: string, head: PrerenderHead): string {
 
 const EMPTY_ROOT = '<div id="root"></div>';
 
-/**
- * Puts the rendered markup inside `#root`. The client boots with `createRoot`, which replaces it;
- * `data-prerendered` lets the app tell that the markup on screen came from the server.
- * `data` (optional) is page data the client reads synchronously, so its first render matches.
- */
+// The client boots with `createRoot`, which replaces this markup; `data-prerendered` lets it tell the markup came from the server.
 export function injectRoot(template: string, rootHtml: string, data?: { id: string; value: unknown }): string {
   if (!template.includes(EMPTY_ROOT)) throw new Error('prerender: the template has no empty <div id="root"></div>');
   const script = data ? `<script type="application/json" id="${escapeHtml(data.id)}">${jsonForScript(data.value)}</script>` : "";

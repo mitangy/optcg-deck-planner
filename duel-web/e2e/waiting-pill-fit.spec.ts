@@ -1,8 +1,3 @@
-/**
- * The "waiting for opponent" pill beside the board (#1193): in the dock's narrow slot (about 140px wide, 48px tall)
- * the bold title wrapped to two lines and the subtitle spilled under the pill's bottom border. Its text must stay
- * inside the pill at every desktop size, for every wait kind.
- */
 import { test, expect, type Page } from "./fixtures";
 
 test.use({ legacyLayout: false });
@@ -17,7 +12,6 @@ const SIZES = [
   { width: 1920, height: 1080 },
 ];
 
-/** How far the text's line boxes poke out of the pill's content box (inside its border), per side; negative is room to spare. */
 async function overflow(page: Page, kind: string, size: { width: number; height: number }) {
   await page.setViewportSize(size);
   await page.goto(`/demo?wait=${kind}`);
@@ -26,7 +20,6 @@ async function overflow(page: Page, kind: string, size: { width: number; height:
   return page.locator(".primary-dock .waiting-opp").evaluate((pill) => {
     const p = pill.getBoundingClientRect();
     const cs = getComputedStyle(pill);
-    // Each line of text, clipped sideways to its own element: an ellipsised subtitle is cut there, so its hidden tail is not "outside".
     const lines: { top: number; bottom: number; left: number; right: number }[] = [];
     for (const el of pill.querySelectorAll(".waiting-opp-text > *")) {
       const box = el.getBoundingClientRect();

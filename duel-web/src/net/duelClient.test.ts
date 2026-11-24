@@ -4,7 +4,6 @@ const sdkReconnect = vi.fn((_token: string) => new Promise<never>(() => {}));
 const sdkJoinOrCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
 const sdkCreate = vi.fn((_name: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
 const sdkJoinById = vi.fn((_id: string, _opts: unknown): Promise<unknown> => new Promise<never>(() => {}));
-/** URL each SDK Client was built with (which game server it dials). */
 const sdkClientUrls: string[] = [];
 vi.mock("@colyseus/sdk", () => ({
   Client: class {
@@ -32,7 +31,6 @@ import { PROTOCOL_VERSION } from "./protocol";
 
 type Listener = (...args: unknown[]) => void;
 
-/** Just enough of a Colyseus Room for DuelClient's wiring and liveness check. */
 function fakeRoom(opts: { answersPing: boolean }) {
   const listeners: Record<string, Listener[]> = {};
   const on = (name: string) => (cb: Listener) => {
@@ -60,7 +58,6 @@ function fakeRoom(opts: { answersPing: boolean }) {
   return room;
 }
 
-/** Attach a fake room the way connect() does after a successful join. */
 function attach(client: DuelClient, room: ReturnType<typeof fakeRoom>) {
   const internals = client as unknown as {
     room: unknown;
@@ -170,9 +167,7 @@ describe("DuelClient ranked queue", () => {
     queued.catch(() => {});
     await vi.advanceTimersByTimeAsync(0);
     expect(sdkJoinOrCreate).toHaveBeenCalledWith("ranked_queue", expect.anything());
-    // e.g. the game server restarted for a deploy while we were in the queue.
     queueRoom.emit("leave", 1006);
-    // Without the fix only the 2 minute queue timeout would end the wait.
     await vi.advanceTimersByTimeAsync(120_000);
     await expect(queued).rejects.toThrow(/Lost the ranked queue/);
   });
@@ -216,7 +211,6 @@ describe("game server pools", () => {
     await client.connect({ serverUrl: "https://pool-a.example", preferredSeat: 0 });
     expect(client.serverUrl).toBe("https://pool-a.example");
 
-    // A token minted later (another tab, a rematch lobby) is assigned pool B.
     rememberAssignedGameServer({ game_server_url: "https://pool-b.example" });
     sdkClientUrls.length = 0;
     void client.reconnect();
@@ -239,7 +233,7 @@ describe("DuelClient turn guard", () => {
     const view = (turnNumber: number, activeSeat: 0 | 1) =>
       handler("view")({
         protocolVersion: PROTOCOL_VERSION,
-        view: { seat: 0, activeSeat, turnNumber, phase: "main", opponent: { handCount: 5 }, pendingChoices: [], legalIntents: [] },
+        view: { seat: 0, activeSeat, turnNumber, phase: "main", you: { hand: [] }, opponent: { handCount: 5 }, pendingChoices: [], legalIntents: [] },
       });
     const error = (code: string, message: string) =>
       handler("error")({ protocolVersion: PROTOCOL_VERSION, code, message });
@@ -254,7 +248,6 @@ describe("DuelClient turn guard", () => {
     t.client.sendIntent({ type: "end_turn" });
     t.client.sendIntent({ type: "play_card", handIndex: 0 });
     expect(t.sent()).toEqual(["end_turn"]);
-    // Opponent's turn, then yours again: actions go through.
     t.view(4, 1);
     t.view(5, 0);
     t.client.sendIntent({ type: "play_card", handIndex: 0 });
@@ -264,20 +257,16 @@ describe("DuelClient turn guard", () => {
   it("sends one Pass block when a tap races the automatic pass, and passes again on the next step (#445)", () => {
     const t = wired();
     t.view(3, 1);
-    // The tap and the automatic pass both answer the block step before its result arrives: the second is dropped.
     t.client.sendIntent({ type: "pass_block" });
     t.client.sendIntent({ type: "pass_block" });
     expect(t.sent()).toEqual(["pass_block"]);
-    // The counter step's view: its own pass goes out once too.
     t.view(3, 1);
     t.client.sendIntent({ type: "pass_counter" });
     t.client.sendIntent({ type: "pass_counter" });
     expect(t.sent()).toEqual(["pass_block", "pass_counter"]);
-    // The next attack's counter step is a new view: it is answered too.
     t.view(3, 1);
     t.client.sendIntent({ type: "pass_counter" });
     expect(t.sent()).toEqual(["pass_block", "pass_counter", "pass_counter"]);
-    // A refused pass can be tried again.
     t.error("illegal_intent", "Counter step: use a Counter or pass");
     t.client.sendIntent({ type: "pass_counter" });
     expect(t.sent()).toEqual(["pass_block", "pass_counter", "pass_counter", "pass_counter"]);
@@ -325,6 +314,87 @@ describe("DuelClient turn guard", () => {
   });
 });
 
+describe("DuelClient stale-intent guards (#1351)", () => {
+  function wired() {
+    const client = new DuelClient();
+    const room = Object.assign(fakeRoom({ answersPing: true }), { send: vi.fn() });
+    attach(client, room);
+    const handler = (name: string) =>
+      room.onMessage.mock.calls.find((c) => c[0] === name)![1] as (raw: unknown) => void;
+    const view = (step?: number) =>
+      handler("view")({
+        protocolVersion: PROTOCOL_VERSION,
+        view: {
+          seat: 0,
+          activeSeat: 0,
+          turnNumber: 3,
+          phase: "main",
+          you: { hand: [{ id: "c-a" }, { id: "c-b" }] },
+          opponent: { handCount: 5 },
+          pendingChoices: [],
+          legalIntents: [],
+        },
+        ...(step === undefined ? {} : { step }),
+      });
+    const bodies = () => room.send.mock.calls.map((c) => c[1] as Record<string, unknown>);
+    return { client, handler, view, bodies };
+  }
+
+  it("sends the step of the view it acted on, and the instance id for a hand-index intent", () => {
+    const t = wired();
+    t.view(41);
+    t.client.sendIntent({ type: "play_card", handIndex: 1 });
+    t.view(42);
+    t.client.sendIntent({ type: "counter_from_hand", handIndex: 0 });
+    t.client.sendIntent({ type: "give_don", donId: "d1", targetId: "t1" });
+    const [play, counter, give] = t.bodies();
+    expect(play).toMatchObject({ step: 41, cardId: "c-b" });
+    expect(counter).toMatchObject({ step: 42, cardId: "c-a" });
+    expect(give!.step).toBe(42);
+    expect(give).not.toHaveProperty("cardId");
+  });
+
+  it("sends no step before the server has sent one (old server)", () => {
+    const t = wired();
+    t.view();
+    t.client.sendIntent({ type: "end_turn" });
+    expect(t.bodies()[0]).not.toHaveProperty("step");
+  });
+
+  it("lets End turn go out again after the server answers stale_intent", () => {
+    const t = wired();
+    t.view(5);
+    t.client.sendIntent({ type: "end_turn" });
+    t.handler("error")({ protocolVersion: PROTOCOL_VERSION, code: "stale_intent", message: "State changed" });
+    t.view(6);
+    t.client.sendIntent({ type: "end_turn" });
+    expect(t.bodies().map((b) => b.step)).toEqual([5, 6]);
+  });
+});
+
+describe("DuelClient server restart warning (#1352)", () => {
+  function restartSetup() {
+    const client = new DuelClient();
+    const onServerRestarting = vi.fn();
+    const onError = vi.fn();
+    client.setHandlers({ onServerRestarting, onError });
+    const room = fakeRoom({ answersPing: true });
+    attach(client, room);
+    const message = (payload: unknown) =>
+      (room.onMessage.mock.calls.find((c) => c[0] === "server_restarting")![1] as (raw: unknown) => void)(payload);
+    return { onServerRestarting, onError, message };
+  }
+
+  it("server_restarting tells the app how long is left, and a malformed one is ignored without an error banner (#1352)", () => {
+    const t = restartSetup();
+    t.message({ protocolVersion: PROTOCOL_VERSION, seconds: 10 });
+    expect(t.onServerRestarting).toHaveBeenCalledWith(10);
+    t.message({ seconds: 10 });
+    expect(t.onServerRestarting).toHaveBeenCalledTimes(1);
+    expect(t.onError).not.toHaveBeenCalled();
+  });
+});
+
 describe("DuelClient takeover (#451)", () => {
   function takenOverSetup() {
     const client = new DuelClient();
@@ -346,7 +416,6 @@ describe("DuelClient takeover (#451)", () => {
     expect(t.room.reconnection.enabled).toBe(false);
     expect(t.onTakenOver).toHaveBeenCalledTimes(1);
     expect(t.client.takenOver).toBe(true);
-    // The old reconnection token is dead: nothing may try to reclaim with it.
     expect(t.client.getReconnectionToken()).toBeNull();
   });
 

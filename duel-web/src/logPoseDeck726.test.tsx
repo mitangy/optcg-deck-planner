@@ -154,7 +154,7 @@ describe("NewDeckPage filled in by Log Pose (#726)", () => {
   it("is blank, with no note, when nothing was handed over (#726)", async () => {
     await renderPage(null);
     expect((host!.querySelector("#new-deck-name") as HTMLInputElement).value).toBe("");
-    expect((host!.querySelector("#deck-import-text") as HTMLTextAreaElement).value).toBe("");
+    expect(host!.querySelector("#deck-import-text")).toBeNull();
     expect(host!.textContent).not.toContain("Filled in by Log Pose");
   });
 });

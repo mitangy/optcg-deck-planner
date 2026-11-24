@@ -1,16 +1,8 @@
-/**
- * Pure math for the upload editor: an image is rotated / flipped / zoomed and
- * panned under a fixed-aspect crop frame. No DOM access, so it runs in node.
- */
-
 export type EditState = {
-  /** Clockwise quarter turns, 0–3. */
   rot: number;
   flipH: boolean;
   flipV: boolean;
-  /** 1 = image just covers the frame; larger zooms in. */
   zoom: number;
-  /** Image-center offset from the frame center, in frame pixels. */
   panX: number;
   panY: number;
 };
@@ -26,12 +18,10 @@ export const INITIAL_EDIT: EditState = {
 
 export const MAX_ZOOM = 4;
 
-/** Image size after the quarter-turn rotation. */
 export function rotatedSize(w: number, h: number, rot: number): { w: number; h: number } {
   return rot % 2 === 0 ? { w, h } : { w: h, h: w };
 }
 
-/** Pixels per source pixel at zoom 1 (smallest scale that covers the frame). */
 export function coverScale(
   imgW: number,
   imgH: number,
@@ -43,7 +33,6 @@ export function coverScale(
   return Math.max(frameW / r.w, frameH / r.h);
 }
 
-/** Keep the frame fully covered by the image. */
 export function clampPan(
   panX: number,
   panY: number,

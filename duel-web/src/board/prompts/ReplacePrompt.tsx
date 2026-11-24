@@ -17,12 +17,6 @@ type Props = {
   onCancel: () => void;
 };
 
-/**
- * Playing a Character onto a full board: the player taps which of their
- * Characters to trash on the field itself (candidates outlined), or cancels
- * and keeps the card in hand. Nothing is sent until a Character is chosen;
- * with One-tap actions on, tapping one is the choice.
- */
 export function ReplacePrompt({ view, intents, handIndex, mySeat, onSend, onCancel }: Props) {
   const oneTap = useDuelSettings().oneTapActions;
   const copy = useClickCopy();

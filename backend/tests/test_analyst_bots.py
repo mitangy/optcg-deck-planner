@@ -1,4 +1,3 @@
-"""Log Pose bot game corpus: self-play games, simulated stats, and their separation from real duels (#635)."""
 
 from __future__ import annotations
 
@@ -48,7 +47,6 @@ def _sim(c, **params):
 
 
 def test_sending_a_batch_twice_stores_each_game_once_and_needs_the_service_secret_635(analyst):  # noqa: F811
-    """A batch is idempotent per (batch id, index), and only the analyst service secret opens the endpoint (#635)."""
     c, SessionLocal = analyst
     games = [_game(0), _game(1, winner=1)]
     assert _post(c, "night-1", games, headers={}).status_code == 403
@@ -68,7 +66,6 @@ def test_sending_a_batch_twice_stores_each_game_once_and_needs_the_service_secre
 
 
 def test_bad_and_oversized_replays_are_rejected_without_blocking_the_rest_of_the_batch_635(analyst, monkeypatch):  # noqa: F811
-    """A replay without two decks, or over the size cap, is reported and skipped; good games in the batch still land (#635)."""
     c, _ = analyst
     monkeypatch.setattr(analyst_bots, "MAX_REPLAY_BYTES", 600)
     big = _game(1)
@@ -81,7 +78,6 @@ def test_bad_and_oversized_replays_are_rejected_without_blocking_the_rest_of_the
 
 
 def test_bot_games_never_reach_real_duel_tables_or_matchup_stats_635(analyst):  # noqa: F811
-    """Ingesting bot games leaves duel_matches, duel_match_seats and /analyst/stats/matchups empty (#635)."""
     c, SessionLocal = analyst
     assert _post(c, "b", [_game(i) for i in range(6)]).json()["accepted"] == 6
     db = SessionLocal()
@@ -96,7 +92,6 @@ def test_bot_games_never_reach_real_duel_tables_or_matchup_stats_635(analyst):  
 
 
 def test_sim_matchup_rate_counts_wins_by_side_with_interval_and_split_635(analyst):  # noqa: F811
-    """Zoro wins 7 of 12 vs Lucci (5 of 6 going first, 2 of 6 going second) with the Wilson interval; Lucci sees the mirror image (#635)."""
     c, _ = analyst
     zoro_first = [_game(i, 0 if i < 5 else 1, first=0) for i in range(6)]
     zoro_second = [_game(6 + i, 0 if i < 2 else 1, first=1) for i in range(6)]
@@ -110,14 +105,12 @@ def test_sim_matchup_rate_counts_wins_by_side_with_interval_and_split_635(analys
     other = _sim(c, leader=LUCCI, opponent=ZORO)
     assert (other["games"], other["wins"], other["going_first"]["wins"]) == (12, 5, 4)
     assert c.get("/analyst/stats/sim", params={"opponent": LUCCI}, headers=SERVICE).status_code == 400
-    # Under the minimum only the count shows, so one game's result never does.
     c.post("/analyst/bot-games", json={"batch_id": "x", "levels": "hard/hard", "games": [_game(0, 1, leaders=("OP09-001", LUCCI))]}, headers=SERVICE)
     few = _sim(c, leader="OP09-001", opponent=LUCCI)
     assert (few["games"], few["wins"], few["win_rate"], few["too_few_games"]) == (1, None, None, True)
 
 
 def test_sim_stats_default_to_same_level_games_and_unfinished_games_do_not_count_635(analyst):  # noqa: F811
-    """Hard-vs-hard is the default pool; hard/normal games and games without a winner stay out of the rate (#635)."""
     c, _ = analyst
     _post(c, "hh", [_game(i, 0) for i in range(5)] + [_game(9, None)])
     _post(c, "hn", [_game(i, 1) for i in range(5)], levels="hard/normal")
@@ -129,11 +122,9 @@ def test_sim_stats_default_to_same_level_games_and_unfinished_games_do_not_count
 
 
 def test_line_stats_compare_win_rate_with_and_without_a_line_635(analyst):  # noqa: F811
-    """Side A wins 5 of 5 games where it accepted OP08-058 and 1 of 5 where it didn't, with the games behind each (#635)."""
     c, _ = analyst
     ramp = _tally(optionalAccepts={"OP08-058": 2}, leaderActivations=1, counterEvents={"OP01-026": 1})
     games = [_game(i, 0, a_tally=ramp) for i in range(5)] + [_game(5 + i, 0 if i == 0 else 1) for i in range(5)]
-    # A line seen in one game only is not reported.
     games[0]["tallies"][0] = {**ramp, "mainEvents": {"OP09-009": 1}}
     _post(c, "b", games)
     s = _sim(c, leader=ZORO, opponent=LUCCI)
@@ -144,12 +135,10 @@ def test_line_stats_compare_win_rate_with_and_without_a_line_635(analyst):  # no
     assert accepted["with"]["interval"] == list(analyst_stats.wilson(5, 5))
     assert {"leader_activation", "counter_event", "counter_event:OP01-026"} <= set(lines)
     assert "main_event:OP09-009" not in lines
-    # The leader overview carries the same lines.
     assert "optional_accepted:OP08-058" in {r["line"] for r in _sim(c, leader=ZORO)["lines"]}
 
 
 def test_line_stats_use_the_seat_that_played_the_line_635(analyst):  # noqa: F811
-    """A line tallied for side B counts for side B's leader, not side A's (#635)."""
     c, _ = analyst
     ramp = _tally(cheatOuts={"OP01-016 via OP02-004": 1})
     games = []
@@ -164,7 +153,6 @@ def test_line_stats_use_the_seat_that_played_the_line_635(analyst):  # noqa: F81
 
 
 def test_bot_game_search_labels_ids_and_filters_like_the_player_corpus_635(analyst):  # noqa: F811
-    """Search finds bot games by leader, opponent, card and result, with b_ ids; replays open by id (#635)."""
     c, _ = analyst
     _post(c, "b", [_game(0, 0), _game(1, 1), _game(2, 0, leaders=(LUCCI, ZORO), deck0=[VIVI] * 4, deck1=[NAMI] * 4)])
     r = c.get("/analyst/bot-games", params={"leader": ZORO}, headers=SERVICE).json()
@@ -187,7 +175,6 @@ def test_bot_game_search_labels_ids_and_filters_like_the_player_corpus_635(analy
 
 
 def test_a_tally_becomes_the_named_lines_the_analyst_script_counts_too_635():
-    """The same tally gives the same lines here and in analyst/src/botGames.ts linesOf, with a line for any Counter Event and any cheat-out (#635)."""
     tally = _tally(
         leaderActivations=1,
         activationsByCard={"OP01-001": 2, "OP01-002": 0},
@@ -204,7 +191,6 @@ def test_a_tally_becomes_the_named_lines_the_analyst_script_counts_too_635():
 
 
 def test_a_batch_of_several_large_replays_fits_the_request_limit_635(analyst):  # noqa: F811
-    """Three replays of about 700 KB each (over 2 MB together) are accepted in one request (#635)."""
     c, _ = analyst
     games = []
     for i in range(3):
@@ -215,8 +201,6 @@ def test_a_batch_of_several_large_replays_fits_the_request_limit_635(analyst):  
     assert r.status_code == 200, r.text[:200]
     assert r.json()["accepted"] == 3
 
-
-# ——— shared bot lessons (#915) ———
 
 
 def _admin(SessionLocal, name: str = "boss", role: str = "admin") -> int:
@@ -238,7 +222,6 @@ def _post_lesson(c, headers=SERVICE, **kw):
 
 
 def test_bot_lessons_need_the_service_secret_and_an_admin_to_own_them_915(analyst):  # noqa: F811
-    """Only the service secret can post a bot lesson, and with no admin account it is refused rather than lost (#915)."""
     c, SessionLocal = analyst
     assert _post_lesson(c, headers={}).status_code == 403
     assert _post_lesson(c, headers={"X-Analyst-Service": "nope"}).status_code == 403
@@ -255,7 +238,6 @@ def test_bot_lessons_need_the_service_secret_and_an_admin_to_own_them_915(analys
 
 
 def test_a_bot_lesson_already_stored_in_any_status_is_skipped_915(analyst):  # noqa: F811
-    """Rerunning the weekly job adds nothing, and a lesson the admin rejected stays rejected (#915)."""
     c, SessionLocal = analyst
     _admin(SessionLocal)
     from app.analyst.models import AnalystLesson
@@ -265,7 +247,6 @@ def test_a_bot_lesson_already_stored_in_any_status_is_skipped_915(analyst):  # n
         db.query(AnalystLesson).one().status = "rejected"
         db.commit()
     assert _post_lesson(c).json() == {"skipped": True}
-    # a different opponent, or a different text, is a new lesson
     assert _post_lesson(c, opponent_id=LUCCI).json()["skipped"] is False
     assert _post_lesson(c, opponent_id=LUCCI).json() == {"skipped": True}
     assert _post_lesson(c, text="With Zoro, games with a counter event were won less often.").json()["skipped"] is False
@@ -285,12 +266,11 @@ def test_bot_lesson_drafts_stop_at_the_review_limit_915(analyst, monkeypatch: py
 
 
 def test_sim_stats_carry_only_approved_bot_lessons_for_that_leader_to_every_player_915(analyst):  # noqa: F811
-    """Approved bot lessons ride along with the sim stats; drafts, player lessons and other leaders' lessons stay out (#915)."""
     c, SessionLocal = analyst
     boss = _admin(SessionLocal)
     from app.analyst.models import AnalystLesson
 
-    _post_lesson(c)  # Zoro, any opponent
+    _post_lesson(c)
     _post_lesson(c, text="With Zoro against Lucci, holding a counter paid off.", opponent_id=LUCCI)
     _post_lesson(c, text="With Zoro against Vivi, going first mattered most.", opponent_id=VIVI)
     _post_lesson(c, text="With Nami, using her effect on turn two was strongest.", leader_id=NAMI)
@@ -314,13 +294,11 @@ def test_sim_stats_carry_only_approved_bot_lessons_for_that_leader_to_every_play
         "With Zoro, games where Nami's effect was used were won more often.",
         "With Zoro against Lucci, holding a counter paid off.",
     ])
-    # a lesson names the leader on either side, like the player lesson list does
     assert texts(_sim(c, leader=LUCCI)) == ["With Zoro against Lucci, holding a counter paid off."]
     assert "lessons" not in _sim(c)
 
 
 def test_lesson_out_names_its_source_and_a_bot_lesson_has_no_match_ids_915(analyst):  # noqa: F811
-    """The review list tells bot lessons from player ones by source, and bot evidence never shows up as match ids (#915)."""
     c, SessionLocal = analyst
     me = c.post("/auth/dev-login").json()
     from app.core.models import User
@@ -355,12 +333,10 @@ def test_my_lessons_for_claude_leave_out_approved_bot_lessons_916(analyst):  # n
         assert c.patch(f"/analyst/lessons/review/{lesson['id']}", json={"status": "approved"}).status_code == 200
     got = c.get("/analyst/lessons", headers=link).json()["lessons"]
     assert [l["id"] for l in got] == [mine["id"]]
-    # the admin's own review list still shows both
     assert sorted(l["source"] for l in c.get("/analyst/lessons/review").json()["lessons"]) == ["bots", "player"]
 
 
 def test_a_bot_lesson_the_admin_edited_is_still_skipped_when_posted_again_916(analyst):  # noqa: F811
-    """Next week's job re-posts the original wording; the admin's edited copy (in any status) keeps it from coming back as a new draft (#916)."""
     c, SessionLocal = analyst
     _admin_with_link(c, SessionLocal)
     assert _post_lesson(c).json()["skipped"] is False
@@ -368,14 +344,11 @@ def test_a_bot_lesson_the_admin_edited_is_still_skipped_when_posted_again_916(an
     edited = {"status": "approved", "text": "With Zoro, using Nami's effect won more often (admin wording)."}
     assert c.patch(f"/analyst/lessons/review/{row['id']}", json=edited).status_code == 200
     assert _post_lesson(c).json() == {"skipped": True}
-    # editing again, and the edited wording itself being posted, are skipped too
     assert c.patch(f"/analyst/lessons/review/{row['id']}", json={"text": "Second rewrite."}).status_code == 200
     assert _post_lesson(c).json() == {"skipped": True}
     assert _post_lesson(c, text="Second rewrite.").json() == {"skipped": True}
     assert len(c.get("/analyst/lessons/review").json()["lessons"]) == 1
 
-
-# ——— Play vs Bot games for training (#1202) ———
 
 
 def _human_bot(c, game_id: str, user_id: int, level: str = "hard", **extra):
@@ -404,7 +377,6 @@ def test_human_bot_export_has_replays_and_no_player_identifiers_1202(analyst):  
     c, _ = analyst
     uid = c.post("/duel/dev-token", json={"user_key": "a"}).json()["user_id"]
     _human_bot(c, "secret-game-key", uid, level="normal")
-    # Not exported: a practice game, and a bot game saved without a replay.
     c.post("/duel/solo-games", json={"game_id": "p1", "user_id": uid, "mode": "practice", "replay": _replay()}, headers={"X-Duel-Ingest-Token": "test-ingest"})
     c.post("/duel/solo-games", json={"game_id": "old", "user_id": uid, "mode": "bot"}, headers={"X-Duel-Ingest-Token": "test-ingest"})
     body = _export(c).json()

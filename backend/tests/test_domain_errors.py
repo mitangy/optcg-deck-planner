@@ -1,4 +1,3 @@
-"""The one DomainError handler turns each error class into the response HTTPException gave (refactor 2.1c)."""
 
 from __future__ import annotations
 
@@ -69,7 +68,6 @@ def test_deck_oversize_response_keeps_its_structured_detail():
 
 
 def test_a_deck_code_with_thousands_of_digits_stays_a_400_error_not_a_crash():
-    # int() refuses 4300+ digits with a ValueError; the old blanket `except ValueError` made that a 400.
     huge = "9" * 5000
     with pytest.raises(Invalid, match="digits"):
         parse_decklist(f"{huge}xOP01-001")

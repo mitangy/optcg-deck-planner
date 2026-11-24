@@ -11,18 +11,15 @@ export function useCopyFlash() {
   }, []);
   async function copy(text: string, kind: Exclude<Copied, null | "failed">) {
     const ok = await copyText(text);
-    // A blocked auto-copy (no focus / gesture) stays quiet; buttons report it.
     if (!ok && kind === "auto") return ok;
     setCopied(ok ? kind : "failed");
     if (timer.current) window.clearTimeout(timer.current);
-    // The auto-copy notice stays up: the creator may glance over much later.
     if (kind !== "auto") timer.current = window.setTimeout(() => setCopied(null), 2200);
     return ok;
   }
   return { copied, copy };
 }
 
-/** Compact "Room <id> [Copy]" chip for the HUD. */
 export function RoomChip({ roomId }: { roomId: string | null }) {
   const { copied, copy } = useCopyFlash();
   if (!roomId) return <span className="match-id">Room —</span>;
@@ -50,10 +47,6 @@ export function RoomChip({ roomId }: { roomId: string | null }) {
   );
 }
 
-/**
- * Waiting-room invite card: big room id with copy buttons. Copies the id
- * once on mount when `autoCopy` (the room creator) so it's ready to paste.
- */
 export function RoomInvite({ roomId, autoCopy }: { roomId: string | null; autoCopy: boolean }) {
   const { copied, copy } = useCopyFlash();
   const didAuto = useRef(false);

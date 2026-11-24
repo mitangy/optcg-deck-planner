@@ -1,8 +1,3 @@
-/* Shared UI primitives: buttons, app chrome, panels, fields, home + Play sheet.
-   Tokens live in styles.css :root. Loaded after styles.css. */
-
-/* —— Buttons —— */
-
 .btn {
   display: inline-flex;
   align-items: center;
@@ -41,7 +36,6 @@
   cursor: not-allowed;
 }
 
-/* Straw-hat gold — the one "go" colour across the app. */
 .btn-primary {
   color: var(--on-chrome);
   background: linear-gradient(180deg, var(--btn-top), var(--btn-bottom));
@@ -49,6 +43,15 @@
   box-shadow:
     inset 0 1px 0 rgb(var(--btn-shine-rgb) / 0.45),
     0 4px 14px rgba(0, 0, 0, 0.28);
+}
+
+/* Disabled gold would read as muddy dark gold with unreadable text; show a plain inert button instead. */
+.btn-primary:disabled {
+  opacity: 1;
+  color: var(--muted);
+  background: rgb(var(--panel-rgb) / 0.7);
+  border: 1px dashed var(--line);
+  box-shadow: none;
 }
 
 .btn-primary:not(:disabled):hover {
@@ -107,7 +110,6 @@
   justify-content: flex-start;
 }
 
-/* Hero call to action on the home screen. */
 .btn-play {
   min-height: 64px;
   padding: 0.9rem 2rem;

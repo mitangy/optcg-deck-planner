@@ -125,7 +125,6 @@ describe("admin Uploads tab (#812)", () => {
   it("Load more after a take-down still shows every live upload (#824)", async () => {
     const db = Array.from({ length: 25 }, (_, i) => row({ id: 25 - i }));
     const live = () => db.filter((r) => r.taken_down_at === null);
-    // The server's Live list pages like the real one: newest id first, `beforeId` keeps only older rows, then offset/limit.
     api.fetchAdminUploads.mockImplementation(async (_s: string, _k: unknown, offset: number, limit: number, beforeId?: number) => {
       const rows = live().filter((r) => beforeId === undefined || r.id < beforeId);
       return { total: live().length, items: rows.slice(offset, offset + limit) };

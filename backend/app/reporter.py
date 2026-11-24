@@ -1,4 +1,3 @@
-"""Who filed a report: shared by card reports and feedback."""
 
 from __future__ import annotations
 
@@ -15,11 +14,6 @@ def identify_reporter(
     session_user: User | None,
     authorization: str | None,
 ) -> User | None:
-    """Session user, else the holder of a valid game token, else anonymous.
-
-    Guests never get a session cookie, but every tester in a match holds a game
-    token, so accepting it ties most reports to a player.
-    """
     if session_user is not None:
         return session_user
     scheme, _, token = (authorization or "").partition(" ")

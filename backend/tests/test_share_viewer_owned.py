@@ -1,4 +1,3 @@
-"""Shared deck links count owned cards from the viewer, and can be copied (#741)."""
 
 from __future__ import annotations
 
@@ -19,7 +18,6 @@ from tests.friend_support import (  # noqa: F401  (client is a fixture)
 
 
 def _setup(c, S):
-    """Kai owns 4 of OP01-001 and shares a deck needing 4; Vi owns 1 base + 1 alt."""
     add_card(S, "OP01-001", "Zoro", price=2.0, product_id=100)
     add_alt(S, "OP01-001", 101, "Zoro Alt")
     add_card(S, "OP01-002", "Nami", price=3.0, product_id=200)
@@ -83,7 +81,6 @@ def test_signed_out_viewer_sees_none_owned_and_the_full_cost_741(client):
 
 
 def _setup_token(c, S):
-    """The token of the deck share made in _setup (the only share link)."""
     with S() as db:
         return db.scalar(select(ShareLink.token))
 
@@ -96,7 +93,6 @@ def test_copy_puts_the_deck_in_the_viewers_account_only_741(client):
     body = r.json()
     assert body["name"] == "Zoro Aggro"
     assert {x["card_id"]: x["needed"] for x in body["cards"]} == {"OP01-001": 4, "OP01-002": 2}
-    # Detail is computed for the viewer: 1 base + 1 alt owned of 4.
     assert {x["card_id"]: x["still_need"] for x in body["cards"]}["OP01-001"] == 2
     with S() as db:
         mine = db.scalars(select(Deck).where(Deck.user_id == vi)).all()

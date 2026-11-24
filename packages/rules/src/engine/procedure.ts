@@ -1,8 +1,3 @@
-/**
- * Turn and battle procedure. `settle` advances the game until a player must
- * act: pending choices first, then running ability frames, queued triggers
- * (turn player first, controller orders simultaneous ones), then procedure steps.
- */
 import { abilitiesFor, abilityById } from "../cards/abilities.js";
 import { getCardDef } from "../cards/definitions.js";
 import type { MatchState, PendingChoice, Seat } from "../types.js";
@@ -32,12 +27,10 @@ function clearForGameOver(state: MatchState): void {
   state.phase = "game_over";
 }
 
-/** Leader "Under the rules of this game …" rule, by rule string. */
 export function leaderRule(state: MatchState, seat: Seat, rule: string): boolean {
   return abilitiesFor(state.players[seat].leader.defId).some((a) => (a.statics ?? []).some((st) => st.s === "deck_rule" && st.rule === rule));
 }
 
-/** Rule processing: a player with no cards in their deck loses. */
 function checkRules(sim: Sim): void {
   const { state } = sim;
   if (state.phase === "mulligan" || state.winner !== null) return;
@@ -59,7 +52,6 @@ export function settle(sim: Sim): void {
     if (state.resolutionFrames.length > 0) { runFrames(sim); continue; }
     if (state.triggerQueue.length > 0 && !heldUntilDamageStepEnds(state)) { if (startNextTrigger(sim)) continue; return; }
     if (state.steps.length > 0) { advanceStep(sim); continue; }
-    // A battle card left the field while players held priority: the battle ends.
     if (state.battle && (state.phase === "block" || state.phase === "counter") && !battleCards(state)) { state.steps.push({ kind: "end_battle" }); continue; }
     return;
   }
@@ -108,7 +100,6 @@ function startNextTrigger(sim: Sim): boolean {
   return true;
 }
 
-/** Apply an `order_pending_effects` answer. */
 export function applyTriggerOrder(sim: Sim, choice: PendingChoice, orderedIds: string[]): string | null {
   const { state } = sim;
   const ids = (choice.unorderedChoices ?? []).map((c) => c.id);
@@ -124,19 +115,13 @@ export function applyTriggerOrder(sim: Sim, choice: PendingChoice, orderedIds: s
   return null;
 }
 
-// ---------------------------------------------------------------------------
-// Turn structure
-// ---------------------------------------------------------------------------
-
 export function beginTurn(sim: Sim): void {
   const { state } = sim;
   expireStartOfTurn(state);
   const seat = state.activeSeat;
   const p = state.players[seat];
   p.turnsStarted += 1;
-  // Hand reveals last for the turn they were made in (#491).
   for (const player of state.players) delete player.revealedHandIds;
-  // Refresh phase.
   const noRefresh = new Set(state.modifiers.filter((m) => m.target.kind === "card" && m.effect.type === "restrict" && m.effect.restriction === "no_refresh" && m.expires.kind === "next_refresh" && m.expires.seat === seat).map((m) => (m.target as { id: string }).id));
   state.modifiers = state.modifiers.filter((m) => !(m.expires.kind === "next_refresh" && m.expires.seat === seat));
   for (const card of fieldCards(p)) {
@@ -176,7 +161,6 @@ export function beginTurn(sim: Sim): void {
   sim.events.push({ type: "phase_changed", phase: "main", activeSeat: seat });
   newBatch(state);
   for (const card of fieldCards(p)) queueWindow(state, "start_of_your_turn", seat, card);
-  // Delayed effects "at the start of your opponent's next Main Phase".
   for (const d of state.delayed.filter((x) => x.when === "opponent_main" && x.seat !== seat && x.turn < state.turnNumber)) {
     state.triggerQueue.push({ id: alloc(state, "trig"), seat: d.seat, sourceInstanceId: d.sourceInstanceId, sourceDefId: d.sourceDefId, abilityId: d.abilityId, window: "delayed", batch: state.triggerBatch, delayIndex: d.index, ...(d.vars ? { vars: d.vars } : {}) });
   }
@@ -198,10 +182,6 @@ export function endTurn(sim: Sim): void {
   state.steps.push({ kind: "end_phase" });
 }
 
-// ---------------------------------------------------------------------------
-// Battle
-// ---------------------------------------------------------------------------
-
 export function declareAttack(sim: Sim, attackerId: string, target: MatchState["battle"] extends infer B ? B extends { target: infer T } ? T : never : never): void {
   const { state } = sim;
   const seat = state.activeSeat;
@@ -222,7 +202,6 @@ export function declareAttack(sim: Sim, attackerId: string, target: MatchState["
   dispatchEvent(state, "self_attacked", { seat: oppSeat, card: defender });
   if (target.kind === "leader") dispatchEvent(state, "leader_attacked", { seat: oppSeat, card: defender });
   state.steps.push({ kind: "after_attack_triggers" });
-  // "… cannot attack unless your opponent trashes N cards from their hand whenever they attack."
   const tax = restrictionValue(state, seat, attacker, "attack_requires_discard");
   if (typeof tax === "number" && tax > 0) state.resolutionFrames.push({ id: alloc(state, "frame"), seat, sourceInstanceId: attacker.id, sourceDefId: attacker.defId, abilityId: "__attack_tax", window: "rule", operationIndex: 0, bindings: { [V.taxCount]: tax }, program: "attack_tax" });
 }
@@ -425,11 +404,8 @@ function advanceStep(sim: Sim): void {
 }
 
 /**
- * The defender privately checks the Life card taken as damage (rules 7-1-4-1-1-2, 10-1-5-1) and may
- * reveal it to activate its [Trigger]. Every non-Banish hit opens the same `life_trigger` choice so the
- * opponent cannot tell whether the card had a [Trigger] (it is `noTrigger` only for its owner).
- * Games started before `lifeCheckEveryHit` keep the legacy flow: only [Trigger] cards pause.
- * Returns true when a choice was opened.
+ * Every non-Banish hit opens the same `life_trigger` choice so the opponent cannot tell whether the card had a
+ * [Trigger]. Games started before `lifeCheckEveryHit` keep the legacy flow: only [Trigger] cards pause.
  */
 function openLifeCheck(sim: Sim, seat: Seat, lifeId: string, lifeDef: string, battle: boolean): boolean {
   const { state } = sim;
@@ -447,7 +423,6 @@ function openLifeCheck(sim: Sim, seat: Seat, lifeId: string, lifeDef: string, ba
   return true;
 }
 
-/** Resolve the front Life Trigger prompt. */
 export function resolveLifeTrigger(sim: Sim, choice: PendingChoice, accept: boolean): string | null {
   const { state } = sim;
   const seat = choice.seat;

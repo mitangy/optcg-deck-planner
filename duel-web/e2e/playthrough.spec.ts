@@ -1,24 +1,11 @@
-/**
- * Seeded random playthrough: a practice match played only by clicking what
- * the UI offers (hand cards, board cards, action and prompt buttons), with a
- * fixed shuffle seed and a fixed click seed so a failure replays exactly.
- *
- * After every click: no page errors, no server error banner. Every new turn:
- * the UI audit (covered controls, clipped / spilling text, sideways scroll).
- * The game must keep moving and finish.
- *
- *   SEEDS=1,2,3 npm run e2e -- playthrough     # more games
- */
 import { test, expect, formatIssues, issueKey, type Page } from "./fixtures";
 import type { AuditIssue } from "./audit";
 import { isKnown } from "./known-issues";
 
 const SEEDS = (process.env.SEEDS ?? "7").split(",").map(Number);
 const MAX_CLICKS = Number(process.env.MAX_CLICKS ?? 2000);
-/** A turn that takes more clicks than this is stuck (nothing the UI offers moves the game). */
 const MAX_CLICKS_PER_TURN = 150;
 
-/** Small deterministic PRNG (mulberry32) for click choices. */
 function rng(seed: number) {
   let a = seed >>> 0;
   return () => {
@@ -32,12 +19,6 @@ function rng(seed: number) {
 
 type Candidate = { label: string; weight: number; x: number; y: number };
 
-/**
- * Everything a player could reasonably click now, each with a point where it
- * is actually on top (fanned hand cards overlap, so the centre may belong to
- * a neighbour). Match chrome (leave, settings, undo, chat, seat pass) is
- * never offered.
- */
 async function candidates(page: Page): Promise<Candidate[]> {
   return page.evaluate(() => {
     const out: Array<{ label: string; weight: number; x: number; y: number }> = [];
@@ -59,7 +40,6 @@ async function candidates(page: Page): Promise<Candidate[]> {
       ".hand-fan-cards .card-tile, .hand-row-inner .card-tile, .rail-hand-cards .card-tile, .hand-dock-cards .card-tile, .side-field .card-tile[data-instance-id]";
     const els = [
       ...document.querySelectorAll<HTMLElement>(`:is(${buttonScopes}) :is(button, .choice-option)`),
-      // While a prompt is up, board cards only matter as its targets.
       ...document.querySelectorAll<HTMLElement>(dialog ? ".side-field .card-tile[data-instance-id]" : cardScopes),
     ];
     for (const el of els) {
@@ -67,8 +47,7 @@ async function candidates(page: Page): Promise<Candidate[]> {
       const r = el.getBoundingClientRect();
       if (r.width < 4 || r.height < 4 || getComputedStyle(el).visibility === "hidden") continue;
       const label = (el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60);
-      if (/^(Undo|Leave|Return home)/.test(label)) continue;
-      // Favour moves that advance the game; card taps only reveal a card's actions.
+      if (/^(Undo|Leave|Return home|Home$)/.test(label)) continue;
       let weight = el.classList.contains("card-tile") ? 1 : 4;
       if (/^Attack/.test(label)) weight = 12;
       else if (/^(Play|Give( all)? (DON|\d)|Activate|\+\d|All \()/.test(label)) weight = 8;
@@ -129,7 +108,6 @@ for (const seed of SEEDS) {
       const choice = pick(list, rand);
       trail.push(`T${state.turn} ${state.phase}: ${choice.label}`);
       await page.mouse.click(choice.x, choice.y);
-      // Let the server round-trip land before reading the board again.
       await page.waitForTimeout(120);
       state = await boardState(page);
 

@@ -27,10 +27,6 @@ const FEATURES: readonly { title: string; body: string }[] = [
   },
 ];
 
-/**
- * What a visitor who is not signed in sees at `/`. Signed-in players get the shopping list
- * there instead (see HomeRoute in App.tsx).
- */
 export function PlannerLandingPage({ onDevLogin }: { onDevLogin: () => Promise<void> }) {
   const [err, setErr] = useState<string | null>(null);
 
@@ -77,6 +73,18 @@ export function PlannerLandingPage({ onDevLogin }: { onDevLogin: () => Promise<v
             in OPTCG Duel, free in your browser.
           </p>
         </section>
+        <figure className="landing-shot">
+          <picture>
+            <img
+              src="/landing/shopping-light.webp"
+              width={1600}
+              height={900}
+              loading="eager"
+              decoding="async"
+              alt="The planner's shopping list: every card you still need across your decks, with owned counts, market prices and the cost left to buy."
+            />
+          </picture>
+        </figure>
         <section className="landing-features" aria-label="What the planner does">
           {FEATURES.map((f) => (
             <article key={f.title} className="landing-feature">

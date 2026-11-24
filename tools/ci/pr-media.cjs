@@ -1,15 +1,4 @@
 #!/usr/bin/env node
-/**
- * Fails a pull request that ADDS screenshots or recordings outside the places
- * app media legitimately lives (#783).
- *
- *   git diff --no-renames --diff-filter=A --name-only <base> HEAD | node tools/ci/pr-media.cjs
- *
- * PR screenshots and recordings go on the `pr-assets` branch, not in code
- * branches. A media file is allowed when one of its directories is `public`
- * or `assets`, or ends in `-snapshots` (Playwright baselines). That covers duel-web/public, frontend/public, frontend/src/assets,
- * mobile/assets/images and frontend/e2e/*.spec.ts-snapshots.
- */
 "use strict";
 
 const MEDIA_RE = /\.(png|jpe?g|gif|webp|avif|bmp|webm|mp4|mov)$/i;

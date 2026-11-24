@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+import threading
 from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Path, Query, Request
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.auth import get_current_user, get_optional_user
 from app.planner.catalog_sync import run_catalog_sync_job, sync_status, try_claim_sync_slot
 from app.core.security import CatalogToken
-from app.core.db import get_db
+from app.core.db import get_db, get_session_factory
 from app.core.models import User
 from app.planner.models import CatalogCard, CatalogMeta, CatalogPrinting
 from app.core.rate_limit import RateLimiter, client_ip
@@ -60,20 +61,25 @@ from app.planner import shopping as shopping_svc
 
 router = APIRouter(tags=["api"])
 
+# Card numbers are short; a longer path value would only become a junk row.
+CardId = Annotated[str, Path(max_length=32)]
+
 # Public TCGPlayer proxy — keep abuse cost bounded per client IP.
 _sales_rate_limiter = RateLimiter(max_calls=30, period_s=60, name="api_sales_rate_limiter")
 # Uncached lookups each hold a worker thread on a TCGPlayer call; cap them in
 # total, since the per-IP key above can be spoofed.
 _sales_upstream_limiter = RateLimiter(max_calls=60, period_s=60, name="api_sales_upstream_limiter")
+_sales_in_flight = threading.BoundedSemaphore(4)
 
 
 @router.get("/decks", response_model=list[DeckSummary])
 def get_decks(
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
+    deck_ids: Annotated[list[int] | None, Query()] = None,
 ):
     deck_link.reconcile_user(db, user)
-    return deck_svc.list_decks(db, user)
+    return deck_svc.list_decks(db, user, deck_ids)
 
 
 @router.post("/decks", response_model=DeckSummary)
@@ -142,7 +148,7 @@ def put_deck_decklist(
 @router.put("/decks/{deck_id}/cards/{card_id}", response_model=DeckDetail)
 def put_deck_card(
     deck_id: int,
-    card_id: str,
+    card_id: CardId,
     body: DeckCardUpsert,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
@@ -160,7 +166,7 @@ def put_deck_card(
 @router.delete("/decks/{deck_id}/cards/{card_id}", response_model=DeckDetail)
 def delete_deck_card(
     deck_id: int,
-    card_id: str,
+    card_id: CardId,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
 ):
@@ -175,7 +181,7 @@ def delete_deck_card(
 )
 def put_deck_card_printing(
     deck_id: int,
-    card_id: str,
+    card_id: CardId,
     product_id: int,
     body: DeckCardPrintingUpdate,
     user: Annotated[User, Depends(get_current_user)],
@@ -192,7 +198,7 @@ def put_deck_card_printing(
     response_model=CardPrintingResult,
 )
 def put_card_printing(
-    card_id: str,
+    card_id: CardId,
     product_id: int,
     body: CardPrintingUpdate,
     user: Annotated[User, Depends(get_current_user)],
@@ -255,7 +261,7 @@ def get_shopping(
 
 @router.put("/shopping/extras/{card_id}")
 def put_shopping_extra(
-    card_id: str,
+    card_id: CardId,
     body: ShoppingExtraUpdate,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
@@ -304,7 +310,7 @@ def post_owned_add(
 
 @router.put("/owned/{card_id}")
 def put_owned(
-    card_id: str,
+    card_id: CardId,
     body: OwnedUpdate,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
@@ -318,7 +324,7 @@ def put_owned(
     response_model=OwnedPrintingResult,
 )
 def put_owned_printing(
-    card_id: str,
+    card_id: CardId,
     product_id: int,
     body: OwnedPrintingUpdate,
     user: Annotated[User, Depends(get_current_user)],
@@ -334,7 +340,7 @@ def put_owned_printing(
     response_model=CollectorWantResult,
 )
 def put_collector_want(
-    card_id: str,
+    card_id: CardId,
     product_id: int,
     body: CollectorWantUpdate,
     user: Annotated[User, Depends(get_current_user)],
@@ -347,7 +353,7 @@ def put_collector_want(
 
 @router.put("/owned/{card_id}/display", response_model=DisplayArtResult)
 def put_display_art(
-    card_id: str,
+    card_id: CardId,
     body: DisplayArtUpdate,
     user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],
@@ -465,7 +471,7 @@ def catalog_card_printings(
 def catalog_recent_sales(
     request: Request,
     product_id: Annotated[int, Path(ge=1, le=2_147_483_647)],
-    db: Annotated[Session, Depends(get_db)],
+    session_factory: Annotated[sessionmaker, Depends(get_session_factory)],
     limit: Annotated[int, Query(ge=1, le=10)] = 3,
 ):
     """Public proxy for TCGPlayer latest sales (cached). Used by price expand UI."""
@@ -473,9 +479,16 @@ def catalog_recent_sales(
         raise HTTPException(status_code=429, detail="Too many sales requests")
     # Only products in our catalog: arbitrary ids would each cost an upstream call
     # and a cache entry that is never reused.
-    if db.scalar(select(CatalogPrinting.id).where(CatalogPrinting.product_id == product_id).limit(1)) is None:
+    # A short-lived session: the TCGPlayer call below can take seconds and must
+    # not hold a pooled connection or a request slot.
+    with session_factory() as db:
+        known = db.scalar(select(CatalogPrinting.id).where(CatalogPrinting.product_id == product_id).limit(1))
+    if known is None:
         raise HTTPException(status_code=404, detail="Unknown product")
-    if not is_cached(product_id, limit) and not _sales_upstream_limiter.allow("sales-upstream"):
+    cached = is_cached(product_id, limit)
+    if not cached and not _sales_upstream_limiter.allow("sales-upstream"):
+        raise HTTPException(status_code=429, detail="Too many sales requests")
+    if not cached and not _sales_in_flight.acquire(blocking=False):
         raise HTTPException(status_code=429, detail="Too many sales requests")
     try:
         sales = fetch_recent_sales(product_id, limit=limit)
@@ -483,10 +496,12 @@ def catalog_recent_sales(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail="Could not load recent sales") from exc
+    finally:
+        if not cached:
+            _sales_in_flight.release()
     return RecentSalesResponse(product_id=product_id, sales=sales)
 
 
-# History is read from our own DB (no upstream call), so a looser cap than sales.
 _history_rate_limiter = RateLimiter(max_calls=120, period_s=60, name="api_price_history_rate_limiter")
 MAX_IMPORT_PRODUCTS = 50_000
 

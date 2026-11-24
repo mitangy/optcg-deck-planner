@@ -2,7 +2,6 @@ import { CardPage } from "./CardPage";
 import { PublicTopbar } from "../ui/PublicTopbar";
 import { UpdateNotice } from "../app/UpdateNotice";
 
-/** `/cards/:cardId` for a visitor who is not signed in: the slim public header around the card page. */
 export function PublicCardScreen() {
   return (
     <div className="app public-app">

@@ -43,10 +43,8 @@ describe("panel size (#390)", () => {
   });
 
   it("stops a right or bottom edge at the viewport edge and at the minimum without moving the opposite edge (#532)", () => {
-    // Left edge at 1200 - 100 - 420 = 680: it can't be pulled past the right edge of the window...
     expect(dragRect(at(420, 600), "right", 5000, 0, vp)).toEqual(at(520, 600, 0));
     expect(dragRect(at(420, 600), "bottom", 0, 5000, vp)).toEqual(at(420, 650, 100, 0));
-    // ...and pushing it back past the minimum leaves the left/top edge exactly where it was.
     const small = dragRect(at(420, 600), "bottom-right", -5000, -5000, vp);
     expect(small).toEqual(at(320, 360, 200, 290));
     expect(vp.w - small.pos.r - small.size.w).toBe(vp.w - 100 - 420);

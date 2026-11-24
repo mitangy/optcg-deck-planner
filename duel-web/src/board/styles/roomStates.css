@@ -1,5 +1,3 @@
-/* —— Waiting room: invite card —— */
-
 .arena-waiting {
   position: relative;
   z-index: var(--z-raise-2);
@@ -65,8 +63,6 @@
   color: var(--muted);
 }
 
-/* —— Per-player (chess) clocks —— */
-
 .hud-seat-clock {
   font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
@@ -112,7 +108,6 @@
   background: rgba(178, 55, 47, 0.3);
 }
 
-/* Opponent dropped: in-flow notice under the HUD. */
 .away-banner {
   position: relative;
   z-index: var(--z-raise-2);
@@ -124,16 +119,32 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* —— Rematch (match-over modal) —— */
+.restart-notice {
+  position: fixed;
+  top: calc(var(--safe-t) + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-modal);
+  box-sizing: border-box;
+  width: max-content;
+  max-width: min(34rem, calc(100vw - 1.5rem));
+  padding: 0.55rem 0.85rem;
+  border: 1px solid rgba(201, 130, 47, 0.7);
+  border-radius: var(--radius-10);
+  background: rgba(60, 38, 12, 0.94);
+  color: #fff3df;
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+  pointer-events: none;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
 
 .rematch-panel {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  padding: 0.7rem 0.75rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-10);
-  background: rgba(0, 0, 0, 0.2);
 }
 
 .rematch-note {
@@ -151,6 +162,41 @@
 
 .rematch-actions .btn {
   flex: 1 1 8rem;
+}
+
+/* The slot is as tall as the select, so swapping "Change deck" for it moves nothing. */
+.rematch-deck-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+}
+
+.rematch-deck-slot > .rematch-decks {
+  flex: 1 1 auto;
+}
+
+.rematch-change-deck {
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.rematch-change-deck:hover {
+  color: var(--ink);
+}
+
+.rematch-change-deck:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+  border-radius: var(--radius-8);
 }
 
 .rematch-decks {
@@ -174,14 +220,22 @@
   font-size: inherit;
 }
 
+/* A lone select already reads "Keep same deck", so its label is for screen readers only; practice has two and keeps theirs. */
+.rematch-deck:only-child .ui-select-field-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .rematch-deck .ui-select-button {
-  min-height: 2.1rem;
+  min-height: 2.75rem;
   border-radius: var(--radius-8);
   background: var(--arena-raised);
   font-size: 0.82rem;
 }
-
-/* —— Choice targets: live readiness under each field card —— */
 
 .choice-readiness {
   padding: 0.2rem 0.5rem;
@@ -193,16 +247,12 @@
   line-height: 1.2;
   text-align: center;
   color: var(--muted);
-  /* Option columns (~80px desktop, ~56px phone) are narrower than
-     "Summoning sick" on one line: wrap to two lines inside the pill. The
-     pill may borrow 2px of the grid gap on each side so the text keeps
-     real padding (neighbours still keep 4px between them). */
+  /* Option columns (~80px desktop, ~56px phone) are narrower than "Summoning sick" on one line: wrap to two lines inside the pill, which may borrow 2px of the grid gap on each side. */
   max-width: calc(100% + 4px);
   margin-inline: -2px;
 }
 @media (max-width: 640px) {
-  /* Even the single word "Summoning" is wider than a phone column at the
-     desktop size, so shrink the chip text until it fits with padding. */
+  /* Even the single word "Summoning" is wider than a phone column at the desktop size, so shrink the chip text until it fits. */
   .choice-readiness {
     font-size: 0.5rem;
     padding: 0.18rem 0.3rem;
@@ -229,8 +279,6 @@
   color: #c7d1d7;
 }
 
-/* —— Two-tap buttons that keep their width while armed —— */
-
 .confirm-btn-sizer {
   display: inline-grid;
 }
@@ -243,8 +291,7 @@
   visibility: hidden;
 }
 
-/* The primary slot is a fixed share of a phone-wide bar, narrower than
-   "Tap again to end" on one line: wrap inside the button, don't spill out. */
+/* The primary slot is a fixed share of a phone-wide bar, narrower than "Tap again to end" on one line: wrap inside the button, don't spill out. */
 .intent-btn-primary .confirm-btn-sizer {
   min-width: 0;
   max-width: 100%;
@@ -253,8 +300,6 @@
   align-items: center;
 }
 
-/* The armed End turn names what is left (DON!!, attackers) only where the rail
-   button is wide enough; phones keep "Tap again to end". */
 .end-warn-full {
   display: none;
 }

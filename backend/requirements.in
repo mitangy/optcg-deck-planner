@@ -9,7 +9,7 @@
 fastapi>=0.162.0,<0.163
 uvicorn[standard]>=0.32.0,<0.55
 sqlalchemy>=2.1.8,<2.2
-# Schema migrations (backend/migrations). Not wired into startup yet; see migrations/README.md.
+# Schema migrations (backend/migrations).
 alembic>=1.16.5,<2
 psycopg2-binary>=2.9.10,<3
 pydantic>=2.14.2,<3
@@ -26,3 +26,5 @@ tenacity>=9.1.2,<10
 rapidfuzz>=3.14.0,<4
 # TTL caches (meta decks, recent sales).
 cachetools>=8.0.0,<9
+# Order History PDF upload (group buy), text extraction only.
+pypdf>=7.1.1,<8

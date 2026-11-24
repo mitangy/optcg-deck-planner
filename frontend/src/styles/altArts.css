@@ -1,17 +1,10 @@
-/* One standard alt tile (#1270): Base and every alt, on Shopping, decks, Collection, the card page, share pages
-   and group buys, in List and Grid, share one width, one thumbnail size and one control order
-   (thumbnail + price/labels, stepper, Extra copy, then a footer with who-wants chips and Show).
-   Tiles in one row stretch to the same height; --alt-tile-h is that standard height and sizes the #877 scroll cap. */
 .alt-arts {
-  --alt-tile-w: 148px;
-  --alt-thumb-w: 48px;
-  --alt-thumb-h: 67px;
-  --alt-tile-h: 122px;
+  --alt-tile-w: 9.25rem;
+  --alt-thumb-w: 3rem;
+  --alt-thumb-h: 4.1875rem;
+  --alt-tile-h: 7.625rem;
 }
 
-/* A grid, not a wrapping flex row (#1280): every row is as tall as the tallest tile in the list, so tiles
-   match even when each sits on its own row (phone list) and Show lines up across the list. It sits inside
-   .alt-arts so the #877 scroll cap's max-height never squeezes the rows (fr rows shrink to fit a max-height). */
 .alt-arts-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, min(var(--alt-tile-w), 100%));
@@ -22,9 +15,8 @@
   min-width: 0;
 }
 
-/* Planner tiles with the Extra copy toggle (#1035) carry one more row. */
 .alt-arts.alt-arts-collect {
-  --alt-tile-h: 152px;
+  --alt-tile-h: 9.5rem;
 }
 
 .alt-art {
@@ -59,13 +51,11 @@
   overflow-wrap: anywhere;
 }
 
-/* Price, labels, stepper and Extra copy all start at the thumbnail's right edge, in the same order everywhere. */
 .alt-art .alt-meta > * {
   justify-self: start;
   max-width: 100%;
 }
 
-/* The price, labels and Owned / Want caption all start at one left edge (#1280). */
 .alt-art .alt-want-controls {
   align-items: flex-start;
 }
@@ -74,8 +64,6 @@
   padding-left: 0;
 }
 
-/* Footer across the tile: Extra copy, who-wants chips / Skipped badge, then Show. Pinned to the tile's bottom
-   edge. Its buttons all take the tile's full width, so they match and never spill past the tile (#1280). */
 .alt-art-foot {
   display: flex;
   flex-direction: column;
@@ -114,9 +102,6 @@
   text-align: center;
 }
 
-/* The page content is capped near 1160px at every viewport, so Master Shopping (the widest table) always
-   needs the compact form once its Alt arts column shows: tighter cells, smaller alt tiles and steppers,
-   and no Cost column (grid and phone cards still show it) (#892). */
 .shopping-table:has(td.alt-arts-cell) :is(th, td) {
   padding-inline: 0.45rem;
 }
@@ -144,9 +129,6 @@
   height: 2.1rem;
 }
 
-/* Below 1440px the Alt arts column has to share the row with the dock/editor beside the table, so the
-   deck and Collection tables tighten their cells and use smaller tiles; the deck list also drops its
-   Type column (grid and phone cards still show it). */
 @media (max-width: 1439px) {
   :is(.deck-table, .collection-table):has(td.alt-arts-cell) :is(th, td) {
     padding-inline: 0.5rem;
@@ -178,22 +160,18 @@
   max-width: 100%;
 }
 
-/* Alt tiles fit inside narrow grid cards (2 columns at 375px). */
-/* Height cap (#877): ~5 tiles, then the alt list scrolls inside the card. */
 .grid-card-alts .alt-arts,
 .data-table td.alt-arts-cell .alt-arts,
 .mobile-card-alts .alt-arts {
   --alt-rows: 5;
-  max-height: calc(var(--alt-rows) * var(--alt-tile-h, 116px) + (var(--alt-rows) - 1) * 0.55rem);
+  max-height: calc(var(--alt-rows) * var(--alt-tile-h, 7.625rem) + (var(--alt-rows) - 1) * 0.55rem);
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  /* Keep the scrollbar off the tile controls. */
   scrollbar-gutter: stable;
   scrollbar-width: thin;
 }
 
-/* Who wants this art (#891): member-coloured chips under the tile's price/label, wrapping inside it. */
 .alt-art-wants {
   display: flex;
   flex-direction: column;
@@ -207,8 +185,6 @@
   gap: var(--space-1);
 }
 
-/* One line per chip (#902): the chips sit in the tile's footer; a very long name ends in "…"
-   (full text in the tooltip). */
 .alt-art-extra > .alt-art-wants {
   margin-top: 0;
 }
@@ -230,7 +206,6 @@
   white-space: nowrap;
 }
 
-/* Phone list: tiles sit two (or more) per row, so three rows is already six tiles. */
 .mobile-card-alts .alt-arts {
   --alt-rows: 3;
 }
@@ -293,7 +268,6 @@
   justify-self: center;
 }
 
-/* Narrow grid cards (2 per row on phones): the button wraps instead of poking out of the card. */
 .grid-card-owned .group-buy-qty {
   max-width: 100%;
   grid-template-columns: minmax(0, max-content);
@@ -302,15 +276,6 @@
 .grid-card-owned .group-buy-exclude-btn.btn {
   max-width: 100%;
   white-space: normal;
-}
-
-.group-buy-contribution-actions {
-  margin-top: 0.75rem;
-}
-
-.group-buy-contribution-actions .btn {
-  width: auto;
-  margin-top: 0;
 }
 
 .group-buy-deck-filter-note {
@@ -383,12 +348,10 @@
   min-width: 0;
 }
 
-/* Who-wants rail (#898): one segment per member, full height of the card or table row,
-   each segment outlined so neighbouring colours stay distinct. */
 .group-buy-color-rail {
   display: flex;
   flex-direction: column;
-  width: 9px;
+  width: 0.5625rem;
   overflow: hidden;
   flex: 0 0 auto;
   position: absolute;
@@ -416,44 +379,6 @@
   border-radius: 15px 0 0 15px;
 }
 
-.gb-user-0 { --gb-user: #0f6a6a; }
-.gb-user-1 { --gb-user: #c65911; }
-.gb-user-2 { --gb-user: #2f6b3a; }
-.gb-user-3 { --gb-user: #355c7d; }
-.gb-user-4 { --gb-user: #9b2c2c; }
-.gb-user-5 { --gb-user: #6b5344; }
-.gb-user-6 { --gb-user: #8a5a12; }
-.gb-user-7 { --gb-user: #3d5a80; }
-
-.grid-card.need.gb-user-0,
-.grid-card.need.gb-user-1,
-.grid-card.need.gb-user-2,
-.grid-card.need.gb-user-3,
-.grid-card.need.gb-user-4,
-.grid-card.need.gb-user-5,
-.grid-card.need.gb-user-6,
-.grid-card.need.gb-user-7,
-.mobile-card.need.gb-user-0,
-.mobile-card.need.gb-user-1,
-.mobile-card.need.gb-user-2,
-.mobile-card.need.gb-user-3,
-.mobile-card.need.gb-user-4,
-.mobile-card.need.gb-user-5,
-.mobile-card.need.gb-user-6,
-.mobile-card.need.gb-user-7 {
-  background: color-mix(in srgb, var(--gb-user) 14%, var(--need));
-}
-
-.data-table tr.gb-user-0 td,
-.data-table tr.gb-user-1 td,
-.data-table tr.gb-user-2 td,
-.data-table tr.gb-user-3 td,
-.data-table tr.gb-user-4 td,
-.data-table tr.gb-user-5 td,
-.data-table tr.gb-user-6 td,
-.data-table tr.gb-user-7 td {
-  background: color-mix(in srgb, var(--gb-user) 10%, var(--card));
-}
 
 .group-buy-qty-controls {
   display: inline-flex;
@@ -473,7 +398,6 @@
 }
 
 .group-buy-qty-meta {
-  /* Ignore intrinsic text width when sizing the grid column. */
   width: 0;
   min-width: 100%;
   display: flex;
@@ -491,8 +415,6 @@
   min-height: 0;
 }
 
-/* Extra copies in the Your buy editor (#1269). Same width rule as the meta block: the rows
-   wrap inside the stepper's width and never widen it. */
 .group-buy-extras {
   gap: 0.2rem;
   align-items: stretch;
@@ -580,11 +502,6 @@
   }
 }
 
-.group-buy-footnote {
-  margin: 0.5rem 0 0;
-  font-size: 0.85rem;
-}
-
 .group-buy-invite-banner {
   display: flex;
   flex-wrap: wrap;
@@ -638,7 +555,6 @@
 }
 
 @media (max-width: 720px) {
-  .group-buy-toolbar .btn,
   .page-head-actions .btn.secondary {
     flex: 1 1 auto;
     text-align: center;
@@ -724,7 +640,6 @@
   overscroll-behavior: contain;
 }
 
-/* Stacked flow: let the results use most of the viewport instead of a ~4-row box. */
 .deck-editor .deck-editor-results {
   max-height: min(34rem, 62svh);
 }
@@ -752,8 +667,8 @@
 
 .deck-editor-result-main .thumb,
 .deck-editor-result-main .thumb.placeholder {
-  width: 40px;
-  height: 56px;
+  width: 2.5rem;
+  height: 3.5rem;
   flex: 0 0 auto;
 }
 
@@ -946,8 +861,8 @@
 
   .deck-editor-result-main .thumb,
   .deck-editor-result-main .thumb.placeholder {
-    width: 36px;
-    height: 50px;
+    width: 2.25rem;
+    height: 3.125rem;
   }
 
   .deck-editor-result-actions .btn.secondary {
@@ -962,7 +877,6 @@
   }
 }
 
-/* Group buys (#1305): "Buy ×N" with "own M" on its own muted line (tiles are too narrow for one line). */
 .alt-art .alt-buy-own {
   white-space: nowrap;
 }
@@ -973,4 +887,11 @@
   display: block;
   font-weight: 400;
   color: var(--muted, inherit);
+}
+
+/* "Bought ×N (you M) · $X each" wraps inside its tile instead of running past it (#1443). */
+.alt-art-wants .group-buy-who-chip.gb-bought-chip {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }

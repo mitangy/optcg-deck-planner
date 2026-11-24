@@ -1,8 +1,3 @@
-/**
- * The big turn heading sizes from its card, not the window (#774): with the right column dragged to its narrowest
- * (250px, the Turn panel's minimum) in a wide window, "OPPONENT'S TURN" used to be sized from the 1920px viewport
- * and spilled out of its bordered card. A column setting (panelSizes `R=250`), desktop only. Spectators see the heading.
- */
 import { test, expect, type Page } from "./fixtures";
 
 test.use({ legacyLayout: false });
@@ -16,10 +11,6 @@ async function open(page: Page, query: string) {
   await page.waitForTimeout(500);
 }
 
-/**
- * Only spectators get the big heading since #1247 (players read whose turn it is on the action button), and the demo
- * board is a player's. Put the heading a spectator sees into the card, between the kicker and the subline.
- */
 async function withHeading(page: Page, text: string) {
   await page.locator(".turn-banner").evaluate((banner, t) => {
     const title = banner.querySelector(".turn-banner-title") ?? document.createElement("strong");
@@ -30,7 +21,6 @@ async function withHeading(page: Page, text: string) {
   await expect(page.locator(".turn-banner-title")).toHaveText(text);
 }
 
-/** How far the heading's text pokes out of the banner's content box (inside its border and padding), per side, and whether the banner scrolls. */
 const fit = (page: Page) =>
   page.evaluate(() => {
     const banner = document.querySelector(".turn-banner")!;
@@ -60,7 +50,6 @@ test.describe("desktop", () => {
     await withHeading(page, "Opponent's turn");
     const f = await fit(page);
     expect(Math.round(f.column), "the column is at its narrowest").toBe(250);
-    // The text stays inside the card's padding, with a few px to spare (it is 17px clear today).
     expect(f.left, "text left of the card").toBeLessThanOrEqual(-6);
     expect(f.right, "text right of the card").toBeLessThanOrEqual(-6);
     expect(f.scrolls, "the card scrolls sideways").toBeLessThanOrEqual(0);

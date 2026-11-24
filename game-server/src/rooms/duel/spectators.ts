@@ -7,13 +7,9 @@ import type { DuelCore, SpectatorSlot } from "./context.js";
 
 export const MAX_SPECTATORS = 8;
 
-/** Who is watching, and every view the room sends out: each seat's private view and the spectators' public one. */
 export class Spectators {
   private slots: SpectatorSlot[] = [];
-  /**
-   * Each player's own hand order (instance ids), shown to spectators of unranked
-   * rooms. Never sent to a player: neither seat learns anything it can't see.
-   */
+  /** Shown to spectators of unranked rooms only; never sent to a player. */
   private seatHandOrder: [string[], string[]] = [[], []];
 
   constructor(private readonly core: Pick<DuelCore, "game" | "io" | "cosmetics" | "seats">) {}
@@ -30,7 +26,6 @@ export class Spectators {
     return this.slots.find((s) => s.sessionId === client.sessionId) ?? null;
   }
 
-  /** Seat a spectator; false when the room is at its cap. */
   join(client: Client, identity: { displayId: string; userId: number; cameraSeat: Seat }): boolean {
     if (this.slots.length >= MAX_SPECTATORS) return false;
     this.slots.push({
@@ -76,8 +71,8 @@ export class Spectators {
       io.sendParseError(client, e);
       return;
     }
-    // Ranked rooms never show hands to spectators, so there is nothing to keep.
-    if (game.ranked || !game.match) return;
+    // Ranked and tournament rooms never show hands to spectators, so there is nothing to keep.
+    if (game.competitive || !game.match) return;
     const next = idsInHand(game.match.players[seat].hand, ids);
     const prev = this.seatHandOrder[seat];
     if (next.length === prev.length && next.every((id, i) => id === prev[i])) return;
@@ -89,31 +84,24 @@ export class Spectators {
     }
   }
 
-  /** Both hands in the order their players arranged them (#346, #482). */
   private orderedHands<H extends [{ id: string }[], { id: string }[]]>(hands: H): H {
     const [h0, h1] = hands;
     return [applyHandOrder(h0, this.seatHandOrder[0]), applyHandOrder(h1, this.seatHandOrder[1])] as unknown as H;
   }
 
-  /** Player view; after game over the revealed hands follow each player's arranged order (#482). */
   playerView(match: MatchState, seat: Seat) {
     const view = getPlayerView(match, seat);
     if (!view.revealedHands) return view;
     return { ...view, revealedHands: this.orderedHands(view.revealedHands) };
   }
 
-  /**
-   * Spectators see both hands in unranked rooms. Ranked keeps hands hidden so a
-   * spectator can't relay them to a player.
-   */
+  // Ranked and tournament games keep hands hidden so a spectator can't relay them to a player.
   spectatorView(match: MatchState, cameraSeat: Seat) {
-    const view = getSpectatorView(match, cameraSeat, { revealHands: !this.core.game.ranked });
+    const view = getSpectatorView(match, cameraSeat, { revealHands: !this.core.game.competitive });
     if (!view.revealedHands) return view;
-    // Each hand in the order its player arranged it (see seatHandOrder).
     return { ...view, revealedHands: this.orderedHands(view.revealedHands) };
   }
 
-  /** Send every connected seat and spectator its view of the current state, with the events that led to it. */
   broadcastViews(events: GameEvent[]) {
     const { game, io, cosmetics, seats } = this.core;
     if (!game.match) return;
@@ -126,14 +114,14 @@ export class Spectators {
       if (!client) continue;
       const view = this.playerView(game.match, slot.seat);
       io.send(client, "events", { events: projectGameEvents(events, slot.seat), step });
-      io.send(client, "view", { view });
+      io.send(client, "view", { view, step: game.stateStep });
     }
     for (const spec of this.slots) {
       const client = io.clientFor(spec.sessionId);
       if (!client) continue;
       const view = this.spectatorView(game.match, spec.cameraSeat);
       io.send(client, "events", { events: projectGameEvents(events, null), step });
-      io.send(client, "view", { view });
+      io.send(client, "view", { view, step: game.stateStep });
     }
   }
 }

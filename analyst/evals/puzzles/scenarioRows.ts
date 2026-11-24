@@ -8,7 +8,6 @@ import { FILLER } from "@optcg/rules/src/testing/harness";
 
 const mine = (card: string): Where => ({ seat: 0, card });
 const theirs = (card: string): Where => ({ seat: 1, card });
-// Some copied rows do not use every helper.
 void FILLER;
 void mine;
 void theirs;
@@ -1250,7 +1249,6 @@ const eventTriggerQualifiersRows: CardScenario[] = (() : CardScenario[] => {
   ];
 })();
 
-/** Every copied row, tagged with the test file it came from. */
 export const SCENARIO_ROWS: { source: string; row: CardScenario }[] = [
   ...leadersAndStaticsRows.map((row) => ({ source: "leadersAndStatics", row })),
   ...effectsRows.map((row) => ({ source: "effects", row })),

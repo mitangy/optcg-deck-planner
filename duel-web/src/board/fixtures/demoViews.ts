@@ -5,12 +5,6 @@ import { lookupCard } from "../../cards/atlas";
 import type { RematchDeckOption } from "../../decks/rematchDecks";
 import type { MatchHistoryEntry } from "../../history/historyApi";
 
-/**
- * Static fixtures behind `/demo` (layout QA) and the board unit tests: sample PlayerViews, prompts, a battle log
- * and the `with*` transforms the demo's URL flags apply. Kept out of the page so tests and the lazy demo route
- * share one module instead of tests importing a page component (A-14).
- */
-
 export const DEMO_INSTANCES: InstanceIndex = new Map([
   ["y-leader", { defId: "ST01-001", seat: 0 }],
   ["o-leader", { defId: "ST01-001", seat: 1 }],
@@ -18,7 +12,6 @@ export const DEMO_INSTANCES: InstanceIndex = new Map([
   ["y-c3", { defId: "ST01-008", seat: 0 }],
 ]);
 
-/** Sample turn log for layout QA (`/demo`) — every emphasis tone at least once. */
 export const DEMO_BATTLE_LOG: BattleLogEntry[] = [
   ...narrateEvents(
     [
@@ -50,7 +43,6 @@ export const DEMO_BATTLE_LOG: BattleLogEntry[] = [
   ),
 ];
 
-/** `?over`: a saved ranked match with a log, as the match-over card finds it (`&guest` leaves it out). */
 export const loadDemoRecord = (matchId: string): Promise<MatchHistoryEntry> =>
   Promise.resolve({
     match_id: matchId,
@@ -70,7 +62,6 @@ export const loadDemoRecord = (matchId: string): Promise<MatchHistoryEntry> =>
     has_log: true,
   });
 
-/** Static playmat preview for layout QA (`/demo`). Not a live match. */
 export const DEMO_VIEW: PlayerView = {
   seat: 0,
   firstSeat: 0,
@@ -127,7 +118,6 @@ export const DEMO_VIEW: PlayerView = {
       { id: "y-h3", defId: "ST01-008" },
       { id: "y-h4", defId: "ST01-009" },
       { id: "y-h5", defId: "ST01-014" },
-      // Conditional [Counter] event — hand badge reads "+2000 / +4000".
       { id: "y-h6", defId: "OP01-029" },
     ],
     deckCount: 38,
@@ -249,7 +239,7 @@ function demoChoice(choice: NonNullable<PlayerView["pendingChoices"]>[number]): 
   };
 }
 
-/** Adds a trash card to a select request so it can't be answered on the board alone. */
+// So it can't be answered on the board alone.
 function withExtraOption(view: PlayerView): PlayerView {
   const choice = view.pendingChoices![0]!;
   const request = choice.request as Extract<NonNullable<typeof choice.request>, { type: "select" }>;
@@ -257,10 +247,6 @@ function withExtraOption(view: PlayerView): PlayerView {
   return { ...view, pendingChoices: [{ ...choice, request: { ...request, options } }] };
 }
 
-/**
- * Generic choice prompts for responsive QA (`/demo?prompt=look|select|confirm|trigger|notrigger|unpayable|empty|hand|order|mode|effects|don|don2`).
- * Searches and effect ordering float over the board; add `&box` to see the old pop-up.
- */
 export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
   don: demoChoice({
     id: "demo-don",
@@ -282,7 +268,6 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
       ],
     },
   }),
-  // DON!! −2: every DON!! on your field, picked straight off the board.
   don2: demoChoice({
     id: "demo-don2",
     seat: 0,
@@ -336,7 +321,6 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     optionCount: 2,
     request: {
       type: "look",
-      // The second card has a long name, to check the Top / Bottom rows on phones.
       options: DEMO_LOOK_OPTIONS.slice(0, 2).map((o, i) => ({ ...o, eligible: false, ...(i === 1 ? { defId: "OP17-055" } : {}) })),
       minSelect: 0,
       maxSelect: 0,
@@ -381,7 +365,7 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
       ],
     },
   }),
-  // Same picks, but one of them is off the field, so the pop-up grid is used.
+  // One of the picks is off the field, so the pop-up grid is used.
   restgrid: withExtraOption(demoChoice({
     id: "demo-restgrid",
     seat: 0,
@@ -427,7 +411,6 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     prompt: "Monkey.D.Luffy — pay the cost to activate: [On Play] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand.",
     request: { type: "confirm" },
   }),
-  // Life check on a card with a [Trigger]: just the card with Activate Trigger / Add to hand (#495).
   trigger: demoChoice({
     id: "demo-trigger",
     seat: 0,
@@ -439,7 +422,6 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     privateToSeat: 0,
     hideCardDefFromOthers: true,
   }),
-  // Life check on a card without [Trigger]: one No Trigger button (#352, #495).
   notrigger: demoChoice({
     id: "demo-notrigger",
     seat: 0,
@@ -452,7 +434,7 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     privateToSeat: 0,
     hideCardDefFromOthers: true,
   }),
-  // The same cost prompt when the hand can't pay it: asked anyway so the opponent can't tell (#369).
+  // Asked anyway so the opponent can't tell the hand can't pay.
   unpayable: demoChoice({
     id: "demo-unpayable",
     seat: 0,
@@ -463,7 +445,6 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     prompt: "Monkey.D.Luffy — pay the cost to activate: [On Play] You may trash 2 cards from your hand: Return up to 1 Character with a cost of 4 or less to the owner's hand.",
     request: { type: "confirm" },
   }),
-  // A private hand pick with nothing that matches still asks (#369).
   empty: demoChoice({
     id: "demo-empty",
     seat: 0,
@@ -474,7 +455,6 @@ export const DEMO_PROMPT_VIEWS: Record<string, PlayerView> = {
     prompt: "Chambres — No card to add to your hand. Confirm to continue.",
     request: { type: "select", min: 0, max: 0, options: [] },
   }),
-  // Lucy's [On Your Opponent's Attack]: Event / Stage cards are tapped in the hand.
   hand: demoChoice({
     id: "demo-hand",
     seat: 0,
@@ -532,7 +512,6 @@ export const DEMO_CHAT: ChatLine[] = [
   { id: "demo-chat-2", seat: 0, text: "You too — nice leader.", at: 0 },
 ];
 
-/** `?over`: the game-over reveal (#482), both hands and every Life card, as the server sends it. */
 export function withGameOverReveal(base: PlayerView): PlayerView {
   const sample = ["OP16-108", "OP09-082", "ST01-003", "ST01-009", "ST01-006", "ST01-014"];
   const cycle = (n: number, offset: number) => Array.from({ length: n }, (_, i) => sample[(i + offset) % sample.length]!);
@@ -546,7 +525,6 @@ export function withGameOverReveal(base: PlayerView): PlayerView {
   };
 }
 
-/** `?reveal`: two of the opponent's hand cards and your first hand card revealed by an effect (#491). */
 export function withHandReveals(base: PlayerView): PlayerView {
   const sample = ["OP16-108", "ST01-014"];
   const reveals: PlayerView["handReveals"] = [
@@ -556,10 +534,6 @@ export function withHandReveals(base: PlayerView): PlayerView {
   return { ...base, handReveals: reveals };
 }
 
-/**
- * `?eachart`: three Sleeptids on your field (copies 0-2), two in your hand (copies 3-4), one on top of your trash and
- * one on the opponent's field, with the copy ranks the engine view carries for "One of each art" (#1292).
- */
 export function withEachArt(base: PlayerView): PlayerView {
   const sleeptids = (id: string, artCopy: number) =>
     stubCard({ id, defId: "OP18-093", artCopy, power: 3000, printedPower: 3000, statusLabels: [] });
@@ -576,7 +550,6 @@ export function withEachArt(base: PlayerView): PlayerView {
   };
 }
 
-/** `?full`: a full board, so playing a Character asks which one to replace. */
 export function withFullBoard(base: PlayerView): PlayerView {
   const extra = [
     stubCard({ id: "y-c4", defId: "ST01-009", power: 4000, printedPower: 4000, statusLabels: [] }),
@@ -595,11 +568,6 @@ export function withFullBoard(base: PlayerView): PlayerView {
   };
 }
 
-/**
- * `?oppfull` fills the opponent's row to 5; `?rest=N` rests the first N
- * Characters on both mats; `?restlead` rests both leaders and stages (the
- * opponent gets a stage). For checking sideways (rested) card sizing.
- */
 export function withRestedField(base: PlayerView, params: URLSearchParams): PlayerView {
   const rest = intParam(params, "rest");
   const lead = params.has("restlead");
@@ -635,11 +603,6 @@ export function withRestedField(base: PlayerView, params: URLSearchParams): Play
   };
 }
 
-/**
- * `?dons`: attaches 6 / 1 / 2 / 5 DON!! to the leader and first Characters of
- * both mats (pair with `?rest=2` for rested cards), to check the DON!! drawn
- * under a card.
- */
 export function withAttachedDon(base: PlayerView): PlayerView {
   const counts = [1, 2, 5, 8];
   const give = (c: CardView, n: number): CardView => ({ ...c, attachedDonCount: n });
@@ -651,11 +614,6 @@ export function withAttachedDon(base: PlayerView): PlayerView {
   return { ...base, you: side(base.you), opponent: side(base.opponent) };
 }
 
-/**
- * `?statuses`: stacks several status icons on both leaders and a few
- * Characters (one buffed + DON!!, one rested), to check the badge corner
- * against the power / DON!! stack and the name caption.
- */
 export function withManyStatuses(base: PlayerView): PlayerView {
   const many = ["Blocker", "Rush", "Double Attack", "Banish", "Unblockable"];
   const tag = (c: CardView, labels: string[]): CardView => ({
@@ -683,11 +641,6 @@ export function withManyStatuses(base: PlayerView): PlayerView {
   };
 }
 
-/**
- * `?attack`: your main phase with attacks open, to drag an attacker onto a
- * target. `?counter`: the opponent's Character attacks your Leader and you are
- * in the counter step, to drag a Counter card onto your Leader.
- */
 export function withBattleDrag(base: PlayerView, params: URLSearchParams): PlayerView {
   if (params.has("attack")) {
     const attacks = ["y-leader", "y-c3"].flatMap((attackerId): Intent[] => [
@@ -697,9 +650,6 @@ export function withBattleDrag(base: PlayerView, params: URLSearchParams): Playe
     return { ...base, phase: "main", battle: null, legalIntents: [...base.legalIntents, ...attacks] };
   }
   if (params.has("counter")) {
-    // `?counter=short`: a 9000-power attacker, so counters are still needed (no "Resolve" yet).
-    // `?counter=newgate`: long names on both sides (Edward.Newgate -> Marshall.D.Teach),
-    // to check the battle strip against the dock.
     const mode = params.get("counter");
     const attacker =
       mode === "short"
@@ -713,8 +663,6 @@ export function withBattleDrag(base: PlayerView, params: URLSearchParams): Playe
           characters: base.opponent.characters.map((c) => (c.id === "o-c1" ? { ...c, ...attacker } : c)),
         }
       : base.opponent;
-    // `?counter=haki`: the [Counter] event is Color of the Supreme King Haki,
-    // whose "rest 1 DON!!?" Yes/No shows above the hand once it is played.
     const you =
       mode === "haki"
         ? {
@@ -723,7 +671,13 @@ export function withBattleDrag(base: PlayerView, params: URLSearchParams): Playe
           }
         : mode === "newgate"
           ? { ...base.you, leader: { ...base.you.leader, defId: "OP09-081", power: 5000 } }
-          : base.you;
+          : mode === "franky"
+            ? {
+                ...base.you,
+                leader: { ...base.you.leader, defId: "OP18-021", power: 5000 },
+                hand: base.you.hand.map((c) => (c.id === "y-h1" ? { ...c, defId: "OP18-075", counter: 3000 } : c)),
+              }
+            : base.you;
     return {
       ...base,
       you,
@@ -749,10 +703,6 @@ export function withBattleDrag(base: PlayerView, params: URLSearchParams): Playe
   return base;
 }
 
-/**
- * `?counter=block`: the same attack one step earlier, in the block step (Nico
- * Robin can block), to drag a Counter onto the Leader and skip the block.
- */
 export function withBlockStep(base: PlayerView): PlayerView {
   return {
     ...base,
@@ -761,7 +711,6 @@ export function withBlockStep(base: PlayerView): PlayerView {
   };
 }
 
-/** `?counter=haki` after the Haki is played: out of the hand, asking its optional DON!! rest. */
 export function withHakiResolving(base: PlayerView, asking: boolean): PlayerView {
   const you = { ...base.you, hand: base.you.hand.filter((c) => c.id !== "y-h6") };
   if (!asking) return { ...base, you, legalIntents: [{ type: "pass_counter" }] };
@@ -788,11 +737,6 @@ export function withHakiResolving(base: PlayerView, asking: boolean): PlayerView
   };
 }
 
-/**
- * `?wait=block|counter|trigger|effect|turn`: you have nothing to do and the
- * game waits on the opponent (their block / counter step to your attack, a Life
- * trigger or effect choice of theirs, or just their turn).
- */
 export function withWaiting(base: PlayerView, kind: string | null): PlayerView {
   if (!kind) return base;
   const none = { ...base, legalIntents: [] };
@@ -826,7 +770,6 @@ export function withWaiting(base: PlayerView, kind: string | null): PlayerView {
   };
 }
 
-/** `?blocked`: Character cards in hand cannot be played (e.g. after Alvida); Events still can. */
 export function withBlockedCharacters(you: PlayerView["you"]): PlayerView["you"] {
   return {
     ...you,
@@ -837,7 +780,6 @@ export function withBlockedCharacters(you: PlayerView["you"]): PlayerView["you"]
   };
 }
 
-/** Your side with a single active DON!! (the rest rested). */
 export function withOneActiveDon(base: PlayerView): PlayerView {
   return {
     ...base,
@@ -849,7 +791,6 @@ export function withOneActiveDon(base: PlayerView): PlayerView {
   };
 }
 
-/** Sample undo states for `?undo[=ask|force|menu|blocked|limit|nothing|full]` (#536). */
 export function demoUndoState(kind: string | null): UndoState {
   const free = { available: true, forceable: false } as const;
   const base: UndoState = {
@@ -892,8 +833,6 @@ export function demoUndoState(kind: string | null): UndoState {
   return base;
 }
 
-
-/** Saved decks offered on the demo rematch panel (`?over`). */
 export const DEMO_REMATCH_DECKS: RematchDeckOption[] = [
   { id: "demo-zoro", name: "Zoro Aggro", leaderId: "OP01-001", leaderName: "Roronoa Zoro", cards: 50, wire: { leaderId: "OP01-001", deck: [] } },
   { id: "demo-luffy", name: "Straw Hat Midrange with a Very Long Deck Name", leaderId: "ST01-001", leaderName: "Monkey.D.Luffy", cards: 48, wire: { leaderId: "ST01-001", deck: [] } },
@@ -901,7 +840,6 @@ export const DEMO_REMATCH_DECKS: RematchDeckOption[] = [
 ];
 
 const svgUrl = (svg: string) => `data:image/svg+xml,${encodeURIComponent(svg)}`;
-/** `?oppart`: the opponent shared a custom playmat and card back (#812), to check hiding them. */
 export const DEMO_OPP_SKIN = {
   playmat: svgUrl(
     '<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a1fa2"/><stop offset="1" stop-color="#e8590c"/></linearGradient></defs><rect width="1600" height="900" fill="url(#g)"/><text x="800" y="470" font-size="140" fill="#fff" text-anchor="middle" font-family="sans-serif">CUSTOM MAT</text></svg>',

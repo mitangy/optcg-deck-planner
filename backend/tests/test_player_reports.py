@@ -1,4 +1,3 @@
-"""Player reports, warnings and image takedowns (#810)."""
 
 from __future__ import annotations
 
@@ -94,7 +93,6 @@ def spectate(S, uid: int, room: str) -> None:
 
 
 def upload(c: TestClient, uid: int, kind: str, data: bytes = JPEG) -> dict:
-    """Upload as ``uid``; returns the new item (id + public_path)."""
     res = as_user(c, uid).post(f"/duel/cosmetics/{kind}", content=data)
     assert res.status_code == 201, res.text
     return max(res.json()["items"], key=lambda i: i["id"])
@@ -173,7 +171,6 @@ def test_the_reported_seat_comes_from_the_finished_match_810(client):
     luffy, zoro = user(S, "Luffy"), user(S, "Zoro")
     finished_match(S, "m1", luffy, zoro)
     upload(c, luffy, "playmat", JPEG)
-    # Zoro (seat 1) reports seat 0: the report lands on Luffy, not on a fixed side.
     res = seat_report(c, zoro, "m1", 0, reason="toxic", note="  rude  ", image_kind="playmat")
     assert res.status_code == 201, res.text
     assert res.json() == {"id": res.json()["id"], "duplicate": False}
@@ -181,7 +178,6 @@ def test_the_reported_seat_comes_from_the_finished_match_810(client):
     assert (row.reporter_id, row.reported_id, row.reason, row.note, row.match_id, row.status) == (
         zoro, luffy, "toxic", "rude", "m1", "open",
     )
-    # Only an image report keeps an image kind or a snapshot.
     assert (row.image_kind, row.image_data) == (None, None)
 
 
@@ -197,7 +193,6 @@ def test_the_reported_seat_comes_from_an_unfinished_game_810(client):
 
 
 def test_unknown_match_or_bot_seat_is_player_not_found_810(client):
-    # A bot game stores no result row, so its room id is an unknown match like any other.
     c, S = client
     luffy = user(S, "Luffy")
     assert seat_report(c, luffy, "nope", 1).status_code == 404
@@ -209,7 +204,6 @@ def test_only_players_and_spectators_of_the_match_can_report_it_810(client):
     luffy, zoro, nami, usopp = user(S, "Luffy"), user(S, "Zoro"), user(S, "Nami"), user(S, "Usopp")
     finished_match(S, "m1", luffy, zoro)
     assert seat_report(c, nami, "m1", 1).status_code == 403
-    # Watching a different room is not enough.
     spectate(S, nami, "m2")
     assert seat_report(c, nami, "m1", 1).status_code == 403
     spectate(S, usopp, "m1")
@@ -245,7 +239,6 @@ def test_the_reported_image_is_copied_and_survives_the_owner_deleting_it_810(cli
     luffy, zoro = user(S, "Luffy"), user(S, "Zoro")
     finished_match(S, "m1", luffy, zoro)
     item = upload(c, zoro, "playmat", JPEG)
-    # The client may send the link behind the absolute API base URL.
     res = seat_report(
         c, luffy, "m1", 1, reason="image", image_kind="playmat", image_src="https://api.example.test" + item["public_path"]
     )
@@ -261,13 +254,12 @@ def test_a_link_to_someone_elses_image_or_a_forged_one_is_not_copied_810(client)
     luffy, zoro, nami = user(S, "Luffy"), user(S, "Zoro"), user(S, "Nami")
     theirs = upload(c, nami, "playmat", PNG)
     older = upload(c, zoro, "playmat", PNG + b"older")
-    active = upload(c, zoro, "playmat", JPEG)  # the newest upload is the active one
+    active = upload(c, zoro, "playmat", JPEG)
     forged = older["public_path"].rsplit("/", 1)[0] + "/" + "x" * 32
     for n, src in enumerate((theirs["public_path"], forged)):
         finished_match(S, f"m{n}", luffy, zoro)
         res = seat_report(c, luffy, f"m{n}", 1, reason="image", image_kind="playmat", image_src=src)
         row = stored(S, res.json()["id"])
-        # Neither link proves what the reporter saw, so the reported player's active playmat is copied.
         assert (row.cosmetic_id, row.image_data) == (active["id"], JPEG)
 
 
@@ -289,7 +281,6 @@ def test_a_data_url_is_stored_when_it_is_an_image_810(client):
     res = seat_report(c, luffy, "m1", 1, reason="image", image_kind="cardBack", image_src=good)
     row = stored(S, res.json()["id"])
     assert (row.cosmetic_id, row.image_mime, row.image_data) == (None, "image/png", PNG)
-    # Bytes that are not an image are dropped, not stored.
     fake = "data:image/png;base64," + base64.b64encode(b"<svg onload=alert(1)>").decode()
     finished_match(S, "m2", luffy, zoro)
     res = seat_report(c, luffy, "m2", 1, reason="image", image_kind="playmat", image_src=fake)
@@ -325,7 +316,6 @@ def test_a_repeat_report_returns_the_open_one_instead_of_adding_a_row_810(client
     again = seat_report(c, luffy, "m1", 1, reason="toxic")
     assert (first.status_code, again.status_code) == (201, 200)
     assert again.json() == {"id": first.json()["id"], "duplicate": True}
-    # A different reason, or another reporter, is its own report.
     assert seat_report(c, luffy, "m1", 1, reason="conduct").json()["duplicate"] is False
     spectate(S, user(S, "Nami"), "m1")
     with S() as db:
@@ -366,7 +356,6 @@ def test_a_taken_down_image_is_gone_for_everyone_but_kept_as_evidence_810(client
     assert c.get(public).status_code == 200
     luffy = user(S, "Luffy")
     finished_match(S, "m1", luffy, zoro)
-    # Zoro's active playmat is now `other`; point it at the reported one.
     as_user(c, zoro).put("/duel/cosmetics/active", json={"kind": "playmat", "id": item["id"]})
     rid = seat_report(c, luffy, "m1", 1, reason="image", image_kind="playmat", image_src=public).json()["id"]
 
@@ -420,7 +409,6 @@ def test_removing_an_image_closes_the_other_open_reports_of_it_810(client):
     as_user(c, admin).post(f"/admin/reports/{r1}/remove-image", json={})
     assert [stored(S, i).action for i in (r1, r2, r3)] == ["image_removed", "image_removed", ""]
     assert stored(S, r3).status == "open"
-    # A report someone already handled is left as they decided it.
     assert (stored(S, r_done).status, stored(S, r_done).action, stored(S, r_done).staff_note) == ("dismissed", "", "looked fine")
     # Handled reports cannot be acted on again.
     assert as_user(c, admin).post(f"/admin/reports/{r1}/dismiss", json={}).status_code == 409
@@ -527,7 +515,6 @@ def test_dismissing_keeps_the_staff_note_and_closes_the_report_810(client):
     res = as_user(c, mod).post(f"/admin/reports/{rid}/dismiss", json={"note": "not an issue"})
     assert (res.json()["status"], res.json()["staff_note"], res.json()["action"]) == ("dismissed", "not an issue", "")
     assert as_user(c, mod).get("/admin/reports").json()["reports"] == []
-    # Once handled, the same player can report again: it is not a duplicate of a closed report.
     again = seat_report(c, luffy, "m1", 1)
     assert (again.status_code, again.json()["duplicate"]) == (201, False)
 
@@ -601,7 +588,6 @@ def test_only_the_admin_can_restore_a_taken_down_image_810(client):
     assert as_user(c, admin).post(f"/admin/cosmetics/{item['id']}/restore").status_code == 200
     listing = as_user(c, zoro).get("/duel/cosmetics").json()
     assert [i["id"] for i in listing["items"]] == [item["id"]]
-    # Restoring does not switch it back on.
     assert listing["active"]["playmat"] is None
     assert as_user(c, admin).post("/admin/cosmetics/9999/restore").status_code == 404
 
@@ -659,7 +645,6 @@ def test_reports_are_limited_per_address_and_across_everyone_810(client, monkeyp
     others = [user(S, f"Rival{i}") for i in range(4)]
     for i, other in enumerate(others):
         finished_match(S, f"m{i}", other, luffy)
-    # Four different reporters from one address: the per-user budget never trips.
     monkeypatch.setattr(reports._ip_rate, "max_calls", 3)
     codes = [seat_report(c, other, f"m{i}", 1).status_code for i, other in enumerate(others)]
     assert codes == [201, 201, 201, 429]
@@ -725,7 +710,6 @@ def test_cosmetics_list_pages_by_id_so_takedowns_skip_nothing_824(client):
         return [i["id"] for i in res["items"]], res["total"]
 
     newest = mats[3]
-    # A take-down since the first page must not shift the next one: keyed on the oldest id seen, nothing is skipped.
     assert ids(limit=2, before_id=mats[2]) == ([mats[1]], 4)
     assert ids(limit=2, before_id=newest) == ([back, mats[2]], 4)
     assert ids(state="all", limit=2, before_id=back) == ([mats[2], mats[1]], 5)
@@ -813,6 +797,5 @@ def test_restoring_a_takedown_from_the_uploads_list_stays_admin_only_812(client)
     assert as_user(c, mod).post(f"/admin/cosmetics/{item['id']}/restore").status_code == 403
     res = as_user(c, admin).post(f"/admin/cosmetics/{item['id']}/restore")
     assert res.status_code == 200 and res.json()["taken_down_at"] is None
-    # The restore answer has always carried these two beyond the list row; the response model must keep them (refactor 2.1c).
     assert (res.json()["user_id"], res.json()["taken_down"]) == (zoro, False)
     assert [i["id"] for i in as_user(c, mod).get("/admin/cosmetics").json()["items"]] == [item["id"]]

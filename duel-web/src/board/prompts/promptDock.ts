@@ -1,25 +1,15 @@
 import { createContext, useContext, useEffect, type RefObject } from "react";
 
-/** The `promptDock` setting: the side column pop-ups dock into, "" = floating. */
 export type PromptDock = "" | "left" | "right";
 export const PROMPT_DOCKS: readonly PromptDock[] = ["", "left", "right"];
 
 type Span = { left: number; right: number };
 
-/** A pointer this close to the screen's left / right edge docks on that side. */
 const EDGE_PX = 24;
-/** A docked pop-up's header has to be pulled this far before it comes loose. */
 const LOOSE_PX = 32;
-/** Space around a docked pop-up inside its column. */
 const DOCK_PAD_PX = 6;
 
-/**
- * Which side a pop-up dropped with the pointer at `x` docks to: anywhere over
- * a side column, or the screen's edge strip on a side that has a column (a
- * folded-away side has none, so the strip there leaves the pop-up floating and
- * it can sit at the screen's edge). `columns` are the columns' spans (null
- * where there is none); null = it stays floating.
- */
+// A folded-away side has no column, so the edge strip there leaves the pop-up floating.
 export function dockAt(x: number, viewWidth: number, columns: { left: Span | null; right: Span | null }): "left" | "right" | null {
   if (x <= EDGE_PX && columns.left) return "left";
   if (x >= viewWidth - EDGE_PX && columns.right) return "right";
@@ -29,26 +19,21 @@ export function dockAt(x: number, viewWidth: number, columns: { left: Span | nul
   return null;
 }
 
-/** A docked pop-up dragged this far from where it sat is pulled out of its column. */
 export function pulledLoose(dx: number, dy: number): boolean {
   return Math.hypot(dx, dy) >= LOOSE_PX;
 }
 
-/** The dock buttons' view of the pop-up; null outside a HideablePrompt. */
 export const PromptDockContext = createContext<{ side: PromptDock; dockable: boolean; setSide: (s: PromptDock) => void } | null>(null);
 export const usePromptDockControls = () => useContext(PromptDockContext);
 
-/** The side column element for `side` on the desktop board, if it is shown. */
 export function dockColumn(side: "left" | "right"): HTMLElement | null {
   const col = document.querySelector<HTMLElement>(`.arena [data-panel-col="${side}"]`);
-  // With one combined column, a pop-up docked to the folded-away side lands in the open one.
   if (col?.hasAttribute("data-col-off")) {
     return document.querySelector<HTMLElement>(`.arena [data-panel-col="${side === "left" ? "right" : "left"}"]`);
   }
   return col;
 }
 
-/** Both columns' horizontal spans, for `dockAt`; null for a column that is folded away. */
 export function columnSpans(): { left: Span | null; right: Span | null } {
   const span = (side: "left" | "right") => {
     const col = document.querySelector<HTMLElement>(`.arena [data-panel-col="${side}"]`);
@@ -59,7 +44,6 @@ export function columnSpans(): { left: Span | null; right: Span | null } {
   return { left: span("left"), right: span("right") };
 }
 
-/** Shows (or clears, with null) the drop hint on a column while a pop-up is dragged over it. */
 export function showDropHint(side: "left" | "right" | null) {
   for (const s of ["left", "right"] as const) {
     const col = dockColumn(s);
@@ -69,13 +53,7 @@ export function showDropHint(side: "left" | "right" | null) {
   }
 }
 
-/**
- * Docks the pop-up into a side column without moving it in the React tree (so
- * the picks made so far survive). A host block sits first in the column and
- * takes the pop-up's height (the other panels give way); the pop-up itself
- * stays a fixed overlay and is placed over that host (`--dock-*` on the
- * wrapper). The board root gets `data-prompt-dock` so the column is wide enough.
- */
+// Not moved in the React tree, so the picks made so far survive.
 export function usePromptDockHost(wrapRef: RefObject<HTMLElement | null>, side: "left" | "right" | null) {
   useEffect(() => {
     const wrap = wrapRef.current;
@@ -85,7 +63,6 @@ export function usePromptDockHost(wrapRef: RefObject<HTMLElement | null>, side: 
     const host = document.createElement("div");
     host.className = "board-panel prompt-dock-host";
     host.dataset.promptDockHost = side;
-    // Under the no-top-bar action row, when the column has one.
     const actions = column.querySelector(":scope > .col-actions");
     column.insertBefore(host, actions ? actions.nextSibling : column.firstChild);
     arena?.setAttribute("data-prompt-dock", side);

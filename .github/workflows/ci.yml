@@ -1,17 +1,6 @@
 name: CI
 
-# Runs every test suite on pull requests and on main, so a PR shows red before
-# merge instead of after a deploy. frontend/, duel-web/, packages/*, game-server/
-# and analyst/ are npm workspaces of the root package.json with one root
-# package-lock.json, so every one of those jobs installs with `npm ci` at the
-# root. mobile/ has its own lockfile. Each app still gets its own job and runs in
-# parallel. A job holds everything one app needs after one install (unit tests,
-# build, browser checks), because a runner is cheap to keep busy and expensive to
-# queue for: the repo is capped at 20 concurrent jobs.
-#
-# On pull requests the `changes` job decides which jobs run, from the changed
-# paths (tools/ci/changes.cjs, #739). A path it does not know runs everything.
-# Pushes to main always run every job.
+# A job holds everything one app needs after one install: runners are cheap to keep busy and expensive to queue for (the repo is capped at 20 concurrent jobs).
 on:
   pull_request:
   push:
@@ -26,11 +15,7 @@ permissions:
 
 jobs:
   changes:
-    # Pull requests only. Lists the paths the PR changes and turns them into one
-    # flag per job (tools/ci/changes.cjs: unknown paths turn every flag on).
-    # The base is the first parent of the PR's test merge commit, as in
-    # mutation-plan. Needs no installs. If this job fails, the jobs behind it do
-    # not run and the check is red; they never skip as green.
+    # The base is the first parent of the PR's test merge commit. If this job fails, the jobs behind it do not run and the check is red; they never skip as green.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -63,12 +48,6 @@ jobs:
           node tools/ci/changes.cjs < "$RUNNER_TEMP/changed.txt" | tee -a "$GITHUB_OUTPUT"
 
   pr-media:
-    # Pull requests only. Fails a PR that adds screenshots or recordings outside
-    # public/, assets/ and *-snapshots/ folders (tools/ci/pr-media.cjs, #783):
-    # they belong on the `pr-assets` branch (tools/pr-assets/upload.sh). The base
-    # is found as in `changes`. It also fails on tracked files that .gitignore
-    # ignores and on paths that differ only by case (tools/ci/case-collisions.cjs).
-    # Needs no installs.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -103,7 +82,6 @@ jobs:
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || (needs.changes.result == 'success' && needs.changes.outputs.rules == 'true')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
-    # Redis for the game-server pool tests (two processes sharing rooms).
     services:
       redis:
         image: redis:7
@@ -123,26 +101,18 @@ jobs:
       - run: npm run typecheck -w @optcg/game-server
       - run: npm run typecheck -w @optcg/duel-protocol
       - run: npm run typecheck -w @optcg/analyst
-      # The packages, game-server and analyst. (A bare `npm test` also runs the two
-      # apps' unit tests, which have their own jobs.)
+      # A bare `npm test` also runs the two apps' unit tests, which have their own jobs.
       - run: npm test -w packages -w game-server -w analyst
       - run: npm run eval:validate -w @optcg/analyst
-      # The path filter that decides which of these jobs a pull request runs.
       - run: node --test "tools/ci/*.test.cjs"
-      # The mutation-check tooling itself: whitespace-tolerant anchors, --locate-stale, move.cjs.
       - run: node --test "tools/mutation-check/*.test.cjs"
-      # Fixed-seed fuzz games; a failure prints the seed and intent index to replay.
       - run: npm run fuzz:smoke -w @optcg/rules
       # Views (getPlayerView per seat after every move) must stay well ahead of the uncached path, timed in one process.
       - run: npm run bench:views -w @optcg/rules -- --gate
-      # Every mutation anchor must still match exactly once (no tests run).
       - run: node tools/mutation-check/run.cjs --check-anchors
 
   duel-web:
-    # Unit tests, the production build, and the layout check against the built
-    # app in Chromium (screenshots uploaded as an artifact). The checks after the
-    # build run only when it succeeded, so one run reports a failing test and a
-    # failing layout together.
+    # The checks after the build run only when it succeeded, so one run reports a failing test and a failing layout together.
     needs: changes
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || (needs.changes.result == 'success' && needs.changes.outputs.duel_web == 'true')) }}
     # Pinned: Playwright 1.56 has no Chromium build for ubuntu-latest (26.04). Keep
@@ -182,13 +152,7 @@ jobs:
           if-no-files-found: ignore
 
   duel-web-e2e-shard:
-    # Click-through tests: duel-web in Chromium against a real local game
-    # server (the FastAPI backend is faked in the browser). See duel-web/e2e/README.md.
-    # Split four ways so the suite's wall time is a fraction of a single job's (#485);
-    # each shard is its own runner, so the fixed ports never collide. Specs are
-    # assigned by recorded duration (duel-web/e2e/timings.json, #737), not by
-    # count, so the shards finish together. The `duel-web-e2e` job below is the
-    # one that reports the result.
+    # Each shard is its own runner, so the fixed ports never collide. Specs are assigned by recorded duration, not count, so the shards finish together.
     needs: changes
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || (needs.changes.result == 'success' && needs.changes.outputs.duel_e2e == 'true')) }}
     # Pinned: Playwright 1.56 has no Chromium build for ubuntu-latest (26.04). Keep
@@ -227,13 +191,7 @@ jobs:
           if-no-files-found: ignore
 
   duel-web-e2e:
-    # Aggregates the shards under the original check name, so the PR checks list
-    # keeps one `duel-web-e2e`. `!cancelled()` makes it run (and fail) when a
-    # shard fails or times out instead of being skipped, but not when a newer
-    # push cancels the whole run (always() would post a red check on the
-    # superseded commit). The shards are skipped on a pull request that changes
-    # nothing they depend on; that passes only when `changes` succeeded and said
-    # so. On a push to main the shards always run.
+    # `!cancelled()` makes this run (and fail) when a shard fails or times out instead of being skipped, but not when a newer push cancels the whole run (always() would post a red check on the superseded commit). The shards are skipped on a pull request that changes nothing they depend on; that passes only when `changes` succeeded and said so.
     needs: [changes, duel-web-e2e-shard]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
@@ -258,19 +216,8 @@ jobs:
           test "${SHARDS_RESULT}" = "success"
 
   frontend:
-    # The planner: unit tests, the production build, then the browser suites in
-    # Chromium at 1200px and 375px (the FastAPI backend is faked in the browser).
-    # Retries are reported as "flaky" in the log, not hidden. See
-    # frontend/playwright.config.ts. Every step after the install runs even when
-    # an earlier one failed, so one run reports unit, visual and click-through
-    # failures together.
-    #
-    # Pixel snapshots (@visual) have per-platform baselines; on a mismatch the
-    # report and test-results hold the expected/actual/diff PNGs. To re-bless,
-    # run "Update planner snapshots". Playwright empties test-results and
-    # rewrites playwright-report at the start of every run, so the visual
-    # diffs are uploaded right after the visual step, before the e2e run
-    # replaces them.
+    # Every step after the install runs even when an earlier one failed, so one run reports unit, visual and click-through failures together.
+    # Playwright empties test-results and rewrites playwright-report at the start of every run, so the visual diffs are uploaded right after the visual step.
     needs: changes
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || (needs.changes.result == 'success' && needs.changes.outputs.frontend == 'true')) }}
     # Pinned: Playwright 1.56 has no Chromium build for ubuntu-latest (26.04). Keep
@@ -337,10 +284,7 @@ jobs:
       - run: npm test
 
   backend:
-    # The API's pytest suite on SQLite, the script tests, then the same pytest
-    # suite against a real Postgres (prod is Neon): catches dialect differences
-    # SQLite hides, like boolean ALTER defaults in the startup migrations. Each
-    # step runs even when an earlier one failed, so one run reports all three.
+    # The same pytest suite runs against a real Postgres (prod is Neon): it catches dialect differences SQLite hides, like boolean ALTER defaults in the startup migrations.
     needs: changes
     if: ${{ !cancelled() && (github.event_name != 'pull_request' || (needs.changes.result == 'success' && needs.changes.outputs.backend == 'true')) }}
     runs-on: ubuntu-latest
@@ -375,8 +319,6 @@ jobs:
           pip install -r requirements-dev.txt
       - uses: ./.github/actions/setup-node-deps
       - name: Generated API types are current
-        # packages/api-client/src/generated/schema.ts is built from app.openapi() (refactor 2.1c): fails when a
-        # route or response model changed without `node tools/ci/openapi-types.cjs` being run and committed.
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
         run: node tools/ci/openapi-types.cjs --check
       - name: Backend tests
@@ -395,10 +337,6 @@ jobs:
         run: python -m pytest -q
 
   mutation-plan:
-    # Pull requests only. Finds the mutation entries this PR adds or changes
-    # (tools/mutation-check/changed.cjs) and splits them into parts, one per
-    # parallel runner, so a big PR does not run every mutation serially on one
-    # machine (#632 took 41 minutes that way). Needs no installs.
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -433,10 +371,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   mutation-proofs-part:
-    # One runner per part of the plan. Installs only what its suite needs.
-    # Playwright suites (duel-e2e, frontend-e2e) are never planned; run those
-    # locally. Matrix values come from PR content, so they reach the shell only
-    # through env, never interpolated into the script.
+    # Matrix values come from PR content, so they reach the shell only through env, never interpolated into the script.
     needs: mutation-plan
     if: github.event_name == 'pull_request' && needs.mutation-plan.outputs.any == 'true'
     name: mutation-proofs (${{ matrix.suite }} ${{ matrix.part }})
@@ -446,7 +381,6 @@ jobs:
       fail-fast: false
       matrix:
         include: ${{ fromJSON(needs.mutation-plan.outputs.matrix) }}
-    # Redis for the game-server pool tests, so their mutations can be killed here too.
     services:
       redis:
         image: redis:7
@@ -494,9 +428,7 @@ jobs:
         run: node tools/mutation-check/run.cjs "$SUITE" --only "$ONLY"
 
   mutation-proofs:
-    # Aggregates the plan and the parts under the original check name, so branch
-    # protection and the PR checks list keep one `mutation-proofs`. The parts job
-    # is skipped when no mutation entry changed, which counts as a pass.
+    # The parts job is skipped when no mutation entry changed, which counts as a pass.
     needs: [mutation-plan, mutation-proofs-part]
     if: always() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest

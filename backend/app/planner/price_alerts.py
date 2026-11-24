@@ -1,10 +1,10 @@
-"""Card price alerts (#855): check watched prices after each price update, notify on a crossing."""
 
 from __future__ import annotations
 
 import html
 import json
 import logging
+import re
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -21,10 +21,13 @@ log = logging.getLogger("uvicorn.error")
 
 MAX_NOTIFICATIONS_PER_USER = 100
 ALERTS_LINK = "/alerts"
+# Re-arm hysteresis (#1416): two price sources disagree by a few cents to a few dollars, so an
+# alert only re-arms once the price is clearly back past the target by this margin.
+REARM_MARGIN = 0.03
+REARM_MIN_MARGIN = 0.25
 
 
 def condition_met(direction: str, price: float | None, target: float) -> bool:
-    """Below fires at or under the target, above at or over it. No price never counts."""
     if price is None:
         return False
     if direction == "above":
@@ -32,8 +35,17 @@ def condition_met(direction: str, price: float | None, target: float) -> bool:
     return price <= target
 
 
+def recovered(direction: str, price: float, target: float) -> bool:
+    """True when the price is clearly back on the wrong side of the target, so the alert may re-arm."""
+    margin = max(target * REARM_MARGIN, REARM_MIN_MARGIN)
+    if direction == "above":
+        # Cap at half the target so cheap targets (at or below the minimum margin) can still re-arm (#1426).
+        margin = min(margin, target * 0.5)
+        return price < target - margin
+    return price > target + margin
+
+
 def current_prices(db: Session, pairs: set[tuple[str, int]]) -> dict[tuple[str, int], float | None]:
-    """(card_id, product_id) -> market price; product 0 is the card's base art."""
     out: dict[tuple[str, int], float | None] = {}
     base_ids = {c for c, p in pairs if p == 0}
     alt_ids = {c for c, p in pairs if p != 0}
@@ -51,13 +63,50 @@ def current_price(db: Session, card_id: str, product_id: int) -> float | None:
     return current_prices(db, {(card_id, product_id)})[(card_id, product_id)]
 
 
-def _label(card_name: str, art_name: str) -> str:
-    """Base art shows the card name; an alt's printing name already includes it."""
-    return card_name if art_name == "Base" else art_name
+def clean_card_name(card_name: str, card_id: str = "") -> str:
+    """Card name without the " - OP14-041" id suffix and a trailing " (Reprint)"."""
+    name = card_name.strip()
+    name = re.sub(r"\s*\(Reprint\)\s*$", "", name, flags=re.IGNORECASE)
+    if card_id:
+        name = re.sub(rf"\s+-\s+{re.escape(card_id)}\s*$", "", name, flags=re.IGNORECASE)
+    name = re.sub(r"\s+-\s+[A-Z]{1,4}\d{1,2}-\d{3}\s*$", "", name)
+    return name.strip() or card_name
+
+
+def short_art_name(art_name: str, card_name: str, card_id: str = "") -> str:
+    """Art name with the card's own name, its id, " - " joins and wrapping parentheses removed.
+
+    "Gol.D.Roger - OP09-118 (SP) (Wanted Poster)" -> "SP · Wanted Poster".
+    """
+    if art_name == "Base":
+        return "Base art"
+    rest = art_name
+    base = clean_card_name(card_name, card_id)
+    numberless = re.sub(r"\s*\(\d{1,3}\)\s*$", "", base)  # "Nami (041)" -> "Nami" (#1416)
+    for token in (card_name, base, numberless, card_id):
+        if token:
+            rest = re.sub(re.escape(token), " ", rest, flags=re.IGNORECASE)
+    rest = re.sub(r"\(\s*\d{1,3}\s*\)", " ", rest)
+    parts = re.findall(r"\(([^()]*)\)", rest)
+    outside = re.sub(r"\([^()]*\)", " ", rest)
+    outside = re.sub(r"^[\s\-–]+|[\s\-–]+$", "", outside)
+    pieces = [x.strip() for x in ([outside] if outside.strip(" -–") else []) + parts if x.strip()]
+    return " · ".join(pieces) if pieces else art_name
+
+
+def _label(card_name: str, art_name: str, card_id: str = "") -> str:
+    name = clean_card_name(card_name, card_id)
+    if art_name == "Base":
+        return name
+    return f"{name} · {short_art_name(art_name, card_name, card_id)}"
 
 
 def _money(value: float) -> str:
     return f"${value:,.2f}"
+
+
+def alert_title(card_name: str, art_name: str, card_id: str, price: float) -> str:
+    return f"{_label(card_name, art_name, card_id)} is now {_money(price)}"
 
 
 @dataclass
@@ -74,7 +123,6 @@ class Fired:
 
 
 def _names(db: Session, pairs: set[tuple[str, int]]) -> dict[tuple[str, int], tuple[str, str, str]]:
-    """(card_id, product_id) -> (card name, art name, TCGPlayer url)."""
     cards = {
         c.card_id: c
         for c in db.scalars(select(CatalogCard).where(CatalogCard.card_id.in_({c for c, _ in pairs})))
@@ -113,7 +161,7 @@ def _prune(db: Session, user_id: int) -> None:
 def _email_content(fired: list[Fired], link: str) -> tuple[str, str, str]:
     if len(fired) == 1:
         f = fired[0]
-        subject = f"Price alert: {f.card_name} is now {_money(f.price)}"
+        subject = f"Price alert: {_label(f.card_name, f.art_name, f.card_id)} is now {_money(f.price)}"
     else:
         subject = f"{len(fired)} price alerts"
     footer = (
@@ -123,7 +171,7 @@ def _email_content(fired: list[Fired], link: str) -> tuple[str, str, str]:
     text_lines, html_lines = [], []
     for f in fired:
         word = "at or below" if f.direction == "below" else "at or above"
-        label = _label(f.card_name, f.art_name)
+        label = _label(f.card_name, f.art_name, f.card_id)
         text_lines.append(
             f"{label}: {_money(f.price)} (you asked for {word} {_money(f.target)})"
             + (f"\n  {f.url}" if f.url else "")
@@ -145,7 +193,6 @@ def _email_content(fired: list[Fired], link: str) -> tuple[str, str, str]:
 
 
 def check_alerts(db: Session, now: datetime | None = None) -> dict:
-    """Compare every live alert with its current price; fire on a crossing, re-arm on the way back."""
     now = now or datetime.now(timezone.utc)
     alerts = db.scalars(select(PriceAlert).where(PriceAlert.paused.is_(False))).all()
     summary = {"checked": len(alerts), "fired": 0, "emails_sent": 0, "email_failures": 0}
@@ -174,12 +221,11 @@ def check_alerts(db: Session, now: datetime | None = None) -> dict:
             )
             if alert.notify_app:
                 word = "under" if alert.direction == "below" else "over"
-                label = _label(card_name, art_name)
                 db.add(
                     Notification(
                         user_id=alert.user_id,
                         kind="price_alert",
-                        title=f"{label} is now {_money(price)}",
+                        title=alert_title(card_name, art_name, alert.card_id, price),
                         body=f"Your target was {word} {_money(alert.target_price)}.",
                         card_id=alert.card_id,
                         product_id=alert.product_id,
@@ -192,7 +238,7 @@ def check_alerts(db: Session, now: datetime | None = None) -> dict:
                 _prune(db, alert.user_id)
             if alert.notify_email:
                 emails[alert.user_id].append(fired)
-        elif not met and not alert.armed:
+        elif not alert.armed and recovered(alert.direction, price, alert.target_price):
             alert.armed = True
     db.commit()
 

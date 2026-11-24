@@ -5,7 +5,6 @@ import { MATCH_REPLAY_SCHEMA, replayMatch, type MatchReplay } from "../replay/ma
 import { seatLog } from "../replay/seatLog.js";
 import type { GameEvent, MatchState, Seat } from "../types.js";
 
-/** Play cards and attack whenever possible until a Life card goes to a hand. */
 function playedGame() {
   const players: MatchReplay["players"] = [
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
@@ -42,7 +41,6 @@ function playedGame() {
   return { replay, hands, played, taken };
 }
 
-/** The mulligan step played, as duel-web records it: seat 0 redraws, seat 1 keeps, then each ends a turn. */
 function gameWithMulligans() {
   const players: MatchReplay["players"] = [
     { leaderId: DEFAULT_LEADER_ID, deck: buildTestDeck(20) },
@@ -159,7 +157,6 @@ describe("match history seat log", () => {
         }
       }
       expect(checked).toBeGreaterThan(2);
-      // Per seat: the two players' logs hold different hands for the same turn.
       const t1 = (seat: Seat) => logs[seat]!.turns.find((t) => t.turn === 1)!;
       expect(t1(0).hand).not.toEqual(t1(1).hand);
     }
@@ -180,7 +177,6 @@ describe("match history seat log", () => {
         const other = (1 - seat) as Seat;
         const revealed = seatLog(replay, seat, { revealOpponent: true });
         const theirs = seatLog(replay, other);
-        // Each turn's opponentHand is what the other seat's own log holds as its hand at that turn.
         const byTurn = new Map(theirs.turns.map((t) => [t.turn, t.hand]));
         let checked = 0;
         for (const t of revealed.turns) {
@@ -196,7 +192,6 @@ describe("match history seat log", () => {
         expect(revealed.opponentOpeningHand).toEqual(theirs.openingHand);
         expect(revealed.opponentOpeningHand).not.toEqual(revealed.openingHand);
 
-        // Without the flag nothing about the opponent's cards is in the log, only the count.
         for (const hidden of [seatLog(replay, seat), seatLog(replay, seat, { revealOpponent: false })]) {
           expect(JSON.stringify(hidden)).not.toContain('"opponentHand"');
           expect(JSON.stringify(hidden)).not.toContain('"opponentOpeningHand"');

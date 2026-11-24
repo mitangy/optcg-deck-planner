@@ -1,15 +1,10 @@
-import { randomInt } from "node:crypto";
+import { randomBytes, randomInt } from "node:crypto";
 import type { Seat } from "@optcg/rules";
 import { ProtocolError } from "@optcg/duel-protocol";
 import { requireGameToken } from "./env.js";
 import { verifyGameToken } from "./gameToken.js";
 
-/**
- * Colyseus runs a room's *static* onAuth on the matchmake HTTP call, before it
- * creates a room or reserves a seat; the instance onAuth only runs once the
- * WebSocket connects. Without this check anyone could create rooms, or fill a
- * waiting room's seat reservations, with no token at all.
- */
+// Colyseus runs the static onAuth on the matchmake HTTP call, before a room or seat is reserved; the instance onAuth only runs at WebSocket connect. Without this, anyone could create rooms or fill seat reservations with no token.
 export function checkMatchmakeToken(options: unknown): true {
   if (!requireGameToken()) return true;
   const o = options && typeof options === "object" ? (options as Record<string, unknown>) : {};
@@ -20,14 +15,9 @@ export function checkMatchmakeToken(options: unknown): true {
   return true;
 }
 
-/** Live rooms a single account may have created at once (a left game keeps its room through the reconnect grace). */
 export const MAX_ROOMS_PER_CREATOR = 5;
 const liveRoomsByCreator = new Map<number, number>();
 
-/**
- * Where a pool keeps each account's open-room count. Colyseus' Redis presence
- * satisfies it; a process without Redis keeps the in-memory map above.
- */
 export interface RoomCountStore {
   incr(key: string): Promise<number>;
   decr(key: string): Promise<number>;
@@ -35,21 +25,16 @@ export interface RoomCountStore {
   del(key: string): unknown;
 }
 
-/**
- * A count left behind by a process that died without disposing its rooms
- * expires on its own; every claim pushes the expiry out again.
- */
+// Expires on its own so a process that died without disposing its rooms leaves no stale count.
 export const ROOM_COUNT_TTL_S = 6 * 3600;
 const roomCountKey = (uid: number) => `duel:rooms:${uid}`;
 
 let sharedCounts: RoomCountStore | null = null;
 
-/** Count open rooms in a store shared by the pool instead of this process's memory (null goes back to memory). */
 export function useSharedRoomCounts(store: RoomCountStore | null): void {
   sharedCounts = store;
 }
 
-/** Token holder a new room counts against, or null for rooms that are not a player's to flood. */
 function creatorUid(options: unknown): number | null {
   // Deployed servers only: local dev and e2e reuse one account across many rooms.
   if (!requireGameToken()) return null;
@@ -98,21 +83,18 @@ export function releaseCreatorRoom(uid: number | null): void {
   else liveRoomsByCreator.delete(uid);
 }
 
-/**
- * Shuffle seed for a new game. Deployed servers always pick it from a CSPRNG:
- * a seed a player can guess (a client value, or the clock) lets them replay the
- * shuffles offline and read both decks. Local dev and tests may still pin one.
- */
+// A guessable seed (client value, or the clock) lets a player replay the shuffles offline and read both decks.
 export function gameSeed(clientSeed?: number): number {
   if (clientSeed !== undefined && !requireGameToken()) return clientSeed;
   return randomInt(0, 2 ** 32);
 }
 
-/**
- * Who goes first in a room's first game (#549). Deployed servers always flip a
- * coin from a CSPRNG and ignore the client, so nobody can pin the order. Local
- * dev and tests may still pin a seat (default 0) so scripted games repeat.
- */
+// The seed alone is 32 bits, so every game also gets a CSPRNG key its shuffles come from.
+export function newRngKey(): string {
+  return randomBytes(32).toString("hex");
+}
+
+// A client-pinnable first player would let a player choose the turn order.
 export function gameFirstSeat(clientFirstSeat?: Seat): Seat {
   if (!requireGameToken()) return clientFirstSeat ?? 0;
   return randomInt(0, 2) as Seat;

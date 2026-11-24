@@ -14,7 +14,6 @@ const alt = (product_id: number, name: string, price: number | null, wanted: num
   wanted,
 });
 
-// Base (preferred) $1.00; the host's checkout printing market_price is an unrelated $50.
 const line = (my_qty: number, alt_arts: PrintingView[], preferred: number | null = 1) => ({
   name: "Luffy",
   my_qty,
@@ -34,7 +33,6 @@ describe("myArtSplit", () => {
   });
 
   it("caps alt copies by the buy qty, in alt-list order (#850)", () => {
-    // wants total 5 but only 2 copies are bought: first alt takes both, second gets none.
     const s = myArtSplit(line(2, [alt(2, "Manga", 9, 2), alt(3, "Parallel", 5, 3)]));
     expect(s.base).toBe(0);
     expect(s.alts).toEqual([{ product_id: 2, name: "Manga", qty: 2, price: 9 }]);
@@ -133,7 +131,6 @@ describe("visibleGroupBuyLines", () => {
 
 describe("groupBuyShownPrice", () => {
   it("Price sort uses the total across picked arts, not the base price (#876)", () => {
-    // Base order and total order disagree: A's unit price is below B's, but A's picked total is above.
     const a = { ...line(2, [alt(2, "Manga", 9, 1)]), market_price: 1 };
     const b = { ...line(1, []), market_price: 4 };
     expect(groupBuyShownPrice(a)).toBe(10);
@@ -170,7 +167,6 @@ describe("myArtSplit with Extra copies (#1269)", () => {
   });
 
   it("a skipped Extra copy is not bought (#1269)", () => {
-    // A custom buy of 5 leaves room for the Manga, but it is skipped: the 5th copy is base.
     const l = withExtras(5, 4, [extra(9, "Manga", 180, 1, 1)]);
     expect(myArtSplit(l)).toEqual({ base: 5, alts: [] });
     expect(mySelectedArtsTotal(l).total).toBe(5);

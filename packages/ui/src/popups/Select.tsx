@@ -5,12 +5,9 @@ import { Listbox, ListboxButton, ListboxList, ListboxOption } from "./Listbox";
 
 export type SelectOption<T extends string | number> = {
   value: T;
-  /** The row in the open list. */
   label: ReactNode;
-  /** A smaller second line under the label. */
   sub?: ReactNode;
   disabled?: boolean;
-  /** What the closed button shows when `label` is rich or long. Defaults to `label`. */
   buttonLabel?: ReactNode;
 };
 
@@ -19,13 +16,10 @@ export type SelectProps<T extends string | number> = {
   onChange: (value: T) => void;
   options: readonly SelectOption<T>[];
   "aria-label"?: string;
-  /** A visible label. It wraps the select in a column (`className` then goes on that wrapper). */
   label?: ReactNode;
-  /** On the button, so a `<label htmlFor>` keeps working. */
   id?: string;
   disabled?: boolean;
   name?: string;
-  /** On the button, or on the wrapper when `label` is given. */
   className?: string;
   buttonClassName?: string;
   listClassName?: string;
@@ -33,13 +27,6 @@ export type SelectProps<T extends string | number> = {
   title?: string;
 };
 
-/**
- * A styled single choice, the replacement for a native `<select>` (whose open list the browser draws in its
- * own colours and ignores the theme). It is the shared Listbox: a button showing the chosen label, and an
- * opaque, themed list in a portal under it, so opening never moves the trigger or its neighbours. Values
- * keep their type (a numeric option calls `onChange` with a number). Style it with the `ui-select-*` classes
- * and the `--ui-field-*` / `--ui-accent` / `--ui-selected` tokens.
- */
 export function Select<T extends string | number>({
   value,
   onChange,

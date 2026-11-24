@@ -1,4 +1,3 @@
-"""Den Den Mushi files Discord posts as feedback tickets (#979)."""
 
 from __future__ import annotations
 
@@ -57,7 +56,6 @@ class FakeDiscord:
         if path == f"/guilds/{GUILD}/threads/active":
             return httpx.Response(200, json={"threads": self.threads})
         if path == f"/channels/{CHANNEL}/messages":
-            # Like Discord: the oldest `limit` messages after `after`.
             after = int(request.url.params.get("after", 0))
             limit = int(request.url.params.get("limit", 50))
             page = sorted((m for m in self.messages if int(m["id"]) > after), key=lambda m: int(m["id"]))
@@ -95,7 +93,7 @@ def db():
 class FakeGitHub:
     def __init__(self, status=201, lose_response_once=False):
         self.status = status
-        self.lose_response_once = lose_response_once  # GitHub creates the issue, the reply never arrives
+        self.lose_response_once = lose_response_once
         self.issues: list[tuple[str, dict, httpx.Headers]] = []
 
     def handler(self, request: httpx.Request) -> httpx.Response:
@@ -176,7 +174,6 @@ def test_a_post_filed_by_another_worker_is_not_filed_or_answered_again_979(db):
 def test_unique_message_id_stops_a_racing_insert_979(db, monkeypatch: pytest.MonkeyPatch):
     t, tid = thread(2)
     fake = forum_with((t, tid))
-    # The other worker commits between our duplicate check and our insert.
     monkeypatch.setattr(discord_feedback, "_known", lambda *_: set())
     db.add(Feedback(kind="bug", message="x", app="discord", discord_message_id=tid))
     db.commit()
@@ -247,10 +244,10 @@ def test_rate_limited_reply_does_not_crash_or_refile_979(db):
     a, a_id = thread(3, "First")
     b, b_id = thread(2, "Second")
     fake = forum_with((a, a_id), (b, b_id), reply_status=429)
-    assert poll(fake, db) == 1  # stops the poll at the 429
+    assert poll(fake, db) == 1
     assert len(rows(db)) == 1
     fake.reply_status = 200
-    assert poll(fake, db) == 1  # the second post, not the first again
+    assert poll(fake, db) == 1
     assert sorted(r.discord_message_id for r in rows(db)) == sorted([a_id, b_id])
 
 
@@ -380,7 +377,6 @@ def test_github_client_is_only_used_with_a_token_979(db, monkeypatch: pytest.Mon
 
 
 def test_text_channel_moves_past_a_burst_of_unfiled_messages_989(db):
-    # 50 bot replies fill a whole page; the user message behind them must still be reached.
     bots = [
         {"id": str(int(sid(9)) + i * 1000), "type": 0, "content": "Logged", "author": {**USER, "bot": True}, "attachments": []}
         for i in range(50)
@@ -400,7 +396,7 @@ def test_text_channel_moves_past_a_burst_of_unfiled_messages_989(db):
 def test_issue_lost_to_a_timeout_is_adopted_not_opened_twice_989(db):
     t, tid = thread(2)
     fake, gh = forum_with((t, tid)), FakeGitHub(lose_response_once=True)
-    assert poll(fake, db, gh) == 1  # the same poll's retry pass finds the issue the lost reply created
+    assert poll(fake, db, gh) == 1
     (row,) = rows(db)
     assert row.github_issue == 101 and len(gh.issues) == 1
     poll(fake, db, gh)

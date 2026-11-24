@@ -41,13 +41,11 @@ const norm = (s: string): string =>
     .trim();
 
 const STOP = new Set(["the", "of", "a", "an", "leader", "character", "event", "stage", "card"]);
-// A single digit is a word of a name ("Mr.1"); a single letter is not ("D" in Monkey.D.Luffy).
 const tokens = (s: string): string[] => norm(s).split(" ").filter((t) => (t.length > 1 || /^\d$/.test(t)) && !STOP.has(t));
 const CARD_NUMBER = /\b([A-Z]{1,3}\d{2}-\d{3}|P-\d{3})\b/i;
 
 type Resolved = { status: "ok"; name: string } | { status: "not_in_game"; name: string } | { status: "ambiguous"; why: string; names: string[] } | { status: "none"; why: string };
 
-/** Which card name of this game a written card name means. */
 export function resolveCard(written: string, facts: GameFacts, catalog: Catalog): Resolved {
   const gameNames = new Map<string, string>();
   for (const id of facts.universe) gameNames.set(norm(nameOfCard(id)), nameOfCard(id));
@@ -70,7 +68,6 @@ export function resolveCard(written: string, facts: GameFacts, catalog: Catalog)
   return { status: "none", why: `"${written}" matches no card in this game` };
 }
 
-/** One thing that happened, reduced to what a claim can be compared with. */
 type Item = { turn: number; seat: Seat; card?: string; target?: string };
 
 const sameCard = (item: string | undefined, want: string): boolean | "unknown" => (item === undefined ? "unknown" : norm(nameOfCard(item)) === want);
@@ -87,7 +84,6 @@ const MAX_READINGS = 5;
 const RANK: Record<Verdict, number> = { contradicted: 3, wrong_turn: 2, unverifiable: 1, supported: 0 };
 const EVENT_KINDS = new Set<Claim["kind"]>(["played", "attacked", "ko", "life_taken", "countered", "blocked", "trigger", "on_board", "trashed"]);
 
-/** The tokens of a card name that the quote itself contains; the card as far as the review states it. */
 function statedPart(written: string, quote: string): { all: boolean; none: boolean; part: string } {
   const want = tokens(written);
   if (!want.length) return { all: true, none: false, part: written };
@@ -110,7 +106,6 @@ export function checkClaim(claim: Claim, facts: GameFacts, seat: Seat, catalog: 
     }
   }
 
-  // Card names count only as far as the quote states them.
   let stated: Claim = claim;
   const inferred: ("card" | "target")[] = [];
   for (const field of claim.kind === "attacked" ? (["card", "target"] as const) : (["card"] as const)) {
@@ -139,7 +134,6 @@ function checkReadings(claim: Claim, facts: GameFacts, seat: Seat, catalog: Cata
   return r;
 }
 
-/** A name that fits several cards is checked as each of them. */
 function checkAmbiguous(claim: Claim, facts: GameFacts, seat: Seat, catalog: Catalog): Checked {
   for (const field of claim.kind === "attacked" ? (["card", "target"] as const) : (["card"] as const)) {
     const value = claim[field];
@@ -160,7 +154,6 @@ function checkAmbiguous(claim: Claim, facts: GameFacts, seat: Seat, catalog: Cat
 const isLeaderWord = (t: string): boolean => /^(the |your |their |opponent'?s? )*(leader|player)$/i.test(t.trim());
 const CHARACTER_WORD = /^(an? |the |their |your |opponent'?s? |any )*characters?$/i;
 
-/** Which of a DON!! count's kinds a claim means. */
 const donKind = (target: string | null): keyof DonRanges | "total" => {
   const t = (target ?? "").toLowerCase();
   if (t.includes("rest")) return "rested";
@@ -216,7 +209,6 @@ function checkOne(claim: Claim, facts: GameFacts, seat: Seat, catalog: Catalog):
           ? { verdict: "supported", reason: `${label(actor)} had ${lo}-${hi} Life during turn ${claim.turn} (start ${t.lifeAtStart[actor]}, end ${t.lifeAtEnd[actor]})` }
           : { verdict: "contradicted", reason: `${label(actor)} had ${lo}-${hi} Life during turn ${claim.turn} (start ${t.lifeAtStart[actor]}, end ${t.lifeAtEnd[actor]}), not ${claim.number}` };
       }
-      // No turn: a claim about how the game ended is compared to the final Life; any other to every total the player had (#695).
       const q = claim.quote;
       if ((/\b(game|match)\b/i.test(q) && /\b(end|ends|ended|ending|finish|finished|final)\b/i.test(q)) || /\b(final|finally)\b|\bat the end\b/i.test(q)) {
         return facts.finalLife[actor] === claim.number
@@ -235,7 +227,6 @@ function checkOne(claim: Claim, facts: GameFacts, seat: Seat, catalog: Catalog):
       const rangesOf = (t: TurnFacts): Range[] => {
         if (claim.kind === "hand_size") return [t.handRange[actor]];
         const k = donKind(claim.target);
-        // "DON!! on the field": the cost area alone or with the DON!! given to cards, whichever the review counted.
         return k === "total" ? [t.don[actor].area, t.don[actor].field] : [t.don[actor][k]];
       };
       const fits = (t: TurnFacts) => rangesOf(t).some(([lo, hi]) => want >= lo && want <= hi);
@@ -254,12 +245,10 @@ function checkOne(claim: Claim, facts: GameFacts, seat: Seat, catalog: Catalog):
     default:
   }
 
-  // Event kinds: build the items of this kind, then look for the claim among them.
   const items: Item[] = [];
   for (const t of facts.turns) {
     if (claim.kind === "played") {
       for (const p of t.plays) items.push({ turn: t.turn, seat: p.seat, card: p.card });
-      // A counter is played from hand by the defender too (#695).
       for (const a of t.attacks) for (const c of a.counters) items.push({ turn: t.turn, seat: (1 - a.seat) as Seat, card: c });
     }
     if (claim.kind === "attacked") for (const a of t.attacks) items.push({ turn: t.turn, seat: a.seat, card: a.attacker === "unknown" ? undefined : a.attacker, target: a.target === "unknown" ? undefined : a.target });
@@ -268,7 +257,6 @@ function checkOne(claim: Claim, facts: GameFacts, seat: Seat, catalog: Catalog):
       for (const l of t.lifeTaken) items.push({ turn: t.turn, seat: l.seat, card: l.card });
       for (const s of [0, 1] as const) {
         const hits = t.lifeTaken.filter((l) => l.seat === s).length;
-        // Life an effect removed has no life_taken event. With no card named, the loss itself is the item.
         if (!claim.card) for (let k = hits; k < t.lifeLost[s]; k++) items.push({ turn: t.turn, seat: s, card: undefined });
         // A named card may be the cause: one either player played or attacked with, or one on this seat's own field (its effect), on a turn this seat lost Life (#695).
         else if (t.lifeLost[s] > 0) {

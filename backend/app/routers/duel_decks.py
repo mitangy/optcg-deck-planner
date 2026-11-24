@@ -1,9 +1,3 @@
-"""Duel-web saved decks, stored per account so they follow a player to every device.
-
-The browser keeps a local cache and syncs it here. Conflicts are last-writer-wins
-on the client's ``updatedAt``; a deleted deck stays as a tombstone so other
-devices learn it is gone. Guests keep browser-only decks.
-"""
 
 from __future__ import annotations
 
@@ -58,18 +52,14 @@ def _upsert(
         raise HTTPException(status_code=413, detail="Deck is too large")
     row = store.find_row(db, user_id, deck_id)
     if row is not None and row.updated_at_ms > body.updatedAt:
-        return row  # the stored copy is newer: the client adopts it
+        return row
     is_new = row is None or row.deleted
-    # Only the first-sign-in bulk upload merges look-alikes; a single-deck save is a new deck the
-    # player made on purpose (a second blank deck, a pasted copy).
     survivor = (
         deck_link.find_duplicate_survivor(db, user_id, deck_id, body.deck.model_dump())
         if is_new and merge_duplicates
         else None
     )
     if survivor is not None:
-        # Same deck as one already synced: keep one copy. The client adopts the tombstone and
-        # switches to the survivor, so the planner never gets a second deck.
         if row is None:
             if store.row_count(db, user_id) >= store.MAX_ROWS:
                 raise HTTPException(status_code=413, detail="Too many saved decks")
@@ -153,7 +143,7 @@ def delete_deck(
         row = DuelSavedDeck(user_id=user.id, deck_id=deck_id)
         db.add(row)
     elif row.updated_at_ms > updated_at:
-        return _out(row)  # edited after this delete: keep it
+        return _out(row)
     planner_id = row.planner_deck_id
     row.data = ""
     row.deleted = True

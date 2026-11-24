@@ -1,10 +1,5 @@
-/**
- * Text with positions from Bandai's PDFs (comprehensive rules, FAQ tables), via unpdf.
- * Parsers work on these plain items so they can be tested without a PDF.
- */
 import { getDocumentProxy } from "unpdf";
 
-/** One run of text: x/y of its baseline start in PDF points (y grows upward), and its width. */
 export type PdfItem = { x: number; y: number; w: number; str: string };
 export type PdfPage = PdfItem[];
 
@@ -24,7 +19,6 @@ export async function pdfPages(bytes: Uint8Array): Promise<PdfPage[]> {
   return pages;
 }
 
-/** Joins runs left to right, adding a space only where the runs don't touch. */
 export function joinRuns(items: readonly PdfItem[]): string {
   const sorted = [...items].sort((a, b) => a.x - b.x);
   let out = "";
@@ -37,7 +31,6 @@ export function joinRuns(items: readonly PdfItem[]): string {
   return out.replace(/\s+/g, " ").trim();
 }
 
-/** Lines of a page, top to bottom: runs whose baselines are within 2pt are one line. */
 export function pageLines(items: readonly PdfItem[]): string[] {
   const rows: { y: number; items: PdfItem[] }[] = [];
   for (const it of [...items].sort((a, b) => b.y - a.y)) {

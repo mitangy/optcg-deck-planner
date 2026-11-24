@@ -61,7 +61,6 @@ async function mount(): Promise<QueryClient> {
   return qc;
 }
 
-// Master Shopping's own request carries options; other widgets ask for the unfiltered list.
 const lastIds = () => h.shopping.mock.calls.filter((c) => c[1] !== undefined).at(-1)?.[0];
 
 describe("Master Shopping deck filter with no decks (#1211)", () => {
@@ -84,11 +83,10 @@ describe("Master Shopping deck filter with no decks (#1211)", () => {
     h.decks = [{ id: 7 }];
     const qc = await mount();
     const btn = (re: RegExp) => [...host!.querySelectorAll("button")].find((b) => re.test(b.textContent ?? ""));
-    // Include decks sits inside the Filters panel.
     await flush();
     const f = btn(/^Filters/)!;
     await act(async () => f.click());
-    const clearAll = btn(/^Clear all$/);
+    const clearAll = [...document.querySelectorAll("button")].find((b) => /^Clear all$/.test(b.textContent ?? ""));
     expect(clearAll).toBeTruthy();
     await act(async () => clearAll!.click());
     await flush();

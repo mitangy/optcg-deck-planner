@@ -10,13 +10,6 @@ import {
   type StatusIconSpec,
 } from "./statusIcons";
 
-/**
- * Hover / focus tooltip for status badges. It is a fixed overlay in a portal
- * (so it never shifts layout and is not tilted with the board) placed beside
- * the badge and clamped to the viewport, which also covers a 375px phone.
- * Touch: tapping a badge focuses it, and long-press still opens card inspect
- * (which lists every status in the same colours).
- */
 function useStatusTip(labels: string[]) {
   const anchorRef = useRef<HTMLElement | null>(null);
   const tipRef = useRef<HTMLDivElement | null>(null);
@@ -60,9 +53,6 @@ function useStatusTip(labels: string[]) {
     ref: (el: HTMLElement | null) => {
       anchorRef.current = el;
     },
-    // Focusable by tap (the touch tooltip) but not by Tab: a board of status
-    // badges was ~30 extra stops. Screen readers get the aria-label, and card
-    // inspect lists every status.
     tabIndex: -1,
     onMouseEnter: show,
     onMouseLeave: hide,
@@ -93,7 +83,6 @@ function useStatusTip(labels: string[]) {
   return { bind, tip };
 }
 
-/** 24x24 line icons; stroke/fill use currentColor so the tone class colours them. */
 function Glyph({ glyph }: { glyph: StatusGlyph }) {
   switch (glyph) {
     case "negated":
@@ -161,7 +150,6 @@ function Glyph({ glyph }: { glyph: StatusGlyph }) {
   }
 }
 
-/** Fixed-size square badge for one status label; the full label is the tooltip / accessible name. */
 export function StatusIcon({ label, spec }: { label: string; spec: StatusIconSpec }) {
   const { bind, tip } = useStatusTip([label]);
   const { text } = statusTooltip(label);
@@ -182,7 +170,6 @@ export function StatusIcon({ label, spec }: { label: string; spec: StatusIconSpe
   );
 }
 
-/** Text chip for a status with no icon; same tooltip and colours. */
 function StatusChip({ label }: { label: string }) {
   const { bind, tip } = useStatusTip([label]);
   return (
@@ -195,7 +182,6 @@ function StatusChip({ label }: { label: string }) {
   );
 }
 
-/** The row's "+N" badge: hovering lists the hidden statuses. */
 function StatusMore({ hidden }: { hidden: string[] }) {
   const { bind, tip } = useStatusTip(hidden);
   return (
@@ -213,29 +199,17 @@ function StatusMore({ hidden }: { hidden: string[] }) {
   );
 }
 
-/** Smallest .status-icon size (see --status-icon-size in styles.css). */
 const ICON_MIN_PX = 13;
 
-/**
- * One row of statuses in the tile's bottom-right corner. The row never wraps
- * (a second row would climb into the power / DON!! stack on phone tiles);
- * when it runs out of room the last slot becomes "+N" (the hidden labels are
- * its tooltip, and card inspect lists everything). On the smallest rested
- * tiles the stack reaches down to the row, so the row moves left of it.
- *
- * `stackKey` changes whenever the stack's size may (power buff, DON!!).
- */
+// A second row would climb into the power / DON!! stack on phone tiles.
 export function StatusRow({ labels, stackKey }: { labels: string[]; stackKey: string }) {
   const rowRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState<number | null>(null);
   const key = `${labels.join("|")}#${stackKey}`;
 
-  // A new label set or a resized tile starts over from "show everything".
   useLayoutEffect(() => setFit(null), [key]);
 
-  // Measure with every label rendered: the row lays out right to left, so
-  // children that overflow sit left of the row (negative offsetLeft).
-  // offset* ignore transforms, so the rest rotation doesn't skew it.
+  // The row lays out right to left, so children that overflow sit left of it (negative offsetLeft). offset* ignore transforms, so the rest rotation doesn't skew it.
   useLayoutEffect(() => {
     const row = rowRef.current;
     const box = row?.parentElement;
@@ -246,7 +220,6 @@ export function StatusRow({ labels, stackKey }: { labels: string[]; stackKey: st
     if (stack && stack.offsetTop + stack.offsetHeight > row.offsetTop) {
       const room = stack.offsetLeft - 5;
       if (room < ICON_MIN_PX) {
-        // Not even one slot beside the stack: a lone "+N" in the far corner.
         row.classList.add("status-chips-squeezed");
         setFit(0);
         return;
@@ -278,8 +251,6 @@ export function StatusRow({ labels, stackKey }: { labels: string[]; stackKey: st
   return (
     <div ref={rowRef} className="status-chips" aria-label="Card statuses">
       {shown.map((label) => {
-        // Board tiles are too narrow for words; known statuses get an icon
-        // (full text in title / aria-label and in card inspect).
         const icon = statusGlyph(label);
         return icon ? (
           <StatusIcon key={label} label={label} spec={icon} />

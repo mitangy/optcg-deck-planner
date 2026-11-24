@@ -1,14 +1,11 @@
 import type { ReactNode } from "react";
 
-/** Community Discord invite, linked from both apps (footer, duel menu, planner top bar). */
 export const DISCORD_INVITE_URL = "https://discord.gg/XYweKSE3zG";
 
-/** Shows a "draft under review" banner on every legal page. Turn off once reviewed. */
 export const LEGAL_DRAFT = true;
 
 export const LEGAL_UPDATED = "6 October 2026";
 
-/** Contact for privacy requests and rights-holder notices. If emptied, the pages say a contact is coming. */
 export const LEGAL_CONTACT_EMAIL = "optcgduel@gmail.com";
 
 export type LegalKind = "terms" | "privacy" | "cookies" | "conduct";

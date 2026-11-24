@@ -1,7 +1,3 @@
-/**
- * Worker-thread side of the Hard bot (#635): runs one search per request so the room's event loop is never blocked.
- * Receives { id, state, seat, seed, memory, budgetMs, samples } and answers { id, intent, searched, ms } (or { id, error }).
- */
 import { parentPort } from "node:worker_threads";
 import { chooseBotIntentFromState, createSeededRng, seedBotTurnMemory, type BotTurnMemory, type Intent, type MatchState, type Seat } from "@optcg/rules";
 
@@ -9,7 +5,7 @@ export interface BotJob {
   id: number;
   state: MatchState;
   seat: Seat;
-  /** Seed of the rng this decision uses (the room draws it from its bot rng, so a game stays reproducible). */
+  /** Drawn from the room's bot rng, so a game stays reproducible. */
   seed: number;
   memory: BotTurnMemory;
   budgetMs: number;

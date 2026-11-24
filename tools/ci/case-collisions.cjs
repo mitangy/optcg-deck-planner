@@ -1,16 +1,6 @@
 #!/usr/bin/env node
-/**
- * Fails when two tracked paths differ only by letter case (refactor 0.6).
- *
- *   node tools/ci/case-collisions.cjs            (checks the tracked files)
- *   <paths> | node tools/ci/case-collisions.cjs -  (checks paths from stdin)
- *
- * `CardPage.tsx` next to `cardPage.ts` works on Linux but is ambiguous for
- * extensionless imports (`./cardPage`) and for editors and checkouts on
- * case-insensitive file systems (macOS, Windows). Paths are compared with their
- * last extension removed, so a component and a module that share a stem in
- * different case are caught as well as identical names in different case.
- */
+// `CardPage.tsx` next to `cardPage.ts` is ambiguous for extensionless imports and on case-insensitive file systems (macOS, Windows).
+// Paths are compared with their last extension removed, so a component and a module that share a stem in different case are caught too.
 "use strict";
 
 const MODULE_EXT = /\.(?:[cm]?[jt]sx?)$/;

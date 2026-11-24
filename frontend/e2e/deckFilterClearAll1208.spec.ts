@@ -1,7 +1,3 @@
-/**
- * "Include decks" can be emptied (#1208): Clear all unticks every deck but not the Other chips, an empty
- * selection lists only added cards and Extra copies (not every deck), and Select all brings the decks back.
- */
 import type { Page } from "@playwright/test";
 import { expect, test } from "./fixtures";
 
@@ -25,8 +21,6 @@ test("Master Shopping: Clear all unticks the decks only, and the list keeps just
   const selectAll = page.getByRole("button", { name: "Select all" });
   await expect(clear).toBeEnabled();
   const total = await page.locator(".deck-filter-list .deck-chip").count();
-  // Position inside the Include decks block: the stats above the filters can change height when the
-  // list reloads for the new pick, which is not a shift caused by the button itself.
   const y = () =>
     clear.evaluate((el) => el.getBoundingClientRect().top - el.closest(".deck-filter")!.getBoundingClientRect().top);
   const before = await y();
@@ -40,13 +34,11 @@ test("Master Shopping: Clear all unticks the decks only, and the list keeps just
   expect(await page.locator(".deck-filter-list .deck-chip").count()).toBe(total);
   expect(Math.abs((await y()) - before)).toBeLessThan(1);
 
-  // Only the card with an Extra copy is left, not the decks' cards.
   await expect(page.locator(`[data-buy-split="${IZO}"]:visible`).first()).toBeVisible();
   await expect(page.getByText("Kid & Killer")).toHaveCount(0);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/${ti.project.name}-shopping-cleared.png`, fullPage: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)).toBeLessThanOrEqual(0);
 
-  // Still unticked after a reload: the empty pick is saved, not turned back into every deck.
   await page.reload();
   await expect(page.locator(`[data-buy-split="${IZO}"]:visible`).first()).toBeVisible();
   if (!(await page.getByRole("button", { name: "Clear all" }).isVisible())) await openFilters(page);
@@ -91,7 +83,7 @@ test("Group buy: Clear all sends an empty deck list and Select all sends none (#
   await page.route(`**/api/group-buys/${GB}`, (r) => r.fulfill({ json: gbDetail(ids) }));
   await planner.open(`/group-buys/${GB}`);
   await expect(page.getByRole("heading", { name: "Friday pool", level: 1 })).toBeVisible();
-  await page.locator(".group-buy-merged-toolbar").getByRole("button", { name: /Filters/ }).first().click();
+  await page.getByTestId("gb-your-share").locator(".gb-share-edit").click();
 
   const clear = page.getByRole("button", { name: "Clear all" });
   const selectAll = page.getByRole("button", { name: "Select all decks" });
@@ -116,7 +108,6 @@ test("Master Shopping: the last ticked deck can be unticked, leaving only the Ot
   planner.collectors.set(`${IZO}:201`, 1);
   await planner.open("/");
   await openFilters(page);
-  // The deck chips themselves, not their Leader's checkbox.
   const chips = page.locator(".deck-filter-group").filter({ hasNotText: "Other" }).locator(".deck-chip input");
   await expect(chips).toHaveCount(2);
   await chips.nth(0).uncheck();

@@ -11,7 +11,6 @@ import { LeaderArt } from "./MetaDecksPage";
 import "./playOnline.css";
 import "./leaders.css";
 
-/** `/leaders`: every popular leader of the last 30 days, each linking to its own page (#914). */
 export function LeadersIndexPage() {
   const view = useMetaView(null);
   const meta = routeMetaFor("/leaders");

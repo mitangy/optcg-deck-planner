@@ -1,9 +1,11 @@
-/**
- * Every page's header (menu, back link, title) stays at the top of the window while the page
- * scrolls (#510). The FastAPI backend is faked as a signed-out guest.
- */
 import { test, expect, type Page } from "@playwright/test";
 import { FAKE_API, RED_VANILLA } from "./fixtures";
+
+// A deck with enough different cards and costs that the editor page scrolls well past one window.
+const LONG_DECK = {
+  leaderId: RED_VANILLA.leaderId,
+  cards: Array.from({ length: 16 }, (_, i) => `ST01-${String(i + 2).padStart(3, "0")}`).flatMap((id) => [id, id, id]),
+};
 
 async function open(page: Page, path: string): Promise<void> {
   await page.route(`${FAKE_API}/**`, (route) => {
@@ -18,14 +20,13 @@ async function open(page: Page, path: string): Promise<void> {
     localStorage.clear();
     localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify(d));
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
-  }, [{ id: "e2e-you", name: "E2E You", ...RED_VANILLA, updatedAt: 1 }]);
+  }, [{ id: "e2e-you", name: "E2E You", ...LONG_DECK, updatedAt: 1 }]);
   await page.goto(path);
-  await expect(page.getByRole("button", { name: "Menu" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Menu", exact: true })).toBeVisible();
 }
 
-/** The sticky bar around the menu button (the header, or just its nav row on phones), measured now. */
 const stuckBar = (page: Page) =>
-  page.getByRole("button", { name: "Menu" }).evaluate((btn) => {
+  page.getByRole("button", { name: "Menu", exact: true }).evaluate((btn) => {
     for (let el = btn.parentElement; el; el = el!.parentElement) {
       if (getComputedStyle(el).position !== "sticky") continue;
       const r = el.getBoundingClientRect();
@@ -64,15 +65,15 @@ async function noSidewaysScroll(page: Page): Promise<void> {
 for (const path of ["/settings", "/whats-new", "/decks/e2e-you/configure"]) {
   test(`page header stays at the top while scrolling on ${path} (#510)`, async ({ page }) => {
     await open(page, path);
-    const button = page.getByRole("button", { name: "Menu" });
+    const button = page.getByRole("button", { name: "Menu", exact: true });
+    // Lazy content (the What's new notes) can land after the header paints, so wait for the page to grow.
+    await expect.poll(() => page.evaluate(() => document.documentElement.scrollHeight), { message: "page is long enough to scroll" }).toBeGreaterThan(page.viewportSize()!.height + 400);
     const rest = (await button.boundingBox())!;
-    expect((await page.evaluate(() => document.documentElement.scrollHeight)) > page.viewportSize()!.height + 400, "page is long enough to scroll").toBe(true);
 
     await scrollSettled(page, 400);
     const bar = (await stuckBar(page))!;
     expect(bar, "the header is sticky").not.toBeNull();
     expect(bar.top, "bar sits at the top of the window").toBeCloseTo(0, 0);
-    // The menu button is on screen, clear of the top edge, and still works.
     const now = (await button.boundingBox())!;
     expect(now.y).toBeGreaterThanOrEqual(0);
     expect(now.y).toBeLessThan(rest.y + 1);
@@ -81,12 +82,10 @@ for (const path of ["/settings", "/whats-new", "/decks/e2e-you/configure"]) {
     await page.keyboard.press("Escape");
     await expect(page.getByRole("navigation", { name: "Site menu" })).toBeHidden();
 
-    // Edge to edge: the painted bar covers the whole window, and nothing scrolls sideways.
     expect(bar.paintLeft).toBeLessThanOrEqual(0.5);
     expect(bar.paintWidth).toBeGreaterThanOrEqual(bar.clientWidth);
     await noSidewaysScroll(page);
 
-    // Back at the top the header is where it always was.
     await scrollSettled(page, 0);
     expect(await button.boundingBox()).toEqual(rest);
   });
@@ -98,9 +97,14 @@ test("a Settings jump link lands a section below the header (#510)", async ({ pa
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(200);
   await scrollSettled(page, await page.evaluate(() => window.scrollY));
   const bar = (await stuckBar(page))!;
-  const top = await page.evaluate(() => document.getElementById("appearance")!.getBoundingClientRect().top);
-  expect(top, "the section is not hidden under the header").toBeGreaterThanOrEqual(bar.bottom);
-  expect(top, "and sits right below it").toBeLessThan(bar.bottom + 40);
+  const { top, navBottom } = await page.evaluate(() => ({
+    top: document.getElementById("appearance")!.getBoundingClientRect().top,
+    // The section bar sticks under the header since #1389, so the section lands below both.
+    navBottom: document.querySelector(".settings-jump-bar")!.getBoundingClientRect().bottom,
+  }));
+  expect(navBottom, "the section bar is stuck under the header (#1389)").toBeGreaterThanOrEqual(bar.bottom);
+  expect(top, "the section is not hidden under the header or the section bar").toBeGreaterThanOrEqual(navBottom);
+  expect(top, "and sits right below them").toBeLessThan(navBottom + 40);
 });
 
 test("the deck editor's card search column stays below the header (#510)", async ({ page }, testInfo) => {

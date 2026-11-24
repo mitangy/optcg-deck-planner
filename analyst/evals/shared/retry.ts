@@ -1,5 +1,3 @@
-/** Jittered exponential backoff for the rate-limit, overload and server errors the API returns. */
-
 export function retriable(err: unknown): boolean {
   const status = (err as { status?: number } | null)?.status;
   if (typeof status === "number") return status === 429 || status === 529 || status >= 500;

@@ -6,6 +6,9 @@ module.exports = {
   cwd: "packages/duel-protocol",
   runner: "vitest",
   mutations: [
+    { id: "art-prefs1345-key-uncapped", file: clientMsgs, from: "if (k.length > ART_PREF_KEY_MAX || v.length > ART_PREF_VALUE_MAX) continue;", to: "if (v.length > ART_PREF_VALUE_MAX) continue;", kills: ["skips an entry whose key or value is too long to be a card id or an art id (#1345)"] },
+    { id: "art-prefs1345-value-uncapped", file: clientMsgs, from: "if (k.length > ART_PREF_KEY_MAX || v.length > ART_PREF_VALUE_MAX) continue;", to: "if (k.length > ART_PREF_KEY_MAX) continue;", kills: ["skips an entry whose key or value is too long to be a card id or an art id (#1345)"] },
+    { id: "art-prefs1345-cap-off-by-one", file: clientMsgs, from: "k.length > ART_PREF_KEY_MAX || v.length > ART_PREF_VALUE_MAX", to: "k.length >= ART_PREF_KEY_MAX || v.length >= ART_PREF_VALUE_MAX", kills: ["skips an entry whose key or value is too long to be a card id or an art id (#1345)"] },
     { id: "error-code-unknown-passes", file: errors, from: "return ERROR_CODES.find((c) => c === code) ?? fallback;", to: "return (code as ErrorCode | undefined) ?? fallback;", kills: ["reports the code an error carries and falls back for anything the protocol does not define"] },
     { id: "error-code-always-fallback", file: errors, from: "return ERROR_CODES.find((c) => c === code) ?? fallback;", to: "return fallback;", kills: ["reports the code an error carries and falls back for anything the protocol does not define"] },
     { id: "envelope-any-version", file: errors, from: "  if (!isProtocolVersion(o.protocolVersion)) throw bad(\"Unsupported or missing protocolVersion\");\n", to: "", kills: ["refuses a message body that is not an object, or that speaks another protocol version"] },

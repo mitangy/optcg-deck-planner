@@ -1,38 +1,19 @@
-/**
- * Board motion cues: what changed between two consecutive views, in terms the
- * animation layer can draw (a draw, a play, a KO…). Pure so it can be tested
- * without a DOM; `BoardMotion` turns cues into Web Animations.
- *
- * The view is already updated when cues are computed, so animations only
- * illustrate a change that has happened. They never gate input.
- */
 import type { CardView, PlayerView } from "../../net/protocol";
 
 export type MotionSide = "you" | "opp";
 
 export type MotionCue =
-  /** Deck riffle: match start and a mulligan (hand swapped for a fresh five). */
   | { kind: "shuffle"; side: MotionSide }
-  /** Cards joined a hand from the deck. `ids` are the new hand cards (yours only). */
   | { kind: "draw"; side: MotionSide; count: number; ids: string[] }
-  /** Life cards went to hand. `ids` as for draw. */
   | { kind: "life_to_hand"; side: MotionSide; count: number; ids: string[] }
-  /** Life pile shrank (damage, trigger, effect): the pile itself reacts. */
   | { kind: "life_lost"; side: MotionSide; count: number }
-  /** Life pile grew (effects that add life). */
   | { kind: "life_gained"; side: MotionSide; count: number }
-  /** A Character or Stage entered the field. `fromHand` = it left a hand in this update. */
   | { kind: "play"; side: MotionSide; id: string; fromHand: boolean }
-  /** A field card left play (KO, bounce, effect). `toTrash` = that trash grew. */
   | { kind: "leave_field"; side: MotionSide; id: string; defId: string; toTrash: boolean }
-  /** Your hand card went to the trash (counter, discard, cost). */
   | { kind: "discard"; side: MotionSide; id: string; defId: string }
-  /** DON!! entered the cost area from the DON!! deck. `activeAfter` locates them (active chips lead). */
   | { kind: "don"; side: MotionSide; count: number; activeAfter: number }
-  /** A card's live power changed. */
   | { kind: "power"; side: MotionSide; id: string; up: boolean };
 
-/** More cues than this in one update is a resync (reconnect, replay), not play. */
 export const MAX_CUES = 16;
 
 type Side = {
@@ -43,7 +24,6 @@ type Side = {
   lifeCount: number;
   trash: string[];
   handIds: string[] | null;
-  /** Hand defIds by id (yours only), to tell which trashed card came from hand. */
   handDefs: Map<string, string> | null;
   handCount: number;
   donCount: number;
@@ -61,7 +41,6 @@ function sideOf(view: PlayerView, which: MotionSide): Side {
       deckCount: y.deckCount,
       lifeCount: y.lifeCount,
       trash: y.trash,
-      // Spectators get an empty hand array plus handCount: treat as hidden.
       handIds: view.spectator ? null : y.hand.map((c) => c.id),
       handDefs: view.spectator ? null : new Map(y.hand.map((c) => [c.id, c.defId])),
       handCount: view.spectator ? (y.handCount ?? 0) : y.hand.length,
@@ -98,7 +77,6 @@ function sideCues(prev: Side, next: Side, side: MotionSide): MotionCue[] {
   const lifeGain = Math.max(0, next.lifeCount - prev.lifeCount);
   const trashGrew = next.trash.length > prev.trash.length;
 
-  // —— Hand arrivals / departures ——
   let newHandIds: string[] = [];
   let goneHandIds: string[] = [];
   let arrivals = Math.max(0, next.handCount - prev.handCount);
@@ -121,7 +99,6 @@ function sideCues(prev: Side, next: Side, side: MotionSide): MotionCue[] {
     cues.push({ kind: "shuffle", side });
     cues.push({ kind: "draw", side, count: newHandIds.length, ids: newHandIds });
   } else if (arrivals > 0) {
-    // Life first: when life drops the new hand cards are the life cards.
     const fromLife = Math.min(arrivals, lifeDrop);
     const fromDeck = Math.min(arrivals - fromLife, deckDrop);
     if (fromLife > 0) {
@@ -134,7 +111,6 @@ function sideCues(prev: Side, next: Side, side: MotionSide): MotionCue[] {
   if (lifeDrop > 0) cues.push({ kind: "life_lost", side, count: lifeDrop });
   if (lifeGain > 0) cues.push({ kind: "life_gained", side, count: lifeGain });
 
-  // —— Field ——
   const prevField = fieldCards(prev);
   const nextField = fieldCards(next);
   const prevIds = new Set(prevField.map((c) => c.id));
@@ -150,7 +126,6 @@ function sideCues(prev: Side, next: Side, side: MotionSide): MotionCue[] {
     cues.push({ kind: "leave_field", side, id: c.id, defId: c.defId, toTrash: trashGrew });
   }
 
-  // —— Hand → trash (yours: ids are known) ——
   if (trashGrew && prev.handIds) {
     const played = new Set(nextField.map((c) => c.id));
     const trashNew = next.trash.slice(prev.trash.length);
@@ -161,12 +136,10 @@ function sideCues(prev: Side, next: Side, side: MotionSide): MotionCue[] {
     }
   }
 
-  // —— DON!! ——
   if (next.donCount > prev.donCount) {
     cues.push({ kind: "don", side, count: next.donCount - prev.donCount, activeAfter: next.activeDon });
   }
 
-  // —— Power ——
   const prevPower = new Map([...prevField, prev.leader].map((c) => [c.id, c.power]));
   for (const c of [...nextField, next.leader]) {
     const before = prevPower.get(c.id);
@@ -176,11 +149,6 @@ function sideCues(prev: Side, next: Side, side: MotionSide): MotionCue[] {
   return cues;
 }
 
-/**
- * Cues for `prev → next`. Empty when the two views are not consecutive frames
- * of the same board: a different seat or camera (practice seat switch), an
- * undo (turn went backwards), or a burst too large to be live play.
- */
 export function motionCues(prev: PlayerView | null, next: PlayerView): MotionCue[] {
   if (!prev) return openingCues(next);
   if (prev.seat !== next.seat || prev.cameraSeat !== next.cameraSeat) return [];
@@ -192,7 +160,6 @@ export function motionCues(prev: PlayerView | null, next: PlayerView): MotionCue
   return cues.length > MAX_CUES ? [] : cues;
 }
 
-/** First view of a match that has not started yet: shuffle and deal. Resumes get nothing. */
 function openingCues(view: PlayerView): MotionCue[] {
   if (view.you.mulliganDone !== false || view.turnNumber > 1) return [];
   const ids = view.spectator ? [] : view.you.hand.map((c) => c.id);

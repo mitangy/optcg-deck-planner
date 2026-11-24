@@ -1,8 +1,3 @@
-/**
- * Pure rules for the Log Pose copilot on the board (the component is LogPoseCopilot.tsx): when it is offered,
- * the whitelisted snapshot of the game that goes to the analyst, and the executor that plays out a plan the
- * player approved, one legal intent per fresh view.
- */
 import { normalizeCardId } from "@optcg/card-core";
 import {
   CHOICE_OPTION_LIMIT,
@@ -20,11 +15,6 @@ import { arrangementAnswer, groupAnswer } from "../zones/deckOrder";
 import { briefShown } from "../match/matchBriefModel";
 import type { PlayCardIntent } from "../prompts/intentFields";
 
-/**
- * Whether the game offers the copilot at all: everything the matchup brief needs (an unranked room, a player, a
- * ticket, Log Pose on for the account) plus its own setting, and a seat the ticket was minted for. A plan keeps
- * going while this holds, even while the device shows the other seat (hotseat: the defender answers the attack).
- */
 export function copilotAvailable(o: {
   ranked: boolean | null | undefined;
   role: "player" | "spectator";
@@ -37,31 +27,21 @@ export function copilotAvailable(o: {
   return briefShown(o);
 }
 
-/**
- * Whether the live game is registered with Log Pose, so a chat can see the hand and board. Wider than
- * `copilotAvailable`: the matchup brief opens the Log Pose panel over the board during the mulligan, and the
- * player chats there with the copilot setting off. The same room, player, ticket and account checks apply; only
- * plans, the button and the executor need the copilot setting itself.
- */
 export function gameAttached(o: Parameters<typeof copilotAvailable>[0] & { briefSetting: boolean }): boolean {
   return copilotAvailable({ ...o, setting: o.setting || o.briefSetting });
 }
 
-/**
- * Whether the board draws the copilot's button: the game offers it and the view is from the seat the ticket was
- * minted for. In hotseat the ticket is seat 0's, so the button is there for seat 0's turns only.
- */
+// In hotseat the ticket is seat 0's, so the button shows for seat 0's turns only.
 export function copilotShown(o: Parameters<typeof copilotAvailable>[0] & { viewSeat: Seat | null | undefined }): boolean {
   if (o.viewSeat == null || o.viewSeat !== o.ticketSeat) return false;
   return copilotAvailable(o);
 }
 
-/** The analyst's limits (analyst/src/copilot.ts): more than this is refused, so the snapshot is cut to it. */
+// The analyst's limits (analyst/src/copilot.ts): more is refused, so the snapshot is cut to it.
 export const SNAPSHOT_LIMITS = { characters: 12, hand: 20, trash: 60, legal: 120, log: 40, logLine: 200, prompt: 300 };
 
 const CARD_NUMBER = /^(P-\d{3}|[A-Z]{2,4}\d{2}-\d{3})$/;
 
-/** A card number the analyst accepts, or null (a hidden or unknown card never goes out). */
 function cardNumber(defId: unknown): string | null {
   if (typeof defId !== "string") return null;
   const id = normalizeCardId(defId);
@@ -106,14 +86,12 @@ function optionSnap(o: ChoiceOptionView, seat: Seat): ChoiceOptionSnap {
   };
 }
 
-/** The options of a request, eligible ones first when there are too many to send; `truncated` says some were left out. */
 function optionsSnap(options: readonly ChoiceOptionView[], seat: Seat): { options: ChoiceOptionSnap[]; truncated?: true } {
   if (options.length <= CHOICE_OPTION_LIMIT) return { options: options.map((o) => optionSnap(o, seat)) };
   const kept = [...options.filter((o) => o.eligible), ...options.filter((o) => !o.eligible)].slice(0, CHOICE_OPTION_LIMIT);
   return { options: kept.map((o) => optionSnap(o, seat)), truncated: true };
 }
 
-/** The request as the analyst reads it. An order_effects prompt becomes an order of its abilities, named by their cards. */
 function requestSnap(choice: PendingChoiceView, seat: Seat): PendingChoiceSnap["request"] {
   if (choice.kind === "order_effects") {
     const abilities = (choice.unorderedChoices ?? []).map((c): ChoiceOptionView => ({ id: c.id, defId: c.cardDefId, label: String(c.prompt ?? "").slice(0, 120), eligible: true }));
@@ -138,7 +116,7 @@ function requestSnap(choice: PendingChoiceView, seat: Seat): PendingChoiceSnap["
   }
 }
 
-/** The front pending choice, only when it is this seat's to answer: never one addressed to or private to the other seat. */
+// Never one addressed to or private to the other seat.
 function choiceFor(view: PlayerView, choice: PendingChoiceView | null | undefined): GameSnapshot["choice"] {
   if (!choice || choice.seat !== view.seat) return null;
   if (choice.privateToSeat != null && choice.privateToSeat !== view.seat) return null;
@@ -153,7 +131,6 @@ function choiceFor(view: PlayerView, choice: PendingChoiceView | null | undefine
   };
 }
 
-/** The legal intents as the analyst reads them: instance ids instead of hand indexes, one give_don per target. */
 export function compactLegal(view: PlayerView): LegalAction[] {
   const hand = view.you.hand;
   const out: LegalAction[] = [];
@@ -207,11 +184,7 @@ export function compactLegal(view: PlayerView): LegalAction[] {
   return out.slice(0, SNAPSHOT_LIMITS.legal);
 }
 
-/**
- * The game as one seat sees it, for the analyst. A whitelist: only the fields listed here are copied, so a field
- * added to the view later never leaves the browser by accident. The opponent's hand is a count and nothing else
- * (`opponent.hand` and `revealedHands` are never read); a pending choice goes out only when it is this seat's.
- */
+// A whitelist, so a field added to the view later never leaves the browser by accident.
 export function buildSnapshot(view: PlayerView, battleLine: string | null | undefined, choice: PendingChoiceView | null | undefined): GameSnapshot {
   const you = view.you;
   const opp = view.opponent;
@@ -267,7 +240,6 @@ export function buildSnapshot(view: PlayerView, battleLine: string | null | unde
   };
 }
 
-/** Up to 40 recent battle log lines as the player saw them, each cut to 200 characters. */
 export function recentLog(lines: ReadonlyArray<{ text: string }>): string[] {
   return lines
     .slice(-SNAPSHOT_LIMITS.log)
@@ -275,20 +247,13 @@ export function recentLog(lines: ReadonlyArray<{ text: string }>): string[] {
     .filter(Boolean);
 }
 
-// ——— Executor ———
-
-/** Where a running plan stands: the step, how many of its intents the view has shown taking effect, and the one sent but not yet seen. */
 export type PlanCursor = { step: number; done: number; inFlight: Intent | null };
 
 export type NextIntent =
-  /** Not this seat's move yet: the opponent, a battle, or an intent just sent. */
   | { kind: "waiting"; cursor: PlanCursor }
-  /** A pending choice is this seat's to answer; the plan resumes after. */
   | { kind: "choice"; cursor: PlanCursor }
   | { kind: "send"; intent: Intent; cursor: PlanCursor }
-  /** The step can't be done from here: skip it, stop, or re-plan. */
   | { kind: "blocked"; reason: string; cursor: PlanCursor }
-  /** The plan can't go on at all: its turn is over or the game is. */
   | { kind: "stale"; reason: string }
   | { kind: "done" };
 
@@ -297,12 +262,10 @@ export const startCursor: PlanCursor = { step: 0, done: 0, inFlight: null };
 const sameIntent = (a: Intent, b: Intent): boolean => JSON.stringify(a) === JSON.stringify(b);
 const legalHas = (view: PlayerView, intent: Intent): boolean => view.legalIntents.some((l) => sameIntent(l, intent));
 
-/** How many intents a step takes: a give_don once per DON!! asked for, everything else once. */
 export function intentsFor(step: PlanStep): number {
   return step.action === "give_don" ? step.count : 1;
 }
 
-/** Whether the view shows the sent intent taking effect. A played card leaves the hand; anything else is no longer legal. */
 function takenEffect(step: PlanStep, sent: Intent, view: PlayerView): boolean {
   if (step.action === "play") return !view.you.hand.some((c) => c.id === step.card);
   return !legalHas(view, sent);
@@ -332,7 +295,6 @@ function stepIntent(step: PlanStep, view: PlayerView): Intent | string {
         (i) =>
           i.type === "activate_ability" &&
           i.sourceId === step.source &&
-          // The engine's legal activations never carry a target: it is chosen when the ability resolves.
           (step.abilityId == null || i.abilityId === step.abilityId),
         "That ability can't be used right now.",
       );
@@ -350,15 +312,9 @@ function stepIntent(step: PlanStep, view: PlayerView): Intent | string {
   }
 }
 
-/**
- * The next thing the executor does for a plan the player approved, from the live view. It never invents a move: a
- * step becomes an intent only when that exact intent is in `view.legalIntents`, on this seat's own main phase with no
- * battle and no pending choice. It sends once and then waits until a later view shows the move taken (so two sends never
- * ride on one view), and a step moves on only after that.
- */
+// Sends once, then waits until a later view shows the move taken, so two sends never ride on one view.
 export function nextIntent(plan: TurnPlan, cursor: PlanCursor, view: PlayerView): NextIntent {
   let { step, done, inFlight } = cursor;
-  // The view after a send: has the move taken effect?
   if (inFlight) {
     const cur = plan.steps[step];
     if (cur && !takenEffect(cur, inFlight, view)) return { kind: "waiting", cursor: { step, done, inFlight } };
@@ -383,21 +339,16 @@ export function nextIntent(plan: TurnPlan, cursor: PlanCursor, view: PlayerView)
   return { kind: "send", intent, cursor: { step, done, inFlight: intent } };
 }
 
-// ——— A plan being played ———
-
 export type RunState = "running" | "choice" | "blocked" | "done" | "stopped";
 
 export type PlanRun = {
   plan: TurnPlan;
   cursor: PlanCursor;
   state: RunState;
-  /** Why it is blocked or stopped. */
   reason?: string;
-  /** Log Pose is playing the turn: it answers the run's choices and plans on when the run ends early (#725). */
   auto?: true;
 };
 
-/** Whether a run is still going (it holds the single plan slot). */
 export const runActive = (run: PlanRun | null | undefined): run is PlanRun =>
   run != null && (run.state === "running" || run.state === "choice" || run.state === "blocked");
 
@@ -405,13 +356,11 @@ export const startRun = (plan: TurnPlan, auto = false): PlanRun => ({ plan, curs
 
 export const stopRun = (run: PlanRun, reason?: string): PlanRun => (runActive(run) ? { ...run, state: "stopped", reason } : run);
 
-/** Leaves a blocked step out and goes on with the next. */
 export function skipStep(run: PlanRun): PlanRun {
   if (run.state !== "blocked") return run;
   return { ...run, state: "running", reason: undefined, cursor: { step: run.cursor.step + 1, done: 0, inFlight: null } };
 }
 
-/** Runs the executor on a fresh view: the new run state, and the one intent to send (if any). */
 export function stepRun(run: PlanRun, view: PlayerView): { run: PlanRun; send: Intent | null } {
   if (!runActive(run)) return { run, send: null };
   const next = nextIntent(run.plan, run.cursor, view);
@@ -431,46 +380,36 @@ export function stepRun(run: PlanRun, view: PlayerView): { run: PlanRun; send: I
   }
 }
 
-/**
- * A fresh view from the other seat (hotseat: the device is with the defender, or with the opponent after the turn
- * passes). The plan only waits while it is still its own turn. Once the turn has moved on, a plan whose last move was
- * End turn is done, and any other plan can no longer be played.
- */
+// Hotseat: the device is with the other seat after the turn passes. The plan only waits while it is still its own turn.
 export function stepRunOtherSeat(run: PlanRun, view: PlayerView): PlanRun {
   if (!runActive(run) || view.turnNumber === run.plan.turn) return run;
   if (run.cursor.inFlight?.type === "end_turn") return { ...run, state: "done", reason: undefined, cursor: { step: run.plan.steps.length, done: 0, inFlight: null } };
   return stopRun(run, "The turn changed.");
 }
 
-/** Why Play this turn is unavailable for a plan, or null when it can start. */
 export function playBlockReason(plan: TurnPlan, view: PlayerView | null, run: PlanRun | null | undefined, gameKey?: string | null): string | null {
   if (runActive(run)) return "Another plan is running. Stop it first.";
   if (!view || view.spectator) return "Waiting for the game.";
   if (view.winner != null) return "The game is over.";
-  // Instance ids are per-game counters, so a plan from another game (or one with no game on record) names the wrong cards.
   if (gameKey && plan.gameKey !== gameKey) return "This plan was for an earlier game.";
   if (plan.turn !== view.turnNumber) return "This plan was for an earlier turn.";
   if (view.activeSeat !== view.seat) return "It isn't your turn.";
   return null;
 }
 
-/** The re-plan question Log Pose is asked when a plan stops on a step. */
 export function replanQuestion(plan: TurnPlan, step: number, reason: string): string {
   const s = plan.steps[step];
   return `The plan stopped at step ${step + 1} (${s?.label ?? "a step"}): ${reason.trim().replace(/\.$/, "")}. Plan the rest of my turn from here.`;
 }
 
 export type PlanCardMode =
-  /** Not played yet; `disabledReason` says why Play this turn can't be tapped. */
   | { kind: "idle"; disabledReason: string | null }
-  /** `auto`: Log Pose is playing the turn, so choices and a stopped step are its to handle. */
   | { kind: "running"; step: number; auto?: true }
   | { kind: "choice"; step: number; auto?: true }
   | { kind: "blocked"; step: number; reason: string; auto?: true }
   | { kind: "done" }
   | { kind: "stopped"; step: number; reason?: string };
 
-/** What a Turn plan card shows: its own run if it has one (running or finished), else whether it may start. */
 export function planCardMode(plan: TurnPlan, own: PlanRun | null | undefined, active: PlanRun | null | undefined, view: PlayerView | null, gameKey?: string | null): PlanCardMode {
   if (own) {
     const step = own.cursor.step;
@@ -491,26 +430,15 @@ export function planCardMode(plan: TurnPlan, own: PlanRun | null | undefined, ac
   return { kind: "idle", disabledReason: playBlockReason(plan, view, active, gameKey) };
 }
 
-// ——— Log Pose plays the turn (#725) ———
-
-/** Most automatic Log Pose requests one turn may make (answers to choices and plans for the rest of the turn). */
 export const AUTO_ASK_CAP = 6;
 export const AUTO_CAP_REASON = "Log Pose needs you to finish this turn.";
 export const AUTO_UNDECIDED_REASON = "Log Pose couldn't decide; it's your call.";
 export const AUTO_CONTINUE_QUESTION = "Plan and play the rest of my turn from here. End the turn when nothing useful is left.";
 
-/** Whether another automatic request fits in this turn's cap, given how many were already made. */
 export const autoAskAllowed = (asked: number): boolean => asked < AUTO_ASK_CAP;
 
-/** A request the board makes for the player while Log Pose plays the turn. `key` is asked once. */
 export type AutoAsk = { key: string; text: string; kind: "choice" | "continue" | "replan" };
 
-/**
- * What Log Pose is asked next while it plays the turn, from the last run and the live view, or null to wait: the front
- * choice when it is this seat's (once per choice id); the rest of the turn when the run finished without ending it, but
- * only once nothing is going on (no battle, no choice); a new plan when a step is blocked. Only for a run Log Pose
- * started, on the turn it was planned for.
- */
 export function autoAsk(run: PlanRun | null | undefined, view: PlayerView, fired: ReadonlySet<string>): AutoAsk | null {
   if (!run?.auto || view.winner != null || view.turnNumber !== run.plan.turn || view.seat == null) return null;
   const ask = (a: AutoAsk): AutoAsk | null => (fired.has(a.key) ? null : a);
@@ -531,12 +459,7 @@ export function autoAsk(run: PlanRun | null | undefined, view: PlayerView, fired
 
 const samePermutation = (a: readonly string[], b: readonly string[]): boolean => a.length === b.length && new Set(a).size === a.length && b.every((x) => a.includes(x));
 
-/**
- * The intent that carries out Log Pose's answer to the front pending choice, built the way the board's own prompts
- * build theirs, or null when the answer does not fit the prompt: another choice's id, an option that is not offered or
- * not eligible, too many or too few picks, an order that is not a permutation, declining what cannot be declined. Only
- * the choice named in the answer, and only this seat's own, can be answered, so a late answer never lands on the next prompt.
- */
+// Only the choice named in the answer, and only this seat's own, can be answered, so a late answer never lands on the next prompt.
 export function choiceAnswerIntent(choice: PendingChoiceView, answer: ChoiceAnswer, mySeat: Seat, nameOf: (defId: string) => string = () => ""): Intent | null {
   if (answer.choiceId !== choice.id || choice.seat !== mySeat) return null;
   if (choice.kind === "order_effects") {

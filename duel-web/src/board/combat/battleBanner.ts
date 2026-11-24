@@ -13,15 +13,9 @@ export function findCard(view: PlayerView, id: string): BoardCard | null {
   return null;
 }
 
-/**
- * Midline banner for the current battle: "Battle: Attacker (power) → Target (power)".
- * The target comes from `battleEndpoints`, so a Leader target is the defending
- * seat's Leader whichever side attacks, and a Blocker replaces the target.
- */
 export function describeBattle(
   view: PlayerView,
   nameOf: (defId: string) => string,
-  /** Players read it from their seat: "Their Leader 6000 → your Leader 5000". */
   fromSeat = false,
 ): string {
   const b = view.battle as { attackerId?: unknown } | null;
@@ -38,7 +32,7 @@ export function describeBattle(
       }
       return nameOf(card.defId);
     };
-    return `${label(atk, "Attacker", true)} ${atk?.power ?? "?"} → ${label(def, "Defender", false)} ${def?.power ?? "?"}`;
+    return `${label(atk, "Attacker", true)} (${atk?.power ?? "?"}) attacks ${label(def, "Defender", false)} (${def?.power ?? "?"})`;
   }
   const atkName = atk?.defId ? nameOf(atk.defId) : "Attacker";
   const defName = def?.defId ? nameOf(def.defId) : "Defender";

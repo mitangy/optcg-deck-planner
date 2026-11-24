@@ -1,7 +1,4 @@
-/**
- * Deck-construction rules printed on Leaders ("Under the rules of this game,
- * you cannot include …"). Encoded as `deck_rule` statics on the Leader.
- */
+import { MAIN_DECK_SIZE } from "@optcg/card-core";
 import { abilitiesFor } from "./abilities.js";
 import { getCardDef, normalizeCardDefId } from "./definitions.js";
 
@@ -9,10 +6,26 @@ function leaderRules(leaderId: string): string[] {
   return abilitiesFor(normalizeCardDefId(leaderId)).flatMap((a) => (a.statics ?? []).flatMap((s) => (s.s === "deck_rule" ? [s.rule] : [])));
 }
 
-/** Violations of the Leader's deck-construction rules (empty when legal). */
+const MAX_COPIES = 4;
+
+function anyNumberAllowed(defId: string): boolean {
+  return abilitiesFor(defId).some((a) => (a.statics ?? []).some((s) => s.s === "deck_rule" && s.rule === "any_number"));
+}
+
 export function deckConstructionErrors(leaderId: string, deck: readonly string[]): string[] {
   const errors: string[] = [];
   const leader = getCardDef(normalizeCardDefId(leaderId));
+  if (deck.length !== MAIN_DECK_SIZE) errors.push(`A deck needs exactly ${MAIN_DECK_SIZE} cards (this one has ${deck.length})`);
+  const copies = new Map<string, number>();
+  const offColor = new Set<string>();
+  for (const raw of deck) {
+    const def = getCardDef(normalizeCardDefId(raw));
+    copies.set(def.id, (copies.get(def.id) ?? 0) + 1);
+    if (!def.colors.some((c) => leader.colors.includes(c))) offColor.add(def.id);
+  }
+  const over = [...copies].filter(([id, n]) => n > MAX_COPIES && !anyNumberAllowed(id)).map(([id, n]) => `${id} (${n})`).sort();
+  if (over.length) errors.push(`A deck can hold at most ${MAX_COPIES} copies of a card: ${over.join(", ")}`);
+  if (offColor.size) errors.push(`Every card must share a color with the Leader (${leader.name} is ${leader.colors.join("/")}): ${[...offColor].sort().join(", ")}`);
   for (const rule of leaderRules(leaderId)) {
     const [kind, arg] = rule.split(":") as [string, string | undefined];
     const offending = new Set<string>();

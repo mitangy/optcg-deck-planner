@@ -1,10 +1,3 @@
-/**
- * Playwright fixtures for the planner SPA. The FastAPI backend is faked in the
- * browser (`page.route`) from the small JSON files in e2e/fixtures/, so no
- * Python, Postgres or network access is needed. The fake is stateful for owned
- * counts so a stepper click round-trips like the real API: PUT /owned/:id
- * changes what GET /decks/:id and /shopping return next.
- */
 import { readFileSync } from "node:fs";
 import { test as base, expect } from "@playwright/test";
 import { auditPage, formatIssues, issueKey, type AuditIssue } from "./audit";
@@ -16,7 +9,6 @@ import type {
   DeckDetail,
   DeckSummary,
   GroupBuyDetail,
-  GroupBuyReceiptMatchReport,
   NotificationsResponse,
   OwnedCollectionResponse,
   PriceAlert,
@@ -45,8 +37,7 @@ type FixtureCard = {
   section: string;
   alt_arts?: Array<{ product_id: number; name: string; market_price: number; low_price: number; group_name: string; is_special: boolean }>;
 };
-const CARDS = fixture<FixtureCard[]>("cards.json");
-/** DON!! catalog rows for the "Available DON!! cards" drawer. Kept out of CARDS so deck and shopping fixtures (and snapshots) stay unchanged. */
+const BASE_CARDS = fixture<FixtureCard[]>("cards.json");
 const DON_CARDS = [
   { card_id: "DON-001", name: "DON!! Card (Luffy)", product_id: 301, group_name: "Extra Booster: Memorial Collection" },
   { card_id: "DON-002", name: "DON!! Card (Zoro)", product_id: 302, group_name: "Premium Booster" },
@@ -58,11 +49,6 @@ type MetaDeckFixture = { placing: number | null; [key: string]: unknown };
 const META_LEADERS = fixture<{ leaders: unknown[] }>("meta-leaders.json");
 const META_DECKS = fixture<{ leader_id: string; decks: MetaDeckFixture[] }>("meta-decks.json");
 
-/**
- * A believable chase card (#946): $60 on release day, a $180 spike a week later, a slide to about $90
- * over two months, then a quiet stretch with one dip to $84, ending at $92. `days` of history end the
- * day before FIXED_NOW, so the stats text never changes.
- */
 export const PRICE_HISTORY_DAYS = 120;
 export function chaseCardHistory(days = PRICE_HISTORY_DAYS): [string, number][] {
   const last = Date.UTC(2026, 0, 14);
@@ -83,7 +69,6 @@ export function chaseCardHistory(days = PRICE_HISTORY_DAYS): [string, number][] 
 export const SHARE_TOKEN = "tok-oden-1";
 
 type ShareItem = { need: number; owned: number; alts_owned?: number; still_need: number; market_price: number | null; remaining_cost: number | null };
-/** Like the API (#741): a signed-out viewer owns nothing, so every copy is still needed. */
 function signedOutShare(): unknown {
   const share = SHARE as { items: ShareItem[] };
   const items = share.items.map((i) => ({
@@ -103,63 +88,41 @@ function signedOutShare(): unknown {
 }
 export const DECK_ID = 1;
 export const GROUP_BUY_ID = 7;
-/** Fixed wall clock so dates in recent sales and anything time-derived never drift. */
 export const FIXED_NOW = new Date("2026-01-15T12:00:00Z");
 
 const img = (productId: number | null) => (productId ? `https://tcgplayer-cdn.tcgplayer.com/product/${productId}_200w.jpg` : "");
 
-/** A tiny card-shaped placeholder for the art CDN. */
 const PLACEHOLDER_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="280" viewBox="0 0 200 280"><rect width="200" height="280" fill="#8a8f98"/><rect x="12" y="12" width="176" height="256" fill="none" stroke="#fff" stroke-width="4"/></svg>';
 
 type Planner = {
-  /** Open `path` (the fake session is always signed in). */
   open(path: string): Promise<void>;
-  /** Audit the current screen; issues matching known-issues.ts are dropped. */
   audit(opts?: Parameters<typeof auditPage>[1]): Promise<AuditIssue[]>;
-  /** Owned counts as the fake backend holds them. */
   owned: Map<string, number>;
-  /** Owned alt-art copies as the fake backend holds them, keyed `CARD-ID:productId`. */
   altOwned: Map<string, number>;
-  /** JSON bodies the page POSTed to /owned/add (Collection photo scan). */
   ownedAdds: { items: { card_id: string; add: number }[] }[];
-  /** Collector copies wanted on top of decks (#1031), as the fake backend holds them, keyed `CARD-ID:productId`. */
   collectors: Map<string, number>;
-  /** Give a card one more alt art in every view (call before `open`), e.g. a gold-stamped printing. */
   addAlt(cardId: string, alt: { product_id: number; name: string; market_price: number }): void;
-  /** Alt-art copies picked to buy (`wanted`) as the fake backend holds them, keyed `CARD-ID:productId` (#906). */
   altWants: Map<string, number>;
-  /** Chosen display art per card (0 = base, >0 = product id), as the fake backend holds it. */
   displayArt: Map<string, number>;
-  /** Cards added straight to Master Shopping (target copies to own), as the fake backend holds them. */
   extras: Map<string, number>;
-  /** Give a card `count` extra alt arts in every view, deck, Shopping, Collection and group buy (call before `open`). */
   manyAlts(cardId: string, count: number): void;
-  /** Start with no decks, so Shopping only lists cards added directly (call before `open`). */
+  /** Adds `count` plain Character cards (no alt arts) so lists are long enough to scroll. */
+  manyCards(count: number): void;
+  /** Keep each page's own default List density (Compact on Shopping and Collection) instead of the Comfortable rows older specs expect. */
+  defaultDensity: boolean;
   noDecks(): void;
-  /** JSON bodies the page POSTed to /price-alerts (the fake keeps them as the viewer's alerts). */
   priceAlertPosts: { card_id: string; product_id: number; target_price: number; direction: AlertDirection }[];
-  /** Requests the page made to the fake API, e.g. "PUT /owned/EB01-002". */
   requests: string[];
-  /** Page errors and console errors collected so far (network noise excluded). */
   errors: string[];
-  /** Turn Log Pose on for this session (call before `open`): the fake chat session answers enabled. */
   enableLogPose(): void;
-  /** Sign out for this session (call before `open`): /auth/me answers null. */
   signOut(): void;
-  /** Add a second deck to the fake deck list (call before `open`), so the Include decks filter can hide one. */
   addSecondDeck(): void;
-  /** Bodies the page PUT to the shopping-level /cards/:card/printings/:product (the alt buy pick). */
   printingPuts: { path: string; body: { qty: number; deck_ids?: number[] } }[];
-  /** PUT /cards/:card/collector/:product calls the page made (#1031). */
   collectorPuts: { path: string; qty: number }[];
-  /** Whether the fake deck is hidden from friends (set by PATCH /decks/:id with hidden_from_friends). */
   readonly deckHidden: boolean;
-  /** Decks the page created through POST /decks (name and decklist as sent). */
   createdDecks: { name: string; decklist: string }[];
-  /** Deck codes the page PUT to /decks/:id/decklist (Replace with deck list, #1016). */
   replacedLists: string[];
-  /** JSON bodies the page POSTed to the fake analyst's /chat. */
   chats: { message: string; thread_id?: number; context?: { page?: string; deck?: { leaderId: string | null; plannerDeckId?: number }; hint?: { id: string } } }[];
 };
 
@@ -175,7 +138,7 @@ export const test = base.extend<{ planner: Planner }>({
     let signedIn = true;
     const createdDecks: Planner["createdDecks"] = [];
     const replacedLists: string[] = [];
-    // The fake deck's cards; PUT /decks/:id/decklist keeps the fixture cards the pasted list names, at its counts.
+    const CARDS: FixtureCard[] = [...BASE_CARDS];
     let deckCards: FixtureCard[] = CARDS;
     const owned = new Map(CARDS.map((c) => [c.card_id, c.owned]));
     const altOwned = new Map<string, number>();
@@ -185,7 +148,6 @@ export const test = base.extend<{ planner: Planner }>({
     const extras = new Map<string, number>();
     const ownedAdds: Planner["ownedAdds"] = [];
     const priceAlertPosts: Planner["priceAlertPosts"] = [];
-    // The API keeps one alert per card + art; saving again replaces it.
     const alertsByArt = new Map<string, Planner["priceAlertPosts"][number]>();
     const displayArt = new Map<string, number>();
     let hasDecks = true;
@@ -206,7 +168,6 @@ export const test = base.extend<{ planner: Planner }>({
       }));
       const added = (addedAlts.get(c.card_id) ?? []).map((a) => ({ low_price: a.market_price, group_name: "Extra Booster: Memorial Collection", is_special: true, ...a }));
       const alt_arts = [...(c.alt_arts ?? []), ...added, ...synthetic].map((a) => ({ image_url: img(a.product_id), tcgplayer_url: "", ...a, owned: altOwned.get(`${c.card_id}:${a.product_id}`) ?? 0, wanted: altWants.get(`${c.card_id}:${a.product_id}`) ?? 0, collector: collectors.get(`${c.card_id}:${a.product_id}`) ?? 0 }));
-      // Owned copies fill the collector want first; only the rest count for decks (#1031).
       const deckAlts = alt_arts.reduce((n, a) => n + a.owned - Math.min(a.owned, a.collector), 0);
       return {
         card_id: c.card_id,
@@ -217,7 +178,6 @@ export const test = base.extend<{ planner: Planner }>({
         cost: c.cost,
         needed: c.needed,
         owned: o,
-        // Like the API: alt copies available to decks (collector-reserved ones excluded).
         alts_owned: deckAlts,
         still_need: Math.max(0, c.needed - o - deckAlts),
         collector_want: alt_arts.reduce((n, a) => n + a.collector, 0),
@@ -244,7 +204,6 @@ export const test = base.extend<{ planner: Planner }>({
       don_cards: 0,
       hidden_from_friends: deckHidden,
     }) satisfies DeckDetail;
-    // Mirrors the backend (allocate_still_need_buys): picked alt copies at the alt price, the rest standard (#906).
     const remainingCost = (v: ReturnType<typeof cardView>) => {
       let left = v.still_need;
       let total = 0;
@@ -265,7 +224,6 @@ export const test = base.extend<{ planner: Planner }>({
           return { product_id: a.product_id, label: a.name, image_url: a.image_url, market_price: a.market_price, want: a.collector, have, still_need: still, remaining_cost: Math.round(still * a.market_price * 100) / 100 };
         });
     const shopping = (withExtras = true, withCollector = true, noDecks = false) => {
-      // Mirrors the backend: Need is the max of the deck need and the direct target, never the sum.
       const deckCards = hasDecks && !noDecks ? CARDS.filter((c) => c.card_type !== "Leader") : [];
       const fromDecks = deckCards.map((c) => {
         const v = cardView(c);
@@ -301,8 +259,6 @@ export const test = base.extend<{ planner: Planner }>({
             };
           })
         : [];
-      // A card with only a collector want still gets a row, so the line has a parent (#1031), whatever
-      // decks or added cards are on (#1208): only the Extra copies checkbox decides.
       const onlyCollector = CARDS.filter((c) => withCollector && !deckCards.includes(c) && !onlyExtras.some((i) => i.card_id === c.card_id) && collectorLines(cardView(c)).length > 0).map((c) => {
         const v = cardView(c);
         return { ...v, need: 0, still_need: 0, remaining_cost: 0, used_in: [] as string[], primary_leader_card_id: null, primary_leader_name: null, leader_count: 1, deck_sort_key: "9999-9999-9999", extra_qty: 0, deck_need: 0 };
@@ -318,15 +274,17 @@ export const test = base.extend<{ planner: Planner }>({
       } satisfies ShoppingResponse;
     };
 
-    let groupBuyPurchased = false;
+    // The one seller order the group-buy fake can hold: null until the host adds it, then on the way or arrived (#1418).
+    let groupBuyOrder: { version: number; arrived: boolean } | null = null;
     const groupBuy = () => {
       const kid = cardView(CARDS.find((c) => c.card_id === "EB01-003")!);
-      const qty = groupBuyPurchased ? 0 : 4;
+      const qty = 4;
+      const arrived = groupBuyOrder?.arrived ? qty : 0;
       const remaining = Math.round(qty * kid.market_price * 100) / 100;
       return {
         id: GROUP_BUY_ID,
         title: "Kid & Killer split",
-        status: groupBuyPurchased ? "completed" : "ordered",
+        status: !groupBuyOrder ? "locked" : groupBuyOrder.arrived ? "completed" : "ordered",
         invite_token: "gb-invite",
         invite_path: "/group-buy/join/gb-invite",
         host_user_id: 1,
@@ -361,8 +319,45 @@ export const test = base.extend<{ planner: Planner }>({
             my_qty: qty,
             my_suggested_qty: qty,
             my_is_custom: false,
+            in_order: groupBuyOrder ? qty : 0,
+            arrived,
+            not_ordered: groupBuyOrder ? 0 : qty,
+            my_in_order: groupBuyOrder ? qty : 0,
+            my_arrived: arrived,
+            my_not_ordered: groupBuyOrder ? 0 : qty,
           },
         ],
+        orders: groupBuyOrder
+          ? [
+              {
+                id: 1,
+                seller_name: "Grand Line",
+                status: groupBuyOrder.arrived ? "arrived" : "on_the_way",
+                qty_ordered: qty,
+                qty_allocated: qty,
+                qty_arrived: arrived,
+                qty_extra: 0,
+                arrived_at: null,
+                created_at: "2026-01-12T12:00:00Z",
+                version: groupBuyOrder.version,
+                order_number: "TCG-48213-A77C1",
+                tracking_url: "",
+                receipt_text: "",
+                lines: [
+                  {
+                    id: 1,
+                    card_id: kid.card_id,
+                    name: kid.name,
+                    product_id: null,
+                    qty_ordered: qty,
+                    qty_arrived: arrived,
+                    qty_extra: 0,
+                    allocations: [{ user_id: 1, display_name: "Nami", qty, qty_arrived: arrived }],
+                  },
+                ],
+              },
+            ]
+          : [],
         locked_at: "2026-01-11T12:00:00Z",
         ordered_at: "2026-01-12T12:00:00Z",
         external_order_id: "",
@@ -372,15 +367,13 @@ export const test = base.extend<{ planner: Planner }>({
         tax_cost: 0,
         cards_subtotal: 27.2,
         grand_total: 27.2,
-        receipt_text: "4\tOne Piece Card Game - Memorial Collection - Kid & Killer - Near Mint",
-        has_receipt: true,
-        can_undo_purchase: groupBuyPurchased,
+        receipt_text: "",
+        has_receipt: false,
+        can_undo_purchase: false,
       } satisfies GroupBuyDetail;
     };
 
-    // Nothing leaves the machine: the art CDN gets a placeholder, everything else off-box is refused.
     await page.route((url) => url.hostname !== "127.0.0.1", (route) => route.abort());
-    // Log Pose is off by default (the session endpoint answers 404 below); enableLogPose() turns it on.
     let logPoseOn = false;
     const chats: Planner["chats"] = [];
     await page.route("**/fake-analyst/chat", (route) => {
@@ -434,6 +427,7 @@ export const test = base.extend<{ planner: Planner }>({
             main_cards: mainCards,
             don_cards: 0,
             owned_copies: [...owned.values()].reduce((a, b) => a + b, 0),
+            remaining_cost: 36.8,
             sort_order: 0,
             is_main: true,
           },
@@ -461,8 +455,6 @@ export const test = base.extend<{ planner: Planner }>({
       }
       if (path === "/shopping") {
         const q = new URL(req.url()).searchParams;
-        // Extra copies off (#1184) drops their lines and rows, like the backend.
-        // no_decks (#1208) is every deck unticked: only added cards and Extra copies remain.
         return json(shopping(q.get("extras") !== "false", q.get("collector") !== "false", q.get("no_decks") === "true"));
       }
       if ((m = path.match(/^\/shopping\/extras\/(.+)$/)) && method === "PUT") {
@@ -474,8 +466,6 @@ export const test = base.extend<{ planner: Planner }>({
       }
       if (path === "/share/shopping") return json(null);
       if (path === "/owned" && method === "GET") {
-        // Like the backend: a card is listed once any copy is owned (base or alt), alt copies are valued at the alt's own price,
-        // and every alt printing comes with the viewer's count (0 when unowned).
         const trueAlts = (v: ReturnType<typeof cardView>) => v.alt_arts.reduce((n, a) => n + a.owned, 0);
         const holds = (c: FixtureCard) => cardView(c).owned + trueAlts(cardView(c)) > 0;
         const items = CARDS.filter(holds).map((c) => {
@@ -493,7 +483,6 @@ export const test = base.extend<{ planner: Planner }>({
         } satisfies OwnedCollectionResponse);
       }
       if (path === "/catalog/cards") {
-        // Name / ID search over the fixture cards (the deck editor and Collection "Add cards" use it).
         const params = new URL(req.url()).searchParams;
         const q = (params.get("q") ?? "").toLowerCase();
         if ((params.get("card_type") ?? "").toLowerCase().includes("don")) {
@@ -505,9 +494,10 @@ export const test = base.extend<{ planner: Planner }>({
             } satisfies CatalogCardResult)),
           );
         }
-        if (!q) return json([]);
+        const onlyLeaders = (params.get("card_type") ?? "") === "Leader";
+        if (!q && !onlyLeaders) return json([]);
         return json(
-          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q)).map((c) => ({
+          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q) && (!onlyLeaders || c.card_type === "Leader")).map((c) => ({
             card_id: c.card_id,
             name: c.name,
             rarity: c.rarity,
@@ -522,7 +512,6 @@ export const test = base.extend<{ planner: Planner }>({
           } satisfies CatalogCardResult)),
         );
       }
-      // Collector copies (#1031): PUT /cards/:card/collector/:product, 0..9, alt printings only.
       if ((m = path.match(/^\/cards\/([^/]+)\/collector\/(\d+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!).toUpperCase();
         const qty = (JSON.parse(req.postData() ?? "{}") as { qty: number }).qty;
@@ -539,8 +528,6 @@ export const test = base.extend<{ planner: Planner }>({
         else altOwned.delete(`${cardId}:${m[2]}`);
         return json({ card_id: cardId, product_id: Number(m[2]), qty });
       }
-      // Alt-art copies to buy (#906): deck-level PUT /decks/:d/cards/:card/printings/:product and the
-      // shopping-level PUT /cards/:card/printings/:product share one number, clamped to the deck need.
       if ((m = path.match(/^\/(?:decks\/\d+\/)?cards\/([^/]+)\/printings\/(\d+)$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!).toUpperCase();
         const card = CARDS.find((c) => c.card_id === cardId);
@@ -562,7 +549,6 @@ export const test = base.extend<{ planner: Planner }>({
         });
         return json({ items });
       }
-      // Price alerts (#855): POST saves one per card + art; the list and the bell read them back.
       if (path === "/price-alerts" && method === "POST") {
         const body = JSON.parse(req.postData() ?? "{}") as Planner["priceAlertPosts"][number];
         priceAlertPosts.push(body);
@@ -584,7 +570,6 @@ export const test = base.extend<{ planner: Planner }>({
       }
       if (path === "/notifications") return json({ items: [], unread: 0 } satisfies NotificationsResponse);
       if (path.startsWith("/catalog/cards/") && path.endsWith("/printings")) return json([]);
-      // Which art a card shows: PUT /owned/:card/display (null = automatic).
       if ((m = path.match(/^\/owned\/([^/]+)\/display$/)) && method === "PUT") {
         const cardId = decodeURIComponent(m[1]!).toUpperCase();
         const productId = (JSON.parse(req.postData() ?? "{}") as { product_id: number | null }).product_id;
@@ -598,26 +583,22 @@ export const test = base.extend<{ planner: Planner }>({
         owned.set(cardId, qty);
         return json({ card_id: cardId, qty });
       }
-      // One ordered group buy for 4 × Kid & Killer. Mark purchased adds the receipt copies to Owned; Undo takes them back.
       if (path === "/group-buys") return json([groupBuy()]);
       if (path === `/group-buys/${GROUP_BUY_ID}`) return json(groupBuy());
-      if (path === `/group-buys/${GROUP_BUY_ID}/receipt/match` && method === "POST") {
-        return json({
-          lines: [{ card_id: "EB01-003", name: "Kid & Killer", group_name: "Extra Booster: Memorial Collection", needed_qty: 4, receipt_qty: 4, status: "exact", confidence: "high", product_id: 102, staged_qty: 4, descriptions: [] }],
-          unmatched: [],
-          summary: { exact: 1, receipt_copies: 4, needed_copies: 4 },
-          can_apply_full: true,
-          can_apply_partial: true,
-        } satisfies GroupBuyReceiptMatchReport);
+      if (path === `/group-buys/${GROUP_BUY_ID}/orders` && method === "POST") {
+        const body = JSON.parse(req.postData() ?? "{}") as { mark_arrived?: boolean };
+        groupBuyOrder = { version: 1, arrived: Boolean(body.mark_arrived) };
+        if (body.mark_arrived) owned.set("EB01-003", (owned.get("EB01-003") ?? 0) + 4);
+        return json({ order_id: 1, unmatched: [], detail: groupBuy() });
       }
-      if (path === `/group-buys/${GROUP_BUY_ID}/receipt/apply` && method === "POST") {
+      if (path === `/group-buys/${GROUP_BUY_ID}/orders/1/arrival` && method === "PUT" && groupBuyOrder && !groupBuyOrder.arrived) {
         owned.set("EB01-003", (owned.get("EB01-003") ?? 0) + 4);
-        groupBuyPurchased = true;
+        groupBuyOrder = { version: groupBuyOrder.version + 1, arrived: true };
         return json(groupBuy());
       }
-      if (path === `/group-buys/${GROUP_BUY_ID}/receipt/undo` && method === "POST") {
+      if (path === `/group-buys/${GROUP_BUY_ID}/orders/1/arrival/undo` && method === "POST" && groupBuyOrder?.arrived) {
         owned.set("EB01-003", Math.max(0, (owned.get("EB01-003") ?? 0) - 4));
-        groupBuyPurchased = false;
+        groupBuyOrder = { version: groupBuyOrder.version + 1, arrived: false };
         return json(groupBuy());
       }
       const history = /^\/catalog\/cards\/([^/]+)\/price-history$/.exec(path);
@@ -626,7 +607,6 @@ export const test = base.extend<{ planner: Planner }>({
         const card = CARDS.find((c) => c.card_id === decodeURIComponent(history[1]));
         if (!card) return json({ detail: "Unknown card or art" }, 404);
         const alt = card.alt_arts?.find((a) => a.product_id === productId);
-        // The base art has a full history; its alt has none yet.
         return json({
           card_id: card.card_id,
           product_id: alt ? alt.product_id : (card.product_id ?? 0),
@@ -645,7 +625,6 @@ export const test = base.extend<{ planner: Planner }>({
     });
 
     await page.clock.install({ time: FIXED_NOW });
-    // Start every test from the same layout and filter preferences.
     await page.addInitScript(() => {
       if (sessionStorage.getItem("e2e-seeded")) return;
       sessionStorage.setItem("e2e-seeded", "1");
@@ -666,6 +645,14 @@ export const test = base.extend<{ planner: Planner }>({
       ownedAdds,
       manyAlts(cardId, count) {
         extraAlts.set(cardId, count);
+      },
+      manyCards(count) {
+        for (let i = 0; i < count; i++) {
+          const n = String(20 + i).padStart(3, "0");
+          const card: FixtureCard = { card_id: `EB01-${n}`, name: `Filler Pirate ${i + 1}`, rarity: "C", color: i % 2 ? "Green" : "Red", card_type: "Character", cost: 2 + (i % 5), product_id: 300 + i, market_price: 0.5 + i / 10, low_price: 0.3, needed: 4, owned: i % 3, section: "main" };
+          CARDS.push(card);
+          owned.set(card.card_id, card.owned);
+        }
       },
       noDecks() {
         hasDecks = false;
@@ -689,9 +676,18 @@ export const test = base.extend<{ planner: Planner }>({
       enableLogPose() {
         logPoseOn = true;
       },
-      async open(path) {
+      async open(this: Planner, path) {
+        // Older specs were written for the roomy rows with inline alt tiles; a spec about the new defaults opts in.
+        if (!this.defaultDensity) {
+          await page.addInitScript(() => {
+            for (const k of ["shopping", "collection", "deck", "share", "group_buy"]) {
+              if (localStorage.getItem(`optcg_list_density_${k}`) === null) localStorage.setItem(`optcg_list_density_${k}`, "comfortable");
+            }
+          });
+        }
         await page.goto(path);
       },
+      defaultDensity: false,
       async audit(opts) {
         return (await auditPage(page, opts)).filter((i) => !isKnown(i));
       },

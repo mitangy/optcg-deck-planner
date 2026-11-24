@@ -1,4 +1,3 @@
-// Screenshots for #348: node scripts/card-preview-shots.mjs (dev server on :5174).
 import { chromium } from "@playwright/test";
 const OUT = "/mnt/project-files/card-preview-style";
 const base = "http://127.0.0.1:5174";

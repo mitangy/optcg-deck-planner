@@ -32,7 +32,6 @@ def client(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("GOOGLE_CLIENT_ID", "")
     monkeypatch.setenv("GOOGLE_CLIENT_SECRET", "")
     get_settings.cache_clear()
-    # Fresh limiter per test so repeated PATCHes don't trip 429.
     monkeypatch.setattr(auth_router, "_username_rate", auth_router.RateLimiter(1000, 60))
 
     engine = make_test_engine()
@@ -51,8 +50,6 @@ def client(monkeypatch: pytest.MonkeyPatch):
     app.dependency_overrides.clear()
     get_settings.cache_clear()
 
-
-# --- validation -------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -126,12 +123,9 @@ def test_suggestion_falls_back_for_unusable_names(db):
     db.add(me)
     db.commit()
     s = suggest_username(db, me)
-    # Non-ASCII name sanitizes to nothing → "Pirate_####".
     assert s.startswith("Pirate_")
     assert validate_username(s) == s
 
-
-# --- uniqueness at the DB layer -----------------------------------------------
 
 
 def test_db_enforces_case_insensitive_uniqueness(db):
@@ -141,7 +135,6 @@ def test_db_enforces_case_insensitive_uniqueness(db):
     with pytest.raises(IntegrityError):
         db.commit()
     db.rollback()
-    # Multiple users without a username are fine.
     db.add_all(
         [
             User(email="c@example.com", name="C", google_sub="c"),
@@ -150,8 +143,6 @@ def test_db_enforces_case_insensitive_uniqueness(db):
     )
     db.commit()
 
-
-# --- endpoints ----------------------------------------------------------------
 
 
 def _login(c: TestClient) -> dict:
@@ -171,7 +162,6 @@ def test_me_includes_null_username_then_set(client):
     assert r.json()["username"] == "StrawHat"
     assert c.get("/auth/me").json()["username"] == "StrawHat"
 
-    # Changing it later works, including a case-only change of your own name.
     assert c.patch("/auth/me/username", json={"username": "strawhat"}).json()["username"] == "strawhat"
     assert c.patch("/auth/me/username", json={"username": "Zoro_3"}).json()["username"] == "Zoro_3"
 
@@ -189,7 +179,6 @@ def test_set_username_invalid_is_422(client):
         r = c.patch("/auth/me/username", json={"username": bad})
         assert r.status_code == 422, (bad, r.text)
         assert isinstance(r.json()["detail"], str)
-    # Missing field → FastAPI's own 422.
     assert c.patch("/auth/me/username", json={}).status_code == 422
 
 
@@ -206,7 +195,7 @@ def test_set_username_conflict_is_409_case_insensitive(client):
 
 def test_username_suggestion_endpoint(client):
     c, _ = client
-    _login(c)  # "Dev User"
+    _login(c)
     r = c.get("/auth/me/username-suggestion")
     assert r.status_code == 200
     s = r.json()["username"]
@@ -229,7 +218,6 @@ def test_duel_token_and_leaderboard_use_username(client):
     assert r.json()["display_name"] == "Usopp"
     assert verify_game_token(r.json()["token"])["name"] == "Usopp"
 
-    # The board lists only players with games (#431).
     with SessionLocal() as db:
         db.query(DuelRating).update({"games_played": 1})
         db.commit()

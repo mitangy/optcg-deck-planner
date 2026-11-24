@@ -6,32 +6,24 @@ import type { Seat } from "../../net/protocol";
 import type { LifeFan } from "../../settings";
 import { inspectOnContextMenu } from "../preview/inspectGestures";
 import { endPreviewHover, hoverPreviewCard } from "../preview/cardPreview";
+import { CountIcon } from "./CountIcon";
 
-/** Life/deck pile count label — never secret (life used to show "??"). */
 export function zonePileCountLabel(count: number, expectedCount?: number): string {
   if (count > 0) return String(count);
   if (expectedCount != null && expectedCount > 0) return `0 / ${expectedCount}`;
   return "0";
 }
 
-/** The fan direction drawn on a side: yours follows the setting, the opponent's mirrors it across the midline (#499). */
 export function lifeFanForSide(pref: LifeFan, side: "you" | "opp"): LifeFan {
   if (side === "you") return pref;
   return pref === "down" ? "up" : "down";
 }
 
-/** Visible face-down cards in the life fan — one per life, capped at 5. */
 export function lifePileFaceCount(count: number): number {
   if (count <= 0) return 0;
   return Math.min(count, 5);
 }
 
-/**
- * What each drawn Life face shows, in DOM order: `null` for a face-down card,
- * else the face-up card's defId. The last face is drawn in front, so it is the
- * top of Life (index 0); a face-up card deeper than the cap stretches the fan
- * so it still shows.
- */
 export function lifePileFaces(
   count: number,
   faceUp: ReadonlyArray<{ index: number; defId: string; artCopy?: number }> = [],
@@ -42,21 +34,11 @@ export function lifePileFaces(
   return Array.from({ length: n }, (_, i) => byIndex.get(n - 1 - i) ?? null);
 }
 
-/**
- * Stacked faces drawn for a deck / DON!! deck / trash pile: none when empty
- * (the slot outline shows instead), then one per card up to 3.
- */
 export function stackPileFaceCount(count: number): number {
   if (count <= 0) return 0;
   return Math.min(count, 3);
 }
 
-/**
- * `--life-face-art` for a face-up Life card. A CSS background has no error
- * event, so a card TCGplayer has no art for (EB05) gets its preview scan as a
- * second layer that shows through when the first fails. Cards without preview
- * art get a single layer (no extra request per Life card).
- */
 export function lifeFaceArt(defId: string, ownerSeat?: Seat, artCopy?: number): string {
   const primary = resolveCardImageUrl(defId, { ownerSeat, artCopy, size: "thumb" });
   if (!primary) return "none";
@@ -70,22 +52,14 @@ type Props = {
   label: string;
   count: number;
   variant?: "life" | "deck" | "don" | "trash";
-  /** Leader printed life — shown as a hint when count is still 0 (pre-mulligan). */
   expectedCount?: number;
-  /** Life only: cards lying face up, by Life index (0 = top). */
   faceUp?: ReadonlyArray<{ index: number; defId: string; artCopy?: number }>;
-  /** Optional top-face art (trash top card). */
   topDefId?: string | null;
-  /** Copy rank of the trash top card (any-number cards, #1292). */
   topArtCopy?: number | null;
   ownerSeat?: Seat;
-  /** Life only: which way the faces fan (default down). */
   lifeFan?: LifeFan;
-  /** Opens zone browser when set (typically trash). */
   onOpen?: () => void;
-  /** Right-click (mouse) opens the top card's details instead of the browser menu. */
   onInspectTop?: () => void;
-  /** Life only: right-click (mouse) on a face-up Life card opens that card's details. */
   onInspectFace?: (defId: string, artCopy?: number) => void;
 };
 
@@ -106,8 +80,6 @@ export function ZonePile({
   const openable = Boolean(onOpen);
   const countLabel = zonePileCountLabel(count, expectedCount);
   const faces = stackPileFaceCount(count);
-  // Deck / life / DON!! deck are face-down: their faces render the card-back
-  // art from CSS (`--card-back-art` / `--don-back-art`). Only trash shows a face.
   const topArt =
     faces > 0 && variant === "trash" && topDefId
       ? resolveCardImageUrl(topDefId, { ownerSeat, artCopy: topArtCopy ?? undefined, size: "thumb" })
@@ -117,14 +89,12 @@ export function ZonePile({
     variant === "life" ? (
       <div className={`zone-pile-stack${lifeFan === "up" ? " is-fan-up" : ""}`} aria-hidden>
         {lifePileFaces(count, faceUp).map((defId, i, all) => {
-          // Face i of n shows Life index n - 1 - i (see lifePileFaces).
           const artCopy = faceUp?.find((c) => c.index === all.length - 1 - i)?.artCopy;
           return defId ? (
             <span
               key={i}
               className="zone-pile-face is-face-up"
               data-def-id={defId}
-              // Hovering a face-up Life card shows it in the preview, like a field card (#529).
               onPointerEnter={(e) => {
                 if (e.pointerType === "mouse") hoverPreviewCard({ defId, ownerSeat, artCopy }, e.currentTarget);
               }}
@@ -140,7 +110,6 @@ export function ZonePile({
         })}
       </div>
     ) : faces === 0 ? (
-      // Empty pile: dashed slot outline only — never a card face / DON!! art.
       <div className="zone-pile-stack is-empty" aria-hidden>
         <span className="zone-pile-slot" />
       </div>
@@ -166,7 +135,16 @@ export function ZonePile({
     <>
       {stack}
       <div className="zone-pile-meta">
-        <span className="zone-pile-label">{label}</span>
+        <CountIcon kind={variant} />
+        <span className="zone-pile-label">
+          {variant === "don" && label.startsWith("DON!! ") ? (
+            <>
+              DON!!<span className="zone-pile-rest">{label.slice(5)}</span>
+            </>
+          ) : (
+            label
+          )}
+        </span>
         <span className="zone-pile-count">{countLabel}</span>
       </div>
     </>

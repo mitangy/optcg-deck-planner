@@ -80,16 +80,11 @@ describe("shownMarket", () => {
 
   it("shownMarket gives the shown alt art's price and product, or the base when no alt is shown (#928)", () => {
     const alts = [priced(201, 0, 14.99), priced(202, 3, 7)];
-    // Chosen alt, even though another is owned more.
     expect(shownMarket({ ...base, alt_arts: alts, display_art: 201 })).toEqual({ price: 14.99, productId: 201 });
-    // Automatic: the most-owned alt.
     expect(shownMarket({ ...base, alt_arts: alts, display_art: null })).toEqual({ price: 7, productId: 202 });
-    // Base picked while an alt is owned: base price and product.
     expect(shownMarket({ ...base, alt_arts: alts, display_art: 0 })).toEqual({ price: 1.25, productId: 100 });
-    // No alts at all, or none owned.
     expect(shownMarket({ ...base })).toEqual({ price: 1.25, productId: 100 });
     expect(shownMarket({ ...base, alt_arts: [priced(201, 0, 14.99)] })).toEqual({ price: 1.25, productId: 100 });
-    // An unpriced shown alt stays unpriced instead of borrowing the base price.
     expect(shownMarket({ ...base, alt_arts: [priced(201, 0, null)], display_art: 201 })).toEqual({ price: null, productId: 201 });
   });
 });

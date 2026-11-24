@@ -1,52 +1,13 @@
-/** Which play mode the user is configuring inside the Play sheet. */
 export type PlayMode = "hotseat" | "bot" | "create" | "join" | "queue" | "spectate";
 
-export const MODE_CARDS: Array<{
-  mode: PlayMode;
-  title: string;
-  blurb: string;
-  /** Under the title on the home tiles. */
-  short: string;
-  glyph: string;
-}> = [
-  {
-    mode: "hotseat",
-    title: "Practice",
-    blurb: "Play both sides on this device.",
-    short: "Both sides",
-    glyph: "☸︎",
-  },
-  {
-    mode: "bot",
-    title: "Play vs Bot",
-    blurb: "Play the computer. Casual, never ranked.",
-    short: "Vs computer",
-    glyph: "⚙︎",
-  },
-  {
-    mode: "queue",
-    title: "Ranked",
-    blurb: "Match a random opponent. 15 minutes per player.",
-    short: "15 min each",
-    glyph: "⚓︎",
-  },
-  {
-    mode: "create",
-    title: "Private room",
-    blurb: "Create a room or join a friend's by id.",
-    short: "Play a friend",
-    glyph: "✉︎",
-  },
-  {
-    mode: "spectate",
-    title: "Spectate",
-    blurb: "Watch a room in progress.",
-    short: "Watch a room",
-    glyph: "◎︎",
-  },
+export const MODE_CARDS: Array<{ mode: Exclude<PlayMode, "join">; title: string; short: string }> = [
+  { mode: "queue", title: "Ranked", short: "15 min each" },
+  { mode: "bot", title: "Play vs Bot", short: "Vs computer" },
+  { mode: "hotseat", title: "Practice", short: "Both sides" },
+  { mode: "create", title: "Private room", short: "Play a friend" },
+  { mode: "spectate", title: "Spectate", short: "Watch a room" },
 ];
 
-/** The sheet's heading and its confirm button for each mode. Create and Join share the "Private room" sheet. */
 export const MODE_COPY: Record<PlayMode, { title: string; confirm: string }> = {
   hotseat: { title: "Practice", confirm: "Start practice" },
   bot: { title: "Play vs Bot", confirm: "Start game" },
@@ -56,7 +17,6 @@ export const MODE_COPY: Record<PlayMode, { title: string; confirm: string }> = {
   spectate: { title: "Spectate", confirm: "Watch" },
 };
 
-/** The sheet heading; "Play" while it is still at the mode chooser. */
 export function modeTitle(mode: PlayMode | null): string {
   return mode ? MODE_COPY[mode].title : "Play";
 }

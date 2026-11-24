@@ -1,12 +1,3 @@
-/**
- * Human-readable match end reasons.
- *
- * Engine reasons come from `@optcg/rules` `MatchState["winReason"]`
- * (`leader_battle_at_zero_life`, `deck_out`, `card_effect`); the game server
- * adds room-level reasons (`concede`, `match_timeout`, `unknown`). Anything
- * else is humanized so a new server reason never shows up as a raw enum.
- */
-
 import { playerLabel } from "./playerNames";
 
 type Who = { subj: string; poss: string; obj: string };
@@ -20,7 +11,6 @@ function seatWho(seat: number | null): Who {
   return { subj: name, poss: `${name}'s`, obj: name };
 }
 
-/** Short, perspective-free label (battle log, fallback). */
 const LABELS: Record<string, string> = {
   leader_battle_at_zero_life: "Leader took damage with 0 Life",
   deck_out: "Deck out",
@@ -37,7 +27,6 @@ const LABELS: Record<string, string> = {
   forfeit: "Forfeit",
 };
 
-/** Sentence describing why the loser lost, from the viewer's perspective. */
 const SENTENCES: Record<string, (loser: Who, winner: Who) => string> = {
   leader_battle_at_zero_life: (l) => `${l.poss} Leader took damage with 0 Life`,
   deck_out: (l) => `${l.poss} deck ran out of cards`,
@@ -70,18 +59,11 @@ export function endReasonLabel(reason: string | null | undefined): string {
 
 export type MatchResultSummary = {
   outcome: "win" | "loss" | "neutral";
-  /** "You won" / "You lost" / "Seat 0 wins" */
   headline: string;
-  /** Why it ended, e.g. "Your opponent's Leader took damage with 0 Life". */
   detail: string;
-  /** Single line: "You won — Your opponent's Leader took damage with 0 Life". */
   text: string;
 };
 
-/**
- * Winner-perspective summary for the end screen. `youSeat` null (spectator) or
- * `neutral` (hotseat: one device, both seats) names seats instead of "You".
- */
 export function describeMatchResult(opts: {
   winner: number | null | undefined;
   reason: string | null | undefined;

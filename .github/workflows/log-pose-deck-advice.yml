@@ -1,14 +1,5 @@
 name: Log Pose deck advice
 
-# Manual only: the paid deck-advice eval (analyst/evals/deck-advice, #678). Never scheduled.
-# Every current meta deck, as it is and with 4 to 8 on-plan cards swapped for off-plan ones, goes to Log Pose through the
-# production chat ("tune this list"). The edits are scored by how much of the sabotage they undo and by bot simulation
-# against the meta field (compute only). The chat costs about $0.15 to $0.30 a case (32 cases for the default run); the
-# simulation is free but slow (about 10 to 40 minutes). Needs the ANTHROPIC_API_KEY secret; the meta decks come from the
-# public backend (META_API_URL / ANALYST_API_URL).
-#
-# To compare two runs side by side with the judge (about $1 for 30 cases), run this once as the baseline, then again with
-# the same cases, seed and n and with "compare_run_id" set to the baseline's run id and "compare_variant" to its variant.
 on:
   workflow_dispatch:
     inputs:
@@ -63,7 +54,6 @@ jobs:
     env:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
       META_API_URL: ${{ vars.META_API_URL || vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
-      # For --post: the same URL and secret the main Log Pose eval and the bot self-play job use.
       ANALYST_API_URL: ${{ vars.ANALYST_API_URL || secrets.ANALYST_API_URL }}
       ANALYST_SERVICE_SECRET: ${{ secrets.ANALYST_SERVICE_SECRET }}
     steps:

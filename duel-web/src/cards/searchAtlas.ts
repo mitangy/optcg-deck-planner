@@ -5,17 +5,11 @@ import {
 } from "./atlas";
 
 export type CardSearchFilters = {
-  /** Free-text match against id, name, or effect text. */
   query?: string;
-  /** Card color (red, blue, …). Empty = any. */
   colors?: string[];
-  /** leader | character | event | stage. Empty = any. */
   types?: string[];
-  /** Strike / Slash / Ranged / Special / Wisdom. Empty = any. */
   attributes?: string[];
-  /** Exact counter value (e.g. 1000). null/undefined = any. */
   counter?: number | null;
-  /** Cards with no printed counter when true. */
   counterNone?: boolean;
   costMin?: number | null;
   costMax?: number | null;
@@ -23,7 +17,6 @@ export type CardSearchFilters = {
   powerMax?: number | null;
   blocker?: boolean | null;
   rush?: boolean | null;
-  /** Exclude leaders from results (typical when adding to main deck). */
   excludeLeaders?: boolean;
 };
 
@@ -113,10 +106,6 @@ export function searchAtlas(filters: CardSearchFilters = {}): CardAtlasEntry[] {
     .sort((a, b) => a.id.localeCompare(b.id));
 }
 
-/**
- * True when the user has typed a query or applied any filter — used to gate
- * the full catalog scroll list on the deck configure page.
- */
 export function hasActiveCardSearch(filters: CardSearchFilters = {}): boolean {
   if ((filters.query ?? "").trim().length > 0) return true;
   if ((filters.colors ?? []).length > 0) return true;

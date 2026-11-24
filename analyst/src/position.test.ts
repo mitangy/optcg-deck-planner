@@ -11,7 +11,6 @@ const { finishedGame } = await import("./testFixtures");
 
 const { replay } = finishedGame(8);
 
-/** The state before each recorded intent, found by replaying with replayMatch (not the code under test). */
 function statesBefore(r: MatchReplay): MatchState[] {
   const before: MatchState[] = [replayStart(r)];
   replayMatch(r, (step) => before.push(step.state));
@@ -20,13 +19,11 @@ function statesBefore(r: MatchReplay): MatchState[] {
 const before = statesBefore(replay);
 const decisionsOf = (seat: Seat, turn: number) => replay.intents.map((x, i) => ({ i, seat: x.seat, turn: before[i]!.turnNumber })).filter((d) => d.seat === seat && d.turn === turn);
 
-/** A seat and turn where that seat decided at least twice. */
 const busy = (() => {
   for (const seat of [0, 1] as Seat[]) for (let turn = 1; turn <= before[before.length - 1]!.turnNumber; turn += 1) if (decisionsOf(seat, turn).length >= 2) return { seat, turn };
   throw new Error("no busy turn");
 })();
 
-/** A turn where side B decided at least twice and side A at least once, for the tests that ask for a side by letter. */
 const shared = (() => {
   for (let turn = 1; turn <= before[before.length - 1]!.turnNumber; turn += 1) if (decisionsOf(1, turn).length >= 2 && decisionsOf(0, turn).length >= 1) return { turn };
   throw new Error("no turn where both sides decided");

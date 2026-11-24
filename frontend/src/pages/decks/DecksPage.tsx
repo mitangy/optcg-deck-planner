@@ -1,8 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { api, DeckSummary } from "../../api";
-import { savedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
+import { api, DeckSummary, money } from "../../api";
+import { savedShoppingDeckIds, useSavedShoppingDeckIds } from "../shopping/shoppingDeckFilter";
 import { invalidateOwnedViews } from "../collection/ownedCollection";
 import { CompassIcon } from "../../ui/ThemeIcons";
 import { CardArtImg } from "../../ui/CardThumb";
@@ -11,10 +11,12 @@ import { qk } from "../../cache/queryKeys";
 import { CardSearchInput } from "../../ui/cardListControls";
 import { DeckCardSearchHit, findDecksWithCard } from "./deckCardSearch";
 import { formatDonCount } from "./deckEditing";
+import { HeadMenu, MoreIcon } from "../../ui/HeadPopover";
+import { Menu, MenuButton, MenuItem, MenuList, useConfirm } from "@optcg/ui/popups";
+import { LeaderPickerDialog } from "./LeaderPickerDialog";
 
 const MAX_MATCHES_PER_TILE = 4;
 
-/** The cards of a deck that match the "Find a card" search, shown on its tile (#1315). */
 function DeckCardMatches({ hit }: { hit: DeckCardSearchHit }) {
   const rows: string[] = [];
   if (hit.leaderMatches) {
@@ -74,8 +76,7 @@ function groupDecksByLeader(
   return groups;
 }
 
-/** Compact owned-copies bar for a deck tile; hidden when the API omits the count. */
-function DeckOwnedMeter({ owned, total }: { owned: number | undefined; total: number }) {
+function DeckOwnedMeter({ owned, total, cost }: { owned: number | undefined; total: number; cost?: number | null }) {
   if (owned == null || total <= 0) return null;
   const pct = Math.min(100, Math.round((owned / total) * 100));
   const complete = owned >= total;
@@ -85,7 +86,10 @@ function DeckOwnedMeter({ owned, total }: { owned: number | undefined; total: nu
         <span>
           <strong>{owned}</strong> / {total} owned
         </span>
-        <span>{complete ? "Complete" : `${total - owned} to go`}</span>
+        <span>
+          {complete ? "Complete" : `${total - owned} to go`}
+          {!complete && cost != null ? ` · ${money(cost)} to finish` : ""}
+        </span>
       </div>
       <div
         className="deck-progress-bar"
@@ -101,15 +105,93 @@ function DeckOwnedMeter({ owned, total }: { owned: number | undefined; total: nu
   );
 }
 
+function AddDeckMenu({ onLeader }: { onLeader: () => void }) {
+  const navigate = useNavigate();
+  return (
+    <HeadMenu label="Add deck" className="btn primary" width={280}>
+      <MenuItem>
+        <button type="button" onClick={() => navigate("/import")}>
+          Paste a deck list
+          <span className="muted">An OPTCGSim code or a card list</span>
+        </button>
+      </MenuItem>
+      <MenuItem>
+        <button type="button" onClick={onLeader}>
+          Start from a Leader
+          <span className="muted">Pick a Leader, then add cards</span>
+        </button>
+      </MenuItem>
+      <MenuItem>
+        <button type="button" onClick={() => navigate("/meta")}>
+          Browse Meta decks
+          <span className="muted">Copy a tournament list</span>
+        </button>
+      </MenuItem>
+    </HeadMenu>
+  );
+}
+
+function DeckCardMenu({
+  deck,
+  canSetMain,
+  busy,
+  onSetMain,
+  onDelete,
+}: {
+  deck: DeckSummary;
+  canSetMain: boolean;
+  busy: boolean;
+  onSetMain: () => void;
+  onDelete: () => void;
+}) {
+  // Menu items render in a portal, but React events still bubble to the card, which would open the deck.
+  return (
+    <div className="deck-card-menu" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      <Menu as="div" className="head-popover">
+        <MenuButton type="button" className="ghost deck-card-more" aria-label={`More for ${deck.name}`} title="More">
+          <MoreIcon />
+        </MenuButton>
+        <MenuList anchor={{ to: "bottom end", gap: 6, padding: 8 }} className="head-popover-panel head-popover-menu" style={{ width: "min(14rem, calc(100vw - 16px))" }}>
+          {canSetMain && (
+            <MenuItem disabled={busy}>
+              <button type="button" onClick={onSetMain}>
+                Set as Main
+                <span className="muted">Your other decks for this Leader compare against it</span>
+              </button>
+            </MenuItem>
+          )}
+          <MenuItem disabled={busy}>
+            <button type="button" className="danger" onClick={onDelete}>
+              Delete deck
+            </button>
+          </MenuItem>
+        </MenuList>
+      </Menu>
+    </div>
+  );
+}
+
 export function DecksPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { data, isLoading, error } = useQuery({ queryKey: qk.decks(), queryFn: api.decks });
+  // Dollars to finish count shared copies the way the deck page does, which follows the Shopping deck filter.
+  const savedIds = useSavedShoppingDeckIds();
+  const filteredQ = useQuery({
+    queryKey: qk.decksForFilter(savedIds ?? []),
+    queryFn: () => api.decksForFilter(savedIds!),
+    enabled: Boolean(savedIds),
+  });
+  const costById = useMemo(
+    () => new Map((savedIds ? filteredQ.data : data)?.map((d) => [d.id, d.remaining_cost]) ?? []),
+    [savedIds, filteredQ.data, data],
+  );
+  const { confirm, confirmDialog } = useConfirm();
+  const [leaderOpen, setLeaderOpen] = useState(false);
   const needsLeaderArtFallback = useMemo(
     () => (data ?? []).some((d) => Boolean(d.leader_card_id) && !d.leader_image_url),
     [data],
   );
-  // Prod API may lag behind the SPA (Render deploy). Fall back to shopping catalog art.
   const leaderArtQ = useQuery({
     queryKey: qk.shopping.leaderArtFallback(),
     queryFn: () => api.shopping(),
@@ -157,11 +239,9 @@ export function DecksPage() {
     mutationFn: api.setDeckAsMain,
     onSuccess: (detail) => {
       void qc.invalidateQueries({ queryKey: qk.decks() });
-      // Cached with the unfiltered response only when Include decks is not narrowed.
       if (!savedShoppingDeckIds(qc.getQueryData<DeckSummary[]>(qk.decks())?.map((d) => d.id) ?? [])) {
         qc.setQueryData(qk.deck.byId(detail.id), detail);
       }
-      // Other same-leader decks change which cards are Additional.
       void qc.invalidateQueries({ queryKey: qk.deck.all() });
     },
   });
@@ -173,10 +253,10 @@ export function DecksPage() {
     <section>
       <div className="page-head">
         <h1>Decks</h1>
-        <Link className="btn primary" to="/import">
-          Import deck
-        </Link>
+        <AddDeckMenu onLeader={() => setLeaderOpen(true)} />
       </div>
+      {confirmDialog}
+      <LeaderPickerDialog open={leaderOpen} onClose={() => setLeaderOpen(false)} />
       {setMain.isError && (
         <p className="error">{(setMain.error as Error).message}</p>
       )}
@@ -203,145 +283,150 @@ export function DecksPage() {
         <div className="empty-state">
           <CompassIcon />
           <h2>No decks aboard yet</h2>
-          <p>Import an OPTCGSim deck code and its cards join your Master Shopping list.</p>
-          <Link className="btn primary" to="/import">
-            Import your first deck
-          </Link>
+          <p>Add a deck and its cards join your Master Shopping list.</p>
+          <div className="empty-state-actions">
+            <Link className="btn primary" to="/import">
+              Paste a deck list
+            </Link>
+            <button type="button" className="btn secondary" onClick={() => setLeaderOpen(true)}>
+              Start from a Leader
+            </button>
+            <Link className="btn secondary" to="/meta">
+              Browse Meta decks
+            </Link>
+          </div>
         </div>
       )}
-      <div className="deck-leader-groups">
-        {leaderGroups.map((group) => {
-          const heading = group.leaderCardId
-            ? `${group.leaderName || "Leader"} · ${group.leaderCardId}`
-            : "No leader detected";
-          return (
-            <section key={group.key} className="deck-leader-group">
-              <header className="deck-leader-group-head">
-                {group.leaderCardId ? (
-                  <CardArtImg
-                    src={group.leaderImageUrl}
-                    cardId={group.leaderCardId}
-                    alt=""
-                    className="deck-leader-group-thumb"
-                    loading="lazy"
-                    fallback={
-                      <div className="thumb placeholder deck-leader-group-thumb" aria-hidden>
-                        <span className="deck-card-leader-fallback">{group.leaderCardId}</span>
-                      </div>
-                    }
-                  />
-                ) : null}
-                <div className="deck-leader-group-title">
-                  <h2>{heading}</h2>
-                  <p className="muted">
-                    {group.decks.length} deck{group.decks.length === 1 ? "" : "s"}
-                    {group.decks.some((d) => d.is_main) ? " · Main listed first" : ""}
-                  </p>
-                </div>
-              </header>
-              <div className="deck-grid">
-                {group.decks.map((d) => {
-                  const fallback = d.leader_card_id
-                    ? leaderArtById.get(d.leader_card_id)
-                    : undefined;
-                  const leaderImage = d.leader_image_url || fallback?.image_url || "";
-                  const leaderName = d.leader_name || fallback?.name || null;
-                  const isMain = Boolean(d.is_main);
-                  const hit = hitByDeckId.get(d.id);
-                  return (
-                    <article
-                      key={d.id}
-                      className={`deck-card${isMain ? " is-main" : ""}`}
-                      role="link"
-                      tabIndex={0}
-                      onClick={() => navigate(`/decks/${d.id}`)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
+      <div className="deck-leader-groups-wrap">
+        <div className="deck-leader-groups">
+          {leaderGroups.map((group) => {
+            const heading = group.leaderCardId
+              ? `${group.leaderName || "Leader"} · ${group.leaderCardId}`
+              : "No leader detected";
+            return (
+              <section
+                key={group.key}
+                className="deck-leader-group"
+                style={{ "--deck-span": group.decks.length } as CSSProperties}
+              >
+                <header className="deck-leader-group-head">
+                  {group.leaderCardId ? (
+                    <CardArtImg
+                      src={group.leaderImageUrl}
+                      cardId={group.leaderCardId}
+                      alt=""
+                      className="deck-leader-group-thumb"
+                      loading="lazy"
+                      fallback={
+                        <div className="thumb placeholder deck-leader-group-thumb" aria-hidden>
+                          <span className="deck-card-leader-fallback">{group.leaderCardId}</span>
+                        </div>
+                      }
+                    />
+                  ) : null}
+                  <div className="deck-leader-group-title">
+                    <h2 title={heading}>{heading}</h2>
+                    <p className="muted">
+                      {group.decks.length} deck{group.decks.length === 1 ? "" : "s"}
+                      {group.decks.length > 1 && group.decks.some((d) => d.is_main) ? " · Main listed first" : ""}
+                    </p>
+                  </div>
+                </header>
+                <div className="deck-grid">
+                  {group.decks.map((d) => {
+                    const fallback = d.leader_card_id
+                      ? leaderArtById.get(d.leader_card_id)
+                      : undefined;
+                    const leaderImage = d.leader_image_url || fallback?.image_url || "";
+                    const leaderName = d.leader_name || fallback?.name || null;
+                    // Main only means something next to other decks for the same Leader.
+                    const isMain = Boolean(d.is_main) && group.decks.length > 1;
+                    const hit = hitByDeckId.get(d.id);
+                    return (
+                      <article
+                        key={d.id}
+                        className={`deck-card${isMain ? " is-main" : ""}`}
+                        onClick={(e) => {
+                          // Links and buttons inside the card do their own thing.
+                          if ((e.target as HTMLElement).closest("a, button, [role='menu']")) return;
                           navigate(`/decks/${d.id}`);
-                        }
-                      }}
-                    >
-                      <div className="deck-card-main">
-                        {leaderImage || d.leader_card_id ? (
-                          <div className="deck-card-leader-art">
-                            <CardArtImg
-                              src={leaderImage}
-                              cardId={d.leader_card_id}
-                              alt={leaderName || d.leader_card_id || "Leader"}
-                              className="deck-card-leader-thumb"
-                              loading="lazy"
-                              fallback={
-                                <div
-                                  className="thumb placeholder deck-card-leader-thumb"
-                                  aria-label={d.leader_card_id || "Leader"}
-                                >
-                                  <span className="deck-card-leader-fallback">
-                                    {d.leader_card_id || "?"}
-                                  </span>
-                                </div>
-                              }
+                        }}
+                      >
+                        <div className="deck-card-main">
+                          {leaderImage || d.leader_card_id ? (
+                            <div className="deck-card-leader-art">
+                              <CardArtImg
+                                src={leaderImage}
+                                cardId={d.leader_card_id}
+                                alt={leaderName || d.leader_card_id || "Leader"}
+                                className="deck-card-leader-thumb"
+                                loading="lazy"
+                                fallback={
+                                  <div
+                                    className="thumb placeholder deck-card-leader-thumb"
+                                    aria-label={d.leader_card_id || "Leader"}
+                                  >
+                                    <span className="deck-card-leader-fallback">
+                                      {d.leader_card_id || "?"}
+                                    </span>
+                                  </div>
+                                }
+                              />
+                            </div>
+                          ) : null}
+                          <div className="deck-card-body">
+                            <div className="deck-card-title-row">
+                              <h2>
+                                <Link className="deck-card-link" to={`/decks/${d.id}`}>
+                                  {d.name}
+                                </Link>
+                              </h2>
+                              {isMain && <span className="deck-main-badge">Main deck</span>}
+                            </div>
+                            <p className="muted">
+                              {d.main_cards ?? d.total_cards}/{51} main
+                              {(d.don_cards ?? 0) > 0 ? ` · ${formatDonCount(d.don_cards ?? 0)} DON!!` : ""}
+                              {` · ${d.card_count} unique`}
+                            </p>
+                            <DeckOwnedMeter
+                              owned={d.owned_copies}
+                              total={d.main_cards ?? d.total_cards}
+                              cost={savedIds ? costById.get(d.id) : d.remaining_cost}
                             />
                           </div>
-                        ) : null}
-                        <div className="deck-card-body">
-                          <div className="deck-card-title-row">
-                            <h2>{d.name}</h2>
-                            {isMain && <span className="deck-main-badge">Main deck</span>}
-                          </div>
-                          <p className="muted">
-                            {d.main_cards ?? d.total_cards}/{51} main
-                            {(d.don_cards ?? 0) > 0 ? ` · ${formatDonCount(d.don_cards ?? 0)} DON!!` : ""}
-                            {` · ${d.card_count} unique`}
-                          </p>
-                          <DeckOwnedMeter owned={d.owned_copies} total={d.main_cards ?? d.total_cards} />
                         </div>
-                      </div>
-                      {hit && <DeckCardMatches hit={hit} />}
-                      <div className="row-actions">
-                        {d.leader_card_id && !isMain && (
+                        {hit && <DeckCardMatches hit={hit} />}
+                        <div className="row-actions">
                           <button
                             type="button"
                             className="ghost"
-                            disabled={setMain.isPending}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setMain.mutate(d.id);
-                            }}
+                            onClick={() => navigate(`/decks/${d.id}?edit=1`)}
                           >
-                            Set as Main
+                            Edit
                           </button>
-                        )}
-                        <button
-                          type="button"
-                          className="ghost"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/decks/${d.id}?edit=1`);
-                          }}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="ghost danger"
-                          disabled={del.isPending}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!window.confirm(`Delete “${d.name}”? This can’t be undone.`)) return;
-                            del.mutate(d.id);
-                          }}
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-          );
-        })}
+                          <DeckCardMenu
+                            deck={d}
+                            canSetMain={Boolean(d.leader_card_id) && !isMain && group.decks.length > 1}
+                            busy={setMain.isPending || del.isPending}
+                            onSetMain={() => setMain.mutate(d.id)}
+                            onDelete={async () => {
+                              const ok = await confirm({
+                                title: `Delete “${d.name}”?`,
+                                message: "This can’t be undone.",
+                                confirmLabel: "Delete deck",
+                              });
+                              if (ok) del.mutate(d.id);
+                            }}
+                          />
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              </section>
+            );
+          })}
+        </div>
       </div>
     </section>
   );

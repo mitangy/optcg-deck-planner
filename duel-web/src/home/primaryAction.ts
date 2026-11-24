@@ -1,31 +1,36 @@
 import type { LastMode } from "./lastMode";
 
-export type PrimaryAction =
-  /** No last mode: the chooser. */
-  | { act: "choose"; mode: null; subline: string }
-  /** Ranked: start the queue now. */
-  | { act: "start"; mode: "queue"; subline: string }
-  /** Everything else: the setup sheet at that mode. */
-  | { act: "sheet"; mode: Exclude<LastMode, "queue">; subline: string };
-
-const SUBLINE: Record<LastMode, string> = {
-  queue: "Ranked · 15 min per player",
-  hotseat: "Practice",
-  bot: "Play vs Bot",
-  create: "Private room",
-  spectate: "Spectate",
+export type PrimaryAction = {
+  mode: LastMode;
+  act: "start" | "sheet";
+  title: string;
+  subline: string;
+  /** True when `mode` is the one the player last used (the button says "Last played"). */
+  remembered: boolean;
 };
 
-/** What the big Play button, or a mode tile, does for a mode. */
-export function primaryAction(mode: LastMode | null): PrimaryAction {
-  if (mode === null) return { act: "choose", mode: null, subline: "Choose a mode" };
-  if (mode === "queue") return { act: "start", mode, subline: SUBLINE[mode] };
-  return { act: "sheet", mode, subline: SUBLINE[mode] };
-}
+const TITLE: Record<LastMode, string> = {
+  queue: "Play Ranked",
+  bot: "Play vs Bot",
+  hotseat: "Practice",
+  create: "Private room",
+};
 
-const TILE_ORDER: readonly LastMode[] = ["queue", "hotseat", "bot", "create", "spectate"];
+const DESCRIPTION: Record<LastMode, string> = {
+  queue: "15 min per player",
+  bot: "Casual, vs computer",
+  hotseat: "Both sides on this device",
+  create: "Play a friend",
+};
 
-/** The tiles under Play: every mode but the one Play already repeats. */
-export function modeTiles(lastMode: LastMode | null): LastMode[] {
-  return TILE_ORDER.filter((m) => m !== lastMode);
+export function primaryAction(remembered: LastMode | null, signedIn: boolean): PrimaryAction {
+  const usable = remembered !== null && (remembered !== "queue" || signedIn);
+  const mode: LastMode = usable ? remembered : signedIn ? "queue" : "bot";
+  return {
+    mode,
+    act: usable && mode === "queue" ? "start" : "sheet",
+    title: TITLE[mode],
+    subline: usable ? "Last played" : DESCRIPTION[mode],
+    remembered: usable,
+  };
 }

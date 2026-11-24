@@ -4,11 +4,12 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { money } from "../api";
 import { CardSearchInput, matchesCardSearch } from "../ui/cardListControls";
 import { friendsApi, type FriendDeckCard } from "./friendsApi";
+import { askableFromDeck, buildAskParam } from "./tradeLogic";
+import { useFriendSpares } from "./useFriendSpares";
 import { CardRow, Empty, LoadError } from "./ui";
 import { useFriend } from "./useFriend";
 import { qk } from "../cache/queryKeys";
 
-/** Order: leader first, then by cost, then name. */
 function deckOrder(a: FriendDeckCard, b: FriendDeckCard): number {
   const leader = (c: FriendDeckCard) => (c.card_type.toLowerCase() === "leader" ? 0 : 1);
   const cost = (c: FriendDeckCard) => (c.cost == null || c.cost === "" ? 99 : Number(c.cost));
@@ -27,6 +28,7 @@ export function FriendDeckPage() {
     enabled: Boolean(friend) && Number.isFinite(id),
     retry: false,
   });
+  const spares = useFriendSpares(friend?.user_id ?? 0, Boolean(friend));
   const [search, setSearch] = useState("");
   const [missingOnly, setMissingOnly] = useState(false);
   const cards = useMemo(
@@ -54,6 +56,8 @@ export function FriendDeckPage() {
     );
   }
   const d = deck.data!;
+  const asks = spares.data ? askableFromDeck(d.cards, [...spares.data.you_need, ...spares.data.their_spares]) : [];
+  const askCopies = asks.reduce((n, a) => n + a.qty, 0);
   const unique = d.cards.length;
 
   return (
@@ -91,6 +95,11 @@ export function FriendDeckPage() {
             )}
           </p>
         )}
+        {askCopies > 0 ? (
+          <Link className="btn secondary compact need-ask" to={`/friends/${encodeURIComponent(friend.username)}?tab=spares&ask=${encodeURIComponent(buildAskParam(asks))}`}>
+            Ask {friend.username} for {askCopies} of these
+          </Link>
+        ) : null}
       </section>
       <div className="friend-toolbar">
         <CardSearchInput value={search} onChange={setSearch} />

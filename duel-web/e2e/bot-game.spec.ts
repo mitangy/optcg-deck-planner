@@ -1,7 +1,3 @@
-/**
- * Play vs Bot (#631): Lobby → Play → Play vs Bot → Start game. The bot is the server's, so the board is a normal
- * online game: the bot answers the opening-hand choice, takes its own turn and hands the game back.
- */
 import { test, expect, RED_VANILLA, type Page } from "./fixtures";
 
 async function openBotSetup(page: Page, seed: number) {
@@ -21,23 +17,19 @@ async function openBotSetup(page: Page, seed: number) {
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
   }, decks);
   await page.goto("/");
-  await page.getByRole("button", { name: "Play", exact: true }).click();
-  await page.getByRole("dialog").getByRole("button", { name: /^Play vs Bot/ }).click();
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Play vs Bot/ }).click();
 }
 
 test("Play vs Bot: the bot answers the opening hand and takes its turn (#631)", async ({ page, duel }, info) => {
   await openBotSetup(page, 7);
-  // Normal is the default level, and the bot draws a random meta deck unless you pick another (#1180).
   await expect(page.getByRole("radio", { name: "Normal" })).toHaveAttribute("aria-checked", "true");
   await expect(page.getByLabel("Bot's deck")).toContainText("Random meta deck");
   await page.getByRole("button", { name: "Start game" }).click();
 
   await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });
-  // The player panel with both names is a desktop column; a phone shows no opponent name.
   if (info.project.name === "desktop-1280") await expect(page.locator(".board-root")).toContainText("Bot (Normal)");
   await page.getByRole("button", { name: "Keep opening hand" }).click();
 
-  // Your first turn. Ending it hands the game to the bot, which plays turn 2 by itself and gives it back on turn 3.
   const root = page.locator(".board-root");
   await expect(root).toHaveAttribute("data-phase", "main", { timeout: 30_000 });
   await expect(root).toHaveAttribute("data-turn", "1");
@@ -55,7 +47,6 @@ test("Play vs Bot: Hard sits beside Easy and Normal on one row and names the bot
   const radios = page.getByRole("radiogroup", { name: "Bot level" }).getByRole("radio");
   await expect(radios).toHaveText(["Easy", "Normal", "Hard"]);
   const boxes = await radios.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()));
-  // One row at every width: nothing wraps under the others, and nothing runs past the panel.
   expect(new Set(boxes.map((b) => Math.round(b.top))).size).toBe(1);
   expect(Math.max(...boxes.map((b) => b.right))).toBeLessThanOrEqual(page.viewportSize()!.width);
   await page.getByRole("radio", { name: "Hard" }).click();
@@ -71,7 +62,6 @@ test("Play vs Bot: the Bot's deck picker offers the 10 meta decks and your decks
   await openBotSetup(page, 7);
   await page.getByLabel("Bot's deck").click();
   const options = page.getByRole("option");
-  // Random meta deck, 10 meta decks, then the "Your decks" header and your saved decks; no mirror option.
   await expect(options.first()).toContainText("Random meta deck");
   await expect(options.nth(11)).toContainText("Your decks");
   await expect(options.nth(12)).toBeVisible();

@@ -1,4 +1,3 @@
-/** Space-separated RGB of a leader's first colour, for the glow behind its card on the lobby. */
 const GLOW: Record<string, string> = {
   red: "214 69 62",
   green: "63 160 104",

@@ -1,24 +1,18 @@
 import type { CardDefId, CardType } from "../types.js";
 import raw from "./cardData.json" with { type: "json" };
 
-/** Printed gameplay metadata for one base card ID (alternate art shares it). */
 export interface CardDataRow {
   name: string;
   type: CardType;
   colors: string[];
-  /** Absent for Leaders. */
   cost?: number;
   power?: number;
-  /** Absent means the card has no printed Counter. */
   counter?: number;
   life?: number;
   traits: string[];
   attributes: string[];
-  /** Printed text excluding the [Trigger] clause. */
   text: string;
-  /** Printed [Trigger] clause, including its tag, or "". */
   trigger: string;
-  /** `bandai`: official English card list. `bundled`: legacy catalog only (unverified). `tcgplayer`: imported from TCGPlayer (tcgcsv) until Bandai publishes it (unverified). */
   source: "bandai" | "bundled" | "tcgplayer";
   sourceUrl: string;
 }

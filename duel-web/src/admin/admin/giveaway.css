@@ -1,5 +1,3 @@
-/* —— Giveaway event tab (#794) —— */
-
 .adm-evt {
   display: flex;
   flex-direction: column;
@@ -68,7 +66,6 @@
   color: var(--muted);
 }
 
-/* Event picker and form (#1019). The picker row never changes height, so opening the form or switching events moves nothing above it. */
 .adm-evt-picker {
   display: flex;
   align-items: center;
@@ -126,7 +123,6 @@
   resize: vertical;
 }
 
-/* Reserved so a message never resizes the form. */
 .adm-evt-error {
   min-height: 1.2em;
   margin: 0;
@@ -146,7 +142,6 @@
   }
 }
 
-/* Advisory flag pills (#809): they wrap inside a fixed-width cell so the row never grows sideways. */
 .adm-evt-flags {
   display: flex;
   flex-wrap: wrap;
@@ -170,7 +165,6 @@
   }
 }
 
-/* The table scrolls inside its own box, never the page. */
 .adm-evt-table {
   max-width: 100%;
   max-height: 28rem;

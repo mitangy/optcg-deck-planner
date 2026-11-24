@@ -5,7 +5,6 @@ import { updateSettings } from "../../settings";
 import { ReplacePrompt } from "./ReplacePrompt";
 import { stubOf } from "../fixtures/stubCard";
 
-// Card art reads saved art prefs; server rendering has no storage.
 vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {}, removeItem: () => {} });
 
 function fullBoardView(): PlayerView {

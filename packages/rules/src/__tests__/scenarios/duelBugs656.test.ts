@@ -1,6 +1,3 @@
-/**
- * Duel-engine card bugs from the Shirahoshi / Buggy / Crocodile audit (#656).
- */
 import { describe, expect, it } from "vitest";
 import { Harness } from "../../testing/harness.js";
 import { runScenarios, mine, type CardScenario } from "../../testing/scenario.js";
@@ -8,7 +5,6 @@ import type { Seat } from "../../types.js";
 
 const F = "ST01-003";
 const donTotal = (h: Harness, seat: Seat) => h.state.players[seat].costArea.length;
-/** Answer whatever is pending (first option / accept) until nothing is left, stopping at Life triggers. */
 function drain(h: Harness, max = 20): void {
   for (let i = 0; i < max && h.choice && h.choice.kind !== "life_trigger"; i += 1) {
     const c = h.choice;
@@ -20,12 +16,11 @@ function drain(h: Harness, max = 20): void {
   }
 }
 
-// ---- 1. "{Trait} type Character card or [Name]": the trait applies to the Character branch only ----
 const SHIRAHOSHI_LEADER = "OP11-022";
-const MEGALO = "EB04-018"; // not Neptunian
-const SPOTTED = "OP11-036"; // Neptunian
-const CAMIE = "EB05-012"; // Merfolk, not Neptunian
-const SHIRA_CHAR = "OP11-030"; // [Shirahoshi], not Neptunian
+const MEGALO = "EB04-018";
+const SPOTTED = "OP11-036";
+const CAMIE = "EB05-012";
+const SHIRA_CHAR = "OP11-030";
 
 const shirahoshiRows: CardScenario[] = [
   {
@@ -49,7 +44,6 @@ const shirahoshiRows: CardScenario[] = [
 ];
 runScenarios("trait applies to the Character branch of 'Character or [Name]' (#656)", shirahoshiRows);
 
-// ---- 2. Crocodile OP04-058: only DON!! returned by YOUR effect draws it back ----
 describe("OP04-058 Crocodile counts only DON!! returned by your own effect (#656)", () => {
   const CROC = "OP04-058";
   it("the opponent's OP02-085 Magellan forcing a DON!! return does not add DON!! (#656)", () => {
@@ -69,7 +63,6 @@ describe("OP04-058 Crocodile counts only DON!! returned by your own effect (#656
   });
 });
 
-// ---- 3. "trash this Character and 1 of your X" cannot be paid by the Character alone ----
 describe("a cost naming this Character and another card needs the other card (#656)", () => {
   it("Mr.13 & Ms.Friday cannot be activated with no other Baroque Works Character (#656)", () => {
     const h = new Harness({ leaders: ["ST01-001", "ST01-001"] });
@@ -80,7 +73,7 @@ describe("a cost naming this Character and another card needs the other card (#6
   it("Mr.13 & Ms.Friday trashes both itself and another Baroque Works Character (#656)", () => {
     const h = new Harness({ leaders: ["ST01-001", "ST01-001"] });
     const [mr13] = h.field(0, "OP04-073");
-    h.field(0, "OP04-066"); // another {Baroque Works} Character
+    h.field(0, "OP04-066");
     const before = donTotal(h, 0);
     h.act(0, { type: "activate_ability", sourceId: mr13!.id, abilityId: "op04-073#0" });
     drain(h);
@@ -89,9 +82,8 @@ describe("a cost naming this Character and another card needs the other card (#6
   });
 });
 
-// ---- 4. to_life on a field Character obeys removal protection ----
 describe("placing a Character into Life by an effect respects removal protection (#656)", () => {
-  const CROC14 = "OP14-079"; // your opponent's Characters cannot be removed from the field by your effects
+  const CROC14 = "OP14-079";
   const GASTINO = "EB01-053";
   it("Gastino cannot put the opponent's Character into Life while OP14-079 protects it (#656)", () => {
     const h = new Harness({ leaders: [CROC14, "ST01-001"] });
@@ -111,7 +103,6 @@ describe("placing a Character into Life by an effect respects removal protection
   });
 });
 
-// ---- 5. A delayed effect on "this Character" lapses when that card has left the field ----
 runScenarios("delayed self effects lapse after a zone change (#656)", [
   {
     card: "OP03-005", name: "Thatch bounced to hand before the end of the turn is not trashed from hand (#656)",
@@ -135,7 +126,6 @@ runScenarios("delayed self effects lapse after a zone change (#656)", [
   },
 ]);
 
-// ---- 6. Arlong OP15-023 ----
 describe("Arlong OP15-023 (#656)", () => {
   const ARLONG = "OP15-023";
   it("[On K.O.] can choose the opponent's rested DON!! and they stay rested through the Refresh Phase (#656)", () => {
@@ -181,10 +171,9 @@ describe("Arlong OP15-023 (#656)", () => {
   });
 });
 
-// ---- 7. Hyouzou errata ----
 describe("OP06-034 Hyouzou is {Merfolk} after the 2024-12-06 errata (#656)", () => {
   it("Ikaros Much cannot play Hyouzou but can still play another {Fish-Man} (#656)", () => {
-    const h = new Harness({ leaders: ["OP06-020", "ST01-001"] }); // Leader with {New Fish-Man Pirates}
+    const h = new Harness({ leaders: ["OP06-020", "ST01-001"] });
     h.don(0, 5); h.hand(0, "OP06-024", "OP06-034", "OP06-030");
     h.play(0, "OP06-024");
     const options = ((h.choice?.request ?? {}) as { options?: { defId?: string }[] }).options ?? [];
@@ -193,10 +182,9 @@ describe("OP06-034 Hyouzou is {Merfolk} after the 2024-12-06 errata (#656)", () 
   });
 });
 
-// ---- 8. Play prompts do not offer cards a play lock forbids ----
 describe("a play lock removes locked cards from play-from-hand choices (#656)", () => {
   it("after OP13-118 Luffy, the Shirahoshi Leader only offers Characters with base cost under 5 (#656)", () => {
-    const LONGJAW = "OP11-103"; // {Neptunian}, base cost 5
+    const LONGJAW = "OP11-103";
     const h = new Harness({ leaders: [SHIRAHOSHI_LEADER, "ST01-001"] });
     h.don(0, 10); h.life(0, F, F, F); h.hand(0, "OP13-118", LONGJAW, SPOTTED);
     h.play(0, "OP13-118"); drain(h);

@@ -1,4 +1,3 @@
-"""Replace a deck's cards with a pasted deck code (#1016)."""
 
 from __future__ import annotations
 
@@ -81,8 +80,8 @@ def test_replace_deck_list_leader_change_moves_main_flag_1016(db):
     db.refresh(first)
     db.refresh(second)
     assert first.leader_card_id == "OP02-001"
-    assert first.is_main is True  # first deck of its new leader
-    assert second.is_main is True  # inherited Main from the old leader's former Main
+    assert first.is_main is True
+    assert second.is_main is True
 
 
 def test_replace_deck_list_rejects_another_users_deck_1016(client):

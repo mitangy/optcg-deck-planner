@@ -12,7 +12,6 @@ const COLOR_HEX: Record<string, string> = {
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** Fill for the cost badge: the card's colour, or hard-edged halves/thirds for a multicolour card. */
 export function colorFill(colors: string[]): string {
   const hexes = colors.map((c) => COLOR_HEX[c.toLowerCase()]).filter((h): h is string => !!h);
   if (hexes.length === 0) return "#6b7480";
@@ -21,7 +20,6 @@ export function colorFill(colors: string[]): string {
   return `conic-gradient(from 0deg, ${hexes.map((h, i) => `${h} ${i * step}deg ${(i + 1) * step}deg`).join(", ")})`;
 }
 
-/** Cost (or life) in a colour-filled round badge, then colour, power, Counter, attribute and type. */
 export function PreviewBadges({ entry }: { entry: CardAtlasEntry }) {
   const cv = counterValueFor(entry);
   const isLeader = entry.type.toLowerCase() === "leader";

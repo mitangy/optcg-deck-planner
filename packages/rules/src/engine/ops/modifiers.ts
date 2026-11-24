@@ -1,13 +1,9 @@
-/**
- * Modifier-applying ops (power, cost, keywords, restrictions, negation, granted abilities). `power`, `cost` and `base_power` share one handler.
- */
 import { addModifier, expiryFor } from "../modifiers.js";
 import { basePowerOf, evalValue } from "../queries.js";
 import { type Located, isOnField } from "../zones.js";
 import type { ExecResult } from "../vm.js";
 import { type OpCtx, type OpEffect, type OpTable, durationLabel, seatOf } from "./shared.js";
 
-/** `power`, `cost` and `base_power` differ only in the modifier they add. */
 const numericBuff = (effect: OpEffect<"power" | "cost" | "base_power">, { sim, state, frame, ctx, targetsOf }: OpCtx): ExecResult => {
   const amount = evalValue(state, ctx, effect.do === "base_power" ? effect.value : effect.amount);
   for (const loc of targetsOf(effect.target)) {

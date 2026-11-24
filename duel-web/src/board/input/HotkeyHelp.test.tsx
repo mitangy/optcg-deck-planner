@@ -23,7 +23,6 @@ afterEach(() => {
   onHelp.mockClear();
 });
 
-/** The board's own hotkeys plus the "?" sheet, wired like DuelBoard wires them. */
 function Board() {
   const [helpOpen, setHelpOpen] = useState(false);
   useBoardHotkeys({

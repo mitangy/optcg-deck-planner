@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Intent } from "../../net/protocol";
 import {
   attachLabel,
+  railTapDon,
   attachTargetIds,
   beginAttach,
   donIdsForTarget,
@@ -100,7 +101,6 @@ describe("donQuickAttach", () => {
   });
 
   it("does not spend a slot on a DON!! that only fits another card", () => {
-    // d0 can only go to A: asking B for 2 must still find two DON!! for B.
     const data = [give("d0", "A"), give("d1", "B"), give("d2", "B")];
     expect(donQuickAttach(data, "B", 2)).toEqual([give("d1", "B"), give("d2", "B")]);
   });
@@ -137,7 +137,17 @@ describe("quickAttachLabel", () => {
     expect(quickAttachLabel(1, counts)).toBe("Give 1 DON!! (+1000)");
     expect(quickAttachLabel(2, counts)).toBe("Give 2 DON!! (+2000)");
     expect(quickAttachLabel(5, counts)).toBe("Give all 5 DON!! (+5000)");
-    // With only two DON!! the +2 chip is the whole stack but is not labelled All.
     expect(quickAttachLabel(2, quickAttachCounts(2))).toBe("Give 2 DON!! (+2000)");
   });
 });
+
+describe("tapping the DON!! area on a touch screen (#1343)", () => {
+  it("picks the first DON!! not yet selected, and returns null once all are picked so the tap clears (#1343)", () => {
+    expect(railTapDon(new Set(), ["a", "b", "c"])).toBe("a");
+    expect(railTapDon(new Set(["a"]), ["a", "b", "c"])).toBe("b");
+    expect(railTapDon(new Set(["a", "c"]), ["a", "b", "c"])).toBe("b");
+    expect(railTapDon(new Set(["a", "b", "c"]), ["a", "b", "c"])).toBeNull();
+    expect(railTapDon(new Set(), [])).toBeNull();
+  });
+});
+

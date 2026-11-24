@@ -1,10 +1,8 @@
-/** Planner ↔ FastAPI: friends, sharing, spares and trades (#703). Shapes follow the API contract exactly. */
 import { request } from "../apiClient";
 import type { DeckDetail, User } from "../api";
 
 export type Friend = { user_id: number; username: string };
 export type FriendRequest = { user_id: number; username: string };
-/** GET /friends also returns duel presence and invites; the planner ignores them. */
 export type FriendsState = { friends: Friend[]; incoming: FriendRequest[]; outgoing: FriendRequest[] };
 
 export type SharingScope = "friends" | "off";
@@ -99,7 +97,6 @@ export type SpareItem = {
   image_url: string;
   market_price: number | null;
   spare: number;
-  /** Copies of the standard printing; a standard trade line cannot exceed this (#705). */
   base_owned: number;
   want: number;
   printings: SparePrinting[];
@@ -129,13 +126,11 @@ export type Trade = {
   status: TradeStatus;
   message: string;
   parent_offer_id: number | null;
-  /** Unix seconds. */
   created_at: number;
   responded_at: number | null;
   completed_at: number | null;
   expires_at: number;
   lines: TradeLine[];
-  /** Sums of qty × market price per side, from the sender's view; null when a line has no price. */
   give_value: number | null;
   get_value: number | null;
   i_am_sender: boolean;
@@ -143,7 +138,15 @@ export type Trade = {
   other_applied: boolean;
 };
 export type TradesOut = { incoming: Trade[]; outgoing: Trade[]; active: Trade[]; history: Trade[] };
-export type TradesSummary = { incoming_pending: number; active: number };
+export type TradesSummary = {
+  incoming_pending: number;
+  /** Accepted trades awaiting a swap plus completed ones not yet applied. */
+  active: number;
+  /** Incoming friend requests awaiting an answer. */
+  friend_requests: number;
+  /** Completed trades this user has not applied yet. */
+  to_apply: number;
+};
 
 const json = (body: unknown) => JSON.stringify(body);
 
@@ -155,7 +158,6 @@ export const friendsApi = {
   sendRequest: (username: string) =>
     request<{ status: "pending" | "accepted" }>("/friends/requests", { method: "POST", body: json({ username: username.trim() }) }),
   accept: (userId: number) => request<unknown>(`/friends/requests/${userId}/accept`, { method: "POST" }),
-  /** Unfriend, decline or cancel a request. */
   remove: (userId: number) => request<unknown>(`/friends/${userId}`, { method: "DELETE" }),
 
   sharing: () => request<Sharing>("/me/sharing"),

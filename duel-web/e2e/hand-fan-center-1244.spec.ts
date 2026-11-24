@@ -1,10 +1,5 @@
-/**
- * The default (bottom-middle) fanned hand: its buttons sit right beside the cards, and with Keep hand open the
- * board makes room for the raised fan (#1244).
- */
 import { test, expect, type Page } from "./fixtures";
 
-// This spec is about the new defaults (Bigger playing area on), so it skips the fixture's old-layout settings.
 test.use({ legacyLayout: false });
 
 test.beforeEach(({}, info) => {
@@ -51,18 +46,15 @@ test("with Keep hand open the bottom-middle hand's buttons stack in a column lef
   await expect(fan).toHaveClass(/is-open/);
   const handBox = (await hand.boundingBox())!;
   const hideBox = (await hide.boundingBox())!;
-  // Stacked: Hide sits under Hand, not beside it.
   expect(hideBox.y).toBeGreaterThan(handBox.y + handBox.height - 1);
   expect(Math.abs(hideBox.x - handBox.x)).toBeLessThan(2);
   const cards = (await page.locator(".hand-fan-center .hand-fan-cards").boundingBox())!;
   const open = (await head.boundingBox())!;
   expect(open.x + open.width).toBeLessThan(cards.x);
   expect(cards.x - (open.x + open.width)).toBeLessThan(60);
-  // The column sits within the raised cards' height and on screen, clear of the board.
   const mat = (await page.locator(".side-field.side-you").first().boundingBox())!;
   expect(open.y).toBeGreaterThanOrEqual(mat.y + mat.height);
   expect(open.y + open.height).toBeLessThanOrEqual(page.viewportSize()!.height);
-  // Hide drops the cards; the buttons stay where they were.
   await hide.click();
   await expect(fan).toHaveClass(/is-hidden/);
   await page.waitForTimeout(600);

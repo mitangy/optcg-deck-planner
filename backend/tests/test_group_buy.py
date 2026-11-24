@@ -24,8 +24,8 @@ def two_players(db):
     friend = make_user(db, email="friend@example.com", name="Friend", sub="sub-friend")
     add_deck_with_cards(db, host, "Host Deck", {"OP01-001": 4, "OP01-002": 2})
     add_deck_with_cards(db, friend, "Friend Deck", {"OP01-001": 3, "OP01-002": 4})
-    set_owned(db, host, "OP01-001", 1)  # still need 3
-    set_owned(db, friend, "OP01-002", 1)  # still need 3 of 002, 3 of 001
+    set_owned(db, host, "OP01-001", 1)
+    set_owned(db, friend, "OP01-002", 1)
     return host, friend
 
 
@@ -40,7 +40,6 @@ def test_create_join_and_merge_sums_still_need(db, two_players):
     assert joined.member_count == 2
     assert not joined.is_host
 
-    # Host still needs 3 OP01-001 + 2 OP01-002; friend 3 + 3
     by_id = {line.card_id: line for line in joined.lines}
     assert by_id["OP01-001"].total_qty == 6
     assert by_id["OP01-002"].total_qty == 5
@@ -48,7 +47,7 @@ def test_create_join_and_merge_sums_still_need(db, two_players):
         "Host": 3,
         "Friend": 3,
     }
-    assert by_id["OP01-001"].product_id == 1001  # preferred standard printing
+    assert by_id["OP01-001"].product_id == 1001
 
 
 def test_lock_freezes_quantities_against_later_owned_changes(db, two_players):
@@ -73,7 +72,6 @@ def test_lock_freezes_quantities_against_later_owned_changes(db, two_players):
 
 
 def test_stale_host_printing_override_is_ignored_at_checkout_868(db, two_players):
-    """Old prod rows in group_buy_line_overrides must not steer checkout any more."""
     host, friend = two_players
     created = group_buy.create_group_buy(db, host, "Stale override")
     group_buy.join_group_buy(db, friend, created.invite_token)
@@ -95,29 +93,24 @@ def test_stale_host_printing_override_is_ignored_at_checkout_868(db, two_players
 
 
 def test_export_allocates_alt_wants_not_whole_line(db, two_players):
-    """Mass entry must split AA wants; not dump total_qty onto checkout printing."""
     host, friend = two_players
     created = group_buy.create_group_buy(db, host, "AA export")
     group_buy.join_group_buy(db, friend, created.invite_token)
 
     host_deck = next(d for d in deck_svc.list_decks(db, host) if d.name == "Host Deck")
-    # Host still-need 3 of OP01-001; want only 1 AA. Friend still-need 3, no AA.
     deck_svc.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 1)
 
     export = group_buy.export_tcgplayer(db, host, created.id)
     lines = export.paste_text.splitlines()
-    # Host 1×AA + 2×preferred, Friend 3×preferred → 1×1009 + 5×1001
     assert "1-1009" in lines
     assert "5-1001" in lines
     assert "6-1009" not in lines
-    assert "5-1002" in lines  # OP01-002 unchanged
+    assert "5-1002" in lines
     assert export.copy_count == 11
 
 
 def test_sum_across_leaders_member_need_and_alt_pricing(db, two_players):
-    """A member's sum_across_leaders setting flows into group buy qty, AA split and export."""
     host, friend = two_players
-    # Host adds a second-leader deck using 3 more OP01-001.
     first = next(d for d in deck_svc.list_decks(db, host) if d.name == "Host Deck")
     second = add_deck_with_cards(db, host, "Host Deck 2", {"OP01-001": 3})
     db.get(Deck, first.id).leader_card_id = "LEAD-A"
@@ -127,21 +120,18 @@ def test_sum_across_leaders_member_need_and_alt_pricing(db, two_players):
 
     created = group_buy.create_group_buy(db, host, "Sum mode")
     group_buy.join_group_buy(db, friend, created.invite_token)
-    # 4 + 3 need − 1 owned = 6 still needed for host.
     owned_svc.set_user_card_printing(db, host, "OP01-001", 1009, 2)
     detail = group_buy.get_group_buy(db, host, created.id)
     line = next(l for l in detail.lines if l.card_id == "OP01-001")
     assert {m.display_name: m.qty for m in line.members} == {"Host": 6, "Friend": 3}
     assert line.my_need == 7
     assert next(a.wanted for a in line.alt_arts if a.product_id == 1009) == 2
-    # Host 2×AA + 4×standard, friend 3×standard.
     assert line.remaining_cost == round(2 * 9.0 + 7 * 2.5, 2)
 
     lines = group_buy.export_tcgplayer(db, host, created.id).paste_text.splitlines()
     assert "2-1009" in lines
     assert "7-1001" in lines
 
-    # Members show their mode while open; hidden once quantities are frozen.
     modes = {m.display_name: m.sum_across_leaders for m in detail.members}
     assert modes == {"Host": True, "Friend": False}
     locked = group_buy.lock_group_buy(db, host, created.id)
@@ -158,18 +148,14 @@ def test_member_cannot_lock(db, two_players):
 
 def test_contribution_deck_filter(db, two_players):
     host, _friend = two_players
-    # Second deck for host with only OP01-002
     deck_b = add_deck_with_cards(db, host, "Only Zoro", {"OP01-002": 4})
     created = group_buy.create_group_buy(db, host, "Filtered", deck_ids=[deck_b.id])
     assert len(created.lines) == 1
     assert created.lines[0].card_id == "OP01-002"
-    # Host owned 0 of 002 in fixture... wait host has deck with 002 need 2 and no owned for 002
-    # With only deck_b, need 4 of 002, owned 0 → still 4
     assert created.lines[0].total_qty == 4
 
 
 def test_import_deck_auto_adds_to_open_group_buy_contribution(db, two_players):
-    """Importing a deck while a filtered group buy is open appends it to contribution."""
     host, _friend = two_players
     add_catalog(db, "OP01-099", name="New Card", product_id=1099, market=3.0)
     host_deck = next(d for d in deck_svc.list_decks(db, host))
@@ -186,7 +172,6 @@ def test_import_deck_auto_adds_to_open_group_buy_contribution(db, two_players):
 
 
 def test_import_deck_noop_when_contribution_is_all_decks(db, two_players):
-    """Null contribution already means all decks — import still surfaces in the pool."""
     host, _friend = two_players
     add_catalog(db, "OP01-098", name="Other", product_id=1098, market=2.0)
     created = group_buy.create_group_buy(db, host, "All decks", deck_ids=None)
@@ -202,15 +187,13 @@ def test_member_can_override_buy_qty(db, two_players):
     created = group_buy.create_group_buy(db, host, "Qty edit")
     group_buy.join_group_buy(db, friend, created.invite_token)
 
-    # Host still needs 3 of OP01-001; buy only 1.
     updated = group_buy.set_member_qty(db, host, created.id, "OP01-001", 1)
     line = next(l for l in updated.lines if l.card_id == "OP01-001")
     assert line.my_qty == 1
     assert line.my_suggested_qty == 3
     assert line.my_is_custom is True
-    assert line.total_qty == 4  # host 1 + friend 3
+    assert line.total_qty == 4
 
-    # Matching suggested clears the override.
     cleared = group_buy.set_member_qty(db, host, created.id, "OP01-001", 3)
     line = next(l for l in cleared.lines if l.card_id == "OP01-001")
     assert line.my_is_custom is False
@@ -225,7 +208,7 @@ def test_qty_zero_opts_out_and_sync_resets(db, two_players):
 
     updated = group_buy.set_member_qty(db, friend, created.id, "OP01-001", 0)
     line = next(l for l in updated.lines if l.card_id == "OP01-001")
-    assert line.total_qty == 3  # host only
+    assert line.total_qty == 3
     assert line.my_qty == 0
     assert line.my_is_custom is True
     assert line.my_excluded is True
@@ -239,7 +222,6 @@ def test_qty_zero_opts_out_and_sync_resets(db, two_players):
 
 
 def test_exclude_keeps_zero_total_line_for_viewer(db, two_players):
-    """Sole buyer excluding a card keeps a grayed-out row (custom qty 0)."""
     host, _friend = two_players
     created = group_buy.create_group_buy(db, host, "Solo exclude")
 
@@ -268,7 +250,6 @@ def _owned(db, user_id: int, card_id: str) -> int:
 
 
 def _receipt_for_pool(*rows: tuple[str, int, str]) -> str:
-    """Build a simple TCGPlayer-style receipt: (card_name, qty, set_label)."""
     lines = ["Qty\tDescription"]
     for name, qty, set_name in rows:
         lines.append(f"{qty}\tOne Piece Card Game - {set_name} - {name} - Near Mint")
@@ -291,14 +272,12 @@ def test_match_persists_receipt_text_for_host(db, two_players):
     assert detail.has_receipt
     assert detail.receipt_text.strip() == receipt.strip()
 
-    # Survives another get (refresh)
     again = group_buy.get_group_buy(db, friend, created.id)
     assert again.has_receipt
     assert "Luffy" in again.receipt_text
 
 
 def test_complete_requires_receipt(db, two_players):
-    """Naked Mark purchased without a receipt is blocked — use receipt apply."""
     host, friend = two_players
     created = group_buy.create_group_buy(db, host, "Must receipt")
     group_buy.join_group_buy(db, friend, created.invite_token)
@@ -312,7 +291,6 @@ def test_complete_applies_owned_and_clears_shopping(db, two_players):
     host, friend = two_players
     created = group_buy.create_group_buy(db, host, "Purchased")
     group_buy.join_group_buy(db, friend, created.invite_token)
-    # Host buys only 1 of OP01-001 (still-need was 3)
     group_buy.set_member_qty(db, host, created.id, "OP01-001", 1)
     group_buy.lock_group_buy(db, host, created.id)
     group_buy.mark_ordered(db, host, created.id, None)
@@ -320,7 +298,6 @@ def test_complete_applies_owned_and_clears_shopping(db, two_players):
     assert _owned(db, host.id, "OP01-001") == 1
     assert _owned(db, friend.id, "OP01-001") == 0
 
-    # Snapshot totals after qty override: OP01-001=4, OP01-002=5
     receipt = _receipt_for_pool(("Luffy", 4, "Test Set"), ("Zoro", 5, "Test Set"))
     done = group_buy.apply_receipt_to_group_buy(
         db,
@@ -330,7 +307,6 @@ def test_complete_applies_owned_and_clears_shopping(db, two_players):
     )
     assert done.status == "completed"
 
-    # Host: 1 existing + 1 bought; Friend: 0 + 3 bought
     assert _owned(db, host.id, "OP01-001") == 2
     assert _owned(db, friend.id, "OP01-001") == 3
     assert _owned(db, host.id, "OP01-002") == 2
@@ -340,14 +316,12 @@ def test_complete_applies_owned_and_clears_shopping(db, two_players):
     friend_shop = shopping_svc.shopping_list(db, friend)
     host_by_id = {i.card_id: i.still_need for i in host_shop.items if i.still_need > 0}
     friend_by_id = {i.card_id: i.still_need for i in friend_shop.items if i.still_need > 0}
-    # Host still needs 2 more OP01-001 (need 4, owned 2); OP01-002 filled
     assert host_by_id.get("OP01-001") == 2
     assert "OP01-002" not in host_by_id
-    assert friend_by_id == {}  # friend fully covered
+    assert friend_by_id == {}
 
     with pytest.raises(PermissionError):
         group_buy.unlock_group_buy(db, host, created.id)
-    # Idempotent completed status via naked complete
     again = group_buy.complete_group_buy(db, host, created.id)
     assert again.status == "completed"
     assert _owned(db, host.id, "OP01-001") == 2
@@ -370,7 +344,6 @@ def test_member_cannot_complete(db, two_players):
     group_buy.join_group_buy(db, friend, created.invite_token)
     group_buy.lock_group_buy(db, host, created.id)
     group_buy.mark_ordered(db, host, created.id, None)
-    # The no-receipt guard also raises PermissionError, so check it is the host check.
     with pytest.raises(PermissionError, match="host"):
         group_buy.complete_group_buy(db, friend, created.id)
 
@@ -397,7 +370,6 @@ def test_mark_ordered_and_settlement(db, two_players):
     assert ordered.external_order_id == "TCG-123"
     assert ordered.shipping_cost == 3.0
     assert ordered.shipping_split == "by_cost"
-    # Host: 3*2.5 + 2*1.0 = 9.5; Friend: 3*2.5 + 3*1.0 = 10.5; cards 20; ship by_cost
     assert ordered.cards_subtotal == 20.0
     assert ordered.grand_total == 23.0
     assert ordered.tax_cost == 0.0
@@ -422,11 +394,10 @@ def test_mark_ordered_and_settlement(db, two_players):
     assert updated.shipping_split == "equal"
     assert updated.shipping_cost == 2.0
     assert updated.tax_cost == 4.0
-    assert updated.grand_total == 26.0  # 20 + 2 + 4
+    assert updated.grand_total == 26.0
     by_name = {m.display_name: m for m in updated.members}
     assert by_name["Host"].shipping_share == 1.0
     assert by_name["Friend"].shipping_share == 1.0
-    # Tax by card cost: Host 9.5/20 * 4 = 1.9, Friend 10.5/20 * 4 = 2.1
     assert by_name["Host"].tax_share == 1.9
     assert by_name["Friend"].tax_share == 2.1
     assert by_name["Host"].total_owed == round(
@@ -444,7 +415,7 @@ def test_mark_ordered_and_settlement(db, two_players):
     )
     assert done.status == "completed"
     assert done.external_order_id == "TCG-123"
-    assert _owned(db, host.id, "OP01-001") == 4  # 1 owned + 3 bought
+    assert _owned(db, host.id, "OP01-001") == 4
 
 
 def test_mark_ordered_requires_lock(db, two_players):
@@ -477,12 +448,10 @@ def test_group_buy_shows_viewer_alt_wants(db, two_players):
     assert host_line.my_need == 4
     assert next(a.wanted for a in host_line.alt_arts if a.product_id == 1009) == 2
 
-    # Friend sees their own wants (0), not the host's
     friend_view = group_buy.get_group_buy(db, friend, created.id)
     friend_line = next(l for l in friend_view.lines if l.card_id == "OP01-001")
     assert next(a.wanted for a in friend_line.alt_arts if a.product_id == 1009) == 0
 
-    # Sync from group-buy style API updates host decks and shows on next fetch
     owned_svc.set_user_card_printing(db, host, "OP01-001", 1009, 1)
     host_view = group_buy.get_group_buy(db, host, created.id)
     host_line = next(l for l in host_view.lines if l.card_id == "OP01-001")
@@ -490,21 +459,17 @@ def test_group_buy_shows_viewer_alt_wants(db, two_players):
 
 
 def test_group_buy_remaining_allocates_alt_wants_not_whole_line(db, two_players):
-    """Wanting 1 AA must not price every copy at the AA market (or checkout override)."""
     host, friend = two_players
     created = group_buy.create_group_buy(db, host, "AA price")
     group_buy.join_group_buy(db, friend, created.invite_token)
 
     host_deck = next(d for d in deck_svc.list_decks(db, host) if d.name == "Host Deck")
-    # Host still-need 3 of OP01-001; want only 1 AA ($9), rest preferred ($2.5).
     deck_svc.set_deck_card_printing(db, host, host_deck.id, "OP01-001", 1009, 1)
 
     detail = group_buy.get_group_buy(db, host, created.id)
     line = next(l for l in detail.lines if l.card_id == "OP01-001")
     assert line.product_id == 1001
-    # Host: 1×$9 + 2×$2.5 = 14; Friend: 3×$2.5 = 7.5 → 21.5
     assert line.remaining_cost == 21.5
-    # Header total includes OP01-002 as well (host 2×$1 + friend 3×$1 = 5).
     assert detail.remaining_market == round(21.5 + 5.0, 2)
 
 
@@ -513,13 +478,12 @@ def test_public_view_is_read_only_and_only_host_can_toggle_public(db, two_player
     created = group_buy.create_group_buy(db, host, "Public pool")
     group_buy.join_group_buy(db, friend, created.invite_token)
 
-    # Only the host can change the legacy public flag.
     with pytest.raises(PermissionError):
         group_buy.set_public(db, friend, created.id, True)
 
     enabled = group_buy.set_public(db, host, created.id, True)
     assert enabled.is_public is True
-    assert enabled.read_only is False  # host's authenticated view stays editable
+    assert enabled.read_only is False
 
     public = group_buy.public_group_buy_view(db, created.invite_token)
     assert public.read_only is True
@@ -529,7 +493,6 @@ def test_public_view_is_read_only_and_only_host_can_toggle_public(db, two_player
     assert public.can_undo_purchase is False
     assert public.member_count == 2
     assert {line.card_id for line in public.lines} == {"OP01-001", "OP01-002"}
-    # Deck contribution filters stay private on the public payload.
     assert all(m.deck_ids is None for m in public.members)
 
 
@@ -603,7 +566,6 @@ def test_group_buy_main_art_follows_other_members_alt_wants_882(db):
     line = _line(group_buy.get_group_buy(db, viewer, created.id))
     assert line.display_art == 1009
     assert any(a.product_id == 1009 for a in line.alt_arts)
-    # The viewer's own wanted counts are untouched.
     assert next(a.wanted for a in line.alt_arts if a.product_id == 1009) == 0
 
 
@@ -614,9 +576,9 @@ def test_group_buy_group_alt_pick_uses_most_copies_then_lowest_id_882(db):
     group_buy.join_group_buy(db, viewer, created.invite_token)
 
     owned_svc.set_user_card_printing(db, host, "OP01-001", 1007, 1)
-    assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 1009  # 2 > 1
+    assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 1009
     owned_svc.set_user_card_printing(db, host, "OP01-001", 1007, 2)
-    assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 1007  # tie -> lowest
+    assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 1007
 
 
 def test_group_buy_viewer_own_art_choice_beats_group_pick_882(db):
@@ -625,11 +587,9 @@ def test_group_buy_viewer_own_art_choice_beats_group_pick_882(db):
     group_buy.join_group_buy(db, wanter, created.invite_token)
     group_buy.join_group_buy(db, viewer, created.invite_token)
 
-    # Viewer wants a different alt of their own.
     owned_svc.set_user_card_printing(db, viewer, "OP01-001", 1007, 1)
     assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art != 1009
 
-    # Viewer explicitly chooses the base art (0).
     owned_svc.set_user_card_printing(db, viewer, "OP01-001", 1007, 0)
     owned_svc.set_display_art(db, viewer, "OP01-001", 0)
     assert _line(group_buy.get_group_buy(db, viewer, created.id)).display_art == 0
@@ -651,7 +611,6 @@ def test_public_group_buy_follows_members_show_pick_over_wants_893(db):
     created = group_buy.create_group_buy(db, host, "Art")
     group_buy.join_group_buy(db, wanter, created.invite_token)
     group_buy.join_group_buy(db, viewer, created.invite_token)
-    # Wanter wants 1009 x2, but the host picked 1007 with Show.
     owned_svc.set_display_art(db, host, "OP01-001", 1007)
 
     guest = _line(group_buy.public_group_buy_view(db, created.invite_token))
@@ -667,12 +626,10 @@ def test_group_buy_show_picks_count_by_members_then_host_893(db):
     group_buy.join_group_buy(db, viewer, created.invite_token)
     owned_svc.set_display_art(db, wanter, "OP01-001", 1009)
     owned_svc.set_display_art(db, host, "OP01-001", 1007)
-    # One pick each: the host's wins the tie (1007 is also the lower id, so check the reverse too).
     assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1007
     owned_svc.set_display_art(db, host, "OP01-001", 1009)
     owned_svc.set_display_art(db, wanter, "OP01-001", 1007)
     assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1009
-    # Two members pick 1007: more picks beat the host's.
     owned_svc.set_display_art(db, viewer, "OP01-001", 1007)
     assert _line(group_buy.public_group_buy_view(db, created.invite_token)).display_art == 1007
 
@@ -687,13 +644,12 @@ def test_group_buy_line_art_wants_per_member_on_right_product_891(db):
     group_buy.join_group_buy(db, wanter, created.invite_token)
     group_buy.join_group_buy(db, viewer, created.invite_token)
 
-    # Seen from the viewer (who wants nothing alt): everyone's split is still reported.
     line = _line(group_buy.get_group_buy(db, viewer, created.id))
     assert _art_wants(line) == sorted(
         [
-            (host.id, 1001, 2),  # base wants sit on the preferred printing
-            (wanter.id, 1009, 2),  # two alt copies ...
-            (wanter.id, 1001, 1),  # ... and the rest on base
+            (host.id, 1001, 2),
+            (wanter.id, 1009, 2),
+            (wanter.id, 1001, 1),
             (viewer.id, 1001, 1),
         ]
     )
@@ -701,10 +657,10 @@ def test_group_buy_line_art_wants_per_member_on_right_product_891(db):
 
 
 def test_group_buy_art_wants_cap_alt_want_at_member_qty_891(db):
-    host, wanter, viewer = _three_players_with_alt_want(db)  # wanter wants 2 of 1009
+    host, wanter, viewer = _three_players_with_alt_want(db)
     created = group_buy.create_group_buy(db, host, "Cap")
     group_buy.join_group_buy(db, wanter, created.invite_token)
-    group_buy.set_member_qty(db, wanter, created.id, "OP01-001", 1)  # buys fewer than they want
+    group_buy.set_member_qty(db, wanter, created.id, "OP01-001", 1)
 
     line = _line(group_buy.get_group_buy(db, host, created.id))
     assert [(w.product_id, w.qty) for w in line.art_wants if w.user_id == wanter.id] == [(1009, 1)]
@@ -730,7 +686,7 @@ def test_an_empty_deck_pick_means_no_decks_not_all_decks_1208(db, two_players):
     member = next(m for m in detail.members if m.user_id == host.id)
 
     assert member.deck_ids == []
-    assert {line.card_id for line in detail.lines} == {"OP01-001"}  # the Extra copy only, no Zoro
+    assert {line.card_id for line in detail.lines} == {"OP01-001"}
 
     group_buy.update_contribution(db, host, created.id, deck_ids=None)
     reset = group_buy.get_group_buy(db, host, created.id)
@@ -760,4 +716,47 @@ def test_extra_copies_count_in_a_group_buy_whatever_decks_are_ticked_1208(db, tw
     detail = group_buy.get_group_buy(db, host, created.id)
     luffy = next(line for line in detail.lines if line.card_id == "OP01-001")
 
-    assert [m.qty for m in luffy.members if m.user_id == host.id] == [2]  # Luffy's deck is not ticked
+    assert [m.qty for m in luffy.members if m.user_id == host.id] == [2]
+
+
+def test_resetting_the_invite_link_retires_the_old_token_1346(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Reset")
+    old = created.invite_token
+
+    with pytest.raises(PermissionError):
+        group_buy.reset_invite(db, friend, created.id)
+    assert group_buy.get_group_buy(db, host, created.id).invite_token == old
+
+    reset = group_buy.reset_invite(db, host, created.id)
+    assert reset.invite_token != old
+    assert reset.invite_path.endswith(reset.invite_token)
+    for call in (group_buy.join_group_buy, group_buy.public_group_buy_view, group_buy.invite_preview):
+        with pytest.raises(LookupError):
+            call(db, friend, old) if call is group_buy.join_group_buy else call(db, old)
+    assert group_buy.invite_preview(db, reset.invite_token).title == "Reset"
+    assert group_buy.join_group_buy(db, friend, reset.invite_token).id == created.id
+
+
+def test_invite_link_view_hides_order_id_and_notes_but_members_still_see_them_1419(db, two_players):
+    host, friend = two_players
+    created = group_buy.create_group_buy(db, host, "Private order")
+    group_buy.join_group_buy(db, friend, created.invite_token)
+    group_buy.lock_group_buy(db, host, created.id)
+    group_buy.mark_ordered(
+        db,
+        host,
+        created.id,
+        GroupBuyOrderUpdate(external_order_id="TCG-123456", order_notes="Pay me on Venmo"),
+    )
+
+    for seen in (
+        group_buy.get_group_buy(db, host, created.id),
+        group_buy.get_group_buy(db, friend, created.id),
+    ):
+        assert seen.external_order_id == "TCG-123456"
+        assert seen.order_notes == "Pay me on Venmo"
+
+    public = group_buy.public_group_buy_view(db, created.invite_token)
+    assert public.external_order_id == ""
+    assert public.order_notes == ""

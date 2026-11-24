@@ -1,4 +1,3 @@
-/* ——— Page-head popovers (Share, More) ——— */
 .head-popover {
   position: relative;
   min-width: 0;
@@ -72,7 +71,6 @@
   margin: 0.35rem 0 0;
 }
 
-/* The panel floats in a portal, outside .page-head, so it repeats the .page-head .muted spacing and, below, the phone sizing that used to cascade into it. */
 @media (max-width: 800px) {
   .head-popover-panel .share-panel-actions .btn,
   .head-popover-panel .share-panel-actions .ghost {
@@ -106,7 +104,6 @@
 
 .head-popover-panel.head-popover-menu {
   padding: 0.35rem;
-  /* Headless UI keeps focus on the list itself and marks the active row, so no ring around the whole panel. */
   outline: none;
 }
 
@@ -150,7 +147,6 @@
 }
 
 @media (max-width: 800px) {
-  /* Header actions sit in one compact row instead of full-width stacks. */
   .page-head-actions {
     flex-wrap: nowrap;
     justify-content: flex-start;
@@ -173,7 +169,6 @@
   }
 }
 
-/* Owned progress on Decks-page tiles. */
 .deck-owned-meter {
   margin-top: 0.6rem;
   display: grid;
@@ -225,7 +220,6 @@
   border-color: var(--gold);
 }
 
-/* Discord icon link in the top bar: same round pill as the theme toggle. */
 .discord-nav-link {
   display: inline-grid;
   place-items: center;
@@ -251,16 +245,12 @@
   border-color: var(--gold);
 }
 
-/* Phones: the top bar (Play Duel, bell, theme, Log out) has no room for another control without cropping the
-   wordmark, so the Discord link lives in the page footer there. */
 @media (max-width: 480px) {
   .topbar .discord-nav-link {
     display: none;
   }
 }
 
-/* Smallest phones: the wordmark alone identifies the app, leaving room for
-   the theme toggle + Log out (they overlapped the title at 320px). */
 @media (max-width: 380px) {
   .topbar .brand a span {
     position: absolute;
@@ -271,8 +261,6 @@
     white-space: nowrap;
   }
 
-  /* Tighter header pills, and the wordmark scales down to whatever room is left
-     instead of being cropped (it lost "ECE" at 320px). */
   .topbar .user {
     gap: 0.35rem;
   }
@@ -288,8 +276,6 @@
   }
 }
 
-/* Public share page: "Sign in" sits in the top bar as a small pill like Log out,
-   not a full-size button that crowds out the logo on phones. */
 @media (max-width: 800px) {
   .topbar .user .btn {
     width: auto;
@@ -299,7 +285,6 @@
   }
 }
 
-/* "Play in Duel" link in deck page head: never wraps inside the pill. */
 .page-head-actions .duel-play-btn {
   white-space: nowrap;
   flex: 0 0 auto;
@@ -320,9 +305,6 @@
   }
 }
 
-/* Deck analytics panel styles live in packages/deck-analytics/src/ui/deckAnalytics.css. */
-
-/* Build hints (deck editor): host chrome around the shared tray, delta chip. */
 .need-cell {
   white-space: nowrap;
 }
@@ -359,7 +341,6 @@
   position: relative;
 }
 
-/* Transient "what moved" chip: floats over the Add cards header (right of its label), takes no space. */
 .dh-delta-slot {
   position: absolute;
   z-index: var(--z-raise-6);

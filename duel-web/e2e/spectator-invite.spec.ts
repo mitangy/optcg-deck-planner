@@ -1,12 +1,6 @@
-/**
- * Inviting a friend who is spectating (#1199): the friends list offers Invite
- * to a friend who is watching a game, the invite shows over the spectator's
- * board, and Join leaves the watched game for the inviter's private room.
- */
 import type { Browser, Page, TestInfo } from "@playwright/test";
 import { test, expect, seedDecks, signInAs, FAKE_API, type FakeAccount } from "./fixtures";
 
-/** A fresh account per test: the game server outlives tests and keeps a dropped seat for its owner for a while. */
 let nextUid = 100_000 + Math.floor(Math.random() * 800_000) * 10;
 const account = (name: string): FakeAccount => ({ uid: nextUid++, name });
 const KEEP = "Keep opening hand";
@@ -20,7 +14,6 @@ async function newDevice(browser: Browser, info: TestInfo, who: FakeAccount, vie
   return { ctx, page };
 }
 
-/** Where a screenshot goes when SHOTS_DIR is set (PR evidence); otherwise nowhere. */
 async function shot(page: Page, name: string): Promise<void> {
   const dir = process.env.SHOTS_DIR;
   if (!dir) return;
@@ -41,22 +34,18 @@ for (const vp of [
 ]) {
   test(`a spectator gets a friend's invite over the board and Join takes the seat, ${vp.width}x${vp.height} (#1199)`, async ({ page, duel, browser }, info) => {
     test.skip(info.project.name !== "desktop-1280", "viewports are set by the test; one project is enough");
-    // A match to watch.
     const practice = page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
     await duel.startPractice({ seed: 7 });
     const watchedRoom = await roomIdOf(practice);
 
-    // The friend opens a private room to invite the spectator to.
     const NAMI = account("NamiNavigator");
     const host = await newDevice(browser, info, NAMI, vp);
     const created = host.page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
     await host.page.goto("/");
-    await host.page.getByRole("button", { name: "Play", exact: true }).click();
-    await host.page.getByRole("dialog").getByRole("button", { name: /^Private room/ }).click();
+    await host.page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
     await host.page.getByRole("button", { name: "Create room" }).click();
     const inviteRoom = await roomIdOf(created);
 
-    // The spectator: signed in, watching; the API reports Nami's invite.
     const ME = account("Zoro");
     const spec = await newDevice(browser, info, ME, vp);
     let dismissed = false;
@@ -78,7 +67,6 @@ for (const vp of [
     const card = spec.page.locator(".spectator-invites").getByRole("region", { name: "Game invite" });
     await expect(card).toContainText("NamiNavigator invited you", { timeout: 20_000 });
     await expect(card).toContainText("Leaves this game");
-    // Fits the screen, no sideways scroll.
     const box = (await card.boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(vp.width);
@@ -86,7 +74,6 @@ for (const vp of [
     expect(await spec.page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(vp.width);
     await shot(spec.page, "spectating-invite");
 
-    // Join: leave the watched game and sit down in Nami's room.
     await card.getByRole("button", { name: "Join" }).click();
     await expect(spec.page.getByRole("button", { name: KEEP })).toBeVisible({ timeout: 30_000 });
     await expect(host.page.getByRole("button", { name: KEEP })).toBeVisible({ timeout: 30_000 });

@@ -7,7 +7,6 @@ import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import { CARD_SORTS_KEY, FILTERS_OPEN_KEY, SHOW_ALT_ARTS_KEY } from "../storage/keys";
 import { bool01, choiceCodec, readStored, usePersistedState, writeStored, type PersistedCodec } from "@optcg/ui/storage";
 
-/** Alt arts are shown unless the visitor turned them off. */
 export function showAltArtsFromStored(raw: string | null): boolean {
   return raw !== "0";
 }
@@ -19,13 +18,12 @@ export type SortKey = "still_need" | "color" | "set" | "deck" | "user" | "price"
 
 export const ALL_SORT_KEYS: SortKey[] = ["deck", "user", "still_need", "price", "color", "set"];
 export const DEFAULT_SORTS: SortKey[] = ["color", "set"];
-/** Sorts offered on the Collection page (owned cards). */
 export const OWNED_SORT_KEYS: SortKey[] = ["value", "owned", "price", "color", "set"];
 export const OWNED_DEFAULT_SORTS: SortKey[] = ["value"];
 export const SORT_LABELS: Record<SortKey, string> = {
   deck: "Deck",
   user: "User",
-  still_need: "Still need",
+  still_need: "To buy",
   price: "Price",
   value: "Value",
   owned: "Owned",
@@ -41,11 +39,9 @@ export type SortableCard = {
   user_sort_key?: string;
   market_price?: number | null;
   owned?: number;
-  /** Owned copies × market price (Collection page). */
   value?: number | null;
 };
 
-/** Highest first; cards without a number sort last. */
 function compareDesc(a: number | null | undefined, b: number | null | undefined): number {
   if (a == null && b == null) return 0;
   if (a == null) return 1;
@@ -103,7 +99,6 @@ export function compareCardOrder(a: SortableCard, b: SortableCard, sorts: SortKe
 }
 
 type CardSortOptions = {
-  /** localStorage key; pages with a different key set keep their own order. */
   storageKey?: string;
   keys?: SortKey[];
   defaults?: SortKey[];
@@ -162,13 +157,10 @@ export function SortMenu({
 }: {
   sorts: SortKey[];
   onChange: (next: SortKey[]) => void;
-  /** Storage key of the table header sort on this page; changing the Sort menu clears it so the menu wins. */
   columnSortKey?: string;
   onlyNeed: boolean;
   unavailableKeys?: SortKey[];
-  /** Sort options this page offers (defaults to the shopping/deck set). */
   keys?: SortKey[];
-  /** Explains the Price option when a page sorts by something other than the base market price. */
   priceHint?: string;
 }) {
   const menuKeys = useMemo(() => {
@@ -185,7 +177,7 @@ export function SortMenu({
           .join(" › ");
 
   function keyDisabled(key: SortKey): string | null {
-    if (key === "still_need" && onlyNeed) return "Off while Still need only";
+    if (key === "still_need" && onlyNeed) return "Off while To buy only";
     if (unavailableKeys.includes(key)) {
       if (key === "deck") return "Shopping list only";
       if (key === "user") return "Group buy only";
@@ -220,8 +212,8 @@ export function SortMenu({
 
   return (
     <Popover as="div" className="sort-menu">
-      <PopoverButton type="button" className="sort-menu-btn">
-        Sort: {summary}
+      <PopoverButton type="button" className="sort-menu-btn" aria-label={`Sort: ${summary}`}>
+        Sort<span className="sort-menu-summary">: {summary}</span>
       </PopoverButton>
       <PopoverPanel anchor={{ to: "bottom start", gap: 6, padding: 8 }} className="sort-menu-panel" role="dialog" aria-label="Sort order">
         <p className="sort-menu-hint">
@@ -280,6 +272,49 @@ export function SortMenu({
   );
 }
 
+/** A sort with one choice (a radio list), in the same button and popover as the card Sort. */
+export function ChoiceSortMenu<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (next: T) => void;
+}) {
+  const name = useId();
+  const current = options.find((o) => o.value === value) ?? options[0];
+  return (
+    <Popover as="div" className="sort-menu sort-menu-choice">
+      <PopoverButton type="button" className="sort-menu-btn" aria-label={`Sort: ${current.label}`}>
+        Sort<span className="sort-menu-summary">: {current.label}</span>
+      </PopoverButton>
+      <PopoverPanel anchor={{ to: "bottom end", gap: 6, padding: 8 }} className="sort-menu-panel" role="dialog" aria-label="Sort order">
+        {({ close }) => (
+          <ul className="sort-menu-list">
+            {options.map((o) => (
+              <li key={o.value} className="sort-menu-item">
+                <label>
+                  <input
+                    type="radio"
+                    name={name}
+                    checked={o.value === value}
+                    onChange={() => {
+                      onChange(o.value);
+                      close();
+                    }}
+                  />
+                  <span>{o.label}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </PopoverPanel>
+    </Popover>
+  );
+}
+
 export function matchesCardSearch(
   card: {
     card_id: string;
@@ -313,7 +348,6 @@ export function usePersistedOpen(storageKey: string | undefined, defaultOpen: bo
   return usePersistedState(storageKey, defaultOpen, bool01);
 }
 
-/** A string filter choice (select) remembered in localStorage across reloads. */
 export function usePersistedChoice(storageKey: string, defaultValue: string, allowed?: readonly string[]) {
   return usePersistedState(storageKey, defaultValue, choiceCodec(allowed));
 }
@@ -327,26 +361,25 @@ export function CollapsibleDrawer({
   badgeLabel,
   headerExtra,
   pinnedOpen = false,
+  hideSummaryWhenOpen = false,
   children,
 }: {
   label: string;
-  summary?: string;
+  summary?: ReactNode;
   storageKey?: string;
   defaultOpen?: boolean;
-  /** Small count pill beside the label, shown only while the drawer is collapsed. */
   badge?: number;
   badgeLabel?: string;
-  /** Always-visible row directly under the toggle (open or closed). */
   headerExtra?: ReactNode;
-  /** Render open with no toggle (the wide-screen sidebar). */
   pinnedOpen?: boolean;
+  /** The summary repeats what the open drawer shows, so it only appears while the drawer is closed. */
+  hideSummaryWhenOpen?: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = usePersistedOpen(storageKey, defaultOpen);
   const panelId = useId();
 
   if (pinnedOpen) {
-    // Wide-screen sidebar: the filters are always shown, so there is nothing to collapse.
     return (
       <div className="filter-drawer open pinned">
         <div className="filter-drawer-toggle filter-drawer-static">
@@ -369,10 +402,9 @@ export function CollapsibleDrawer({
       >
         <span className="filter-drawer-label">
           {label}
-          {summary ? <span className="filter-drawer-summary"> · {summary}</span> : null}
+          {summary && !(hideSummaryWhenOpen && open) ? <span className="filter-drawer-summary"> · {summary}</span> : null}
         </span>
         {badge ? (
-          // Held (invisible) while open so a right-aligned trigger keeps its width and position.
           <span
             className={`filter-drawer-badge${open ? " filter-drawer-badge-held" : ""}`}
             aria-label={`${badge} ${badgeLabel ?? "items"}`}
@@ -402,7 +434,6 @@ export function CollapsibleFilters({
   children,
 }: {
   summary?: string;
-  /** Count of active filters, shown beside the label while collapsed. */
   badge?: number;
   badgeLabel?: string;
   children: ReactNode;
@@ -428,13 +459,16 @@ export function CardSearchInput({
   placeholder = "Search name, ID, color…",
   label = "Search cards",
   icon = false,
+  title,
 }: {
   value: string;
   onChange: (next: string) => void;
   placeholder?: string;
   label?: string;
-  /** A magnifier inside the field's left edge. */
-  icon?: boolean;
+  /** Tooltip for the box, e.g. what the search looks at. */
+  title?: string;
+  /** true or "search" draws a magnifier, "filter" a funnel (for inputs that narrow the list below them). */
+  icon?: boolean | "search" | "filter";
 }) {
   const id = useId();
   return (
@@ -444,8 +478,14 @@ export function CardSearchInput({
       </label>
       {icon ? (
         <svg className="card-search-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
-          <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M12.7 12.7 17 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          {icon === "filter" ? (
+            <path d="M3 4.5h14l-5.2 6.1v4.4l-3.6 1.8v-6.2z" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" />
+          ) : (
+            <>
+              <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+              <path d="M12.7 12.7 17 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+            </>
+          )}
         </svg>
       ) : null}
       <input
@@ -453,6 +493,7 @@ export function CardSearchInput({
         type="search"
         className="card-search-input"
         placeholder={placeholder}
+        title={title}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete="off"
@@ -481,7 +522,6 @@ export function useShowAltArts() {
   return usePersistedState(SHOW_ALT_ARTS_KEY, true, showAltArtsCodec);
 }
 
-/** Build the Filters drawer summary chips used on shopping / deck / group buy. */
 export function buildFilterSummary(parts: {
   onlyNeed?: boolean;
   sorts: SortKey[];
@@ -490,7 +530,7 @@ export function buildFilterSummary(parts: {
   extra?: string[];
 }): string {
   const out: string[] = [];
-  if (parts.onlyNeed) out.push("Still need");
+  if (parts.onlyNeed) out.push("To buy");
   if (parts.sorts.length) out.push(parts.sorts.map((k) => SORT_LABELS[k]).join(" › "));
   if (parts.showAltArts) out.push("Alt arts");
   if (parts.layout === "grid") out.push("Grid");

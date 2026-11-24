@@ -4,10 +4,6 @@ import { Dialog, DialogTitle } from "@optcg/ui/popups";
 import { api, type DeckDetail } from "../../api";
 import { readClipboardText } from "@optcg/ui/clipboard";
 
-/**
- * Overwrite a deck's leader and cards with a pasted OPTCGSim deck code (#1016).
- * The dialog is the confirmation step: nothing is sent until "Replace deck".
- */
 export function ReplaceDeckListDialog({
   open,
   deckId,
@@ -24,7 +20,6 @@ export function ReplaceDeckListDialog({
   const [text, setText] = useState("");
   const [err, setErr] = useState<string | null>(null);
 
-  // A fresh box each time it opens.
   useEffect(() => {
     if (open) {
       setText("");

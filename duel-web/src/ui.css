@@ -1,4 +1,3 @@
-/* Shared UI stylesheet. Index only: the partials are imported in their original order, because a later rule overrides an earlier one. */
 @import "./ui/buttons.css";
 @import "./ui/chrome.css";
 @import "./ui/panels.css";
@@ -13,3 +12,4 @@
 @import "./ui/deckEditor.css";
 @import "./ui/onlyOnDuel.css";
 @import "./ui/report.css";
+@import "./ui/phoneSizes.css";

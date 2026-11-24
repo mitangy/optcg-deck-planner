@@ -1,8 +1,3 @@
-/**
- * Card catalog for the analyst: printed card data, the ability DSL and the deck-analytics
- * atlas, merged into one searchable row per card. Loaded once at startup from the repo's
- * generated JSON (the same files the duel engine and the deck stats panels use).
- */
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { StatsAtlas } from "@optcg/deck-analytics";
@@ -24,13 +19,9 @@ export type CardRow = {
   attributes: string[];
   text: string;
   trigger: string;
-  /** Keywords the card has, e.g. Rush, Blocker, Double Attack. */
   keywords: string[];
-  /** Ability timings from the DSL, e.g. on_play, when_attacking, counter, trigger. */
   timings: string[];
-  /** Effect verbs from the DSL, e.g. ko, draw, look, rest, to_hand. */
   effects: string[];
-  /** How completely the duel engine implements the card's text. */
   support: AbilitySupport;
 };
 
@@ -58,8 +49,16 @@ type RawCard = {
 
 type RawAbilities = Record<string, { abilities: Ability[]; status?: string }>;
 
-/** DSL control-flow nodes: they wrap effects but are not effects a player would search for. */
 const STRUCTURAL = new Set(["if", "seq", "may", "choose_one", "nothing", "select", "pay", "invoke", "delay"]);
+
+/** Sign of a power/cost change: a plain number, or `{count, times}` (the sign is the multiplier's). */
+function amountSign(amount: unknown): number {
+  const n = typeof amount === "number" ? amount : (amount as { times?: unknown } | null)?.times;
+  return typeof n === "number" ? Math.sign(n) : 0;
+}
+
+/** `power` and `cost` effects also get a direction tag, so "gives -power" is searchable without reading the text. */
+const DIRECTED = { power: ["power_up", "power_down"], cost: ["cost_up", "cost_down"] } as const;
 
 function collectVerbs(node: unknown, out: Set<string>): void {
   if (Array.isArray(node)) {
@@ -68,7 +67,12 @@ function collectVerbs(node: unknown, out: Set<string>): void {
   }
   if (!node || typeof node !== "object") return;
   const rec = node as Record<string, unknown>;
-  if (typeof rec.do === "string" && !STRUCTURAL.has(rec.do)) out.add(rec.do);
+  if (typeof rec.do === "string" && !STRUCTURAL.has(rec.do)) {
+    out.add(rec.do);
+    const directed = DIRECTED[rec.do as keyof typeof DIRECTED];
+    const sign = directed ? amountSign(rec.amount) : 0;
+    if (directed && sign) out.add(directed[sign > 0 ? 0 : 1]);
+  }
   for (const v of Object.values(rec)) collectVerbs(v, out);
 }
 
@@ -116,7 +120,6 @@ const readJson = <T>(rel: string): T => JSON.parse(readFileSync(repoFile(rel), "
 
 let cached: Catalog | null = null;
 
-/** The catalog built from the repo's generated card files (read once). */
 export function loadCatalog(): Catalog {
   cached ??= buildCatalog(
     readJson("packages/rules/src/cards/cardData.json"),

@@ -1,16 +1,3 @@
-/**
- * Paired bot-vs-bot comparison (#635): bot A against bot B on the meta decks, every pair of games with the same decks,
- * shuffle and first seat and the bots' seats swapped.
- *
- * Usage: npx tsx src/cli/versus.ts --a "kind=hard,evalMode=learned" --b "kind=hard,evalMode=hand" --games 100 --seed 1 --decks meta-decks.json [--procs 3] [--max-evals 14 | --budget-ms 200] [--samples 3] [--focus <leaderId>] [--json result.json]
- * Spec keys: kind = normal | hard | legacy (an older bot: LEGACY_BOT=<file exporting chooseLegacy>, e.g. a copy of src/bot from git at the commit to compare with), evalMode, prior = meta | true | generic,
- * opp = normal | greedy, mulligan = rule | sim, horizon = 1 | 2, samples, maxEvals, budgetMs,
- * playbooks = on | off | <leaderId>+<leaderId> (leader playbooks, #1173; default on; e.g. playbooks=OP12-061),
- * weights = path to a value model JSON (linear or mlp, see bot/valueModel.ts) used for winProb and evalMode=learned instead of the committed valueWeights.json (no commas in the path).
- * --focus <leaderId>: in every pair one of the two decks is that leader's deck from the decks file (which seat is drawn by the deck rng) and the other a random deck of another leader, so a leader playbook is measured on its own leader.
- * Prints wins, win rate with a 95% Wilson interval, the pair counts with the paired interval (versusStats.ts), and CPU time per hard decision for each side.
- * --json writes {games, finished, aWins, rate, ci:[lo,hi], pairs:{aBoth,split,bBoth}, pairedCi:[lo,hi]} (rates are fractions of finished games; pairedCi is for the mean pair score).
- */
 import { fork } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
 import { buildDeckPrior, weightsMatchFeatures, type BotLevel, type BotOptions, type ValueModel } from "../bot/index.js";
@@ -50,7 +37,6 @@ async function optionsOf(spec: Spec, decks: DeckFile[]): Promise<{ level: BotLev
   else if (spec.prior === "generic") opts.prior = { lists: { "?": decks.map((d) => d.deck) } };
   else if (spec.prior === "meta") opts.prior = buildDeckPrior(decks);
   if (kind === "legacy") {
-    // An older copy of the bot, kept outside the tree: LEGACY_BOT=/path/to/index.js exporting chooseLegacy(state, seat, opts).
     const mod = (await import(process.env.LEGACY_BOT ?? "../legacy632/index.js")) as { chooseLegacy: Chooser };
     return { level: "hard", opts, chooser: mod.chooseLegacy };
   }

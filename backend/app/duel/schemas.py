@@ -1,7 +1,7 @@
-"""Duel request/response models: tokens, matches, ratings, reports, decks, cosmetics, sim games."""
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
@@ -24,23 +24,18 @@ class DuelTokenOut(BaseModel):
     expires_at: int
     user_id: int
     email: str
-    # Name the game-server shows to other players (embedded in the token).
     display_name: str = ""
     rating: int
     games_played: int
-    # Game-server pool new games should join (blue/green); None: use the build's default.
     game_server_url: str | None = None
 
 
 class GameServerPoolIn(BaseModel):
-    # https://… (or http://localhost / 127.0.0.1 for dev); null clears the pointer.
     url: str | None = Field(default=None, max_length=512)
 
 
 class GameServerPoolOut(BaseModel):
-    # The Redis pointer (duel:gs:current), if set.
     pool_url: str | None = None
-    # What token responses hand out now: the pointer, else GAME_SERVER_URL, else null.
     game_server_url: str | None = None
 
 
@@ -51,12 +46,12 @@ class DuelMatchIngest(BaseModel):
     winner_seat: int = Field(ge=0, le=1)
     reason: str = Field(default="unknown", max_length=64)
     ranked: bool = True
+    # Set by the game server only for a room opened with a tournament ticket: no other result may decide a tournament match.
+    tournament: bool = False
     seat0_leader_id: str | None = Field(default=None, max_length=32)
     seat1_leader_id: str | None = Field(default=None, max_length=32)
     turns: int | None = Field(default=None, ge=0, le=10_000)
-    # Seed, decks and accepted intents (see game-server MatchReplay). Kept server-side only.
     replay: dict | None = None
-    # [seat 0's log, seat 1's log] (see @optcg/rules SeatLog); each player only ever reads their own.
     seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
 
 
@@ -72,8 +67,6 @@ class DuelSoloGameIngest(BaseModel):
     won: bool | None = None
     turns: int | None = Field(default=None, ge=0, le=10_000)
     reason: str = Field(default="unknown", max_length=64)
-    # Bot games: seed, decks and accepted intents (see game-server MatchReplay), kept for investigation and
-    # training the bots (#1202). Server-side only; dropped when over MAX_REPLAY_BYTES; never kept for practice.
     replay: dict | None = None
 
 
@@ -83,13 +76,12 @@ class DuelMatchProgressIngest(BaseModel):
     seat0_user_id: int
     seat1_user_id: int
     ranked: bool = False
+    tournament: bool = False
     seat0_leader_id: str | None = Field(default=None, max_length=32)
     seat1_leader_id: str | None = Field(default=None, max_length=32)
     turns: int | None = Field(default=None, ge=0, le=10_000)
     replay: dict | None = None
     seat_logs: list[dict] | None = Field(default=None, min_length=2, max_length=2)
-    # True on the snapshot sent as the room closes (nobody is playing any more). It is the
-    # game's last, so it is written to Postgres even when Redis holds the live ones (#389).
     closed: bool = False
 
 
@@ -108,11 +100,8 @@ class DuelMatchHistoryEntry(BaseModel):
     rating_after: int
     has_replay: bool
     has_log: bool = False
-    # False for a game that never sent a result (its log runs to the last saved turn).
     finished: bool = True
-    # The recording can be opened in the replay viewer: a kept replay of a finished game, or of a cut-off game whose room closed.
     replay_ready: bool = False
-    # The player has an answered Log Pose chat about this game (#970).
     has_chat: bool = False
 
 
@@ -122,7 +111,6 @@ class DuelMatchReplayOut(BaseModel):
     players: list[str]
     finished: bool
     turns: int | None
-    # Seed, decks and accepted intents (@optcg/rules MatchReplay). Only the game's own players get it.
     replay: dict
 
 
@@ -132,7 +120,6 @@ class DuelMatchHistoryOut(BaseModel):
 
 class DuelMatchDetailOut(BaseModel):
     match: DuelMatchHistoryEntry
-    # The game turn by turn from your seat (@optcg/rules SeatLog); null when none was kept.
     log: dict | None
 
 
@@ -149,16 +136,14 @@ class DuelMatchOut(BaseModel):
 class DuelRatingOut(BaseModel):
     user_id: int
     email: str
-    # Display name (username when set, else account name).
     name: str
     username: str | None = None
     rating: int
     games_played: int
-    # Finished games (ranked and unranked) from the user's own seat.
     wins: int = 0
     losses: int = 0
-    # 1 + players with games and a strictly higher rating; null before the first ranked game.
     rank: int | None = None
+    provisional: bool = True
 
 
 class DuelLiveOut(BaseModel):
@@ -172,15 +157,58 @@ class DuelLeaderboardEntryOut(BaseModel):
     """Public rating data; account email is intentionally excluded."""
 
     user_id: int
-    # Display name (username when set, else account name).
     name: str
     username: str | None = None
     rating: int
     games_played: int
+    rank: int
+    provisional: bool
+    wins: int = 0
+    losses: int = 0
+    # Rank places gained since yesterday (all time) or rating gained in the window; null when not comparable.
+    rank_change: int | None = None
+    bounty_change: int | None = None
+
+
+class DuelSeasonRefOut(BaseModel):
+    """The season a board belongs to. started_at is null for Season 1 (it began before launch)."""
+
+    number: int
+    name: str
+    started_at: datetime | None = None
 
 
 class DuelLeaderboardOut(BaseModel):
     entries: list[DuelLeaderboardEntryOut]
+    season: DuelSeasonRefOut
+
+
+class DuelEndedSeasonOut(BaseModel):
+    number: int
+    name: str
+    started_at: datetime | None = None
+    ended_at: datetime
+    players: int
+
+
+class DuelSeasonsOut(BaseModel):
+    current: DuelSeasonRefOut
+    past: list[DuelEndedSeasonOut]
+
+
+class DuelSeasonBoardOut(BaseModel):
+    season: DuelEndedSeasonOut
+    entries: list[DuelLeaderboardEntryOut]
+
+
+class DuelMySeasonOut(BaseModel):
+    number: int
+    name: str
+    rank: int
+    rating: int
+    wins: int
+    losses: int
+    provisional: bool
 
 
 class CardReportIn(BaseModel):
@@ -218,7 +246,6 @@ class DuelSettingsIn(BaseModel):
 
 
 class DuelSettingsOut(BaseModel):
-    # None until the player saves settings from any device.
     settings: dict[str, str | bool | int | float] | None
     updated_at: str | None = None
 
@@ -231,6 +258,8 @@ class DuelDeckBody(BaseModel):
     plannerArt: dict[str, str] | None = None
     plannerDeckId: int | None = None
     editedLocally: bool | None = None
+    # Set on a deliberate copy of a deck so the first-upload dedupe (#1027) never merges it with its twin (#1400).
+    noMerge: bool | None = None
 
 
 class DuelDeckPut(BaseModel):
@@ -251,7 +280,6 @@ class DuelDeckOut(BaseModel):
     updatedAt: int
     deleted: bool
     deck: DuelDeckBody | None = None
-    # Set on the tombstone of an uploaded deck that was identical to this synced deck.
     mergedInto: str | None = None
 
 
@@ -264,8 +292,6 @@ class DuelCosmeticOut(BaseModel):
     kind: str
     size: int
     created_at: str
-    # Signed link anyone can load without a session (relative to the API base),
-    # e.g. "/duel/cosmetics/123/public/<sig>"; publicly cacheable for an hour (#812).
     public_path: str
 
 
@@ -336,9 +362,6 @@ class SimGamesClearedOut(BaseModel):
     deleted: int
 
 
-# ---------------------------------------------------------------- giveaway events (refactor 2.1c)
-# Field order follows the dicts routers/events.py builds, so the JSON is unchanged.
-
 EventFormat = Literal["casual", "single_elim", "round_robin", "swiss"]
 EventPrizeMethod = Literal["draw", "placement"]
 EventStatus = Literal["upcoming", "live", "ended", "drawn"]
@@ -370,7 +393,6 @@ class EventPublic(BaseModel):
     min_turns: int
     status: EventStatus
     seed_hash: str | None
-    # Null until the draw runs.
     seed: str | None
     eligible_user_ids: list[int] | None
     viewer: Literal["anonymous", "guest", "staff", "player"]
@@ -406,7 +428,6 @@ class EventParticipant(BaseModel):
     opponents: int
     eligible: bool
     excluded: Literal["guest", "banned", "staff"] | None
-    # Advisory cheat-review flags (#809). They never change eligibility.
     flags: list[Literal["new_account", "new_opponents", "isolated_group", "private_only"]]
 
 
@@ -421,7 +442,6 @@ class EventDrawState(BaseModel):
     seed_hash: str
     committed_at: str | None
     drawn_at: str | None
-    # Null until the draw runs.
     seed: str | None
     forfeited: list[int]
     ranking: list[EventDrawee]

@@ -49,7 +49,6 @@ def test_expired_login_ticket_row_is_rejected(db):
     ticket = create_login_ticket(db, user.id, settings)
     uid = read_login_ticket(ticket, settings)
     assert uid == user.id
-    # Expire the DB row while keeping a valid signature window.
     row = db.scalar(select(LoginTicket))
     assert row is not None
     row.expires_at = datetime.now(timezone.utc) - timedelta(seconds=1)

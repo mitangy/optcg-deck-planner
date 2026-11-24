@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 
-/** Deck names as small chips (one per deck), then an optional note and action. */
 export function UsedInCell({
   decks,
   note = "",
@@ -15,7 +14,7 @@ export function UsedInCell({
   return (
     <div className={`used-in-cell${className ? ` ${className}` : ""}`}>
       {decks.length > 0 && (
-        <ul className="used-in-chips" aria-label="Used in decks">
+        <ul className="used-in-chips" aria-label="Used in decks" title={decks.length > 1 ? decks.join(", ") : undefined}>
           {decks.map((name) => (
             <li key={name} className="used-in-chip" title={name}>
               {name}

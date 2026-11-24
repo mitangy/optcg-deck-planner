@@ -11,6 +11,12 @@ let root: Root | null = null;
 let host: HTMLElement | null = null;
 beforeAll(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes("min-width: 1024px"),
+    media: query,
+    addEventListener() {},
+    removeEventListener() {},
+  })) as unknown as typeof window.matchMedia;
   (globalThis as { ResizeObserver?: unknown }).ResizeObserver = class {
     observe() {}
     unobserve() {}
@@ -38,7 +44,6 @@ describe("deck editor art loading (#1227)", () => {
       set.call(input, "luffy");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    // The list follows the deferred query: wait for it rather than assume one flush is enough.
     for (let i = 0; i < 20 && !host.querySelector(".deck-search-thumb img"); i++) {
       await act(async () => void (await new Promise((r) => setTimeout(r, 25))));
     }
@@ -66,7 +71,7 @@ describe("deck editor stacks (#1272)", () => {
       ...Array(4).fill("OP01-016"),
       ...Array(2).fill("OP01-025"),
       "OP01-013",
-      ...Array(6).fill("OP01-075"), // Pacifista: any number of copies
+      ...Array(6).fill("OP01-075"),
     ];
     host = document.createElement("div");
     document.body.appendChild(host);
@@ -77,13 +82,14 @@ describe("deck editor stacks (#1272)", () => {
       expect(tile).toBeTruthy();
       return {
         copies: tile.querySelectorAll(".card-stack-copy").length,
-        badge: tile.querySelector(".deck-stack-badge")?.textContent,
+        badge: tile.querySelector(".deck-stack-qty-label")?.textContent ?? tile.querySelector(".deck-stack-badge")?.textContent,
       };
     };
-    expect(layers("OP01-016")).toEqual({ copies: 3, badge: "×4" });
-    expect(layers("OP01-025")).toEqual({ copies: 1, badge: "×2" });
-    expect(layers("OP01-013")).toEqual({ copies: 0, badge: "×1" });
-    expect(layers("OP01-075")).toEqual({ copies: 3, badge: "×6" });
-    expect(layers("OP01-001")).toEqual({ copies: 0, badge: "×1" });
+    expect(layers("OP01-016")).toEqual({ copies: 3, badge: "4" });
+    expect(layers("OP01-025")).toEqual({ copies: 1, badge: "2" });
+    expect(layers("OP01-013")).toEqual({ copies: 0, badge: "1" });
+    expect(layers("OP01-075")).toEqual({ copies: 3, badge: "6" });
+    // The Leader tile carries no ×1 badge (#1386).
+    expect(layers("OP01-001")).toEqual({ copies: 0, badge: undefined });
   });
 });

@@ -18,7 +18,8 @@ import { gameServerUrlFor, rememberedGameServerUrl, roomServerUrl } from "../../
 import type { ActiveMatch } from "../../net/activeMatches";
 import { clearMatchResume } from "../../net/matchResume";
 import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../../state/DuelSession";
-import { claimMatchRoom } from "../../tournaments/playLoop";
+import { claimMatchRoom, tournamentCreateOptions } from "../../tournaments/playLoop";
+import { clearActiveTournamentMatch, setActiveTournamentMatch } from "../../tournaments/activeTournamentMatch";
 import { playTournamentMatch } from "../../tournaments/tournamentApi";
 import type { useFriends } from "../../friends/FriendsPanel";
 import { readLobbyHandoff, useLobbyHandoffs, type TournamentPlay } from "./lobbyHandoff";
@@ -30,20 +31,13 @@ import type { LobbySheet } from "./useLobbySheet";
 const SPECTATE_GONE = /not found|locked/i;
 export const SPECTATE_GONE_MESSAGE = "That match has ended or the spectate link is wrong.";
 
-/**
- * Every way the lobby starts or joins a match: the Play sheet's modes, friend invites and spectating, a tournament
- * Play, a shared `/watch/:roomId` link, and taking a match over from another device. The board opens at once and
- * the token / connect work runs behind it, so a failure comes back to the lobby as `friendError`.
- */
 export function useMatchLaunchers(deps: {
   auth: ReturnType<typeof useLobbyAuth>;
   decks: LobbyDecks;
   sheet: LobbySheet;
   friends: ReturnType<typeof useFriends>;
   friendsEnabled: boolean;
-  /** The shared spectate link's room id and seat, when the lobby was opened at `/watch/:roomId`. */
   watch: { roomId: string | null; seat: 0 | 1 };
-  /** A mode was started from the Play sheet or a tile: the lobby remembers it and retires the intro. */
   onModeStarted: (mode: PlayMode) => void;
 }) {
   const { auth, decks, sheet, friends, friendsEnabled, watch, onModeStarted } = deps;
@@ -54,9 +48,7 @@ export function useMatchLaunchers(deps: {
   const { client, connect, queueRanked, setRating, startMatch, takeOver } = useDuelSession();
   const serverUrl = getGameServerUrl();
   const [busy, setBusy] = useState(false);
-  /** Short status while buttons are disabled (vs-self warm/mint). */
   const [busyStatus, setBusyStatus] = useState<string | null>(null);
-  /** Also carries why a match request failed after the board opened (DuelPage sends it back). */
   const [friendError, setFriendError] = useState<string | null>(() => readLobbyHandoff(location.state).matchError ?? null);
   const watchStarted = useRef(false);
 
@@ -85,10 +77,6 @@ export function useMatchLaunchers(deps: {
     navigate("/duel");
   }
 
-  /**
-   * Shared by the friend actions: open the board at once, then mint + connect
-   * behind it. A failure comes back to the lobby as a note.
-   */
   function runFriendAction(
     launch: MatchLaunch,
     fn: (launchGen: number) => Promise<void>,
@@ -100,11 +88,11 @@ export function useMatchLaunchers(deps: {
     }
     setFriendError(null);
     clearMatchResume();
+    clearActiveTournamentMatch();
     startMatch(launch, fn);
     navigate("/duel", navOpts);
   }
 
-  /** Join a room as a spectator; a room that is gone reads as a bad / finished link. */
   async function connectSpectator(room: string, gen: number, preferredSeat?: 0 | 1, serverHint?: string | null) {
     const opts = await authOpts();
     try {
@@ -118,7 +106,6 @@ export function useMatchLaunchers(deps: {
     }
   }
 
-  /** Online matches pick up the art the planner shows for a linked deck first; on any failure the local copy plays. */
   async function freshDeck(d: SavedDeck): Promise<SavedDeck> {
     if (!d.plannerDeckId) return d;
     const fresh = await refreshLinkedDeck(d, 4000);
@@ -126,7 +113,6 @@ export function useMatchLaunchers(deps: {
     return fresh;
   }
 
-  /** Invite: open a fresh private room with the selected deck, then invite the friend to it. */
   function inviteToPrivateRoom(friend: Friend) {
     // They invited you first (both tapped Invite at once): take that seat, or
     // each of you would sit alone in your own room.
@@ -155,8 +141,6 @@ export function useMatchLaunchers(deps: {
         createOptions: { ranked: false, players: [wire, wire], timer: {} },
       }, gen);
       const roomId = client.roomId;
-      // The room is open either way; a failed invite must not strand the host
-      // in the lobby while their room sits connected in the background.
       if (roomId) await inviteFriend(friend.user_id, roomId, client.serverUrl).catch(() => undefined);
     });
   }
@@ -177,7 +161,6 @@ export function useMatchLaunchers(deps: {
           deck: deckToWire(await freshDeck(selectedDeck)),
         }, gen);
       } catch (e) {
-        // A cancelled join never reached the room: keep the invite.
         if (e instanceof LaunchCancelledError) throw e;
         void dismissInvite(invite.id).finally(() => void friends.refresh());
         throw new Error(`${invite.from_username}'s room is no longer open.`);
@@ -186,7 +169,6 @@ export function useMatchLaunchers(deps: {
     });
   }
 
-  /** Tournament Play: the API says whether to open the match room or take the seat in it. */
   function launchTournamentMatch(tp: TournamentPlay) {
     if (!selectedDeck) {
       setFriendError("Select a deck first.");
@@ -202,16 +184,17 @@ export function useMatchLaunchers(deps: {
       const wire = deckToWire(await freshDeck(selectedDeck));
       if (claim.action === "join") {
         await connect({ ...opts, serverUrl: roomServerUrl(opts.serverUrl, claim.server_url), roomId: claim.room_id, deck: wire }, gen);
+        setActiveTournamentMatch({ code: tp.code, matchId: tp.matchId, roomId: claim.room_id });
         return;
       }
       await connect({
         ...opts,
         preferredSeat: 0,
         deck: wire,
-        createOptions: { ranked: false, players: [wire, wire], timer: timerFromPreset(tp.timer) },
+        createOptions: tournamentCreateOptions(wire, timerFromPreset(tp.timer), claim.ticket),
       }, gen);
-      // The room is open either way; the opponent finds it once this is reported.
       if (client.roomId) {
+        setActiveTournamentMatch({ code: tp.code, matchId: tp.matchId, roomId: client.roomId });
         await playTournamentMatch(tp.code, tp.matchId, { room_id: client.roomId, server_url: client.serverUrl }).catch(() => undefined);
       }
     });
@@ -280,22 +263,17 @@ export function useMatchLaunchers(deps: {
       setError("Select a deck first.");
       return;
     }
-    // Play repeats this mode next time; the how-it-works strip has done its job.
     onModeStarted(mode);
     setBusy(true);
     setBusyStatus(mode === "hotseat" ? "Starting…" : "Connecting…");
     setError(null);
     try {
-      // Starting a new match must not auto-resume a prior room on the next
-      // /hotseat or /duel mount (refresh keeps history.state).
       clearMatchResume();
+      clearActiveTournamentMatch();
       if (mode === "hotseat") {
         const wire = deckToWire(selectedDeck!);
         setSelectedDeckId(selectedDeck!.id);
         const enemy = savedDecks.find((d) => d.id === opponentDeckId) ?? selectedDeck!;
-        // Fire-and-forget wake only — do not block the lobby on free-tier API
-        // cold starts. HotseatPage awaits readiness + mints with a visible
-        // Starting screen.
         warmDuelServices(getApiBaseUrl(), rememberedGameServerUrl() ?? serverUrl);
         navigate("/hotseat", {
           state: {
@@ -311,11 +289,8 @@ export function useMatchLaunchers(deps: {
         });
         return;
       }
-      // Online: open the board now and mint / queue / connect behind it, so
-      // nobody waits on a Connecting… button (the queue alone can take minutes).
       const create = mode === "create";
       const vsBot = mode === "bot";
-      // Random in the bot sheet: the deck is drawn now, the saved choice (selectedId) stays as it was.
       const picked = vsBot && yourRandom ? (pickRandomDeck(savedDecks) ?? selectedDeck!) : selectedDeck!;
       const room = roomId.trim();
       const botDeck = vsBot ? resolveBotDeck(savedDecks, botDeckId) : null;
@@ -363,7 +338,6 @@ export function useMatchLaunchers(deps: {
       navigate("/duel");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Connect failed");
-      // A tile starts without the sheet open: show the error where it can be read.
       setMode(mode);
       setSheetOpen(true);
     } finally {

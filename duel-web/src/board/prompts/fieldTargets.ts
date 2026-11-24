@@ -1,16 +1,11 @@
 import type { ChoiceOptionView, PendingChoiceView } from "../../net/protocol";
 
-/** Toggle one id in a pick list that holds at most `max` ids (a single pick swaps). */
 export function toggleSelection(selected: readonly string[], id: string, max: number): string[] {
   if (selected.includes(id)) return selected.filter((x) => x !== id);
   if (max === 1) return [id];
   return selected.length >= max ? [...selected] : [...selected, id];
 }
 
-/**
- * "With different card names": unpicked options sharing a name with a picked
- * one can't be added. Picked options stay toggleable so they can be dropped.
- */
 export function nameTakenIds(
   options: readonly ChoiceOptionView[],
   selected: readonly string[],
@@ -22,36 +17,21 @@ export function nameTakenIds(
   return new Set(options.filter((o) => !selected.includes(o.id) && picked.has(nameOf(o) ?? "")).map((o) => o.id));
 }
 
-/** One-tap: exactly one pick is wanted, so choosing it answers at once. */
 export function resolvesOnPick(oneTap: boolean, min: number, max: number): boolean {
   return oneTap && min === 1 && max === 1;
 }
 
-/**
- * One-tap for exactly N picks (min === max === N, N >= 1): the Nth pick is the
- * answer. "Up to" picks (min < max) keep their Confirm button.
- */
 export function answersAtPick(oneTap: boolean, min: number, max: number, count: number): boolean {
   return oneTap && min === max && min >= 1 && count === max;
 }
 
-/** "Choose 1" / "Choose up to 2" / "Choose 1–3", plus how many are picked when more than one can be. */
 export function pickCaption(min: number, max: number, selectedCount: number): string {
   const range = min === max ? `${max}` : min === 0 ? `up to ${max}` : `${min}–${max}`;
   return max > 1 ? `Choose ${range} · selected ${selectedCount}` : `Choose ${range}`;
 }
 
-/**
- * Where a pickable option sits on the board:
- * - `card:<id>`: a Leader / Character / Stage tile;
- * - `don:<you|opp>:<active|rested>`: a DON!! in a cost area (cost-area DON!!
- *   of one state are interchangeable, so any chip of that state stands for it);
- * - `host:<id>`: a DON!! attached to that Leader / Character (tap the card);
- * - `hand:<id>`: a card in your own hand (tap it in the hand).
- */
 export type BoardSpot = string;
 
-/** What the board shows for a field card: whose it is, its name, DON!! under it. */
 export type BoardCardInfo = { seat: number; name: string; attachedDonCount?: number };
 
 const DON_ON = "DON!! on ";
@@ -61,8 +41,7 @@ function spotFor(option: ChoiceOptionView, cards: ReadonlyMap<string, BoardCardI
   if (option.ownerSeat == null) return null;
   const label = option.label ?? "";
   if (label.startsWith(DON_ON)) {
-    // Attached DON!!: the server names the card it sits under. Two cards of
-    // that name with DON!! under them can't be told apart: keep the pop-up.
+    // The server names the card a DON!! sits under. Two cards of that name with DON!! under them can't be told apart: keep the pop-up.
     const name = label.slice(DON_ON.length);
     const hosts = [...cards].filter(([, c]) => c.seat === option.ownerSeat && c.name === name && (c.attachedDonCount ?? 0) > 0);
     return hosts.length === 1 ? `host:${hosts[0]![0]}` : null;
@@ -73,12 +52,6 @@ function spotFor(option: ChoiceOptionView, cards: ReadonlyMap<string, BoardCardI
   return null;
 }
 
-/**
- * Board spot of every pickable option when all of them can be tapped on the
- * board (field cards, cost-area DON!!, DON!! under a field card), else null
- * and the pop-up grid is used. Ineligible options are left out: they can't
- * be picked.
- */
 export function boardPickSpots(
   options: readonly ChoiceOptionView[],
   cards: ReadonlyMap<string, BoardCardInfo>,
@@ -87,7 +60,6 @@ export function boardPickSpots(
   const pickable = options.filter((o) => o.eligible);
   if (!pickable.length) return null;
   const spots = new Map<string, BoardSpot>();
-  // Only your own hand cards (e.g. "trash any number of cards from your hand"): tap them in the hand.
   if (pickable.every((o) => isOwnHandCard(o, mySeat))) {
     for (const option of pickable) spots.set(option.id, `hand:${option.instanceId}`);
     return spots;
@@ -104,7 +76,6 @@ function isOwnHandCard(option: ChoiceOptionView, mySeat: number): boolean {
   return option.zone === "hand" && option.ownerSeat === mySeat && !!option.instanceId;
 }
 
-/** The front choice is mine and is answered by tapping cards in my hand: keep the hand in view. */
 export function isHandPick(choice: PendingChoiceView | undefined, mySeat: number | null): boolean {
   const request = choice?.request;
   if (mySeat == null || choice?.seat !== mySeat || request?.type !== "select") return false;
@@ -112,17 +83,9 @@ export function isHandPick(choice: PendingChoiceView | undefined, mySeat: number
   return pickable.length > 0 && pickable.every((o) => isOwnHandCard(o, mySeat));
 }
 
-/** Picks so far, plus which cost-area DON!! chip stands for each DON!! pick. */
 export type BoardPick = { selected: string[]; chips: Record<string, string> };
 
-/**
- * A tap on a board spot (on a cost-area chip when `chipId` is given). Tapping
- * a picked chip or card drops it; otherwise the next unpicked option there is
- * added (a single pick swaps). A card with several DON!! under it counts up
- * one per tap; a tap on it drops all its picks once none there is left
- * unpicked or the limit is reached (with one pick allowed, the second tap),
- * so the card can always be un-picked.
- */
+// A card with several DON!! under it counts up one per tap; once none is left unpicked or the limit is reached a tap drops all its picks, so the card can always be un-picked.
 export function tapBoardSpot(
   pick: BoardPick,
   spots: ReadonlyMap<string, BoardSpot>,
@@ -151,12 +114,7 @@ function dropPicks(pick: BoardPick, ids: readonly string[]): BoardPick {
   return { selected: pick.selected.filter((id) => !ids.includes(id)), chips };
 }
 
-/**
- * Double tap (#1287) on an option of an id-list pick: make sure it is picked
- * (the second tap never un-picks it), then answer when the picks are valid.
- * Not yet valid (more picks wanted), or the pick could not be added (the limit
- * is held by others): it is left as it is and nothing is answered.
- */
+// The second tap never un-picks.
 export function doublePick(
   selected: readonly string[],
   id: string,
@@ -167,12 +125,7 @@ export function doublePick(
   return { selected: next, answer: next.includes(id) && next.length >= min && next.length <= max };
 }
 
-/**
- * Double tap (#1287) on a board spot: like `tapBoardSpot`, but the second tap
- * never drops what the spot holds. A tap that would add another pick (a card
- * with 2 DON!! under it counting up) is taken; a tap that would drop leaves the
- * picks alone. `answer` is true once the spot holds a pick and the count is valid.
- */
+// The second tap never drops what the spot holds.
 export function doubleTapBoardSpot(
   pick: BoardPick,
   spots: ReadonlyMap<string, BoardSpot>,
@@ -188,11 +141,7 @@ export function doubleTapBoardSpot(
   return { pick: next, answer: holds && next.selected.length >= min && next.selected.length <= max };
 }
 
-/**
- * Our own double-tap timing: iOS doesn't reliably fire `dblclick`. `isDouble(key)`
- * is true when the same key came in within `windowMs` of the previous one; a
- * double resets, so a third tap starts over. `now` is injectable for tests.
- */
+// iOS doesn't reliably fire `dblclick`.
 export function createDoubleTap(windowMs: number, now: () => number = Date.now) {
   let last: { key: string; at: number } | null = null;
   return {

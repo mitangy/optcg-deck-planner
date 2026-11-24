@@ -75,7 +75,6 @@ describe("the puzzles run as the admin page takes it", () => {
   });
 });
 
-/** A simulated change whose 95% interval ends at hi: below zero means the edit lost win rate significantly. */
 const sim = (hi: number) => ({ change: { diff: hi - 0.05, lo: hi - 0.1, hi } });
 const arow = (over: Partial<AnswerRow>): AnswerRow =>
   ({ case: "c", kind: "sabotaged", recall: 0.5, precision: 1, edit_source: "text", legal: true, cost_usd: 0.2, sim: null, ...over }) as unknown as AnswerRow;

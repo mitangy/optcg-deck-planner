@@ -1,10 +1,3 @@
-/**
- * Log Pose builds and edits decks (#726): an edit it was asked to make applies to the open deck by itself (Undo on the card),
- * and a new deck opens the create-deck page with the list filled in. A reload shows both cards without acting again. The analyst
- * and the API are faked in the browser; the panel, the deck editor and the create page are the real ones.
- *
- * SHOTS=1 also saves screenshots to test-results/shots/.
- */
 import type { Page } from "@playwright/test";
 import { test, expect, FAKE_API, RED_VANILLA } from "./fixtures";
 
@@ -54,7 +47,6 @@ const draft = {
 
 const sse = (events: [string, unknown][]) => events.map(([e, d]) => `event: ${e}\ndata: ${JSON.stringify(d)}\n\n`).join("");
 
-/** The analyst answers every message with `events`; a saved thread 1 comes back with `saved` (a reload). */
 async function fakeLogPose(page: Page, events: [string, unknown][], saved: { proposals?: unknown[]; drafts?: unknown[] }) {
   await page.route(`${FAKE_API}/**`, (route) => route.fulfill({ status: 404, headers: cors, json: {} }));
   await page.route(`${FAKE_API}/analyst/chat/session`, (route) =>
@@ -97,7 +89,7 @@ const ask = async (page: Page, text: string) => {
 
 test("applies the edit Log Pose was asked to make by itself, once, and Undo sticks (#726)", async ({ page }, info) => {
   await seedDeck(page);
-  await fakeLogPose(page, [["thread", { thread_id: 1 }], ["text", { delta: "Making that change to your deck now." }], ["proposal", edit], ["done", { thread_id: 1, cost_usd: 0.01, spent_today_usd: 0.01, daily_cap_usd: 3 }]], // The saved thread holds another id, as if the edit were made on another device: only a live edit applies by itself.
+  await fakeLogPose(page, [["thread", { thread_id: 1 }], ["text", { delta: "Making that change to your deck now." }], ["proposal", edit], ["done", { thread_id: 1, cost_usd: 0.01, spent_today_usd: 0.01, daily_cap_usd: 3 }]],
     { proposals: [{ ...edit, id: "toolu_saved_edit" }] });
   await page.goto(`/decks/${DECK_ID}/configure`);
   const stack = (id: string) => page.locator("article.deck-stack", { hasText: id });
@@ -107,7 +99,6 @@ test("applies the edit Log Pose was asked to make by itself, once, and Undo stic
 
   await ask(page, "Swap two Chopper for two Franky");
   const card = page.locator(".lp-panel").getByRole("region", { name: "Edit by Log Pose for Red Vanilla" });
-  // No Apply press: the deck editor behind the panel already holds the change.
   await expect(card.getByText("✓ Applied by Log Pose")).toBeVisible();
   await expect(stack("ST01-010").getByLabel("2 copies")).toBeVisible();
   await expect(stack("ST01-006").getByLabel("2 copies")).toBeVisible();
@@ -116,12 +107,10 @@ test("applies the edit Log Pose was asked to make by itself, once, and Undo stic
   await card.getByRole("button", { name: "Undo" }).click();
   await expect(card.getByRole("button", { name: "Apply", exact: true })).toBeVisible();
   await expect(stack("ST01-010")).toHaveCount(0);
-  // It stays undone: nothing applies it again.
   await page.waitForTimeout(500);
   await expect(card.getByRole("button", { name: "Apply", exact: true })).toBeVisible();
   await expect(stack("ST01-010")).toHaveCount(0);
 
-  // After a reload the same edit comes back from the saved thread and waits for the player.
   await page.reload();
   await page.getByRole("button", { name: "Log Pose", exact: true }).click();
   const again = page.locator(".lp-panel").getByRole("region", { name: "Edit by Log Pose for Red Vanilla" });
@@ -142,19 +131,15 @@ test("opens the create-deck page with Log Pose's deck filled in, once, and the c
   await expect(page.getByText("Filled in by Log Pose")).toBeVisible();
   const phone = info.project.name === "phone-375";
   const panel = page.locator(".lp-panel");
-  // Phones: the sheet gets out of the way so the page is visible; desktops keep the panel open.
   if (phone) await expect(panel).toHaveCount(0);
   else await expect(panel).toBeVisible();
-  // No sideways scroll or clipped form at this width.
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await shot(page, `${info.project.name}-build-create-page`);
 
-  // Back at the deck list, the card (reopened from the panel) goes to the create page again with the list filled in.
   await page.goto("/decks");
   await page.getByRole("button", { name: "Log Pose", exact: true }).click();
   const card = panel.getByRole("region", { name: "New deck Log Pose Red" });
   await expect(card).toBeVisible();
-  // A reloaded draft never opens by itself.
   await expect(page).toHaveURL(/\/decks$/);
   await card.locator("summary", { hasText: "12 cards" }).click();
   await expect(card.getByText("Nico Robin")).toBeVisible();
@@ -163,9 +148,8 @@ test("opens the create-deck page with Log Pose's deck filled in, once, and the c
   await expect(page).toHaveURL(/\/decks\/new$/);
   await expect(page.locator("#new-deck-name")).toHaveValue("Log Pose Red");
 
-  // On a phone the sheet closed again, so the form is in view; Create saves the deck with Log Pose's list.
   if (phone) await expect(panel).toHaveCount(0);
-  await page.getByRole("button", { name: "Create deck from list" }).click();
+  await page.getByRole("button", { name: "Import deck" }).click();
   await expect(page).toHaveURL(/\/decks\/[^/]+\/configure$/);
   await expect(page.locator("article.deck-stack", { hasText: "ST01-008" }).getByLabel("4 copies")).toBeVisible();
 });

@@ -1,9 +1,7 @@
-/* ——— Compass launcher ——— */
-
 .lp-compass {
   position: fixed;
   right: max(16px, env(safe-area-inset-right, 0px));
-  bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  bottom: max(calc(16px + var(--bottom-nav-h, 0px)), env(safe-area-inset-bottom, 0px));
   z-index: var(--lp-z-compass, var(--z-hud-bar));
   width: 52px;
   height: 52px;
@@ -120,7 +118,6 @@
   border: 2px solid var(--lp-surface-d);
 }
 
-/* Pending access requests (owners): a count, not the unread dot. */
 .lp-compass-count {
   position: absolute;
   top: -3px;

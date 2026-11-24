@@ -5,27 +5,48 @@ export type FooterLinkProps = { to: string; className?: string; children: ReactN
 
 const ORDER: LegalKind[] = ["terms", "privacy", "cookies", "conduct"];
 
-/**
- * Page-end footer: legal links, What’s new, the Discord invite (and optional feedback button) plus the fan-project blurb. In flow at the end
- * of the page (never fixed), so it never covers controls. `Link` is the app's
- * router link so the legal pages open without a reload.
- */
 export function SiteFooter({
   Link,
   className,
   onFeedback,
   extraLinks,
   externalLinks,
+  trailing,
+  compact,
 }: {
   Link: ComponentType<FooterLinkProps>;
   className?: string;
-  /** Extra internal links after What’s new, e.g. a landing page that should be reachable from every page. */
   extraLinks?: readonly { to: string; label: string }[];
   /** Links to other sites, opened in a new tab (no nofollow: they are our own listings). */
   externalLinks?: readonly { href: string; label: string }[];
-  /** When set, a "Send feedback" button follows the legal links. */
   onFeedback?: () => void;
+  /** Small muted text after the links (the planner puts its build id here). */
+  trailing?: ReactNode;
+  /** One line: Terms, Privacy, feedback and the fan-made disclaimer. For app pages; content pages keep the full footer. */
+  compact?: boolean;
 }) {
+  if (compact) {
+    return (
+      <footer className={`site-footer site-footer-compact${className ? ` ${className}` : ""}`}>
+        <div className="site-footer-inner">
+          <nav className="site-footer-links" aria-label="Legal">
+            <Link to={LEGAL_PATHS.terms} className="site-footer-link">
+              Terms
+            </Link>
+            <Link to={LEGAL_PATHS.privacy} className="site-footer-link">
+              Privacy
+            </Link>
+            {onFeedback ? (
+              <button type="button" className="site-footer-link site-footer-feedback" onClick={onFeedback}>
+                Send feedback
+              </button>
+            ) : null}
+          </nav>
+          <p className="site-footer-disclaimer">{FAN_DISCLAIMER}</p>
+        </div>
+      </footer>
+    );
+  }
   return (
     <footer className={`site-footer${className ? ` ${className}` : ""}`}>
       <div className="site-footer-inner">
@@ -56,6 +77,7 @@ export function SiteFooter({
               Send feedback
             </button>
           ) : null}
+          {trailing ? <span className="site-footer-trailing">{trailing}</span> : null}
         </nav>
         <p className="site-footer-disclaimer">{FAN_DISCLAIMER}</p>
         <p className="site-footer-notice">{OWNERSHIP_NOTICE}</p>
@@ -64,7 +86,6 @@ export function SiteFooter({
   );
 }
 
-/** Switcher between the legal pages, shown at the top of each. */
 export function LegalNav({ Link, current }: { Link: ComponentType<FooterLinkProps>; current: LegalKind }) {
   return (
     <nav className="legal-nav" aria-label="Legal pages">

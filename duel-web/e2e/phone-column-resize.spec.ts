@@ -1,7 +1,3 @@
-/**
- * Landscape phones: the right column and the Battle log overlay drag wider or narrower (#1246).
- * Own contexts (812x375 touch, 1280x720 desktop, 375x812 portrait), so it runs once, in the desktop project.
- */
 import type { Browser, Page } from "@playwright/test";
 import { test, expect } from "./fixtures";
 
@@ -19,7 +15,6 @@ async function open(browser: Browser, baseURL: string | undefined, w: number, h:
 }
 
 const width = (page: Page, sel: string) => page.locator(sel).evaluate((el) => el.getBoundingClientRect().width);
-// The hand lives in the right column on phones, so the board beside it gives up what the column takes.
 const matRight = (page: Page) => page.locator(".playmat").evaluate((el) => el.getBoundingClientRect().right);
 
 async function drag(page: Page, handle: string, dx: number) {
@@ -52,7 +47,6 @@ test("dragging the right column's edge left widens it, the board beside it gives
   await page.waitForTimeout(400);
   expect(Math.abs((await width(page, ".arena-rail")) - widened)).toBeLessThan(2);
 
-  // Dragging right narrows it again.
   await drag(page, RAIL, 40);
   expect(Math.abs((await width(page, ".arena-rail")) - (widened - 40))).toBeLessThan(3);
   await context.close();
@@ -62,7 +56,6 @@ test("the right column stops at its maximum and a double-click puts it back (#12
   const { page, context } = await open(browser, baseURL, 812, 375, true);
   const w0 = await width(page, ".arena-rail");
   await drag(page, RAIL, -600);
-  // min(360px, 45vw) at 812px wide
   expect(await width(page, ".arena-rail")).toBeCloseTo(Math.min(360, 812 * 0.45), 0);
   await drag(page, RAIL, 600);
   expect(await width(page, ".arena-rail")).toBeCloseTo(140, 0);
@@ -96,11 +89,9 @@ test("the Battle log overlay widens from its right edge and stays open (#1246)",
   await drag(page, OVERLAY, 80);
   await expect(page.locator(".lp-overlay")).toBeVisible();
   expect(Math.abs((await width(page, ".lp-overlay")) - (w0 + 80))).toBeLessThan(3);
-  // The column behind it is untouched by an overlay drag.
   expect(Math.abs((await width(page, ".arena-rail")) - rail0)).toBeLessThan(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(812);
 
-  // Past the maximum: min(560px, 75vw) = 560 -> 609 at 812px wide, so 560.
   await drag(page, OVERLAY, 700);
   expect(await width(page, ".lp-overlay")).toBeCloseTo(Math.min(560, 812 * 0.75), 0);
   await page.locator(OVERLAY).dblclick();

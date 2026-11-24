@@ -1,15 +1,12 @@
 import { createContext, useContext } from "react";
 import type { CardView, PlayerView, Seat } from "../../net/protocol";
 
-/** A field card's live state, for showing choice targets as they are on the board. */
 export type LiveCard = CardView & {
   seat: Seat;
   zone: "leader" | "character" | "stage";
-  /** 1-based left-to-right slot among that player's Characters. */
   slot?: number;
 };
 
-/** Instance id → live field card, for both players. */
 export function indexLiveCards(view: PlayerView | null | undefined): Map<string, LiveCard> {
   const out = new Map<string, LiveCard>();
   if (!view) return out;
@@ -26,10 +23,6 @@ export function indexLiveCards(view: PlayerView | null | undefined): Map<string,
   return out;
 }
 
-/**
- * One-word readiness for a target, so identical cards can be told apart
- * ("Can attack" vs "Summoning sick" vs "Rested").
- */
 export function readinessLabel(card: LiveCard): string | null {
   if (card.zone === "stage") return card.rested ? "Rested" : "Active";
   if (card.rested) return "Rested";

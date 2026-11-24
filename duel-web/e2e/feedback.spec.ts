@@ -1,8 +1,3 @@
-/**
- * "Report a problem" (#371): reachable from the match HUD (the ⋯ menu on phones,
- * a header button on desktop), opens over the board without leaving the match,
- * and posts the page, build context and message.
- */
 import type { Page } from "@playwright/test";
 import { test, expect, FAKE_API } from "./fixtures";
 
@@ -30,7 +25,6 @@ test("Report a problem sends the message from inside a demo match (#371)", async
   await expect(dialog).toBeVisible();
   const text = dialog.getByRole("textbox", { name: "Message" });
   await expect(text).toBeFocused();
-  // Nothing sits above the dialog's text box (board and prompts stack below).
   expect(await text.evaluate((el) => el.contains(document.elementFromPoint(el.getBoundingClientRect().x + 8, el.getBoundingClientRect().y + 8)))).toBe(true);
 
   await dialog.getByRole("button", { name: "Send" }).click();

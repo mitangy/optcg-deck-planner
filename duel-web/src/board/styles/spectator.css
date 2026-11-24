@@ -1,14 +1,3 @@
-/* —— Spectators of unranked rooms: both hands face up (#346, #1007) ——
-
-   Desktop: both hands are the match's hand fan (HandFan.tsx, same card size,
-   overlap, tuck and rise); the far one is its mirror, .hand-fan-top, further
-   down with the other fan rules. Phones: the near hand is the usual overlapped
-   strip on portrait, and both hands are grids of small upright cards
-   (SpectatorFarHand, below). */
-
-/* The hand label (HandLabel.tsx): one pill for the near and the far hand on
-   phones, so font, padding and colours match. Portrait phones centre both,
-   landscape phones left-align both. */
 .hand-label-head {
   display: flex;
   align-items: center;
@@ -50,7 +39,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Portrait phones: the far label hangs in the strip's top. */
 .arena .spec-far .hand-label-head {
   position: absolute;
   z-index: var(--z-raise-4);
@@ -58,17 +46,13 @@
   top: 0.35rem;
 }
 
-/* Phones: both hands are grids of small upright cards (SpectatorFarHand grid
-   mode, and the plain hand row for the near hand), so the height the two fans
-   took goes to the mats. One shared card size, in px so the hint row can add
-   it up. */
+/* One shared card size, in px so the hint row can add it up. */
 .arena.arena-spec-grid {
   --spec-cw: clamp(40px, 12.5vw, 56px);
   --spec-ch: calc(var(--spec-cw) * 1.4);
 }
 
-/* Portrait: the far row sits under the Chat button and Battle log pill, which
-   float over the top of the board. */
+/* The far row sits under the Chat button and Battle log pill, which float over the top of the board. */
 @media (max-width: 899px) and (orientation: portrait) {
   .arena.arena-spec-grid:not(.arena-wide) .playmat {
     --spec-pills: 2.4rem;
@@ -104,8 +88,7 @@
   margin-block: 0;
 }
 
-/* The grid: cards side by side, no overlap, rotation or drop. A hand wider than
-   the row scrolls sideways (never wraps) so the mats do not move as it grows. */
+/* A hand wider than the row scrolls sideways (never wraps) so the mats do not move as it grows. */
 .arena .spec-far-grid .spec-far-cards {
   --fan-cw: var(--spec-cw);
   --fan-ch: var(--spec-ch);
@@ -121,7 +104,7 @@
   display: none;
 }
 
-/* Centred while it fits (auto margins collapse to nothing once it overflows). */
+/* Auto margins collapse to nothing once it overflows. */
 .arena .spec-far-grid .spec-far-cards > :first-child {
   margin-left: auto;
 }
@@ -141,8 +124,6 @@
   transform: none;
 }
 
-/* Portrait phones: both labels are centred over their strip. The far one sits
-   between the Chat button and the Battle log pill. */
 .arena .spec-far-portrait .hand-label-head {
   left: 50%;
   top: 0.35rem;
@@ -161,8 +142,7 @@
   justify-content: center;
 }
 
-/* Tiles this small keep their cost and power readable: a one-line name and
-   smaller badges than the hand's usual caption. */
+/* Tiles this small keep their cost and power readable: a one-line name and smaller badges. */
 .arena .spec-far-grid .card-caption,
 .arena .hand-row-spec-grid .card-caption {
   padding: 1px 2px;
@@ -192,9 +172,7 @@
   line-height: 1.2;
 }
 
-/* Landscape phones: both hands are wrapping grids in the right column, the far
-   one on top. The mats are height-bound there and leave side margins, so the
-   column widens to give the cards room to show their cost and power. */
+/* The mats are height-bound there and leave side margins, so the column widens to give the cards room to show their cost and power. */
 .arena.arena-lp.arena-spec-lp {
   --rail-w: clamp(200px, 30vw, 260px);
 }
@@ -213,7 +191,6 @@
   background: linear-gradient(180deg, rgba(0, 0, 0, 0.3), transparent);
 }
 
-/* Landscape phones: both labels sit at the left of the column. */
 .arena .spec-far-landscape .hand-label-head {
   position: static;
   padding: 0 0.5rem;
@@ -243,7 +220,6 @@
   margin-inline: 0;
 }
 
-/* The near hand: the plain hand row, shrunk to the same small upright cards. */
 .arena .hand-row-spec-grid .hand-row-inner {
   --spec-gap: 4px;
   gap: var(--spec-gap);
@@ -260,7 +236,6 @@
   transform: none;
 }
 
-/* Portrait: one row, centred while it fits and scrolling sideways past that. */
 .arena .hand-row-spec-grid .hand-row-inner > :first-child {
   margin-left: auto;
 }
@@ -278,7 +253,6 @@
   display: none;
 }
 
-/* Landscape: wraps inside the column instead. */
 .arena .rail-hand-spec .hand-row-spec-grid {
   overflow: visible;
 }
@@ -293,10 +267,7 @@
   margin-inline: 0;
 }
 
-/* Holding a card must not open the phone's image sheet (iOS Save / Share), start
-   an image drag or select the caption: the app's own press-and-hold inspects it.
-   Card art and tiles only, so chat inputs, the log and the inspect panel's card
-   text stay selectable. (#445) */
+/* Holding a card must not open the phone's image sheet (iOS Save / Share), start an image drag or select the caption: the app's own press-and-hold inspects it. Card art and tiles only, so chat inputs, the log and the inspect panel's card text stay selectable. */
 .card-tile,
 .card-tile *,
 .board-root img,

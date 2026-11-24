@@ -1,10 +1,3 @@
-/**
- * The game-over "Deck for the rematch" picker (#772). It was a native select whose open list Windows Chrome / Edge
- * painted light gray with near-invisible light text. It is now the shared Select (Headless UI Listbox): an opaque
- * list in the theme's panel colour, floating over the game-over overlay without moving the panel. Every other
- * dropdown in the app uses the same Select (#797). Driven by `/demo?over`, whose rematch panel offers two saved
- * decks. Runs once, on desktop, and sets its own viewports.
- */
 import { test, expect, type Page } from "./fixtures";
 
 test.beforeEach(({}, info) => {
@@ -19,7 +12,6 @@ const SIZES = [
 
 type Rgba = { r: number; g: number; b: number; a: number };
 
-/** Resolve a CSS colour (any syntax the browser accepts) to rgba by painting it on a canvas-free probe. */
 async function colour(page: Page, css: string): Promise<Rgba> {
   return page.evaluate((c) => {
     const el = document.createElement("span");
@@ -46,6 +38,7 @@ async function openOver(page: Page, size: (typeof SIZES)[number], settings: Reco
   await page.setViewportSize({ width: size.width, height: size.height });
   await page.addInitScript((s) => localStorage.setItem("optcg-duel:settings", JSON.stringify(s)), settings);
   await page.goto("/demo?over");
+  await page.getByRole("button", { name: "Change deck" }).click();
   await page.locator(".rematch-deck .ui-select-button").waitFor();
   await page.waitForTimeout(300);
 }
@@ -60,20 +53,16 @@ for (const size of SIZES) {
     const list = page.locator(".ui-select-list");
     await expect(list).toBeVisible();
 
-    // Opaque, and the theme's panel colour (not the browser's gray / white).
     const panelBg = await colour(page, "var(--arena-panel)");
     const listBg = parse(await list.evaluate((el) => getComputedStyle(el).backgroundColor));
     expect(listBg.a).toBe(1);
     expect(listBg).toEqual(panelBg);
 
-    // Text reads on it: the deck name and the muted sub-line.
-    // Leader header rows (#1294) are disabled options, so count only the decks.
     const name = page.locator(".ui-select-option:not([data-disabled]) .ui-select-label").nth(1);
     const sub = page.locator(".ui-select-option .ui-select-sub").first();
     expect(contrast(parse(await name.evaluate((el) => getComputedStyle(el).color)), listBg)).toBeGreaterThan(4.5);
     expect(contrast(parse(await sub.evaluate((el) => getComputedStyle(el).color)), listBg)).toBeGreaterThan(3);
 
-    // Opening moves neither the trigger nor the panel; the list sits on screen, under the trigger's width at least.
     expect(await trigger.boundingBox()).toEqual(before.trigger);
     expect(await panel.boundingBox()).toEqual(before.panel);
     const lb = (await list.boundingBox())!;
@@ -83,8 +72,9 @@ for (const size of SIZES) {
     expect(lb.y + lb.height).toBeLessThanOrEqual(size.height + 0.5);
     expect(lb.width).toBeGreaterThanOrEqual(before.trigger!.width - 1);
 
-    // It is above the game-over overlay: what paints at the row's centre is the row, so a click lands.
     const row = page.locator(".ui-select-option", { hasText: "Straw Hat Midrange with a Very Long Deck Name" });
+    // The list scrolls; on a short landscape screen the long-named deck sits below the first rows.
+    await row.scrollIntoViewIfNeeded();
     const rb = (await row.boundingBox())!;
     const top = await page.evaluate(
       ([x, y]) => document.elementFromPoint(x!, y!)?.closest(".ui-select-option") !== null,
@@ -92,7 +82,6 @@ for (const size of SIZES) {
     );
     expect(top).toBe(true);
 
-    // Picking a deck closes the list, updates the trigger and keeps its size.
     await row.click();
     await expect(list).toBeHidden();
     await expect(trigger).toContainText("Straw Hat Midrange with a Very Long Deck Name");
@@ -135,7 +124,7 @@ test("a settings dropdown opens the same opaque themed list instead of the brows
   expect(await page.locator("select").count()).toBe(0);
   const trigger = page.locator(".field .ui-select-button").first();
   await trigger.scrollIntoViewIfNeeded();
-  await page.waitForTimeout(300); // the settings page finishes its own layout first
+  await page.waitForTimeout(300);
   const before = await trigger.boundingBox();
   await trigger.click();
   const list = page.locator(".ui-select-list");

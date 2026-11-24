@@ -1,4 +1,3 @@
-"""Public meta deck browser (#443): leader shares and tournament decklists. No login; cached and rate limited."""
 
 from __future__ import annotations
 
@@ -21,7 +20,7 @@ router = APIRouter(prefix="/meta", tags=["meta"])
 CACHE_TTL_S = 600
 _rate_limiter = RateLimiter(max_calls=60, period_s=60, name="meta_rate_limiter")
 _CACHE_MAX = 500
-_now = time.monotonic  # tests move this to age entries past the TTL
+_now = time.monotonic
 _cache: TTLCache[tuple, Any] = TTLCache(maxsize=_CACHE_MAX, ttl=CACHE_TTL_S, timer=lambda: _now())
 _cache_lock = threading.Lock()
 _MISS = object()

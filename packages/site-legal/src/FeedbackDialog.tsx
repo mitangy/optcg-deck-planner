@@ -10,21 +10,13 @@ import {
 } from "./feedback";
 
 type Props = {
-  /** "Report a problem" in a match, "Send feedback" elsewhere. */
   title: string;
-  /** The app's own network call; reject with an Error whose message is shown to the person. */
   submit: (payload: FeedbackPayload) => Promise<void>;
   onClose: () => void;
 };
 
 type Phase = "editing" | "sending" | "sent";
 
-/**
- * Modal over whatever page is open (fixed overlay: nothing behind it moves).
- * It is the shared Headless UI Dialog (`@optcg/ui/popups`): Escape and the backdrop close it
- * (not while sending), Tab stays inside it, focus lands in the text box and returns to the opener on
- * close, and it renders in a portal so no parent can clip or stack over it.
- */
 export function FeedbackDialog({ title, submit, onClose }: Props) {
   const [kind, setKind] = useState<FeedbackKind>("bug");
   const [message, setMessage] = useState("");

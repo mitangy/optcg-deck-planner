@@ -1,4 +1,3 @@
-/** Review tray for a multi-card photo scan: confirm, fix or skip each card before adding. */
 
 import { useState } from "react";
 import type { CatalogCardResult, ShoppingItem } from "../../api";
@@ -26,11 +25,9 @@ function TrayRowView({
 }: {
   row: TrayRow;
   card: CatalogCardResult | undefined;
-  /** The shopping-list entry for this card, if it is on the list. */
   needItem: ShoppingItem | undefined;
   showNeed: boolean;
   onQty: (qty: number) => void;
-  /** Resolves to an error message, or null when the number was accepted. */
   onFix: (cardId: string) => Promise<string | null>;
 }) {
   const [open, setOpen] = useState(false);
@@ -165,10 +162,8 @@ export function ScanTray({
   onRescan,
 }: {
   rows: TrayRow[];
-  /** Cards detected in the photo (before merging). */
   found: number;
   cards: ReadonlyMap<string, CatalogCardResult>;
-  /** Shopping list, used for the need line when `showNeed` is on. */
   items?: ShoppingItem[];
   showNeed?: boolean;
   target?: ScanTarget;

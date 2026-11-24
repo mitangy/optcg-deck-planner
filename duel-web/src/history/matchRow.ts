@@ -1,4 +1,3 @@
-/** How one finished duel reads in the match history list. */
 import type { MatchHistoryEntry } from "./historyApi";
 import { historyAgo } from "../lib/relativeTime";
 
@@ -15,26 +14,22 @@ const REASONS: Record<string, string> = {
 
 export type MatchRow = {
   id: string;
-  /** "Cut off": the game never sent a result (server restart, both players gone). */
   outcome: "Won" | "Lost" | "Cut off";
-  /** Who the reason applies to, e.g. "Opponent conceded". */
   how: string;
   yourLeader: string;
-  /** Card id of your Leader, for its art on the row. */
   yourLeaderId: string | null;
   opponentLeader: string;
+  opponentLeaderId: string | null;
+  /** Ranked or Casual, written out so the row never says it with colour alone. */
+  mode: "Ranked" | "Casual";
   opponent: string;
   turns: string | null;
-  /** Bounty change, e.g. "+16" or "−12"; null for unranked games. */
   bountyDelta: string | null;
   when: string | null;
-  /** The recording can be watched in the replay viewer (Watch button). */
   replay: boolean;
-  /** Log Pose has a chat about this game (shows a small compass on the row). */
   hasChat: boolean;
 };
 
-/** The row's `data-outcome`, which colours its edge. */
 export function outcomeKey(outcome: MatchRow["outcome"]): "won" | "lost" | "unfinished" {
   return outcome === "Won" ? "won" : outcome === "Lost" ? "lost" : "unfinished";
 }
@@ -45,9 +40,10 @@ export function matchRow(
   now: Date = new Date(),
 ): MatchRow {
   const reason = REASONS[m.reason] ?? m.reason.replace(/_/g, " ");
-  // Concede / time / leave reasons describe the loser; the rest describe how the game was won.
   const loserReasons = new Set(["concede", "timeout", "match_timeout", "abandoned", "disconnect", "deck_out", "leader_battle_at_zero_life"]);
-  const how = loserReasons.has(m.reason) ? `${m.won ? "Opponent" : "You"} ${reason}` : capitalize(reason);
+  // "match clock ran out" needs a possessive: "Your match clock ran out", not "You match clock ran out" (#1388).
+  const who = m.reason === "match_timeout" ? (m.won ? "Opponent's" : "Your") : m.won ? "Opponent" : "You";
+  const how = loserReasons.has(m.reason) ? `${who} ${reason}` : capitalize(reason);
   const delta = m.rating_after - m.rating_before;
   const unfinished = m.finished === false;
   return {
@@ -57,6 +53,8 @@ export function matchRow(
     yourLeader: m.your_leader_id ? cardName(m.your_leader_id) : "Unknown leader",
     yourLeaderId: m.your_leader_id,
     opponentLeader: m.opponent_leader_id ? cardName(m.opponent_leader_id) : "Unknown leader",
+    opponentLeaderId: m.opponent_leader_id,
+    mode: m.ranked ? "Ranked" : "Casual",
     opponent: m.opponent_name,
     turns: m.turns != null ? `${m.turns} turns` : null,
     bountyDelta: m.ranked && !unfinished ? (delta >= 0 ? `+${delta}` : `−${Math.abs(delta)}`) : null,

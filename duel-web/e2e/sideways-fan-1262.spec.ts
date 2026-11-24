@@ -1,10 +1,3 @@
-/**
- * Big screens held sideways (#1262): unfolded foldables (iPhone Duo) and touch tablets in the landscape rail
- * layout fan the hand off the bottom of the board when Hand layout is Fan. The mats keep a strip free for the
- * tucked cards and End turn stays at the bottom of the right column. Shorter phones held sideways and
- * Automatic keep the hand in the right column. The viewports are set here, so the spec runs once (in the
- * desktop project).
- */
 import { test, expect } from "./fixtures";
 import type { Browser } from "@playwright/test";
 
@@ -44,9 +37,7 @@ for (const [w, h] of [
     expect(m.cls).toMatch(/arena-lp/);
     expect(m.fanCards, "fanned hand").not.toBeNull();
     expect(m.railHand, "right-column hand").toBeNull();
-    // The tucked cards sit in the strip under the mats, not over your bottom row.
     expect(m.mat!.bottom).toBeLessThanOrEqual(m.fanCards!.top + 1);
-    // End turn stays at the bottom of the right column.
     expect(m.intent!.bottom).toBeGreaterThanOrEqual(h - 2);
     expect(m.scrollW).toBe(w);
     await context.close();

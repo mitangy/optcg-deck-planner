@@ -1,4 +1,3 @@
-/* ——— Deck page: main column + stats dock ——— */
 .deck-layout {
   display: block;
   min-width: 0;
@@ -64,10 +63,9 @@
 
 .stats-pill {
   position: fixed;
-  /* Left: card rows keep their steppers / Add buttons on the right. */
   left: max(0.75rem, env(safe-area-inset-left, 0px));
   transition: transform 0.2s ease, opacity 0.2s ease;
-  bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
+  bottom: max(calc(0.75rem + var(--bottom-nav-h, 0px)), env(safe-area-inset-bottom, 0px));
   z-index: var(--z-hud);
   display: inline-flex;
   align-items: center;
@@ -101,7 +99,6 @@
   min-width: 2.75rem;
 }
 
-/* Deck page header: keep the action buttons together on one row; the title block shrinks or the whole group drops below it. */
 @media (min-width: 801px) {
   .deck-main > .page-head {
     flex-wrap: wrap;
@@ -148,11 +145,66 @@
   padding-left: 1rem;
 }
 
-/* Room for the floating pill under the last card (not a big empty scroll). */
 @media (max-width: 1199px) {
-  .deck-layout {
+  /* Only the public share page still floats a Stats pill over the page. */
+  .deck-layout:has(> .stats-pill) {
     padding-bottom: calc(2.75rem + 0.5rem);
   }
+}
+
+.deck-stats-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+@media (max-width: 720px) {
+  .deck-head-actions .deck-stats-btn {
+    flex: 0 0 auto;
+    min-height: max(2.75rem, 44px);
+    min-width: max(2.75rem, 44px);
+  }
+}
+
+.deck-stats-btn .stats-dock-icon {
+  flex: 0 0 auto;
+}
+
+.deck-stats-btn .deck-stats-btn-badge {
+  position: absolute;
+  top: 0.15rem;
+  right: 0.1rem;
+  min-width: 1.1rem;
+  padding: 0 0.3rem;
+  font-size: 0.7rem;
+  line-height: 1.1rem;
+}
+
+@media (max-width: 720px) {
+  .deck-stats-btn .deck-stats-btn-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 721px) {
+  .deck-stats-btn .deck-stats-btn-badge {
+    position: static;
+  }
+}
+
+/* Under the Add cards panel while editing on a wide, tall screen. */
+.stats-stack {
+  flex: 0 0 auto;
+  max-height: 45dvh;
+  margin-top: var(--space-3);
+  overflow: hidden;
 }
 
 @media (min-width: 1200px) {
@@ -170,7 +222,6 @@
   .stats-dock {
     position: sticky;
     top: 1rem;
-    /* Narrower near the breakpoint so the table beside it keeps every column. */
     width: clamp(21rem, 26vw, 26rem);
     max-width: 100%;
   }
@@ -184,11 +235,14 @@
   }
 
   .stats-dock .ds-grid,
-  .stats-dock .ds-tiles {
+  .stats-dock .ds-tiles,
+  .stats-stack .ds-grid,
+  .stats-stack .ds-tiles {
     grid-template-columns: repeat(var(--ds-side-cols, 1), minmax(0, 1fr));
   }
 
-  .stats-dock .ds-tiles {
+  .stats-dock .ds-tiles,
+  .stats-stack .ds-tiles {
     --ds-side-cols: 2;
   }
 
@@ -220,7 +274,6 @@
   }
 }
 
-/* ——— Deck page header: Edit deck > Play in Duel > quiet Share / More ——— */
 .btn.quiet {
   width: auto;
   margin-top: 0;
@@ -240,8 +293,7 @@
   display: none;
 }
 
-.deck-size-inline,
-.deck-toolbar .filter-drawer-badge {
+.deck-size-inline {
   display: none;
 }
 
@@ -250,6 +302,19 @@
     flex-wrap: nowrap;
     gap: 0.4rem;
     justify-content: stretch;
+  }
+
+  /* Edit deck and Done keep one width, so toggling edit mode moves nothing in this row. */
+  .deck-head-actions > .deck-edit-toggle {
+    box-sizing: border-box;
+    flex: 0 0 5.6rem;
+    min-width: 5.6rem;
+    max-width: 5.6rem;
+    justify-content: center;
+  }
+
+  .done-editing-extra {
+    display: none;
   }
 
   .deck-head-actions > .btn {
@@ -262,7 +327,6 @@
     flex: 0 0 auto;
   }
 
-  /* Edit deck absorbs the slack; Play in Duel keeps its full label. */
   .deck-head-actions > .duel-play-btn {
     flex: 0 0 auto;
     min-width: max-content;
@@ -272,7 +336,6 @@
     padding: 0.45rem 0.6rem;
   }
 
-  /* Deck size rides on the title line instead of its own row. */
   .deck-size-below {
     display: none;
   }
@@ -283,63 +346,8 @@
     white-space: nowrap;
   }
 
-  /* Search, List/Grid and Filters share one row; the filter body opens below it. */
-  .list-toolbar.deck-toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .deck-toolbar > .list-toolbar-row,
-  .deck-toolbar > .filter-drawer {
-    display: contents;
-  }
-
-  .deck-toolbar .card-search {
-    flex: 1 1 5rem;
-  }
-
-  .deck-toolbar .layout-toggle {
-    width: auto;
-    flex: 0 0 auto;
-  }
-
-  .deck-toolbar .layout-toggle button {
-    flex: 0 0 auto;
-    padding: 0.25rem 0.65rem;
-  }
-
-  .deck-toolbar .filter-drawer-toggle,
-  .deck-toolbar .filter-drawer.open .filter-drawer-toggle {
-    width: auto;
-    flex: 0 0 auto;
-    gap: 0.4rem;
-    padding: 0.5rem 0.7rem;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-14);
-    background: var(--card);
-  }
-
-  .deck-toolbar .filter-drawer-summary {
-    display: none;
-  }
-
-  .deck-toolbar .filter-drawer-badge {
-    display: inline-block;
-  }
-
-  .deck-toolbar .filter-drawer-body {
-    order: 3;
-    flex: 1 1 100%;
-    min-width: 0;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-14);
-    background: var(--card);
-  }
 }
 
-/* Very narrow phones: Share and More shrink to icons (labels stay as accessible names) so the row never wraps. */
 @media (max-width: 420px) {
   .deck-head-actions .head-popover-icon {
     display: inline-flex;
@@ -360,17 +368,14 @@
     justify-content: center;
     padding: 0.45rem 0.5rem;
   }
-}
 
-@media (max-width: 420px) {
-  /* Search gets its own full row; List/Grid and Filters share the next one. */
-  .deck-toolbar .card-search {
-    flex: 1 1 100%;
+  /* Wider fallback fonts must not push the last button off a 375px screen. */
+  .page-head-actions.deck-head-actions {
+    gap: 0.3rem;
   }
 
-  .deck-toolbar .filter-drawer-toggle,
-  .deck-toolbar .filter-drawer.open .filter-drawer-toggle {
-    margin-left: auto;
+  .deck-head-actions > .btn {
+    padding-inline: 0.5rem;
   }
 }
 
@@ -393,7 +398,6 @@
     min-width: 2.25rem;
   }
 
-  /* "Done editing" would push the row past 320px; "Done" is enough next to the other actions. */
   .done-editing-extra {
     display: none;
   }
@@ -403,8 +407,6 @@
   white-space: nowrap;
 }
 
-/* Header controls keep their width when the label flips between Edit deck / Done editing.
-   Phones size it with flex in the one-row action bar instead. */
 @media (min-width: 721px) {
   .page-head-actions .btn.deck-edit-toggle {
     min-width: 9.5rem;
@@ -413,7 +415,6 @@
   }
 }
 
-/* ——— Editing beside the list (>= 1200px, the dock breakpoint) ——— */
 @keyframes row-flash-bg {
   from { background-color: color-mix(in srgb, var(--gold) 40%, transparent); }
   to { background-color: transparent; }
@@ -434,7 +435,6 @@ tr.row-flash > td {
 }
 
 @media (min-width: 1200px) {
-  /* The editor takes a column, so the list narrows; tighter cells keep the Cost column from scrolling off the right edge. */
   .deck-layout-editing .deck-main .data-table :is(th, td) {
     padding-inline: 0.5rem;
   }
@@ -442,13 +442,17 @@ tr.row-flash > td {
   .deck-layout-editing .deck-editor-side {
     position: sticky;
     top: 1rem;
-    /* 20rem at the 1200px floor leaves the list room for its Alt arts column (#877). */
     width: clamp(20rem, 26vw, 26rem);
     max-width: 100%;
     max-height: calc(100dvh - 2rem);
     display: flex;
     flex-direction: column;
     min-width: 0;
+  }
+
+  /* Add cards takes what it needs and gives way first; the stats keep their share beneath it. */
+  .deck-layout-editing .deck-editor-side.has-stats .deck-editor {
+    flex: 0 1 auto;
   }
 
   .deck-editor-side .deck-editor {
@@ -476,7 +480,6 @@ tr.row-flash > td {
     flex: 0 0 auto;
   }
 
-  /* The results take whatever height the viewport leaves under the filters. */
   .deck-editor-side .deck-editor-results {
     flex: 1 1 auto;
     min-height: 0;
@@ -487,7 +490,6 @@ tr.row-flash > td {
     flex-basis: 10rem;
   }
 
-  /* The "what moved" chip floats over the bottom of the panel here; the header is too narrow to share. */
   .deck-editor-side .dh-delta-slot {
     top: auto;
     bottom: 0.6rem;
@@ -495,4 +497,16 @@ tr.row-flash > td {
     right: 0.6rem;
     justify-content: center;
   }
+}
+
+/* The "Deck list" heading stays for screen readers and heading navigation; the toolbar right above the table already says it (#1342). */
+.deck-list-heading {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }

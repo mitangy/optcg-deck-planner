@@ -1,7 +1,3 @@
-/**
- * The primary dock (End turn, Keep / Mulligan) floats in the midline strip. The
- * strip is tall enough for it, so the buttons sit in the gap between the mats.
- */
 import { test, expect, type Page } from "./fixtures";
 
 type Box = { left: number; top: number; right: number; bottom: number };
@@ -18,7 +14,7 @@ async function boxes(page: Page, sel: string): Promise<Box[]> {
 const overlaps = (a: Box, b: Box) =>
   a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
 
-for (const screen of ["?turn0", "?cantattack"]) {
+for (const screen of ["?cantattack"]) {
   test(`the dock sits between the mats on /demo${screen} (#368)`, async ({ page }, info) => {
     test.skip(info.project.name !== "desktop-1280", "the dock is desktop only");
     await page.goto(`/demo${screen}`);

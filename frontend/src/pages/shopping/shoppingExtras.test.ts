@@ -7,7 +7,6 @@ describe("nextExtraTarget (#525)", () => {
   });
 
   it("+ buys one more than the list already wants, counting owned copies", () => {
-    // Owned 1, target 3 (2 to buy) -> 3 to buy means target 4.
     expect(nextExtraTarget({ owned: 1, deckNeed: 0, extraQty: 3, stillNeed: 2 }, 1)).toBe(4);
   });
 
@@ -34,7 +33,6 @@ describe("nextExtraTarget (#525)", () => {
 });
 
 describe("alt art copies count as owned when adding to Master Shopping (#626)", () => {
-  // 0 base + 2 alt copies, no deck: the backend's still_need is max(0, need - owned - alts_owned).
   const altOnly = { owned: 0, alts_owned: 2 };
 
   it("Add on a card owned only as alt arts targets one beyond the alts, leaving 1 to buy", () => {
@@ -46,7 +44,6 @@ describe("alt art copies count as owned when adding to Master Shopping (#626)", 
 
   it("\u2212 from 2 to buy with alt copies owned leaves 1 to buy, not 0", () => {
     const owned = totalOwnedCopies(altOnly);
-    // Target 4 = 2 alts + 2 to buy.
     const target = nextExtraTarget({ owned, deckNeed: 0, extraQty: 4, stillNeed: 2 }, -1);
     expect(target).toBe(3);
     expect(target - owned).toBe(1);

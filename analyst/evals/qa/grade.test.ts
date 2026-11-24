@@ -9,7 +9,6 @@ import type { CaseD, EvalCase, Gold, Rubric } from "./types";
 const catalog = loadCatalog();
 const zero = { input_tokens: 0, output_tokens: 0 };
 
-/** A judge that scores every rubric item the same way, and reads every answer as a confident yes / legal. */
 const judgeOf = (pass: boolean | null): Judge => ({
   async extractVerdict() {
     return { verdict: { verdict: "yes", legal: "legal", says_no_official_ruling: false, can: [], cannot: [] }, usage: zero, model: "stub", fallback: false };

@@ -22,7 +22,6 @@ const L = "OP01-001";
 const rng = (seed = 7) => createSeededRng(seed);
 const exact = { level: "hard", budgetMs: Infinity, samples: 2, maxEvals: 10 } as const;
 
-/** Positions (state + the seat to move) from a normal-vs-normal game on two meta decks. */
 function positions(seed: number, every: number): { state: MatchState; seat: Seat }[] {
   const game = playBotGame({ seed, players: [META[seed % META.length]!, META[(seed * 5 + 3) % META.length]!], levels: ["normal", "normal"] });
   const out: { state: MatchState; seat: Seat }[] = [];
@@ -36,7 +35,6 @@ function positions(seed: number, every: number): { state: MatchState; seat: Seat
 
 const multiset = (ids: readonly string[]): string => JSON.stringify(Object.entries(ids.reduce<Record<string, number>>((m, id) => ({ ...m, [id]: (m[id] ?? 0) + 1 }), {})).sort(([a], [b]) => a.localeCompare(b)));
 
-/** Cards of `seat` the other seat can see (board, Stage, trash, face-up Life, revealed hand), as def ids. */
 function seenOf(state: MatchState, seat: Seat): string[] {
   const p = state.players[seat];
   const revealed = new Set(p.revealedHandIds ?? []);
@@ -45,7 +43,6 @@ function seenOf(state: MatchState, seat: Seat): string[] {
     ...p.life.filter((_, i) => p.faceUpLife[i]), ...p.hand.filter((c) => revealed.has(c.id)).map((c) => c.defId),
   ];
 }
-/** Opponent cards hidden from the other seat (hand, deck, face-down Life) as def ids. */
 function hiddenOf(state: MatchState, seat: Seat): string[] {
   const p = state.players[seat];
   const revealed = new Set(p.revealedHandIds ?? []);
@@ -67,7 +64,7 @@ describe("learned value model (#635)", () => {
     for (const { state, seat } of positions(12, 10)) {
       const opp: Seat = seat === 0 ? 1 : 0;
       const other = structuredClone(state);
-      for (const c of other.players[opp].hand) c.defId = "OP01-006"; // a Counter-bearing Character
+      for (const c of other.players[opp].hand) c.defId = "OP01-006";
       expect(extractFeatures(other, seat)).toEqual(extractFeatures(state, seat));
       compared += 1;
     }
@@ -103,7 +100,6 @@ describe("learned value model (#635)", () => {
     expect(game.winner).not.toBeNull();
     const rows = samplesFromReplay(game.replay, 0);
     expect(rows.length).toBeGreaterThan(6);
-    // Positions come in pairs: seat 0's view, then seat 1's. Exactly one of the two won.
     for (let i = 0; i < rows.length; i += 2) {
       expect(rows[i]!.y + rows[i + 1]!.y).toBe(1);
       expect(rows[i]!.y).toBe(game.winner === 0 ? 1 : 0);
@@ -112,7 +108,6 @@ describe("learned value model (#635)", () => {
 });
 
 describe("hard bot: opponent list modeling (#635)", () => {
-  /** A position where the opponent has hidden cards and some it has shown, plus the prior list that matches its real deck. */
   function scenario(seed: number): { state: MatchState; seat: Seat; opp: Seat } {
     const found = positions(seed, 8).find((p) => seenOf(p.state, p.seat === 0 ? 1 : 0).length > 4 && hiddenOf(p.state, p.seat === 0 ? 1 : 0).length > 15);
     if (!found) throw new Error("no position");
@@ -134,7 +129,6 @@ describe("hard bot: opponent list modeling (#635)", () => {
         expect(multiset(hiddenOf(d, opp))).toBe(multiset(swapped));
         expect(multiset(seenOf(d, opp))).toBe(multiset(seen));
       }
-      // With the legacy "true" prior the real hidden multiset is kept.
       expect(multiset(hiddenOf(determinize(state, seat, rng(1), "true"), opp))).toBe(multiset(hidden));
     }
   }, 60_000);
@@ -177,7 +171,6 @@ describe("hard bot: opponent list modeling (#635)", () => {
       const { state, seat, opp } = scenario(seed);
       const leader = state.players[opp].leader.defId;
       const colors = getCardDef(leader).colors;
-      // A prior that knows other leaders only.
       const prior = buildDeckPrior(META.filter((m) => m.leaderId !== leader));
       const d = determinize(state, seat, rng(seed), prior);
       const hidden = hiddenOf(d, opp);
@@ -198,12 +191,11 @@ describe("hard bot: opponent list modeling (#635)", () => {
 });
 
 describe("bot: total cost / power limits on selections (#635)", () => {
-  /** OP09-018 [Main]: K.O. up to 2 of the opponent's Characters with a total power of 4000 or less. */
   function koScenario(): Harness {
     const h = new Harness({ leaders: [L, L] });
     h.don(0, 3);
     h.hand(0, "OP09-018");
-    h.field(1, FILLER, FILLER, "OP01-009"); // three 3000-power Characters
+    h.field(1, FILLER, FILLER, "OP01-009");
     h.play(0, "OP09-018");
     return h;
   }
@@ -253,7 +245,7 @@ describe("hard bot: mulligan by simulation (#635)", () => {
   it("keeps a hand with a curve and mulligans a hand it cannot cast out of a deck of cheap cards (#635)", () => {
     const cheap = Array.from({ length: 40 }, (_, i) => (i % 2 ? "OP01-009" : "OP01-006"));
     const state = mulliganState(cheap);
-    const dead = Array.from({ length: 5 }, () => "EB04-003"); // cost 8
+    const dead = Array.from({ length: 5 }, () => "EB04-003");
     const good = ["OP01-006", "OP01-009", "OP01-009", "OP01-007", "OP01-007"];
     const base = { type: "mulligan", doMulligan: false } as Intent;
     expect(chooseSimMulligan(state, 0, mulliganView(dead), rng(), base)).toEqual({ type: "mulligan", doMulligan: true });
