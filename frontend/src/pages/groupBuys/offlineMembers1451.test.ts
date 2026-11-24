@@ -14,9 +14,8 @@ const arts = (rows: [number, number | null, number][]) =>
   rows.map(([user_id, product_id, qty]) => ({ user_id, product_id, qty, qty_arrived: 0 }));
 
 describe("adding people who are not on the app after ordering, and moving copies to them (#1451)", () => {
-  it("the host adds or renames them until the group buy is completed (#1451)", () => {
-    for (const status of ["open", "locked", "ordered"]) expect(canAddOffline({ is_host: true, status })).toBe(true);
-    expect(canAddOffline({ is_host: true, status: "completed" })).toBe(false);
+  it("the host adds or renames them at any status, completed included (#1451)", () => {
+    for (const status of ["open", "locked", "ordered", "completed"]) expect(canAddOffline({ is_host: true, status })).toBe(true);
     expect(canAddOffline({ is_host: false, status: "ordered" })).toBe(false);
   });
 
@@ -25,15 +24,15 @@ describe("adding people who are not on the app after ordering, and moving copies
     expect(canRemoveOffline(ordered, { cards_still_needed: 0 })).toBe(true);
     expect(canRemoveOffline(ordered, { cards_still_needed: 2 })).toBe(false);
     expect(canRemoveOffline({ is_host: true, status: "open" }, { cards_still_needed: 2 })).toBe(true);
-    expect(canRemoveOffline({ is_host: true, status: "completed" }, { cards_still_needed: 0 })).toBe(false);
+    expect(canRemoveOffline({ is_host: true, status: "completed" }, { cards_still_needed: 2 })).toBe(false);
   });
 
-  it("Move copies is offered to the host while locked or ordered, and only with someone not on the app (#1451)", () => {
+  it("Move copies is offered to the host once locked, ordered or completed, and only with someone not on the app (#1451)", () => {
     const members = [{ is_offline: false }, { is_offline: true }];
     expect(canMoveCopies({ is_host: true, status: "locked", members })).toBe(true);
     expect(canMoveCopies({ is_host: true, status: "ordered", members })).toBe(true);
     expect(canMoveCopies({ is_host: true, status: "open", members })).toBe(false);
-    expect(canMoveCopies({ is_host: true, status: "completed", members })).toBe(false);
+    expect(canMoveCopies({ is_host: true, status: "completed", members })).toBe(true);
     expect(canMoveCopies({ is_host: false, status: "ordered", members })).toBe(false);
     expect(canMoveCopies({ is_host: true, status: "ordered", members: [{ is_offline: false }] })).toBe(false);
   });

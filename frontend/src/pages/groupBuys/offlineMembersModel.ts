@@ -29,20 +29,19 @@ export function pasteSummary(res: { applied: number; unmatched: string[] }, name
   return n === 0 ? `${set}.` : `${set}. ${n} ${n === 1 ? "line was" : "lines were"} not recognised.`;
 }
 
-/** The host adds or renames people who are not on the app until the group buy is completed (#1451). */
+/** The host adds or renames people who are not on the app at any status, completed included (#1451). */
 export function canAddOffline(d: { is_host: boolean; status: string }): boolean {
-  return d.is_host && normalizeStatus(d.status) !== "completed";
+  return d.is_host;
 }
 
-/** Once locked or ordered, someone with copies cannot be removed: move their copies off first (#1451). */
+/** Once locked, someone with copies cannot be removed: move their copies off first (#1451). */
 export function canRemoveOffline(d: { is_host: boolean; status: string }, m: Pick<GroupBuyMember, "cards_still_needed">): boolean {
   return canAddOffline(d) && (normalizeStatus(d.status) === "open" || m.cards_still_needed === 0);
 }
 
-/** Host only, while locked or ordered, and only when somebody is not on the app to move copies to or from (#1451). */
+/** Host only, once locked (ordered and completed too), and only when somebody is not on the app to move copies to or from (#1451). */
 export function canMoveCopies(d: { is_host: boolean; status: string; members: Pick<GroupBuyMember, "is_offline">[] }): boolean {
-  const status = normalizeStatus(d.status);
-  return d.is_host && (status === "locked" || status === "ordered") && d.members.some((m) => m.is_offline);
+  return d.is_host && normalizeStatus(d.status) !== "open" && d.members.some((m) => m.is_offline);
 }
 
 export type MoveArt = { product_id: number | null; qty: number };

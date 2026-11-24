@@ -926,7 +926,7 @@ def _detail_from_group(
     if (
         not read_only
         and viewer_id == group.host_user_id
-        and group.status in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED)
+        and group.status != GroupBuyStatus.OPEN
     ):
         _fill_member_arts(db, group, lines)
 
@@ -1243,11 +1243,6 @@ def _require_open(group: GroupBuy) -> None:
         raise Forbidden("Group buy is locked; quantities cannot change")
 
 
-def _require_not_completed(group: GroupBuy) -> None:
-    if group.status == GroupBuyStatus.COMPLETED:
-        raise Forbidden("This group buy is completed")
-
-
 def set_member_qty(
     db: Session,
     user: User,
@@ -1318,7 +1313,6 @@ MAX_OFFLINE_MEMBERS = 20
 def add_offline_member(db: Session, user: User, group_id: int, name: str) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
-    _require_not_completed(group)
     if sum(1 for m in group.members if is_placeholder_user(m.user)) >= MAX_OFFLINE_MEMBERS:
         raise Invalid(f"A group buy can have up to {MAX_OFFLINE_MEMBERS} people who are not on the app")
     clean = (name or "").strip()
@@ -1344,7 +1338,6 @@ def rename_offline_member(
 ) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     member = _offline_member(group, user, member_id)
-    _require_not_completed(group)
     clean = (name or "").strip()
     if not clean or len(clean) > 40:
         raise Invalid("Name must be 1 to 40 characters")
@@ -1360,7 +1353,6 @@ def remove_offline_member(db: Session, user: User, group_id: int, member_id: int
         for line in order.lines:
             if any(a.user_id == member_id and int(a.qty) > 0 for a in line.allocations):
                 raise Conflict("They have cards in a seller order, so they cannot be removed")
-    _require_not_completed(group)
     if group.status != GroupBuyStatus.OPEN and any(
         row.user_id == member_id and int(row.qty) > 0 for row in group.snapshot_lines
     ):
@@ -1428,8 +1420,8 @@ def move_copies(
     """Move some of one member's copies of a card and art to another once the buy is locked or ordered (#1451)."""
     group = _get_group(db, group_id, lock=True)
     _require_host(group, user)
-    if group.status not in (GroupBuyStatus.LOCKED, GroupBuyStatus.ORDERED):
-        raise Forbidden("Copies can be moved while the group buy is locked or ordered")
+    if group.status == GroupBuyStatus.OPEN:
+        raise Forbidden("Copies can be moved once the group buy is locked")
     card_id = body.card_id.upper().strip()
     qty = int(body.qty)
     art = body.product_id
@@ -1541,7 +1533,7 @@ def set_offline_member_cards(
 ) -> GroupBuyOfflineCardsResult:
     """Replace an offline member's cards with the ones in a pasted list (4xOP01-001, 4 OP01-001...)."""
     group = _get_group(db, group_id)
-    member = _offline_member(group, user, member_id)
+    _offline_member(group, user, member_id)
     _require_open(group)
     wanted: dict[str, int] = {}
     unmatched: list[str] = []

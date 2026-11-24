@@ -68,7 +68,7 @@ def _allocs(db, gid, uid):
     ]
 
 
-def test_sam_can_be_added_and_renamed_while_ordered_but_not_once_completed_1451(db):
+def test_sam_can_be_added_and_renamed_while_ordered_and_once_completed_1451(db):
     host, _friend, gid, _ = _setup(db)
     sam = _sam(db, host, gid)
     renamed = group_buy.rename_offline_member(db, host, gid, sam, "Samuel")
@@ -76,10 +76,10 @@ def test_sam_can_be_added_and_renamed_while_ordered_but_not_once_completed_1451(
 
     db.get(GroupBuy, gid).status = "completed"
     db.commit()
-    with pytest.raises(Forbidden):
-        group_buy.add_offline_member(db, host, gid, "Ann")
-    with pytest.raises(Forbidden):
-        group_buy.rename_offline_member(db, host, gid, sam, "Nope")
+    added = group_buy.add_offline_member(db, host, gid, "Ann")
+    assert sorted(m.display_name for m in added.members if m.is_offline) == ["Ann", "Samuel"]
+    again = group_buy.rename_offline_member(db, host, gid, sam, "Sammy")
+    assert _member(again, sam).display_name == "Sammy"
 
 
 def test_sam_with_copies_cannot_be_removed_after_locking_but_an_empty_sam_can_1451(db):
@@ -135,10 +135,10 @@ def test_cannot_move_more_copies_than_they_have_1451(db):
         _move(db, host, gid, host.id, sam, 1, art=1009)
 
 
-def test_moving_is_refused_while_open_and_once_completed_1451(db):
+def test_moving_is_refused_while_open_but_works_once_locked_and_once_completed_1451(db):
     add_catalog(db, "OP01-001", name="Luffy", product_id=1001, market=2.5)
     host = make_user(db, email="h1451@example.com", name="Mikosaur", sub="sub-h1451")
-    add_deck_with_cards(db, host, "Host Deck", {"OP01-001": 2})
+    add_deck_with_cards(db, host, "Host Deck", {"OP01-001": 3})
     gid = group_buy.create_group_buy(db, host, "Pool").id
     sam = _sam(db, host, gid)
     with pytest.raises(Forbidden):
@@ -148,8 +148,9 @@ def test_moving_is_refused_while_open_and_once_completed_1451(db):
     _move(db, host, gid, host.id, sam, 1)
     db.get(GroupBuy, gid).status = "completed"
     db.commit()
-    with pytest.raises(Forbidden):
-        _move(db, host, gid, host.id, sam, 1)
+    done = _move(db, host, gid, host.id, sam, 1)
+    assert {m.user_id: m.qty for m in done.lines[0].members} == {host.id: 1, sam: 2}
+    assert {(r.user_id, r.qty) for r in done.lines[0].member_arts} == {(host.id, 1), (sam, 2)}
 
 
 def test_moving_two_copies_shifts_what_the_host_and_sam_owe_by_their_price_1451(db):
