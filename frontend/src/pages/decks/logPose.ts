@@ -85,6 +85,9 @@ export async function applyPlannerEdit<T>(save: (cardId: string, needed: number)
   return last;
 }
 
+/** Opens Log Pose with the start of a sentence in the box, so the player finishes it with the card they have in mind (#1450). */
+export const DESCRIBE_A_CARD_ASK = { prompt: "Find cards that ", send: false } as const;
+
 export const DRAFT_STATE_KEY = "logPoseDraft";
 
 export function readLogPoseDraft(state: unknown): { name: string; list: string } | null {

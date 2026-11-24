@@ -29,7 +29,7 @@ import {
   type ToolContent,
 } from "./sources";
 
-export type ClientActionName = "proposal" | "deck_draft" | "plan" | "choice";
+export type ClientActionName = "proposal" | "deck_draft" | "card_list" | "plan" | "choice";
 
 type ToolMeta = {
   status: string;
@@ -65,6 +65,7 @@ export const TOOL_META = {
   my_lessons: { status: "Reading your lessons", sources: lessonsAdapter },
   propose_deck_edit: { status: "Checking the suggested change", sources: proposalAdapter, action: "proposal" },
   propose_new_deck: { status: "Checking the new deck", sources: newDeckAdapter, action: "deck_draft" },
+  show_cards: { status: "Listing the cards", action: "card_list" },
   propose_turn_plan: { status: "Checking the turn plan", action: "plan" },
   answer_choice: { status: "Answering the prompt", action: "choice" },
 } satisfies Record<string, ToolMeta>;

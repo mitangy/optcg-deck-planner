@@ -12,7 +12,7 @@ export const isLimitCode = (code: unknown): code is LimitCode => LIMIT_CODES.inc
 
 export type ErrorCode = LimitCode | "auth" | "server" | "bad_request";
 
-export const SSE_EVENTS = ["thread", "status", "text", "cite", "proposal", "deck_draft", "plan", "choice", "done", "error"] as const;
+export const SSE_EVENTS = ["thread", "status", "text", "cite", "proposal", "deck_draft", "card_list", "plan", "choice", "done", "error"] as const;
 export type SseEventName = (typeof SSE_EVENTS)[number];
 
 // The regex source is written so JavaScript and Python read it the same way.

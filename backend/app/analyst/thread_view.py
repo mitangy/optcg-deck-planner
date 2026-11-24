@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 
-from app.analyst.schemas import AnalystCitation, AnalystDeckDraft, AnalystDeckEdit, AnalystDisplayMessage
+from app.analyst.schemas import AnalystCardList, AnalystCitation, AnalystDeckDraft, AnalystDeckEdit, AnalystDisplayMessage
 
 
 CONTEXT_PREFIX = "<context>"
@@ -9,6 +9,7 @@ CONTEXT_PREFIX = "<context>"
 
 PROPOSE_TOOL = "propose_deck_edit"
 NEW_DECK_TOOL = "propose_new_deck"
+CARD_LIST_TOOL = "show_cards"
 
 
 def tool_ids(content: str | list[dict], tool: str) -> list[str]:
@@ -27,6 +28,10 @@ def _proposal_ids(content: str | list[dict]) -> list[str]:
 
 def _draft_ids(content: str | list[dict]) -> list[str]:
     return tool_ids(content, NEW_DECK_TOOL)
+
+
+def _card_list_ids(content: str | list[dict]) -> list[str]:
+    return tool_ids(content, CARD_LIST_TOOL)
 
 
 MAX_CITED_TEXT = 800
@@ -75,40 +80,53 @@ def _display_text(role: str, content: str | list[dict]) -> tuple[str, list[Analy
     return text, cites
 
 
-def _attach(out: list[AnalystDisplayMessage], pending: list[AnalystDeckEdit], pending_drafts: list[AnalystDeckDraft]) -> None:
-    if not pending and not pending_drafts:
-        return
-    if out and out[-1].role == "assistant":
-        out[-1].proposals += pending
-        out[-1].drafts += pending_drafts
-    else:
-        out.append(AnalystDisplayMessage(role="assistant", text="", proposals=list(pending), drafts=list(pending_drafts)))
-    pending.clear()
-    pending_drafts.clear()
+class _Pending:
+    """Cards made by the answer being read, shown under it once its text is known."""
+
+    def __init__(self) -> None:
+        self.proposals: list[AnalystDeckEdit] = []
+        self.drafts: list[AnalystDeckDraft] = []
+        self.card_lists: list[AnalystCardList] = []
+
+    def attach(self, out: list[AnalystDisplayMessage]) -> None:
+        if not (self.proposals or self.drafts or self.card_lists):
+            return
+        if out and out[-1].role == "assistant":
+            out[-1].proposals += self.proposals
+            out[-1].drafts += self.drafts
+            out[-1].card_lists += self.card_lists
+        else:
+            out.append(
+                AnalystDisplayMessage(
+                    role="assistant", text="", proposals=list(self.proposals), drafts=list(self.drafts), card_lists=list(self.card_lists)
+                )
+            )
+        self.proposals, self.drafts, self.card_lists = [], [], []
 
 
 def thread_view(
     messages: list[tuple[str, str | list[dict]]],
     proposals: dict[str, AnalystDeckEdit] | None = None,
     drafts: dict[str, AnalystDeckDraft] | None = None,
+    card_lists: dict[str, AnalystCardList] | None = None,
 ) -> list[AnalystDisplayMessage]:
     out: list[AnalystDisplayMessage] = []
-    pending: list[AnalystDeckEdit] = []
-    pending_drafts: list[AnalystDeckDraft] = []
+    pending = _Pending()
     for role, content in messages:
         if role == "assistant":
-            pending += [proposals[i] for i in _proposal_ids(content) if proposals and i in proposals]
-            pending_drafts += [drafts[i] for i in _draft_ids(content) if drafts and i in drafts]
+            pending.proposals += [proposals[i] for i in _proposal_ids(content) if proposals and i in proposals]
+            pending.drafts += [drafts[i] for i in _draft_ids(content) if drafts and i in drafts]
+            pending.card_lists += [card_lists[i] for i in _card_list_ids(content) if card_lists and i in card_lists]
         text, cites = _display_text(role, content)
         if not text.strip():
             continue
         if role == "user":
-            _attach(out, pending, pending_drafts)
+            pending.attach(out)
         if out and out[-1].role == role == "assistant":
             base = utf16_len(out[-1].text) + 2
             out[-1].text += "\n\n" + text
             out[-1].citations += [c.model_copy(update={"at": c.at + base}) for c in cites]
         else:
             out.append(AnalystDisplayMessage(role=role, text=text, citations=cites))
-    _attach(out, pending, pending_drafts)
+    pending.attach(out)
     return out
