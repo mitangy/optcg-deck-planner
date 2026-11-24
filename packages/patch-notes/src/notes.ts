@@ -1,7 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
-  { date: "2026-11-24", app: "planner", pr: 0, title: "Gift Collection -Heroines alt arts", text: "The 10 Gift Collection -Heroines printings are now alt arts in the planner and the duel app: Nami (EB03-006), Hina (EB03-025), Koala (EB03-042), Rebecca (EB03-048), Shirahoshi (EB03-052), Boa Hancock (EB04-027), Vinsmoke Reiju (OP12-063), Jewelry Bonney (OP12-118), Perona (OP14-111) and Nico Robin (P-111).",
+  { date: "2026-11-24", app: "planner", pr: 1449, title: "Gift Collection -Heroines alt arts", text: "The 10 Gift Collection -Heroines printings are now alt arts in the planner and the duel app: Nami (EB03-006), Hina (EB03-025), Koala (EB03-042), Rebecca (EB03-048), Shirahoshi (EB03-052), Boa Hancock (EB04-027), Vinsmoke Reiju (OP12-063), Jewelry Bonney (OP12-118), Perona (OP14-111) and Nico Robin (P-111).",
     cards: [
       { id: "EB03-006", name: "Nami", image: "https://tcgplayer-cdn.tcgplayer.com/product/735311_400w.jpg", label: "Gift Collection -Heroines" },
       { id: "EB03-025", name: "Hina", image: "https://tcgplayer-cdn.tcgplayer.com/product/735312_400w.jpg", label: "Gift Collection -Heroines" },
