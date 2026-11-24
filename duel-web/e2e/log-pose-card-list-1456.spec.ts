@@ -117,3 +117,44 @@ test("Describe a card opens Log Pose with the start of a sentence, and a card li
     await shot(page, `${info.project.name}-theme-${theme}-${mode}`);
   }
 });
+
+// The compass is fixed bottom-right and the compact deck editor's bar is fixed along the bottom (#1458).
+test("Log Pose compass sits above the deck editor's Add cards bar (#1458)", async ({ page }, info) => {
+  test.skip(info.project.name !== "phone-375", "the bottom bar is a phone layout");
+  await fakeLogPose(page);
+  await page.addInitScript(
+    ([id, deck]) => {
+      if (sessionStorage.getItem("e2e-seeded")) return;
+      sessionStorage.setItem("e2e-seeded", "1");
+      localStorage.clear();
+      localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify([{ id, name: "Red Vanilla", ...deck, updatedAt: 1 }]));
+    },
+    [DECK_ID, RED_VANILLA] as const,
+  );
+  await page.goto(`/decks/${DECK_ID}/configure`);
+  await expect(page.locator("article.deck-stack", { hasText: "ST01-006" }).getByLabel("4 copies")).toBeVisible();
+
+  for (const [width, height] of [[375, 812], [812, 375]] as const) {
+    await page.setViewportSize({ width, height });
+    const compass = page.locator(".lp-compass");
+    const add = page.locator(".deck-bottom-add");
+    const bar = page.locator(".deck-bottom-bar");
+    await expect(compass).toBeVisible();
+    await expect(add).toBeVisible();
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await shot(page, `${info.project.name}-1458-${width}x${height}`);
+    const c = (await compass.boundingBox())!;
+    const a = (await add.boundingBox())!;
+    const b = (await bar.boundingBox())!;
+    // The compass clears the whole bar, so it is not on top of Add cards either.
+    expect(c.y + c.height, `${width}x${height}: compass bottom ${c.y + c.height} vs bar top ${b.y}`).toBeLessThanOrEqual(b.y);
+    expect(c.y).toBeGreaterThanOrEqual(0);
+    expect(c.x + c.width).toBeLessThanOrEqual(width);
+    expect(a.y).toBeGreaterThanOrEqual(b.y);
+    // Both take a tap at their centre: the topmost element there is the control itself.
+    for (const [loc, box] of [[compass, c], [add, a]] as const) {
+      const hit = await loc.evaluate((el, [x, y]) => el.contains(document.elementFromPoint(x, y)), [box.x + box.width / 2, box.y + box.height / 2]);
+      expect(hit).toBe(true);
+    }
+  }
+});
