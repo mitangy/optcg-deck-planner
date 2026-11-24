@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fromHistory, liveAnswer } from "./chatMessages";
+import { parseCardList } from "./cardLists";
 import { parseDraft } from "./drafts";
 import { parseProposal } from "./proposals";
 
@@ -19,6 +20,11 @@ describe("chat messages (#726)", () => {
     const m = fromHistory({ role: "assistant", text: "Done.", proposals: [proposal], drafts: [draft] });
     expect(m.live).toBeUndefined();
     expect(m).toMatchObject({ role: "assistant", text: "Done.", saved: true, proposals: [{ id: "t1" }], drafts: [{ id: "d1" }], citations: [] });
-    expect(fromHistory({ role: "user", text: "hi" })).toMatchObject({ proposals: [], drafts: [], saved: true });
+    expect(fromHistory({ role: "user", text: "hi" })).toMatchObject({ proposals: [], drafts: [], cardLists: [], saved: true });
+  });
+
+  it("keeps the card lists of a saved answer (#1450)", () => {
+    const list = parseCardList({ id: "l1", title: "Red", cards: [{ id: "OP01-022", name: "Brook", type: "character" }] })!;
+    expect(fromHistory({ role: "assistant", text: "Two match.", cardLists: [list] })).toMatchObject({ cardLists: [{ id: "l1" }], saved: true });
   });
 });

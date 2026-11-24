@@ -12,6 +12,11 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Describe a card (#1450)
+    { id: "describe-card-sends-itself", file: "frontend/src/pages/decks/logPose.ts", from: "send: false } as const", to: "send: true } as const", kills: ["opens Log Pose with the start of a sentence in the box and does not send it (#1450)"], args: "src/pages/decks/describeCard1450.test.tsx" },
+    { id: "describe-card-no-prompt-start", file: "frontend/src/pages/decks/logPose.ts", from: "prompt: \"Find cards that \"", to: "prompt: \"\"", kills: ["opens Log Pose with the start of a sentence in the box and does not send it (#1450)"], args: "src/pages/decks/describeCard1450.test.tsx" },
+    { id: "describe-card-button-always", file: "frontend/src/pages/decks/DeckEditorPanel.tsx", from: "          {askLogPose ? (\n            <button type=\"button\" className=\"btn secondary deck-editor-describe\"", to: "          {true ? (\n            <button type=\"button\" className=\"btn secondary deck-editor-describe\"", kills: ["has no button when Log Pose isn't available to this player (#1450)"], args: "src/pages/decks/describeCard1450.test.tsx" },
+    { id: "describe-card-click-ignored", file: "frontend/src/pages/decks/DeckEditorPanel.tsx", from: "onClick={() => askLogPose(DESCRIBE_A_CARD_ASK)}", to: "onClick={() => undefined}", kills: ["opens Log Pose with the start of a sentence in the box and does not send it (#1450)"], args: "src/pages/decks/describeCard1450.test.tsx" },
     // Buy on TCGPlayer targets the selection, or every card still to buy (#1342)
     { id: "buy1342-nothing-selected-buys-nothing", file: "frontend/src/pages/shopping/shoppingBuy.ts", from: "  const all = items.filter((i) => i.still_need > 0);", to: "  const all: ShoppingItem[] = [];", kills: ["with nothing selected buys every card that still needs copies, extra copies included (#1342)"], args: "src/pages/shopping/shoppingBuy1342" },
     { id: "buy1342-selection-ignored", file: "frontend/src/pages/shopping/shoppingBuy.ts", from: "  if (selection.items.length + selection.lines.length > 0) return", to: "  if (selection.items.length + selection.lines.length > 99999) return", kills: ["with cards selected buys only the selection (#1342)"], args: "src/pages/shopping/shoppingBuy1342" },

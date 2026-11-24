@@ -325,12 +325,40 @@ class AnalystDraftsIn(BaseModel):
     drafts: list[AnalystDeckDraft] = Field(min_length=1, max_length=2)
 
 
+class AnalystCardListRow(BaseModel):
+    id: str = Field(pattern=CARD_ID_PATTERN)
+    name: str = Field(max_length=120)
+    type: Literal["leader", "character", "event", "stage"]
+    colors: list[str] = Field(default_factory=list, max_length=6)
+    cost: int | None = Field(default=None, ge=0, le=99)
+    power: int | None = Field(default=None, ge=0, le=99999)
+    counter: int | None = Field(default=None, ge=0, le=99999)
+    reason: str = Field(default="", max_length=300)
+    any_number: bool = False
+
+
+class AnalystCardList(BaseModel):
+    """Cards Log Pose found for a description, shown as a list with Add buttons for the open deck (#1450)."""
+
+    id: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
+    version: Literal[1]
+    kind: Literal["card_list"]
+    title: str = Field(min_length=1, max_length=80)
+    cards: list[AnalystCardListRow] = Field(min_length=1, max_length=24)
+    leader_id: str | None = Field(default=None, pattern=CARD_ID_PATTERN)
+
+
+class AnalystCardListsIn(BaseModel):
+    card_lists: list[AnalystCardList] = Field(min_length=1, max_length=4)
+
+
 class AnalystDisplayMessage(BaseModel):
     role: Literal["user", "assistant"]
     text: str
     citations: list[AnalystCitation] = Field(default_factory=list)
     proposals: list[AnalystDeckEdit] = Field(default_factory=list)
     drafts: list[AnalystDeckDraft] = Field(default_factory=list)
+    card_lists: list[AnalystCardList] = Field(default_factory=list)
 
 
 class AnalystThreadView(BaseModel):
