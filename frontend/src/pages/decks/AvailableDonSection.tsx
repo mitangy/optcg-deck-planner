@@ -5,7 +5,8 @@ import { CardSearchInput, CollapsibleDrawer } from "../../ui/cardListControls";
 import { CardThumb } from "../../ui/CardThumb";
 import { InlineSkeleton } from "../../ui/Skeleton";
 import { isDonCardType } from "../../cards/donCards";
-import { DON_DECK_LIMIT, setDeckCardNeeded } from "./deckEditing";
+import { DON_ADD_MAX, formatDonCount, setDeckCardNeeded } from "./deckEditing";
+import { QtyStepper } from "../../friends/ui";
 import { CATALOG_SEARCH_DEBOUNCE_MS } from "../../hooks/useCatalogSearch";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { DECK_DON_AVAILABLE_OPEN_KEY } from "../../storage/keys";
@@ -22,6 +23,8 @@ export function AvailableDonSection({
 }) {
   const [err, setErr] = useState<string | null>(null);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  // How many copies the next Add puts in the deck, per tile; a tile resets to 1 after it adds (#1317).
+  const [qtyById, setQtyById] = useState<Record<string, number>>({});
   const [query, setQuery] = useState("");
   const debouncedQ = useDebouncedValue(query, CATALOG_SEARCH_DEBOUNCE_MS).trim();
   const donQ = useQuery({
@@ -41,17 +44,14 @@ export function AvailableDonSection({
     .filter((c) => c.section === "don" || isDonCardType(c.card_type))
     .reduce((s, c) => s + c.needed, 0);
 
-  async function addOne(card: CatalogCardResult) {
+  async function addCopies(card: CatalogCardResult, qty: number) {
     setErr(null);
     const current = neededById.get(card.card_id) ?? 0;
-    if (donCount >= DON_DECK_LIMIT) {
-      setErr(`DON!! deck is limited to ${DON_DECK_LIMIT} cards.`);
-      return;
-    }
     setPendingId(card.card_id);
     try {
-      const detail = await setDeckCardNeeded(deckId, card.card_id, current + 1);
+      const detail = await setDeckCardNeeded(deckId, card.card_id, current + qty);
       if (detail) onUpdated(detail);
+      setQtyById((m) => ({ ...m, [card.card_id]: 1 }));
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -61,7 +61,7 @@ export function AvailableDonSection({
 
   const resultCount = donQ.data?.length ?? 0;
   const summary = [
-    `${donCount}/${DON_DECK_LIMIT} in deck`,
+    formatDonCount(donCount, { inDeck: true }),
     resultCount > 0 ? `${resultCount} ${debouncedQ ? "found" : "available"}` : null,
   ]
     .filter(Boolean)
@@ -96,7 +96,7 @@ export function AvailableDonSection({
             {donQ.data.map((card) => {
               const inDeck = neededById.get(card.card_id) ?? 0;
               const busy = pendingId === card.card_id;
-              const atCap = donCount >= DON_DECK_LIMIT && inDeck === 0;
+              const qty = qtyById[card.card_id] ?? 1;
               return (
                 <li key={card.card_id} className="don-tile">
                   <CardThumb src={card.image_url || undefined} cardId={card.card_id} alt={card.name} />
@@ -108,14 +108,23 @@ export function AvailableDonSection({
                     </div>
                     {inDeck > 0 && <div className="don-tile-indeck">In deck ×{inDeck}</div>}
                   </div>
-                  <button
-                    type="button"
-                    className="btn secondary don-tile-add"
-                    disabled={busy || atCap}
-                    onClick={() => void addOne(card)}
-                  >
-                    {inDeck > 0 ? "Add another" : "Add"}
-                  </button>
+                  <div className="don-tile-actions">
+                    <QtyStepper
+                      value={qty}
+                      min={1}
+                      max={DON_ADD_MAX}
+                      label={`${card.card_id} to add`}
+                      onChange={(n) => setQtyById((m) => ({ ...m, [card.card_id]: n }))}
+                    />
+                    <button
+                      type="button"
+                      className="btn secondary don-tile-add"
+                      disabled={busy}
+                      onClick={() => void addCopies(card, qty)}
+                    >
+                      {qty > 1 ? `Add ${qty}` : "Add"}
+                    </button>
+                  </div>
                 </li>
               );
             })}

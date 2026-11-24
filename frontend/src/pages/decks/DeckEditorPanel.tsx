@@ -18,7 +18,7 @@ import {
   catalogRowKey,
   AltArtChip,
 } from "../collection/CatalogAddDrawer";
-import { DON_DECK_LIMIT, setDeckCardNeeded, MAIN_DECK_LIMIT } from "./deckEditing";
+import { formatDonCount, setDeckCardNeeded, MAIN_DECK_LIMIT } from "./deckEditing";
 import { DECK_EDITOR_COLOR_KEY, DECK_EDITOR_TYPE_KEY, DECK_SEARCH_OPEN_KEY } from "../../storage/keys";
 import { useCatalogSearch } from "../../hooks/useCatalogSearch";
 import { DescribeCardButton, useLogPoseAsk } from "@optcg/analyst-client";
@@ -87,13 +87,6 @@ export function DeckEditorPanel({
     try {
       const current = neededById.get(card.card_id) ?? 0;
       const next = current + add;
-      if (isDonCardType(card.card_type)) {
-        const projectedDon = donCount - current + next;
-        if (projectedDon > DON_DECK_LIMIT) {
-          setErr(`DON!! deck is limited to ${DON_DECK_LIMIT} cards.`);
-          return;
-        }
-      }
       const detail = await setDeckCardNeeded(deckId, card.card_id, next);
       if (detail) {
         onUpdated(detail);
@@ -130,7 +123,7 @@ export function DeckEditorPanel({
 
   const searchSummary = [
     `Main ${mainCount}/${MAIN_DECK_LIMIT}`,
-    `DON!! ${donCount}/${DON_DECK_LIMIT}`,
+    `DON!! ${formatDonCount(donCount)}`,
     searchEnabled && searchQ.data ? `${searchQ.data.length} results` : null,
   ]
     .filter(Boolean)

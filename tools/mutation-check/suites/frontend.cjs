@@ -12,6 +12,12 @@ module.exports = {
   cwd: "frontend",
   runner: "vitest",
   mutations: [
+    // Add DON!! by quantity, extras past 10 allowed (#1317)
+    {"id": "don1317-add-one-only", "file": "frontend/src/pages/decks/AvailableDonSection.tsx", "from": "card.card_id, current + qty)", "to": "card.card_id, current + 1)", "kills": ["adds the chosen quantity in one save on top of what the deck already has (#1317)"], "args": "src/pages/decks/donQuantity1317.test.tsx"},
+    {"id": "don1317-qty-not-reset", "file": "frontend/src/pages/decks/AvailableDonSection.tsx", "from": "      setQtyById((m) => ({ ...m, [card.card_id]: 1 }));\n", "to": "", "kills": ["resets the quantity to 1 after adding (#1317)"], "args": "src/pages/decks/donQuantity1317.test.tsx"},
+    {"id": "don1317-cap-back", "file": "frontend/src/pages/decks/AvailableDonSection.tsx", "from": "disabled={busy}", "to": "disabled={busy || donCount >= 10}", "kills": ["still lets you add when the deck already has 10 DON!! (#1317)"], "args": "src/pages/decks/donQuantity1317.test.tsx"},
+    {"id": "don1317-extras-text-dropped", "file": "frontend/src/pages/decks/deckEditing.ts", "from": "return extra > 0 ? `${base} (+${extra} extra)` : base;", "to": "return base;", "kills": ["shows how many DON!! are extras past the 10 a deck plays (#1317)"], "args": "src/pages/decks/donQuantity1317.test.tsx"},
+    {"id": "don1317-drawer-extras-dropped", "file": "frontend/src/pages/decks/deckEditing.ts", "from": "return extra > 0 ? `${base} in deck · ${extra} extra` : `${base} in deck`;", "to": "return `${base} in deck`;", "kills": ["shows how many DON!! are extras past the 10 a deck plays (#1317)"], "args": "src/pages/decks/donQuantity1317.test.tsx"},
     // Describe a card (#1450)
     { id: "describe-card-sends-itself", file: "packages/analyst-client/src/DescribeCardButton.tsx", from: "send: false } as const", to: "send: true } as const", kills: ["opens Log Pose with the start of a sentence in the box and does not send it (#1450)"], args: "src/pages/decks/describeCard1450.test.tsx" },
     { id: "describe-card-no-prompt-start", file: "packages/analyst-client/src/DescribeCardButton.tsx", from: "prompt: \"Find cards that \"", to: "prompt: \"\"", kills: ["opens Log Pose with the start of a sentence in the box and does not send it (#1450)"], args: "src/pages/decks/describeCard1450.test.tsx" },
