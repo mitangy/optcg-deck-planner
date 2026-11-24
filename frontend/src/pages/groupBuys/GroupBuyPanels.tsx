@@ -18,10 +18,11 @@ export function GroupBuyMembersList({
   onRemoveOffline,
 }: {
   detail: GroupBuyDetail;
-  /** Host only, while open: add someone who is not on the app, then rename or remove them. */
+  /** Host only, until completed: add someone who is not on the app, then rename or remove them. */
   onAddOffline?: () => void;
   onRenameOffline?: (member: GroupBuyMember) => void;
-  onRemoveOffline?: (member: GroupBuyMember) => void;
+  /** Return nothing for a member who cannot be removed (they still have copies once locked). */
+  onRemoveOffline?: (member: GroupBuyMember) => (() => void) | undefined;
 }) {
   const members = detail.members ?? [];
   const showOrderPanel = hasOrderPanel(detail);
@@ -55,11 +56,11 @@ export function GroupBuyMembersList({
                 </strong>
                 <MemberModeTag member={m} />
                 {m.is_offline ? <OfflineTag /> : null}
-                {m.is_offline && onRenameOffline && onRemoveOffline ? (
+                {m.is_offline && onRenameOffline ? (
                   <OfflineMemberMenu
                     member={m}
                     onRename={() => onRenameOffline(m)}
-                    onRemove={() => onRemoveOffline(m)}
+                    onRemove={onRemoveOffline?.(m)}
                   />
                 ) : null}
               </span>

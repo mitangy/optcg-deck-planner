@@ -41,7 +41,9 @@ from app.group_buy.schemas import (
     GroupBuyNotOrderedMemberOut,
     GroupBuyOfflineCardsResult,
     GroupBuyMemberOut,
+    GroupBuyMemberArtOut,
     GroupBuyMemberQtyOut,
+    GroupBuyMoveCopies,
     GroupBuyMyExtraOut,
     GroupBuyArrivalUndo,
     GroupBuyArrivalUpdate,
@@ -921,6 +923,12 @@ def _detail_from_group(
 ) -> GroupBuyDetail:
     viewer_id = user.id if user is not None else 0
     lines, member_stats = _build_lines(db, group, viewer_user_id=viewer_id)
+    if (
+        not read_only
+        and viewer_id == group.host_user_id
+        and group.status != GroupBuyStatus.OPEN
+    ):
+        _fill_member_arts(db, group, lines)
 
     card_costs = {uid: float(stats[1]) for uid, stats in member_stats.items()}
     copies = {uid: int(stats[0]) for uid, stats in member_stats.items()}
@@ -1305,7 +1313,6 @@ MAX_OFFLINE_MEMBERS = 20
 def add_offline_member(db: Session, user: User, group_id: int, name: str) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     _require_host(group, user)
-    _require_open(group)
     if sum(1 for m in group.members if is_placeholder_user(m.user)) >= MAX_OFFLINE_MEMBERS:
         raise Invalid(f"A group buy can have up to {MAX_OFFLINE_MEMBERS} people who are not on the app")
     clean = (name or "").strip()
@@ -1331,7 +1338,6 @@ def rename_offline_member(
 ) -> GroupBuyDetail:
     group = _get_group(db, group_id)
     member = _offline_member(group, user, member_id)
-    _require_open(group)
     clean = (name or "").strip()
     if not clean or len(clean) > 40:
         raise Invalid("Name must be 1 to 40 characters")
@@ -1347,7 +1353,10 @@ def remove_offline_member(db: Session, user: User, group_id: int, member_id: int
         for line in order.lines:
             if any(a.user_id == member_id and int(a.qty) > 0 for a in line.allocations):
                 raise Conflict("They have cards in a seller order, so they cannot be removed")
-    _require_open(group)
+    if group.status != GroupBuyStatus.OPEN and any(
+        row.user_id == member_id and int(row.qty) > 0 for row in group.snapshot_lines
+    ):
+        raise Conflict("They have copies in this group buy, so they cannot be removed")
     for model in (GroupBuyQtyOverride, GroupBuyExtraSkip, GroupBuySnapshotLine, GroupBuyHandoff):
         db.execute(
             delete(model).where(model.group_buy_id == group.id, model.user_id == member_id)
@@ -1359,12 +1368,172 @@ def remove_offline_member(db: Session, user: User, group_id: int, member_id: int
     return get_group_buy(db, user, group_id)
 
 
+def _snapshot_art(db: Session, row: GroupBuySnapshotLine) -> int | None:
+    """The art a snapshot row's copies are, None for the standard art."""
+    pid = row.product_id
+    return pid if _is_alt_printing(db, row.card_id.upper(), pid) else None
+
+
+def _art_copies_map(
+    db: Session, group: GroupBuy
+) -> dict[tuple[int, str], dict[int | None, list[int]]]:
+    """(user id, card id) -> art -> [copies, copies arrived], from orders plus not-yet-ordered snapshot copies."""
+    out: dict[tuple[int, str], dict[int | None, list[int]]] = {}
+    for order in group.orders:
+        for line in order.lines:
+            for alloc in line.allocations:
+                if int(alloc.qty) <= 0:
+                    continue
+                cell = out.setdefault((alloc.user_id, line.card_id.upper()), {}).setdefault(
+                    line.product_id, [0, 0]
+                )
+                cell[0] += int(alloc.qty)
+                cell[1] += int(alloc.qty_arrived)
+    for row in group.snapshot_lines:
+        key = (row.user_id, row.card_id.upper())
+        arts = out.setdefault(key, {})
+        unplaced = int(row.qty) - sum(c[0] for c in arts.values())
+        if unplaced > 0:
+            arts.setdefault(_snapshot_art(db, row), [0, 0])[0] += unplaced
+    return out
+
+
+def _fill_member_arts(db: Session, group: GroupBuy, lines: list[GroupBuyLineOut]) -> None:
+    arts = _art_copies_map(db, group)
+    for line in lines:
+        rows: list[GroupBuyMemberArtOut] = []
+        for member in line.members:
+            for art, (qty, arrived) in sorted(
+                arts.get((member.user_id, line.card_id.upper()), {}).items(), key=lambda kv: _art_key(kv[0])
+            ):
+                rows.append(
+                    GroupBuyMemberArtOut(
+                        user_id=member.user_id, product_id=art, qty=qty, qty_arrived=arrived
+                    )
+                )
+        line.member_arts = rows
+
+
+def move_copies(
+    db: Session, user: User, group_id: int, body: GroupBuyMoveCopies
+) -> GroupBuyDetail:
+    """Move some of one member's copies of a card and art to another once the buy is locked or ordered (#1451)."""
+    group = _get_group(db, group_id, lock=True)
+    _require_host(group, user)
+    if group.status == GroupBuyStatus.OPEN:
+        raise Forbidden("Copies can be moved once the group buy is locked")
+    card_id = body.card_id.upper().strip()
+    qty = int(body.qty)
+    art = body.product_id
+    if body.from_user_id == body.to_user_id:
+        raise Invalid("Pick two different people")
+    members = {m.user_id: m for m in group.members}
+    if body.from_user_id not in members or body.to_user_id not in members:
+        raise NotFound("Both people must be in this group buy")
+    if not (
+        is_placeholder_user(members[body.from_user_id].user)
+        or is_placeholder_user(members[body.to_user_id].user)
+    ):
+        raise Invalid("Copies can only move to or from someone who is not on the app")
+    if art is not None and not _is_alt_printing(db, card_id, art):
+        raise Invalid("Unknown art for this card")
+    have = _art_copies_map(db, group).get((body.from_user_id, card_id), {}).get(art, [0, 0])[0]
+    if qty > have:
+        raise Invalid(f"They only have {have} of that art")
+    from_row = next(
+        r for r in group.snapshot_lines if r.user_id == body.from_user_id and r.card_id.upper() == card_id
+    )
+
+    # Orders first: copies not yet arrived, then arrived ones. Arrived copies stay arrived for the receiver.
+    left = qty
+    arrived_by_order: dict[int, int] = {}
+    touched: dict[int, GroupBuyOrder] = {}
+    for take_arrived in (False, True):
+        for order in sorted(group.orders, key=lambda o: o.id):
+            for line in order.lines:
+                if line.card_id.upper() != card_id or line.product_id != art or left <= 0:
+                    continue
+                src = next((a for a in line.allocations if a.user_id == body.from_user_id), None)
+                if src is None:
+                    continue
+                room = int(src.qty_arrived) if take_arrived else int(src.qty) - int(src.qty_arrived)
+                n = min(left, room)
+                if n <= 0:
+                    continue
+                dst = next((a for a in line.allocations if a.user_id == body.to_user_id), None)
+                if dst is None:
+                    dst = GroupBuyOrderAllocation(
+                        order_line_id=line.id, user_id=body.to_user_id, qty=0, qty_arrived=0
+                    )
+                    line.allocations.append(dst)
+                src.qty = int(src.qty) - n
+                dst.qty = int(dst.qty) + n
+                if take_arrived:
+                    src.qty_arrived = int(src.qty_arrived) - n
+                    dst.qty_arrived = int(dst.qty_arrived) + n
+                    arrived_by_order[order.id] = arrived_by_order.get(order.id, 0) + n
+                if int(src.qty) <= 0:
+                    line.allocations.remove(src)
+                left -= n
+                touched[order.id] = order
+    for order in touched.values():
+        _touch(order)
+
+    # The snapshot is what money is settled on.
+    from_row.qty = int(from_row.qty) - qty
+    to_row = next(
+        (r for r in group.snapshot_lines if r.user_id == body.to_user_id and r.card_id.upper() == card_id),
+        None,
+    )
+    if to_row is None:
+        db.add(
+            GroupBuySnapshotLine(
+                group_buy_id=group.id,
+                user_id=body.to_user_id,
+                card_id=card_id,
+                qty=qty,
+                product_id=art,
+            )
+        )
+    else:
+        to_row.qty = int(to_row.qty) + qty
+    if int(from_row.qty) <= 0:
+        group.snapshot_lines.remove(from_row)
+        db.delete(from_row)
+
+    # Collections follow the arrived copies, and the receipt ledger does too so undoing an arrival stays right.
+    moved_arrived = sum(arrived_by_order.values())
+    if moved_arrived:
+        _credit(db, body.from_user_id, card_id, art, -moved_arrived)
+        _credit(db, body.to_user_id, card_id, art, moved_arrived)
+        for order_id, n in arrived_by_order.items():
+            apply_event = max(
+                (a for a in group.receipt_applies if a.order_id == order_id),
+                key=lambda a: a.id or 0,
+                default=None,
+            )
+            if apply_event is None:
+                continue
+            for uid, delta in ((body.from_user_id, -n), (body.to_user_id, n)):
+                apply_event.lines.append(
+                    GroupBuyReceiptApplyLine(user_id=uid, card_id=card_id, product_id=art, qty=delta)
+                )
+    db.flush()
+    handoff = next((h for h in group.handoffs if h.user_id == body.from_user_id), None)
+    if handoff is not None:
+        handoff.qty_handed = min(
+            int(handoff.qty_handed), _arrived_by_user(group).get(body.from_user_id, 0)
+        )
+    db.commit()
+    return get_group_buy(db, user, group_id)
+
+
 def set_offline_member_cards(
     db: Session, user: User, group_id: int, member_id: int, text: str
 ) -> GroupBuyOfflineCardsResult:
     """Replace an offline member's cards with the ones in a pasted list (4xOP01-001, 4 OP01-001...)."""
     group = _get_group(db, group_id)
-    member = _offline_member(group, user, member_id)
+    _offline_member(group, user, member_id)
     _require_open(group)
     wanted: dict[str, int] = {}
     unmatched: list[str] = []

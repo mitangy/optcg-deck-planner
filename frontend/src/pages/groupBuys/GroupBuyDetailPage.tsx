@@ -36,7 +36,17 @@ import { CollapsibleDrawer } from "../../ui/cardListControls";
 import { groupBuyActions, stepHint, stepLabel, summaryParts, type GroupBuyActionKey } from "./groupBuyActions";
 import { ArtWantChips, OfflineTag, SkippedBadge, boughtAltRow } from "./memberParts";
 import { AddCardDialog, BuyingForBar, OfflineNameDialog, PasteCardsDialog } from "./OfflineMembers";
-import { buyingForQty, canManageOffline, offlineMembers, resolveBuyingFor } from "./offlineMembersModel";
+import { MoveCopiesDialog, type MoveCopiesRequest } from "./MoveCopiesDialog";
+import {
+  buyingForQty,
+  canAddOffline,
+  canManageOffline,
+  canMoveCopies,
+  canRemoveOffline,
+  hasMovableCopies,
+  offlineMembers,
+  resolveBuyingFor,
+} from "./offlineMembersModel";
 import { SHIPPING_SPLIT_LABELS, ShippingSplit } from "./shipping";
 import { useGroupBuyLines } from "./useGroupBuyLines";
 import { COLSORT_GB_CARDS_KEY, COLSORT_GB_OWE_KEY } from "../../storage/keys";
@@ -73,6 +83,7 @@ export function GroupBuyDetailPage() {
   const [renameOffline, setRenameOffline] = useState<GroupBuyMember | null>(null);
   const [pasteOpen, setPasteOpen] = useState(false);
   const [addCardOpen, setAddCardOpen] = useState(false);
+  const [moveLine, setMoveLine] = useState<GroupBuyLine | null>(null);
   const [orderNotes, setOrderNotes] = useState("");
   const [shippingCost, setShippingCost] = useState("0");
   const [taxCost, setTaxCost] = useState("0");
@@ -91,6 +102,8 @@ export function GroupBuyDetailPage() {
   const members = detail?.members ?? [];
   const offline = offlineMembers(members);
   const manageOffline = Boolean(detail && canManageOffline(detail));
+  const addOfflineAllowed = Boolean(detail && canAddOffline(detail));
+  const movingCopies = Boolean(detail && canMoveCopies(detail));
   const buyingFor = manageOffline ? resolveBuyingFor(members, buyingForId) : null;
 
   const { lines, displayRows, tableRows, cardsSort, onCardsSort } = useGroupBuyLines(
@@ -227,6 +240,15 @@ export function GroupBuyDetailPage() {
       setBuyingForId((cur) => (cur === memberId ? null : cur));
     },
     onError: (e: Error) => setMsg(e.message),
+  });
+
+  const moveCopies = useMutation({
+    mutationFn: (req: MoveCopiesRequest) => api.moveGroupBuyCopies(groupId, req),
+    onSuccess: async (d) => {
+      qc.setQueryData(qk.groupBuy.detail(groupId), d);
+      await qc.invalidateQueries({ queryKey: qk.groupBuys() });
+      setMoveLine(null);
+    },
   });
 
   const pasteOffline = useMutation({
@@ -602,6 +624,11 @@ export function GroupBuyDetailPage() {
         <OfflineNameDialog
           title="Add someone not on the app"
           confirmLabel="Add"
+          note={
+            manageOffline
+              ? undefined
+              : "They do not need the app. Once they are added, use Move copies on a card to give them copies from someone's share."
+          }
           busy={addOffline.isPending}
           error={addOffline.isError ? (addOffline.error as Error).message : null}
           onSubmit={(name) => addOffline.mutate(name)}
@@ -622,6 +649,20 @@ export function GroupBuyDetailPage() {
           onClose={() => {
             renameOfflineMember.reset();
             setRenameOffline(null);
+          }}
+        />
+      ) : null}
+      {moveLine && detail ? (
+        <MoveCopiesDialog
+          line={detail.lines.find((l) => l.card_id === moveLine.card_id) ?? moveLine}
+          members={members}
+          hostId={detail.host_user_id}
+          busy={moveCopies.isPending}
+          error={moveCopies.isError ? (moveCopies.error as Error).message : null}
+          onSubmit={(req) => moveCopies.mutate(req)}
+          onClose={() => {
+            moveCopies.reset();
+            setMoveLine(null);
           }}
         />
       ) : null}
@@ -871,11 +912,11 @@ export function GroupBuyDetailPage() {
 
       <GroupBuyMembersList
         detail={detail}
-        onAddOffline={manageOffline ? () => setAddOfflineOpen(true) : undefined}
-        onRenameOffline={manageOffline ? (m) => setRenameOffline(m) : undefined}
-        onRemoveOffline={
-          manageOffline
-            ? async (m) => {
+        onAddOffline={addOfflineAllowed ? () => setAddOfflineOpen(true) : undefined}
+        onRenameOffline={addOfflineAllowed ? (m) => setRenameOffline(m) : undefined}
+        onRemoveOffline={(m) =>
+          canRemoveOffline(detail, m)
+            ? async () => {
                 const ok = await confirm({
                   title: `Remove ${m.display_name}?`,
                   message: "Their cards come off the group buy. This can't be undone.",
@@ -1112,6 +1153,24 @@ export function GroupBuyDetailPage() {
                           }
                         />
                       )
+                    : undefined
+                }
+                renderMove={
+                  movingCopies
+                    ? (line) =>
+                        hasMovableCopies(line) ? (
+                          <button
+                            type="button"
+                            className="ghost gb-move-btn"
+                            data-testid="gb-move-copies"
+                            onClick={() => {
+                              moveCopies.reset();
+                              setMoveLine(line);
+                            }}
+                          >
+                            Move copies…
+                          </button>
+                        ) : null
                     : undefined
                 }
                 renderAltRow={showAltArts && !buyingFor ? groupBuyAltRow : undefined}
