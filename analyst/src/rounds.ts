@@ -5,6 +5,7 @@ import type { Refusal } from "./errors";
 import type { Block, ChatDeps, Message, ModelReply, SseEvent, Usage } from "./types";
 import type { ToolDef } from "./server";
 import type { ChoiceAnswer, TurnPlan } from "./copilot";
+import type { CardList } from "./cardList";
 import type { NewDeckDraft } from "./newDeck";
 import type { DeckEditProposal } from "./proposals";
 import { adaptToolResult, metaFor, type ClientActionName } from "./toolMeta";
@@ -30,7 +31,7 @@ function withCacheBreakpoint(messages: Message[]): Message[] {
   return out;
 }
 
-type ClientActionPayloads = { proposal: DeckEditProposal; deck_draft: NewDeckDraft; plan: TurnPlan; choice: ChoiceAnswer };
+type ClientActionPayloads = { proposal: DeckEditProposal; deck_draft: NewDeckDraft; card_list: CardList; plan: TurnPlan; choice: ChoiceAnswer };
 
 export type ClientActions = { [K in ClientActionName]?: (payload: ClientActionPayloads[K]) => void };
 

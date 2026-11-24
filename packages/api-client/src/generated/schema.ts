@@ -989,6 +989,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/analyst/chat/threads/{thread_id}/card_lists": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Save Card Lists
+         * @description The analyst keeps the card lists it showed in a turn next to the thread, so they come back on reload (#1450).
+         *
+         *     Each must come from a show_cards call stored in this thread; repeats are ignored. They share the proposals table.
+         */
+        post: operations["save_card_lists_analyst_chat_threads__thread_id__card_lists_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/analyst/chat/threads/{thread_id}/content": {
         parameters: {
             query?: never;
@@ -4917,6 +4939,65 @@ export interface components {
             /** Text */
             text: string;
         };
+        /**
+         * AnalystCardList
+         * @description Cards Log Pose found for a description, shown as a list with Add buttons for the open deck (#1450).
+         */
+        AnalystCardList: {
+            /** Cards */
+            cards: components["schemas"]["AnalystCardListRow"][];
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @constant
+             */
+            kind: "card_list";
+            /** Leader Id */
+            leader_id?: string | null;
+            /** Title */
+            title: string;
+            /**
+             * Version
+             * @constant
+             */
+            version: 1;
+        };
+        /** AnalystCardListRow */
+        AnalystCardListRow: {
+            /**
+             * Any Number
+             * @default false
+             */
+            any_number: boolean;
+            /** Colors */
+            colors?: string[];
+            /** Cost */
+            cost?: number | null;
+            /** Counter */
+            counter?: number | null;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Power */
+            power?: number | null;
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "leader" | "character" | "event" | "stage";
+        };
+        /** AnalystCardListsIn */
+        AnalystCardListsIn: {
+            /** Card Lists */
+            card_lists: components["schemas"]["AnalystCardList"][];
+        };
         /** AnalystChatBudget */
         AnalystChatBudget: {
             /** Allowed */
@@ -5108,6 +5189,8 @@ export interface components {
         };
         /** AnalystDisplayMessage */
         AnalystDisplayMessage: {
+            /** Card Lists */
+            card_lists?: components["schemas"]["AnalystCardList"][];
             /** Citations */
             citations?: components["schemas"]["AnalystCitation"][];
             /** Drafts */
@@ -12392,6 +12475,42 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_card_lists_analyst_chat_threads__thread_id__card_lists_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                "x-analyst-service"?: string | null;
+                "x-analyst-token"?: string | null;
+            };
+            path: {
+                thread_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AnalystCardListsIn"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {

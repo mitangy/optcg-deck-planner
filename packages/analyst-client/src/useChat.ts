@@ -166,6 +166,7 @@ export function useChat(
             onText: (delta) => patchLast((m) => ({ ...m, text: m.text + delta })),
             onCite: (cites: Citation[]) => patchLast((m) => ({ ...m, citations: [...m.citations, ...placeAt(cites, m.text.length)] })),
             onProposal: (p) => patchLast((m) => ({ ...m, proposals: [...(m.proposals ?? []).filter((x) => x.id !== p.id), p] })),
+            onCardList: (l) => patchLast((m) => ({ ...m, cardLists: [...(m.cardLists ?? []).filter((x) => x.id !== l.id), l] })),
             onDraft: (d) => patchLast((m) => ({ ...m, drafts: [...(m.drafts ?? []).filter((x) => x.id !== d.id), d] })),
             // The board hears of it here, from the live stream only: an answer read back from a saved chat never starts a plan.
             onPlan: (plan) => {

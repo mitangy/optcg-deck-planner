@@ -251,6 +251,30 @@ describe("new deck events (#726)", () => {
   });
 });
 
+describe("card list events (#1450)", () => {
+  const wire = { id: "l1", version: 1, kind: "card_list", title: "Red Straw Hats", leader_id: "OP01-001", cards: [{ id: "OP01-022", name: "Brook", type: "character", colors: ["red"], cost: 4, reason: "" }] };
+
+  it("hands a card_list event to onCardList and ignores one with no usable cards (#1450)", async () => {
+    const f = fakeFetch([15 * 60_000], () =>
+      sse(`event: card_list\ndata: ${JSON.stringify(wire)}\n\nevent: card_list\ndata: ${JSON.stringify({ ...wire, id: "l2", cards: [] })}\n\n`),
+    );
+    const mgr = createSessionManager("https://api.test", () => {}, f.impl, () => NOW);
+    const seen: unknown[] = [];
+    await streamAnalyst(mgr, "/chat", { message: "find" }, { onCardList: (l) => seen.push(l) }, undefined, f.impl);
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toMatchObject({ id: "l1", title: "Red Straw Hats", leaderId: "OP01-001" });
+  });
+
+  it("reads a saved thread's card lists from card_lists and drops unusable ones (#1450)", async () => {
+    const impl = (async () =>
+      Response.json({ id: 4, title: "t", messages: [{ role: "user", text: "hi" }, { role: "assistant", text: "Two match.", card_lists: [wire, { id: "bad" }] }] })) as unknown as typeof fetch;
+    const thread = await fetchThread("https://api.test", 4, impl);
+    expect(thread!.messages[0]!.cardLists).toEqual([]);
+    expect(thread!.messages[1]!.cardLists!.map((l) => l.id)).toEqual(["l1"]);
+    expect(thread!.messages[1]).not.toHaveProperty("card_lists");
+  });
+});
+
 describe("turn plans (#416)", () => {
   const plan = {
     id: "toolu_1",
