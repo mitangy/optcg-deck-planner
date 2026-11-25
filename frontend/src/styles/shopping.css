@@ -2122,14 +2122,34 @@ tr.covered td,
 }
 
 @media (max-width: 800px) {
+  /* Full-width field on top for one-handed use; pulled up a little so the first card still starts high (#1342). */
   .shopping-head .price-check-trigger {
     order: -1;
     flex: 1 1 100%;
+    margin-bottom: -0.25rem;
   }
 }
 
 @media (min-width: 801px) {
   .shopping-head .price-check-trigger {
     align-self: center;
+    flex: 0 1 16rem;
+  }
+}
+
+/* Mid-width desktops: a round search button, so the head stays one row (#1342); "/" still opens it. */
+@media (min-width: 801px) and (max-width: 1599px) {
+  .shopping-head .price-check-trigger {
+    flex: 0 0 auto;
+    justify-content: center;
+    width: 2.75rem;
+    padding: 0;
+    border-radius: 50%;
+    color: var(--ink);
+  }
+
+  .shopping-head .price-check-trigger-text,
+  .shopping-head .price-check-kbd {
+    display: none;
   }
 }

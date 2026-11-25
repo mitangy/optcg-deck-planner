@@ -36,7 +36,14 @@ export function PriceCheck() {
 
   return (
     <>
-      <button type="button" className="price-check-trigger" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+      <button
+        type="button"
+        className="price-check-trigger"
+        aria-haspopup="dialog"
+        aria-label="Price check: name or set code"
+        title="Price check (/)"
+        onClick={() => setOpen(true)}
+      >
         <svg className="price-check-trigger-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
           <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
           <path d="M12.7 12.7 17 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
