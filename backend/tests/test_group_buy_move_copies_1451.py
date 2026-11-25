@@ -291,3 +291,66 @@ def test_the_hand_off_count_is_clamped_to_what_is_left_1451(db):
     row = _member(after, friend.id)
     assert row.qty_handed == 1
     assert _owned(db, friend.id) == 1
+
+
+def _save_arrival(db, host, gid, order_id, **qty_by_line):
+    current = next(o for o in group_buy.get_group_buy(db, host, gid).orders if o.id == order_id)
+    return group_buy.set_order_arrival(
+        db,
+        host,
+        gid,
+        order_id,
+        GroupBuyArrivalUpdate(
+            expected_version=current.version,
+            lines=[GroupBuyArrivalLineIn(line_id=int(k[1:]), qty_arrived=v) for k, v in qty_by_line.items()],
+        ),
+    )
+
+
+def test_arrivals_after_moving_an_arrived_copy_stay_with_their_owners_1461(db):
+    host, friend, gid, order = _setup(db)
+    order_id, line_id = order.orders[0].id, order.orders[0].lines[0].id
+    _save_arrival(db, host, gid, order_id, **{f"l{line_id}": 4})
+    sam = _sam(db, host, gid)
+    _move(db, host, gid, host.id, sam, 1)
+    assert _allocs(db, gid, host.id) == [(3, 3)]
+    assert _allocs(db, gid, friend.id) == [(2, 0)] and _allocs(db, gid, sam) == [(1, 1)]
+    assert (_owned(db, host.id), _owned(db, friend.id)) == (3, 0)
+
+    _save_arrival(db, host, gid, order_id, **{f"l{line_id}": 5})
+
+    assert _allocs(db, gid, host.id) == [(3, 3)]
+    assert _allocs(db, gid, friend.id) == [(2, 1)]
+    assert _allocs(db, gid, sam) == [(1, 1)]
+    assert (_owned(db, host.id), _owned(db, friend.id)) == (3, 1)
+
+
+def test_saving_an_unchanged_line_after_a_move_keeps_arrived_copies_where_they_are_1461(db):
+    host, friend, gid, _ = _setup(db, order=False)
+    placed = group_buy.add_order(
+        db,
+        host,
+        gid,
+        GroupBuyOrderCreate(
+            lines=[
+                GroupBuyOrderLineIn(card_id="OP01-001", qty=6),
+                GroupBuyOrderLineIn(card_id="OP01-001", product_id=1009, qty=1),
+            ],
+        ),
+    ).detail
+    order = placed.orders[0]
+    std_id = next(l.id for l in order.lines if l.product_id != 1009)
+    alt_id = next(l.id for l in order.lines if l.product_id == 1009)
+    _save_arrival(db, host, gid, order.id, **{f"l{std_id}": 4})
+    sam = _sam(db, host, gid)
+    _move(db, host, gid, host.id, sam, 1)
+    friend_before = _allocs(db, gid, friend.id)
+    sam_before = _allocs(db, gid, sam)
+    owned_before = _owned(db, friend.id)
+
+    _save_arrival(db, host, gid, order.id, **{f"l{std_id}": 4, f"l{alt_id}": 1})
+
+    assert sam_before == [(1, 1)]
+    assert _allocs(db, gid, friend.id) == friend_before
+    assert _allocs(db, gid, sam) == sam_before
+    assert _owned(db, friend.id) == owned_before
