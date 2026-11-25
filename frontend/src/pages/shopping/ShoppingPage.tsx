@@ -48,6 +48,7 @@ import { isDonCard } from "../../cards/donCards";
 import { ShoppingStatStrip } from "./shoppingStats";
 import { ShoppingSharePanel } from "../SharePanels";
 import { ShoppingAddPanel } from "./ShoppingAddPanel";
+import { PriceCheck } from "./PriceCheck";
 import {
   COLSORT_SHOPPING_KEY,
   SHOPPING_EXTRAS_KEY,
@@ -501,6 +502,7 @@ export function ShoppingPage() {
           <p className="eyebrow">{allDeckIds.length === 0 ? "Cards you are buying" : "Across your decks"}</p>
           <h1>Master Shopping</h1>
         </div>
+        <PriceCheck />
         {!emptyList && (
           <div className="shopping-head-stats">
             <ShoppingStatStrip data={data} />

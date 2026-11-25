@@ -186,6 +186,31 @@ def test_search_alts_owned_count_is_the_viewers_own_printing_848(db):
     assert {c.alt_product_id: c.owned for c in rows} == {None: 0, 2: 0, 3: 2}
 
 
+def _seed_price_check_1469(db):
+    db.add_all(
+        [
+            CatalogCard(card_id="OP14-033", name="Zoro", group_name="Set X", market_price=2.0),
+            CatalogPrinting(card_id="OP14-033", product_id=10, name="Zoro", group_name="Set X", market_price=5.0, is_special=0),
+            CatalogPrinting(card_id="OP14-033", product_id=11, name="Zoro (Reprint)", group_name="Set X", market_price=2.0, is_special=0),
+            CatalogPrinting(card_id="OP14-033", product_id=12, name="Zoro (Parallel)", group_name="Set X", market_price=1.0, is_special=1),
+            CatalogCard(card_id="OP14-034", name="Sanji", group_name="Set X", market_price=3.0),
+            CatalogPrinting(card_id="OP14-034", product_id=20, name="Sanji", group_name="Set X", market_price=3.0, is_special=0),
+        ]
+    )
+    db.commit()
+
+
+def test_search_rows_carry_the_product_id_to_price_check_in_both_modes_1469(db):
+    _seed_price_check_1469(db)
+
+    # Base rows point at the primary printing (cheapest non-special), not the cheapest printing overall.
+    plain = {c.card_id: c.product_id for c in search_catalog(db, q="OP14-03")}
+    assert plain == {"OP14-033": 11, "OP14-034": 20}
+
+    rows = search_catalog(db, q="OP14-033", alts=True)
+    assert [(c.alt_product_id, c.product_id) for c in rows] == [(None, 11), (12, 12)]
+
+
 def _seed_fuzzy_848(db):
     db.add_all(
         [

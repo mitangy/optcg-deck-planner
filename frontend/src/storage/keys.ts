@@ -16,6 +16,7 @@ export const LIST_DENSITY_KEYS = {
   groupBuy: "optcg_list_density_group_buy",
 } as const;
 
+export const PRICE_CHECK_RECENTS_KEY = "optcg_price_check_recents";
 export const SHOPPING_DECKS_KEY = "optcg_shopping_deck_ids";
 export const SHOPPING_SELECTED_KEY = "optcg_shopping_selected_cards";
 export const SHOW_SHOPPING_DONS_KEY = "optcg_show_shopping_dons";
