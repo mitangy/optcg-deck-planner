@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-25", app: "planner", pr: 1468, title: "Alt art steppers fit on phones", text: "On a phone in Compact view, the Owned + button on alt art tiles no longer sticks out past the tile's edge. The art in each tile is back to its normal small size, so the stepper has room." },
   { date: "2026-11-24", app: "planner", pr: 1453, title: "Group buy alt arts are not charged twice", text: "When you want some copies of a card in an alt art and those copies are already ordered, the rest of your copies are now priced as the standard art. Before, they were still priced as the alt at market, so Your share and the line total came out too high." },
   { date: "2026-11-24", app: "planner", pr: 1317, title: "Add several DON!! at once, and keep extras", text: "In Available DON!! cards, each tile now has a quantity stepper next to Add, so you can add 3 at once instead of tapping Add another three times. A deck can also hold more than 10 DON!! if you want spares, and it shows them as, for example, 12/10 (+2 extra)." },
   { date: "2026-11-24", app: "duel", pr: 1458, title: "Log Pose button clear of Add cards", text: "On a phone, the Log Pose compass button no longer covers the Add cards button at the bottom of the deck editor. It sits just above the bar instead." },
