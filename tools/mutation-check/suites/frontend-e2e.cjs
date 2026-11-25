@@ -34,6 +34,8 @@ module.exports = {
   cwd: "frontend",
   runner: "playwright",
   mutations: [
+    // Phone Compact alt tiles keep 3rem thumbs so the Owned stepper fits (#1467)
+    { id: "e2e-alt1467-compact-thumb-leaks-into-tiles", args: "altStepperFit1467 --project=phone-375 -g \"portrait Shopping\"", file: "frontend/src/styles/density.css", from: "  .mobile-card-list.density-compact .mobile-card-media .thumb {", to: "  .mobile-card-list.density-compact .mobile-card .thumb {", kills: ["altStepperFit1467.spec.ts > Phone portrait Shopping Compact: alt tile thumbs stay small so the Owned stepper fits inside the tile (#1467) [phone-375]"] },
     // Phone collector sub-rows keep their small thumbnail in Compact density (#1379)
     { id: "e2e-collector1379-compact-thumb-spills", args: "collectorThumbOverlap1379 --project=phone-375", file: "frontend/src/styles/collectorCopies.css", from: "  .mobile-card-list .mobile-card.collector-card .collector-thumb-wrap .thumb-btn,\n  .mobile-card-list .mobile-card.collector-card .collector-thumb-wrap .thumb {", to: "  .mobile-card.collector-card .collector-thumb-wrap .thumb {", kills: ["collectorThumbOverlap1379.spec.ts > Phone Shopping compact: collector copy thumbnail does not overlap its text (#1379) [phone-375]"] },
     // Card lists: compact density, chip, base stepper, phone head and touch targets (#1342)
