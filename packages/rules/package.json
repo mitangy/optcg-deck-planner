@@ -42,9 +42,9 @@
     "@stryker-mutator/core": "^10.1.1",
     "@stryker-mutator/vitest-runner": "^10.1.1",
     "@types/node": "^26.6.6",
-    "fast-check": "^4.10.2",
+    "fast-check": "^4.10.3",
     "tsx": "^4.23.15",
     "typescript": "~5.7.2",
-    "vitest": "^5.1.0"
+    "vitest": "^5.1.1"
   }
 }
