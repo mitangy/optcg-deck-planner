@@ -227,6 +227,9 @@ class CatalogCard(Base):
     tcgplayer_url: Mapped[str] = mapped_column(Text, default="")
     group_name: Mapped[str] = mapped_column(String(255), default="")
     is_special: Mapped[int] = mapped_column(Integer, default=0)
+    effect_text: Mapped[str] = mapped_column(Text, default="", server_default="")
+    attribute: Mapped[str] = mapped_column(String(64), default="", server_default="")
+    traits: Mapped[str] = mapped_column(Text, default="", server_default="")
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )

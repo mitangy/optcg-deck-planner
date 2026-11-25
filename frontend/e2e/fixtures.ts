@@ -38,6 +38,11 @@ type FixtureCard = {
   alt_arts?: Array<{ product_id: number; name: string; market_price: number; low_price: number; group_name: string; is_special: boolean }>;
 };
 const BASE_CARDS = fixture<FixtureCard[]>("cards.json");
+// Effect text for a few fixture cards, so the fake /catalog/cards can match a text search like the real API.
+const EFFECT_TEXT: Record<string, string> = {
+  "EB01-002": "[Blocker] (After your opponent declares an attack, you may rest this card to make it the new target of the attack.)",
+  "EB01-006": "[Blocker] [On Play] Draw 1 card.",
+};
 const DON_CARDS = [
   { card_id: "DON-001", name: "DON!! Card (Luffy)", product_id: 301, group_name: "Extra Booster: Memorial Collection" },
   { card_id: "DON-002", name: "DON!! Card (Zoro)", product_id: 302, group_name: "Premium Booster" },
@@ -501,7 +506,7 @@ export const test = base.extend<{ planner: Planner }>({
         if (!q && !onlyLeaders) return json([]);
         const wantsAlts = catalogAltRows && params.get("alts") === "true";
         return json(
-          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q) && (!onlyLeaders || c.card_type === "Leader")).flatMap((c) => {
+          CARDS.filter((c) => `${c.card_id} ${c.name} ${EFFECT_TEXT[c.card_id] ?? ""}`.toLowerCase().includes(q) && (!onlyLeaders || c.card_type === "Leader")).flatMap((c) => {
             const base = {
               card_id: c.card_id,
               name: c.name,

@@ -12,7 +12,7 @@ test("Price check finds a card by set code, lists its alt art as its own row and
   await expect(dialog).toBeVisible();
   const search = dialog.getByRole("searchbox", { name: "Search card prices" });
   await expect(search).toBeFocused();
-  await expect(dialog.getByText("Search by name or set code")).toBeVisible();
+  await expect(dialog.getByText("Search by name, set code (like OP14-033), effect or type")).toBeVisible();
 
   await search.fill("EB01-002");
   const rows = dialog.locator(".price-check-row");

@@ -4,7 +4,7 @@ from __future__ import annotations
 import time
 from collections import defaultdict
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.planner import fuzzy
@@ -125,6 +125,9 @@ def _substring_rows(
                 CatalogCard.card_type.ilike(like),
                 CatalogCard.rarity.ilike(like),
                 CatalogCard.group_name.ilike(like),
+                CatalogCard.effect_text.ilike(like),
+                CatalogCard.attribute.ilike(like),
+                CatalogCard.traits.ilike(like),
                 CatalogCard.card_id.in_(
                     select(CatalogPrinting.card_id).where(
                         or_(
@@ -146,6 +149,7 @@ def _substring_rows(
     if filters:
         stmt = stmt.where(*filters)
     q_upper = query.upper()
+    like = f"%{query}%"
     order = [
         CatalogCard.market_price.is_(None),
         CatalogCard.market_price.asc(),
@@ -153,6 +157,13 @@ def _substring_rows(
         CatalogCard.card_id.asc(),
     ]
     if query:
+        # Cards matched by id, name or set outrank cards that only match by effect text.
+        identity_hit = or_(
+            CatalogCard.card_id.ilike(like),
+            CatalogCard.name.ilike(like),
+            CatalogCard.group_name.ilike(like),
+        )
+        order.insert(0, case((identity_hit, 0), else_=1))
         order.insert(0, (func.upper(CatalogCard.card_id) == q_upper).desc())
     stmt = stmt.order_by(*order).limit(limit)
     rows = list(db.scalars(stmt).all())
@@ -239,6 +250,9 @@ def _with_alt_rows(
                 row.card_type,
                 row.rarity,
                 row.group_name,
+                row.effect_text,
+                row.attribute,
+                row.traits,
             )
         ) or text_hit(row.name, row.group_name)
         if card_hit or row.card_id in plain_text_hit:
