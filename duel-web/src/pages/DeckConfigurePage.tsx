@@ -92,6 +92,7 @@ export function DeckConfigurePage() {
       deck
         ? {
             ref: deckContext(deck).ref!,
+            leaderId: deck.leaderId,
             cards: deckContext(deck).cards,
             apply: async (ops) => {
               const result = applyOps(deck.cards, ops);

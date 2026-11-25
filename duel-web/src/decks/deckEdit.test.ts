@@ -154,6 +154,18 @@ describe("applying a Log Pose edit (#400)", () => {
   });
 });
 
+describe("applying a card list to a full deck (#1462)", () => {
+  it("a Log Pose card list cannot push a duel deck past 50 (#1462)", () => {
+    const full = Array.from({ length: 50 }, (_, i) => (i < 25 ? "ST01-006" : "ST01-007"));
+    expect(applyOps(full, [{ id: "ST01-008", before: 0, after: 1 }])).toEqual({ ok: false, error: "Main deck is full (50)" });
+    const forty9 = full.slice(1);
+    expect(applyOps(forty9, [{ id: "ST01-008", before: 0, after: 1 }])).toMatchObject({ ok: true });
+    // a swap that stays at 50 and a removal from a full deck still go through
+    expect(applyOps(full, [{ id: "ST01-006", before: 25, after: 24 }, { id: "ST01-008", before: 0, after: 1 }])).toMatchObject({ ok: true });
+    expect(applyOps(full, [{ id: "ST01-006", before: 25, after: 24 }])).toMatchObject({ ok: true });
+  });
+});
+
 describe("editing an unsaved draft (#481)", () => {
   it("edits a card list without changing the list or the saved deck (#481)", () => {
     const saved = saveDeck({ id: "draft-deck", name: "Draft", leaderId: "ST01-001", cards: ["ST01-006", "ST01-006"] });

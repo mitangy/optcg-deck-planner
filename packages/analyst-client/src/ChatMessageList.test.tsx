@@ -21,7 +21,7 @@ afterEach(() => {
   host = null;
 });
 
-const list = parseCardList({ id: "l1", title: "Red Straw Hats", cards: [{ id: "OP01-022", name: "Brook", type: "character", colors: ["red"], cost: 4 }] })!;
+const list = parseCardList({ id: "l1", title: "Red Straw Hats", leader_id: "OP01-001", cards: [{ id: "OP01-022", name: "Brook", type: "character", colors: ["red"], cost: 4 }] })!;
 
 async function render(messages: Msg[], editor: DeckEditor | null) {
   host = document.createElement("div");
@@ -35,7 +35,7 @@ async function render(messages: Msg[], editor: DeckEditor | null) {
 
 describe("chat messages with a card list (#1450)", () => {
   it("shows the card list under the answer, with Add buttons for the open deck (#1450)", async () => {
-    const editor: DeckEditor = { ref: "planner:1", cards: [], apply: async () => {} };
+    const editor: DeckEditor = { ref: "planner:1", leaderId: "OP01-001", cards: [], apply: async () => {} };
     await render([{ role: "assistant", text: "Two match.", citations: [], cardLists: [list] }], editor);
     expect(host!.textContent).toContain("Two match.");
     expect(host!.querySelector('section[aria-label="Cards: Red Straw Hats"]')).toBeTruthy();

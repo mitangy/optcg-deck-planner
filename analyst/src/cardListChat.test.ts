@@ -60,6 +60,20 @@ describe("Log Pose shows a card list (#1450)", () => {
     expect(events.find((e) => e.event === "card_list")!.data).toMatchObject({ leader_id: null, cards: [{ id: "OP01-022" }, { id: "ST29-015" }] });
   });
 
+  it("match brief search_cards can find the opponent's cards (#1463)", async () => {
+    const { api } = planner({ "POST /analyst/chat/threads": { id: 9 }, "POST /analyst/chat/threads/9/messages": null, "POST /analyst/chat/usage": null, "GET /analyst/chat/budget": BUDGET });
+    const search = { type: "tool_use", id: "s1", name: "search_cards", input: { colors: ["red", "yellow"], traits: ["Straw Hat Crew"], effects: ["power_down"], limit: 100 } };
+    const { seen, callModel } = scriptedModel([
+      { content: [search], stop_reason: "tool_use", usage: usage(10, 5) },
+      { content: [{ type: "text", text: "Found some." }], stop_reason: "end_turn", usage: usage(10, 5) },
+    ]);
+    const context = { app: "duel" as const, page: "match-brief", deck: { name: "Luffy", leaderId: "OP01-001", cards: [] } };
+    await runChat(deps(api, callModel), "chat.tok", { message: "what does the opponent play", context }, () => undefined, new AbortController().signal);
+    const result = JSON.stringify(seen[1]!.messages.at(-1).content);
+    expect(result).toContain("OP01-022");
+    expect(result).toContain("ST29-015");
+  });
+
   it("searches for the model without the cards the open deck's leader can't use (#1450)", async () => {
     const { api } = planner({ "POST /analyst/chat/threads": { id: 9 }, "POST /analyst/chat/threads/9/messages": null, "POST /analyst/chat/usage": null, "GET /analyst/chat/budget": BUDGET });
     const search = { type: "tool_use", id: "s1", name: "search_cards", input: { colors: ["red", "yellow"], traits: ["Straw Hat Crew"], effects: ["power_down"], limit: 100 } };

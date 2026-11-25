@@ -2807,8 +2807,11 @@ def _set_arrival(
 ) -> bool:
     """Move arrived counts to ``targets`` (line id -> copies; None = all) and credit Owned.
 
-    Each line's target is split across its allocations in allocation order, so the result is
-    the same however many times it is applied. Owned and OwnedPrinting move by the change only.
+    Each line moves by the difference between its target and what has already arrived, so
+    applying the same target twice changes nothing. More copies fill each allocation's room in
+    allocation order; fewer take arrived copies back from the last allocation first. Arrived
+    copies that ``move_copies`` put on someone stay with them. Owned and OwnedPrinting move by
+    the change only.
     """
     deltas: dict[tuple[int, str, int | None], int] = {}
     for line in order.lines:
@@ -2816,15 +2819,19 @@ def _set_arrival(
         target = capacity if targets is None else targets.get(line.id)
         if target is None:
             continue
-        left = min(int(target), capacity)
-        for alloc in line.allocations:
-            new = min(int(alloc.qty), left)
-            left -= new
-            change = new - int(alloc.qty_arrived)
+        remaining = min(int(target), capacity) - sum(int(a.qty_arrived) for a in line.allocations)
+        if remaining == 0:
+            continue
+        for alloc in line.allocations if remaining > 0 else reversed(line.allocations):
+            if remaining > 0:
+                change = min(remaining, int(alloc.qty) - int(alloc.qty_arrived))
+            else:
+                change = -min(-remaining, int(alloc.qty_arrived))
+            remaining -= change
             if change:
                 key = (alloc.user_id, line.card_id.upper(), line.product_id)
                 deltas[key] = deltas.get(key, 0) + change
-                alloc.qty_arrived = new
+                alloc.qty_arrived = int(alloc.qty_arrived) + change
     deltas = {k: v for k, v in deltas.items() if v}
     if not deltas:
         return False

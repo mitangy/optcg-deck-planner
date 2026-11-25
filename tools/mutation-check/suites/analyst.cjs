@@ -462,7 +462,7 @@ module.exports = {
     { id: "action-card-list-unregistered", file: toolMeta, from: ", action: \"card_list\" }", to: " }", kills: ["streams the list as a card_list event without the cards the open leader can't use, and saves it after the turn (#1450)"] },
     { id: "search-open-leader-default-dropped", file: server, from: "open ? { ...args, legalFor: open.id } : args", to: "args", kills: ["only returns cards the open deck's leader can use, whatever colors the model asks for (#1450)", "does not let the model widen it with another leader's legalFor (#1450)"] },
     { id: "search-open-leader-widenable", file: server, from: "open ? { ...args, legalFor: open.id } : args", to: "open ? { legalFor: open.id, ...args } : args", kills: ["does not let the model widen it with another leader's legalFor (#1450)"] },
-    { id: "search-open-leader-not-passed", file: chatChatTurn, from: "deps.knowledge, body.context?.deck?.leaderId)", to: "deps.knowledge)", kills: ["searches for the model without the cards the open deck's leader can't use (#1450)"] },
+    { id: "search-open-leader-not-passed", file: chatChatTurn, from: "deps.knowledge, openLeader)", to: "deps.knowledge)", kills: ["searches for the model without the cards the open deck's leader can't use (#1450)"] },
     { id: "search-open-leader-note-dropped", file: server, from: "const notes = open ? [", to: "const notes = false ? [", kills: ["only returns cards the open deck's leader can use, whatever colors the model asks for (#1450)"] },
     { id: "chat-draft-not-emitted", file: chatChatTurn, from: "    emit({ event: \"deck_draft\", data: d });", to: "", kills: ["streams the deck as a deck_draft event and saves it after the turn (#726)"] },
     { id: "chat-draft-tool-not-registered", file: chatChatTurn, from: "newDeckTool(deps.catalog, deps.knowledge), cardListTool(deps.catalog, body.context?.deck), turnPlanTool", to: "cardListTool(deps.catalog, body.context?.deck), turnPlanTool", kills: ["streams the deck as a deck_draft event and saves it after the turn (#726)"] },
@@ -1254,6 +1254,7 @@ module.exports = {
     {"id": "humanbot1202-no-service-secret", "file": "analyst/src/botGames.ts", "from": "limit=${opts.pageSize ?? 200}`, true);", "to": "limit=${opts.pageSize ?? 200}`, false);", "kills": ["pages with the last next_after_id using the service secret until a page comes back empty (#1202)"]},
     {"id": "humanbot1202-cursor-stuck", "file": "analyst/src/botGames.ts", "from": "    afterId = page.next_after_id;\n", "to": "    afterId += 1;\n", "kills": ["pages with the last next_after_id using the service secret until a page comes back empty (#1202)"]},
     {"id": "humanbot1202-no-progress-guard", "file": "analyst/src/botGames.ts", "from": "    if (page.next_after_id <= afterId) return total;\n", "to": "", "kills": ["stops instead of looping when the API does not move forward (#1202)"]},
+    {"id": "logpose1463-match-brief-forced-legal", "file": "analyst/src/chatTurn.ts", "from": "body.context?.page === \"match-brief\" ? undefined : body.context?.deck?.leaderId", "to": "body.context?.deck?.leaderId", "kills": ["match brief search_cards can find the opponent's cards (#1463)"]},
   ],
 };
 
