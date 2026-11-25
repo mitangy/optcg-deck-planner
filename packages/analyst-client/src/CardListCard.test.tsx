@@ -35,7 +35,7 @@ const list = parseCardList({
   ],
 })!;
 
-const editor = (cards: { id: string; copies: number }[], apply: (ops: DeckEditOp[]) => Promise<void>): DeckEditor => ({ ref: "planner:1", cards, apply });
+const editor = (cards: { id: string; copies: number }[], apply: (ops: DeckEditOp[]) => Promise<void>, leaderId: string | null = "OP01-001"): DeckEditor => ({ ref: "planner:1", leaderId, cards, apply });
 const text = () => host!.textContent ?? "";
 const btn = (label: string) => host!.querySelector(`button[aria-label="${label}"]`) as HTMLButtonElement | null;
 
@@ -73,6 +73,35 @@ describe("CardListCard (#1450)", () => {
     await render(null);
     expect(host!.querySelectorAll("button")).toHaveLength(0);
     expect(text()).toContain("Open a deck to add these cards.");
+  });
+
+  it("a card list made for another leader cannot add to the open deck (#1462)", async () => {
+    const apply = vi.fn(async () => {});
+    await render(editor([{ id: "OP01-022", copies: 2 }], apply, "OP02-001"));
+    expect(host!.querySelectorAll(".lp-cl-step")).toHaveLength(0);
+    expect(host!.querySelectorAll("button")).toHaveLength(0);
+    expect(text()).toContain("Made for another deck");
+    expect(text()).toContain("Brook");
+  });
+
+  it("compares the leader ignoring case, and a deck with no leader gets no steppers (#1462)", async () => {
+    await render(editor([], vi.fn(async () => {}), "op01-001"));
+    expect(btn("Add one Brook")).not.toBeNull();
+    await render(editor([], vi.fn(async () => {}), null));
+    expect(btn("Add one Brook")).toBeNull();
+  });
+
+  it("a list with no leader cannot add to any deck and says to ask from the deck (#1462)", async () => {
+    const noLeader = parseCardList({ id: "l2", kind: "card_list", title: "Any", cards: [row("OP01-022", "Brook")] })!;
+    await act(async () =>
+      (host ? root! : (host = document.body.appendChild(document.createElement("div")), (root = createRoot(host)))).render(
+        <SourceHooksContext.Provider value={{}}>
+          <CardListCard list={noLeader} editor={editor([], vi.fn(async () => {}))} />
+        </SourceHooksContext.Provider>,
+      ),
+    );
+    expect(btn("Add one Brook")).toBeNull();
+    expect(text()).toContain("Ask from this deck to add cards.");
   });
 
   it("adds one copy to the open deck with the count the deck has now (#1450)", async () => {

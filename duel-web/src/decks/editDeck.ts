@@ -72,6 +72,7 @@ export function applyOps(cards: readonly string[], ops: DeckOp[]): CardsEditResu
     for (let n = op.after - op.before; n > 0; n--) next.push(op.id);
     for (let n = op.before - op.after; n > 0; n--) next.splice(next.lastIndexOf(op.id), 1);
   }
+  if (next.length > cards.length && next.length > MAX_MAIN_DECK_SIZE) return { ok: false, error: `Main deck is full (${MAX_MAIN_DECK_SIZE})` };
   return { ok: true, cards: next };
 }
 

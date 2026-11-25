@@ -22,8 +22,11 @@ function statsOf(c: CardListRow): string {
     .join(" · ");
 }
 
-/** Cards found for a description. With a deck open each row has a stepper that adds or removes one copy; without one the rows are only shown. */
-export function CardListCard({ list, editor }: { list: CardList; editor: DeckEditor | null }) {
+/** Cards found for a description. With the deck it was made for open each row has a stepper that adds or removes one copy; otherwise the rows are only shown. */
+export function CardListCard({ list, editor: openEditor }: { list: CardList; editor: DeckEditor | null }) {
+  // The steppers only work for the deck the list was made for: another leader's list could add cards this deck can't play (#1462).
+  const forThisDeck = Boolean(openEditor && list.leaderId && openEditor.leaderId && list.leaderId.toUpperCase() === openEditor.leaderId.toUpperCase());
+  const editor = forThisDeck ? openEditor : null;
   const hooks = useContext(SourceHooksContext);
   const [working, setWorking] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -93,7 +96,7 @@ export function CardListCard({ list, editor }: { list: CardList; editor: DeckEdi
         })}
       </ul>
       <p className="lp-edit-status lp-cl-status" role="status" aria-live="polite" data-error={error ? "true" : undefined}>
-        {error || (editor ? "" : "Open a deck to add these cards.")}
+        {error || (editor ? "" : openEditor ? (list.leaderId ? "Made for another deck." : "Ask from this deck to add cards.") : "Open a deck to add these cards.")}
       </p>
     </section>
   );
