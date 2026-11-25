@@ -16,6 +16,8 @@ export type DeckEditOp = { id: string; before: number; after: number };
 
 export type DeckEditor = {
   ref: string;
+  /** The open deck's leader. A card list made for another leader only adds to a deck with the same one. */
+  leaderId?: string | null;
   cards: { id: string; copies: number }[];
   apply: (ops: DeckEditOp[]) => Promise<void>;
   owned?: (id: string) => number | undefined;

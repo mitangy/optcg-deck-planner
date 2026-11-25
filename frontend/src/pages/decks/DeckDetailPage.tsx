@@ -183,6 +183,7 @@ export function DeckDetailPage() {
     const ownedById = new Map((ownedData?.items ?? []).map((i) => [i.card_id.toUpperCase(), i.owned]));
     return {
       ref: `planner:${data.id}`,
+      leaderId: logPoseDeck.leaderId,
       cards: logPoseDeck.cards,
       owned: (id) => data.cards.find((c) => c.card_id === id)?.owned ?? ownedById.get(id) ?? (ownedData ? 0 : undefined),
       apply: async (ops) => {
