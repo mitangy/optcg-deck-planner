@@ -6014,6 +6014,8 @@ export interface components {
              * @default 0
              */
             owned: number;
+            /** Product Id */
+            product_id?: number | null;
             /**
              * Rarity
              * @default

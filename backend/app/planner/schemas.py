@@ -81,6 +81,8 @@ class CatalogCardResult(BaseModel):
     tcgplayer_url: str = ""
     group_name: str = ""
     alt_product_id: int | None = None
+    # TCGPlayer product behind this row: the card's primary printing, or the alt's own.
+    product_id: int | None = None
     owned: int = 0
 
 

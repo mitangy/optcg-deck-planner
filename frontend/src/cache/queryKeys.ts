@@ -54,6 +54,8 @@ export const qk = {
     all: () => ["catalog-search"] as const,
     query: (q: string, color: string, cardType: string, showAltArts: boolean) =>
       ["catalog-search", q, color, cardType, showAltArts] as const,
+    // Price check always asks for alt rows, so it can't share an entry with the Show alt arts setting (#1469).
+    priceCheck: (q: string) => ["catalog-search", "price-check", q] as const,
   },
   catalogDon: (q: string) => ["catalog-don", q] as const,
 

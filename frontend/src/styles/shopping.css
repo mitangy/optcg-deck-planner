@@ -1808,3 +1808,365 @@ tr.covered td,
 .grid-card.covered {
   border-color: var(--gold);
 }
+
+/* Price check (#1469): a search-looking button in the page head that opens a lookup overlay. */
+.price-check-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  box-sizing: border-box;
+  flex: 0 1 20rem;
+  min-width: 0;
+  min-height: 2.75rem;
+  margin: 0;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.92rem;
+  text-align: left;
+  cursor: text;
+}
+
+.price-check-trigger:hover {
+  border-color: var(--accent);
+}
+
+.price-check-trigger:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.price-check-trigger-icon {
+  flex: 0 0 auto;
+}
+
+.price-check-trigger-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.price-check-kbd {
+  flex: 0 0 auto;
+  min-width: 1.2rem;
+  padding: 0 0.3rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-8);
+  font: inherit;
+  font-size: 0.75rem;
+  line-height: 1.3rem;
+  text-align: center;
+}
+
+@media (pointer: coarse), (max-width: 640px) {
+  .price-check-kbd {
+    display: none;
+  }
+}
+
+.price-check-dialog {
+  align-items: flex-start;
+  /* The panel hangs from the top so the search box stays put while results grow and shrink. */
+  padding-top: min(7dvh, 4rem);
+  overflow: hidden;
+}
+
+.price-check-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(37.5rem, 100%);
+  max-height: 80dvh;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-14);
+  background: var(--card);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.price-check-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.6rem;
+  flex: 0 0 auto;
+  padding: 0.6rem 0.75rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.price-check-title {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.price-check-close {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding-inline: 0.6rem;
+}
+
+.price-check-search {
+  flex: 1 0 100%;
+  order: 3;
+  min-width: 0;
+}
+
+.price-check-search .card-search {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+}
+
+.price-check-search .card-search-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  border-radius: var(--radius-pill);
+  font-size: 1rem; /* 16px keeps iOS from zooming the page on focus */
+}
+
+.price-check-search .card-search-input:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.price-check-search .card-search-clear {
+  position: absolute;
+  right: 0.2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  font-size: 0;
+}
+
+.price-check-search .card-search-clear::after {
+  content: "×";
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.price-check-search .card-search.with-icon {
+  position: relative;
+}
+
+.price-check-results {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* Room for the longest list is not reserved; the top-anchored panel just grows to its cap. */
+}
+
+.price-check-hint {
+  margin: 0;
+  padding: 1rem 0.9rem;
+}
+
+.price-check-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.9rem 0;
+}
+
+.price-check-section h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+.price-check-clear-recents {
+  min-height: 2.75rem;
+  padding-inline: 0.6rem;
+}
+
+.price-check-results .skeleton-inline {
+  padding: 1rem 0.9rem;
+}
+
+.price-check-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.price-check-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 3.5rem;
+  padding: 0.45rem 0.9rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.price-check-row:last-child {
+  border-bottom: 0;
+}
+
+.price-check-row .thumb {
+  width: 2.75rem;
+  height: 3.85rem;
+}
+
+.price-check-thumb {
+  display: grid;
+  place-items: center;
+  min-width: 2.75rem;
+}
+
+.price-check-main {
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.price-check-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.price-check-id {
+  font-size: 0.82rem;
+}
+
+.price-check-id .alt-art-chip {
+  margin-left: 0.4rem;
+}
+
+.price-check-set {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+}
+
+.price-check-price {
+  display: grid;
+  justify-items: end;
+  gap: 0.1rem;
+  text-align: right;
+}
+
+.price-check-market {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.price-check-market .market-price-btn {
+  min-height: 2.5rem;
+  padding-inline: 0.5rem;
+  border-color: var(--line);
+}
+
+.price-check-low {
+  font-size: 0.75rem;
+  /* Tucked under the price button, clear of its border. */
+  margin-top: -0.25rem;
+  padding-right: 0.5rem;
+}
+
+.price-check-foot {
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.5rem 0.9rem;
+  border-top: 1px solid var(--line);
+  font-size: 0.75rem;
+}
+
+/* Phones, and phones on their side: the lookup takes the whole screen. */
+@media (max-width: 640px), (max-height: 500px) {
+  .price-check-dialog {
+    padding: 0;
+  }
+
+  .price-check-panel {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+}
+
+@media (max-height: 500px) {
+  .price-check-head {
+    flex-wrap: nowrap;
+    padding-block: 0.35rem;
+  }
+
+  .price-check-title {
+    flex: 0 0 auto;
+  }
+
+  .price-check-search {
+    flex: 1 1 auto;
+    order: 0;
+  }
+
+  .price-check-foot {
+    padding-block: 0.3rem;
+  }
+}
+
+@media (max-width: 800px) {
+  /* Full-width field on top for one-handed use; pulled up a little so the first card still starts high (#1342). */
+  .shopping-head .price-check-trigger {
+    order: -1;
+    flex: 1 1 100%;
+    margin-bottom: -0.25rem;
+  }
+}
+
+@media (min-width: 801px) {
+  .shopping-head .price-check-trigger {
+    align-self: center;
+    flex: 0 1 18rem;
+  }
+
+  /* With totals in the head there is no room for the field (#1342): the toolbar's Price check button opens it instead. */
+  .shopping-head:not(.shopping-head-empty) .price-check-trigger {
+    display: none;
+  }
+}
+
+/* Same look as the Scan button beside it. */
+button.ghost.price-check-toolbar-btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--card);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+button.ghost.price-check-toolbar-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+
+@media (max-width: 800px) {
+  button.ghost.price-check-toolbar-btn {
+    display: none;
+  }
+}

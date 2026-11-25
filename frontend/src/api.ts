@@ -130,6 +130,8 @@ export type CatalogCardResult = {
   tcgplayer_url: string;
   group_name: string;
   alt_product_id?: number | null;
+  /** TCGPlayer product behind this row (the card's primary printing, or the alt's own). */
+  product_id?: number | null;
   owned?: number;
 };
 

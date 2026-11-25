@@ -15,6 +15,7 @@ from app.planner.models import CatalogCard, CatalogMeta, CatalogPrinting
 from app.planner.catalog_repo import (
     alt_arts_map,
     alt_owned_map,
+    primary_product_ids,
 )
 from app.planner.schemas import CatalogCardResult, PrintingView
 
@@ -182,8 +183,9 @@ def _fuzzy_extra_rows(
     return extra[: limit - len(rows)]
 
 
-def _base_result(row: CatalogCard) -> CatalogCardResult:
+def _base_result(row: CatalogCard, product_id: int | None = None) -> CatalogCardResult:
     return CatalogCardResult(
+        product_id=product_id,
         card_id=row.card_id,
         name=row.name,
         rarity=row.rarity or "",
@@ -208,6 +210,7 @@ def _with_alt_rows(
 ) -> list[CatalogCardResult]:
     ids = {row.card_id for row in rows}
     alt_map = alt_arts_map(db, ids)
+    primary_ids = primary_product_ids(db, ids)
     alt_owned = alt_owned_map(db, user_id) if user_id is not None else {}
     needle = query.lower()
     plain_text_hit: set[str] = set()
@@ -239,13 +242,13 @@ def _with_alt_rows(
             )
         ) or text_hit(row.name, row.group_name)
         if card_hit or row.card_id in plain_text_hit:
-            out.append(_base_result(row))
+            out.append(_base_result(row, primary_ids.get(row.card_id)))
         for alt in alt_map.get(row.card_id, []):
             if len(out) >= limit:
                 break
             if not card_hit and not text_hit(alt.name, alt.group_name):
                 continue
-            base = _base_result(row)
+            base = _base_result(row, primary_ids.get(row.card_id))
             out.append(
                 base.model_copy(
                     update={
@@ -256,6 +259,7 @@ def _with_alt_rows(
                         "tcgplayer_url": alt.tcgplayer_url or "",
                         "group_name": alt.group_name or "",
                         "alt_product_id": alt.product_id,
+                        "product_id": alt.product_id,
                         "owned": int(alt_owned.get(row.card_id, {}).get(alt.product_id, 0)),
                     }
                 )
@@ -282,6 +286,7 @@ def search_catalog(
         rows.extend(_fuzzy_extra_rows(db, matcher, rows, other_filters, limit))
 
     if not alts:
-        return [_base_result(row) for row in rows]
+        primary_ids = primary_product_ids(db, {row.card_id for row in rows})
+        return [_base_result(row, primary_ids.get(row.card_id)) for row in rows]
     return _with_alt_rows(db, rows, query, matcher, limit, user_id)
 

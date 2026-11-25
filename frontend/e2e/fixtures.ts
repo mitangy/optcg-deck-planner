@@ -111,6 +111,8 @@ type Planner = {
   manyCards(count: number): void;
   /** Keep each page's own default List density (Compact on Shopping and Collection) instead of the Comfortable rows older specs expect. */
   defaultDensity: boolean;
+  /** Make /catalog/cards honour alts=true by listing each card's alt arts as their own rows (what the real API does). Off by default so older specs keep base rows only. */
+  catalogAltRows: boolean;
   noDecks(): void;
   priceAlertPosts: { card_id: string; product_id: number; target_price: number; direction: AlertDirection }[];
   requests: string[];
@@ -155,6 +157,7 @@ export const test = base.extend<{ planner: Planner }>({
     const printingPuts: Planner["printingPuts"] = [];
     const collectorPuts: Planner["collectorPuts"] = [];
     let deckHidden = false;
+    let catalogAltRows = false;
     const extraAlts = new Map<string, number>();
     const cardView = (c: FixtureCard) => {
       const o = owned.get(c.card_id) ?? 0;
@@ -496,20 +499,35 @@ export const test = base.extend<{ planner: Planner }>({
         }
         const onlyLeaders = (params.get("card_type") ?? "") === "Leader";
         if (!q && !onlyLeaders) return json([]);
+        const wantsAlts = catalogAltRows && params.get("alts") === "true";
         return json(
-          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q) && (!onlyLeaders || c.card_type === "Leader")).map((c) => ({
-            card_id: c.card_id,
-            name: c.name,
-            rarity: c.rarity,
-            color: c.color,
-            card_type: c.card_type,
-            cost: c.cost,
-            market_price: c.market_price,
-            low_price: c.low_price,
-            image_url: img(c.product_id),
-            tcgplayer_url: "",
-            group_name: "Extra Booster: Memorial Collection",
-          } satisfies CatalogCardResult)),
+          CARDS.filter((c) => `${c.card_id} ${c.name}`.toLowerCase().includes(q) && (!onlyLeaders || c.card_type === "Leader")).flatMap((c) => {
+            const base = {
+              card_id: c.card_id,
+              name: c.name,
+              rarity: c.rarity,
+              color: c.color,
+              card_type: c.card_type,
+              cost: c.cost,
+              market_price: c.market_price,
+              low_price: c.low_price,
+              image_url: img(c.product_id),
+              tcgplayer_url: "",
+              group_name: "Extra Booster: Memorial Collection",
+              product_id: c.product_id,
+            } satisfies CatalogCardResult;
+            if (!wantsAlts) return [base];
+            const alts = cardView(c).alt_arts.map((a) => ({
+              ...base,
+              name: a.name,
+              market_price: a.market_price,
+              low_price: a.low_price,
+              image_url: a.image_url,
+              alt_product_id: a.product_id,
+              product_id: a.product_id,
+            } satisfies CatalogCardResult));
+            return [base, ...alts];
+          }),
         );
       }
       if ((m = path.match(/^\/cards\/([^/]+)\/collector\/(\d+)$/)) && method === "PUT") {
@@ -688,6 +706,12 @@ export const test = base.extend<{ planner: Planner }>({
         await page.goto(path);
       },
       defaultDensity: false,
+      get catalogAltRows() {
+        return catalogAltRows;
+      },
+      set catalogAltRows(on: boolean) {
+        catalogAltRows = on;
+      },
       async audit(opts) {
         return (await auditPage(page, opts)).filter((i) => !isKnown(i));
       },
