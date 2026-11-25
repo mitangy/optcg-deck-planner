@@ -70,3 +70,17 @@ test("Price check works with an empty shopping list, fits the screen and keeps t
   await expect(dialog).toHaveCount(0);
   expect(await trigger.boundingBox()).toEqual(before);
 });
+
+test("on a phone the Price check field has a clear gap above the title and Buy button (#1473)", async ({ page, planner }, testInfo) => {
+  test.skip(testInfo.project.name !== "phone-375", "phone head");
+  await planner.open("/");
+  const trigger = page.locator(".shopping-head .price-check-trigger");
+  await expect(trigger).toBeVisible();
+  await expect(page.locator(".shopping-head .tcg-buy").first()).toBeVisible();
+  const gap = await page.evaluate(() => {
+    const field = document.querySelector(".shopping-head .price-check-trigger")!.getBoundingClientRect();
+    const below = [...document.querySelectorAll<HTMLElement>(".shopping-head h1, .shopping-head .tcg-buy")].map((e) => e.getBoundingClientRect().top);
+    return Math.min(...below) - field.bottom;
+  });
+  expect(gap).toBeGreaterThanOrEqual(10);
+});
