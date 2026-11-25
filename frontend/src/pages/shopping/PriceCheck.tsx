@@ -35,7 +35,7 @@ export function PriceCheckToolbarButton() {
   return (
     <button
       type="button"
-      className="ghost scan-open price-check-toolbar-btn"
+      className="ghost price-check-toolbar-btn"
       aria-haspopup="dialog"
       title="Price check (/)"
       onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
