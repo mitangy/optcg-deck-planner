@@ -19,9 +19,42 @@ function typingTarget(target: EventTarget | null): boolean {
   return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
 
+const OPEN_EVENT = "price-check:open";
+
+function SearchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
+      <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
+      <path d="M12.7 12.7 17 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** "Price check" beside Scan in the list toolbar: on a computer the head has no room for the field once the totals show (#1342). */
+export function PriceCheckToolbarButton() {
+  return (
+    <button
+      type="button"
+      className="ghost scan-open price-check-toolbar-btn"
+      aria-haspopup="dialog"
+      title="Price check (/)"
+      onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
+    >
+      <SearchIcon />
+      Price check
+    </button>
+  );
+}
+
 /** Search-looking button at the top of Master Shopping; opens a full-screen (phone) or centred (desktop) price lookup. */
 export function PriceCheck() {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener(OPEN_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_EVENT, onOpen);
+  }, []);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -44,10 +77,7 @@ export function PriceCheck() {
         title="Price check (/)"
         onClick={() => setOpen(true)}
       >
-        <svg className="price-check-trigger-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
-          <circle cx="8.5" cy="8.5" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.8" />
-          <path d="M12.7 12.7 17 17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-        </svg>
+        <SearchIcon className="price-check-trigger-icon" />
         <span className="price-check-trigger-text">Price check: name or set code</span>
         <kbd className="price-check-kbd" aria-hidden="true">
           /

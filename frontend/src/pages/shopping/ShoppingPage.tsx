@@ -48,7 +48,7 @@ import { isDonCard } from "../../cards/donCards";
 import { ShoppingStatStrip } from "./shoppingStats";
 import { ShoppingSharePanel } from "../SharePanels";
 import { ShoppingAddPanel } from "./ShoppingAddPanel";
-import { PriceCheck } from "./PriceCheck";
+import { PriceCheck, PriceCheckToolbarButton } from "./PriceCheck";
 import {
   COLSORT_SHOPPING_KEY,
   SHOPPING_EXTRAS_KEY,
@@ -497,7 +497,7 @@ export function ShoppingPage() {
 
   return (
     <section className={hasSelection || exportMsg ? "has-buy-dock" : undefined}>
-      <div className="page-head shopping-head">
+      <div className={`page-head shopping-head${emptyList ? " shopping-head-empty" : ""}`}>
         <div className="shopping-head-title">
           <p className="eyebrow">{allDeckIds.length === 0 ? "Cards you are buying" : "Across your decks"}</p>
           <h1>Master Shopping</h1>
@@ -671,9 +671,12 @@ export function ShoppingPage() {
         density={density}
         onDensity={setDensity}
         extras={
-          <button type="button" className="ghost scan-open" onClick={() => setScanOpen(true)}>
-            Scan
-          </button>
+          <>
+            <PriceCheckToolbarButton />
+            <button type="button" className="ghost scan-open" onClick={() => setScanOpen(true)}>
+              Scan
+            </button>
+          </>
         }
       />
         }
