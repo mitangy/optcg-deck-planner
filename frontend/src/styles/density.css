@@ -233,7 +233,9 @@
     width: calc(4.6rem + var(--card-stack-reserve-x, 0px));
   }
 
-  .mobile-card-list.density-compact .mobile-card .thumb {
+  /* Only the card's own art: alt tiles inside the card keep their 3rem thumbs, or the Owned stepper is pushed out of
+     the tile (#1467). */
+  .mobile-card-list.density-compact .mobile-card-media .thumb {
     width: 4.6rem;
     height: 6.4rem;
   }
