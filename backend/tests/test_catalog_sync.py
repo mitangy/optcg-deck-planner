@@ -344,3 +344,21 @@ def test_sync_still_removes_a_small_share_of_printings_1346(db, monkeypatch):
 
     assert result["deletes_skipped"] is False
     assert db.query(CatalogPrinting).count() == 95
+
+
+def test_sync_stores_plain_effect_text_attribute_and_traits_1471(db, monkeypatch):
+    product = _luffy_product()
+    product["extendedData"] += [
+        {"name": "Description", "value": "[On Play] Draw 1 card.<br><em>Then</em> K.O. a &quot;Blocker&quot; &amp; rest it."},
+        {"name": "Attribute", "value": "Slash"},
+        {"name": "Subtypes", "value": "Straw Hat Crew;Supernovas"},
+    ]
+    groups = [{"groupId": 1, "name": "OP01"}]
+    _install_fake_tcgcsv(monkeypatch, groups, _group_urls(1, {"results": [product]}, _prices()))
+
+    catalog_sync.sync_catalog(db)
+
+    card = db.get(CatalogCard, "OP01-001")
+    assert card.effect_text == '[On Play] Draw 1 card. Then K.O. a "Blocker" & rest it.'
+    assert card.attribute == "Slash"
+    assert card.traits == "Straw Hat Crew / Supernovas"

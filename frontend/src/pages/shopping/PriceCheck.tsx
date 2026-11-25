@@ -123,7 +123,7 @@ function PriceCheckDialog({ onClose }: { onClose: () => void }) {
     body = (
       <>
         {shownRecents.length === 0 ? (
-          <p className="muted price-check-hint">Search by name or set code, like OP14-033. Alt arts show as their own rows.</p>
+          <p className="muted price-check-hint">Search by name, set code (like OP14-033), effect or type. Alt arts show as their own rows.</p>
         ) : (
           <>
             <div className="price-check-section">

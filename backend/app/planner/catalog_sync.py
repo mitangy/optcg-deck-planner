@@ -1,7 +1,9 @@
 
 from __future__ import annotations
 
+import html
 import logging
+import re
 import threading
 import time
 from collections import defaultdict
@@ -143,6 +145,16 @@ def _extended_map(product: dict[str, Any]) -> dict[str, str]:
         for item in (product.get("extendedData") or [])
         if "name" in item and "value" in item
     }
+
+
+_TAG_RE = re.compile(r"<[^>]*>")
+_SPACE_RE = re.compile(r"\s+")
+
+
+def plain_text(value: str | None) -> str:
+    """TCGCSV card text carries HTML (<br>, <em>) and entities; search wants plain words."""
+    text = _TAG_RE.sub(" ", value or "")
+    return _SPACE_RE.sub(" ", html.unescape(text)).strip()
 
 
 def resolve_catalog_card_id(product: dict[str, Any], ed: dict[str, str] | None = None) -> str | None:
@@ -348,6 +360,11 @@ def sync_catalog(db: Session) -> dict[str, Any]:
                     "tcgplayer_url": product.get("url") or "",
                     "group_name": group_name,
                     "is_special": 0,
+                    "effect_text": plain_text(ed.get("Description")),
+                    "attribute": plain_text(ed.get("Attribute")),
+                    "traits": " / ".join(
+                        t for t in re.split(r"\s*[;/]\s*", plain_text(ed.get("Subtypes"))) if t
+                    ),
                 }
                 by_card[card_id].append(entry)
 
@@ -371,6 +388,12 @@ def sync_catalog(db: Session) -> dict[str, Any]:
         printing_count += len(entries)
 
         best = sorted(entries, key=_printing_sort_key)[0]
+
+        def text_field(key: str) -> str:
+            if best[key]:
+                return best[key]
+            return next((e[key] for e in sorted(entries, key=_printing_sort_key) if e[key]), "")
+
         row = cards.get(card_id)
         payload = {
             "card_id": card_id,
@@ -385,6 +408,9 @@ def sync_catalog(db: Session) -> dict[str, Any]:
             "tcgplayer_url": best["tcgplayer_url"],
             "group_name": best["group_name"],
             "is_special": best["is_special"],
+            "effect_text": text_field("effect_text"),
+            "attribute": text_field("attribute"),
+            "traits": text_field("traits"),
             "updated_at": now,
         }
         if row is None:
