@@ -2122,11 +2122,11 @@ tr.covered td,
 }
 
 @media (max-width: 800px) {
-  /* Full-width field on top for one-handed use; pulled up a little so the first card still starts high (#1342). */
+  /* Full-width field on top for one-handed use. Pulled up into the space under the top bar so it gets a clear gap above the title and Buy button while the first card still starts high (#1342, #1473). */
   .shopping-head .price-check-trigger {
     order: -1;
     flex: 1 1 100%;
-    margin-bottom: -0.25rem;
+    margin-block: calc(var(--space-3) * -1) var(--space-2);
   }
 }
 
