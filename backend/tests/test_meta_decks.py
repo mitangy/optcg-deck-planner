@@ -83,6 +83,23 @@ def test_window_and_min_players_pick_the_events_that_count_443(client):
     assert len(decks(c, A, min_players=4)["decks"]) == 3
 
 
+def test_leaders_and_decks_reach_back_a_year_but_a_card_page_stays_at_90_days_1479(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_event(db, "recent", 5, 32)
+        add_event(db, "old", 150, 32)
+        add_deck(db, "recent", A)
+        add_deck(db, "old", B)
+        db.commit()
+    assert leaders(c, days=180)["total_decks"] == 2
+    assert [d["leader_id"] for d in leaders(c, days=180)["leaders"]] == [A, B]
+    assert len(decks(c, B, days=180)["decks"]) == 1
+    assert leaders(c, days=365)["total_decks"] == 2
+    assert c.get("/meta/leaders", params={"days": 366}).status_code == 422
+    assert c.get("/meta/decks", params={"leader": B, "days": 366}).status_code == 422
+    assert c.get(f"/meta/cards/{X}", params={"days": 180}).status_code == 422
+
+
 def test_leaders_are_sorted_by_decks_then_id_with_their_share_443(client):
     c, SessionLocal = client
     with SessionLocal() as db:

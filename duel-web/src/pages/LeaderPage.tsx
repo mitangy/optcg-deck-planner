@@ -6,6 +6,7 @@ import { cardImageUrl } from "@optcg/ui/cardArt";
 import { loadCardData } from "../cards/cardData";
 import { formatDeckRow, formatPercent, playMetaDeck, type MetaDeck, type MetaLeader } from "../decks/meta";
 import { dataTail, leaderIntro, colorList } from "../leaders/leaderIntro";
+import { formatUpdated } from "../leaders/snapshot";
 import { leaderPath, parseLeaderSlug, resolveLeaderRoute } from "../leaders/slug";
 import { useMetaView } from "../leaders/useMetaView";
 import { SITE_ORIGIN } from "../seo/routeMetaTable";
@@ -13,14 +14,16 @@ import { DeckCards, LeaderArt } from "./MetaDecksPage";
 import "./playOnline.css";
 import "./leaders.css";
 
-export function leaderPageText(leader: MetaLeader, days: number) {
+export function leaderPageText(leader: MetaLeader, days: number, lastSeen?: string) {
   const name = leader.name || leader.leader_id;
   return {
     h1: `${name} (${leader.leader_id}) deck list – play online free`,
     title: `${name} (${leader.leader_id}) deck list and meta stats – OPTCG Duel`,
-    description:
-      `${name} (${leader.leader_id}) in the One Piece TCG: ${formatPercent(leader.share)} of tournament decks in the last ${days} days, ` +
-      `${leader.top8} top-8 finishes, ${formatPercent(leader.win_rate)} win rate. See recent top decklists and play the deck free in this unofficial simulator.`,
+    description: lastSeen
+      ? `${name} (${leader.leader_id}) in the One Piece TCG: last seen in the meta on ${formatUpdated(lastSeen)}. ` +
+        `${leader.decks} tournament decks in the last ${days} days, ${leader.top8} top-8 finishes. See its most recent decklists and play the deck free in this unofficial simulator.`
+      : `${name} (${leader.leader_id}) in the One Piece TCG: ${formatPercent(leader.share)} of tournament decks in the last ${days} days, ` +
+        `${leader.top8} top-8 finishes, ${formatPercent(leader.win_rate)} win rate. See recent top decklists and play the deck free in this unofficial simulator.`,
   };
 }
 
@@ -103,8 +106,12 @@ export function LeaderPage() {
 
 function LeaderBody({ leader, view }: { leader: MetaLeader; view: ReturnType<typeof useMetaView> }) {
   const decks = view.decks ?? [];
-  const text = leaderPageText(leader, view.days);
-  const rank = view.routeLeaders.findIndex((l) => l.leader_id === leader.leader_id) + 1;
+  const lastSeen = view.archivedEntry?.lastSeen;
+  const days = lastSeen ? view.archiveDays : view.days;
+  const text = leaderPageText(leader, days, lastSeen);
+  const archivedIds = new Set(view.archived.map((a) => a.leader.leader_id));
+  const ranked = view.routeLeaders.filter((l) => !archivedIds.has(l.leader_id));
+  const rank = ranked.findIndex((l) => l.leader_id === leader.leader_id) + 1;
   usePageMeta({
     title: text.title,
     description: text.description,
@@ -144,12 +151,23 @@ function LeaderBody({ leader, view }: { leader: MetaLeader; view: ReturnType<typ
         </div>
       </section>
 
+      {lastSeen ? (
+        <p className="leader-archive-note" role="note">
+          <b>Last seen in the meta on {formatUpdated(lastSeen)}.</b> {leader.name || leader.leader_id} is not among the most played leaders right now, so these
+          are its most recent tournament lists from the last {days} days, from{" "}
+          <a className="linkish" href={view.sourceUrl} target="_blank" rel="noopener noreferrer">
+            {view.source}
+          </a>
+          .
+        </p>
+      ) : null}
+
       <section className="panel" aria-labelledby="leader-about">
         <h2 className="panel-title" id="leader-about">
           {leader.name || leader.leader_id} in the meta
         </h2>
         <div className="leader-intro">
-          {leaderIntro({ leader, rank: rank || 1, of: view.routeLeaders.length, days: view.days, decks }).map((p) => (
+          {leaderIntro({ leader, rank: rank || 1, of: ranked.length, days, decks, lastSeen }).map((p) => (
             <p key={p} className="panel-copy">
               {p}
             </p>
@@ -159,7 +177,7 @@ function LeaderBody({ leader, view }: { leader: MetaLeader; view: ReturnType<typ
 
       <section className="panel" aria-labelledby="leader-decks">
         <h2 className="panel-title" id="leader-decks">
-          Recent top decklists
+          {lastSeen ? "Most recent decklists" : "Recent top decklists"}
         </h2>
         {decks.length === 0 ? (
           <p className="panel-copy">Loading decklists…</p>
@@ -211,7 +229,7 @@ function LeaderBody({ leader, view }: { leader: MetaLeader; view: ReturnType<typ
         <a className="linkish" href={view.sourceUrl} target="_blank" rel="noopener noreferrer">
           {view.source}
         </a>
-        {dataTail(view.days, view.updatedAt)}
+        {dataTail(days, view.updatedAt)}
       </p>
     </PageShell>
   );
