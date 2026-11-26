@@ -1,7 +1,7 @@
 """Instagram auto-poster tables (#1477).
 
 New tables ``instagram_posts`` (one row per UTC day, unique ``slot_date``) and ``instagram_token``
-(the refreshed access token, single row).
+(the refreshed access token, single row, with the sha256 of the env token it came from).
 
 Idempotent: each table is skipped when it already exists.
 
@@ -50,6 +50,7 @@ def upgrade() -> None:
             sa.Column("access_token", sa.Text(), nullable=False),
             sa.Column("refreshed_at", sa.DateTime(timezone=True), nullable=False),
             sa.Column("expires_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("env_token_sha256", sa.String(length=64), nullable=True),
             sa.PrimaryKeyConstraint("id"),
         )
 

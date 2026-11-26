@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import functools
+import hashlib
 import json
 from urllib.parse import parse_qs
 from datetime import datetime, timedelta, timezone
@@ -59,7 +60,7 @@ class FakeInstagram:
         return httpx.Response(404)
 
     def http(self) -> httpx.AsyncClient:
-        return httpx.AsyncClient(transport=httpx.MockTransport(self.handler), base_url=f"{client.GRAPH_HOST}/v23.0")
+        return httpx.AsyncClient(transport=httpx.MockTransport(self.handler))
 
     def calls(self, suffix: str) -> list[httpx.Request]:
         return [r for r in self.requests if r.url.path.endswith(suffix)]
@@ -70,8 +71,12 @@ async def run(db, fake: FakeInstagram, now=WED, **kw) -> str:
         return await poster.tick(db, settings(**kw), http, now)
 
 
-def seed_token(db, age_days: int, access_token="oldtok") -> None:
-    db.add(InstagramToken(id=1, access_token=access_token, refreshed_at=WED - timedelta(days=age_days)))
+def env_hash(token: str = TOKEN) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def seed_token(db, age_days: int, access_token="oldtok", env_token: str = TOKEN) -> None:
+    db.add(InstagramToken(id=1, access_token=access_token, refreshed_at=WED - timedelta(days=age_days), env_token_sha256=env_hash(env_token)))
     db.commit()
 
 
@@ -226,3 +231,67 @@ def test_refresh_response_is_parsed_into_a_new_token_and_expiry_1477():
 
     token, expires = asyncio.run(go())
     assert token == "fresh" and expires == WED + timedelta(hours=1)
+
+
+FB_TOKEN = "EAAfacebooksystemusertoken"
+
+
+@aio
+async def test_facebook_token_publishes_through_graph_facebook_com_1477(db):
+    fake = FakeInstagram()
+    assert await run(db, fake, ig_access_token=FB_TOKEN) == "published"
+    hosts = {r.url.host for r in fake.requests}
+    assert hosts == {"graph.facebook.com"}
+    assert fake.calls("/media_publish")[0].url.path == "/v23.0/1789/media_publish"
+    assert fake.calls("/media_publish")[0].headers["Authorization"] == f"Bearer {FB_TOKEN}"
+
+
+@aio
+async def test_instagram_login_token_still_publishes_through_graph_instagram_com_1477(db):
+    fake = FakeInstagram()
+    assert await run(db, fake, ig_api_version="v24.0") == "published"
+    assert {r.url.host for r in fake.requests} == {"graph.instagram.com"}
+    assert fake.calls("/media_publish")[0].url.path == "/v24.0/1789/media_publish"
+
+
+@aio
+async def test_facebook_token_is_never_refreshed_or_stored_1477(db):
+    fake = FakeInstagram()
+    for days in (0, 30):
+        await run(db, fake, ig_access_token=FB_TOKEN, now=WED + timedelta(days=days))
+    assert fake.calls("/refresh_access_token") == []
+    assert db.get(InstagramToken, 1) is None
+
+
+def test_is_facebook_token_1477():
+    assert client.is_facebook_token("EAAB123") and client.is_facebook_token(" EAAB123 ")
+    assert not client.is_facebook_token("IGAA123") and not client.is_facebook_token("")
+
+
+@aio
+async def test_new_env_token_replaces_a_stored_refreshed_token_1477(db):
+    seed_token(db, age_days=1, access_token="oldrefreshed", env_token="PREVIOUSENVTOKEN")
+    fake = FakeInstagram(refresh_status=400)
+    assert await run(db, fake) == "published"
+    assert fake.calls("/media_publish")[0].headers["Authorization"] == f"Bearer {TOKEN}"
+    assert db.get(InstagramToken, 1).env_token_sha256 == env_hash()
+
+
+@aio
+async def test_stored_refreshed_token_wins_while_the_env_token_is_unchanged_1477(db):
+    seed_token(db, age_days=1, access_token="oldrefreshed")
+    fake = FakeInstagram()
+    await run(db, fake)
+    assert fake.calls("/media_publish")[0].headers["Authorization"] == "Bearer oldrefreshed"
+    assert poster.current_token(db, settings()) == "oldrefreshed"
+    assert poster.current_token(db, settings(ig_access_token="NEWENV")) == "NEWENV"
+
+
+@aio
+async def test_refreshed_token_is_stored_with_the_env_token_hash_not_the_token_1477(db):
+    seed_token(db, age_days=1, access_token="oldrefreshed", env_token="PREVIOUSENVTOKEN")
+    fake = FakeInstagram()
+    await run(db, fake)  # new env token: refresh runs on the env token, row is overwritten
+    assert [r.url.params.get("access_token") for r in fake.calls("/refresh_access_token")] == [TOKEN]
+    row = db.get(InstagramToken, 1)
+    assert (row.access_token, row.env_token_sha256) == ("newtok", env_hash())

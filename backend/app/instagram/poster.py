@@ -9,6 +9,7 @@ and publishes it through the Instagram API. One worker runs at a time (Postgres 
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import secrets
 from datetime import date, datetime, timedelta, timezone
@@ -36,15 +37,49 @@ def media_url(settings, token: str) -> str:
     return f"{base}/social-media/{token}.jpg"
 
 
-def current_token(db: Session, settings) -> str:
+def env_token(settings) -> str:
+    return settings.ig_access_token.strip()
+
+
+def env_token_hash(settings) -> str:
+    return hashlib.sha256(env_token(settings).encode()).hexdigest()
+
+
+def _stored_row(db: Session, settings) -> InstagramToken | None:
+    """The refreshed-token row, but only while it was seeded from the env token that is set now.
+
+    Pasting a new token into IG_ACCESS_TOKEN changes the hash, so the stale row is ignored (and overwritten on the next write).
+    """
     row = db.get(InstagramToken, TOKEN_ROW_ID)
-    return row.access_token if row is not None else settings.ig_access_token.strip()
+    if row is None or row.env_token_sha256 != env_token_hash(settings):
+        return None
+    return row
+
+
+def current_token(db: Session, settings) -> str:
+    row = _stored_row(db, settings)
+    return row.access_token if row is not None else env_token(settings)
+
+
+def _store(db: Session, settings, access_token: str, refreshed_at: datetime, expires_at: datetime | None) -> None:
+    row = db.get(InstagramToken, TOKEN_ROW_ID)
+    if row is None:
+        row = InstagramToken(id=TOKEN_ROW_ID)
+        db.add(row)
+    row.access_token, row.refreshed_at, row.expires_at = access_token, refreshed_at, expires_at
+    row.env_token_sha256 = env_token_hash(settings)
+    db.commit()
 
 
 async def ensure_fresh_token(db: Session, settings, http: httpx.AsyncClient, now: datetime) -> str:
-    """The token to publish with. Refreshes it when it is 20+ days old (or never refreshed here) and stores the new one."""
-    row = db.get(InstagramToken, TOKEN_ROW_ID)
-    token = row.access_token if row is not None else settings.ig_access_token.strip()
+    """The token to publish with. Refreshes it when it is 20+ days old (or never refreshed here) and stores the new one.
+
+    Facebook-style tokens (EAA...) are used as they are: they are not refreshed through graph.instagram.com.
+    """
+    if client.is_facebook_token(env_token(settings)):
+        return env_token(settings)
+    row = _stored_row(db, settings)
+    token = row.access_token if row is not None else env_token(settings)
     if row is not None and now - as_utc(row.refreshed_at) < TOKEN_REFRESH_AFTER:
         return token
     try:
@@ -53,17 +88,9 @@ async def ensure_fresh_token(db: Session, settings, http: httpx.AsyncClient, now
         # E.g. "token too new" right after it was issued. Keep the current token and look again in a day
         # (a stored row stamped 19 days ago is due again after 1 day).
         log.warning("instagram: token refresh skipped: %s", exc)
-        if row is None:
-            db.add(InstagramToken(id=TOKEN_ROW_ID, access_token=token, refreshed_at=now - TOKEN_REFRESH_AFTER + timedelta(days=1)))
-        else:
-            row.refreshed_at = now - TOKEN_REFRESH_AFTER + timedelta(days=1)
-        db.commit()
+        _store(db, settings, token, now - TOKEN_REFRESH_AFTER + timedelta(days=1), row.expires_at if row is not None else None)
         return token
-    if row is None:
-        db.add(InstagramToken(id=TOKEN_ROW_ID, access_token=new_token, refreshed_at=now, expires_at=expires_at))
-    else:
-        row.access_token, row.refreshed_at, row.expires_at = new_token, now, expires_at
-    db.commit()
+    _store(db, settings, new_token, now, expires_at)
     log.info("instagram: access token refreshed")
     return new_token
 
@@ -72,7 +99,7 @@ async def _publish(db: Session, settings, http: httpx.AsyncClient, row: Instagra
     row.attempts += 1
     try:
         token = await ensure_fresh_token(db, settings, http, now)
-        media_id = await client.publish_image(http, settings.ig_user_id.strip(), token, media_url(settings, row.media_token), row.caption)
+        media_id = await client.publish_image(http, settings.ig_user_id.strip(), token, media_url(settings, row.media_token), row.caption, api_version=settings.ig_api_version)
     except client.InstagramError as exc:
         row.status, row.error = "failed", str(exc)[:500]
         log.warning("instagram: post %s failed (attempt %s): %s", row.slot_date, row.attempts, exc)

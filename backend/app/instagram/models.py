@@ -42,3 +42,5 @@ class InstagramToken(Base):
     access_token: Mapped[str] = mapped_column(Text)
     refreshed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # sha256 of the IG_ACCESS_TOKEN env value this row was seeded from; a different env token replaces the row.
+    env_token_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)

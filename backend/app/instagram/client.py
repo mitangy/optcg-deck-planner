@@ -1,4 +1,8 @@
-"""Instagram API with Instagram Login (graph.instagram.com): publish one image, refresh the token (#1477).
+"""Instagram Graph API: publish one image, refresh the token (#1477).
+
+Two token kinds exist. "Instagram Login" tokens (refreshable, 60 days) talk to graph.instagram.com. Facebook-style
+tokens (start with "EAA", e.g. a never-expiring system-user token from the unified login setup) talk to
+graph.facebook.com with the same paths and params and are never refreshed here.
 
 The token is sent in an Authorization header for publishing, and as the query parameter the refresh
 endpoint documents. Errors raised here never carry the token or a URL.
@@ -13,7 +17,9 @@ from datetime import datetime, timedelta, timezone
 import httpx
 
 GRAPH_HOST = "https://graph.instagram.com"
+FACEBOOK_GRAPH_HOST = "https://graph.facebook.com"
 REFRESH_URL = f"{GRAPH_HOST}/refresh_access_token"
+DEFAULT_API_VERSION = "v23.0"
 POLL_EVERY_S = 10.0
 POLL_MAX_S = 300.0
 TIMEOUT_S = 30.0
@@ -33,8 +39,18 @@ class _HideToken(logging.Filter):
 logging.getLogger("httpx").addFilter(_HideToken())
 
 
+def is_facebook_token(token: str) -> bool:
+    return (token or "").strip().startswith("EAA")
+
+
+def graph_base(token: str, api_version: str = DEFAULT_API_VERSION) -> str:
+    host = FACEBOOK_GRAPH_HOST if is_facebook_token(token) else GRAPH_HOST
+    return f"{host}/{api_version.strip()}"
+
+
 def make_client(settings) -> httpx.AsyncClient:
-    return httpx.AsyncClient(base_url=f"{GRAPH_HOST}/{settings.ig_api_version.strip()}", timeout=TIMEOUT_S)
+    """No host baked in: the host depends on the token, so every call builds an absolute URL."""
+    return httpx.AsyncClient(timeout=TIMEOUT_S)
 
 
 def _scrub(text: str, token: str) -> str:
@@ -72,15 +88,17 @@ async def publish_image(
     *,
     poll_every_s: float = POLL_EVERY_S,
     poll_max_s: float = POLL_MAX_S,
+    api_version: str = DEFAULT_API_VERSION,
 ) -> str:
     """Create the media container, wait until Instagram has fetched it, publish it. Returns the media id."""
-    created = await _call(http, "POST", f"/{user_id}/media", token, data={"image_url": image_url, "caption": caption})
+    base = graph_base(token, api_version)
+    created = await _call(http, "POST", f"{base}/{user_id}/media", token, data={"image_url": image_url, "caption": caption})
     container = str(created.get("id") or "")
     if not container:
         raise InstagramError("Instagram returned no container id")
     waited = 0.0
     while True:
-        status = await _call(http, "GET", f"/{container}", token, params={"fields": "status_code"})
+        status = await _call(http, "GET", f"{base}/{container}", token, params={"fields": "status_code"})
         code = str(status.get("status_code") or "")
         if code == "FINISHED":
             break
@@ -90,7 +108,7 @@ async def publish_image(
             raise InstagramError("Instagram container not ready in time")
         await asyncio.sleep(poll_every_s)
         waited += poll_every_s
-    published = await _call(http, "POST", f"/{user_id}/media_publish", token, data={"creation_id": container})
+    published = await _call(http, "POST", f"{base}/{user_id}/media_publish", token, data={"creation_id": container})
     media_id = str(published.get("id") or "")
     if not media_id:
         raise InstagramError("Instagram returned no media id")
