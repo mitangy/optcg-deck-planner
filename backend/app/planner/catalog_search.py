@@ -157,11 +157,23 @@ def _substring_rows(
         CatalogCard.card_id.asc(),
     ]
     if query:
-        # Cards matched by id, name or set outrank cards that only match by effect text.
+        # Cards matched by id, name, set, color, type, rarity or a printing's name/set
+        # outrank cards that only match by effect text, attribute or traits.
         identity_hit = or_(
             CatalogCard.card_id.ilike(like),
             CatalogCard.name.ilike(like),
             CatalogCard.group_name.ilike(like),
+            CatalogCard.color.ilike(like),
+            CatalogCard.card_type.ilike(like),
+            CatalogCard.rarity.ilike(like),
+            CatalogCard.card_id.in_(
+                select(CatalogPrinting.card_id).where(
+                    or_(
+                        CatalogPrinting.name.ilike(like),
+                        CatalogPrinting.group_name.ilike(like),
+                    )
+                )
+            ),
         )
         order.insert(0, case((identity_hit, 0), else_=1))
         order.insert(0, (func.upper(CatalogCard.card_id) == q_upper).desc())
