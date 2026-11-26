@@ -128,7 +128,10 @@ class Settings(BaseSettings):
 
     @property
     def instagram_enabled(self) -> bool:
-        return bool(self.ig_access_token.strip() and self.ig_user_id.strip())
+        token = self.ig_access_token.strip()
+        # Facebook-style (EAA...) system-user tokens can look the account id up, so IG_USER_ID is optional for them.
+        # (Same prefix check as instagram.client.is_facebook_token, inlined to keep config free of app imports.)
+        return bool(token and (self.ig_user_id.strip() or token.startswith("EAA")))
 
     @property
     def new_release_prices_enabled(self) -> bool:

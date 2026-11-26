@@ -45,6 +45,20 @@ def env_token_hash(settings) -> str:
     return hashlib.sha256(env_token(settings).encode()).hexdigest()
 
 
+_resolved_user_id: dict[str, str] = {}
+
+
+async def resolve_user_id(settings, http: httpx.AsyncClient, token: str) -> str:
+    """IG_USER_ID if set, else (EAA token) the account assigned to the token, looked up once per process per env token."""
+    explicit = settings.ig_user_id.strip()
+    if explicit:
+        return explicit
+    key = env_token_hash(settings)
+    if key not in _resolved_user_id:
+        _resolved_user_id[key] = await client.assigned_instagram_account_id(http, token, settings.ig_api_version)
+    return _resolved_user_id[key]
+
+
 def _stored_row(db: Session, settings) -> InstagramToken | None:
     """The refreshed-token row, but only while it was seeded from the env token that is set now.
 
@@ -99,7 +113,8 @@ async def _publish(db: Session, settings, http: httpx.AsyncClient, row: Instagra
     row.attempts += 1
     try:
         token = await ensure_fresh_token(db, settings, http, now)
-        media_id = await client.publish_image(http, settings.ig_user_id.strip(), token, media_url(settings, row.media_token), row.caption, api_version=settings.ig_api_version)
+        user_id = await resolve_user_id(settings, http, token)
+        media_id = await client.publish_image(http, user_id, token, media_url(settings, row.media_token), row.caption, api_version=settings.ig_api_version)
     except client.InstagramError as exc:
         row.status, row.error = "failed", str(exc)[:500]
         log.warning("instagram: post %s failed (attempt %s): %s", row.slot_date, row.attempts, exc)

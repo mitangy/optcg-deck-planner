@@ -36,7 +36,8 @@ def settings(**kw) -> Settings:
 
 
 class FakeInstagram:
-    def __init__(self, statuses=("FINISHED",), refresh_status=200, publish_error: str | None = None):
+    def __init__(self, statuses=("FINISHED",), refresh_status=200, publish_error: str | None = None, assigned=({"id": "5555", "username": "optcgduel"},)):
+        self.assigned = list(assigned)
         self.statuses = list(statuses)
         self.refresh_status = refresh_status
         self.publish_error = publish_error
@@ -49,6 +50,10 @@ class FakeInstagram:
             if self.refresh_status != 200:
                 return httpx.Response(self.refresh_status, json={"error": {"message": "token too new"}})
             return httpx.Response(200, json={"access_token": "newtok", "expires_in": 5184000})
+        if path.endswith("/me/assigned_instagram_accounts"):
+            return httpx.Response(200, json={"data": self.assigned})
+        if path.endswith("/5555/media"):
+            return httpx.Response(200, json={"id": "container1"})
         if self.publish_error and path.endswith("/media"):
             return httpx.Response(400, json={"error": {"message": self.publish_error}})
         if path.endswith("/1789/media"):
@@ -118,6 +123,14 @@ async def test_dry_run_renders_and_stores_but_never_publishes_1477(db):
     row = db.scalars(select(InstagramPost)).one()
     assert row.status == "dry_run" and row.image_jpeg[:2] == b"\xff\xd8"
     assert fake.requests == []
+
+
+def test_enabled_with_facebook_token_and_no_user_id_1477():
+    assert settings(ig_access_token=FB_TOKEN, ig_user_id="").instagram_enabled
+
+
+def test_disabled_with_instagram_login_token_and_no_user_id_1477():
+    assert not settings(ig_user_id="").instagram_enabled
 
 
 @aio
@@ -295,3 +308,45 @@ async def test_refreshed_token_is_stored_with_the_env_token_hash_not_the_token_1
     assert [r.url.params.get("access_token") for r in fake.calls("/refresh_access_token")] == [TOKEN]
     row = db.get(InstagramToken, 1)
     assert (row.access_token, row.env_token_sha256) == ("newtok", env_hash())
+
+
+@pytest.fixture
+def fresh_id_cache(monkeypatch):
+    monkeypatch.setattr(poster, "_resolved_user_id", {})
+
+
+@aio
+async def test_facebook_token_without_user_id_publishes_to_the_assigned_account_1477(db, fresh_id_cache):
+    fake = FakeInstagram()
+    assert await run(db, fake, ig_access_token=FB_TOKEN, ig_user_id="") == "published"
+    lookup = fake.calls("/me/assigned_instagram_accounts")[0]
+    assert lookup.url.host == "graph.facebook.com" and lookup.url.params["fields"] == "id,username"
+    assert lookup.headers["Authorization"] == f"Bearer {FB_TOKEN}"
+    assert fake.calls("/media")[0].url.path == "/v23.0/5555/media"
+    assert fake.calls("/media_publish")[0].url.path == "/v23.0/5555/media_publish"
+
+
+@aio
+async def test_explicit_user_id_skips_the_assigned_account_lookup_1477(db, fresh_id_cache):
+    fake = FakeInstagram()
+    assert await run(db, fake, ig_access_token=FB_TOKEN) == "published"
+    assert fake.calls("/me/assigned_instagram_accounts") == []
+    assert fake.calls("/media")[0].url.path == "/v23.0/1789/media"
+
+
+@aio
+async def test_assigned_account_is_looked_up_once_per_process_1477(db, fresh_id_cache):
+    fake = FakeInstagram()
+    await run(db, fake, ig_access_token=FB_TOKEN, ig_user_id="")
+    await run(db, fake, ig_access_token=FB_TOKEN, ig_user_id="", now=WED + timedelta(days=1))
+    assert len(fake.calls("/me/assigned_instagram_accounts")) == 1
+    assert len(fake.calls("/media_publish")) == 2
+
+
+@aio
+async def test_no_assigned_account_fails_the_post_without_publishing_1477(db, fresh_id_cache):
+    fake = FakeInstagram(assigned=())
+    assert await run(db, fake, ig_access_token=FB_TOKEN, ig_user_id="") == "failed"
+    row = db.scalars(select(InstagramPost)).one()
+    assert row.error == "No Instagram account is assigned to this token" and row.attempts == 1
+    assert fake.calls("/media") == [] and fake.calls("/media_publish") == []

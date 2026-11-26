@@ -79,6 +79,19 @@ async def _call(http: httpx.AsyncClient, method: str, url: str, token: str, **kw
     return data if isinstance(data, dict) else {}
 
 
+async def assigned_instagram_account_id(http: httpx.AsyncClient, token: str, api_version: str = DEFAULT_API_VERSION) -> str:
+    """The Instagram account a Facebook-style (system-user) token is assigned to: first of me/assigned_instagram_accounts."""
+    data = await _call(
+        http, "GET", f"{FACEBOOK_GRAPH_HOST}/{api_version.strip()}/me/assigned_instagram_accounts", token, params={"fields": "id,username"}
+    )
+    accounts = data.get("data")
+    first = accounts[0] if isinstance(accounts, list) and accounts else None
+    account_id = str(first.get("id") or "") if isinstance(first, dict) else ""
+    if not account_id:
+        raise InstagramError("No Instagram account is assigned to this token")
+    return account_id
+
+
 async def publish_image(
     http: httpx.AsyncClient,
     user_id: str,
