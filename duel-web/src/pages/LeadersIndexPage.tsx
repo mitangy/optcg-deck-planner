@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { usePageMeta } from "@optcg/ui/seo";
 import { formatPercent } from "../decks/meta";
 import { dataTail } from "../leaders/leaderIntro";
+import { formatUpdated } from "../leaders/snapshot";
 import { leaderPath } from "../leaders/slug";
 import { useMetaView } from "../leaders/useMetaView";
 import { routeMetaFor, SITE_ORIGIN } from "../seo/routeMetaTable";
@@ -66,6 +67,33 @@ export function LeadersIndexPage() {
           ))}
         </ol>
       )}
+
+      {view.archived.length > 0 ? (
+        <section className="leaders-archive" aria-labelledby="leaders-archive-title">
+          <h2 className="panel-title" id="leaders-archive-title">
+            Recently in the meta
+          </h2>
+          <p className="panel-copy leaders-archive-copy">
+            Leaders that dropped out of the current top but still have recent tournament lists, from the last {view.archiveDays} days.
+          </p>
+          <ul className="leaders-grid leaders-archive-grid">
+            {view.archived.map((a) => (
+              <li key={a.leader.leader_id}>
+                <Link to={leaderPath(a.leader)} className="meta-leader leaders-card">
+                  <LeaderArt id={a.leader.leader_id} url={a.leader.image_url} className="meta-leader-art" />
+                  <span className="meta-leader-body">
+                    <span className="meta-leader-name">{a.leader.name || a.leader.leader_id}</span>
+                    <span className="meta-leader-id">{a.leader.leader_id}</span>
+                    <span className="meta-leader-stats">
+                      <span>Last seen <b>{formatUpdated(a.lastSeen)}</b></span>
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <p className="meta leader-data">
         Data:{" "}
