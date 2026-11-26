@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-26", app: "both", pr: 1478, title: "Follow us on Instagram @optcgduel", text: "OPTCG Duel is now on Instagram at @optcgduel. About once a day we post the tournament meta, a card from the newest set or a tip for the app. It is an unofficial fan-made sim and is not affiliated with Bandai." },
   { date: "2026-11-26", app: "duel", pr: 1480, title: "Leader pages stay up after a leader leaves the meta", text: "A leader that drops out of the current top decks now keeps its page with its most recent tournament lists and the date it was last seen, instead of an empty page. The Leaders page lists them under Recently in the meta." },
   { date: "2026-11-25", app: "planner", pr: 1474, title: "More room under Price check on phones", text: "On a phone, the Price check field at the top of Master Shopping now has a clear gap above the title and the Buy on TCGPlayer button, instead of nearly touching them. Your first card still starts in the same place." },
   { date: "2026-11-25", app: "planner", pr: 1471, title: "Search cards by effect, attribute and type", text: "Card search in Price check, Add cards, the deck editor and your collection now also finds cards by their effect text, attribute and type. Try Blocker, Rush, Slash, Straw Hat Crew or draw 1 card. Cards that match by name or set code still come first. Cards pick this up after the next daily catalog update." },

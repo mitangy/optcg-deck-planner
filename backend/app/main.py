@@ -13,6 +13,7 @@ from app.core.db import init_db, startup_lock
 from app.group_buy import router as group_buy_router
 from app.social import friend_views_router, friends_router, trades_router
 from app.routers import admin, alerts, analyst, analyst_access, analyst_bots, analyst_chat, analyst_feedback, api, auth, duel, duel_decks, duel_prefs, duel_tournaments, events, feedback, meta, reports, scan_samples
+from app.instagram import router as instagram_router
 
 settings = get_settings()
 
@@ -36,12 +37,14 @@ async def lifespan(_app: FastAPI):
 
     from app.planner import price_refresh
     from app.admin import discord_feedback
+    from app.instagram import poster as instagram_poster
     from app.duel import progress_sweep
 
     sync_task = start_background(settings)
     sweep_task = progress_sweep.start_background(settings)
     price_task = price_refresh.start_background(settings)
     discord_task = discord_feedback.start_background(settings)
+    instagram_task = instagram_poster.start_background(settings)
     try:
         yield
     finally:
@@ -58,6 +61,10 @@ async def lifespan(_app: FastAPI):
             discord_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await discord_task
+        if instagram_task is not None:
+            instagram_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await instagram_task
 
 
 _docs = None if settings.is_production else "/docs"
@@ -125,6 +132,8 @@ app.include_router(analyst_access.router)
 app.include_router(meta.router)
 app.include_router(alerts.router)
 app.include_router(scan_samples.router)
+app.include_router(instagram_router.public_router)
+app.include_router(instagram_router.admin_router)
 
 
 @app.get("/")

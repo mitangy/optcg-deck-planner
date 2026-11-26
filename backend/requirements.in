@@ -28,3 +28,5 @@ rapidfuzz>=3.14.0,<4
 cachetools>=8.0.2,<9
 # Order History PDF upload (group buy), text extraction only.
 pypdf>=7.1.1,<8
+# Instagram auto-poster image rendering (app/instagram/content.py).
+pillow>=13.0.0,<14

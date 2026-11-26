@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     discord_bot_token: str = ""
     discord_feedback_channel_id: str = ""
     discord_feedback_poll_s: int = 30
+    # Instagram auto-poster (#1477): Instagram API with Instagram Login for @optcgduel.
+    ig_access_token: str = ""
+    ig_user_id: str = ""
+    ig_post_hour_utc: int = 17
+    ig_dry_run: bool = False
+    ig_api_version: str = "v23.0"
+    # Public origin Instagram fetches post images from; empty uses backend_public_url.
+    ig_media_base_url: str = ""
     github_issues_token: str = ""
     github_issues_repo: str = "mitangy/optcg-deck-planner"
     game_token_secret: str = ""
@@ -117,6 +125,13 @@ class Settings(BaseSettings):
     @property
     def discord_feedback_enabled(self) -> bool:
         return bool(self.discord_bot_token.strip() and self.discord_feedback_channel_id.strip())
+
+    @property
+    def instagram_enabled(self) -> bool:
+        token = self.ig_access_token.strip()
+        # Facebook-style (EAA...) system-user tokens can look the account id up, so IG_USER_ID is optional for them.
+        # (Same prefix check as instagram.client.is_facebook_token, inlined to keep config free of app imports.)
+        return bool(token and (self.ig_user_id.strip() or token.startswith("EAA")))
 
     @property
     def new_release_prices_enabled(self) -> bool:
