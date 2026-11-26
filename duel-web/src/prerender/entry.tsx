@@ -17,7 +17,8 @@ import { WhatsNewPage } from "../pages/WhatsNewPage";
 import { cardImageUrl } from "@optcg/ui/cardArt";
 import { leaderPath } from "../leaders/slug";
 import { EMBEDDED_SNAPSHOT_ID, SnapshotContext } from "../leaders/useMetaView";
-import { sitemapXml, snapshotFor, snapshotPaths, type MetaSnapshot } from "../leaders/snapshot";
+import { ARCHIVE_DAYS, sitemapXml, snapshotFor, snapshotPaths, type MetaSnapshot } from "../leaders/snapshot";
+import type { MetaLeader } from "../decks/meta";
 import { loadBuildSnapshot } from "../leaders/snapshotBuild";
 import { routeMetaFor, sitemapPaths, SITE_ORIGIN } from "../seo/routeMetaTable";
 import { FOOTER_EXTERNAL_LINKS, FOOTER_LINKS } from "../siteFooter";
@@ -58,19 +59,18 @@ function pagesFor(snapshot: MetaSnapshot): PageSpec[] {
     legal("conduct"),
     { path: "/leaders", element: <LeadersIndexPage />, head: headFor("/leaders"), embed: null },
   ];
-  for (const l of snapshot.leaders) {
-    const text = leaderPageText(l, snapshot.days);
-    pages.push({
-      path: leaderPath(l),
-      element: (
-        <Routes>
-          <Route path="/leaders/:slug" element={<LeaderPage />} />
-        </Routes>
-      ),
-      head: { title: text.title, description: text.description, canonical: `${SITE_ORIGIN}${leaderPath(l)}`, image: cardImageUrl(l.image_url, "large") || undefined },
-      embed: l.leader_id,
-    });
-  }
+  const leaderPage = (l: MetaLeader, text: { title: string; description: string }): PageSpec => ({
+    path: leaderPath(l),
+    element: (
+      <Routes>
+        <Route path="/leaders/:slug" element={<LeaderPage />} />
+      </Routes>
+    ),
+    head: { title: text.title, description: text.description, canonical: `${SITE_ORIGIN}${leaderPath(l)}`, image: cardImageUrl(l.image_url, "large") || undefined },
+    embed: l.leader_id,
+  });
+  for (const l of snapshot.leaders) pages.push(leaderPage(l, leaderPageText(l, snapshot.days)));
+  for (const { leader: l, lastSeen } of snapshot.archived ?? []) pages.push(leaderPage(l, leaderPageText(l, snapshot.archiveDays ?? ARCHIVE_DAYS, lastSeen)));
   return pages;
 }
 

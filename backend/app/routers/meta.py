@@ -53,7 +53,7 @@ def get_meta_leaders(
     request: Request,
     response: Response,
     db: Annotated[Session, Depends(get_db)],
-    days: Annotated[int, Query(ge=1, le=90)] = 30,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
     min_players: Annotated[int, Query(ge=1, le=1000)] = 8,
 ):
     _guard(request, response)
@@ -66,7 +66,7 @@ def get_meta_decks(
     response: Response,
     db: Annotated[Session, Depends(get_db)],
     leader: Annotated[str, Query(pattern=CARD_ID_PATTERN)],
-    days: Annotated[int, Query(ge=1, le=90)] = 30,
+    days: Annotated[int, Query(ge=1, le=365)] = 30,
     min_players: Annotated[int, Query(ge=1, le=1000)] = 8,
     top: Annotated[int, Query(ge=0, le=1000)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,

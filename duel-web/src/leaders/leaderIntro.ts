@@ -33,14 +33,20 @@ export function bestFinish(decks: readonly MetaDeck[]): MetaDeck | null {
   return placed.reduce((best, d) => ((d.placing as number) < (best.placing as number) ? d : best));
 }
 
-export function leaderIntro(args: { leader: MetaLeader; rank: number; of: number; days: number; decks: readonly MetaDeck[] }): string[] {
-  const { leader, rank, of, days, decks } = args;
+export function leaderIntro(args: { leader: MetaLeader; rank: number; of: number; days: number; decks: readonly MetaDeck[]; lastSeen?: string }): string[] {
+  const { leader, rank, of, days, decks, lastSeen } = args;
   const name = leader.name || leader.leader_id;
   const colors = colorList(leader.color);
   const colorText = colors.length > 1 ? `${joinWords(colors)} (two-colour)` : colors[0] ?? "";
   const out: string[] = [];
 
-  out.push(
+  if (lastSeen) {
+    out.push(
+      `${name} (${leader.leader_id}) is ${colorText ? `a ${colorText} leader` : "a leader"} in the One Piece Card Game. ` +
+        `In the last ${days} days it was registered in ${leader.decks} tournament decks, ${formatPercent(leader.share)} of the field. ` +
+        `It is no longer among the most played leaders, and was last seen in the meta on ${formatUpdated(lastSeen)}.`,
+    );
+  } else out.push(
     `${name} (${leader.leader_id}) is ${colorText ? `a ${colorText} leader` : "a leader"} in the One Piece Card Game. ` +
       `In the last ${days} days it was registered in ${leader.decks} tournament decks, ${formatPercent(leader.share)} of the field, ` +
       `making it ${rank === 1 ? "the most played" : `the ${ordinal(rank)} most played`} of the ${of} leaders on this site.`,

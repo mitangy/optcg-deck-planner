@@ -1,6 +1,18 @@
-import type { MetaDecksResponse, MetaLeadersResponse } from "../decks/meta";
+import type { MetaDecksResponse, MetaLeader, MetaLeadersResponse } from "../decks/meta";
 import fallbackJson from "./metaSnapshot.fallback.json";
-import { isSnapshot, pickSnapshotLeaders, SAMPLE_DECKS, SNAPSHOT_DAYS, type MetaSnapshot } from "./snapshot";
+import {
+  ARCHIVE_DAYS,
+  ARCHIVE_FETCH_DECKS,
+  ARCHIVE_TOP_PLACINGS,
+  isSnapshot,
+  newestDeckDate,
+  pickArchivedLeaders,
+  pickSnapshotLeaders,
+  SAMPLE_DECKS,
+  SNAPSHOT_DAYS,
+  type ArchivedLeader,
+  type MetaSnapshot,
+} from "./snapshot";
 
 export const DEFAULT_META_API = "https://optcg-api-nutb.onrender.com";
 
@@ -26,6 +38,54 @@ async function getJson<T>(fetchFn: FetchLike, url: string, timeoutMs: number): P
   }
 }
 
+/**
+ * Leaders that left the current pick but had play in the long window (#1479). Never throws: a failed
+ * long-window call is retried once with 90 days (the backend caps older deploys there), then gives up.
+ */
+async function fetchArchive(
+  fetchFn: FetchLike,
+  api: string,
+  timeoutMs: number,
+  current: readonly MetaLeader[],
+  log: (msg: string) => void,
+): Promise<{ archived: ArchivedLeader[]; decks: MetaSnapshot["decks"]; days: number }> {
+  let days = ARCHIVE_DAYS;
+  let window: MetaLeadersResponse | null = null;
+  for (const tryDays of [ARCHIVE_DAYS, 90]) {
+    try {
+      const res = await getJson<MetaLeadersResponse>(fetchFn, `${api}/meta/leaders?days=${tryDays}`, timeoutMs);
+      if (!res || !Array.isArray(res.leaders)) throw new Error("no leaders list");
+      window = res;
+      days = tryDays;
+      break;
+    } catch (e) {
+      log(`archive: ${tryDays}-day leaders unavailable (${e instanceof Error ? e.message : e})`);
+    }
+  }
+  if (!window) return { archived: [], decks: {}, days };
+  const picked = pickArchivedLeaders(window.leaders, current);
+  const decks: MetaSnapshot["decks"] = {};
+  const found = await Promise.all(
+    picked.map(async (l): Promise<ArchivedLeader | null> => {
+      const q = new URLSearchParams({ leader: l.leader_id, days: String(days), top: String(ARCHIVE_TOP_PLACINGS), limit: String(ARCHIVE_FETCH_DECKS) });
+      try {
+        const res = await getJson<MetaDecksResponse>(fetchFn, `${api}/meta/decks?${q}`, timeoutMs);
+        const lastSeen = Array.isArray(res.decks) ? newestDeckDate(res.decks) : null;
+        if (!lastSeen) return null;
+        const newest = [...res.decks].sort((a, b) => b.date.localeCompare(a.date) || (a.placing ?? 99) - (b.placing ?? 99));
+        decks[l.leader_id.toUpperCase()] = newest.slice(0, SAMPLE_DECKS);
+        return { leader: l, lastSeen };
+      } catch (e) {
+        log(`archive: no decklists for ${l.leader_id}: ${e instanceof Error ? e.message : e}`);
+        return null;
+      }
+    }),
+  );
+  const archived = found.filter((a): a is ArchivedLeader => a !== null);
+  log(`archive: ${archived.length} leaders from the last ${days} days`);
+  return { archived, decks, days };
+}
+
 export async function fetchSnapshot(opts: SnapshotOptions = {}): Promise<MetaSnapshot> {
   const fetchFn = opts.fetchFn ?? (fetch as unknown as FetchLike);
   const api = (opts.api ?? DEFAULT_META_API).replace(/\/+$/, "");
@@ -47,6 +107,10 @@ export async function fetchSnapshot(opts: SnapshotOptions = {}): Promise<MetaSna
   );
   const leaders = picked.filter((l) => decks[l.leader_id.toUpperCase()]);
   if (leaders.length === 0) throw new Error("no leader had a decklist");
+  const archive = await fetchArchive(fetchFn, api, timeoutMs, leaders, opts.log ?? (() => undefined)).catch((e) => {
+    opts.log?.(`archive skipped: ${e instanceof Error ? e.message : e}`);
+    return null;
+  });
   return {
     version: 1,
     generatedAt: new Date().toISOString(),
@@ -56,7 +120,8 @@ export async function fetchSnapshot(opts: SnapshotOptions = {}): Promise<MetaSna
     source: lead.source,
     source_url: lead.source_url,
     leaders,
-    decks,
+    decks: { ...(archive?.decks ?? {}), ...decks },
+    ...(archive && archive.archived.length > 0 ? { archived: archive.archived, archiveDays: archive.days } : {}),
   };
 }
 
