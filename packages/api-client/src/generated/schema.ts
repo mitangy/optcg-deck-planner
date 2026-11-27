@@ -327,6 +327,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/instagram/posts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Posts */
+        get: operations["list_posts_admin_instagram_posts_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/instagram/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview
+         * @description A freshly rendered post image, not saved or published. The caption comes back in X-Caption (url-quoted).
+         */
+        post: operations["preview_admin_instagram_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/instagram/reels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Reels */
+        get: operations["list_reels_admin_instagram_reels_get"];
+        put?: never;
+        /**
+         * Upload Reel
+         * @description An mp4 trailer, 100 MB at most. The caption is stored in the image posts' shape (disclaimer first, hashtags last).
+         */
+        post: operations["upload_reel_admin_instagram_reels_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/instagram/reels/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Check Reels
+         * @description Will Reels with songs work? One trending-music call with the live token; nothing is stored or posted.
+         */
+        get: operations["check_reels_admin_instagram_reels_check_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/instagram/reels/{reel_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Delete Reel */
+        delete: operations["delete_reel_admin_instagram_reels__reel_id__delete"];
+        options?: never;
+        head?: never;
+        /** Patch Reel */
+        patch: operations["patch_reel_admin_instagram_reels__reel_id__patch"];
+        trace?: never;
+    };
     "/admin/matches": {
         parameters: {
             query?: never;
@@ -5578,6 +5674,18 @@ export interface components {
              */
             text: string;
         };
+        /** Body_upload_reel_admin_instagram_reels_post */
+        Body_upload_reel_admin_instagram_reels_post: {
+            /**
+             * Caption
+             * @default
+             */
+            caption: string;
+            /** File */
+            file: string;
+            /** Title */
+            title: string;
+        };
         /** BotBatchOut */
         BotBatchOut: {
             /** Accepted */
@@ -9328,6 +9436,46 @@ export interface components {
             /** Message */
             message: string;
         };
+        /** PostOut */
+        PostOut: {
+            /** Attempts */
+            attempts: number;
+            /** Audio Artist */
+            audio_artist: string | null;
+            /** Audio Id */
+            audio_id: string | null;
+            /** Audio Title */
+            audio_title: string | null;
+            /** Caption */
+            caption: string;
+            /** Created At */
+            created_at: string | null;
+            /** Error */
+            error: string | null;
+            /** Id */
+            id: number;
+            /** Ig Media Id */
+            ig_media_id: string | null;
+            /** Kind */
+            kind: string;
+            /** Published At */
+            published_at: string | null;
+            /** Reel Error */
+            reel_error: string | null;
+            /** Reel Id */
+            reel_id: number | null;
+            /** Slot Date */
+            slot_date: string;
+            /** Status */
+            status: string;
+            /** Subject */
+            subject: string;
+        };
+        /** PostsOut */
+        PostsOut: {
+            /** Posts */
+            posts: components["schemas"]["PostOut"][];
+        };
         /** PriceAlertCreate */
         PriceAlertCreate: {
             /** Card Id */
@@ -9594,6 +9742,61 @@ export interface components {
             product_id: number;
             /** Sales */
             sales: components["schemas"]["RecentSale"][];
+        };
+        /** ReelOut */
+        ReelOut: {
+            /** Active */
+            active: boolean;
+            /** Caption */
+            caption: string;
+            /** Duration Ms */
+            duration_ms: number | null;
+            /** Id */
+            id: number;
+            /** Last Posted At */
+            last_posted_at: string | null;
+            /** Posted Count */
+            posted_count: number;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Title */
+            title: string;
+            /** Uploaded At */
+            uploaded_at: string | null;
+        };
+        /** ReelPatch */
+        ReelPatch: {
+            /** Active */
+            active?: boolean | null;
+            /** Caption */
+            caption?: string | null;
+            /** Title */
+            title?: string | null;
+        };
+        /** ReelsCheckOut */
+        ReelsCheckOut: {
+            /** First Song */
+            first_song: string | null;
+            /** Message */
+            message: string;
+            /** Ready */
+            ready: boolean;
+            /** Song Count */
+            song_count: number;
+            /**
+             * Token Kind
+             * @enum {string}
+             */
+            token_kind: "facebook" | "instagram_login" | "none";
+            /** User Id */
+            user_id: string | null;
+            /** Username */
+            username: string | null;
+        };
+        /** ReelsOut */
+        ReelsOut: {
+            /** Reels */
+            reels: components["schemas"]["ReelOut"][];
         };
         /** ReportNoteIn */
         ReportNoteIn: {
@@ -11316,6 +11519,205 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HostingOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_posts_admin_instagram_posts_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PostsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_admin_instagram_preview_post: {
+        parameters: {
+            query: {
+                kind: "meta_chart" | "card_spotlight" | "feature";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_reels_admin_instagram_reels_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelsOut"];
+                };
+            };
+        };
+    };
+    upload_reel_admin_instagram_reels_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_upload_reel_admin_instagram_reels_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_reels_admin_instagram_reels_check_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelsCheckOut"];
+                };
+            };
+        };
+    };
+    delete_reel_admin_instagram_reels__reel_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    patch_reel_admin_instagram_reels__reel_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                reel_id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReelPatch"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReelOut"];
                 };
             };
             /** @description Validation Error */

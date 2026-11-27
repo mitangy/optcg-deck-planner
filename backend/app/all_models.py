@@ -7,6 +7,7 @@ from app.core import models as core_models
 from app.core.base import Base
 from app.duel import models as duel_models
 from app.group_buy import models as group_buy_models
+from app.instagram import models as instagram_models
 from app.planner import models as planner_models
 from app.social import models as social_models
 
@@ -18,6 +19,7 @@ MODEL_MODULES = (
     analyst_models,
     social_models,
     admin_models,
+    instagram_models,
 )
 
 __all__ = ["Base", "MODEL_MODULES"]

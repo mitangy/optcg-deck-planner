@@ -204,9 +204,12 @@ function wav16(samples) {
 }
 
 export async function makeMotionSfx(outDir = path.join(root, 'public/motion/sfx')) {
-  const {chromium} = createRequire(import.meta.url)('playwright');
+  let pw;
+  try { pw = createRequire(import.meta.url)('playwright'); } catch { pw = createRequire(path.resolve(root, '../capture/package.json'))('playwright'); }
+  const {chromium} = pw;
   fs.mkdirSync(outDir, {recursive: true});
-  const browser = await chromium.launch();
+  const exe = process.env.PW_CHROMIUM_PATH || ['/opt/pw-browsers/chromium_headless_shell', '/opt/pw-browsers/chromium'].find((x) => fs.existsSync(x));
+  const browser = await chromium.launch(exe ? {executablePath: exe} : {});
   try {
     const page = await browser.newPage();
     const all = await page.evaluate(`(${synthAll.toString()})(${SR})`);

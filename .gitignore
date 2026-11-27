@@ -45,3 +45,6 @@ artifacts/**/*.webm
 artifacts/**/*.mp4
 trailer/video/public/motion/
 trailer/video/.motion-card-cache/
+
+trailer/video/public/hype/
+trailer/video/.motion-card-cache/

@@ -1,0 +1,4 @@
+Inter (Inter-Regular.otf, Inter-Bold.otf)
+Copyright 2016-2023 The Inter Project Authors (https://github.com/rsms/inter)
+Licensed under the SIL Open Font License, Version 1.1: https://openfontlicense.org
+The fonts are bundled unmodified and are not sold by themselves.

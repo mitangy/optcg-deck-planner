@@ -1,7 +1,7 @@
 import { formatMoney } from "@optcg/card-core";
-import type { AdminEvent, AdminEventSummary, EventFields, EventFormat, EventPrizeMethod, SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role, GameCounts, GameMode, AdminUserDetail, AdminUserMatch } from "./adminApi";
+import type { IgPost, IgReelsCheck, AdminEvent, AdminEventSummary, EventFields, EventFormat, EventPrizeMethod, SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role, GameCounts, GameMode, AdminUserDetail, AdminUserMatch } from "./adminApi";
 
-export type AdminTab = "players" | "seasons" | "bots" | "traffic" | "hosting" | "event" | "reports" | "uploads" | "users";
+export type AdminTab = "players" | "seasons" | "bots" | "traffic" | "hosting" | "event" | "reports" | "uploads" | "instagram" | "users";
 
 export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "players", label: "Players" },
@@ -12,6 +12,7 @@ export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "event", label: "Events" },
   { id: "reports", label: "Reports" },
   { id: "uploads", label: "Uploads" },
+  { id: "instagram", label: "Instagram" },
   { id: "users", label: "Users" },
 ];
 
@@ -655,4 +656,21 @@ export function presenceText(online: AdminUserDetail["online"]): string | null {
 export function usd(v: number): string {
   if (v > 0 && v < 0.01) return `$${v.toFixed(3)}`;
   return formatMoney(v);
+}
+
+/** "Title — Artist" of the song on a Reel post; null for an image post or a dry run that chose no song. */
+export function songLabel(p: Pick<IgPost, "audio_title" | "audio_artist">): string | null {
+  if (!p.audio_title) return null;
+  return p.audio_artist ? `${p.audio_title} \u2014 ${p.audio_artist}` : p.audio_title;
+}
+
+/** The Reels setup check in plain words for the Instagram tab. */
+export function reelsCheckText(c: IgReelsCheck): { ready: boolean; headline: string; detail: string } {
+  const who = c.username ? `@${c.username}` : c.user_id ? `account ${c.user_id}` : "";
+  if (c.ready) {
+    const first = c.first_song ? ` Top song: ${c.first_song}.` : "";
+    return { ready: true, headline: "Ready: trending songs found", detail: `${who ? `${who}: ` : ""}${c.song_count} songs.${first}` };
+  }
+  const hint = c.token_kind === "facebook" ? " Link @optcgduel to a Facebook Page." : "";
+  return { ready: false, headline: `Not ready: ${c.message}`, detail: `${who ? `${who}. ` : ""}Until this is fixed, every day posts an image.${hint}`.trim() };
 }

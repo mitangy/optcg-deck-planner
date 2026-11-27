@@ -10,6 +10,9 @@ import {TrailerComp} from './Trailer';
 import {MOTION_9x16, MOTION_16x9} from './motion/layout';
 import {MotionPiece} from './motion/MotionPiece';
 import {MOTION_TOTAL} from './motion/timing';
+import {HypeVideo} from './hype/HypeVideo';
+import {HYPE_VIDEOS} from './hype/videos';
+import {sec} from './hype/theme';
 
 for (const s of [...SCENES, ...AD15.scenes, ...AD30.scenes]) {
   for (const [k, v] of [['start', s.start], ['dur', s.dur]] as const) {
@@ -47,6 +50,18 @@ export const Root: React.FC = () => (
     <Composition id="Ad30-4x5" component={Ad30x4} durationInFrames={AD30.total * FPS} fps={FPS} width={1080} height={1350} />
     <Composition id="Trailer9x16" component={Trailer9x16} durationInFrames={TOTAL_SECONDS * FPS} fps={FPS} width={1080} height={1920} />
     <Composition id="Motion16x9" component={Motion16x9} durationInFrames={MOTION_TOTAL} fps={FPS} width={1920} height={1080} />
+    {HYPE_VIDEOS.map((def) => (
+      <Composition
+        key={def.id}
+        id={def.id}
+        component={({music}: {music?: boolean}) => <HypeVideo def={def} music={music} />}
+        defaultProps={{music: false}}
+        durationInFrames={sec(def.dur)}
+        fps={FPS}
+        width={def.layout.W}
+        height={def.layout.H}
+      />
+    ))}
     <Composition id="Motion9x16" component={Motion9x16} durationInFrames={MOTION_TOTAL} fps={FPS} width={1080} height={1920} />
   </>
 );

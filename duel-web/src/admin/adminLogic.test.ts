@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { EvalRun, EventFlag } from "./adminApi";
-import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, spendText, formatCount, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, canStartSeason, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel, nextUserSort, firstSortDir, parseUserSort } from "./adminLogic";
+import type { EvalRun, EventFlag, IgReelsCheck } from "./adminApi";
+import { GAME_MODES, modeLabel, totalGames, soloNote, resultOf, presenceText, usd, spendText, formatCount, handledLine, reportActionBlock, canBanUser, canCommitSeed, canDrawEvent, sortParticipants, canDeleteUser, eventFlagInfo, changeFrom, chartScale, evalVerdict, feedbackMatchPath, groupBySuite, headlineOf, percent, suiteSummary, tabsForRole, songLabel, reelsCheckText, canStartSeason, withChanges, takeDownReason, formatBytes, canRestoreUpload, formatSignupSource, memoryText, againstLimit, coresText, referrerLabel, countryName, deviceLabel, nextUserSort, firstSortDir, parseUserSort } from "./adminLogic";
 
 const run = (run_at: string, correct: number, groups: EvalRun["groups"] = {}): EvalRun => ({
   suite: "main", run_at, label: "r", model: "m", correct, total: 50, metric_name: null, metric_value: null, lower_is_better: false, groups, spend_usd: null, notes: "",
@@ -28,7 +28,7 @@ describe("start a new season (#1405)", () => {
 
 describe("admin tabs per role (#667)", () => {
   it("shows the admin every tab (Seasons included), a moderator Reports, Uploads then Users, and anyone else none (#667, #812)", () => {
-    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "seasons", "bots", "traffic", "hosting", "event", "reports", "uploads", "users"]);
+    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "seasons", "bots", "traffic", "hosting", "event", "reports", "uploads", "instagram", "users"]);
     expect(tabsForRole("moderator").map((t) => t.id)).toEqual(["reports", "uploads", "users"]);
     expect(tabsForRole("user")).toEqual([]);
     expect(tabsForRole(undefined)).toEqual([]);
@@ -358,5 +358,34 @@ describe("Users list header sorting (#1323)", () => {
     expect(parseUserSort('{"key":"user","dir":"up"}')).toBeNull();
     expect(parseUserSort("not json")).toBeNull();
     expect(parseUserSort(null)).toBeNull();
+  });
+});
+
+describe("Instagram tab text (#1482)", () => {
+  const check = (over: Partial<IgReelsCheck> = {}): IgReelsCheck => ({ ready: true, token_kind: "facebook", user_id: "1789", username: "optcgduel", song_count: 3, first_song: "Song — Ann", message: "Trending songs found.", ...over });
+
+  it("shows a song as Title — Artist and nothing for an image post", () => {
+    expect(songLabel({ audio_title: "Song", audio_artist: "Ann" })).toBe("Song — Ann");
+    expect(songLabel({ audio_title: "Song", audio_artist: null })).toBe("Song");
+    expect(songLabel({ audio_title: null, audio_artist: "Ann" })).toBeNull();
+  });
+
+  it("says Ready with the top song when trending songs were found", () => {
+    const t = reelsCheckText(check());
+    expect(t.ready).toBe(true);
+    expect(t.headline).toBe("Ready: trending songs found");
+    expect(t.detail).toContain("@optcgduel");
+    expect(t.detail).toContain("Song — Ann");
+  });
+
+  it("says Not ready with Meta's reason and the Facebook Page hint for a Facebook token", () => {
+    const t = reelsCheckText(check({ ready: false, song_count: 0, first_song: null, message: "HTTP 400 No page linked" }));
+    expect(t.ready).toBe(false);
+    expect(t.headline).toBe("Not ready: HTTP 400 No page linked");
+    expect(t.detail).toContain("Link @optcgduel to a Facebook Page.");
+  });
+
+  it("does not suggest a Facebook Page when the token is not a Facebook one", () => {
+    expect(reelsCheckText(check({ ready: false, token_kind: "instagram_login", user_id: null, username: null, message: "Needs a Facebook-style token" })).detail).not.toContain("Facebook Page");
   });
 });

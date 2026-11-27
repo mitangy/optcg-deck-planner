@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { fetchMetaDecks, fetchMetaLeaders, type MetaDeck, type MetaLeader } from "../decks/meta";
-import { isSnapshot, pickSnapshotLeaders, SAMPLE_DECKS, SNAPSHOT_DAYS, type MetaSnapshot } from "./snapshot";
+import { ARCHIVE_DAYS, isSnapshot, pickSnapshotLeaders, SAMPLE_DECKS, SNAPSHOT_DAYS, type ArchivedLeader, type MetaSnapshot } from "./snapshot";
 
 export const SnapshotContext = createContext<MetaSnapshot | null>(null);
 
@@ -34,6 +34,11 @@ export type MetaView = {
    * turn into "not found" when its leader falls out of the live top 30. Only for resolving a page's route.
    */
   routeLeaders: MetaLeader[];
+  /** Leaders that left the current top but keep a page, minus any that are current again (#1479). */
+  archived: ArchivedLeader[];
+  /** Set when the page's own leader is one of `archived`. */
+  archivedEntry: ArchivedLeader | null;
+  archiveDays: number;
   decks: MetaDeck[] | null;
   days: number;
   events: number | null;
@@ -86,10 +91,17 @@ export function useMetaView(leaderId: string | null): MetaView {
   }, [key]);
 
   const leaders = live?.leaders ?? base?.leaders ?? [];
-  const routeLeaders = live ? [...leaders, ...(base?.leaders ?? []).filter((b) => !leaders.some((l) => l.leader_id === b.leader_id))] : leaders;
+  const currentIds = new Set(leaders.map((l) => l.leader_id.toUpperCase()));
+  const archived = (base?.archived ?? []).filter((a) => !currentIds.has(a.leader.leader_id.toUpperCase()));
+  const archivedEntry = key ? (archived.find((a) => a.leader.leader_id.toUpperCase() === key) ?? null) : null;
+  const known = live ? [...leaders, ...(base?.leaders ?? []).filter((b) => !leaders.some((l) => l.leader_id === b.leader_id))] : leaders;
+  const routeLeaders = [...known, ...archived.map((a) => a.leader).filter((a) => !known.some((l) => l.leader_id === a.leader_id))];
   return {
     leaders,
     routeLeaders,
+    archived,
+    archivedEntry,
+    archiveDays: base?.archiveDays ?? ARCHIVE_DAYS,
     decks: key ? (liveDecks[key] ?? base?.decks[key] ?? null) : null,
     days: live?.days ?? base?.days ?? SNAPSHOT_DAYS,
     events: live?.events ?? base?.events ?? null,

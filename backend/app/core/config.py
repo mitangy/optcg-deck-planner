@@ -27,6 +27,18 @@ class Settings(BaseSettings):
     discord_bot_token: str = ""
     discord_feedback_channel_id: str = ""
     discord_feedback_poll_s: int = 30
+    # Instagram auto-poster (#1477): Instagram API with Instagram Login for @optcgduel.
+    ig_access_token: str = ""
+    ig_user_id: str = ""
+    ig_post_hour_utc: int = 17
+    ig_dry_run: bool = False
+    ig_api_version: str = "v23.0"
+    # Public origin Instagram fetches post images from; empty uses backend_public_url.
+    ig_media_base_url: str = ""
+    # UTC weekdays (0 = Monday) on which an uploaded trailer is posted as a Reel with a trending song (#1482).
+    ig_reel_weekdays: str = "0,3"
+    # Reels go out as Trial Reels (shown to non-followers first): SS_PERFORMANCE (auto-share if it does well), MANUAL, or off.
+    ig_reel_trial: str = "SS_PERFORMANCE"
     github_issues_token: str = ""
     github_issues_repo: str = "mitangy/optcg-deck-planner"
     game_token_secret: str = ""
@@ -117,6 +129,29 @@ class Settings(BaseSettings):
     @property
     def discord_feedback_enabled(self) -> bool:
         return bool(self.discord_bot_token.strip() and self.discord_feedback_channel_id.strip())
+
+    @property
+    def instagram_enabled(self) -> bool:
+        token = self.ig_access_token.strip()
+        # Facebook-style (EAA...) system-user tokens can look the account id up, so IG_USER_ID is optional for them.
+        # (Same prefix check as instagram.client.is_facebook_token, inlined to keep config free of app imports.)
+        return bool(token and (self.ig_user_id.strip() or token.startswith("EAA")))
+
+    @property
+    def ig_reel_weekday_set(self) -> set[int]:
+        days: set[int] = set()
+        for part in self.ig_reel_weekdays.split(","):
+            part = part.strip()
+            if part.isdigit() and 0 <= int(part) <= 6:
+                days.add(int(part))
+        return days
+
+    @property
+    def ig_reel_trial_strategy(self) -> str | None:
+        value = self.ig_reel_trial.strip().upper()
+        if value == "OFF":
+            return None
+        return value if value in ("SS_PERFORMANCE", "MANUAL") else "SS_PERFORMANCE"
 
     @property
     def new_release_prices_enabled(self) -> bool:
