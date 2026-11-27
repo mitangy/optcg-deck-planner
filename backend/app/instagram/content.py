@@ -148,8 +148,9 @@ def effect_line(effect_text: str, limit: int = 600) -> str:
     return f"Effect: {text}"
 
 
-async def _spotlight_post(db: Session, today: date, http: httpx.AsyncClient) -> Post | None:
-    card = pick_card(db, today)
+async def _spotlight_post(db: Session, today: date, http: httpx.AsyncClient, card_id: str | None = None) -> Post | None:
+    """The spotlight for ``card_id`` when given (republish, #1486), else the day's pick."""
+    card = db.scalar(select(CatalogCard).where(CatalogCard.card_id == card_id)) if card_id else pick_card(db, today)
     if card is None:
         return None
     from app.planner.meta_decks import display_name
@@ -169,9 +170,14 @@ async def _spotlight_post(db: Session, today: date, http: httpx.AsyncClient) -> 
     return Post("card_spotlight", captions.build_caption(lines, tags), image, card.card_id)
 
 
-async def _feature_post(db: Session) -> Post:
-    used = db.scalar(select(func.count()).select_from(InstagramPost).where(InstagramPost.kind == "feature")) or 0
-    idx = used % len(FEATURES)
+async def _feature_post(db: Session, key: str | None = None) -> Post | None:
+    if key is not None:
+        idx = next((i for i, f in enumerate(FEATURES) if f[0] == key), None)
+        if idx is None:
+            return None
+    else:
+        used = db.scalar(select(func.count()).select_from(InstagramPost).where(InstagramPost.kind == "feature")) or 0
+        idx = used % len(FEATURES)
     key, title, body = FEATURES[idx]
     image = await asyncio.to_thread(render.render_feature, title, body, idx + 1, len(FEATURES))
     lines = [f"{title}.", body]
@@ -186,6 +192,17 @@ async def build_post(db: Session, kind: str, today: date, http: httpx.AsyncClien
         return await _spotlight_post(db, today, http)
     if kind == "feature":
         return await _feature_post(db)
+    raise ValueError(f"unknown kind {kind}")
+
+
+async def rebuild_post(db: Session, kind: str, subject: str, day: date, http: httpx.AsyncClient) -> Post | None:
+    """Re-render an existing post (#1486) with the current renderer: the same card, tip or meta week, not a new pick."""
+    if kind == "meta_chart":
+        return _meta_post(db, day)
+    if kind == "card_spotlight":
+        return await _spotlight_post(db, day, http, card_id=subject)
+    if kind == "feature":
+        return await _feature_post(db, key=subject)
     raise ValueError(f"unknown kind {kind}")
 
 
