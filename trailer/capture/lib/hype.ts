@@ -9,14 +9,14 @@ import type { Seed } from "./data";
 export const HYPE_SETTINGS = { handLayout: "fan", previewPopup: false };
 export const HYPE_WINDOW = { width: 1440, height: 1080 } as const;
 
-export async function hypeTake(id: string, opts: { seed?: Seed; gameSeed?: number; fake?: Partial<FakeOptions>; window?: Partial<typeof HYPE_WINDOW> & Record<string, unknown>; area?: { width: number; height: number; display?: string } } = {}): Promise<Take> {
-  const win = { ...HYPE_WINDOW, ...opts.window };
+export async function hypeTake(id: string, opts: { seed?: Seed; gameSeed?: number; fake?: Partial<FakeOptions>; window?: { width?: number; height?: number; scale?: number; touch?: boolean; display?: string }; area?: { width: number; height: number; display?: string } } = {}): Promise<Take> {
+  const win: { width: number; height: number; scale?: number; touch?: boolean; display?: string } = { width: HYPE_WINDOW.width, height: HYPE_WINDOW.height, ...opts.window };
   return startTake({
     id,
     gameSeed: opts.gameSeed ?? 11,
     seed: opts.seed ?? { settings: HYPE_SETTINGS },
     window: win,
-    area: opts.area ?? { width: win.width as number, height: win.height as number },
+    area: opts.area ?? { width: win.width, height: win.height },
     fake: { me: { ...MIKO, ...MIKO_STATS }, friends: friendsOfMiko(), ...opts.fake },
   });
 }
