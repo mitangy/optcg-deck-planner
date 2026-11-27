@@ -1,6 +1,8 @@
 """Post images (#1477): 1080x1350 (4:5) JPEGs drawn with Pillow.
 
-Only the text wordmark "OPTCG Duel" is used: never the official game logo or the official card back.
+The header carries our own app logo (the straw-hat card icon from duel-web/public/favicon.svg, redrawn with
+Pillow primitives) next to the text wordmark "OPTCG Duel": never Bandai's official game logo or the official
+card back (#1483).
 Every image carries a small "Unofficial fan-made sim" line.
 """
 
@@ -75,10 +77,54 @@ def _fit(draw: ImageDraw.ImageDraw, text: str, max_w: int, size: int, bold: bool
     return f
 
 
+LOGO_SIZE = 68
+LOGO_X, LOGO_Y = 60, 48
+_SS = 4  # supersampling factor for smooth edges
+
+
+def draw_logo(img: Image.Image, x: int, y: int, size: int = LOGO_SIZE) -> None:
+    """Paste our app logo (favicon.svg: gold-framed card with a straw hat) with its top-left at (x, y)."""
+    big = size * _SS
+    k = big / 64  # SVG units -> supersampled pixels
+    layer = Image.new("RGBA", (big, big), (0, 0, 0, 0))
+    d = ImageDraw.Draw(layer)
+
+    def box(x0, y0, x1, y1):
+        return [x0 * k, y0 * k, x1 * k, y1 * k]
+
+    d.rounded_rectangle(box(0, 0, 64, 64), radius=14 * k, fill=(11, 23, 32, 255))
+    # card: SVG stroke is centred on the 36x54 rect, so the outer edge is 1.75 units out.
+    d.rounded_rectangle(box(12.25, 3.25, 51.75, 60.75), radius=6.75 * k, fill=(226, 180, 88, 255))
+    d.rounded_rectangle(box(15.75, 6.75, 48.25, 57.25), radius=3.25 * k, fill=(22, 48, 59, 255))
+
+    def hat(px, py):  # hat group: translate(32 32) scale(.66) translate(-32 -31)
+        return 32 + 0.66 * (px - 32), 32 + 0.66 * (py - 31)
+
+    cx0, cy0 = hat(19, 20)
+    cx1, cy1 = hat(45, 56)
+    crown = Image.new("L", (big, big), 0)
+    ImageDraw.Draw(crown).pieslice(box(cx0, cy0, cx1, cy1), 180, 360, fill=255)
+    band = Image.new("L", (big, big), 0)
+    bx0, by0 = hat(17, 32)
+    bx1, by1 = hat(47, 38)
+    ImageDraw.Draw(band).rectangle(box(bx0, by0, bx1, by1), fill=255)
+    gold = Image.new("RGBA", (big, big), (226, 180, 88, 255))
+    red = Image.new("RGBA", (big, big), (184, 50, 42, 255))
+    layer.paste(gold, (0, 0), crown)
+    layer.paste(red, (0, 0), Image.composite(band, Image.new("L", (big, big), 0), crown))
+    rx0, ry0 = hat(8, 37)
+    rx1, ry1 = hat(56, 42)
+    d.rounded_rectangle(box(rx0, ry0, rx1, ry1), radius=2.5 * 0.66 * k, fill=(217, 164, 65, 255))
+
+    small = layer.resize((size, size), Image.LANCZOS)
+    img.paste(small, (x, y), small)
+
+
 def _canvas() -> tuple[Image.Image, ImageDraw.ImageDraw]:
     img = Image.new("RGB", (W, H), BG)
     draw = ImageDraw.Draw(img)
-    draw.text((60, 54), "OPTCG Duel", font=font(46, True), fill=TEXT)
+    draw_logo(img, LOGO_X, LOGO_Y)
+    draw.text((LOGO_X + LOGO_SIZE + 18, 54), "OPTCG Duel", font=font(46, True), fill=TEXT)
     draw.text((W - 60, 66), URL, font=font(30), fill=MUTED, anchor="ra")
     draw.rectangle([60, 122, 180, 127], fill=GOLD)
     draw.text((W / 2, H - 46), f"{UNOFFICIAL} · not affiliated with Bandai", font=font(24), fill=MUTED, anchor="mm")

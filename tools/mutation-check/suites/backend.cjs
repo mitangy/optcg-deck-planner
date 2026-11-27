@@ -2310,5 +2310,6 @@ module.exports = {
     {"id": "ig1477-explicit-user-id-still-looked-up", "file": "backend/app/instagram/poster.py", "from": "    if explicit:\n        return explicit\n", "to": "", "kills": ["test_explicit_user_id_skips_the_assigned_account_lookup_1477"], "args": "tests/test_instagram_poster.py"},
     {"id": "ig1477-assigned-account-not-cached", "file": "backend/app/instagram/poster.py", "from": "    if key not in _resolved_user_id:\n", "to": "    if True:\n", "kills": ["test_assigned_account_is_looked_up_once_per_process_1477"], "args": "tests/test_instagram_poster.py"},
     {"id": "ig1477-empty-assigned-list-accepted", "file": "backend/app/instagram/client.py", "from": "    if not account_id:\n        raise InstagramError(\"No Instagram account is assigned to this token\")\n", "to": "", "kills": ["test_no_assigned_account_fails_the_post_without_publishing_1477"], "args": "tests/test_instagram_poster.py"},
+    {"id": "ig1483-header-logo-not-drawn", "file": "backend/app/instagram/render.py", "from": "    draw_logo(img, LOGO_X, LOGO_Y)\n", "to": "", "kills": ["test_post_header_shows_the_app_logo_left_of_the_wordmark_1483"], "args": "tests/test_instagram_render.py"},
   ],
 };
