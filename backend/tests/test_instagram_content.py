@@ -38,14 +38,14 @@ def featured(db, card_id: str, day: date) -> None:
 
 def test_caption_has_disclaimer_first_at_most_25_unique_hashtags_under_2200_chars_1477():
     extra = ["#OPTCG", "#optcg", "#Luffy", *[f"#Tag{i}" for i in range(60)]]
-    text = captions.build_caption(["one", "two", "three", "four dropped"], extra)
+    text = captions.build_caption(["one", "two", "three", "four", "five dropped"], extra)
     lines = text.split("\n")
     assert lines[0] == "Unofficial fan-made OPTCG sim, not affiliated with Bandai."
     assert lines[-2] == "" and lines[-3].startswith("Play free: optcgduel.app")
     tags = lines[-1].split()
     assert len(tags) == 25
     assert len({t.lower() for t in tags}) == 25
-    assert "four dropped" not in text
+    assert "five dropped" not in text and "four" in text
     assert len(text) < 2200
 
 
@@ -130,3 +130,86 @@ async def test_feature_tips_rotate_through_the_list_1477(db):
         db.commit()
         second = await content.build_post(db, "feature", DAY, http)
     assert first.subject != second.subject
+
+
+THUMB = "https://tcgplayer-cdn.tcgplayer.com/product/712891_200w.jpg"
+
+
+def test_tcgplayer_thumbnail_maps_to_full_size_then_400w_then_original_1486():
+    assert content.art_urls(THUMB) == [
+        "https://tcgplayer-cdn.tcgplayer.com/product/712891_in_1000x1000.jpg",
+        "https://tcgplayer-cdn.tcgplayer.com/product/712891_400w.jpg",
+        THUMB,
+    ]
+    assert content.art_urls("https://img.example/x.jpg") == ["https://img.example/x.jpg"]
+
+
+def _png(size: tuple[int, int]) -> bytes:
+    import io
+
+    from PIL import Image
+
+    out = io.BytesIO()
+    Image.new("RGB", size, (200, 30, 30)).save(out, "PNG")
+    return out.getvalue()
+
+
+@aio
+async def test_art_fetch_falls_back_down_the_variants_and_skips_non_images_1486():
+    seen: list[str] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(req.url.path)
+        if "in_1000x1000" in req.url.path:
+            return httpx.Response(200, content=b"<html>not an image</html>")
+        if "400w" in req.url.path:
+            return httpx.Response(404)
+        return httpx.Response(200, content=_png((200, 280)))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        art = await content.fetch_best_art(http, THUMB)
+    assert art is not None and art.size == (200, 280)
+    assert seen == ["/product/712891_in_1000x1000.jpg", "/product/712891_400w.jpg", "/product/712891_200w.jpg"]
+
+
+@aio
+async def test_art_fetch_stops_at_the_full_size_variant_when_it_works_1486():
+    seen: list[str] = []
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        seen.append(req.url.path)
+        return httpx.Response(200, content=_png((600, 838)))
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+        art = await content.fetch_best_art(http, THUMB)
+    assert art is not None and art.size == (600, 838)
+    assert seen == ["/product/712891_in_1000x1000.jpg"]
+
+
+@aio
+async def test_spotlight_caption_carries_the_cleaned_effect_text_after_the_title_line_1486(db):
+    card(db, "OP16-001", name="Nami")
+    row = db.get(CatalogCard, "OP16-001")
+    row.effect_text = "[On Play]  Draw 1 card.\n\n  Then   trash 1 card."
+    db.commit()
+    async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404))) as http:
+        post = await content.build_post(db, "card_spotlight", DAY, http)
+    lines = post.caption.split("\n")
+    i = next(n for n, ln in enumerate(lines) if ln.startswith("Card spotlight:"))
+    assert lines[i + 1] == "Effect: [On Play] Draw 1 card. Then trash 1 card."
+    assert len(post.caption) <= captions.MAX_CAPTION and "Build it" in post.caption
+
+
+@aio
+async def test_spotlight_caption_has_no_effect_line_when_effect_text_is_empty_1486(db):
+    card(db, "OP16-001", name="Nami")
+    async with httpx.AsyncClient(transport=httpx.MockTransport(lambda r: httpx.Response(404))) as http:
+        post = await content.build_post(db, "card_spotlight", DAY, http)
+    assert "Effect:" not in post.caption and "Build it" in post.caption
+
+
+def test_long_effect_text_is_cut_at_a_word_and_the_caption_stays_under_the_limit_1486():
+    line = content.effect_line("word " * 1000)
+    assert line.endswith("...") and len(line) < 620
+    caption = captions.build_caption(["Card spotlight: X (OP01-001).", line, "Red Character from OP01.", "Build it."], ["#X"])
+    assert len(caption) <= captions.MAX_CAPTION and "Build it." in caption

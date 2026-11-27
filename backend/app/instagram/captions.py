@@ -35,8 +35,8 @@ def clean_tags(tags: list[str]) -> list[str]:
     return out[:MAX_HASHTAGS]
 
 
-def build_caption(lines: list[str], extra_tags: list[str] | None = None, max_lines: int = 3) -> str:
-    """Disclaimer, 1-3 lines of post text, the link line, a blank line, then the hashtags."""
+def build_caption(lines: list[str], extra_tags: list[str] | None = None, max_lines: int = 4) -> str:
+    """Disclaimer, 1-4 lines of post text, the link line, a blank line, then the hashtags."""
     tags = clean_tags([*(extra_tags or []), *BASE_TAGS])
     body = [DISCLAIMER, *[ln.strip() for ln in lines if ln.strip()][:max_lines], CTA]
     while True:
