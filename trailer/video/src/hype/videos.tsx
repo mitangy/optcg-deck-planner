@@ -33,6 +33,12 @@ const SeqLocal: React.FC<{from: number; children: React.ReactNode}> = ({from, ch
   <Sequence from={from} layout="none">{children}</Sequence>
 );
 
+/** 9:16 only: the 4:3 board captures leave the board small in a tall frame, so zoom the board clips in until it fills the frame
+ *  (already-tight zooms stay as authored). */
+const BOARD_CLIPS: ClipId[] = ['board', 'bot', 'theming', 'artBoard'];
+const BOARD_BOOST = 1.4;
+const boostBoard = (p: Part_): Part_ => (BOARD_CLIPS.includes(p.clip) && (p.zoom ?? 1) < 1.5 ? {...p, zoom: (p.zoom ?? 1) * BOARD_BOOST, zoomTo: p.zoomTo !== undefined ? p.zoomTo * BOARD_BOOST : undefined} : p);
+
 /** Footage in a frame + a caption: under the frame (9:16) or beside it (16:9). */
 const FootageScene: React.FC<{parts: Part_[]; caption?: Part[]; captionDelay?: number; kind?: 'browser' | 'phone'; frameW?: number; frameH?: number; frameY?: number; children?: React.ReactNode; eyebrow?: number; captionSize?: number}> = ({
   parts, caption, captionDelay, kind = 'browser', frameW, frameH, frameY, children, eyebrow, captionSize,
@@ -41,6 +47,7 @@ const FootageScene: React.FC<{parts: Part_[]; caption?: Part[]; captionDelay?: n
   const clip: ClipId = parts[0].clip;
   if (L.vertical) {
     const info = CLIPS[clip];
+    parts = parts.map(boostBoard);
     // Browser frames are 960 x 1000 with the capture cropped to the action; phones keep their own aspect.
     const maxH = 1020;
     const fit = Math.floor(maxH / (info.h / info.w + 0.07));
@@ -107,7 +114,7 @@ const passion = (L: HypeLayout, id: string): HypeDef => {
       scene(6, 4, <FootageScene parts={[{clip: 'board', from: 1.3, dur: 2.4, fy: 0.42}, {clip: 'board', from: 6.6, dur: 1.6, zoom: 1.1, fy: 0.45}]} caption={['Real rules.', gold('Every effect.')]} />),
       scene(10, 3, <FootageScene parts={[{clip: 'review', from: 2.6, dur: 1.4, zoom: 1.3, fx: 0.72, fy: 0.35}, {clip: 'review', from: 13.4, dur: 1.6, zoom: 1.3, fx: 0.72, fy: 0.7}]} caption={['A coach that reviews', gold('every turn.')]} />),
       scene(13, 3, <FootageScene parts={[{clip: 'bot', from: 3.0, dur: 1.4, zoom: 1.7, fx: 0.5, fy: 0.5}, {clip: 'bot', from: 14.4, dur: 1.6, zoom: 1.1, fy: 0.5}]} caption={['Bots that', gold('play to win.')]} />),
-      scene(16, 3, <FootageScene parts={[{clip: 'theming', from: 2.6, dur: 0.5}, {clip: 'theming', from: 5.9, dur: 0.5}, {clip: 'art', from: 2.2, dur: 1.0, zoom: 1.4, fx: 0.5, fy: 0.4}, {clip: 'art', from: 7.0, dur: 1.0, zoom: 1.2, fx: 0.5, fy: 0.45}]} caption={['Make it', gold('yours.')]} />),
+      scene(16, 3, <FootageScene parts={[{clip: 'theming', from: 2.6, dur: 0.5}, {clip: 'theming', from: 5.9, dur: 0.5}, {clip: 'art', from: 2.3, dur: 0.7, zoom: 1.4, fx: 0.5, fy: 0.4}, {clip: 'artBoard', from: 0.8, dur: 0.6}, {clip: 'art', from: 7.3, dur: 0.7, zoom: 1.05, fx: 0.5, fy: 0.4}]} caption={['Make it', gold('yours.')]} />),
       scene(19, 2, <Chips items={[{text: 'Ranked seasons', at: 0.1}, {text: 'Friends + spectate', at: 0.6}, {text: 'Tournaments', at: 1.1}]} row />),
       scene(21, 3, <End />),
     ],
@@ -171,20 +178,27 @@ const bots = (): HypeDef => ({
 
 const custom = (): HypeDef => {
   type P = [ClipId, number, Partial<Part_>?];
-  const run = (ps: P[]): Part_[] => ps.map(([clip, from, o]) => ({clip, from, dur: 0.5, ...o}));
-  const z = {zoom: 1.5, fx: 0.5, fy: 0.42};
-  const back = {zoom: 1.9, fx: 0.08, fy: 0.5};
-  const sec_ = (at: number, dur: number, ps: P[], caption: Part[], eyebrow?: boolean) => scene(at, dur, <FootageScene parts={run(ps)} caption={caption} frameW={960} frameH={1000} frameY={300} eyebrow={eyebrow ? 2.8 : undefined} />, true);
+  const z = {zoom: 1.5, fx: 0.5, fy: 0.42}; // the playmat editor (wide)
+  const bk = {zoom: 1.05, fx: 0.5, fy: 0.4}; // the card-back editor (tall)
+  // Luffy leader + his life stack wearing the Straw Hat back, one tight shot.
+  const lead = {zoom: 1.6, fx: 0.24, fy: 0.71};
+  const cuts: number[] = [];
+  const sec_ = (at: number, dur: number, ps: P[], caption: Part[], eyebrow?: boolean, each = 0.5) => {
+    ps.forEach((_, i) => cuts.push(at + i * each));
+    return scene(at, dur, <FootageScene parts={ps.map(([clip, from, o]) => ({clip, from, dur: each, ...o}))} caption={caption} frameW={960} frameH={1000} frameY={300} eyebrow={eyebrow ? 2.8 : undefined} />, true);
+  };
+  // Capture times (hype-art marks): playmat editor 1.7-4.5 s with Miko's own mat; themed backs' editors open at 6.8 / 11.2 / 15.5 / 19.8 s.
   return {
-    id: 'hype-custom', layout: L_9x16, dur: 15,
+    id: 'hype-custom', layout: L_9x16, dur: 18,
     scenes: [
-      sec_(0, 3, [['art', 2.2, z], ['art', 2.9, z], ['artBoard', 0.6], ['artBoard', 1.4], ['artBoard', 2.2], ['artBoard', 3.0]], ['Your ', gold('mat.')], true),
-      sec_(3, 3.5, [['art', 7.0, z], ['art', 7.6, z], ['art', 8.4, z], ['artBoard', 1.0, back], ['artBoard', 2.6, back], ['art', 8.8, {zoom: 1.4, fx: 0.4, fy: 0.3}], ['artBoard', 3.4, back]], ['Your ', gold('sleeves.')]),
-      sec_(6.5, 3, [['theming', 21.8], ['theming', 25.1], ['theming', 26.9], ['theming', 22.4], ['theming', 27.6], ['theming', 23.0]], ['Your ', gold('board.')]),
-      sec_(9.5, 3, [['theming', 18.5], ['theming', 12.5], ['theming', 15.4], ['theming', 2.6], ['theming', 5.9], ['theming', 16.0]], ['Your ', gold('way.')]),
-      scene(12.5, 2.5, <End />),
+      sec_(0, 3, [['art', 2.3, z], ['art', 3.0, z], ['artBoard', 0.7], ['artBoard', 1.6], ['artBoard', 2.6], ['artBoard', 3.6]], ['Your ', gold('mat.')], true),
+      sec_(3, 3, [['art', 7.2, bk], ['art', 11.6, bk], ['art', 15.9, bk], ['art', 20.2, bk]], ['Your ', gold('sleeves.')], false, 0.75),
+      sec_(6, 3.5, [['artBoard', 1.5, lead], ['artBoard', 2.1, {...lead, zoomTo: 1.75}], ['art', 8.4, bk], ['artBoard', 3.9, lead], ['artBoard', 4.5, {...lead, fxTo: 0.26}], ['artBoard', 5.1, lead], ['artBoard', 5.7, {...lead, zoomTo: 1.75}]], ['Your ', gold('leader.'), 'Your ', gold('back.'), ]),
+      sec_(9.5, 3, [['theming', 21.8], ['theming', 25.1], ['theming', 26.9], ['theming', 22.4], ['theming', 27.6], ['theming', 23.0]], ['Your ', gold('board.')]),
+      sec_(12.5, 3, [['theming', 18.5], ['theming', 12.5], ['theming', 15.4], ['theming', 2.6], ['theming', 5.9], ['theming', 16.0]], ['Your ', gold('way.')]),
+      scene(15.5, 2.5, <End />),
     ],
-    cues: [...Array.from({length: 24}, (_, i): Cue => ({t: i * 0.5 + 0.02, id: i % 2 ? 'pop-lo' : 'pop', gain: 0.2})), ...[0, 3, 6.5, 9.5].map((t): Cue => ({t: t + 0.05, id: 'accent', gain: 0.35})), ...endCue(12.8)],
+    cues: [...cuts.map((t, i): Cue => ({t: t + 0.02, id: i % 2 ? 'pop-lo' : 'pop', gain: 0.2})), ...[0, 3, 6, 9.5, 12.5].map((t): Cue => ({t: t + 0.05, id: 'accent', gain: 0.35})), ...endCue(15.8)],
   };
 };
 

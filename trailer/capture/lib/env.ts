@@ -9,6 +9,10 @@ export const CLIPS_DIR = resolve(TRAILER_DIR, "clips");
 export const STILLS_DIR = resolve(CLIPS_DIR, "stills");
 export const RAW_DIR = resolve(TRAILER_DIR, "clips/.raw");
 export const ASSET_DIR = resolve(TRAILER_DIR, "capture/assets");
+/** Real player art (e.g. Miko's own playmat) stays OUTSIDE the repo: never commit player uploads. */
+export const HYPE_ASSET_DIR = process.env.HYPE_ASSETS ?? "/mnt/project-files/ads/hype/assets";
+export const PLAYMAT_FILE = resolve(HYPE_ASSET_DIR, "playmat-miko.jpg");
+export const BACKS_DIR = resolve(ASSET_DIR, "card-backs");
 export const E2E_DATA = resolve(REPO_DIR, "duel-web/e2e/data");
 
 export const WEB_PORT = process.env.TRAILER_WEB_PORT ?? "5274";
