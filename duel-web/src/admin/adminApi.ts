@@ -222,6 +222,25 @@ export async function fetchUploadImageUrl(id: number): Promise<string> {
   return URL.createObjectURL(await res.blob());
 }
 
+export type IgReel = Schemas["ReelOut"];
+export type IgPost = Schemas["PostOut"];
+export type IgReelsCheck = Schemas["ReelsCheckOut"];
+
+export const fetchIgReels = () => call<Schemas["ReelsOut"]>("/admin/instagram/reels").then((r) => r.reels);
+export const fetchIgPosts = () => call<Schemas["PostsOut"]>("/admin/instagram/posts?limit=30").then((r) => r.posts);
+export const checkIgReels = () => call<IgReelsCheck>("/admin/instagram/reels/check");
+export function uploadIgReel(file: File, title: string, caption: string) {
+  const form = new FormData();
+  form.set("file", file);
+  form.set("title", title);
+  form.set("caption", caption);
+  // A 100 MB video on a slow connection needs more than the default budget.
+  return call<IgReel>("/admin/instagram/reels", { method: "POST", body: form, timeoutMs: 600_000 });
+}
+export const updateIgReel = (id: number, patch: { title?: string; caption?: string; active?: boolean }) =>
+  call<IgReel>(`/admin/instagram/reels/${id}`, { method: "PATCH", body: JSON.stringify(patch) });
+export const deleteIgReel = (id: number) => call<unknown>(`/admin/instagram/reels/${id}`, { method: "DELETE" });
+
 export type AdminSeasons = Schemas["AdminSeasons"];
 export type AdminSeasonPreviewRow = Schemas["AdminSeasonPreviewRow"];
 export type AdminSeasonPast = Schemas["AdminSeasonPast"];

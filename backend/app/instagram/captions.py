@@ -35,13 +35,28 @@ def clean_tags(tags: list[str]) -> list[str]:
     return out[:MAX_HASHTAGS]
 
 
-def build_caption(lines: list[str], extra_tags: list[str] | None = None) -> str:
+def build_caption(lines: list[str], extra_tags: list[str] | None = None, max_lines: int = 4) -> str:
     """Disclaimer, 1-4 lines of post text, the link line, a blank line, then the hashtags."""
     tags = clean_tags([*(extra_tags or []), *BASE_TAGS])
-    body = [DISCLAIMER, *[ln.strip() for ln in lines if ln.strip()][:4], CTA]
+    body = [DISCLAIMER, *[ln.strip() for ln in lines if ln.strip()][:max_lines], CTA]
     while True:
         caption = "\n".join(body) + "\n\n" + " ".join(tags)
         if len(caption) < MAX_CAPTION or not tags:
             break
         tags.pop()
     return caption[: MAX_CAPTION - 1]
+
+
+_HASHTAG = re.compile(r"#\w+")
+
+
+def reel_caption(text: str) -> str:
+    """A Reel caption in the same shape as the image posts' (#1482): disclaimer first, the text, the link line, the hashtag block.
+
+    Hashtags the admin typed are kept (first), the standard ones are added, and the disclaimer and link line are
+    never doubled, so running a stored caption through this again gives the same caption.
+    """
+    own_tags = _HASHTAG.findall(text or "")
+    lines = [_HASHTAG.sub("", ln).replace(DISCLAIMER, "").replace(CTA, "").strip() for ln in (text or "").splitlines()]
+    lines = [ln for ln in lines if ln]
+    return build_caption(lines, own_tags, max_lines=8)

@@ -1,0 +1,176 @@
+.igt {
+  min-width: 0;
+}
+
+.igt-title {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.igt-hint {
+  margin: 0.4rem 0 0.8rem;
+}
+
+.igt-check {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.6rem 0.9rem;
+  margin-bottom: 0.9rem;
+}
+
+.igt-check .btn {
+  flex: 0 0 auto;
+}
+
+/* Always the height of two lines so the result appearing never moves what is below it. */
+.igt-check-text {
+  flex: 1 1 14rem;
+  min-width: 0;
+  min-height: 2.8em;
+  margin: 0;
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.igt-check-text[data-ready="true"] b {
+  color: var(--mint, #4cc38a);
+}
+
+.igt-check-text[data-ready="false"] b {
+  color: var(--crimson-bright);
+}
+
+.igt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  max-width: 34rem;
+  min-width: 0;
+  margin-bottom: 1.2rem;
+}
+
+.igt-form textarea,
+.igt-form input[type="text"],
+.igt-form input[type="file"] {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.igt-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 40px;
+}
+
+.igt-list {
+  list-style: none;
+  margin: 0.4rem 0 1.2rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.igt-reel,
+.igt-post {
+  display: grid;
+  align-items: center;
+  gap: 0.3rem 0.7rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.85rem;
+  min-width: 0;
+}
+
+.igt-reel {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.igt-reel[data-active="false"] .igt-reel-main {
+  opacity: 0.55;
+}
+
+.igt-reel-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.igt-reel-title,
+.igt-reel-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.igt-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0 0.3rem;
+  cursor: pointer;
+}
+
+.igt-reel-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  min-height: 0;
+}
+
+.igt-reel-error:empty {
+  display: none;
+}
+
+.igt-post {
+  grid-template-columns: 6.2rem auto auto minmax(0, 1fr);
+}
+
+.igt-post-song {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.igt-post-error {
+  grid-column: 1 / -1;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+.igt-post-error:empty {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .igt-check-text {
+    min-height: 6.4em;
+  }
+
+  .igt-reel {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .igt-reel-main {
+    grid-column: 1 / -1;
+  }
+
+  .igt-post {
+    grid-template-columns: auto auto minmax(0, 1fr);
+  }
+
+  .igt-post-date {
+    grid-column: 1 / -1;
+  }
+
+  .igt-post-song {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+}

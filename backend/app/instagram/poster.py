@@ -4,6 +4,11 @@ A loop wakes every ten minutes. Once per UTC day, after ``ig_post_hour_utc``, it
 stores it in ``instagram_posts`` (unique ``slot_date``: redeploys and extra workers cannot double-post)
 and publishes it through the Instagram API. One worker runs at a time (Postgres advisory lock).
 ``ig_dry_run`` renders and stores posts without publishing them.
+
+On the weekdays in ``ig_reel_weekdays`` (#1482) the day's post is a Reel instead: an uploaded trailer
+(``instagram_reels``) with a trending song from the Audio API, when the token is Facebook-style and a reel is
+active. Anything that goes wrong with the Reel turns the same row into the normal image post, so a day is
+never skipped.
 """
 
 from __future__ import annotations
@@ -21,7 +26,7 @@ from sqlalchemy.orm import Session
 
 from app.core.time import as_utc
 from app.instagram import client, content
-from app.instagram.models import InstagramPost, InstagramToken
+from app.instagram.models import InstagramPost, InstagramReel, InstagramToken
 
 log = logging.getLogger("uvicorn.error")
 
@@ -32,9 +37,16 @@ TOKEN_REFRESH_AFTER = timedelta(days=20)
 TOKEN_ROW_ID = 1
 
 
+def _media_base(settings) -> str:
+    return (settings.ig_media_base_url.strip() or settings.backend_public_url).rstrip("/")
+
+
 def media_url(settings, token: str) -> str:
-    base = (settings.ig_media_base_url.strip() or settings.backend_public_url).rstrip("/")
-    return f"{base}/social-media/{token}.jpg"
+    return f"{_media_base(settings)}/social-media/{token}.jpg"
+
+
+def reel_url(settings, token: str) -> str:
+    return f"{_media_base(settings)}/social-media/reel/{token}.mp4"
 
 
 def env_token(settings) -> str:
@@ -109,8 +121,108 @@ async def ensure_fresh_token(db: Session, settings, http: httpx.AsyncClient, now
     return new_token
 
 
+def pick_reel(db: Session) -> InstagramReel | None:
+    """The active reel posted least recently: never-posted first, then the oldest last_posted_at."""
+    return db.scalar(
+        select(InstagramReel)
+        .where(InstagramReel.active.is_(True))
+        .order_by(InstagramReel.last_posted_at.is_not(None), InstagramReel.last_posted_at, InstagramReel.id)
+        .limit(1)
+    )
+
+
+def pick_audio(songs: list[dict], duration_ms: int | None) -> dict | None:
+    """The first trending song that is at least as long as the video, else (length unknown) the first one."""
+    for song in songs:
+        if duration_ms is None:
+            return song
+        try:
+            if int(song.get("duration_in_ms") or 0) >= duration_ms:
+                return song
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+async def _find_audio(db: Session, settings, http: httpx.AsyncClient, reel: InstagramReel, now: datetime) -> dict | None:
+    """A trending song for the reel, or None (logged) when the search fails or has nothing that fits."""
+    try:
+        token = await ensure_fresh_token(db, settings, http, now)
+        user_id = await resolve_user_id(settings, http, token)
+        songs = await client.trending_music(http, user_id, token, settings.ig_api_version)
+    except client.InstagramError as exc:
+        log.warning("instagram: no Reel today, audio search failed: %s", exc)
+        return None
+    song = pick_audio(songs, reel.duration_ms)
+    if song is None:
+        log.warning("instagram: no Reel today, no trending song fits a %s ms video", reel.duration_ms)
+    return song
+
+
+async def _new_reel_post(db: Session, settings, http: httpx.AsyncClient, today: date, now: datetime) -> InstagramPost | None:
+    """A Reel row for today, or None when today is not a Reel day or the Reel cannot be made (the caller posts an image)."""
+    if today.weekday() not in settings.ig_reel_weekday_set or not client.is_facebook_token(env_token(settings)):
+        return None
+    reel = pick_reel(db)
+    if reel is None:
+        return None
+    song: dict = {}
+    if not settings.ig_dry_run:  # a dry run makes no calls
+        found = await _find_audio(db, settings, http, reel, now)
+        if found is None:
+            return None
+        song = found
+    return InstagramPost(
+        kind="reel",
+        slot_date=today,
+        caption=reel.caption,
+        image_jpeg=None,
+        media_token=secrets.token_urlsafe(24),
+        subject=f"reel-{reel.id}",
+        status="dry_run" if settings.ig_dry_run else "rendered",
+        reel_id=reel.id,
+        audio_id=str(song["audio_id"])[:64] if song else None,
+        audio_title=str(song.get("title") or "")[:200] or None if song else None,
+        audio_artist=str(song.get("display_artist") or "")[:200] or None if song else None,
+    )
+
+
+async def _fall_back_to_image(db: Session, http: httpx.AsyncClient, row: InstagramPost, reason: str) -> None:
+    """Turn a failed Reel row into the normal image post of the same day (the unique slot_date row is reused)."""
+    log.warning("instagram: Reel for %s failed, posting the image instead: %s", row.slot_date, reason)
+    post = await content.build_today(db, row.slot_date, http)
+    row.kind, row.caption, row.image_jpeg, row.subject = post.kind, post.caption, post.image, post.subject
+    row.reel_id = row.audio_id = row.audio_title = row.audio_artist = None
+    row.reel_error, row.status, row.error, row.attempts = reason[:500], "rendered", None, 0
+    db.commit()
+
+
+async def _publish_reel(db: Session, settings, http: httpx.AsyncClient, row: InstagramPost, now: datetime) -> None:
+    reel = db.get(InstagramReel, row.reel_id) if row.reel_id is not None else None
+    try:
+        if reel is None or not row.audio_id:
+            raise client.InstagramError("The Reel or its song is gone")
+        token = await ensure_fresh_token(db, settings, http, now)
+        user_id = await resolve_user_id(settings, http, token)
+        media_id = await client.publish_reel(
+            http, user_id, token, reel_url(settings, reel.media_token), row.caption, row.audio_id, api_version=settings.ig_api_version
+        )
+    except client.InstagramError as exc:
+        await _fall_back_to_image(db, http, row, f"Reel failed: {exc}")
+        return
+    row.status, row.ig_media_id, row.published_at, row.error = "published", media_id, now, None
+    reel.posted_count, reel.last_posted_at = (reel.posted_count or 0) + 1, now
+    log.info("instagram: published Reel %s for %s", reel.id, row.slot_date)
+    db.commit()
+
+
 async def _publish(db: Session, settings, http: httpx.AsyncClient, row: InstagramPost, now: datetime) -> None:
     row.attempts += 1
+    if row.kind == "reel":
+        await _publish_reel(db, settings, http, row, now)
+        if row.status == "published":
+            return
+        row.attempts += 1  # the image that replaced it is the next attempt
     try:
         token = await ensure_fresh_token(db, settings, http, now)
         user_id = await resolve_user_id(settings, http, token)
@@ -165,16 +277,18 @@ async def tick(db: Session, settings, http: httpx.AsyncClient, now: datetime | N
     today: date = now.date()
     row = db.scalar(select(InstagramPost).where(InstagramPost.slot_date == today))
     if row is None:
-        post = await content.build_today(db, today, http)
-        row = InstagramPost(
-            kind=post.kind,
-            slot_date=today,
-            caption=post.caption,
-            image_jpeg=post.image,
-            media_token=secrets.token_urlsafe(24),
-            subject=post.subject,
-            status="dry_run" if settings.ig_dry_run else "rendered",
-        )
+        row = await _new_reel_post(db, settings, http, today, now)
+        if row is None:
+            post = await content.build_today(db, today, http)
+            row = InstagramPost(
+                kind=post.kind,
+                slot_date=today,
+                caption=post.caption,
+                image_jpeg=post.image,
+                media_token=secrets.token_urlsafe(24),
+                subject=post.subject,
+                status="dry_run" if settings.ig_dry_run else "rendered",
+            )
         db.add(row)
         try:
             db.commit()
