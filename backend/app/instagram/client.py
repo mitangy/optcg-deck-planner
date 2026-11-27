@@ -1,4 +1,4 @@
-"""Instagram Graph API: publish one image, refresh the token (#1477).
+"""Instagram Graph API: publish one image or Reel, find trending audio, refresh the token (#1477, #1482).
 
 Two token kinds exist. "Instagram Login" tokens (refreshable, 60 days) talk to graph.instagram.com. Facebook-style
 tokens (start with "EAA", e.g. a never-expiring system-user token from the unified login setup) talk to
@@ -11,6 +11,7 @@ endpoint documents. Errors raised here never carry the token or a URL.
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 
@@ -22,6 +23,10 @@ REFRESH_URL = f"{GRAPH_HOST}/refresh_access_token"
 DEFAULT_API_VERSION = "v23.0"
 POLL_EVERY_S = 10.0
 POLL_MAX_S = 300.0
+# Videos take longer to process than images.
+REEL_POLL_MAX_S = 600.0
+AUDIO_VOLUME = 100
+VIDEO_VOLUME = 1
 TIMEOUT_S = 30.0
 
 
@@ -92,20 +97,19 @@ async def assigned_instagram_account_id(http: httpx.AsyncClient, token: str, api
     return account_id
 
 
-async def publish_image(
+async def _publish_container(
     http: httpx.AsyncClient,
     user_id: str,
     token: str,
-    image_url: str,
-    caption: str,
+    fields: dict[str, str],
     *,
-    poll_every_s: float = POLL_EVERY_S,
-    poll_max_s: float = POLL_MAX_S,
-    api_version: str = DEFAULT_API_VERSION,
+    poll_every_s: float,
+    poll_max_s: float,
+    api_version: str,
 ) -> str:
     """Create the media container, wait until Instagram has fetched it, publish it. Returns the media id."""
     base = graph_base(token, api_version)
-    created = await _call(http, "POST", f"{base}/{user_id}/media", token, data={"image_url": image_url, "caption": caption})
+    created = await _call(http, "POST", f"{base}/{user_id}/media", token, data=fields)
     container = str(created.get("id") or "")
     if not container:
         raise InstagramError("Instagram returned no container id")
@@ -126,6 +130,63 @@ async def publish_image(
     if not media_id:
         raise InstagramError("Instagram returned no media id")
     return media_id
+
+
+async def publish_image(
+    http: httpx.AsyncClient,
+    user_id: str,
+    token: str,
+    image_url: str,
+    caption: str,
+    *,
+    poll_every_s: float = POLL_EVERY_S,
+    poll_max_s: float = POLL_MAX_S,
+    api_version: str = DEFAULT_API_VERSION,
+) -> str:
+    """Create the media container, wait until Instagram has fetched it, publish it. Returns the media id."""
+    fields = {"image_url": image_url, "caption": caption}
+    return await _publish_container(http, user_id, token, fields, poll_every_s=poll_every_s, poll_max_s=poll_max_s, api_version=api_version)
+
+
+async def publish_reel(
+    http: httpx.AsyncClient,
+    user_id: str,
+    token: str,
+    video_url: str,
+    caption: str,
+    audio_id: str,
+    *,
+    poll_every_s: float = POLL_EVERY_S,
+    poll_max_s: float = REEL_POLL_MAX_S,
+    api_version: str = DEFAULT_API_VERSION,
+) -> str:
+    """Publish a Reel with a song from the Audio API attached. Returns the media id."""
+    fields = {
+        "media_type": "REELS",
+        "video_url": video_url,
+        "caption": caption,
+        "audio_configuration": json.dumps({"audio_id": audio_id, "audio_volume": AUDIO_VOLUME, "video_volume": VIDEO_VOLUME}),
+    }
+    return await _publish_container(http, user_id, token, fields, poll_every_s=poll_every_s, poll_max_s=poll_max_s, api_version=api_version)
+
+
+async def account_info(http: httpx.AsyncClient, user_id: str, token: str, api_version: str = DEFAULT_API_VERSION) -> dict:
+    """The Instagram account's username (for the admin Reels check)."""
+    return await _call(http, "GET", f"{graph_base(token, api_version)}/{user_id}", token, params={"fields": "username"})
+
+
+async def trending_music(http: httpx.AsyncClient, user_id: str, token: str, api_version: str = DEFAULT_API_VERSION) -> list[dict]:
+    """Trending songs from the Audio API (no search query = trending), best first.
+
+    Only Facebook-style tokens work: the endpoint is not offered on the Instagram API with Instagram Login.
+    """
+    if not is_facebook_token(token):
+        raise InstagramError("The audio API needs a Facebook-style token")
+    data = await _call(
+        http, "GET", f"{FACEBOOK_GRAPH_HOST}/{api_version.strip()}/ig_audio", token, params={"audio_type": "music", "user_id": user_id}
+    )
+    items = data.get("audio")
+    return [a for a in items if isinstance(a, dict) and a.get("audio_id")] if isinstance(items, list) else []
 
 
 async def refresh_token(http: httpx.AsyncClient, token: str, now: datetime | None = None) -> tuple[str, datetime]:
