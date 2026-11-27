@@ -123,7 +123,7 @@ const passion = (L: HypeLayout, id: string): HypeDef => {
       scene(6, 4, <FootageScene parts={[{clip: 'board', from: 1.3, dur: 2.4, fy: 0.42}, {clip: 'board', from: 6.6, dur: 1.6, zoom: 1.1, fy: 0.45}]} caption={['Real rules.', '\n', gold('Every effect.')]} />),
       scene(10, 3, <FootageScene wideH={860} parts={[{clip: 'review', from: 9.0, dur: 1.5, zoom: rz, fx: 1, fy: v ? 0.36 : 0.37}, {clip: 'review', from: 14.6, dur: 1.5, zoom: v ? 2.6 : 3.4, fx: 0.85, fy: v ? 0.8 : 0.78}]} caption={['A coach that reviews', '\n', gold('every turn.')]} />),
       scene(13, 3, <FootageScene parts={[{clip: 'bot', from: BOT.lethal + 0.9, dur: 1.6, rate: 1.5, fy: 0.5}, {clip: 'bot', from: BOT.over, dur: 1.4, fx: 0.5, fy: 0.5}]} caption={['Bots that', '\n', gold('play to win.')]} />),
-      scene(16, 3, <FootageScene parts={[{clip: 'theming', from: 2.6, dur: 0.5}, {clip: 'theming', from: 5.9, dur: 0.5}, {clip: 'art', from: 2.3, dur: 0.7, zoom: 1.4, fx: 0.5, fy: 0.4}, {clip: 'artBoard', from: 0.8, dur: 0.6}, {clip: 'art', from: 7.3, dur: 0.7, zoom: 1.05, fx: 0.5, fy: 0.4}]} caption={['Make it', gold('yours.')]} captionSize={v ? 128 : undefined} />),
+      scene(16, 3, <FootageScene parts={[{clip: 'theming', from: 2.6, dur: 0.5}, {clip: 'theming', from: 5.9, dur: 0.5}, {clip: 'art', from: 2.3, dur: 0.7, zoom: 1.4, fx: 0.5, fy: 0.4}, {clip: 'artBoard', from: 0.8, dur: 0.6}, {clip: 'art', from: 14.9, dur: 0.7, zoom: 1.05, fx: 0.5, fy: 0.4}]} caption={['Make it', gold('yours.')]} captionSize={v ? 128 : undefined} />),
       scene(19, 2, <Chips items={[{text: 'Ranked seasons', at: 0.1}, {text: 'Friends + spectate', at: 0.6}, {text: 'Tournaments', at: 1.1}]} row />),
       scene(21, 3, <End />),
     ],
@@ -211,13 +211,13 @@ const custom = (): HypeDef => {
     ps.forEach((_, i) => cuts.push(at + i * each));
     return scene(at, dur, <FootageScene parts={ps.map(([clip, from, o]) => ({clip, from, dur: each, ...o}))} caption={caption} captionSize={caption.length <= 2 ? 128 : 96} eyebrow={eyebrow ? 2.8 : undefined} />, true);
   };
-  // Capture times (hype-art marks): playmat editor 1.7-4.5 s with Miko's own mat; themed backs' editors open at 6.8 / 11.2 / 15.5 / 19.8 s.
+  // Capture times (hype-art marks): playmat editors with Miko's mat (1.6 s), then two other players' mats (5.3 / 9.2 s, art shows ~1 s later); themed backs' editors open at 14.2 / 18.2 / 22.3 / 26.3 s (art shows ~0.6 s later).
   return {
     id: 'hype-custom', layout: L_9x16, dur: 18,
     scenes: [
-      sec_(0, 3, [['art', 2.3, z], ['art', 3.0, z], ['artBoard', 0.7], ['artBoard', 1.6], ['artBoard', 2.6], ['artBoard', 3.6]], ['Your ', gold('mat.')], true),
-      sec_(3, 3, [['art', 7.2, bk], ['art', 11.6, bk], ['art', 15.9, bk], ['art', 20.2, bk]], ['Your ', gold('sleeves.')], false, 0.75),
-      sec_(6, 3.5, [['artBoard', 1.5, lead], ['artBoard', 2.1, {...lead, zoomTo: 1.75}], ['art', 8.4, bk], ['artBoard', 3.9, lead], ['artBoard', 4.5, {...lead, fxTo: 0.26}], ['artBoard', 5.1, lead], ['artBoard', 5.7, {...lead, zoomTo: 1.75}]], ['Your ', gold('leader.'), '\n', 'Your ', gold('back.')]),
+      sec_(0, 3, [['art', 2.3, z], ['art', 5.95, z], ['art', 10.3, z], ['artBoard', 0.7], ['artBoard', 1.6], ['artBoard', 2.6]], ['Your ', gold('mat.')], true),
+      sec_(3, 3, [['art', 14.85, bk], ['art', 18.9, bk], ['art', 23.0, bk], ['art', 27.05, bk]], ['Your ', gold('sleeves.')], false, 0.75),
+      sec_(6, 3.5, [['artBoard', 1.5, lead], ['artBoard', 2.1, {...lead, zoomTo: 1.75}], ['art', 15.5, bk], ['artBoard', 3.9, lead], ['artBoard', 4.5, {...lead, fxTo: 0.26}], ['artBoard', 5.1, lead], ['artBoard', 5.7, {...lead, zoomTo: 1.75}]], ['Your ', gold('leader.'), '\n', 'Your ', gold('back.')]),
       sec_(9.5, 3, [['theming', 21.8], ['theming', 25.1], ['theming', 26.9], ['theming', 22.4], ['theming', 27.6], ['theming', 23.0]], ['Your ', gold('board.')]),
       sec_(12.5, 3, [['theming', 18.5], ['theming', 12.5], ['theming', 15.4], ['theming', 2.6], ['theming', 5.9], ['theming', 16.0]], ['Your ', gold('way.')]),
       scene(15.5, 2.5, <End />),
