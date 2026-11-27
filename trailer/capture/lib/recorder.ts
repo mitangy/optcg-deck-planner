@@ -1,5 +1,5 @@
 import { spawn, type ChildProcess, execFileSync } from "node:child_process";
-import { mkdirSync, existsSync, rmSync } from "node:fs";
+import { mkdirSync, existsSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { CAPTURE_FPS, CLIPS_DIR, DISPLAY, FPS, RAW_DIR, STILLS_DIR } from "./env";
 import { sleep } from "./util";
@@ -78,6 +78,13 @@ export class Recorder {
     this.outAt = this.now() + offset;
   }
 
+  /** Output-relative time (in the finished mp4) of an event, for single-take or cut clips. Written to <id>.marks.json by finish(). */
+  private marks: Record<string, number> = {};
+  mark(name: string, offset = 0): void {
+    const done = this.spans.reduce((t, [a, b]) => t + (b - a), 0);
+    this.marks[name] = Number((done + (this.now() + offset - this.inAt)).toFixed(3));
+  }
+
   cut(offset = 0): void {
     this.markOut(offset);
     this.spans.push([this.inAt, this.outAt!]);
@@ -110,6 +117,7 @@ export class Recorder {
       outPath,
     ];
     execFileSync("ffmpeg", args, { stdio: "inherit" });
+    if (Object.keys(this.marks).length) writeFileSync(outPath.replace(/\.mp4$/, ".marks.json"), JSON.stringify(this.marks, null, 2) + "\n");
     console.log(`[${this.id}] capture: ${this.frames} frames, ${this.dup} duplicated (late), ${this.drop} dropped`);
     return { path: outPath, seconds: Number(spans.reduce((t, [a, b]) => t + (b - a), 0).toFixed(2)) };
   }

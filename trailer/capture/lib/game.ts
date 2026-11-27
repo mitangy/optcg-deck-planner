@@ -2,14 +2,19 @@ import type { Page } from "playwright";
 import { profileDecks } from "./data";
 import { sleep } from "./util";
 
-export async function startBotGame(page: Page, opts: { level?: "Easy" | "Normal" | "Hard"; botDeck?: string } = {}): Promise<void> {
-  await page.getByRole("button", { name: /^Play/ }).first().click();
-  await page.getByRole("dialog").getByRole("button", { name: /^Play vs Bot/ }).click();
+export async function startBotGame(page: Page, opts: { level?: "Easy" | "Normal" | "Hard"; botDeck?: string; metaDeck?: string } = {}): Promise<void> {
+  // Home tile "Play vs Bot" opens the dialog directly (older builds nested it under a "Play" button).
+  await page.getByRole("button", { name: /^Play vs Bot/ }).first().click();
   if (opts.level) await page.getByRole("radio", { name: opts.level }).click();
   if (opts.botDeck) {
     const deck = profileDecks().find((d) => d.id === opts.botDeck);
     await page.getByLabel("Bot's deck").click();
-    await page.getByRole("option", { name: `${deck?.name ?? opts.botDeck} —` }).click();
+    // The list now has the meta Leaders first, then "YOUR DECKS"; a saved deck reads "Name (50)".
+    await page.getByRole("option", { name: new RegExp(`^${deck?.name ?? opts.botDeck} \\(`) }).click();
+  }
+  if (opts.metaDeck) {
+    await page.getByLabel("Bot's deck").click();
+    await page.getByRole("option", { name: opts.metaDeck }).click();
   }
   await page.getByRole("button", { name: "Start game" }).click();
   await page.getByRole("button", { name: "Keep opening hand" }).waitFor({ timeout: 30_000 });

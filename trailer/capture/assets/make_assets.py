@@ -53,4 +53,21 @@ def cardback():
     d.ellipse([cx - 16, cy - 16, cx + 16, cy + 16], fill=(22, 30, 72, 255))
     img.save("cardback.png")
 
-playmat(); cardback()
+def neutral_backs():
+    """Stand-ins for the app's default card back and DON!! back, used only in the hype captures so footage never shows the official back."""
+    for name, base, accent in (("default-back.png", ((18, 38, 52), (9, 20, 30)), (226, 180, 88)), ("default-don-back.png", ((34, 28, 58), (16, 12, 34)), (232, 182, 76))):
+        W, H = 630, 880
+        img = Image.new("RGB", (W, H))
+        d = ImageDraw.Draw(img, "RGBA")
+        for y in range(H):
+            d.line([0, y, W, y], fill=(*lerp(base[0], base[1], y / H), 255))
+        d.rounded_rectangle([30, 30, W - 30, H - 30], radius=26, outline=(*accent, 255), width=5)
+        cx, cy = W // 2, H // 2
+        for k in range(5, 0, -1):
+            r = 40 + k * 34
+            d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(*accent, 40 + k * 14), width=3)
+        d.ellipse([cx - 52, cy - 52, cx + 52, cy + 52], fill=(*accent, 255))
+        d.ellipse([cx - 34, cy - 34, cx + 34, cy + 34], fill=(*base[1], 255))
+        img.save(name)
+
+playmat(); cardback(); neutral_backs()

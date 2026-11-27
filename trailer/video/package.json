@@ -23,7 +23,16 @@
     "prerender:motion": "node scripts/prerender-motion.mjs",
     "render:motion": "npm run prerender:motion && remotion render src/index.ts Motion16x9 ../out/motion-16x9.mp4 --concurrency=3 --crf=16",
     "render:motion-9x16": "npm run prerender:motion && remotion render src/index.ts Motion9x16 ../out/motion-9x16.mp4 --concurrency=3 --crf=16",
-    "still:motion": "npm run prerender:motion && remotion still src/index.ts Motion16x9"
+    "still:motion": "npm run prerender:motion && remotion still src/index.ts Motion16x9",
+    "prerender:hype": "node scripts/prerender-hype.mjs",
+    "hype:shots": "cd ../capture && bash run.sh 20-hype 21-hype 22-hype 23-hype 24-hype 25-hype 26-hype 27-hype 28-hype",
+    "render:hype": "node scripts/render-hype.mjs",
+    "render:hype-passion": "node scripts/render-hype.mjs hype-passion",
+    "render:hype-passion-16x9": "node scripts/render-hype.mjs hype-passion-16x9",
+    "render:hype-logpose": "node scripts/render-hype.mjs hype-logpose",
+    "render:hype-bots": "node scripts/render-hype.mjs hype-bots",
+    "render:hype-custom": "node scripts/render-hype.mjs hype-custom",
+    "render:hype-nobeef": "node scripts/render-hype.mjs hype-nobeef"
   },
   "dependencies": {
     "@remotion/cli": "4.0.539",

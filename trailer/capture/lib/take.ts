@@ -2,7 +2,8 @@ import { openWindow, type Win, type WindowSpec } from "./browser";
 import { installCursor, Pointer, type CursorStyle } from "./cursor";
 import { installFakeApi, type FakeOptions, World } from "./fakeApi";
 import { seedProfile, type Seed } from "./data";
-import { GAME_SERVER, WEB_ORIGIN, DISPLAY } from "./env";
+import { join } from "node:path";
+import { ASSET_DIR, GAME_SERVER, WEB_ORIGIN, DISPLAY } from "./env";
 import { Recorder, still, type RecordArea } from "./recorder";
 import { sleep } from "./util";
 
@@ -14,6 +15,8 @@ export type TakeOpts = {
   seed?: Seed;
   gameSeed?: number;
   area?: RecordArea;
+  /** Replace the default card back / DON!! back images with neutral art (default true). */
+  neutralBacks?: boolean;
 };
 
 export type Take = {
@@ -62,6 +65,12 @@ export async function newWindow(opts: Omit<TakeOpts, "id" | "area">, world: Worl
       const body = JSON.parse(route.request().postData() ?? "{}") as object;
       return route.continue({ postData: JSON.stringify({ ...body, seed: opts.gameSeed }) });
     });
+  }
+  // Hype footage must never show the official card back: serve neutral stand-ins for the app's default back files.
+  if (opts.neutralBacks !== false) {
+    for (const [pattern, file] of [["**/cards/card-back.webp", "default-back.png"], ["**/cards/don-back.webp", "default-don-back.png"]] as const) {
+      await win.ctx.route(pattern, (route) => route.fulfill({ path: join(ASSET_DIR, file), contentType: "image/png" }));
+    }
   }
   win.page.on("pageerror", (e) => errors.push(`pageerror: ${e.message}`));
   const pointer = new Pointer(win.page, { x: spec.width * 0.72, y: spec.height * 0.78 });
