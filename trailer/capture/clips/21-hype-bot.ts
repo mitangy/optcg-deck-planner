@@ -2,7 +2,7 @@ import { sleep } from "../lib/util";
 import { finishTake } from "../lib/take";
 import { hypeTake } from "../lib/hype";
 import { profileDecks } from "../lib/data";
-import { endTurn, waitFor } from "../lib/game";
+import { endTurn, phase, waitFor } from "../lib/game";
 
 export const id = "hype-bot";
 
@@ -75,6 +75,41 @@ export async function run(): Promise<void> {
     await sleep(2600);
     await shot("attack2");
     t.rec.mark("attackEnd");
+    t.rec.cut();
+
+    // 4. The bot wins: I only pass (no blocks, no counters) until it finds lethal. Each bot turn is recorded from its start;
+    // a turn that does not end the game is dropped, so the clip ends with the last attack and the "Match over" result.
+    let over = false;
+    let ended = -1;
+    let lastLog = 0;
+    t.rec.markIn(0);
+    const t0 = Date.now();
+    while (!over) {
+      if (Date.now() - t0 > 300_000) throw new Error("the bot never won in time");
+      if (await p.locator(".match-result-kicker").isVisible().catch(() => false)) { over = true; break; }
+      const s = await phase(p);
+      if (process.env.SHOTS && Date.now() - lastLog > 6000) { lastLog = Date.now(); console.log(`[${id}] state`, JSON.stringify(s)); await shot(`loop-${Math.floor((Date.now() - t0) / 1000)}`); }
+      const noTrig = p.getByRole("button", { name: "No Trigger" });
+      if (await noTrig.isVisible().catch(() => false)) { await sleep(700); await noTrig.click().catch(() => undefined); }
+      else if (s.phase === "block" || s.phase === "counter") {
+        await sleep(1100);
+        const pass = p.getByRole("button", { name: /^Pass/ }).first();
+        if (await pass.isVisible().catch(() => false)) await pass.click().catch(() => undefined);
+      } else if (s.phase === "main" && s.turn % 2 === 1 && s.turn !== ended) {
+        ended = s.turn;
+        await shot(`turn-${s.turn}`);
+        await sleep(500);
+        t.rec.markIn(0);
+        await endTurn(p);
+      }
+      await sleep(250);
+    }
+    await sleep(1600);
+    t.rec.mark("lethal", -1.6);
+    await shot("over");
+    await sleep(2800);
+    t.rec.mark("over");
+    if (!over) throw new Error("the bot never won");
   } catch (e) {
     console.error(`[${id}]`, e);
     if (process.env.SHOTS) await p.screenshot({ path: `/tmp/shots/${id}-error.png` }).catch(() => undefined);

@@ -31,10 +31,12 @@ export const Line: React.FC<{parts: Part[]; size: number; delay?: number; stagge
     const o = partOf(p);
     return o.t.split(' ').filter(Boolean).map((w) => ({...o, t: w}));
   });
+  // A '\n' part forces a line break, so captions balance as authored ("Ours tells you / why you lost.").
   const fade = out === undefined ? 1 : 1 - prog(f, out, out + 5, Easing.in(Easing.quad));
   return (
     <div style={{display: 'flex', flexWrap: 'wrap', justifyContent: align === 'center' ? 'center' : 'flex-start', columnGap: size * 0.26, rowGap: size * 0.04, maxWidth: maxW, opacity: fade, fontFamily: font, fontWeight: weight, fontSize: size, lineHeight: 1.04, letterSpacing: '-0.015em', color, textShadow: shadow, textAlign: align}}>
       {words.map((w, i) => {
+        if (w.t === '\n') return <div key={i} style={{flexBasis: '100%', height: 0}} />;
         const p = pop(f, delay + i * stagger);
         const gold = w.gold
           ? {background: `linear-gradient(180deg, ${COLORS.goldBright} 0%, ${COLORS.gold} 55%, ${COLORS.goldDeep} 100%)`, WebkitBackgroundClip: 'text' as const, backgroundClip: 'text' as const, color: 'transparent', WebkitTextFillColor: 'transparent', textShadow: 'none', filter: 'drop-shadow(0 6px 24px rgba(0,0,0,0.45))'}
@@ -93,7 +95,7 @@ export const Chip: React.FC<{text: string; start: number; size?: number; check?:
 export const Caption: React.FC<{text: Part[]; delay?: number; size?: number}> = ({text, delay = 4, size}) => {
   const L = useHL();
   return (
-    <Line parts={text} size={size ?? (L.vertical ? 88 : 76)} delay={delay} stagger={3} align={L.vertical ? 'center' : 'left'} maxW={L.vertical ? 960 : 640} />
+    <Line parts={text} size={size ?? (L.vertical ? 96 : 76)} delay={delay} stagger={3} align={L.vertical ? 'center' : 'left'} maxW={L.vertical ? 980 : 640} />
   );
 };
 
@@ -162,6 +164,33 @@ export const frameHeight = (clip: ClipId, w: number, kind: 'browser' | 'phone' =
   return Math.round(((w - bez * 2) * info.h) / info.w) + bar + bez * 2;
 };
 
+/** Full-bleed product footage behind hook type: motion from the very first frame, dimmed so the words stay readable. */
+export const Backdrop: React.FC<{parts: Part_[]; scrim?: number}> = ({parts, scrim = 0.5}) => {
+  const L = useHL();
+  let acc = 0;
+  const starts = parts.map((q) => { const s = acc; acc += sec(q.dur); return s; });
+  return (
+    <div style={{position: 'absolute', inset: 0, overflow: 'hidden'}}>
+      {parts.map((q, i) => (
+        <Sequence key={i} from={starts[i]} durationInFrames={sec(q.dur)} layout="none">
+          <div style={{position: 'absolute', inset: 0, overflow: 'hidden'}}><Shot p={q} w={L.W} h={L.H} /></div>
+        </Sequence>
+      ))}
+      <div style={{position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(8,16,36,${scrim}) 0%, rgba(8,16,36,${scrim + 0.12}) 55%, rgba(8,16,36,${scrim}) 100%)`}} />
+    </div>
+  );
+};
+
+/** Big kinetic type on a translucent panel, laid over footage that is still too small to read (start/end in frames of the scene). */
+export const Callout: React.FC<{x: number; y: number; w: number; h: number; start: number; end?: number; children: React.ReactNode}> = ({x, y, w, h, start, end, children}) => {
+  const f = useCurrentFrame();
+  const p = pop(f, start, {damping: 15, stiffness: 150});
+  const out = end === undefined ? 1 : 1 - prog(f, end, end + 5, Easing.in(Easing.quad));
+  return (
+    <div style={{position: 'absolute', left: x, top: y, width: w, height: h, boxSizing: 'border-box', padding: '0 40px', borderRadius: 32, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', textAlign: 'center', background: 'rgba(8,16,36,0.86)', border: '2px solid rgba(232,182,76,0.6)', boxShadow: '0 24px 70px rgba(0,0,0,0.5)', opacity: Math.min(1, p * 2) * out, transform: `translateY(${(1 - Math.min(1, p)) * 60}px)`}}>{children}</div>
+  );
+};
+
 /* ---------- counter ---------- */
 
 export const Counter: React.FC<{to: number; start: number; dur: number; size: number}> = ({to, start, dur, size}) => {
@@ -216,11 +245,14 @@ export const EndCard: React.FC = () => {
           <div style={{position: 'absolute', top: 0, bottom: 0, width: '30%', left: `${lerp(-40, 130, sheen)}%`, background: 'linear-gradient(100deg, transparent, rgba(255,255,255,0.7), transparent)'}} />
         </div>, y0 + logoSize + (v ? 200 : 170),
       )}
-      {col(
-        <div style={{opacity: prog(f, 24, 34), fontFamily: BODY, fontWeight: 500, fontSize: v ? 50 : 44, color: COLORS.ink, textShadow: shadow}}>Free in your browser. No download.</div>, y0 + logoSize + (v ? 370 : 320),
+      {v && col(
+        <div style={{opacity: prog(f, 22, 32), transform: `translateY(${(1 - prog(f, 22, 32)) * 14}px)`, fontFamily: BODY, fontWeight: 600, fontSize: 46, letterSpacing: '0.16em', textTransform: 'uppercase', color: COLORS.goldBright, textShadow: shadow}}>Link in bio</div>, y0 + logoSize + 352,
       )}
       {col(
-        <div style={{opacity: prog(f, 34, 46) * 0.85, fontFamily: BODY, fontWeight: 400, fontSize: v ? 32 : 28, color: COLORS.muted}}>Fan-made. Not affiliated with Bandai Namco.</div>, y0 + logoSize + (v ? 480 : 410),
+        <div style={{opacity: prog(f, 24, 34), fontFamily: BODY, fontWeight: 500, fontSize: v ? 50 : 44, color: COLORS.ink, textShadow: shadow}}>Free in your browser. No download.</div>, y0 + logoSize + (v ? 450 : 320),
+      )}
+      {col(
+        <div style={{opacity: prog(f, 34, 46) * 0.85, fontFamily: BODY, fontWeight: 400, fontSize: v ? 32 : 28, color: COLORS.muted}}>Fan-made. Not affiliated with Bandai Namco.</div>, y0 + logoSize + (v ? 560 : 410),
       )}
     </>
   );
