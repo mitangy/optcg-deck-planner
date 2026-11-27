@@ -148,6 +148,8 @@ async def _republish_one(db: Session, settings, http: httpx.AsyncClient, now: da
         row.status = "dry_run"
         db.commit()
     else:
+        # Instagram fetches the image from another DB session while /media waits: the new token must be committed first (#1488).
+        db.commit()
         await _publish(db, settings, http, row, now)
     return True
 
