@@ -36,9 +36,9 @@ def clean_tags(tags: list[str]) -> list[str]:
 
 
 def build_caption(lines: list[str], extra_tags: list[str] | None = None) -> str:
-    """Disclaimer, 1-3 lines of post text, the link line, a blank line, then the hashtags."""
+    """Disclaimer, 1-4 lines of post text, the link line, a blank line, then the hashtags."""
     tags = clean_tags([*(extra_tags or []), *BASE_TAGS])
-    body = [DISCLAIMER, *[ln.strip() for ln in lines if ln.strip()][:3], CTA]
+    body = [DISCLAIMER, *[ln.strip() for ln in lines if ln.strip()][:4], CTA]
     while True:
         caption = "\n".join(body) + "\n\n" + " ".join(tags)
         if len(caption) < MAX_CAPTION or not tags:

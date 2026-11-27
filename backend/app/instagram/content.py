@@ -118,6 +118,36 @@ async def fetch_art(http: httpx.AsyncClient, url: str) -> Image.Image | None:
         return None
 
 
+_TCG_THUMB_RE = re.compile(r"^(https://tcgplayer-cdn\.tcgplayer\.com/product/\d+)_\d+w\.jpg$")
+
+
+def art_urls(url: str) -> list[str]:
+    """Best-first URLs to try for a card image (#1486): TCGPlayer's full-size variant, then 400w, then the stored thumbnail."""
+    m = _TCG_THUMB_RE.match(url)
+    if not m:
+        return [url]
+    base = m.group(1)
+    return [f"{base}_in_1000x1000.jpg", f"{base}_400w.jpg", url]
+
+
+async def fetch_best_art(http: httpx.AsyncClient, url: str) -> Image.Image | None:
+    for candidate in art_urls(url):
+        art = await fetch_art(http, candidate)
+        if art is not None:
+            return art
+    return None
+
+
+def effect_line(effect_text: str, limit: int = 600) -> str:
+    """'Effect: ...' with whitespace collapsed and cut at a word boundary; empty when the card has no effect text."""
+    text = " ".join((effect_text or "").split())
+    if not text:
+        return ""
+    if len(text) > limit:
+        text = text[:limit].rsplit(" ", 1)[0].rstrip(" ,;:.") + "..."
+    return f"Effect: {text}"
+
+
 async def _spotlight_post(db: Session, today: date, http: httpx.AsyncClient) -> Post | None:
     card = pick_card(db, today)
     if card is None:
@@ -125,12 +155,13 @@ async def _spotlight_post(db: Session, today: date, http: httpx.AsyncClient) -> 
     from app.planner.meta_decks import display_name
 
     name = display_name(card.name) or card.name
-    art = await fetch_art(http, card.image_url)
+    art = await fetch_best_art(http, card.image_url)
     image = await asyncio.to_thread(render.render_card_spotlight, name, card.card_id, card.color, card.card_type, art)
     set_code = card.card_id.split("-")[0]
     colors = [c for c in card.color.replace("/", " ").split() if c]
     lines = [
         f"Card spotlight: {name} ({card.card_id}).",
+        effect_line(card.effect_text),
         f"{card.color} {card.card_type} from {set_code}.".replace("  ", " "),
         "Build it, then try it against the bot in the sim.",
     ]
