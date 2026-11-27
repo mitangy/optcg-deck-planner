@@ -2929,5 +2929,6 @@ module.exports = {
     {"id": "ig1482-upload-not-listed-first", "file": "duel-web/src/admin/InstagramTab.tsx", "from": "setReels((rs) => [r, ...rs])", "to": "setReels((rs) => [...rs, r])", "kills": ["uploads the chosen video with its title and caption and lists the new reel first"], "args": "src/admin/InstagramTab"},
     {"id": "ig1482-api-upload-title-field-renamed", "file": "duel-web/src/admin/adminApi.ts", "from": "form.set(\"title\", title);", "to": "form.set(\"name\", title);", "kills": ["uploads the video, title and caption as multipart form fields the server reads by name"], "args": "src/admin/adminApiIg1482"},
     {"id": "ig1482-api-patch-adds-fields", "file": "duel-web/src/admin/adminApi.ts", "from": "call<IgReel>(`/admin/instagram/reels/${id}`, { method: \"PATCH\", body: JSON.stringify(patch) })", "to": "call<IgReel>(`/admin/instagram/reels/${id}`, { method: \"PATCH\", body: JSON.stringify({ ...patch, active: true }) })", "kills": ["patches only the fields given"], "args": "src/admin/adminApiIg1482"},
+    {"id": "leaders1493-archive-placing-order", "file": "duel-web/src/leaders/snapshotBuild.ts", "from": ", order: \"recent\" });", "to": " });", "kills": ["asks the backend for the most recent results so a leader with more top-8s than the limit keeps its newest list (#1493)"], "args": "src/leaders/archive1479"},
   ],
 };

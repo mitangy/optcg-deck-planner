@@ -95,3 +95,36 @@ describe("archived leaders keep a page (#1479)", () => {
     expect(snapshotPaths(old)).toEqual(["/leaders", "/leaders/op01-001-leader-op01-001", "/leaders/op02-001-leader-op02-001"]);
   });
 });
+
+describe("archived leader pages show the newest lists, not the best placings (#1493)", () => {
+  // A backend that cuts the decklist at `limit` after sorting, like the real one: by placing by default, newest first for order=recent.
+  const POOL_DATES = Array.from({ length: 50 }, (_, i) => `2026-0${(i % 9) + 1}-1${i % 9}`);
+  const NEWEST = "2026-11-20";
+  function backend() {
+    const calls: string[] = [];
+    const fetchFn = async (url: string) => {
+      calls.push(url);
+      const u = new URL(url);
+      const ok = (body: unknown) => ({ ok: true, status: 200, json: async () => body });
+      if (u.pathname === "/meta/leaders") return ok({ ...leadersFixture, days: 180, leaders: u.searchParams.get("days") === "30" ? [CUR] : [CUR, ARCH_BIG] });
+      const id = u.searchParams.get("leader") ?? "";
+      // 50 top-8s, the weakest placing is the newest; placing order puts it last
+      const pool = [...POOL_DATES.map((d, i) => ({ ...deck(i + 1, d), placing: 1 + (i % 7) })), { ...deck(99, NEWEST), placing: 8 }];
+      const byPlacing = [...pool].sort((a, b) => (a.placing ?? 99) - (b.placing ?? 99));
+      const byRecent = [...pool].sort((a, b) => b.date.localeCompare(a.date) || (a.placing ?? 99) - (b.placing ?? 99));
+      const sorted = u.searchParams.get("order") === "recent" ? byRecent : byPlacing;
+      return ok({ ...decksFixture, leader_id: id, decks: sorted.slice(0, Number(u.searchParams.get("limit"))) });
+    };
+    return { fetchFn, calls };
+  }
+
+  it("asks the backend for the most recent results so a leader with more top-8s than the limit keeps its newest list (#1493)", async () => {
+    const b = backend();
+    const snap = await fetchSnapshot({ fetchFn: b.fetchFn, api: "https://api.test" });
+    const call = b.calls.find((u) => u.includes("/meta/decks") && u.includes("leader=OP03-001"));
+    expect(new URL(call ?? "https://x").searchParams.get("order")).toBe("recent");
+    const big = snap.archived?.find((x) => x.leader.leader_id === "OP03-001");
+    expect(big?.lastSeen).toBe(NEWEST);
+    expect(snap.decks["OP03-001"][0].date).toBe(NEWEST);
+  });
+});

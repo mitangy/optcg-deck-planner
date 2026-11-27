@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import threading
 import time
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any, Callable, Literal
 
 from cachetools import TTLCache
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request, Response
@@ -70,11 +70,12 @@ def get_meta_decks(
     min_players: Annotated[int, Query(ge=1, le=1000)] = 8,
     top: Annotated[int, Query(ge=0, le=1000)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    order: Annotated[Literal["placing", "recent"], Query()] = "placing",
 ):
     _guard(request, response)
     return _cached(
-        ("decks", leader, days, min_players, top, limit),
-        lambda: meta_decks.meta_decks(db, leader, days, min_players, top, limit),
+        ("decks", leader, days, min_players, top, limit, order),
+        lambda: meta_decks.meta_decks(db, leader, days, min_players, top, limit, order),
     )
 
 

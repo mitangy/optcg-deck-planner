@@ -96,7 +96,7 @@ def meta_leaders(db: Session, days: int, min_players: int) -> dict:
     return out
 
 
-def meta_decks(db: Session, leader_id: str, days: int, min_players: int, top: int, limit: int) -> dict:
+def meta_decks(db: Session, leader_id: str, days: int, min_players: int, top: int, limit: int, order: str = "placing") -> dict:
     events = _window(db, days, min_players)
     leader = db.get(CatalogCard, leader_id)
     out = {
@@ -116,9 +116,12 @@ def meta_decks(db: Session, leader_id: str, days: int, min_players: int, top: in
         counts = {cid: n for cid, n in json.loads(d.decklist or "{}").items() if cid != leader_id and n > 0}
         if counts:
             rows.append((d, counts))
-    rows.sort(key=lambda r: events[r[0].tournament_id].date, reverse=True)
-    rows.sort(key=lambda r: events[r[0].tournament_id].players, reverse=True)
-    rows.sort(key=lambda r: (r[0].placing is None, r[0].placing or 0))
+    if order == "recent":  # newest event day first, then best placing, so the limit cuts the oldest (#1493)
+        rows.sort(key=lambda r: (-events[r[0].tournament_id].date.toordinal(), 99 if r[0].placing is None else r[0].placing))
+    else:
+        rows.sort(key=lambda r: events[r[0].tournament_id].date, reverse=True)
+        rows.sort(key=lambda r: events[r[0].tournament_id].players, reverse=True)
+        rows.sort(key=lambda r: (r[0].placing is None, r[0].placing or 0))
     rows = rows[:limit]
     catalog = _catalog(db, {cid for _, counts in rows for cid in counts})
     for d, counts in rows:

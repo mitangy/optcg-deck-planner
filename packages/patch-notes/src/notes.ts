@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-27", app: "duel", pr: 0, title: "Leader pages show the truly latest lists", text: "Pages for leaders that left the meta now show their most recent top 8 lists and the date they were last seen, even for leaders that had a lot of results. Before, the newest lists could be missed in favor of older, better placed ones." },
   { date: "2026-11-26", app: "planner", pr: 1476, title: "Search ranks type, rarity and color matches first again", text: "Searching for Leader, SR, Red, Blue or Stage in card search shows cards of that type, rarity or color first again, instead of cards that only mention the word in their effect. Searching a character like Zoro or Ace also lists cards found through their alt art names, such as Ace Deck printings, ahead of effect text matches." },
   { date: "2026-11-26", app: "both", pr: 1478, title: "Follow us on Instagram @optcgduel", text: "OPTCG Duel is now on Instagram at @optcgduel. About once a day we post the tournament meta, a card from the newest set or a tip for the app. It is an unofficial fan-made sim and is not affiliated with Bandai." },
   { date: "2026-11-26", app: "duel", pr: 1480, title: "Leader pages stay up after a leader leaves the meta", text: "A leader that drops out of the current top decks now keeps its page with its most recent tournament lists and the date it was last seen, instead of an empty page. The Leaders page lists them under Recently in the meta." },

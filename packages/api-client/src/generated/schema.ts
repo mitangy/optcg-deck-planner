@@ -18229,6 +18229,7 @@ export interface operations {
                 min_players?: number;
                 top?: number;
                 limit?: number;
+                order?: "placing" | "recent";
             };
             header?: never;
             path?: never;
