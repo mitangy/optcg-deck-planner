@@ -429,3 +429,56 @@ async def test_republish_does_not_replace_or_block_the_days_own_post_1486(db):
     assert [r.slot_date for r in rows] == [old.slot_date, WED.date()]
     assert await run(db, fake, now=WED + timedelta(hours=1)) == "done"
     assert len(fake.calls("/media_publish")) == 2
+
+
+@aio
+async def test_republish_commits_the_new_media_token_before_instagram_fetches_the_image_1488(tmp_path):
+    """Instagram fetches /social-media/<token>.jpg from another connection while we wait on /media: the row must already be committed."""
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from app.all_models import Base
+    from app.core.db import get_db
+    from app.instagram.router import public_router
+
+    engine = create_engine(f"sqlite:///{tmp_path}/ig.db", connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=engine)
+    Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+
+    def other_session():
+        s = Session()
+        try:
+            yield s
+        finally:
+            s.close()
+
+    app = FastAPI()
+    app.include_router(public_router)
+    app.dependency_overrides[get_db] = other_session
+    web = TestClient(app)
+
+    fetched: list[int] = []
+
+    class FetchingInstagram(FakeInstagram):
+        def handler(self, request):
+            if request.url.path.endswith("/1789/media"):
+                url = parse_qs(request.content.decode())["image_url"][0]
+                res = web.get(url.removeprefix("https://api.example"))
+                fetched.append(res.status_code)
+                if res.status_code != 200:
+                    return httpx.Response(400, json={"error": {"message": "Only photo or video can be accepted as media type."}})
+            return super().handler(request)
+
+    db = Session()
+    try:
+        seed_token(db, age_days=1)  # a fresh stored token: no refresh write commits the session behind our back
+        row = republish_row(db)
+        await run(db, FetchingInstagram(), now=EARLY)
+        db.refresh(row)
+        assert fetched == [200]
+        assert (row.status, row.error) == ("published", None)
+    finally:
+        db.close()
+        engine.dispose()
