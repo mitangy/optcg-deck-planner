@@ -124,11 +124,40 @@ async def _publish(db: Session, settings, http: httpx.AsyncClient, row: Instagra
     db.commit()
 
 
+async def _republish_one(db: Session, settings, http: httpx.AsyncClient, now: datetime) -> bool:
+    """Re-post one row an operator set to status 'republish' (#1486): same kind and subject, current renderer, fresh media token.
+
+    A failure leaves status 'failed' (never 'republish' again), so a broken row cannot loop.
+    """
+    row = db.scalar(select(InstagramPost).where(InstagramPost.status == "republish").order_by(InstagramPost.slot_date).limit(1))
+    if row is None:
+        return False
+    try:
+        post = await content.rebuild_post(db, row.kind, row.subject, row.slot_date, http)
+    except Exception as exc:  # noqa: BLE001 - a bad row must not stop the daily post
+        post, why = None, type(exc).__name__
+    else:
+        why = "nothing to rebuild"
+    if post is None:
+        row.status, row.error, row.attempts = "failed", f"republish: {why}"[:500], row.attempts + 1
+        db.commit()
+        return True
+    row.caption, row.image_jpeg, row.media_token = post.caption, post.image, secrets.token_urlsafe(24)
+    row.attempts, row.error, row.ig_media_id = 0, None, None
+    if settings.ig_dry_run:
+        row.status = "dry_run"
+        db.commit()
+    else:
+        await _publish(db, settings, http, row, now)
+    return True
+
+
 async def tick(db: Session, settings, http: httpx.AsyncClient, now: datetime | None = None) -> str:
     """One wake-up. Returns what happened: disabled | too_early | done | built | published | dry_run | failed | gave_up | raced."""
     if not settings.instagram_enabled:
         return "disabled"
     now = now or datetime.now(timezone.utc)
+    await _republish_one(db, settings, http, now)  # before the post hour check: an operator asked for it
     if now.hour < settings.ig_post_hour_utc:
         return "too_early"
     today: date = now.date()

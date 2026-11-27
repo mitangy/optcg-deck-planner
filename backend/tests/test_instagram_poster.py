@@ -350,3 +350,82 @@ async def test_no_assigned_account_fails_the_post_without_publishing_1477(db, fr
     row = db.scalars(select(InstagramPost)).one()
     assert row.error == "No Instagram account is assigned to this token" and row.attempts == 1
     assert fake.calls("/media") == [] and fake.calls("/media_publish") == []
+
+
+# --- republish (#1486) ---------------------------------------------------------------------------------------------
+
+EARLY = WED.replace(hour=10)
+
+
+def republish_row(db) -> InstagramPost:
+    """An old spotlight of OP15-010 marked for republish while a newer, unfeatured card (OP16-002) exists that a fresh pick would choose."""
+    from app.planner.models import CatalogCard
+
+    for cid in ("OP15-010", "OP16-002"):
+        db.add(CatalogCard(card_id=cid, name=f"Card {cid}", rarity="SR", color="Red", card_type="Character", image_url=""))
+    row = InstagramPost(
+        kind="card_spotlight", slot_date=WED.date() - timedelta(days=1), caption="old caption", image_jpeg=b"old", media_token="oldtoken",
+        subject="OP15-010", status="republish", attempts=2, error="boom", ig_media_id="oldmedia",
+    )
+    db.add(row)
+    db.commit()
+    return row
+
+
+@aio
+async def test_republish_reposts_the_same_card_with_a_new_media_token_and_publishes_once_1486(db):
+    row = republish_row(db)
+    fake = FakeInstagram()
+    await run(db, fake, now=EARLY)
+    db.refresh(row)
+    assert row.subject == "OP15-010" and "OP15-010" in row.caption and "OP16-002" not in row.caption
+    assert row.image_jpeg[:2] == b"\xff\xd8"
+    assert row.media_token != "oldtoken"
+    assert (row.status, row.attempts, row.error, row.ig_media_id) == ("published", 1, None, "media1")
+    assert row.published_at is not None
+    assert len(fake.calls("/media_publish")) == 1
+    sent = parse_qs(fake.calls("/1789/media")[0].content.decode())
+    assert sent["image_url"] == [f"https://api.example/social-media/{row.media_token}.jpg"]
+    assert sent["caption"][0] == row.caption
+
+
+@aio
+async def test_a_republish_row_is_processed_once_not_every_wake_1486(db):
+    republish_row(db)
+    fake = FakeInstagram()
+    await run(db, fake, now=EARLY)
+    await run(db, fake, now=EARLY + timedelta(minutes=10))
+    assert len(fake.calls("/media_publish")) == 1
+
+
+@aio
+async def test_failed_republish_is_marked_failed_and_not_retried_by_the_republish_path_1486(db):
+    row = republish_row(db)
+    fake = FakeInstagram(publish_error="nope")
+    await run(db, fake, now=EARLY)
+    await run(db, fake, now=EARLY + timedelta(minutes=10))
+    db.refresh(row)
+    assert (row.status, row.attempts) == ("failed", 1) and "nope" in row.error
+    assert len(fake.calls("/1789/media")) == 1
+
+
+@aio
+async def test_republish_dry_run_rebuilds_but_never_publishes_1486(db):
+    row = republish_row(db)
+    fake = FakeInstagram()
+    await run(db, fake, now=EARLY, ig_dry_run=True)
+    db.refresh(row)
+    assert row.status == "dry_run" and row.media_token != "oldtoken" and row.image_jpeg != b"old"
+    assert not [r for r in fake.requests if "graph" in r.url.host or r.url.path.endswith(("/media", "/media_publish"))]
+
+
+@aio
+async def test_republish_does_not_replace_or_block_the_days_own_post_1486(db):
+    old = republish_row(db)
+    fake = FakeInstagram()
+    assert await run(db, fake, now=WED) == "published"
+    assert len(fake.calls("/media_publish")) == 2
+    rows = db.scalars(select(InstagramPost).order_by(InstagramPost.slot_date)).all()
+    assert [r.slot_date for r in rows] == [old.slot_date, WED.date()]
+    assert await run(db, fake, now=WED + timedelta(hours=1)) == "done"
+    assert len(fake.calls("/media_publish")) == 2

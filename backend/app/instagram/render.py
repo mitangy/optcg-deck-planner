@@ -133,7 +133,7 @@ def _canvas() -> tuple[Image.Image, ImageDraw.ImageDraw]:
 
 def _jpeg(img: Image.Image) -> bytes:
     out = io.BytesIO()
-    img.convert("RGB").save(out, "JPEG", quality=90, optimize=True)
+    img.convert("RGB").save(out, "JPEG", quality=94, optimize=True)
     return out.getvalue()
 
 
@@ -164,31 +164,36 @@ def render_meta_chart(rows: list[tuple[str, float, str]], days: int, source: str
     return _jpeg(img)
 
 
+ART_MAX_W, ART_MAX_H = 800, 880
+ART_MAX_UPSCALE = 1.1
+
+
 def render_card_spotlight(name: str, card_id: str, color: str, card_type: str, art: Image.Image | None) -> bytes:
+    """Card art as large as the canvas allows (#1486): LANCZOS downscale, at most 1.1x upscale of a small source."""
     img, draw = _canvas()
-    top, art_h = 170, 640
+    top, art_h, border = 150, ART_MAX_H, 6
     if art is not None:
         art = art.convert("RGB")
-        art_w = max(1, round(art.width * art_h / art.height))
-        art_w = min(art_w, 640)
-        art = art.resize((art_w, round(art.height * art_w / art.width)), Image.LANCZOS)
+        scale = min(ART_MAX_W / art.width, ART_MAX_H / art.height, ART_MAX_UPSCALE)
+        art = art.resize((max(1, round(art.width * scale)), max(1, round(art.height * scale))), Image.LANCZOS)
         art_h = art.height
         x = (W - art.width) // 2
-        draw.rounded_rectangle([x - 14, top - 14, x + art.width + 14, top + art_h + 14], radius=26, fill=color_rgb(color))
+        draw.rounded_rectangle(
+            [x - border, top - border, x + art.width + border, top + art_h + border], radius=22, fill=color_rgb(color)
+        )
         mask = Image.new("L", art.size, 0)
-        ImageDraw.Draw(mask).rounded_rectangle([0, 0, art.width, art.height], radius=18, fill=255)
+        ImageDraw.Draw(mask).rounded_rectangle([0, 0, art.width, art.height], radius=16, fill=255)
         img.paste(art, (x, top), mask)
     else:
-        draw.rounded_rectangle([W / 2 - 230, top, W / 2 + 230, top + art_h], radius=26, fill=PANEL, outline=color_rgb(color), width=6)
-        draw.text((W / 2, top + art_h / 2), card_id, font=font(64, True), fill=color_rgb(color), anchor="mm")
-    y = top + art_h + 60
-    draw.text((W / 2, y), "Card spotlight", font=font(28, True), fill=GOLD, anchor="mm")
-    y += 62
-    f = _fit(draw, name, W - 120, 60, True, 34)
+        draw.rounded_rectangle([W / 2 - 230, top, W / 2 + 230, top + 640], radius=26, fill=PANEL, outline=color_rgb(color), width=6)
+        draw.text((W / 2, top + 320), card_id, font=font(64, True), fill=color_rgb(color), anchor="mm")
+        art_h = 640
+    y = top + art_h + 52
+    f = _fit(draw, name, W - 120, 48, True, 30)
     draw.text((W / 2, y), name, font=f, fill=TEXT, anchor="mm")
-    y += 58
+    y += 46
     details = " · ".join(p for p in (card_id, color.replace("/", " / "), card_type) if p)
-    draw.text((W / 2, y), details, font=font(32), fill=MUTED, anchor="mm")
+    draw.text((W / 2, y), details, font=font(28), fill=MUTED, anchor="mm")
     _pill(draw, 1235, "Play it free at optcgduel.app", 32)
     return _jpeg(img)
 
