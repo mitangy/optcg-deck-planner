@@ -156,17 +156,23 @@ async def publish_reel(
     caption: str,
     audio_id: str,
     *,
+    trial_strategy: str | None = None,
     poll_every_s: float = POLL_EVERY_S,
     poll_max_s: float = REEL_POLL_MAX_S,
     api_version: str = DEFAULT_API_VERSION,
 ) -> str:
-    """Publish a Reel with a song from the Audio API attached. Returns the media id."""
+    """Publish a Reel with a song from the Audio API attached. Returns the media id.
+
+    ``trial_strategy`` (SS_PERFORMANCE or MANUAL) makes it a Trial Reel, shown to non-followers first.
+    """
     fields = {
         "media_type": "REELS",
         "video_url": video_url,
         "caption": caption,
         "audio_configuration": json.dumps({"audio_id": audio_id, "audio_volume": AUDIO_VOLUME, "video_volume": VIDEO_VOLUME}),
     }
+    if trial_strategy:
+        fields["trial_params"] = json.dumps({"graduation_strategy": trial_strategy})
     return await _publish_container(http, user_id, token, fields, poll_every_s=poll_every_s, poll_max_s=poll_max_s, api_version=api_version)
 
 

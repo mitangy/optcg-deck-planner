@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     ig_media_base_url: str = ""
     # UTC weekdays (0 = Monday) on which an uploaded trailer is posted as a Reel with a trending song (#1482).
     ig_reel_weekdays: str = "0,3"
+    # Reels go out as Trial Reels (shown to non-followers first): SS_PERFORMANCE (auto-share if it does well), MANUAL, or off.
+    ig_reel_trial: str = "SS_PERFORMANCE"
     github_issues_token: str = ""
     github_issues_repo: str = "mitangy/optcg-deck-planner"
     game_token_secret: str = ""
@@ -143,6 +145,13 @@ class Settings(BaseSettings):
             if part.isdigit() and 0 <= int(part) <= 6:
                 days.add(int(part))
         return days
+
+    @property
+    def ig_reel_trial_strategy(self) -> str | None:
+        value = self.ig_reel_trial.strip().upper()
+        if value == "OFF":
+            return None
+        return value if value in ("SS_PERFORMANCE", "MANUAL") else "SS_PERFORMANCE"
 
     @property
     def new_release_prices_enabled(self) -> bool:
