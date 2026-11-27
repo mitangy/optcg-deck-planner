@@ -10,6 +10,7 @@ from urllib.parse import parse_qs
 import httpx
 from sqlalchemy import select
 
+from app.core.body_limit import DEFAULT_MAX_BODY_BYTES, body_limit_for
 from app.core.config import get_settings
 from app.instagram import captions, mp4, poster, router as ig_router
 from app.instagram.models import InstagramPost, InstagramReel
@@ -234,6 +235,18 @@ def test_reel_upload_over_the_size_cap_is_refused_1482(api, monkeypatch):
     monkeypatch.setattr(ig_router, "MAX_REEL_BYTES", 100)
     assert upload(c, make_mp4() + b"\x00" * 200).status_code == 413
     assert c.get("/admin/instagram/reels").json() == {"reels": []}
+
+
+def test_reel_upload_past_the_default_1mb_body_limit_is_accepted_and_other_admin_routes_stay_capped_1492(api):
+    c, S = api
+    login(c, S, mk(S, ADMIN_EMAIL, "admin"))
+    big = make_mp4(7000) + b"\x00" * (3 * 1024 * 1024)
+    res = upload(c, big)
+    assert res.status_code == 201, res.text
+    assert body_limit_for("/admin/instagram/reels") > len(big)
+    assert body_limit_for("/admin/instagram/reels") < 110 * 1024 * 1024
+    assert body_limit_for("/admin/users") == DEFAULT_MAX_BODY_BYTES
+    assert body_limit_for("/admin/instagram/posts") == DEFAULT_MAX_BODY_BYTES
 
 
 def test_reel_admin_routes_are_admin_only_1482(api):
