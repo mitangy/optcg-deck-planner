@@ -21,7 +21,8 @@ SONGS = [
     {"audio_id": "short1", "title": "Short Song", "display_artist": "Ann", "duration_in_ms": 1000},
     {"audio_id": "long2", "title": "Long Song", "display_artist": "Bob", "duration_in_ms": 90000},
 ]
-REEL_DAY = {"ig_access_token": FB_TOKEN, "ig_reel_weekdays": "2,3"}  # Wednesday and Thursday
+TRIAL_DAY = {"ig_access_token": FB_TOKEN, "ig_reel_weekdays": "2,3"}  # Wednesday and Thursday; Trial Reels on by default (#1490)
+REEL_DAY = {**TRIAL_DAY, "ig_reel_trial": "off"}  # the plain-Reel tests below (#1482) predate Trial Reels
 
 
 class FakeReelInstagram(FakeInstagram):
@@ -40,6 +41,16 @@ class FakeReelInstagram(FakeInstagram):
         if path.endswith("/1789") and request.method == "GET":
             self.requests.append(request)
             return httpx.Response(200, json={"username": "optcgduel"})
+        return super().handler(request)
+
+
+class FakeTrialRefusingInstagram(FakeReelInstagram):
+    """Meta refuses every container that carries trial_params (e.g. the account is not eligible)."""
+
+    def handler(self, request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/1789/media") and b"trial_params" in request.content:
+            self.requests.append(request)
+            return httpx.Response(400, json={"error": {"message": "Trial reels are not available for this account"}})
         return super().handler(request)
 
 
@@ -320,3 +331,63 @@ def test_reels_check_is_not_ready_when_no_songs_come_back_1482(api, monkeypatch)
     body = check(api, monkeypatch, FakeReelInstagram(songs=[])).json()
     assert (body["ready"], body["song_count"], body["first_song"]) == (False, 0, None)
     assert "no trending songs" in body["message"]
+
+
+@aio
+async def test_reel_is_sent_as_a_trial_reel_for_non_followers_by_default_graduating_on_performance_1490(db):
+    add_reel(db)
+    fake = FakeReelInstagram()
+    assert await run(db, fake, **TRIAL_DAY) == "published"
+    form = sent(fake)
+    assert form["media_type"] == ["REELS"]
+    assert json.loads(form["trial_params"][0]) == {"graduation_strategy": "SS_PERFORMANCE"}
+    assert db.scalars(select(InstagramPost)).one().reel_error is None
+
+
+@aio
+async def test_trial_off_in_any_case_sends_no_trial_params_1490(db):
+    add_reel(db)
+    fake = FakeReelInstagram()
+    assert await run(db, fake, **{**TRIAL_DAY, "ig_reel_trial": "Off"}) == "published"
+    assert "trial_params" not in sent(fake) and sent(fake)["media_type"] == ["REELS"]
+
+
+@aio
+async def test_manual_trial_strategy_passes_through_in_any_case_1490(db):
+    add_reel(db)
+    fake = FakeReelInstagram()
+    assert await run(db, fake, **{**TRIAL_DAY, "ig_reel_trial": "manual"}) == "published"
+    assert json.loads(sent(fake)["trial_params"][0]) == {"graduation_strategy": "MANUAL"}
+
+
+@aio
+async def test_unknown_trial_setting_behaves_like_the_default_1490(db):
+    add_reel(db)
+    fake = FakeReelInstagram()
+    assert await run(db, fake, **{**TRIAL_DAY, "ig_reel_trial": "sometimes"}) == "published"
+    assert json.loads(sent(fake)["trial_params"][0]) == {"graduation_strategy": "SS_PERFORMANCE"}
+
+
+@aio
+async def test_refused_trial_reel_is_retried_once_as_a_normal_reel_and_the_reason_is_recorded_1490(db):
+    reel = add_reel(db)
+    fake = FakeTrialRefusingInstagram()
+    assert await run(db, fake, **TRIAL_DAY) == "published"
+    assert len(fake.calls("/1789/media")) == 2
+    assert "trial_params" in sent(fake, 0) and "trial_params" not in sent(fake, 1)
+    assert sent(fake, 1)["media_type"] == ["REELS"] and sent(fake, 1)["video_url"] == sent(fake, 0)["video_url"]
+    row = db.scalars(select(InstagramPost)).one()
+    assert (row.kind, row.status, row.reel_id) == ("reel", "published", reel.id)
+    assert row.reel_error.startswith("trial failed: ") and "not available" in row.reel_error
+    assert db.get(InstagramReel, reel.id).posted_count == 1
+    assert fake.calls("/media_publish") and len(fake.calls("/media_publish")) == 1
+
+
+@aio
+async def test_trial_retry_failing_too_still_falls_back_to_the_image_with_both_reasons_1490(db):
+    add_reel(db)
+    fake = FakeReelInstagram(publish_error="boom")
+    assert await run(db, fake, **TRIAL_DAY) == "failed"  # the image publish fails too with this fake
+    row = db.scalars(select(InstagramPost)).one()
+    assert row.kind != "reel" and row.reel_error.startswith("trial failed: ") and "; Reel failed: " in row.reel_error
+    assert len(fake.calls("/1789/media")) == 3  # trial, plain retry, image

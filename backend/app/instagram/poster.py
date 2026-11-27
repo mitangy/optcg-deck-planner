@@ -199,18 +199,28 @@ async def _fall_back_to_image(db: Session, http: httpx.AsyncClient, row: Instagr
 
 async def _publish_reel(db: Session, settings, http: httpx.AsyncClient, row: InstagramPost, now: datetime) -> None:
     reel = db.get(InstagramReel, row.reel_id) if row.reel_id is not None else None
+    trial_note = None
     try:
         if reel is None or not row.audio_id:
             raise client.InstagramError("The Reel or its song is gone")
         token = await ensure_fresh_token(db, settings, http, now)
         user_id = await resolve_user_id(settings, http, token)
-        media_id = await client.publish_reel(
-            http, user_id, token, reel_url(settings, reel.media_token), row.caption, row.audio_id, api_version=settings.ig_api_version
-        )
+        args = (http, user_id, token, reel_url(settings, reel.media_token), row.caption, row.audio_id)
+        strategy = settings.ig_reel_trial_strategy
+        try:
+            media_id = await client.publish_reel(*args, trial_strategy=strategy, api_version=settings.ig_api_version)
+        except client.InstagramError as exc:
+            if strategy is None:
+                raise
+            # Trial Reels can be refused (e.g. account not eligible): retry once as a normal Reel.
+            trial_note = f"trial failed: {exc}"
+            log.warning("instagram: Trial Reel for %s failed, retrying as a normal Reel: %s", row.slot_date, exc)
+            media_id = await client.publish_reel(*args, api_version=settings.ig_api_version)
     except client.InstagramError as exc:
-        await _fall_back_to_image(db, http, row, f"Reel failed: {exc}")
+        await _fall_back_to_image(db, http, row, f"{trial_note}; Reel failed: {exc}" if trial_note else f"Reel failed: {exc}")
         return
     row.status, row.ig_media_id, row.published_at, row.error = "published", media_id, now, None
+    row.reel_error = trial_note[:500] if trial_note else None
     reel.posted_count, reel.last_posted_at = (reel.posted_count or 0) + 1, now
     log.info("instagram: published Reel %s for %s", reel.id, row.slot_date)
     db.commit()
