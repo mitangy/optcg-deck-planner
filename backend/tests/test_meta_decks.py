@@ -177,6 +177,39 @@ def test_decks_are_ordered_by_placing_then_players_then_date_443(client):
     assert [d["id"] for d in decks(c, A, limit=2)["decks"]] == got[:2]
 
 
+def test_order_recent_puts_the_newest_event_first_even_when_it_is_a_weak_placing_and_survives_the_limit_1493(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_event(db, "old_a", 20, 64)
+        add_event(db, "old_b", 15, 64)
+        add_event(db, "newest", 1, 16)
+        add_event(db, "same_day", 1, 16)
+        old_a = add_deck(db, "old_a", A, placing=1)
+        old_b = add_deck(db, "old_b", A, placing=2)
+        weak_new = add_deck(db, "newest", A, placing=8)
+        better_new = add_deck(db, "same_day", A, placing=3)
+        db.commit()
+    by_placing = [d["id"] for d in decks(c, A, top=8, limit=2)["decks"]]
+    assert by_placing == [old_a, old_b]  # the default is untouched (#443): the newest results are cut by the limit
+    assert [d["id"] for d in decks(c, A, top=8, limit=2, order="placing")["decks"]] == by_placing
+    recent = decks(c, A, top=8, limit=2, order="recent")["decks"]
+    assert [d["id"] for d in recent] == [better_new, weak_new]  # same date: better placing first
+    assert [d["id"] for d in decks(c, A, top=8, order="recent")["decks"]] == [better_new, weak_new, old_b, old_a]
+    assert c.get("/meta/decks", params={"leader": A, "order": "bogus"}).status_code == 422
+
+
+def test_order_is_part_of_the_cache_key_1493(client):
+    c, SessionLocal = client
+    with SessionLocal() as db:
+        add_event(db, "old", 20, 64)
+        add_event(db, "new", 1, 16)
+        old = add_deck(db, "old", A, placing=1)
+        new = add_deck(db, "new", A, placing=8)
+        db.commit()
+    assert [d["id"] for d in decks(c, A, limit=1)["decks"]] == [old]
+    assert [d["id"] for d in decks(c, A, limit=1, order="recent")["decks"]] == [new]
+
+
 def test_top_filter_keeps_only_decks_placing_at_or_above_it_443(client):
     c, SessionLocal = client
     with SessionLocal() as db:

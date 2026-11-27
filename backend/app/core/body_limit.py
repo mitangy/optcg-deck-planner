@@ -12,6 +12,9 @@ ROUTE_MAX_BODY_BYTES: tuple[tuple[str, int], ...] = (
     ("/scan-samples", 4 * 1024 * 1024),
     ("/analyst/bot-games", 8 * 1024 * 1024),
     ("/analyst/sim-games/import", 32 * 1024 * 1024),
+    # Reel upload (#1492): MAX_REEL_BYTES in app/instagram/router.py (100 MB, a literal here to keep this module
+    # import-free) plus 1 MB of multipart slack. The exact path, so other /admin routes keep the 1 MB default.
+    ("/admin/instagram/reels", 101 * 1024 * 1024),
 )
 
 

@@ -67,7 +67,7 @@ async function fetchArchive(
   const decks: MetaSnapshot["decks"] = {};
   const found = await Promise.all(
     picked.map(async (l): Promise<ArchivedLeader | null> => {
-      const q = new URLSearchParams({ leader: l.leader_id, days: String(days), top: String(ARCHIVE_TOP_PLACINGS), limit: String(ARCHIVE_FETCH_DECKS) });
+      const q = new URLSearchParams({ leader: l.leader_id, days: String(days), top: String(ARCHIVE_TOP_PLACINGS), limit: String(ARCHIVE_FETCH_DECKS), order: "recent" });
       try {
         const res = await getJson<MetaDecksResponse>(fetchFn, `${api}/meta/decks?${q}`, timeoutMs);
         const lastSeen = Array.isArray(res.decks) ? newestDeckDate(res.decks) : null;
