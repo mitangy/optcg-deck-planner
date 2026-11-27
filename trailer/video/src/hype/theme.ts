@@ -22,9 +22,9 @@ export {COLORS};
 export const FPS = 30;
 export const sec = (s: number) => Math.round(s * FPS);
 
-/** Instagram overlays: keep text out of the top 220 px and the bottom 380 px of a 1080x1920 frame. */
-export const SAFE_TOP = 220;
-export const SAFE_BOTTOM = 380;
+/** Instagram overlays: keep text out of the top 250 px and the bottom 400 px of a 1080x1920 frame. */
+export const SAFE_TOP = 250;
+export const SAFE_BOTTOM = 400;
 
 export type HypeLayout = {W: number; H: number; vertical: boolean; top: number; bottom: number};
 export const L_9x16: HypeLayout = {W: 1080, H: 1920, vertical: true, top: SAFE_TOP, bottom: 1920 - SAFE_BOTTOM};

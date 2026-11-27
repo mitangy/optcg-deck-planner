@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { easeScrollTo, layoutSettled, sleep } from "../lib/util";
-import { BACKS_DIR, PLAYMAT_FILE } from "../lib/env";
+import { BACKS_DIR, PLAYER_MATS, PLAYMAT_FILE } from "../lib/env";
 import { existsSync } from "node:fs";
 import { finishTake } from "../lib/take";
 import { hypeTake } from "../lib/hype";
@@ -48,6 +48,13 @@ export async function run(): Promise<void> {
     await upload("#playmat", PLAYMAT_FILE, "playmat");
     t.rec.mark("playmatDone");
     await shot("1");
+    // Then a quick run through other players' real mats.
+    for (const [i, mat] of PLAYER_MATS.filter((f) => existsSync(f)).entries()) {
+      t.rec.mark(`mat${i}Open`);
+      await upload("#playmat", mat, `mat${i}`);
+      t.rec.mark(`mat${i}Done`);
+      await shot(`mat-${i}`);
+    }
     await easeScrollTo(p, "#card-back", { ms: 850 });
     await sleep(300);
     t.rec.mark("backStart");
