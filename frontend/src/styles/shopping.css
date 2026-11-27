@@ -2052,6 +2052,34 @@ tr.covered td,
   font-size: 0.78rem;
 }
 
+/* Add and the stepper share one fixed slot, so switching between them moves nothing. */
+.price-check-owned {
+  margin-top: 0.25rem;
+}
+
+.price-check-owned .collection-owned-control {
+  justify-content: flex-start;
+  min-width: 7.75rem;
+  height: 2.75rem; /* the steppers' height: Add must not grow or shrink the row when it turns into one */
+}
+
+.price-check-owned .collection-owned-control .btn {
+  height: 2.75rem;
+  min-width: 4.5rem;
+  margin: 0;
+  padding-block: 0;
+}
+
+.price-check-owned .shopping-extra-control {
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.price-check-owned .owned-btn {
+  min-height: 2.5rem;
+  min-width: 2.5rem;
+}
+
 .price-check-price {
   display: grid;
   justify-items: end;
