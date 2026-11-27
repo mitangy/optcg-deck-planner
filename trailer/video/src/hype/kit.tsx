@@ -3,6 +3,8 @@ import {Easing, interpolate, OffthreadVideo, spring, staticFile, useCurrentFrame
 import {BODY, CLIPS, COLORS, FPS, HEAD, NUM, sec, type ClipId, type HypeLayout} from './theme';
 
 export const LayoutCtx = createContext<HypeLayout | null>(null);
+/** Duration (frames) of the scene being rendered, so captions can ease out before the cut. */
+export const SceneCtx = createContext<number>(0);
 export const useHL = () => {
   const l = useContext(LayoutCtx);
   if (!l) throw new Error('no hype layout');
@@ -77,12 +79,13 @@ export const Eyebrow: React.FC<{text?: string; y?: number; until?: number}> = ({
   );
 };
 
-export const Chip: React.FC<{text: string; start: number; size?: number; check?: boolean}> = ({text, start, size = 48, check = true}) => {
+export const Chip: React.FC<{text: string; start: number; size?: number; check?: boolean; end?: number}> = ({text, start, size = 48, check = true, end}) => {
   const f = useCurrentFrame();
+  const ex = end === undefined ? 0 : prog(f, end, end + 5, Easing.in(Easing.quad));
   const p = pop(f, start, {damping: 11, stiffness: 200});
   const settle = prog(f, start + 6, start + 20);
   return (
-    <div style={{display: 'inline-flex', alignItems: 'center', gap: size * 0.4, padding: `${size * 0.36}px ${size * 0.7}px`, borderRadius: 999, background: 'linear-gradient(180deg, rgba(20,44,84,0.96), rgba(11,22,48,0.96))', border: `2px solid ${COLORS.gold}`, boxShadow: `0 14px 50px rgba(0,0,0,0.5), 0 0 ${lerp(60, 24, settle)}px rgba(232,182,76,${lerp(0.55, 0.2, settle)})`, fontFamily: BODY, fontWeight: 600, fontSize: size, color: COLORS.ink, opacity: Math.min(1, p * 2), transform: `translateY(${(1 - Math.min(1, p)) * 70}px) scale(${lerp(0.7, 1, Math.min(1.08, p))})`, whiteSpace: 'nowrap'}}>
+    <div style={{display: 'inline-flex', alignItems: 'center', gap: size * 0.4, padding: `${size * 0.36}px ${size * 0.7}px`, borderRadius: 999, background: 'linear-gradient(180deg, rgba(20,44,84,0.96), rgba(11,22,48,0.96))', border: `2px solid ${COLORS.gold}`, boxShadow: `0 14px 50px rgba(0,0,0,0.5), 0 0 ${lerp(60, 24, settle)}px rgba(232,182,76,${lerp(0.55, 0.2, settle)})`, fontFamily: BODY, fontWeight: 600, fontSize: size, color: COLORS.ink, opacity: Math.min(1, p * 2) * (1 - ex), transform: `translateY(${(1 - Math.min(1, p)) * 70 - ex * 20}px) scale(${lerp(0.7, 1, Math.min(1.08, p))})`, whiteSpace: 'nowrap'}}>
       {check && (
         <svg width={size * 0.8} height={size * 0.8} viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill={COLORS.gold} /><path d="M6.8 12.4l3.4 3.5 7-7.6" fill="none" stroke={COLORS.navy0} strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
       )}
@@ -92,25 +95,38 @@ export const Chip: React.FC<{text: string; start: number; size?: number; check?:
 };
 
 /** Big caption under (or beside) a frame. */
-export const Caption: React.FC<{text: Part[]; delay?: number; size?: number}> = ({text, delay = 4, size}) => {
+export const Caption: React.FC<{text: Part[]; delay?: number; size?: number; out?: number}> = ({text, delay = 0, size, out}) => {
   const L = useHL();
   return (
-    <Line parts={text} size={size ?? (L.vertical ? 96 : 76)} delay={delay} stagger={3} align={L.vertical ? 'center' : 'left'} maxW={L.vertical ? 980 : 640} />
+    <Line parts={text} size={size ?? (L.vertical ? 92 : 76)} delay={delay} stagger={2} align={L.vertical ? 'center' : 'left'} maxW={L.vertical ? 980 : 560} out={out} />
   );
 };
 
 /* ---------- footage ---------- */
 
-export type Part_ = {clip: ClipId; from: number; dur: number; zoom?: number; zoomTo?: number; fx?: number; fy?: number; fxTo?: number; fyTo?: number; rate?: number};
+export type Part_ = {clip: ClipId; from: number; dur: number; zoom?: number; zoomTo?: number; fx?: number; fy?: number; fxTo?: number; fyTo?: number; rate?: number; allowShort?: boolean};
+/** One continuous camera for a whole Frame/Backdrop: the move carries across part cuts instead of restarting. */
+export type Cam = {zoom: number; zoomTo?: number; fx?: number; fy?: number; fxTo?: number; fyTo?: number};
 
-const Shot: React.FC<{p: Part_; w: number; h: number}> = ({p, w, h}) => {
+/** Crossfade between parts, in frames (0.27 s): a cut becomes a short dissolve and each luminance step is spread over 8 frames. */
+export const XF = 8;
+/** The last part keeps playing this long past its nominal end, so the scene dissolve (6 frames) never reveals an empty frame underneath. */
+const TAIL = 8;
+
+const checkHold = (parts: Part_[]) => {
+  if (parts.some((q) => q.dur < 1.0 && !q.allowShort)) throw new Error(`part < 1 s: ${parts.map((q) => q.dur).join(',')}`);
+};
+
+const Shot: React.FC<{p: Part_; w: number; h: number; lead: number; cam?: Cam; camT: number}> = ({p, w, h, lead, cam, camT}) => {
   const f = useCurrentFrame();
   const info = CLIPS[p.clip];
-  const t = prog(f, 0, sec(p.dur), Easing.inOut(Easing.quad));
-  const zoom = lerp(p.zoom ?? 1, p.zoomTo ?? p.zoom ?? 1, t);
-  const dfx = p.fx ?? info.fx ?? 0.5;
-  const fx = lerp(dfx, p.fxTo ?? dfx, t);
-  const fy = lerp(p.fy ?? 0.5, p.fyTo ?? p.fy ?? 0.5, t);
+  const t = cam ? camT : prog(f - lead, 0, sec(p.dur), Easing.inOut(Easing.quad));
+  const src = cam ? {zoom: cam.zoom, zoomTo: cam.zoomTo, fx: cam.fx ?? p.fx, fy: cam.fy ?? p.fy, fxTo: cam.fxTo, fyTo: cam.fyTo} : p;
+  const zoom = lerp(src.zoom ?? 1, src.zoomTo ?? src.zoom ?? 1, t);
+  const dfx = src.fx ?? info.fx ?? 0.5;
+  const fx = lerp(dfx, src.fxTo ?? dfx, t);
+  const dfy = src.fy ?? 0.5;
+  const fy = lerp(dfy, src.fyTo ?? dfy, t);
   // "cover" the frame, then zoom and keep the focus point near the middle
   const base = Math.max(w / info.w, h / info.h);
   const vw = info.w * base * zoom;
@@ -118,12 +134,39 @@ const Shot: React.FC<{p: Part_; w: number; h: number}> = ({p, w, h}) => {
   const left = Math.min(0, Math.max(w - vw, w / 2 - fx * vw));
   const top = Math.min(0, Math.max(h - vh, h / 2 - fy * vh));
   return (
-    <OffthreadVideo src={staticFile(`hype/clips/${info.file}`)} muted trimBefore={sec(p.from)} playbackRate={p.rate ?? 1} style={{position: 'absolute', left, top, width: vw, height: vh}} />
+    <OffthreadVideo src={staticFile(`hype/clips/${info.file}`)} muted trimBefore={Math.max(0, sec(p.from) - lead)} playbackRate={p.rate ?? 1} style={{position: 'absolute', left, top, width: vw, height: vh}} />
   );
 };
 
-/** A rounded browser/phone frame around live captures. `parts` are cut back-to-back (seconds); plain hard cuts (no flash: rapid full-frame flashes are a seizure risk). */
-export const Frame: React.FC<{parts: Part_[]; w: number; h?: number; kind?: 'browser' | 'phone'; x?: number; y?: number; tilt?: number; enter?: number}> = ({parts, w, h, kind = 'browser', x, y, tilt = 0, enter = -3}) => {
+/** Parts i>0 start XF frames early and fade in over the previous part; their capture time is trimmed back so the content at the nominal cut is unchanged. */
+const XfadeLayer: React.FC<{i: number; children: React.ReactNode}> = ({i, children}) => {
+  const f = useCurrentFrame();
+  const o = i === 0 ? 1 : prog(f, 0, XF, Easing.inOut(Easing.quad));
+  return <div style={{position: 'absolute', inset: 0, overflow: 'hidden', opacity: o}}>{children}</div>;
+};
+
+const Parts: React.FC<{parts: Part_[]; w: number; h: number; cam?: Cam}> = ({parts, w, h, cam}) => {
+  const f = useCurrentFrame();
+  checkHold(parts);
+  let acc = 0;
+  const starts = parts.map((q) => { const s = acc; acc += sec(q.dur); return s; });
+  const camT = prog(f, 0, acc, Easing.inOut(Easing.sin));
+  return (
+    <>
+      {parts.map((q, i) => {
+        const lead = i === 0 ? 0 : XF;
+        return (
+          <Sequence key={i} from={starts[i] - lead} durationInFrames={sec(q.dur) + lead + (i === parts.length - 1 ? TAIL : 0)} layout="none">
+            <XfadeLayer i={i}><Shot p={q} w={w} h={h} lead={lead} cam={cam} camT={camT} /></XfadeLayer>
+          </Sequence>
+        );
+      })}
+    </>
+  );
+};
+
+/** A rounded browser/phone frame around live captures. `parts` dissolve into each other over XF frames (no flashes: rapid full-frame flashes are a seizure risk). `enter` <= -40 means the frame is already on screen. */
+export const Frame: React.FC<{parts: Part_[]; w: number; h?: number; kind?: 'browser' | 'phone'; x?: number; y?: number; tilt?: number; enter?: number; cam?: Cam}> = ({parts, w, h, kind = 'browser', x, y, tilt = 0, enter = -3, cam}) => {
   const f = useCurrentFrame();
   const L = useHL();
   const info = CLIPS[parts[0].clip];
@@ -134,9 +177,7 @@ export const Frame: React.FC<{parts: Part_[]; w: number; h?: number; kind?: 'bro
   const H = innerH + bar + bez * 2;
   const p = pop(f, enter, {damping: 16, stiffness: 130});
   const cx = x ?? (L.W - w) / 2;
-  const cy = y ?? (L.vertical ? 250 : (L.H - H) / 2);
-  let acc = 0;
-  const starts = parts.map((q) => { const s = acc; acc += sec(q.dur); return s; });
+  const cy = y ?? (L.vertical ? 350 : (L.H - H) / 2);
   const radius = kind === 'phone' ? w * 0.12 : 28;
   return (
     <div style={{position: 'absolute', left: cx, top: cy, width: w, height: H, opacity: Math.min(1, p * 2), transform: `translateY(${(1 - Math.min(1, p)) * 90}px) scale(${lerp(0.9, 1, Math.min(1, p))}) rotate(${tilt}deg)`, borderRadius: radius, background: kind === 'phone' ? '#05080f' : '#0b1220', border: `${kind === 'phone' ? 3 : 2}px solid rgba(232,182,76,0.5)`, boxShadow: '0 40px 120px rgba(0,0,0,0.6), 0 0 90px rgba(232,182,76,0.16)', overflow: 'hidden'}}>
@@ -147,11 +188,7 @@ export const Frame: React.FC<{parts: Part_[]; w: number; h?: number; kind?: 'bro
         </div>
       )}
       <div style={{position: 'absolute', left: bez, top: bar + bez, width: innerW, height: innerH, overflow: 'hidden', borderRadius: kind === 'phone' ? radius - bez : 0, background: '#07101d'}}>
-        {parts.map((q, i) => (
-          <Sequence key={i} from={starts[i]} durationInFrames={sec(q.dur)} layout="none">
-            <div style={{position: 'absolute', inset: 0, overflow: 'hidden'}}><Shot p={q} w={innerW} h={innerH} /></div>
-          </Sequence>
-        ))}
+        <Parts parts={parts} w={innerW} h={innerH} cam={cam} />
       </div>
     </div>
   );
@@ -165,17 +202,11 @@ export const frameHeight = (clip: ClipId, w: number, kind: 'browser' | 'phone' =
 };
 
 /** Full-bleed product footage behind hook type: motion from the very first frame, dimmed so the words stay readable. */
-export const Backdrop: React.FC<{parts: Part_[]; scrim?: number}> = ({parts, scrim = 0.5}) => {
+export const Backdrop: React.FC<{parts: Part_[]; scrim?: number; cam?: Cam}> = ({parts, scrim = 0.5, cam}) => {
   const L = useHL();
-  let acc = 0;
-  const starts = parts.map((q) => { const s = acc; acc += sec(q.dur); return s; });
   return (
     <div style={{position: 'absolute', inset: 0, overflow: 'hidden'}}>
-      {parts.map((q, i) => (
-        <Sequence key={i} from={starts[i]} durationInFrames={sec(q.dur)} layout="none">
-          <div style={{position: 'absolute', inset: 0, overflow: 'hidden'}}><Shot p={q} w={L.W} h={L.H} /></div>
-        </Sequence>
-      ))}
+      <Parts parts={parts} w={L.W} h={L.H} cam={cam} />
       <div style={{position: 'absolute', inset: 0, background: `linear-gradient(180deg, rgba(8,16,36,${scrim}) 0%, rgba(8,16,36,${scrim + 0.12}) 55%, rgba(8,16,36,${scrim}) 100%)`}} />
     </div>
   );
@@ -237,7 +268,7 @@ export const EndCard: React.FC = () => {
         </div>, y0,
       )}
       {col(
-        <div style={{opacity: prog(f, 8, 16), transform: `translateY(${(1 - prog(f, 8, 18)) * 30}px)`, fontFamily: HEAD, fontWeight: 800, fontSize: v ? 112 : 96, letterSpacing: '-0.02em', color: COLORS.ink, textShadow: shadow}}>OPTCG <span style={{color: COLORS.gold}}>Duel</span></div>, y0 + logoSize + 20,
+        <div style={{opacity: prog(f, 4, 12), transform: `translateY(${(1 - prog(f, 4, 14)) * 30}px)`, fontFamily: HEAD, fontWeight: 800, fontSize: v ? 112 : 96, letterSpacing: '-0.02em', color: COLORS.ink, textShadow: shadow}}>OPTCG <span style={{color: COLORS.gold}}>Duel</span></div>, y0 + logoSize + 20,
       )}
       {col(
         <div style={{position: 'relative', overflow: 'hidden', padding: v ? '26px 70px' : '22px 64px', borderRadius: 999, background: `linear-gradient(180deg, ${COLORS.goldBright}, ${COLORS.gold} 55%, ${COLORS.goldDeep})`, boxShadow: '0 20px 60px rgba(232,182,76,0.35), 0 0 0 1px rgba(255,255,255,0.3) inset', fontFamily: BODY, fontWeight: 700, fontSize: v ? 70 : 60, color: COLORS.navy0, opacity: Math.min(1, pill * 2), transform: `scale(${lerp(0.7, 1, Math.min(1.08, pill))})`}}>
@@ -252,7 +283,7 @@ export const EndCard: React.FC = () => {
         <div style={{opacity: prog(f, 24, 34), fontFamily: BODY, fontWeight: 500, fontSize: v ? 50 : 44, color: COLORS.ink, textShadow: shadow}}>Free in your browser. No download.</div>, y0 + logoSize + (v ? 450 : 320),
       )}
       {col(
-        <div style={{opacity: prog(f, 34, 46) * 0.85, fontFamily: BODY, fontWeight: 400, fontSize: v ? 32 : 28, color: COLORS.muted}}>Fan-made. Not affiliated with Bandai Namco.</div>, y0 + logoSize + (v ? 560 : 410),
+        <div style={{opacity: prog(f, 34, 46), fontFamily: BODY, fontWeight: 400, fontSize: v ? 36 : 30, color: COLORS.muted}}>Fan-made. Not affiliated with Bandai Namco.</div>, y0 + logoSize + (v ? 560 : 410),
       )}
     </>
   );
@@ -284,13 +315,13 @@ export const TextCard: React.FC<{children: React.ReactNode; x: number; y: number
 };
 
 /** Small persistent brand bug: the two-card mark + "OPTCG Duel", semi-opaque, inside the safe area. */
-export const BrandBug: React.FC = () => {
+export const BrandBug: React.FC<{out?: number}> = ({out}) => {
   const f = useCurrentFrame();
   const L = useHL();
-  const a = prog(f, 0, 10) * 0.82;
+  const a = prog(f, 0, 10) * 0.82 * (out === undefined ? 1 : 1 - prog(f, out, out + 6, Easing.linear));
   const size = L.vertical ? 64 : 52;
   return (
-    <div style={{position: 'absolute', top: L.vertical ? 232 : 34, ...(L.vertical ? {left: 48} : {right: 56}), display: 'flex', alignItems: 'center', gap: 10, padding: '6px 22px 6px 12px', borderRadius: 999, background: 'rgba(8,16,36,0.55)', border: '1px solid rgba(232,182,76,0.35)', opacity: a, fontFamily: HEAD, fontWeight: 800, fontSize: L.vertical ? 34 : 28, color: COLORS.ink, letterSpacing: '-0.01em'}}>
+    <div style={{position: 'absolute', top: L.vertical ? L.top + 8 : 34, ...(L.vertical ? {left: 48} : {right: 56}), display: 'flex', alignItems: 'center', gap: 10, padding: '6px 22px 6px 12px', borderRadius: 999, background: 'rgba(8,16,36,0.55)', border: '1px solid rgba(232,182,76,0.35)', opacity: a, fontFamily: HEAD, fontWeight: 800, fontSize: L.vertical ? 34 : 28, color: COLORS.ink, letterSpacing: '-0.01em'}}>
       <BrandMark size={size} />
       <span>OPTCG <span style={{color: COLORS.gold}}>Duel</span></span>
     </div>

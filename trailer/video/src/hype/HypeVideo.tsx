@@ -1,10 +1,11 @@
 import React from 'react';
-import {AbsoluteFill, Html5Audio, interpolate, Sequence, staticFile} from 'remotion';
+import {AbsoluteFill, Easing, Html5Audio, interpolate, Sequence, staticFile, useCurrentFrame} from 'remotion';
 import {Background} from '../Background';
-import {BrandBug, CutSweep, LayoutCtx} from './kit';
+import {BrandBug, CutSweep, LayoutCtx, SceneCtx, prog} from './kit';
 import {COLORS, sec, type HypeLayout} from './theme';
 
-export type Scene = {at: number; dur: number; node: React.ReactNode; sweep?: boolean};
+/** `soft`: this scene has no opaque backdrop of its own, so the previous scene fades out under it instead of vanishing when its tail ends. */
+export type Scene = {at: number; dur: number; node: React.ReactNode; sweep?: boolean; soft?: boolean};
 export type Cue = {t: number; id: string; gain?: number};
 export type HypeDef = {id: string; layout: HypeLayout; dur: number; scenes: Scene[]; cues?: Cue[]};
 
@@ -16,14 +17,28 @@ export const cuesFor = (def: HypeDef): Cue[] => [
   ...(def.cues ?? []),
 ];
 
+/** Dissolve between whole scenes: a scene fades in over its first DISSOLVE frames while the previous one, extended by as many frames, is still underneath. */
+const DISSOLVE = 6;
+const SceneFade: React.FC<{fade: boolean; outAt?: number; children: React.ReactNode}> = ({fade, outAt, children}) => {
+  const f = useCurrentFrame();
+  const o = (fade ? prog(f, 0, DISSOLVE, Easing.linear) : 1) * (outAt === undefined ? 1 : 1 - prog(f, outAt, outAt + DISSOLVE, Easing.linear));
+  return <AbsoluteFill style={{opacity: o}}>{children}</AbsoluteFill>;
+};
+
 const Scenes: React.FC<{def: HypeDef}> = ({def}) => (
   <>
-    {def.scenes.map((s, i) => (
-      <Sequence key={i} from={sec(s.at)} durationInFrames={sec(s.dur)} layout="none">
-        <AbsoluteFill>{s.node}</AbsoluteFill>
-        {s.at > 0 && s.sweep !== false && <CutSweep />}
-      </Sequence>
-    ))}
+    {def.scenes.map((s, i) => {
+      const next = def.scenes[i + 1];
+      const tail = next ? DISSOLVE : 0;
+      return (
+        <Sequence key={i} from={sec(s.at)} durationInFrames={sec(s.dur) + tail} layout="none">
+          <SceneCtx.Provider value={sec(s.dur)}>
+            <SceneFade fade={s.at > 0} outAt={next?.soft ? sec(s.dur) : undefined}>{s.node}</SceneFade>
+          </SceneCtx.Provider>
+          {s.at > 0 && s.sweep !== false && <CutSweep />}
+        </Sequence>
+      );
+    })}
   </>
 );
 
@@ -36,7 +51,7 @@ export const HypeVideo: React.FC<{def: HypeDef; music?: boolean}> = ({def, music
         <Background cx={L.W / 2} cy={L.H / 2} compass={L.vertical ? 820 : 700} />
         <Scenes def={def} />
         {/* brand bug: after the intro, until the end card brings the full logo */}
-        <Sequence from={sec(3)} durationInFrames={sec(def.scenes[def.scenes.length - 1].at - 3)} layout="none"><BrandBug /></Sequence>
+        <Sequence from={sec(3)} durationInFrames={sec(def.scenes[def.scenes.length - 1].at - 3)} layout="none"><BrandBug out={sec(def.scenes[def.scenes.length - 1].at - 3) - 6} /></Sequence>
         {music && (
           <>
             <Html5Audio src={staticFile('hype/music.wav')} volume={(f) => interpolate(f, [0, 12, total - 36, total - 2], [0, 0.9, 0.9, 0], CLAMP)} />
