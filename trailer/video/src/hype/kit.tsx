@@ -120,7 +120,7 @@ const Shot: React.FC<{p: Part_; w: number; h: number}> = ({p, w, h}) => {
   );
 };
 
-/** A rounded browser/phone frame around live captures. `parts` are cut back-to-back (seconds); a gold flash marks each cut. */
+/** A rounded browser/phone frame around live captures. `parts` are cut back-to-back (seconds); plain hard cuts (no flash: rapid full-frame flashes are a seizure risk). */
 export const Frame: React.FC<{parts: Part_[]; w: number; h?: number; kind?: 'browser' | 'phone'; x?: number; y?: number; tilt?: number; enter?: number}> = ({parts, w, h, kind = 'browser', x, y, tilt = 0, enter = -3}) => {
   const f = useCurrentFrame();
   const L = useHL();
@@ -150,10 +150,6 @@ export const Frame: React.FC<{parts: Part_[]; w: number; h?: number; kind?: 'bro
             <div style={{position: 'absolute', inset: 0, overflow: 'hidden'}}><Shot p={q} w={innerW} h={innerH} /></div>
           </Sequence>
         ))}
-        {starts.slice(1).map((s, i) => {
-          const k = f - s;
-          return k >= 0 && k < 7 ? <div key={i} style={{position: 'absolute', inset: 0, background: `rgba(246,220,152,${0.5 * (1 - k / 7)})`}} /> : null;
-        })}
       </div>
     </div>
   );
@@ -239,7 +235,7 @@ export const CutSweep: React.FC = () => {
   const span = L.vertical ? L.H : L.W;
   const x = lerp(-0.3, 1.3, 1 - Math.pow(1 - p, 3)) * span;
   return (
-    <div style={{position: 'absolute', inset: 0, pointerEvents: 'none', opacity: Math.sin(p * Math.PI) * 0.9}}>
+    <div style={{position: 'absolute', inset: 0, pointerEvents: 'none', opacity: Math.sin(p * Math.PI) * 0.35}}>
       <div style={{position: 'absolute', ...(L.vertical ? {left: 0, right: 0, top: x - 130, height: 260, background: 'linear-gradient(180deg, transparent, rgba(232,182,76,0.3) 50%, transparent)', transform: 'skewY(-8deg)'} : {top: 0, bottom: 0, left: x - 130, width: 260, background: 'linear-gradient(90deg, transparent, rgba(232,182,76,0.3) 50%, transparent)', transform: 'skewX(-14deg)'})}} />
     </div>
   );
