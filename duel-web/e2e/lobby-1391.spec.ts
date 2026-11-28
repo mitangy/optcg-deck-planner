@@ -1,11 +1,11 @@
 import { test as base, expect, type Page } from "@playwright/test";
-import { FAKE_API, RED_VANILLA } from "./fixtures";
+import { FAKE_API, RED_VANILLA, pickMore } from "./fixtures";
 
 const test = base;
 
 const USER = { id: 7, email: "miko@e2e.test", name: "Miko", username: "MikoTheNavigator" };
 
-async function openLobby(page: Page, opts: { signedIn?: boolean; live?: { online: number; matches: number }; lastMode?: string } = {}): Promise<{ urls: string[] }> {
+async function openLobby(page: Page, opts: { signedIn?: boolean; live?: { online: number; matches: number } } = {}): Promise<{ urls: string[] }> {
   const urls: string[] = [];
   await page.route(`${FAKE_API}/**`, (route) => {
     const path = new URL(route.request().url()).pathname;
@@ -24,41 +24,41 @@ async function openLobby(page: Page, opts: { signedIn?: boolean; live?: { online
     }
     return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
   });
-  await page.addInitScript(({ decks: d, lastMode }) => {
+  await page.addInitScript(({ decks: d }) => {
     if (sessionStorage.getItem("e2e-seeded")) return;
     sessionStorage.setItem("e2e-seeded", "1");
     localStorage.clear();
     localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify(d));
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
-    if (lastMode) localStorage.setItem("optcg-duel:lastPlayMode", lastMode);
-  }, { decks: [{ id: "e2e-you", name: "E2E You", ...RED_VANILLA, updatedAt: 1 }], lastMode: opts.lastMode });
+  }, { decks: [{ id: "e2e-you", name: "E2E You", ...RED_VANILLA, updatedAt: 1 }] });
   await page.goto("/");
   return { urls };
 }
 
 test.describe("guests and Ranked (#1391)", () => {
-  test("the Ranked tile asks a guest to sign in instead of queueing, and Play vs Bot instead opens the bot setup (#1391)", async ({ page }) => {
-    await openLobby(page);
-    await page.locator(".mode-tiles").getByRole("button", { name: /^Ranked/ }).click();
+  test("Ranked asks a guest to sign in instead of queueing, and Play now instead searches for a casual game (#1391, #1506)", async ({ page }) => {
+    const { urls } = await openLobby(page);
+    await pickMore(page, /^Ranked/);
     const dialog = page.getByRole("dialog", { name: "Ranked needs an account" });
     await expect(dialog.getByRole("heading", { name: "Ranked needs an account" })).toBeVisible();
     await expect(dialog).toContainText("Sign in so your Bounty and match history are saved.");
     await expect(dialog.getByRole("link", { name: "Sign in" })).toHaveAttribute("href", /\/auth\/google\?return_to=/);
     await expect(page).not.toHaveURL(/\/duel/);
-    await dialog.getByRole("button", { name: "Play vs Bot instead" }).click();
-    await expect(page.getByRole("dialog").getByRole("heading", { name: "Play vs Bot" })).toBeVisible();
-    await expect(page).not.toHaveURL(/\/duel/);
+    expect(urls).not.toContain("/duel/guest-token");
+    await dialog.getByRole("button", { name: "Play now instead" }).click();
+    await expect.poll(() => urls.includes("/duel/guest-token"), "asks for a guest token to join the casual queue").toBe(true);
   });
 
-  test("a guest whose last mode was Ranked still gets Play vs Bot on the big button, never the queue (#1391)", async ({ page }) => {
-    await openLobby(page, { lastMode: "queue" });
-    await expect(page.locator(".btn-play")).toContainText("Play vs Bot");
-    await expect(page.getByRole("button", { name: /Play Ranked/ })).toHaveCount(0);
+  test("a guest sees no Ranked button on the page until More is opened (#1506)", async ({ page }) => {
+    await openLobby(page);
+    await expect(page.locator(".btn-play")).toContainText("Play now");
+    await expect(page.getByRole("menuitem", { name: /Ranked/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /^Ranked/ })).toHaveCount(0);
   });
 
   test("a signed-in player's Ranked tile does not show the sign-in sheet (#1391)", async ({ page }) => {
     const { urls } = await openLobby(page, { signedIn: true });
-    await page.locator(".mode-tiles").getByRole("button", { name: /^Ranked/ }).click();
+    await pickMore(page, /^Ranked/);
     await expect.poll(() => urls.includes("/duel/token"), "asks for a game token to join the queue").toBe(true);
     await expect(page.getByRole("dialog", { name: "Ranked needs an account" })).toHaveCount(0);
   });
@@ -72,17 +72,6 @@ test.describe("live line and tiles (#1391)", () => {
     await expect(line.getByRole("button"), "only the Invite link").toHaveCount(1);
     await line.getByRole("button", { name: "Invite a friend" }).click();
     await expect(page.getByRole("dialog").getByRole("heading", { name: "Private room" })).toBeVisible();
-  });
-
-  test("the Last played tag sits on the tile of the mode played last, and on no tile before that (#1391)", async ({ page }) => {
-    await openLobby(page, { lastMode: "hotseat" });
-    await expect(page.locator(".mode-tile-tag")).toHaveCount(1);
-    await expect(page.locator(".mode-tiles button").filter({ hasText: "Last played" })).toContainText("Practice");
-    await page.goto("/");
-    await page.evaluate(() => localStorage.removeItem("optcg-duel:lastPlayMode"));
-    await page.reload();
-    await expect(page.locator(".mode-tile-tag")).toHaveCount(0);
-    await expect(page.locator('.mode-tile[aria-current="true"]')).toHaveCount(0);
   });
 });
 
@@ -103,24 +92,19 @@ test.describe("desktop 1280 (#1391)", () => {
     expect((await page.locator(".home-hero").boundingBox())!.width, "clipped to nothing").toBeLessThanOrEqual(2);
   });
 
-  test("the how-it-works card tops the right column, the Only on tiles are one row of three, and Got it dismisses (#1391)", async ({ page }, info) => {
+  test("the steps line sits under the play buttons, and the Only on tiles are one row of three (#1391, #1506)", async ({ page }, info) => {
     test.skip(info.project.name !== "desktop-1280", "viewport is set by the test");
     await openLobby(page);
-    const intro = page.getByRole("region", { name: "How it works" });
-    await expect(intro).toBeVisible();
-    const side = (await page.locator(".home-side").boundingBox())!;
-    const box = (await intro.boundingBox())!;
+    const steps = page.getByRole("list", { name: "How it works" });
+    await expect(steps.getByRole("listitem")).toHaveText(["Pick a deck", "Play", "Sign in to keep your record"]);
+    const box = (await steps.boundingBox())!;
     const play = (await page.locator(".home-actions").boundingBox())!;
-    expect(box.x, "right column").toBeGreaterThan(play.x + play.width - 1);
-    expect(box.y, "first card of the right column").toBeLessThan(side.y + 2);
+    expect(box.y, "below the buttons").toBeGreaterThan(play.y + play.height - 1);
 
     const tiles = page.locator(".only-duel-grid .only-tile");
     await expect(tiles).toHaveText([/Replays/, /Planner \+ prices/, /Crew themes/]);
     const ys = await tiles.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
     expect(new Set(ys).size, "one row").toBe(1);
-
-    await intro.getByRole("button", { name: "Got it" }).click();
-    await expect(intro).toHaveCount(0);
   });
 });
 

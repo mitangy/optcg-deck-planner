@@ -1,4 +1,4 @@
-import { test, expect, RED_VANILLA, type Page } from "./fixtures";
+import { test, expect, RED_VANILLA, type Page, pickMore } from "./fixtures";
 
 test.use({ legacyLayout: false });
 
@@ -156,7 +156,7 @@ test("Play vs Bot has no chat (#1343)", async ({ page, duel }) => {
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
   }, decks);
   await page.goto("/");
-  await page.locator(".mode-tiles").getByRole("button", { name: /^Play vs Bot/ }).click();
+  await pickMore(page, /^Play vs Bot/);
   await page.getByRole("button", { name: "Start game" }).click();
   await expect(page.getByRole("button", { name: "Keep opening hand" })).toBeVisible({ timeout: 30_000 });
   await page.getByRole("button", { name: "Keep opening hand" }).click();

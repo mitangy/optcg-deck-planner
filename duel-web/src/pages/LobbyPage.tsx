@@ -100,8 +100,8 @@ export function LobbyPage() {
       setRankedGate(true);
       return;
     }
-    // Play now is one tap with the deck already picked; with none (or no dev key) the sheet asks first.
-    if (mode === "casual" && selectedDeck && !(authMode === "dev" && !settings.devUserKey.trim())) {
+    // Play now and Ranked search at once with the deck already picked; with none (or no dev key) the sheet asks first.
+    if ((mode === "casual" || mode === "queue") && selectedDeck && !(authMode === "dev" && !settings.devUserKey.trim())) {
       void confirmSetup(mode);
       return;
     }

@@ -223,7 +223,7 @@
   padding: 6px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-12);
-  background: rgb(var(--deep-rgb) / 0.98);
+  background: var(--arena-panel);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
 }
 

@@ -1,4 +1,4 @@
-import { test, expect, RED_VANILLA, type Page } from "./fixtures";
+import { test, expect, RED_VANILLA, type Page, pickMore } from "./fixtures";
 
 async function startBotGameWithDice(page: Page, seed: number) {
   await page.route(`${process.env.E2E_GAME_SERVER ?? "http://127.0.0.1:2567"}/matchmake/create/**`, (route) => {
@@ -18,7 +18,7 @@ async function startBotGameWithDice(page: Page, seed: number) {
     localStorage.setItem("optcg-duel:settings", JSON.stringify({ gameHints: true }));
   }, decks);
   await page.goto("/");
-  await page.locator(".mode-tiles").getByRole("button", { name: /^Play vs Bot/ }).click();
+  await pickMore(page, /^Play vs Bot/);
   await page.getByRole("button", { name: "Start game" }).click();
 }
 

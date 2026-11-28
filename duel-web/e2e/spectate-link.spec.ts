@@ -84,7 +84,7 @@ test("a spectator who arrives before the match starts sees waiting, not an error
     return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
   });
   await page.goto("/");
-  await page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Play a friend/ }).click();
   await page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;
@@ -113,7 +113,7 @@ test("opening the watch link of a match you are seated in says so on the lobby, 
     return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
   });
   await page.goto("/");
-  await page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
+  await page.locator(".mode-tiles").getByRole("button", { name: /^Play a friend/ }).click();
   await page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;
@@ -260,7 +260,7 @@ test.describe("landscape phone", () => {
       return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
     });
     await page.goto("/");
-    await page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
+    await page.locator(".mode-tiles").getByRole("button", { name: /^Play a friend/ }).click();
     await page.getByRole("button", { name: "Create room" }).click();
     await expect(page.locator(".room-invite-id")).toBeVisible({ timeout: 30_000 });
     const card = (await page.locator(".room-invite").boundingBox())!;
@@ -525,7 +525,7 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
     return route.continue({ postData: JSON.stringify({ ...body, seed: 7 }) });
   });
   await host.page.goto("/");
-  await host.page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
+  await host.page.locator(".mode-tiles").getByRole("button", { name: /^Play a friend/ }).click();
   await host.page.getByRole("button", { name: "Create room" }).click();
   const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
   const roomId = (body.room?.roomId ?? body.roomId)!;

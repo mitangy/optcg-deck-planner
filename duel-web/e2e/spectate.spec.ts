@@ -1,4 +1,4 @@
-import { test, expect, mintGameToken, FAKE_API, keepBothHands } from "./fixtures";
+import { test, expect, mintGameToken, FAKE_API, keepBothHands, pickMore } from "./fixtures";
 
 const NEAR_HAND = ":is(.rail-hand-cards, .hand-row-inner, .hand-fan:not(.hand-fan-top) .hand-fan-cards, .hand-dock-cards) .card-tile";
 const FAR_HAND = ":is(.hand-fan-top .hand-fan-cards .card-tile, .spec-far-cards .card-tile, .opp-fan-face, .opp-hand-face) >> visible=true";
@@ -23,7 +23,7 @@ test("a spectator of an unranked room sees both hands face up (#250)", async ({ 
     return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
   });
   await spec.goto("/");
-  await spec.locator(".mode-tiles").getByRole("button", { name: /^Spectate/ }).click();
+  await pickMore(spec, /^Spectate/);
   await spec.getByLabel("Room id").fill(roomId!);
   await spec.getByRole("button", { name: "Watch", exact: true }).click();
 
