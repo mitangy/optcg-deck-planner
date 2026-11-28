@@ -74,10 +74,11 @@ export function LoginPage() {
   return (
     <div className="login">
       <div className="login-card">
-        <h1>OPTCG Tracker</h1>
+        <h1>OPTCG Deck Planner</h1>
         <p className="lede">
           Chart your decks, track what you own, and see what’s left to buy at market price.
         </p>
+        <p className="hint">Use the same Google account as OPTCG Duel and your decks are already here.</p>
         <a className="btn primary" href={api.googleLoginUrl()}>
           Sign in with Google
         </a>

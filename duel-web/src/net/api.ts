@@ -1,5 +1,6 @@
 import type { components } from "@optcg/api-client";
 import { readFirstTouch } from "@optcg/ui/firstTouch";
+import type { HandoffAudience } from "@optcg/ui/handoff";
 import { ApiError, apiCall, apiError, request } from "../api/http";
 import { getApiBaseUrl } from "../config";
 import { retry } from "../lib/retry";
@@ -201,6 +202,15 @@ export async function fetchAuthMe(): Promise<AuthUser | null> {
 
 export function claimLoginTicket(ticket: string): Promise<AuthUser> {
   return apiCall<AuthUser>("/auth/claim", { method: "POST", json: { ticket, source: readFirstTouch() } }, "Claim failed");
+}
+
+export function mintHandoffTicket(audience: HandoffAudience): Promise<{ ticket: string; user_id: number }> {
+  return apiCall<{ ticket: string; user_id: number }>("/auth/handoff", { method: "POST", json: { audience } }, "Handoff failed");
+}
+
+/** Claims a ticket another app minted for this one (#1502). The first-touch source is not sent: the account already exists. */
+export function claimHandoffTicket(ticket: string, audience: HandoffAudience): Promise<AuthUser> {
+  return apiCall<AuthUser>("/auth/claim", { method: "POST", json: { ticket, handoff_audience: audience } }, "Claim failed");
 }
 
 export async function logoutSession(): Promise<void> {

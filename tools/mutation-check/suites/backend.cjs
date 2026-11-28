@@ -283,7 +283,20 @@ module.exports = {
       { file: auth, from: "    if data.get(\"purpose\") != \"login\":\n        return None\n    uid = data.get(\"uid\")\n    return int(uid)", to: "    uid = data.get(\"uid\")\n    return int(uid)" },
     ], kills: ["test_session_token_is_not_a_valid_login_ticket"] },
     { id: "ticket-reusable", file: auth, from: "        return None\n    db.delete(row)\n    db.commit()\n    return int(uid)", to: "        return None\n    return int(uid)", kills: ["test_login_ticket_is_single_use"] },
-    { id: "ticket-expiry-ignored", file: auth, from: "    if expires < datetime.now(timezone.utc) or row.user_id != int(uid):", to: "    if row.user_id != int(uid):", kills: ["test_expired_login_ticket_row_is_rejected"] },
+    { id: "ticket-expiry-ignored", file: auth, from: "    if expires < datetime.now(timezone.utc) or row.user_id != int(uid):\n        db.delete(row)", to: "    if row.user_id != int(uid):\n        db.delete(row)", kills: ["test_expired_login_ticket_row_is_rejected"], args: "tests/test_auth_tickets.py" },
+    // handoff tickets between the planner and the duel app (#1502)
+    { id: "handoff-ticket-reusable", file: auth, from: "    expires = as_utc(row.expires_at)\n    db.delete(row)\n    db.commit()\n    if expires", to: "    expires = as_utc(row.expires_at)\n    if expires", kills: ["test_a_handoff_ticket_signs_the_same_account_in_on_the_other_app_once_1502"], args: "tests/test_auth_handoff.py" },
+    { id: "handoff-ticket-ttl-ten-minutes", file: auth, from: "HANDOFF_TICKET_MAX_AGE_SECONDS = 60", to: "HANDOFF_TICKET_MAX_AGE_SECONDS = 600", kills: ["test_a_handoff_ticket_lives_at_most_a_minute_1502"], args: "tests/test_auth_handoff.py" },
+    { id: "handoff-ticket-row-expiry-ignored", file: auth, from: "    if expires < datetime.now(timezone.utc) or row.user_id != int(uid):\n        return None\n    return int(uid)", to: "    if row.user_id != int(uid):\n        return None\n    return int(uid)", kills: ["test_a_handoff_ticket_whose_row_expired_is_refused_1502"], args: "tests/test_auth_handoff.py" },
+    // every layer of the purpose check: the distinct salt, the login purpose and the handoff purpose
+    { id: "handoff-and-login-tickets-interchangeable", edits: [
+      { file: auth, from: "salt=\"optcg-handoff-ticket\"", to: "salt=\"optcg-login-ticket\"" },
+      { file: auth, from: "    if data.get(\"purpose\") != \"login\":\n        return None\n    uid = data.get(\"uid\")\n    jti", to: "    uid = data.get(\"uid\")\n    jti" },
+      { file: auth, from: "    if data.get(\"purpose\") != \"handoff\" or data.get(\"aud\") != audience:\n        return None\n", to: "" },
+    ], kills: ["test_handoff_and_login_tickets_cannot_stand_in_for_each_other_1502"], args: "tests/test_auth_handoff.py" },
+    { id: "handoff-audience-unchecked", file: auth, from: "    if data.get(\"purpose\") != \"handoff\" or data.get(\"aud\") != audience:", to: "    if data.get(\"purpose\") != \"handoff\":", kills: ["test_a_ticket_for_one_app_cannot_be_claimed_as_the_other_1502"], args: "tests/test_auth_handoff.py" },
+    { id: "handoff-issued-without-a-session", file: "backend/app/routers/auth.py", from: "    user: Annotated[User, Depends(get_current_user)],\n):\n    \"\"\"Mint a short-lived", to: "    user: Annotated[User | None, Depends(get_optional_user)],\n):\n    \"\"\"Mint a short-lived", kills: ["test_a_guest_without_a_session_gets_no_handoff_ticket_1502"], args: "tests/test_auth_handoff.py" },
+    { id: "claim-not-rate-limited", file: "backend/app/routers/auth.py", from: "    if not _claim_rate.allow(f\"claim:{client_ip(request)}\"):", to: "    if False:", kills: ["test_claiming_is_rate_limited_per_caller_1502"], args: "tests/test_auth_handoff.py" },
     { id: "google-new-user-unlinked", file: auth, from: "        user = User(email=email, name=name, google_sub=sub)", to: "        user = User(email=email, name=name, google_sub=\"\")", kills: ["test_resolve_creates_new_user"] },
     { id: "google-email-not-linked", file: auth, from: "    if user is None:\n        user = db.scalar(select(User).where(User.email == email))\n", to: "", kills: ["test_resolve_links_email_without_google_sub"] },
     { id: "google-rebind-allowed", file: auth, from: "        if user.google_sub and user.google_sub != sub:", to: "        if False:", kills: ["test_resolve_refuses_rebind_to_different_sub"] },

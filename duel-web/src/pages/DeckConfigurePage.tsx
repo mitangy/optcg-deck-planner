@@ -14,6 +14,7 @@ import {
   saveDeckDraft,
   type DeckDraft,
 } from "../decks/editDeck";
+import { usePlannerLink } from "../auth/plannerLink";
 import { useLeaveGuard } from "../decks/useLeaveGuard";
 import { pushDeckArtToPlanner } from "../decks/planner";
 import { deckSubtitle } from "../decks/deckLegality";
@@ -57,6 +58,8 @@ export function DeckConfigurePage() {
   const dirty = Boolean(saved && draft && isDeckDirty(saved, draft));
   const blankName = Boolean(draft && !draft.name.trim());
   const leave = useLeaveGuard(dirty);
+  // Opens the exact deck the duel copy is synced with (duel id -> planner id is the saved deck's plannerDeckId).
+  const plannerDeckLink = usePlannerLink(`/decks/${saved?.plannerDeckId ?? ""}`);
   const { say, toast } = useToast();
   const { copyList, dialog: copyDialog } = useCopyDeckList(say);
 
@@ -243,6 +246,9 @@ export function DeckConfigurePage() {
             {deck.plannerDeckId ? (
               <span className="deck-planner-badge" title="Edits here and in the planner reach both">
                 Synced with planner
+                <a className="deck-planner-open" {...plannerDeckLink}>
+                  Open <span aria-hidden>↗</span>
+                </a>
               </span>
             ) : null}
           </div>

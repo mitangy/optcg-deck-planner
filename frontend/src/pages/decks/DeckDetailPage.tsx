@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api, CardView, DeckDetail } from "../../api";
 import { buildOptcgSimExport, downloadTextFile, optcgSimFilename } from "../shopping/optcgsimExport";
-import { duelPlayUrl } from "../../app/duelLink";
+import { duelLinkProps, duelPlayPath } from "../../app/duelLink";
 import {
   hintAsk,
   useLogPoseAsk,
@@ -329,7 +329,7 @@ export function DeckDetailPage() {
   if (isLoading) return <DeckDetailSkeleton />;
   if (!data) return null;
 
-  const duelUrl = duelPlayUrl(data);
+  const duelPath = duelPlayPath(data);
   const refresh = () => invalidateOwnedViews(qc);
   const flashRow = (id: string) => setRowFlash((f) => ({ id, n: (f?.n ?? 0) + 1 }));
   const visibleCount = main.length + additional.length + donCards.length;
@@ -463,8 +463,8 @@ export function DeckDetailPage() {
               "Edit deck"
             )}
           </button>
-          {duelUrl ? (
-            <a className="btn secondary duel-play-btn" href={duelUrl} target="_blank" rel="noopener">
+          {duelPath ? (
+            <a className="btn secondary duel-play-btn" {...duelLinkProps(duelPath)}>
               Play in Duel
             </a>
           ) : (

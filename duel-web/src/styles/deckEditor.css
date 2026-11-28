@@ -122,6 +122,13 @@
   vertical-align: middle;
 }
 
+.deck-planner-open {
+  margin-left: 0.4rem;
+  padding: 0.3rem 0.2rem;
+  color: var(--accent-ink, inherit);
+  text-decoration: underline;
+}
+
 .deck-header-actions {
   margin-left: auto;
   min-height: 0;
@@ -1187,8 +1194,15 @@ body:has(.is-compact .deck-bottom-bar) .lp-compass {
     padding-block: 0.2rem;
   }
 
+  /* Header space is tight here: drop the "Synced with planner" words but keep the Open link reachable. */
   .deck-header-actions .deck-planner-badge {
-    display: none;
+    border: 0;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .deck-header-actions .deck-planner-open {
+    font-size: 0.75rem;
   }
 
   .is-compact .deck-tool-btn {
