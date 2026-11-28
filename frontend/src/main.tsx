@@ -28,7 +28,15 @@ reloadOnStaleChunk();
 // A link from the Duel app carries a sign-in ticket: claim it before the first render so the app starts signed in.
 // Capped, so a slow API never holds the page blank.
 const HANDOFF_WAIT_MS = 5000;
-void Promise.race([claimDuelHandoff(), new Promise((resolve) => setTimeout(resolve, HANDOFF_WAIT_MS))]).then(() => {
+let handoffTimedOut = false;
+const handoffClaim = claimDuelHandoff();
+const handoffWait = new Promise((resolve) =>
+  setTimeout(() => {
+    handoffTimedOut = true;
+    resolve(null);
+  }, HANDOFF_WAIT_MS),
+);
+void Promise.race([handoffClaim, handoffWait]).then(() => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -41,6 +49,13 @@ void Promise.race([claimDuelHandoff(), new Promise((resolve) => setTimeout(resol
   // A pre-rendered /meta carries the leaders it was built with: show them at once, and refetch because they are older than the page.
   const seed = readMetaSeed();
   if (seed) queryClient.setQueryData(qk.meta.leaders(seed.days), seed.leaders, { updatedAt: Date.parse(seed.generatedAt) });
+
+  // A claim that outlasts the wait lands after the first /auth/me said "signed out": refetch so the app leaves the sign-in wall.
+  if (handoffTimedOut) {
+    void handoffClaim.then((outcome) => {
+      if (outcome === "claimed") void queryClient.invalidateQueries({ queryKey: qk.me() });
+    });
+  }
 
   const rootEl = document.getElementById("root")!;
   releasePrerenderedRoot(rootEl);

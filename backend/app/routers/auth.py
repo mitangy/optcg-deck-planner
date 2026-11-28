@@ -306,8 +306,10 @@ def claim_login(
 ):
     if not _claim_rate.allow(f"claim:{client_ip(request)}"):
         raise HTTPException(status_code=429, detail="Too many sign-in attempts")
+    minted_sv: int | None = None
     if body.handoff_audience is not None:
-        user_id = consume_handoff_ticket(db, body.ticket, body.handoff_audience, settings)
+        taken = consume_handoff_ticket(db, body.ticket, body.handoff_audience, settings)
+        user_id, minted_sv = taken if taken else (None, None)
     else:
         user_id = consume_login_ticket(db, body.ticket, settings)
     if user_id is None:
@@ -315,6 +317,9 @@ def claim_login(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=400, detail="User not found")
+    # A sign-out bumps session_version: a handoff ticket minted before it must not revive the account.
+    if minted_sv is not None and minted_sv != int(user.session_version or 0):
+        raise HTTPException(status_code=400, detail="Invalid or expired login ticket")
     if is_banned(user):
         raise HTTPException(status_code=403, detail="Account banned")
     _record_signup_source(db, user, body.source)
@@ -335,7 +340,7 @@ def create_handoff(
     """
     if not _handoff_rate.allow(f"handoff:{user.id}"):
         raise HTTPException(status_code=429, detail="Too many requests")
-    ticket = create_handoff_ticket(db, user.id, body.audience, settings)
+    ticket = create_handoff_ticket(db, user.id, body.audience, int(user.session_version or 0), settings)
     return HandoffOut(ticket=ticket, expires_in=HANDOFF_TICKET_MAX_AGE_SECONDS, user_id=user.id)
 
 

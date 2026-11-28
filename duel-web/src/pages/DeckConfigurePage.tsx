@@ -246,8 +246,10 @@ export function DeckConfigurePage() {
             {deck.plannerDeckId ? (
               <span className="deck-planner-badge" title="Edits here and in the planner reach both">
                 Synced with planner
-                <a className="deck-planner-open" {...plannerDeckLink}>
-                  Open <span aria-hidden>↗</span>
+                <a className="deck-planner-open" aria-label="Open in planner" {...plannerDeckLink}>
+                  <span className="deck-planner-open-long" aria-hidden>Open in planner</span>
+                  <span className="deck-planner-open-short" aria-hidden>Planner</span>
+                  <span aria-hidden>↗</span>
                 </a>
               </span>
             ) : null}

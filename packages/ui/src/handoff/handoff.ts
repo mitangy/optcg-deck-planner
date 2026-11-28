@@ -31,16 +31,34 @@ export function takeHandoffFromLocation(loc: LocationLike, history: HistoryLike)
   return ticket ? { ticket, userId } : null;
 }
 
-export type ClaimOutcome = "none" | "skipped" | "claimed" | "failed";
+export type ClaimOutcome = "none" | "skipped" | "ignored" | "claimed" | "failed";
+
+function originOf(url: string): string | null {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return null;
+  }
+}
 
 /**
- * Runs once at start-up, before the first render. Never throws: if anything goes wrong the person simply lands signed out
- * on the path they asked for.
+ * Runs once at start-up, before the first render. Never throws: if anything goes wrong the person simply lands on the path
+ * they asked for.
+ *
+ * A ticket signs the browser in as whoever minted it, so a ticket planted in a link by an attacker would log a victim into the
+ * attacker's account (login CSRF). Hence:
+ * - already signed in as someone else, or unsure who: never claim, just drop the ticket;
+ * - signed out: claim only when the visit came from the sibling app (its origin is the referrer).
+ * The same-account case burns the ticket instead of leaving a live one behind.
  */
 export async function consumeHandoffOnLoad(deps: {
   location: LocationLike;
   history: HistoryLike;
   audience: HandoffAudience;
+  /** `document.referrer`. */
+  referrer: string;
+  /** Origin of the other app (the only legitimate sender). */
+  siblingOrigin: string;
   /** The account this browser is already signed in as on this app, or null. */
   currentUserId: () => Promise<number | null>;
   claim: (ticket: string, audience: HandoffAudience) => Promise<unknown>;
@@ -48,10 +66,17 @@ export async function consumeHandoffOnLoad(deps: {
   const taken = takeHandoffFromLocation(deps.location, deps.history);
   if (!taken) return "none";
   try {
-    if (taken.userId !== null) {
-      const current = await deps.currentUserId().catch(() => null);
-      if (current === taken.userId) return "skipped";
+    const current = await deps.currentUserId().catch(() => null);
+    if (current !== null) {
+      if (taken.userId !== null && current === taken.userId) {
+        // Already the same person: spend the ticket so it cannot be replayed, but do not wait for it.
+        void deps.claim(taken.ticket, deps.audience).catch(() => undefined);
+        return "skipped";
+      }
+      return "ignored";
     }
+    const sender = originOf(deps.referrer);
+    if (sender === null || sender !== originOf(deps.siblingOrigin)) return "ignored";
     await deps.claim(taken.ticket, deps.audience);
     return "claimed";
   } catch {
@@ -115,15 +140,18 @@ export function otherAppClickHandler(
   return (e) => {
     if (e.defaultPrevented || (e.button ?? 0) !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     if (!mint) return;
-    e.preventDefault();
     if (opts.newTab) {
       const win = window.open("", "_blank");
-      if (win) {
-        win.opener = null;
-        void resolveOtherAppUrl(origin, path, mint).then((url) => win.location.replace(url));
-        return;
-      }
+      // Blocked: let the browser follow the plain link instead of moving this tab.
+      if (!win) return;
+      e.preventDefault();
+      // The ticket request must not give the new tab a handle back to this page.
+      win.opener = null;
+      // Navigated from this page, so the other app sees this origin as the referrer (it only claims a ticket from its sibling).
+      void resolveOtherAppUrl(origin, path, mint).then((url) => win.location.replace(url));
+      return;
     }
+    e.preventDefault();
     void resolveOtherAppUrl(origin, path, mint).then((url) => window.location.assign(url));
   };
 }

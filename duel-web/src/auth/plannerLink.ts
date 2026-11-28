@@ -1,4 +1,4 @@
-import { consumeHandoffOnLoad, otherAppClickHandler, resolveOtherAppUrl, type HandoffMinter } from "@optcg/ui/handoff";
+import { consumeHandoffOnLoad, otherAppClickHandler, resolveOtherAppUrl, type ClaimOutcome, type HandoffMinter } from "@optcg/ui/handoff";
 import { getPlannerUrl } from "../config";
 import { claimHandoffTicket, fetchAuthMe, mintHandoffTicket } from "../net/api";
 import { setAuthUser, useAuthUser } from "./session";
@@ -40,11 +40,13 @@ export async function openOtherApp(path: string, signedIn: boolean): Promise<voi
 }
 
 /** Start-up: signs in on a handoff ticket from the planner (if the address carries one) before the app renders. */
-export function claimPlannerHandoff(): Promise<unknown> {
+export function claimPlannerHandoff(): Promise<ClaimOutcome> {
   return consumeHandoffOnLoad({
     location: window.location,
     history: window.history,
     audience: "duel",
+    referrer: document.referrer,
+    siblingOrigin: getPlannerUrl(),
     currentUserId: async () => (await fetchAuthMe())?.id ?? null,
     claim: async (ticket, audience) => {
       // The session store may already have an /auth/me in flight from before the cookie existed: setAuthUser wins over it.

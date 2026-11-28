@@ -8,7 +8,13 @@ from types import SimpleNamespace
 import itsdangerous.timed
 from sqlalchemy import select
 
-from app.core.auth import SESSION_COOKIE, create_login_ticket, read_session_token
+from app.core.auth import (
+    SESSION_COOKIE,
+    consume_handoff_ticket,
+    consume_login_ticket,
+    create_login_ticket,
+    read_session_token,
+)
 from app.core.config import get_settings
 from app.core.models import LoginTicket
 from tests.test_admin import login, mk
@@ -96,8 +102,43 @@ def test_a_guest_without_a_session_gets_no_handoff_ticket_1502(client):
         assert db.scalar(select(LoginTicket)) is None
 
 
-def test_claiming_is_rate_limited_per_caller_1502(client):
+def test_claiming_is_rate_limited_per_caller_ip_1502(client):
     c, S = client
     body = {"ticket": "nope", "handoff_audience": "planner"}
-    codes = [c.post("/auth/claim", json=body).status_code for _ in range(35)]
+    a, b = {"X-Forwarded-For": "203.0.113.1"}, {"X-Forwarded-For": "203.0.113.2"}
+    codes = [c.post("/auth/claim", json=body, headers=a).status_code for _ in range(35)]
     assert codes[0] == 400 and codes[-1] == 429
+    assert c.post("/auth/claim", json=body, headers=b).status_code == 400
+
+
+def test_a_ticket_already_taken_by_another_session_cannot_be_taken_again_1502(client):
+    c, S = client
+    uid = mk(S, "race@x.test")
+    login(c, S, uid)
+    handoff = _handoff(c)["ticket"]
+    with S() as db:
+        login_ticket = create_login_ticket(db, uid, get_settings())
+    settings = get_settings()
+    with S() as stale, S() as other:
+        # `stale` has already loaded both rows, as a request that is mid-way through a claim would have.
+        for row in db_rows(stale):
+            assert row is not None
+        assert consume_handoff_ticket(other, handoff, "planner", settings) is not None
+        assert consume_login_ticket(other, login_ticket, settings) == uid
+        assert consume_handoff_ticket(stale, handoff, "planner", settings) is None
+        assert consume_login_ticket(stale, login_ticket, settings) is None
+
+
+def db_rows(db):
+    return list(db.scalars(select(LoginTicket)).all())
+
+
+def test_a_handoff_ticket_does_not_survive_a_sign_out_1502(client):
+    c, S = client
+    uid = mk(S, "sv@x.test")
+    login(c, S, uid)
+    ticket = _handoff(c)["ticket"]
+    assert c.post("/auth/logout").status_code == 200
+    c.cookies.clear()
+    r = _claim(c, ticket)
+    assert r.status_code == 400 and SESSION_COOKIE not in r.cookies

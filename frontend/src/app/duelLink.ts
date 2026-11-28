@@ -1,4 +1,4 @@
-import { consumeHandoffOnLoad, otherAppClickHandler, type HandoffMinter } from "@optcg/ui/handoff";
+import { consumeHandoffOnLoad, otherAppClickHandler, type ClaimOutcome, type HandoffMinter } from "@optcg/ui/handoff";
 import { api } from "../api";
 import { buildOptcgSimExport, type OptcgSimExportCard } from "../pages/shopping/optcgsimExport";
 
@@ -49,11 +49,13 @@ export function duelLinkProps(path: string): {
 }
 
 /** Start-up: signs in on a handoff ticket from the Duel app (if the address carries one) before the app renders. */
-export function claimDuelHandoff(): Promise<unknown> {
+export function claimDuelHandoff(): Promise<ClaimOutcome> {
   return consumeHandoffOnLoad({
     location: window.location,
     history: window.history,
     audience: "planner",
+    referrer: document.referrer,
+    siblingOrigin: DUEL_URL,
     currentUserId: async () => (await api.me())?.id ?? null,
     claim: (ticket, audience) => api.claimHandoff(ticket, audience),
   });

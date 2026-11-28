@@ -131,6 +131,22 @@ def create_login_ticket(
     )
 
 
+def _take_ticket_row(db: Session, jti: str, user_id: int) -> bool:
+    """Deletes the ticket row in one statement and reports whether this call was the one that did.
+
+    A read-then-delete would let two concurrent claims both see the row; the DELETE's row count is the single arbiter.
+    """
+    result = db.execute(
+        delete(LoginTicket).where(
+            LoginTicket.jti == jti,
+            LoginTicket.user_id == user_id,
+            LoginTicket.expires_at > datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+    return result.rowcount == 1
+
+
 def consume_login_ticket(
     db: Session,
     ticket: str,
@@ -149,16 +165,8 @@ def consume_login_ticket(
     jti = data.get("jti")
     if uid is None or not jti:
         return None
-    row = db.get(LoginTicket, jti)
-    if row is None:
+    if not _take_ticket_row(db, jti, int(uid)):
         return None
-    expires = as_utc(row.expires_at)
-    if expires < datetime.now(timezone.utc) or row.user_id != int(uid):
-        db.delete(row)
-        db.commit()
-        return None
-    db.delete(row)
-    db.commit()
     return int(uid)
 
 
@@ -261,6 +269,7 @@ def create_handoff_ticket(
     db: Session,
     user_id: int,
     audience: str,
+    session_version: int = 0,
     settings: Settings | None = None,
 ) -> str:
     """A single-use ticket that signs `user_id` in on the *other* app (#1502); `audience` names the app that may claim it."""
@@ -279,7 +288,7 @@ def create_handoff_ticket(
     )
     db.commit()
     return _handoff_serializer(settings).dumps(
-        {"uid": user_id, "purpose": "handoff", "aud": audience, "jti": jti}
+        {"uid": user_id, "sv": int(session_version), "purpose": "handoff", "aud": audience, "jti": jti}
     )
 
 
@@ -288,7 +297,8 @@ def consume_handoff_ticket(
     ticket: str,
     audience: str,
     settings: Settings | None = None,
-) -> int | None:
+) -> tuple[int, int] | None:
+    """Returns (user id, session version the ticket was minted under), or None."""
     settings = settings or get_settings()
     try:
         data = _handoff_serializer(settings).loads(
@@ -302,12 +312,6 @@ def consume_handoff_ticket(
     jti = data.get("jti")
     if uid is None or not jti:
         return None
-    row = db.get(LoginTicket, jti)
-    if row is None:
+    if not _take_ticket_row(db, jti, int(uid)):
         return None
-    expires = as_utc(row.expires_at)
-    db.delete(row)
-    db.commit()
-    if expires < datetime.now(timezone.utc) or row.user_id != int(uid):
-        return None
-    return int(uid)
+    return int(uid), int(data.get("sv", 0))
