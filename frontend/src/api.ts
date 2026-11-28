@@ -1,5 +1,6 @@
 import { formatMoney } from "@optcg/card-core";
 import { readFirstTouch } from "@optcg/ui/firstTouch";
+import type { HandoffAudience } from "@optcg/ui/handoff";
 import { API_URL, LONG_TIMEOUT_MS, request } from "./apiClient";
 
 export type User = {
@@ -697,6 +698,16 @@ export const api = {
     request<User>("/auth/claim", {
       method: "POST",
       body: JSON.stringify({ ticket, source: readFirstTouch() }),
+    }),
+  mintHandoff: (audience: HandoffAudience) =>
+    request<{ ticket: string; user_id: number }>("/auth/handoff", {
+      method: "POST",
+      body: JSON.stringify({ audience }),
+    }),
+  claimHandoff: (ticket: string, audience: HandoffAudience) =>
+    request<User>("/auth/claim", {
+      method: "POST",
+      body: JSON.stringify({ ticket, handoff_audience: audience }),
     }),
   devLogin: () => request<User>("/auth/dev-login", { method: "POST" }),
   googleLoginUrl: () => `${API_URL}/auth/google`,
