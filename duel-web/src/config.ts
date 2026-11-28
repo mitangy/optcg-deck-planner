@@ -36,11 +36,6 @@ export function getDevJoinSecret(): string | undefined {
   return s && s.length > 0 ? s : undefined;
 }
 
-/** The planner link the duel app shows; `from=duel` lets the planner count visits that came from here. */
-export function getPlannerLinkFromDuel(): string {
-  return `${getPlannerUrl()}/?from=duel`;
-}
-
 export function getPlannerUrl(): string {
   const raw = import.meta.env.VITE_PLANNER_URL?.trim() || "https://optcg-deck-planner.app";
   return raw.replace(/\/+$/, "");

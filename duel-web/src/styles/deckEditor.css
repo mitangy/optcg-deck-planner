@@ -112,7 +112,8 @@
 }
 
 .deck-planner-badge {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   font-size: 0.7rem;
   font-weight: 600;
   padding: 0.05rem 0.4rem;
@@ -120,6 +121,21 @@
   border-radius: var(--radius-pill);
   color: var(--muted);
   vertical-align: middle;
+}
+
+.deck-planner-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  min-height: 36px;
+  margin-left: 0.4rem;
+  padding: 0 0.3rem;
+  color: var(--accent-ink, inherit);
+  text-decoration: underline;
+}
+
+.deck-planner-open-short {
+  display: none;
 }
 
 .deck-header-actions {
@@ -1187,8 +1203,24 @@ body:has(.is-compact .deck-bottom-bar) .lp-compass {
     padding-block: 0.2rem;
   }
 
+  /* Header space is tight here: drop the "Synced with planner" words but keep the Open link reachable. */
   .deck-header-actions .deck-planner-badge {
+    border: 0;
+    padding: 0;
+    font-size: 0;
+  }
+
+  .deck-header-actions .deck-planner-open {
+    margin-left: 0;
+    font-size: 0.75rem;
+  }
+
+  .deck-header-actions .deck-planner-open-long {
     display: none;
+  }
+
+  .deck-header-actions .deck-planner-open-short {
+    display: inline;
   }
 
   .is-compact .deck-tool-btn {

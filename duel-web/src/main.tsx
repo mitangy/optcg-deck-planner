@@ -7,6 +7,7 @@ import { ANALYTICS_TOKEN_ROUTES } from "./analyticsRoutes";
 import { createAnalyticsBeforeSend, reloadOnStaleChunk, startUpdateChecks } from "@optcg/ui/appShell";
 import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { watchAccountSync } from "./account/accountSync";
+import { claimPlannerHandoff } from "./auth/plannerLink";
 import { App } from "./App";
 import { DuelSessionProvider } from "./state/DuelSession";
 import "@optcg/ui/tokens.css";
@@ -35,14 +36,19 @@ startUpdateChecks();
 // A tab opened before a deploy asks for lazy-route chunks that no longer exist: reload instead of a blank page.
 reloadOnStaleChunk();
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <BrowserRouter>
-      <DuelSessionProvider>
-        <App />
-      </DuelSessionProvider>
-    </BrowserRouter>
-    <Analytics beforeSend={analyticsBeforeSend} />
-    <SpeedInsights beforeSend={analyticsBeforeSend} />
-  </StrictMode>,
-);
+// A link from the planner carries a sign-in ticket: claim it before the first render so the app starts signed in.
+// Capped, so a slow API never holds the page blank.
+const HANDOFF_WAIT_MS = 5000;
+void Promise.race([claimPlannerHandoff(), new Promise((resolve) => setTimeout(resolve, HANDOFF_WAIT_MS))]).then(() => {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <BrowserRouter>
+        <DuelSessionProvider>
+          <App />
+        </DuelSessionProvider>
+      </BrowserRouter>
+      <Analytics beforeSend={analyticsBeforeSend} />
+      <SpeedInsights beforeSend={analyticsBeforeSend} />
+    </StrictMode>,
+  );
+});

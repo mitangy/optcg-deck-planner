@@ -24,6 +24,9 @@ OAUTH_RETURN_COOKIE = "optcg_oauth_return"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30
 SESSION_RENEW_AFTER_SECONDS = 60 * 60 * 24 * 7
 LOGIN_TICKET_MAX_AGE_SECONDS = 120
+# A handoff ticket rides in a URL fragment between our two apps, so it lives much shorter than an OAuth return ticket.
+HANDOFF_TICKET_MAX_AGE_SECONDS = 60
+HANDOFF_AUDIENCES = ("planner", "duel")
 OAUTH_STATE_MAX_AGE_SECONDS = 600
 
 
@@ -33,6 +36,11 @@ def _serializer(settings: Settings) -> URLSafeTimedSerializer:
 
 def _ticket_serializer(settings: Settings) -> URLSafeTimedSerializer:
     return URLSafeTimedSerializer(settings.session_secret, salt="optcg-login-ticket")
+
+
+def _handoff_serializer(settings: Settings) -> URLSafeTimedSerializer:
+    # Its own salt: a handoff ticket fails signature checks everywhere a login ticket or session is read, and the reverse.
+    return URLSafeTimedSerializer(settings.session_secret, salt="optcg-handoff-ticket")
 
 
 def _oauth_serializer(settings: Settings) -> URLSafeTimedSerializer:
@@ -125,6 +133,22 @@ def create_login_ticket(
     )
 
 
+def _take_ticket_row(db: Session, jti: str, user_id: int) -> bool:
+    """Deletes the ticket row in one statement and reports whether this call was the one that did.
+
+    A read-then-delete would let two concurrent claims both see the row; the DELETE's row count is the single arbiter.
+    """
+    result = db.execute(
+        delete(LoginTicket).where(
+            LoginTicket.jti == jti,
+            LoginTicket.user_id == user_id,
+            LoginTicket.expires_at > datetime.now(timezone.utc),
+        )
+    )
+    db.commit()
+    return result.rowcount == 1
+
+
 def consume_login_ticket(
     db: Session,
     ticket: str,
@@ -143,16 +167,8 @@ def consume_login_ticket(
     jti = data.get("jti")
     if uid is None or not jti:
         return None
-    row = db.get(LoginTicket, jti)
-    if row is None:
+    if not _take_ticket_row(db, jti, int(uid)):
         return None
-    expires = as_utc(row.expires_at)
-    if expires < datetime.now(timezone.utc) or row.user_id != int(uid):
-        db.delete(row)
-        db.commit()
-        return None
-    db.delete(row)
-    db.commit()
     return int(uid)
 
 
@@ -279,3 +295,55 @@ def email_allowed(email: str, settings: Settings) -> bool:
     if settings.allow_any_google_user:
         return True
     return email.strip().lower() in settings.allowed_email_set
+
+
+def create_handoff_ticket(
+    db: Session,
+    user_id: int,
+    audience: str,
+    session_version: int = 0,
+    settings: Settings | None = None,
+) -> str:
+    """A single-use ticket that signs `user_id` in on the *other* app (#1502); `audience` names the app that may claim it."""
+    if audience not in HANDOFF_AUDIENCES:
+        raise ValueError(f"unknown handoff audience: {audience}")
+    settings = settings or get_settings()
+    jti = secrets.token_urlsafe(18)
+    now = datetime.now(timezone.utc)
+    db.execute(delete(LoginTicket).where(LoginTicket.expires_at < now))
+    db.add(
+        LoginTicket(
+            jti=jti,
+            user_id=user_id,
+            expires_at=now + timedelta(seconds=HANDOFF_TICKET_MAX_AGE_SECONDS),
+        )
+    )
+    db.commit()
+    return _handoff_serializer(settings).dumps(
+        {"uid": user_id, "sv": int(session_version), "purpose": "handoff", "aud": audience, "jti": jti}
+    )
+
+
+def consume_handoff_ticket(
+    db: Session,
+    ticket: str,
+    audience: str,
+    settings: Settings | None = None,
+) -> tuple[int, int] | None:
+    """Returns (user id, session version the ticket was minted under), or None."""
+    settings = settings or get_settings()
+    try:
+        data = _handoff_serializer(settings).loads(
+            ticket, max_age=HANDOFF_TICKET_MAX_AGE_SECONDS
+        )
+    except (BadSignature, SignatureExpired):
+        return None
+    if data.get("purpose") != "handoff" or data.get("aud") != audience:
+        return None
+    uid = data.get("uid")
+    jti = data.get("jti")
+    if uid is None or not jti:
+        return None
+    if not _take_ticket_row(db, jti, int(uid)):
+        return None
+    return int(uid), int(data.get("sv", 0))

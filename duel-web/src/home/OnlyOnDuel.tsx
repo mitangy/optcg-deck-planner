@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { useLogPoseAsk } from "@optcg/analyst-client";
 import { deckContext } from "../logPose";
-import { getPlannerLinkFromDuel } from "../config";
+import { usePlannerLink } from "../auth/plannerLink";
 import type { SavedDeck } from "../decks/storage";
 
 export function OnlyOnDuel({
@@ -10,6 +10,7 @@ export function OnlyOnDuel({
   deck: SavedDeck | null;
 }) {
   const ask = useLogPoseAsk();
+  const plannerLink = usePlannerLink("/");
   return (
     <section className="only-duel" aria-labelledby="only-duel-label">
       <h2 id="only-duel-label" className="only-duel-label">
@@ -36,7 +37,7 @@ export function OnlyOnDuel({
           <span className="only-tile-title">Replays</span>
           <span className="only-tile-blurb">Step through any game you played.</span>
         </Link>
-        <a href={getPlannerLinkFromDuel()} target="_blank" rel="noopener" className="only-tile">
+        <a {...plannerLink} className="only-tile">
           <span className="only-tile-title">Planner + prices</span>
           <span className="only-tile-blurb">Build decks with your collection and market prices.</span>
         </a>

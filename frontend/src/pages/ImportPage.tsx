@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
-import { DUEL_URL } from "../app/duelLink";
+import { duelLinkProps } from "../app/duelLink";
 import { useLogPoseDraft } from "./decks/logPose";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import { qk } from "../cache/queryKeys";
@@ -75,7 +75,7 @@ export function ImportPage() {
       </p>
       <p className="muted">
         Decks you make in the{" "}
-        <a href={`${DUEL_URL}/decks`} target="_blank" rel="noopener">
+        <a {...duelLinkProps("/decks")}>
           Duel app
         </a>{" "}
         show up here on their own. Decks you add here show up in the Duel app once they have 50 cards.

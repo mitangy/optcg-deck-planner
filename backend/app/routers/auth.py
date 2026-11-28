@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Literal
 from urllib.parse import urlparse
 
 from authlib.integrations.httpx_client import AsyncOAuth2Client
@@ -19,7 +19,10 @@ from app.core.auth import (
     OAUTH_STATE_MAX_AGE_SECONDS,
     SESSION_COOKIE,
     SESSION_RENEW_AFTER_SECONDS,
+    HANDOFF_TICKET_MAX_AGE_SECONDS,
+    consume_handoff_ticket,
     consume_login_ticket,
+    create_handoff_ticket,
     create_login_ticket,
     create_oauth_state,
     create_session_token,
@@ -35,7 +38,7 @@ from app.core.config import Settings, get_settings
 from app.core.db import get_db
 from app.core.models import User
 from app.core.time import as_utc
-from app.core.rate_limit import RateLimiter
+from app.core.rate_limit import RateLimiter, client_ip
 from app.roles import is_banned
 from app.core.schemas import UserOut, UsernameSuggestionOut, UsernameUpdate
 from app.usernames import (
@@ -48,6 +51,8 @@ from app.usernames import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 _username_rate = RateLimiter(max_calls=20, period_s=60, name="auth_username_rate")
+_claim_rate = RateLimiter(max_calls=30, period_s=60, name="auth_claim_rate")
+_handoff_rate = RateLimiter(max_calls=20, period_s=60, name="auth_handoff_rate")
 
 
 _SOURCE_CAPS = {"ref": 80, "land": 100, "utm_source": 60, "utm_medium": 60, "utm_campaign": 60}
@@ -85,8 +90,21 @@ class SignupSource(BaseModel):
 
 
 class ClaimBody(BaseModel):
-    ticket: str = Field(min_length=1)
+    ticket: str = Field(min_length=1, max_length=2000)
     source: SignupSource | None = None
+    # Present only when claiming a handoff ticket (#1502): the app doing the claiming.
+    handoff_audience: Literal["planner", "duel"] | None = None
+
+
+class HandoffBody(BaseModel):
+    # The app that will claim the ticket, i.e. the one the person is going to.
+    audience: Literal["planner", "duel"]
+
+
+class HandoffOut(BaseModel):
+    ticket: str
+    expires_in: int
+    user_id: int
 
 
 def _oauth_api_base(settings: Settings, return_to: str | None) -> str:
@@ -284,18 +302,46 @@ def claim_login(
     response: Response,
     db: Annotated[Session, Depends(get_db)],
     settings: Annotated[Settings, Depends(get_settings)],
+    request: Request,
 ):
-    user_id = consume_login_ticket(db, body.ticket, settings)
+    if not _claim_rate.allow(f"claim:{client_ip(request)}"):
+        raise HTTPException(status_code=429, detail="Too many sign-in attempts")
+    minted_sv: int | None = None
+    if body.handoff_audience is not None:
+        taken = consume_handoff_ticket(db, body.ticket, body.handoff_audience, settings)
+        user_id, minted_sv = taken if taken else (None, None)
+    else:
+        user_id = consume_login_ticket(db, body.ticket, settings)
     if user_id is None:
         raise HTTPException(status_code=400, detail="Invalid or expired login ticket")
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=400, detail="User not found")
+    # A sign-out bumps session_version: a handoff ticket minted before it must not revive the account.
+    if minted_sv is not None and minted_sv != int(user.session_version or 0):
+        raise HTTPException(status_code=400, detail="Invalid or expired login ticket")
     if is_banned(user):
         raise HTTPException(status_code=403, detail="Account banned")
     _record_signup_source(db, user, body.source)
     _set_session_cookie(response, user, settings)
     return user
+
+
+@router.post("/handoff", response_model=HandoffOut)
+def create_handoff(
+    body: HandoffBody,
+    db: Annotated[Session, Depends(get_db)],
+    settings: Annotated[Settings, Depends(get_settings)],
+    user: Annotated[User, Depends(get_current_user)],
+):
+    """Mint a short-lived ticket so a link from one of our apps to the other keeps the person signed in (#1502).
+
+    Guests have no account session, so they get a 401 here and the client opens the other app signed out.
+    """
+    if not _handoff_rate.allow(f"handoff:{user.id}"):
+        raise HTTPException(status_code=429, detail="Too many requests")
+    ticket = create_handoff_ticket(db, user.id, body.audience, int(user.session_version or 0), settings)
+    return HandoffOut(ticket=ticket, expires_in=HANDOFF_TICKET_MAX_AGE_SECONDS, user_id=user.id)
 
 
 def _record_signup_source(db: Session, user: User, source: SignupSource | None) -> None:

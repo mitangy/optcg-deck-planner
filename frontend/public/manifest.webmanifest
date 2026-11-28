@@ -1,6 +1,6 @@
 {
-  "name": "OPTCG Tracker",
-  "short_name": "OPTCG Tracker",
+  "name": "OPTCG Deck Planner",
+  "short_name": "Deck Planner",
   "start_url": "/",
   "scope": "/",
   "display": "browser",

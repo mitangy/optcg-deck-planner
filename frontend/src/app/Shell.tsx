@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, User } from "../api";
-import { DUEL_URL } from "./duelLink";
+import { duelLinkProps } from "./duelLink";
 import { DiscordLink } from "./DiscordLink";
 import { CornerNotices } from "./UpdateNotice";
 import { ThemeToggle } from "../ui/ThemeToggle";
@@ -29,7 +29,7 @@ export function Shell({ user, children }: { user: User; children: ReactNode }) {
     <CardLightboxActionContext.Provider value={renderLightboxActions}>
     <div className="app">
       <Topbar nav={<TopNav />}>
-        <a className="duel-nav-link" href={DUEL_URL} target="_blank" rel="noopener">
+        <a className="duel-nav-link" {...duelLinkProps("/")}>
           Play Duel
         </a>
         <NotificationsBell />
