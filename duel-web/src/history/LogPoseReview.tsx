@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnalystError, CitedAnswer, FeedbackBar, errorText, fetchSavedReview, streamAnalyst, useFeedback, useLogPose, placeAt, type FeedbackTarget, type PlacedCitation } from "@optcg/analyst-client";
+import { track } from "../analytics/events";
 import { reviewMode } from "../logPose";
 
 type ReviewState =
@@ -64,6 +65,7 @@ export function LogPoseReview({ matchId, finished }: { matchId: string; finished
 
   useEffect(() => {
     if (mode !== "auto") return;
+    track("review_opened");
     let live = true;
     setState({ kind: "loading" });
     fetchSavedReview(apiBase, matchId)

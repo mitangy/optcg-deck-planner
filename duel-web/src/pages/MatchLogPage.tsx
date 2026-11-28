@@ -1,4 +1,5 @@
 import { PageShell } from "../layout/PageShell";
+import { SignInLink } from "../analytics/SignInLink";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";
 import { Link, useParams } from "react-router-dom";
@@ -16,7 +17,7 @@ import { FINE_POINTER_QUERY } from "../board/preview/inspectGestures";
 import { useClickCopy } from "../board/input/clickCopy";
 import { openReport } from "../reports/reportDialog";
 import { historyReportTarget } from "../reports/reportTargets";
-import { ApiError, googleLoginUrl } from "../net/api";
+import { ApiError } from "../net/api";
 import { errorMessage } from "../lib/errors";
 import { useAsyncResource } from "../lib/useAsyncResource";
 import { useLogPose, useLogPosePage } from "@optcg/analyst-client";
@@ -205,9 +206,9 @@ export function MatchLogPage() {
         <section className="panel">
           <p className="panel-copy">Sign in to see your match logs.</p>
           <div className="btn-row">
-            <a className="btn btn-primary" href={googleLoginUrl()}>
+            <SignInLink className="btn btn-primary">
               Sign in with Google
-            </a>
+            </SignInLink>
           </div>
         </section>
       ) : null}

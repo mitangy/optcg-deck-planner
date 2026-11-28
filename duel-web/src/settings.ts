@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { trackSettingChanged } from "./analytics/events";
 import { asDonArtId } from "./board/don/donArt";
 import { OPP_HAND_SPOTS, type OppHandSpot } from "./board/panels/panelLayout";
 import { clampPopupSize } from "./board/preview/popupSize";
@@ -307,6 +308,7 @@ export function saveSettings(next: DuelSettings, opts: { remote?: boolean } = {}
 }
 
 export function updateSettings(patch: Partial<DuelSettings>): DuelSettings {
+  trackSettingChanged(patch, snapshot());
   const next = { ...snapshot(), ...patch };
   if ("bigBoard" in patch) next.bigBoardChosen = true;
   saveSettings(next);

@@ -9,6 +9,7 @@ import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { analyticsBeforeSend } from "./app/analytics";
 import App from "./app/App";
 import { readMetaSeed, releasePrerenderedRoot } from "./app/prerendered";
+import { startPlannerEvents } from "./app/productEvents";
 import "@optcg/ui/tokens.css";
 import "./styles.css";
 import "@optcg/deck-analytics/ui/deckAnalytics.css";
@@ -20,6 +21,7 @@ import "./friends/friends.css";
 import { qk } from "./cache/queryKeys";
 
 captureFirstTouch();
+startPlannerEvents();
 startUpdateChecks();
 // A tab opened before a deploy asks for lazy-route chunks that no longer exist: reload instead of a blank page (#1074).
 reloadOnStaleChunk();

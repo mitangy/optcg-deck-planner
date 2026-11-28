@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { WarningNotice } from "../warnings/WarningNotice";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { track } from "../analytics/events";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import { warmDuelServices } from "../net/api";
 import { takeJoinFallback } from "../net/joinLinks";
@@ -54,6 +55,10 @@ export function LobbyPage() {
   const joining = useLocation().pathname.startsWith("/join/");
   const watchRoomId = joining ? null : routeRoomId;
   const joinRoomId = joining ? routeRoomId : null;
+  useEffect(() => {
+    // A spectate or join link opens the lobby too, but that visitor came for a match, not the home page.
+    if (!routeRoomId) track("home_view");
+  }, [routeRoomId]);
   const [searchParams] = useSearchParams();
   const watchSeat = searchParams.get("seat") === "2" ? 1 : 0;
   const serverUrl = getGameServerUrl();

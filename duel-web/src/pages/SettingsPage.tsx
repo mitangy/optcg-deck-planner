@@ -1,4 +1,5 @@
 import { PageShell } from "../layout/PageShell";
+import { SignInLink } from "../analytics/SignInLink";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { getOrCreateGuestId } from "../auth/guestId";
@@ -13,7 +14,7 @@ import { SettingToggle } from "./SettingToggle";
 import { CosmeticActions, useCosmeticSlot } from "../cosmetics/CosmeticActions";
 import { CosmeticHistory } from "../cosmetics/CosmeticHistory";
 import { ImageEditor } from "../cosmetics/ImageEditor";
-import { googleLoginUrl, logoutSession } from "../net/api";
+import { logoutSession } from "../net/api";
 import { PLAYMAT_ASPECT, usePlaymatUrl } from "../playmat";
 import { GameplaySettingsFields, useFieldDevice } from "../board/settings/GameplaySettings";
 import { filterGroupsByQuery, visibleGroups } from "../board/settings/gameplayFields";
@@ -230,9 +231,9 @@ export function SettingsPage() {
               this browser). Sign in to keep your Bounty across devices.
             </p>
             <div className="btn-row">
-              <a className="btn btn-primary" href={googleLoginUrl()}>
+              <SignInLink className="btn btn-primary">
                 Sign in with Google
-              </a>
+              </SignInLink>
             </div>
           </>
         )}

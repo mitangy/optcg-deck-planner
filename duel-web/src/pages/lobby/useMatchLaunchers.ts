@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { gameEvents } from "../../analytics/events";
 import { getOrCreateGuestId } from "../../auth/guestId";
 import { roomInviteUrl } from "../../board/input/clipboard";
 import { getApiBaseUrl, getGameServerUrl } from "../../config";
@@ -30,6 +31,7 @@ import type { LobbyDecks } from "./useLobbyDecks";
 import type { useLobbyAuth } from "./useLobbyAuth";
 import type { LobbySheet } from "./useLobbySheet";
 
+const GAME_MODE = { queue: "ranked", bot: "bot", hotseat: "practice", create: "friend", join: "friend" } as const;
 const SPECTATE_GONE = /not found|locked/i;
 // Back from the match must not land on a join link and sit down again.
 const REPLACE_HISTORY = { replace: true };
@@ -88,6 +90,7 @@ export function useMatchLaunchers(deps: {
     launch: MatchLaunch,
     fn: (launchGen: number) => Promise<void>,
     navOpts?: { replace?: boolean },
+    mode = "friend",
   ) {
     if (authMode === "dev" && !settings.devUserKey.trim()) {
       setFriendError("Set a dev user key in Settings first.");
@@ -96,6 +99,7 @@ export function useMatchLaunchers(deps: {
     setFriendError(null);
     clearMatchResume();
     clearActiveTournamentMatch();
+    if (launch.leaderId) gameEvents.stash(mode);
     startMatch(launch, fn);
     navigate("/duel", navOpts);
   }
@@ -205,7 +209,7 @@ export function useMatchLaunchers(deps: {
         setActiveTournamentMatch({ code: tp.code, matchId: tp.matchId, roomId: client.roomId });
         await playTournamentMatch(tp.code, tp.matchId, { room_id: client.roomId, server_url: client.serverUrl }).catch(() => undefined);
       }
-    });
+    }, undefined, "tournament");
   }
 
   function spectateFriend(friend: Friend) {
@@ -323,6 +327,7 @@ export function useMatchLaunchers(deps: {
       return;
     }
     onModeStarted(mode);
+    if (mode !== "spectate") gameEvents.stash(GAME_MODE[mode]);
     setBusy(true);
     setBusyStatus(mode === "hotseat" ? "Starting…" : "Connecting…");
     setError(null);
