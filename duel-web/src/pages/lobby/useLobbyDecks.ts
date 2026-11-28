@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { track } from "../../analytics/events";
 import { cardDataReady, useCardDataReady } from "../../cards/cardData";
 import {
   ensureDefaultDeck,
@@ -56,6 +57,8 @@ export function useLobbyDecks() {
   const selectedDeck = useMemo(() => decks.find((d) => d.id === selectedId) ?? null, [decks, selectedId]);
 
   function chooseDeck(id: string) {
+    const picked = decks.find((d) => d.id === id);
+    if (picked) track("deck_picked", { leader: picked.leaderId });
     setSelectedId(id);
     setSelectedDeckId(id);
   }

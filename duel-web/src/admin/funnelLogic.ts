@@ -9,18 +9,17 @@ const STEP_LABELS: Record<string, string> = {
   signup: "Signed up",
 };
 
-export type FunnelRow = { step: string; label: string; visitors: number; events: number; barPct: number; ofPrevious: string | null };
+export type FunnelRow = { step: string; label: string; visitors: number; events: number; barPct: number };
 
-/** Each step's bar is scaled to the busiest step; `ofPrevious` is the share of the step above that reached it. */
+/** Each step's bar is scaled to the busiest step. The steps are volumes: they are not one tracked path, so no step is a share of the one above. */
 export function funnelRows(steps: AdminFunnel["steps"]): FunnelRow[] {
   const top = Math.max(1, ...steps.map((s) => s.visitors));
-  return steps.map((s, i) => ({
+  return steps.map((s) => ({
     step: s.step,
     label: STEP_LABELS[s.step] ?? s.step,
     visitors: s.visitors,
     events: s.events,
     barPct: (s.visitors / top) * 100,
-    ofPrevious: i === 0 ? null : percent(s.visitors, steps[i - 1]!.visitors),
   }));
 }
 

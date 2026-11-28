@@ -1,7 +1,7 @@
 """Funnel events and return visits (#1499).
 
 New table ``product_events`` (one row per funnel step: landing, home_view, game_start, ...) and
-``users.last_seen_at`` (the UTC day of a user's newest authenticated request, stamped once a day).
+``users.last_seen_at`` (when a user's newest UTC day of activity began, stamped once a day).
 
 Idempotent: the table, its indexes and the column are skipped when they already exist.
 
@@ -43,7 +43,10 @@ def upgrade() -> None:
     if "ix_product_events_user_id" not in have:
         op.create_index("ix_product_events_user_id", "product_events", ["user_id"])
     if "last_seen_at" not in {c["name"] for c in insp.get_columns("users")}:
-        op.add_column("users", sa.Column("last_seen_at", sa.Date(), nullable=True))
+        if bind.dialect.name == "postgresql":
+            # Fail fast instead of queueing behind a long transaction and blocking every login behind the ALTER.
+            op.execute("SET LOCAL lock_timeout = '5s'")
+        op.add_column("users", sa.Column("last_seen_at", sa.DateTime(timezone=True), nullable=True))
 
 
 def downgrade() -> None:

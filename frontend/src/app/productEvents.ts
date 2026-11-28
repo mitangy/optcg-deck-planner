@@ -1,22 +1,8 @@
-import { createProductEvents } from "@optcg/api-client";
-import { readStored, writeStored } from "@optcg/ui/storage";
+import { createProductEvents, sessionAnonId } from "@optcg/api-client";
 import { getApiBaseUrl } from "../apiClient";
 import { DUEL_URL } from "./duelLink";
 
-const ANON_KEY = "optcg.anonId.v1";
-const ANON_RE = /^[a-zA-Z0-9_-]{8,64}$/;
-
-function anonId(): string | null {
-  const existing = readStored(ANON_KEY);
-  if (existing && ANON_RE.test(existing)) return existing;
-  const next =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID().replace(/-/g, "")
-      : `a${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
-  return writeStored(ANON_KEY, next) ? next : null;
-}
-
-export const productEvents = createProductEvents({ app: "planner", endpoint: () => `${getApiBaseUrl()}/events`, anonId });
+export const productEvents = createProductEvents({ app: "planner", endpoint: () => `${getApiBaseUrl()}/events`, anonId: sessionAnonId });
 
 /** The duel app's links add `?from=duel`; a plain referrer from the duel site counts too. Returns true when it was a duel visit. */
 export function cameFromDuel(search: string, referrer: string, duelUrl: string): boolean {
@@ -28,11 +14,24 @@ export function cameFromDuel(search: string, referrer: string, duelUrl: string):
   }
 }
 
+const OPENED_KEY = "optcg.fromDuel.v1";
+
+/** True the first time in this tab session: a reload keeps the referrer but is not a new visit. */
+export function firstFromDuelThisSession(storage: Pick<Storage, "getItem" | "setItem">): boolean {
+  try {
+    if (storage.getItem(OPENED_KEY)) return false;
+    storage.setItem(OPENED_KEY, "1");
+  } catch {
+    // Storage blocked: count it.
+  }
+  return true;
+}
+
 /** Counts one planner visit that came from the duel app, then drops the marker so a shared link does not carry it. */
 export function startPlannerEvents(): void {
   productEvents.start();
   if (!cameFromDuel(window.location.search, document.referrer, DUEL_URL)) return;
-  productEvents.track("planner_open_from_duel");
+  if (firstFromDuelThisSession(sessionStorage)) productEvents.track("planner_open_from_duel");
   const url = new URL(window.location.href);
   if (url.searchParams.has("from")) {
     url.searchParams.delete("from");

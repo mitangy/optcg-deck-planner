@@ -2844,7 +2844,7 @@ export interface paths {
          * Record Events
          * @description A batch of funnel events from the browser (``navigator.sendBeacon`` sends it as text/plain).
          *
-         *     The body is read by hand because a beacon cannot set a JSON content type without a CORS preflight.
+         *     The body is parsed by hand because a beacon cannot set a JSON content type without a CORS preflight.
          */
         post: operations["record_events_events_post"];
         delete?: never;
@@ -16325,9 +16325,7 @@ export interface operations {
     record_events_events_post: {
         parameters: {
             query?: never;
-            header?: {
-                authorization?: string | null;
-            };
+            header?: never;
             path?: never;
             cookie?: never;
         };
@@ -16339,15 +16337,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
             };
         };
     };

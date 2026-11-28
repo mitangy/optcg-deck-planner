@@ -7,7 +7,7 @@ from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
-from sqlalchemy import delete, select
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
@@ -171,12 +171,23 @@ def read_login_ticket(ticket: str, settings: Settings | None = None) -> int | No
 
 
 def touch_last_seen(db: Session, user: User) -> None:
-    """Stamp today's UTC date on the user, writing only when the day changed (#1499)."""
-    today = utcnow().date()
-    if user.last_seen_at is not None and user.last_seen_at >= today:
+    """Stamp now on the user, writing only when the UTC day changed (#1499).
+
+    The loaded value short-circuits most requests with no query; the conditional UPDATE keeps two
+    concurrent first requests of a day from both writing.
+    """
+    now = utcnow()
+    start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    seen = as_utc(user.last_seen_at) if user.last_seen_at is not None else None
+    if seen is not None and seen >= start:
         return
     try:
-        user.last_seen_at = today
+        db.execute(
+            update(User)
+            .where(User.id == user.id, or_(User.last_seen_at.is_(None), User.last_seen_at < start))
+            .values(last_seen_at=now)
+            .execution_options(synchronize_session=False)
+        )
         db.commit()
     except SQLAlchemyError:
         # Return-visit stats must never fail a real request.

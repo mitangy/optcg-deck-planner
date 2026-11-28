@@ -7,9 +7,15 @@ a random client id the page made up itself.
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta
 from typing import Any
 
-# ``signup`` is also written server side when an account is created; the browser may send it too.
+from sqlalchemy import delete, select
+from sqlalchemy.orm import Session
+
+from app.admin.models import ProductEvent
+
+# ``signup`` is not here: it is written server side when an account is created, so a browser cannot inflate it.
 EVENT_NAMES = frozenset(
     {
         "landing",
@@ -18,12 +24,14 @@ EVENT_NAMES = frozenset(
         "game_start",
         "game_done",
         "signup_prompt_shown",
-        "signup",
         "review_opened",
         "planner_open_from_duel",
         "setting_changed",
     }
 )
+# Events that mean "this visitor showed up today": a second one the same UTC day adds nothing.
+ONCE_A_DAY = frozenset({"landing", "home_view"})
+KEEP_DAYS = 180
 APPS = frozenset({"duel", "planner"})
 MAX_BATCH = 20
 MAX_BODY_BYTES = 16 * 1024
@@ -76,3 +84,16 @@ def clean_batch(raw: Any) -> list[tuple[str, dict[str, str | int | bool] | None]
         if isinstance(name, str) and name in EVENT_NAMES:
             out.append((name, clean_props(item.get("props"))))
     return out
+
+
+def already_today(db: Session, names: set[str], *, user_id: int | None, anon_id: str | None, since: datetime) -> set[str]:
+    """Which of the once-a-day ``names`` this visitor already has since ``since`` (start of the UTC day)."""
+    who = ProductEvent.user_id == user_id if user_id is not None else ProductEvent.anon_id == anon_id
+    return set(db.scalars(select(ProductEvent.name).where(who, ProductEvent.name.in_(names), ProductEvent.created_at >= since).distinct()))
+
+
+def prune_old(db: Session, now: datetime) -> int:
+    """Delete events older than ``KEEP_DAYS``; the privacy policy promises it."""
+    res = db.execute(delete(ProductEvent).where(ProductEvent.created_at < now - timedelta(days=KEEP_DAYS)))
+    db.commit()
+    return res.rowcount or 0

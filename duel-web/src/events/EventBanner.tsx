@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useId, useState } from "react";
+import { SignInLink } from "../analytics/SignInLink";
 import { Link } from "react-router-dom";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 import { usePolling } from "../lib/usePolling";
-import { googleLoginUrl } from "../net/api";
 import { type DuelEvent, fetchCurrentEvent, joinEvent } from "./eventApi";
 import { bannerCta, closedNote, eventPhase, eventStyleLabel, formatWindow, prizeLine, progressLabel, staffNote, statusLine, usesDraw } from "./eventLogic";
 
@@ -128,9 +128,9 @@ export function EventBanner() {
             {usesDraw(event) ? "Join the giveaway" : "Join the event"}
           </button>
         ) : cta === "signin" ? (
-          <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
+          <SignInLink className="btn btn-primary btn-sm">
             Sign in to join
-          </a>
+          </SignInLink>
         ) : cta === "joined" ? (
           <span className="event-progress" data-eligible={progress?.eligible ? "true" : "false"}>
             <b>{usesDraw(event) && progress?.eligible ? "✓ Eligible" : "Entered"}</b>

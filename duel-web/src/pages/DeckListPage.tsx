@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import { SignInLink } from "../analytics/SignInLink";
 import { useNavigate } from "react-router-dom";
 import { DeckConfigHeader } from "../layout/DeckConfigHeader";
 import { isIncompleteDeck } from "../decks/deckStatus";
@@ -17,7 +18,7 @@ import {
 import { useCopyDeckList, useToast } from "../decks/useCopyDeckList";
 import { applyPlannerDeepLink, parsePlannerDeepLink } from "../decks/planner";
 import { ensureAuth } from "../auth/session";
-import { googleLoginUrl, type AuthUser } from "../net/api";
+import { type AuthUser } from "../net/api";
 import type { ImportIntoDeckResult } from "../decks/storage";
 import { useSavedDecksVersion } from "../decks/useSavedDecksVersion";
 import { Dialog, DialogTitle, Listbox, ListboxButton, ListboxList, ListboxOption, Menu, MenuButton, MenuItem, MenuList } from "@optcg/ui/popups";
@@ -438,9 +439,9 @@ export function DeckListPage() {
               "Signed in: your decks stay in sync with the deck planner. Planner decks show up here once they have 50 cards."
             ) : (
               <>
-                <a className="linkish" href={googleLoginUrl(window.location.origin + "/decks")}>
+                <SignInLink className="linkish" returnTo={window.location.origin + "/decks"}>
                   Sign in with Google
-                </a>{" "}
+                </SignInLink>{" "}
                 to keep your decks in sync with the deck planner.
               </>
             ))}

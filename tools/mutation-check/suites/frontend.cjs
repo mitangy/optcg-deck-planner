@@ -950,5 +950,6 @@ module.exports = {
     {"id": "pe1499-planner-marker-ignored", "file": "frontend/src/app/productEvents.ts", "from": ".get(\"from\") === \"duel\"", "to": ".get(\"from\") === \"never\"", "kills": ["the duel link's marker counts, whatever the referrer says (#1499)"], "args": "src/app/productEvents1499.test.ts"},
     {"id": "pe1499-planner-referrer-prefix-match", "file": "frontend/src/app/productEvents.ts", "from": "new URL(referrer).origin === new URL(duelUrl).origin", "to": "new URL(referrer).origin.startsWith(new URL(duelUrl).origin)", "kills": ["a visit from search, another site or a different marker value does not count (#1499)"], "args": "src/app/productEvents1499.test.ts"},
     {"id": "pe1499-planner-referrer-ignored", "file": "frontend/src/app/productEvents.ts", "from": "return referrer !== \"\" && new URL(referrer).origin === new URL(duelUrl).origin;", "to": "return false;", "kills": ["a referrer from the duel site counts when the marker was lost (#1499)"], "args": "src/app/productEvents1499.test.ts"},
+    {"id": "pe1499-planner-reload-counts-again", "file": "frontend/src/app/productEvents.ts", "from": "    if (storage.getItem(OPENED_KEY)) return false;\n", "to": "", "kills": ["a reload in the same tab session is not a second visit from the duel app (#1499)"], "args": "src/app/productEvents1499.test.ts"},
 ],
 };

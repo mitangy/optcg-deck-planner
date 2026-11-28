@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { trackGameStart } from "../../analytics/events";
+import { gameEvents } from "../../analytics/events";
 import { getOrCreateGuestId } from "../../auth/guestId";
 import { getApiBaseUrl, getGameServerUrl } from "../../config";
 import { refreshLinkedDeck } from "../../decks/planner";
@@ -92,7 +92,7 @@ export function useMatchLaunchers(deps: {
     setFriendError(null);
     clearMatchResume();
     clearActiveTournamentMatch();
-    if (launch.leaderId) trackGameStart(mode, launch.leaderId);
+    if (launch.leaderId) gameEvents.stash(mode);
     startMatch(launch, fn);
     navigate("/duel", navOpts);
   }
@@ -268,7 +268,7 @@ export function useMatchLaunchers(deps: {
       return;
     }
     onModeStarted(mode);
-    if (mode !== "spectate") trackGameStart(GAME_MODE[mode], selectedDeck?.leaderId);
+    if (mode !== "spectate") gameEvents.stash(GAME_MODE[mode]);
     setBusy(true);
     setBusyStatus(mode === "hotseat" ? "Starting…" : "Connecting…");
     setError(null);

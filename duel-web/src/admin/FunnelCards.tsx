@@ -21,7 +21,7 @@ export function FunnelCards({ days, stale = false, load = fetchAdminFunnel }: { 
   return (
     <div className={`adm-grid2 adm-funnel-grid${stale || !data ? " adm-stale" : ""}`}>
       <section className="panel" aria-label="Funnel">
-        <h2 className="panel-title">Funnel, last {days} days</h2>
+        <h2 className="panel-title">Step volumes, last {days} days</h2>
         {data && rows.every((r) => r.events === 0) ? (
           <p className="panel-copy adm-muted">No events yet. They arrive as people use the apps.</p>
         ) : (
@@ -30,7 +30,6 @@ export function FunnelCards({ days, stale = false, load = fetchAdminFunnel }: { 
               <li key={r.step} className="adm-funnel-row">
                 <span className="adm-funnel-label">{r.label}</span>
                 <span className="adm-funnel-num">{data ? n(r.visitors) : "—"}</span>
-                <span className="adm-funnel-pct">{r.ofPrevious ?? ""}</span>
                 <span className="adm-funnel-bar" aria-hidden>
                   <i style={{ width: `${r.barPct}%` }} />
                 </span>
@@ -38,7 +37,7 @@ export function FunnelCards({ days, stale = false, load = fetchAdminFunnel }: { 
             ))}
           </ol>
         )}
-        <p className="adm-note">Distinct visitors per step, not one path: a step counts people who did it, whether or not they did the one above. The percentage is against the step above.</p>
+        <p className="adm-note">Visitors who reached each step, not one tracked path: a step counts people who did it whether or not they did the one above, so steps are not percentages of each other. Staff are left out. Sign-ups are counted by the server.</p>
       </section>
 
       <section className="panel" aria-label="Return visits">
@@ -77,10 +76,10 @@ export function FunnelCards({ days, stale = false, load = fetchAdminFunnel }: { 
             </tbody>
           </table>
         )}
-        <p className="adm-note">Real accounts seen on day 1 or later / day 7 or later after signing up, from the last day they were seen and their match history. Accounts too new for that day are left out.</p>
+        <p className="adm-note">Real accounts (not staff or guests) active at least 24 hours / 7 days after signing up, from the last day they were seen and their match history. Accounts too new for that are left out.</p>
       </section>
     </div>
   );
 }
 
-const PLACEHOLDER_ROWS = ["Landed on a guide page", "Saw the home page", "Started a game", "Finished a game", "Signed up"].map((label) => ({ step: label, label, visitors: 0, events: 0, barPct: 0, ofPrevious: null as string | null }));
+const PLACEHOLDER_ROWS = ["Landed on a guide page", "Saw the home page", "Started a game", "Finished a game", "Signed up"].map((label) => ({ step: label, label, visitors: 0, events: 0, barPct: 0 }));

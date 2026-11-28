@@ -1,8 +1,8 @@
 import { PageShell } from "../layout/PageShell";
+import { SignInLink } from "../analytics/SignInLink";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Select } from "@optcg/ui/popups";
-import { googleLoginUrl } from "../net/api";
 import { TIMER_PRESET_OPTIONS, type TimerPreset } from "../home/timerPreset";
 import { ROUND_ROBIN_SIZES, SINGLE_ELIM_SIZES } from "./bracket";
 import { useTournaments, useWho } from "./hooks";
@@ -124,9 +124,9 @@ export function TournamentsPage() {
         <section className="panel">
           <p className="panel-copy">Sign in to run or join a tournament with your friends.</p>
           <div className="btn-row">
-            <a className="btn btn-primary" href={googleLoginUrl()}>
+            <SignInLink className="btn btn-primary">
               Sign in with Google
-            </a>
+            </SignInLink>
           </div>
         </section>
       ) : null}

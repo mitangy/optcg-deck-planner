@@ -13,7 +13,6 @@ export type ProductEventName =
   | "game_start"
   | "game_done"
   | "signup_prompt_shown"
-  | "signup"
   | "review_opened"
   | "planner_open_from_duel"
   | "setting_changed";
@@ -43,6 +42,27 @@ export type ProductEventsEnv = {
 
 export const MAX_BATCH = 20;
 const MAX_QUEUE = 100;
+const ANON_KEY = "optcg.anonId.v1";
+const ANON_RE = /^[a-zA-Z0-9_-]{8,64}$/;
+
+/**
+ * A random id for this tab's session only (session storage, so it is gone when the tab closes): funnel counts
+ * need to tell visits apart, not to follow a person between visits. Null when storage is blocked.
+ */
+export function sessionAnonId(): string | null {
+  try {
+    const existing = sessionStorage.getItem(ANON_KEY);
+    if (existing && ANON_RE.test(existing)) return existing;
+    const next =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID().replace(/-/g, "")
+        : `a${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`;
+    sessionStorage.setItem(ANON_KEY, next);
+    return next;
+  } catch {
+    return null;
+  }
+}
 export const FLUSH_MS = 10_000;
 
 function browserEnv(): ProductEventsEnv {
@@ -105,7 +125,13 @@ export function createProductEvents(opts: ProductEventsOptions): ProductEvents {
   return {
     track(name, props) {
       if (muted()) return;
-      if (queue.length >= MAX_QUEUE) queue.shift();
+      // A setting dragged back and forth is one fact, not one event per change.
+      if (name === "setting_changed" && queue.some((e) => e.name === name && e.props?.key === props?.key)) return;
+      if (queue.length >= MAX_QUEUE) {
+        // Make room by dropping the least useful event: settings first, then the oldest.
+        const low = queue.findIndex((e) => e.name === "setting_changed");
+        queue.splice(low === -1 ? 0 : low, 1);
+      }
       queue.push(props ? { name, props } : { name });
     },
     flush,

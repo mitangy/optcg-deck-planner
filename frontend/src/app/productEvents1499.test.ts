@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cameFromDuel } from "./productEvents";
+import { cameFromDuel, firstFromDuelThisSession } from "./productEvents";
 
 const DUEL = "https://optcgduel.app";
 
@@ -17,5 +17,12 @@ describe("planner visits that came from the duel app (#1499)", () => {
     expect(cameFromDuel("?from=share", "", DUEL)).toBe(false);
     expect(cameFromDuel("", "https://optcgduel.app.evil.test/", DUEL)).toBe(false);
     expect(cameFromDuel("", "", DUEL)).toBe(false);
+  });
+
+  it("a reload in the same tab session is not a second visit from the duel app (#1499)", () => {
+    const m = new Map<string, string>();
+    const storage = { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
+    expect(firstFromDuelThisSession(storage)).toBe(true);
+    expect(firstFromDuelThisSession(storage)).toBe(false);
   });
 });

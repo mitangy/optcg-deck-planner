@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
+import { SignInLink } from "../analytics/SignInLink";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ApiError, googleLoginUrl } from "../net/api";
+import { ApiError } from "../net/api";
 import { PageShell } from "../layout/PageShell";
 import { ensureDefaultDeck, getSelectedDeckId, listSavedDecks, setSelectedDeckId } from "../decks/storage";
 import { useFriends } from "../friends/FriendsPanel";
@@ -120,9 +121,9 @@ export function TournamentPage() {
           <section className="panel">
             <p className="panel-copy">Sign in to see and join this tournament.</p>
             <div className="btn-row">
-              <a className="btn btn-primary" href={googleLoginUrl()}>
+              <SignInLink className="btn btn-primary">
                 Sign in with Google
-              </a>
+              </SignInLink>
             </div>
           </section>
         ) : null}

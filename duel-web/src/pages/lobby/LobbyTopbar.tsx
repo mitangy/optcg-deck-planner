@@ -1,9 +1,9 @@
 import { Link } from "react-router-dom";
+import { SignInLink } from "../../analytics/SignInLink";
 import { BountyAmount } from "../../Bounty";
 import { BrandWordmark } from "../../BrandMark";
 import { NavMenu } from "../../nav/NavMenu";
 import { INLINE_NAV } from "../../nav/navItems";
-import { googleLoginUrl } from "../../net/api";
 import { ProfileAvatar } from "../../profile/ProfileAvatar";
 import { useDuelSettings } from "../../settings";
 
@@ -25,9 +25,9 @@ export function LobbyTopbar({ authMode, accountName, bounty }: { authMode: "gues
         </nav>
         <div className="topbar-right">
           {authMode === "guest" ? (
-            <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
+            <SignInLink className="btn btn-primary btn-sm">
               Sign in
-            </a>
+            </SignInLink>
           ) : null}
           <Link to="/profile" className="account-chip" title="Your profile" aria-label={`Your profile: ${accountName}`}>
             {profileCard ? <ProfileAvatar cardId={profileCard} artId={profileArt} name={accountName} size={22} /> : <span className="account-dot" data-mode={authMode} aria-hidden />}

@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createProductEvents, type ProductEventsEnv } from "./productEvents";
+import { createProductEvents, sessionAnonId, type ProductEventsEnv } from "./productEvents";
 
 function harness(over: Partial<ProductEventsEnv> = {}, allowAutomation = false) {
   const beacons: { url: string; type: string; body: Promise<string> }[] = [];
@@ -89,5 +89,50 @@ describe("funnel event queue (#1499)", () => {
     h.events.start()();
     expect(h.stops.listen).toHaveBeenCalledOnce();
     expect(h.stops.timer).toHaveBeenCalledOnce();
+  });
+});
+
+describe("queue shape and visitor id (#1499)", () => {
+  it("a setting changed again before the next send is one event, not one per change (#1499)", async () => {
+    const h = harness();
+    h.events.track("setting_changed", { key: "theme" });
+    h.events.track("setting_changed", { key: "theme" });
+    h.events.track("setting_changed", { key: "reduceMotion" });
+    h.events.flush();
+    const body = JSON.parse(await h.beacons[0]!.body);
+    expect(body.events.map((e: { props: { key: string } }) => e.props.key)).toEqual(["theme", "reduceMotion"]);
+  });
+
+  it("a full queue drops a setting before it drops funnel events (#1499)", async () => {
+    const h = harness();
+    h.events.track("home_view");
+    h.events.track("setting_changed", { key: "theme" });
+    for (let i = 0; i < 98; i++) h.events.track("review_opened");
+    h.events.track("game_start", { mode: "bot" });
+    h.events.flush();
+    const sent = (await Promise.all(h.beacons.map((b) => b.body))).flatMap((b) => JSON.parse(b).events);
+    expect(sent).toHaveLength(100);
+    expect(sent.some((e: { name: string }) => e.name === "setting_changed")).toBe(false);
+    expect(sent[0].name).toBe("home_view");
+  });
+
+  it("the visitor id lives in session storage only and stays the same within the tab (#1499)", () => {
+    const store = () => {
+      const m = new Map<string, string>();
+      return { m, getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
+    };
+    const session = store();
+    const local = store();
+    vi.stubGlobal("sessionStorage", session);
+    vi.stubGlobal("localStorage", local);
+    try {
+      const id = sessionAnonId();
+      expect(id).toMatch(/^[a-zA-Z0-9_-]{8,64}$/);
+      expect(sessionAnonId()).toBe(id);
+      expect(session.m.size).toBe(1);
+      expect(local.m.size).toBe(0);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

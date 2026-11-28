@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { matchPath } from "react-router-dom";
-import { startProductEvents, track, trackGameDone } from "./events";
+import { routeMetaFor } from "../seo/routeMetaTable";
+import { gameEvents, startProductEvents, track } from "./events";
 
 /** The pages search engines send people to; every other page is somewhere a visitor already was. */
 const LANDER_PATTERNS = [
@@ -16,8 +17,10 @@ export function isSeoLander(pathname: string): boolean {
   return LANDER_PATTERNS.some((pattern) => matchPath({ path: pattern, end: true }, pathname) !== null);
 }
 
-/** Every sign-in prompt in the app is a link to Google sign-in, so one selector finds them all. */
-export const SIGN_IN_PROMPT = 'a[href*="/auth/google"]';
+/** The route pattern ("/leaders/:slug"), so an event never carries an id from the URL. */
+export function routePattern(pathname: string): string {
+  return routeMetaFor(pathname).pattern;
+}
 
 const LANDED_KEY = "optcg.landed.v1";
 
@@ -33,8 +36,6 @@ function alreadyLanded(): boolean {
 
 export function useProductEvents(pathname: string, emit: typeof track = track): void {
   const first = useRef(true);
-  const emitRef = useRef(emit);
-  emitRef.current = emit;
   useEffect(() => startProductEvents(), []);
 
   useEffect(() => {
@@ -42,30 +43,28 @@ export function useProductEvents(pathname: string, emit: typeof track = track): 
     first.current = false;
     // A reload of the same tab is not a new visit.
     if (!isSeoLander(pathname) || alreadyLanded()) return;
-    emitRef.current("landing", { path: pathname });
+    emit("landing", { path: routePattern(pathname) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
+}
 
-  const path = useRef(pathname);
-  path.current = pathname;
+/** Records that a player saw a sign-in prompt, once each time one appears. */
+export function useSignInPromptShown(pathname: string, emit: typeof track = track): void {
   useEffect(() => {
-    let shownOn: string | null = null;
-    const look = () => {
-      const now = document.querySelector(SIGN_IN_PROMPT) ? path.current : null;
-      if (now !== null && now !== shownOn) emitRef.current("signup_prompt_shown", { path: now });
-      shownOn = now;
-    };
-    look();
-    const observer = new MutationObserver(look);
-    observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    emit("signup_prompt_shown", { path: routePattern(pathname) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 }
 
-/** One `game_done` each time a game you played ends (a rematch ends again); watching or replaying does not count. */
-export function useGameDoneEvent(over: boolean, fallbackMode?: string): void {
-  const mode = useRef(fallbackMode);
-  mode.current = fallbackMode;
+/** game_start on the first view of a new match, game_done when it ends; watching or replaying does not count. */
+export function useGameEvents(opts: { matchId: string | null; leaderId: string | null | undefined; over: boolean; playing: boolean; fallbackMode: string }): void {
+  const { matchId, leaderId, over, playing, fallbackMode } = opts;
   useEffect(() => {
-    if (over) trackGameDone(mode.current);
-  }, [over]);
+    if (playing && matchId && leaderId) gameEvents.started(matchId, leaderId, fallbackMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, matchId, leaderId]);
+  useEffect(() => {
+    if (playing && matchId && over) gameEvents.finished(matchId, fallbackMode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [playing, matchId, over]);
 }

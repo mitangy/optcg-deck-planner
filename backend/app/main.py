@@ -26,11 +26,14 @@ async def lifespan(_app: FastAPI):
         from app.core.db import SessionLocal
 
         from app.analyst.stats import backfill_seats
+        from app.admin.product_events import prune_old
+        from app.core.time import utcnow
 
         db = SessionLocal()
         try:
             refresh_special_flags(db)
             backfill_seats(db)
+            prune_old(db, utcnow())
         finally:
             db.close()
     from app.analyst.tournament_sync import start_background
