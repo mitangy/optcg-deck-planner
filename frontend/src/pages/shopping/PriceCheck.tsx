@@ -10,6 +10,8 @@ import { CardThumb } from "../../ui/CardThumb";
 import { CardSearchInput } from "../../ui/cardListControls";
 import { InlineSkeleton } from "../../ui/Skeleton";
 import { AltArtChip } from "../collection/CatalogAddDrawer";
+import { CollectionAltControl, CollectionOwnedControl } from "../collection/CollectionAddPanel";
+import { priceCheckOwned } from "./priceCheckOwned";
 import { recentKey, recentLookupsCodec, withRecentLookup } from "./priceCheckRecents";
 import { Dialog, DialogTitle } from "@optcg/ui/popups";
 import { usePersistedState } from "@optcg/ui/storage";
@@ -100,6 +102,11 @@ function PriceCheckDialog({ onClose }: { onClose: () => void }) {
     placeholderData: keepPreviousData,
   });
 
+  // Counts come from the live collection (shared cache with Shopping), never from a search row or a stored recent: those are snapshots.
+  const ownedQ = useQuery({ queryKey: qk.owned.all(), queryFn: () => api.ownedCollection() });
+  const ownedItems = ownedQ.data?.items;
+  const ownedOf = ownedItems ? (card: CatalogCardResult) => priceCheckOwned(ownedItems, card) : null;
+
   const [stored, setStored] = usePersistedState<CatalogCardResult[]>(PRICE_CHECK_RECENTS_KEY, [], recentLookupsCodec);
   // Recents are listed as they were when the list was last shown: tapping a price must not move the row under the finger.
   const [shownRecents, setShownRecents] = useState(stored);
@@ -141,7 +148,7 @@ function PriceCheckDialog({ onClose }: { onClose: () => void }) {
             </div>
             <ul className="price-check-list">
               {shownRecents.map((card) => (
-                <PriceCheckRow key={recentKey(card)} card={card} onLookup={looked} />
+                <PriceCheckRow key={recentKey(card)} card={card} onLookup={looked} ownedOf={ownedOf} />
               ))}
             </ul>
           </>
@@ -158,7 +165,7 @@ function PriceCheckDialog({ onClose }: { onClose: () => void }) {
     body = (
       <ul className="price-check-list" aria-busy={debouncedQ !== trimmed || searchQ.isFetching}>
         {searchQ.data.map((card) => (
-          <PriceCheckRow key={recentKey(card)} card={card} onLookup={looked} />
+          <PriceCheckRow key={recentKey(card)} card={card} onLookup={looked} ownedOf={ownedOf} />
         ))}
       </ul>
     );
@@ -183,7 +190,33 @@ function PriceCheckDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
-function PriceCheckRow({ card, onLookup }: { card: CatalogCardResult; onLookup: (card: CatalogCardResult) => void }) {
+/** Add / stepper for one row. Disabled "Add" in the same box until the live count is known, so a tap cannot overwrite a saved count. */
+function PriceCheckOwned({ card, owned }: { card: CatalogCardResult; owned: number | null }) {
+  if (owned === null) {
+    return (
+      <span className="collection-owned-control">
+        <button type="button" className="btn secondary" disabled aria-label={`Add ${card.card_id} to collection`}>
+          Add
+        </button>
+      </span>
+    );
+  }
+  return card.alt_product_id ? (
+    <CollectionAltControl card={{ ...card, owned }} onSaved={() => {}} />
+  ) : (
+    <CollectionOwnedControl cardId={card.card_id} owned={owned} onSaved={() => {}} />
+  );
+}
+
+function PriceCheckRow({
+  card,
+  onLookup,
+  ownedOf,
+}: {
+  card: CatalogCardResult;
+  onLookup: (card: CatalogCardResult) => void;
+  ownedOf: ((card: CatalogCardResult) => number) | null;
+}) {
   // Taps inside the enlarged-card overlay bubble through React portals, so match the actual buttons.
   const hit = (selector: string) => (e: React.MouseEvent) => {
     if ((e.target as Element).closest(selector)) onLookup(card);
@@ -202,6 +235,9 @@ function PriceCheckRow({ card, onLookup }: { card: CatalogCardResult; onLookup: 
           <AltArtChip card={card} />
         </div>
         {card.group_name ? <div className="muted price-check-set">{card.group_name}</div> : null}
+        <div className="price-check-owned">
+          <PriceCheckOwned card={card} owned={ownedOf ? ownedOf(card) : null} />
+        </div>
       </div>
       <div className="price-check-price" onClickCapture={hit(".market-price-btn")}>
         <span className="price-check-market">
