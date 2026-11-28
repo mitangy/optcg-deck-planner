@@ -36,9 +36,11 @@ describe("Log Pose card art in the duel app (#1459)", () => {
     host = document.createElement("div");
     document.body.appendChild(host);
     root = createRoot(host);
+    await import("./board/preview/CardInspect");
     await act(async () => root!.render(<Harness />));
     expect(document.querySelector(".card-inspect-backdrop")).toBeNull();
     await act(async () => host!.querySelector<HTMLButtonElement>("#go")!.click());
+    await act(async () => undefined);
     const open = document.querySelector(".card-inspect-backdrop");
     expect(open).not.toBeNull();
     expect(open!.textContent).toContain(lookupCard("ST01-001").name);

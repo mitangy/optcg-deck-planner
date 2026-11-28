@@ -1,3 +1,4 @@
+import "../boardStyles";
 import { useEffect, useMemo, useState } from "react";
 import { PROTOCOL_VERSION, type DiceResult, type DiceStateMessage, type PlayerView, type RematchState, type Seat } from "../net/protocol";
 import { createMatchStore } from "../state/matchStore";

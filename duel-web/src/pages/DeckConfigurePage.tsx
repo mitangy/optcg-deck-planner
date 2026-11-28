@@ -1,3 +1,4 @@
+import "../boardStyles";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Navigate, useLocation, useNavigate, useParams } from "react-router-dom";
 import { DeckConfigHeader } from "../layout/DeckConfigHeader";

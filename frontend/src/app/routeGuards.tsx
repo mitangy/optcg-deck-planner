@@ -1,17 +1,18 @@
-import { type ReactNode } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { api } from "../api";
 import { PlannerLandingPage } from "../pages/LandingPage";
-import { PublicCardScreen } from "../cards/PublicCardScreen";
 import { PublicMetaScreen } from "../meta/PublicMetaScreen";
 import { KEEP_PRERENDER_WHILE_LOADING } from "./prerendered";
 import { useMe } from "../auth/useMe";
-import { CardPage } from "../cards/CardPage";
-import { MetaPage } from "../meta/MetaPage";
 import { AuthLoadingSkeleton } from "../ui/Skeleton";
 import { Shell } from "./Shell";
 import { ShoppingPage } from "./lazyPages";
-import { renderCardPageActions } from "../pages/shopping/lightboxActions";
+
+// The signed-in card and meta screens carry prices, charts and shopping actions; a signed-out visitor never needs them (#1501).
+const PublicCardScreen = lazy(() => import("../cards/PublicCardScreen").then((m) => ({ default: m.PublicCardScreen })));
+const SignedInCardPage = lazy(() => import("./SignedInCardPage"));
+const SignedInMetaPage = lazy(() => import("./SignedInMetaPage"));
 
 export function RequireAuth({ children }: { children: ReactNode }) {
   const { data: user, isLoading, isError, isFetching, refetch } = useMe();
@@ -60,7 +61,9 @@ export function MetaRoute() {
   if (user) {
     return (
       <Shell user={user}>
-        <MetaPage user={user} />
+        <Suspense fallback={<AuthLoadingSkeleton label="Loading…" />}>
+          <SignedInMetaPage user={user} />
+        </Suspense>
       </Shell>
     );
   }
@@ -73,9 +76,15 @@ export function CardRoute() {
   if (user) {
     return (
       <Shell user={user}>
-        <CardPage renderActions={renderCardPageActions} />
+        <Suspense fallback={<AuthLoadingSkeleton label="Loading…" />}>
+          <SignedInCardPage />
+        </Suspense>
       </Shell>
     );
   }
-  return <PublicCardScreen />;
+  return (
+    <Suspense fallback={<AuthLoadingSkeleton label="Loading…" />}>
+      <PublicCardScreen />
+    </Suspense>
+  );
 }

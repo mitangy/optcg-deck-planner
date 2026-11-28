@@ -1,3 +1,4 @@
+import "../boardStyles";
 import { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";

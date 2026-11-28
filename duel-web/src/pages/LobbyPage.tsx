@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { WarningNotice } from "../warnings/WarningNotice";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
@@ -9,7 +9,6 @@ import { useDuelSession } from "../state/DuelSession";
 import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel";
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
-import { EventBanner } from "../events/EventBanner";
 import { IntroStrip } from "../home/IntroStrip";
 import { LivePanel, useLiveCounts } from "../home/LivePanel";
 import { ForYou } from "../home/ForYou";
@@ -19,8 +18,6 @@ import { LogPoseTile } from "../home/LogPoseTile";
 import { OnlyOnDuel } from "../home/OnlyOnDuel";
 import { BrandMark } from "../BrandMark";
 import { useMediaQuery } from "../lib/useMediaQuery";
-import { RankedGate } from "./lobby/RankedGate";
-import { TopBounties } from "../home/TopBounties";
 import { VoyageCard } from "../home/VoyageCard";
 import { introDone, introVisible, markIntroDone } from "../home/intro";
 import { readLastMode, writeLastMode, type LastMode } from "../home/lastMode";
@@ -31,7 +28,6 @@ import { DeckSwitcher } from "./lobby/DeckSwitcher";
 import { LobbyTopbar } from "./lobby/LobbyTopbar";
 import type { PlayMode } from "./lobby/modes";
 import { PlayActions } from "./lobby/PlayActions";
-import { PlaySheet } from "./lobby/PlaySheet";
 import { ResumeNotices } from "./lobby/ResumeNotices";
 import { useLobbyAuth } from "./lobby/useLobbyAuth";
 import { useLobbyDecks } from "./lobby/useLobbyDecks";
@@ -43,10 +39,22 @@ export { DeckSwitcher, SPECTATE_GONE_MESSAGE };
 
 const HISTORY_LIMIT = 10;
 
+// Both only render after a tap, so they load on demand (the sheet is also fetched once the lobby is idle) (#1501).
+const loadPlaySheet = () => import("./lobby/PlaySheet").then((m) => ({ default: m.PlaySheet }));
+const PlaySheet = lazy(loadPlaySheet);
+// These two render nothing until their data arrives, so loading them on demand adds no layout shift.
+const EventBanner = lazy(() => import("../events/EventBanner").then((m) => ({ default: m.EventBanner })));
+const TopBounties = lazy(() => import("../home/TopBounties").then((m) => ({ default: m.TopBounties })));
+const RankedGate = lazy(() => import("./lobby/RankedGate").then((m) => ({ default: m.RankedGate })));
+
 export function LobbyPage() {
   const navigate = useNavigate();
   const { cancelQueue, queueing } = useDuelSession();
   useEffect(() => prefetchBoardWhenIdle(), []);
+  useEffect(() => {
+    const t = window.setTimeout(() => void loadPlaySheet().catch(() => undefined), 1500);
+    return () => window.clearTimeout(t);
+  }, []);
   const watchRoomId = useParams<{ roomId: string }>().roomId?.trim() || null;
   const [searchParams] = useSearchParams();
   const watchSeat = searchParams.get("seat") === "2" ? 1 : 0;
@@ -227,7 +235,9 @@ export function LobbyPage() {
         <div className="home-side">
           {/* Beside the play column on desktop so the right column is not just a list of cards (#1391). */}
           {showIntro && twoColumns ? <IntroStrip onDismiss={dismissIntro} /> : null}
-          <EventBanner />
+          <Suspense fallback={null}>
+            <EventBanner />
+          </Suspense>
           {busy && busyStatus && !sheet.sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
           <LogPoseTile deck={selectedDeck} />
           {authMode === "google" ? <VoyageCard me={me} games={games} /> : null}
@@ -241,13 +251,16 @@ export function LobbyPage() {
             onInvite={launch.inviteToPrivateRoom}
             onSpectate={launch.spectateFriend}
           />
-          <TopBounties me={authMode === "google" ? me : null} />
+          <Suspense fallback={null}>
+            <TopBounties me={authMode === "google" ? me : null} />
+          </Suspense>
         </div>
         <div className="home-version">
           <VersionStatus />
         </div>
       </main>
 
+      <Suspense fallback={null}>
       <PlaySheet
         sheet={sheet}
         deckState={deckState}
@@ -266,6 +279,7 @@ export function LobbyPage() {
           }}
         />
       ) : null}
+      </Suspense>
       <Suspense fallback={null}>
         <WhatsNewHost />
       </Suspense>

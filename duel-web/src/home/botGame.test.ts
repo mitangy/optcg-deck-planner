@@ -11,7 +11,7 @@ import {
   resolveBotDeck,
 } from "./botGame";
 import type { SavedDeck } from "../decks/storage";
-import { BOT_META_DECKS } from "@optcg/rules/botMetaDecks";
+import { botMetaDecks } from "./botMetaDecks";
 
 const deck = (id: string, leaderId: string, cards: string[]): SavedDeck => ({ id, name: id, leaderId, cards, updatedAt: 1 });
 const a = deck("a", "ST01-001", ["ST01-003", "ST01-003"]);
@@ -38,7 +38,7 @@ describe("Play vs Bot setup", () => {
     const last = () => 0.9999;
 
     it("a meta pick plays that meta list: its Leader and all 50 cards (#1180)", () => {
-      const pick = BOT_META_DECKS[3]!;
+      const pick = botMetaDecks()[3]!;
       const got = resolveBotDeck([a, b], metaDeckValue(pick.leaderId));
       expect(got.leaderId).toBe(pick.leaderId);
       expect(got.cards).toEqual(pick.deck);
@@ -47,9 +47,9 @@ describe("Play vs Bot setup", () => {
     });
 
     it("random meta draws from all ten meta decks, first to last, never from your decks (#1180)", () => {
-      expect(BOT_META_DECKS).toHaveLength(10);
-      expect(resolveBotDeck([a, b], BOT_DECK_RANDOM_META, first).leaderId).toBe(BOT_META_DECKS[0]!.leaderId);
-      expect(resolveBotDeck([a, b], BOT_DECK_RANDOM_META, last).leaderId).toBe(BOT_META_DECKS[9]!.leaderId);
+      expect(botMetaDecks()).toHaveLength(10);
+      expect(resolveBotDeck([a, b], BOT_DECK_RANDOM_META, first).leaderId).toBe(botMetaDecks()[0]!.leaderId);
+      expect(resolveBotDeck([a, b], BOT_DECK_RANDOM_META, last).leaderId).toBe(botMetaDecks()[9]!.leaderId);
     });
 
     it("one of your saved decks is played as it is (#1180)", () => {
@@ -58,9 +58,9 @@ describe("Play vs Bot setup", () => {
     });
 
     it("a pick that no longer exists falls back to a random meta deck, not to yours (#1180)", () => {
-      expect(resolveBotDeck([a, b], "deleted", first).leaderId).toBe(BOT_META_DECKS[0]!.leaderId);
-      expect(resolveBotDeck([a, b], "meta:NOT-A-LEADER", last).leaderId).toBe(BOT_META_DECKS[9]!.leaderId);
-      expect(resolveBotDeck([], "")).toSatisfy((d: SavedDeck) => BOT_META_DECKS.some((m) => m.leaderId === d.leaderId));
+      expect(resolveBotDeck([a, b], "deleted", first).leaderId).toBe(botMetaDecks()[0]!.leaderId);
+      expect(resolveBotDeck([a, b], "meta:NOT-A-LEADER", last).leaderId).toBe(botMetaDecks()[9]!.leaderId);
+      expect(resolveBotDeck([], "")).toSatisfy((d: SavedDeck) => botMetaDecks().some((m) => m.leaderId === d.leaderId));
     });
 
     it("knows which picker values need no saved deck behind them (#1180)", () => {

@@ -129,6 +129,9 @@ jobs:
       - run: npm run build
         id: build
         if: ${{ !cancelled() }}
+      # First load must stay small on phones (#1501): the gzip size of the entry script and stylesheet, in tools/ci/bundle-budget.cjs.
+      - run: node ../tools/ci/bundle-budget.cjs duel-web
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - run: npx playwright install --with-deps chromium
         if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - name: Start preview server
@@ -234,7 +237,10 @@ jobs:
       - run: npm test
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
       - run: npm run build
+        id: build
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
+      - run: node ../tools/ci/bundle-budget.cjs frontend
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
       - run: npx tsc -p e2e
         if: ${{ !cancelled() && steps.deps.outcome == 'success' }}
       - run: npx playwright install --with-deps chromium

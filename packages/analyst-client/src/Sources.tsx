@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Popover, PopoverButton, PopoverPanel } from "@optcg/ui/popups";
 import {
@@ -18,18 +18,9 @@ import {
 } from "./citations";
 import { Markdown } from "./Markdown";
 import { citedCardNames, findMentions } from "./mentions";
+import { SourceHooksContext, type SourceHooks } from "./sourceHooks";
 
-export type SourceHooks = {
-  href?: (source: ParsedSource) => string | null;
-  card?: (id: string) => { name?: string; imageUrl?: string } | null | undefined;
-  deckHref?: (ref: string) => string | null;
-  openDeck?: (ref: string) => boolean;
-  /** Show a card enlarged in the app's own card view (above the Log Pose panel). Without it card art is not tappable. */
-  openCard?: (id: string) => void;
-  openNewDeck?: (draft: { name: string; list: string }, how: { auto: boolean }) => boolean;
-};
-
-export const SourceHooksContext = createContext<SourceHooks>({});
+export { SourceHooksContext, type SourceHooks };
 
 function viewport() {
   const vv = window.visualViewport;

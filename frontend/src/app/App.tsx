@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { FeedbackDialog, SiteFooter } from "@optcg/site-legal";
@@ -16,7 +16,6 @@ import {
 import { LegalPage } from "../pages/LegalPage";
 import { useMe } from "../auth/useMe";
 import { RouteMeta } from "../seo/RouteMeta";
-import { WhatsNewPage } from "../pages/WhatsNewPage";
 import {
   AlertsRoute,
   CollectionPage,
@@ -32,10 +31,14 @@ import {
   GroupBuysPage,
   PublicGroupBuyPage,
 } from "./lazyPages";
-import { LoginPage } from "../auth/LoginPage";
-import { PublicSharePage } from "../pages/PublicSharePage";
+import { AuthLoadingSkeleton } from "../ui/Skeleton";
 import { useLogPoseCardLightbox } from "../pages/decks/logPoseCard";
 import { MetaRoute, CardRoute, HomeRoute, RequireAuth } from "./routeGuards";
+
+// Pages a first-time visitor to the landing page does not open (#1501).
+const LoginPage = lazy(() => import("../auth/LoginPage").then((m) => ({ default: m.LoginPage })));
+const PublicSharePage = lazy(() => import("../pages/PublicSharePage").then((m) => ({ default: m.PublicSharePage })));
+const WhatsNewPage = lazy(() => import("../pages/WhatsNewPage").then((m) => ({ default: m.WhatsNewPage })));
 
 export default function App() {
   const { pathname } = useLocation();
@@ -49,6 +52,7 @@ export default function App() {
     <LogPoseProvider apiBase={api.apiUrl} hidden={!showsLogPose(pathname)} defaultPage={logPosePage} account={me?.id ?? null} sources={sources}>
       <RouteMeta signedIn={!!me} />
       <ErrorBoundary resetKey={pathname}>
+      <Suspense fallback={<AuthLoadingSkeleton label="Loading…" />}>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/share/:token" element={<PublicSharePage />} />
@@ -145,6 +149,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
       </ErrorBoundary>
       <SiteFooter Link={Link} onFeedback={() => setFeedbackOpen(true)} trailing={<BuildTag />} />
       {feedbackOpen ? (

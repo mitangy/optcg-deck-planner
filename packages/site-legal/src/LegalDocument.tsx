@@ -1,4 +1,5 @@
-import { LEGAL_CONTENT, LEGAL_DRAFT, LEGAL_TITLES, LEGAL_UPDATED, type LegalKind } from "./content";
+import { LEGAL_DRAFT, LEGAL_TITLES, LEGAL_UPDATED, type LegalKind } from "./content";
+import { LEGAL_CONTENT } from "./legalBodies";
 
 export function LegalDocument({ kind }: { kind: LegalKind }) {
   return (

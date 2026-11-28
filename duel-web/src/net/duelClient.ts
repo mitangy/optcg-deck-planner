@@ -46,10 +46,16 @@ import {
   TAKEN_OVER_CLOSE_CODE,
   type ServerMessageType,
 } from "./protocol";
-import { Client, type Room } from "@colyseus/sdk";
+import type { Client, Room } from "@colyseus/sdk";
 import { retry } from "../lib/retry";
 import { isSeatReservationExpiredError } from "./matchResume";
 import { noteMatchGameToken, noteMatchRoom } from "../matchContext";
+
+/** The Colyseus SDK and its schema decoder are about 600 KB, so they load when the first match connects, not with the lobby (#1501). */
+async function openClient(url: string): Promise<Client> {
+  const { Client: ColyseusClient } = await import("@colyseus/sdk");
+  return new ColyseusClient(url);
+}
 
 export type DuelClientHandlers = {
   onWelcome?: (info: {
@@ -145,7 +151,7 @@ export class DuelClient {
     return retry(
       async () => {
         await this.disconnect();
-        this.client = new Client(url);
+        this.client = await openClient(url);
         this.matchServerUrl = url;
 
         const join = this.buildJoin(params);
@@ -198,7 +204,7 @@ export class DuelClient {
     this.takenOverFlag = false;
     await this.disconnect();
     const url = params.serverUrl ?? getGameServerUrl();
-    this.client = new Client(url);
+    this.client = await openClient(url);
     this.matchServerUrl = url;
     const join = this.buildJoin(params);
 
@@ -302,7 +308,7 @@ export class DuelClient {
     return retry(
       async () => {
         this.abandonRoom();
-        this.client = new Client(url);
+        this.client = await openClient(url);
         this.matchServerUrl = url;
         this.reconnectionToken = token;
         const room = await this.client.reconnect(token);

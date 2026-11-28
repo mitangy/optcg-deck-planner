@@ -38,6 +38,19 @@ export const TournamentsPage = lazy(() => loadTournamentsPage().then((m) => ({ d
 export const TournamentPage = lazy(() => loadTournamentPage().then((m) => ({ default: m.TournamentPage })));
 
 // The replay viewer carries the rules engine and its card data, so it loads only when someone opens /replay.
+export const AuthCompletePage = lazy(() => import("./pages/AuthCompletePage").then((m) => ({ default: m.AuthCompletePage })));
+export const DeckListPage = lazy(() => import("./pages/DeckListPage").then((m) => ({ default: m.DeckListPage })));
+export const EventRulesPage = lazy(() => import("./pages/EventRulesPage").then((m) => ({ default: m.EventRulesPage })));
+export const LeaderboardPage = lazy(() => import("./pages/LeaderboardPage").then((m) => ({ default: m.LeaderboardPage })));
+export const LeaderPage = lazy(() => import("./pages/LeaderPage").then((m) => ({ default: m.LeaderPage })));
+export const LeadersIndexPage = lazy(() => import("./pages/LeadersIndexPage").then((m) => ({ default: m.LeadersIndexPage })));
+export const LegalPage = lazy(() => import("./pages/LegalPage").then((m) => ({ default: m.LegalPage })));
+export const MetaDecksPage = lazy(() => import("./pages/MetaDecksPage").then((m) => ({ default: m.MetaDecksPage })));
+export const OptcgSimOnlinePage = lazy(() => import("./pages/OptcgSimOnlinePage").then((m) => ({ default: m.OptcgSimOnlinePage })));
+export const PlayOnlinePage = lazy(() => import("./pages/PlayOnlinePage").then((m) => ({ default: m.PlayOnlinePage })));
+export const PlayOnPhonePage = lazy(() => import("./pages/PlayOnPhonePage").then((m) => ({ default: m.PlayOnPhonePage })));
+export const UsernameSetupPage = lazy(() => import("./pages/UsernameSetupPage").then((m) => ({ default: m.UsernameSetupPage })));
+
 export const ReplayPage = lazy(withCards(() => import("./pages/ReplayPage")));
 export const AdminPage = lazy(withCards(() => import("./admin/AdminPage")));
 export const AdminUserPage = lazy(withCards(() => import("./admin/UserPage")));

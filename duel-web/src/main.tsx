@@ -1,20 +1,21 @@
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/react";
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { createAnalyticsBeforeSend, reloadOnStaleChunk, startUpdateChecks } from "@optcg/ui/appShell";
+import { reloadOnStaleChunk, startUpdateChecks } from "@optcg/ui/appShell";
 import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { watchAccountSync } from "./account/accountSync";
 import { App } from "./App";
 import { DuelSessionProvider } from "./state/DuelSession";
+// The landing and leader pages load on demand now, but their sheets (7 KB) still go first, where they sat when the
+// pages were imported by the app: the sheets below override them at equal specificity, and a lazy sheet would win instead (#1501).
+import "./pages/playOnline.css";
+import "./pages/leaders.css";
+import "./pages/landing973.css";
 import "@optcg/ui/tokens.css";
 import "./styles.css";
 import "./themes.css";
 import "./ui.css";
-import "./board.css";
 import "./interactions.css";
-import "./popupScale.css";
 import "./auth/username.css";
 import "./deckList.css";
 import "./newDeck.css";
@@ -26,7 +27,7 @@ import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
 
-const analyticsBeforeSend = createAnalyticsBeforeSend();
+const AnalyticsHost = lazy(() => import("./AnalyticsHost"));
 
 captureFirstTouch();
 watchAccountSync();
@@ -41,7 +42,8 @@ createRoot(document.getElementById("root")!).render(
         <App />
       </DuelSessionProvider>
     </BrowserRouter>
-    <Analytics beforeSend={analyticsBeforeSend} />
-    <SpeedInsights beforeSend={analyticsBeforeSend} />
+    <Suspense fallback={null}>
+      <AnalyticsHost />
+    </Suspense>
   </StrictMode>,
 );

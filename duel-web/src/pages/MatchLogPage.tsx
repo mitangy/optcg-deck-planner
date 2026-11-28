@@ -1,3 +1,4 @@
+import "../boardStyles";
 import { PageShell } from "../layout/PageShell";
 import { useEffect, useMemo, useState, type MouseEvent } from "react";
 import { createPortal } from "react-dom";

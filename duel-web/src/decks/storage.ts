@@ -6,7 +6,7 @@ import {
   registerAtlasStub,
 } from "../cards/atlas";
 import { readStored, removeStored, writeStored } from "@optcg/ui/storage";
-import { BOT_META_DECKS } from "@optcg/rules/botMetaDecks";
+import { BOT_META_DECK_LIST } from "@optcg/rules/botMetaDeckList";
 import { cardDataReady } from "../cards/cardData";
 import { MAX_DECK_NAME_LENGTH } from "./editDeck";
 
@@ -561,8 +561,8 @@ function ensureSeedDeck(id: string, name: string, list: string, legacyName: stri
 
 /** The clean-art starter new guests land on: the OP13-001 Luffy entry of the bot meta decks (#1391). */
 function luffyStarterList(): string {
-  const meta = BOT_META_DECKS.find((d) => d.leaderId === "OP13-001");
-  if (!meta) throw new Error("Seed deck starter-op13-luffy: OP13-001 missing from BOT_META_DECKS");
+  const meta = BOT_META_DECK_LIST.find((d) => d.leaderId === "OP13-001");
+  if (!meta) throw new Error("Seed deck starter-op13-luffy: OP13-001 missing from BOT_META_DECK_LIST");
   const counts = new Map<string, number>([[meta.leaderId, 1]]);
   for (const id of meta.deck) counts.set(id, (counts.get(id) ?? 0) + 1);
   return [...counts].map(([id, n]) => `${n}x${id}`).join("\n");
