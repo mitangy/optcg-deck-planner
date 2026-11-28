@@ -1245,9 +1245,36 @@
   color: inherit;
 }
 
-/* A row you covered stays where it is, green, with Undo, until you are done with it (#1498). */
+/* A row you covered stays where it is, green, with Undo, until you are done with it (#1498).
+   In the tables the done note floats over the cell's free space, so no column ever changes width or height. */
 .data-table .col-still {
   min-width: 6.6rem;
+}
+
+.data-table td.col-still {
+  position: relative;
+}
+
+.data-table td.col-still .still-need.still-need-done {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 1;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  white-space: nowrap;
+}
+
+.data-table td.col-still .still-need-have {
+  font-size: 0.78rem;
+}
+
+.data-table td.col-still .row-undo-btn {
+  min-height: 1.4rem;
+  padding: 0 0.55rem;
+  font-size: 0.72rem;
 }
 
 .still-need.still-need-done {

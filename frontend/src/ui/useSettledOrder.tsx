@@ -97,6 +97,36 @@ function noHover(): boolean {
   }
 }
 
+/**
+ * While a row is held its cells change (a covered card loses its buy split, a count gets wider), and an auto
+ * table would re-flow every column under the pointer. Pin each table's column widths for the length of the hold.
+ */
+const tableHolds = (table: HTMLTableElement, ids: readonly string[]) =>
+  Array.from(table.querySelectorAll<HTMLElement>("[data-row-id]")).some((r) => ids.includes(r.dataset.rowId ?? ""));
+
+function freezeColumns(ids: readonly string[]) {
+  for (const table of Array.from(document.querySelectorAll<HTMLTableElement>("table")).filter((t) => tableHolds(t, ids))) {
+    if (table.dataset.colsFrozen || table.getClientRects().length === 0) continue;
+    const head = Array.from(table.querySelectorAll<HTMLElement>("thead th"));
+    if (head.length === 0) continue;
+    const widths = head.map((th) => th.getBoundingClientRect().width);
+    const total = table.getBoundingClientRect().width;
+    table.dataset.colsFrozen = "1";
+    table.style.tableLayout = "fixed";
+    table.style.width = `${total}px`;
+    head.forEach((th, i) => (th.style.width = `${widths[i]}px`));
+  }
+}
+
+function unfreezeColumns(ids: readonly string[]) {
+  for (const table of Array.from(document.querySelectorAll<HTMLTableElement>("table[data-cols-frozen]")).filter((t) => tableHolds(t, ids))) {
+    delete table.dataset.colsFrozen;
+    table.style.tableLayout = "";
+    table.style.width = "";
+    table.querySelectorAll<HTMLElement>("thead th").forEach((th) => (th.style.width = ""));
+  }
+}
+
 function visibleRowElements(): HTMLElement[] {
   return Array.from(document.querySelectorAll<HTMLElement>("[data-row-id]")).filter((el) => el.getClientRects().length > 0);
 }
@@ -225,14 +255,17 @@ export function useSettledOrder<T>({
     const out = before.filter((id) => !tSet.has(id));
     holds.current.clear();
     announcedDone.current.clear();
+    const shownIds = [...before];
     const text = settleAnnouncement(summary);
     setMessage(text);
     if (!animate || typeof document === "undefined") {
+      if (typeof document !== "undefined") unfreezeColumns(shownIds);
       bump();
       return;
     }
     const first = new Map<HTMLElement, DOMRect>();
     for (const el of visibleRowElements()) first.set(el, el.getBoundingClientRect());
+    unfreezeColumns(shownIds);
     // Rows above the viewport vanish at once and the scroll position is corrected; the others fade and collapse.
     let scrollComp = 0;
     const fading = new Set<string>();
@@ -303,6 +336,7 @@ export function useSettledOrder<T>({
       // A card that is not on this list (Price check, Add cards) has no row to hold.
       if (!order.current.includes(id)) return;
       const now = Date.now();
+      if (holds.current.size === 0) freezeColumns([id]);
       let h = holds.current.get(id);
       if (!h) {
         h = newHold(id, now);
@@ -328,6 +362,7 @@ export function useSettledOrder<T>({
   const markBulk = useCallback(
     (entries: { id: string; op?: RestoreOp }[]) => {
       const now = Date.now();
+      if (holds.current.size === 0 && entries.some((e) => order.current.includes(e.id))) freezeColumns(entries.map((e) => e.id));
       for (const { id, op } of entries) {
         if (!order.current.includes(id)) continue;
         let h = holds.current.get(id);
@@ -354,6 +389,7 @@ export function useSettledOrder<T>({
     (id: string) => {
       if (!holds.current.delete(id)) return;
       announcedDone.current.delete(id);
+      if (holds.current.size === 0) unfreezeColumns([id]);
       reschedule();
       bump();
     },
@@ -440,6 +476,7 @@ export function useSettledOrder<T>({
     () => () => {
       window.clearTimeout(timer.current);
       window.clearTimeout(leaveTimer.current);
+      unfreezeColumns(order.current);
     },
     [],
   );
@@ -447,6 +484,7 @@ export function useSettledOrder<T>({
   // A reset (sort, filter, search, header sort, deck) drops pending timers; the state itself was cleared during render.
   useEffect(() => {
     clearTimers();
+    unfreezeColumns(order.current);
     document.documentElement.style.overflowAnchor = "";
      
   }, [resetKey]);
@@ -521,7 +559,7 @@ export function useSettledOrder<T>({
   );
 
   const liveRegion = (
-    <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+    <div className="sr-only" aria-live="polite" aria-atomic="true">
       {message}
     </div>
   );

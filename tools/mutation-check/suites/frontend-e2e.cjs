@@ -545,5 +545,10 @@ module.exports = {
     {"id": "e2e-pc1473-phone-field-gap", "args": "priceCheck1469 --project=phone-375 -g \"clear gap\"", "file": "frontend/src/styles/shopping.css", "from": "    margin-block: calc(var(--space-3) * -1) var(--space-2);", "to": "    margin-bottom: -0.25rem;", "kills": ["priceCheck1469.spec.ts > on a phone the Price check field has a clear gap above the title and Buy button (#1473) [phone-375]"]},
     // Price check owned control keeps the row still (#1496)
     {"id": "e2e-pc1496-add-height-shifts-row", "args": "priceCheckOwned1496 --project=phone-375", "edits": [{"file": "frontend/src/styles/shopping.css", "from": "  height: 2.75rem; /* the steppers' height", "to": "  min-height: 2.75rem; /* the steppers' height"}, {"file": "frontend/src/styles/shopping.css", "from": "  height: 2.75rem;\n  min-width: 4.5rem;\n  margin: 0;\n  padding-block: 0;", "to": "  min-width: 4.5rem;"}], "kills": ["priceCheckOwned1496.spec.ts > Price check adds a searched alt art to the collection without moving the row (#1496) [phone-375]"]},
+    // Covering a card holds its row without shifting columns (#1498)
+    { id: "e2e-held1498-columns-shift", args: "deck --project=desktop-1200 -g \"without moving any column\"", edits: [
+      { file: "frontend/src/ui/useSettledOrder.tsx", from: "if (holds.current.size === 0) freezeColumns([id]);", to: "" },
+      { file: "frontend/src/styles/decks.css", from: ".data-table td.col-still .still-need.still-need-done {\n  position: absolute;", to: ".data-table td.col-still .still-need.still-need-done {\n  position: static;" },
+    ], kills: ["deck.spec.ts > covering a card holds its row without moving any column of the table (#1498) [desktop-1200]"] },
 ],
 };
