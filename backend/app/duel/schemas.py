@@ -283,6 +283,13 @@ class DuelDeckOut(BaseModel):
     mergedInto: str | None = None
 
 
+class DuelDeckMissingOut(BaseModel):
+    missing_cards: int
+    missing_copies: int
+    cost_usd: float
+    planner_deck_id: int
+
+
 class DuelDecksOut(BaseModel):
     decks: list[DuelDeckOut]
 

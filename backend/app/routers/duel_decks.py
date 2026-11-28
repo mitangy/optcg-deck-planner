@@ -9,13 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.planner import deck_link
+from app.planner import deck_link, decks as planner_decks
+from app.planner.models import Deck
 from app.core.auth import get_current_user
 from app.core.db import get_db
 from app.duel import decks as store
 from app.core.models import User
 from app.duel.models import DuelSavedDeck
-from app.duel.schemas import DuelDeckBody, DuelDeckBulkPut, DuelDeckOut, DuelDeckPut, DuelDecksOut
+from app.duel.schemas import DuelDeckBody, DuelDeckMissingOut, DuelDeckBulkPut, DuelDeckOut, DuelDeckPut, DuelDecksOut
 
 router = APIRouter(prefix="/duel/decks", tags=["duel"])
 
@@ -100,6 +101,28 @@ def list_decks(
         .order_by(DuelSavedDeck.updated_at_ms.desc(), DuelSavedDeck.id)
     ).all()
     return DuelDecksOut(decks=[_out(r) for r in rows])
+
+
+@router.get("/{deck_id}/missing-cost", response_model=DuelDeckMissingOut)
+def deck_missing_cost(
+    deck_id: str,
+    user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[Session, Depends(get_db)],
+) -> DuelDeckMissingOut:
+    """What the signed-in user still has to buy for a duel deck, from its linked planner deck (#1507).
+
+    404 for another user's deck, a deleted one, or one with no planner twin, so the match-over chip just hides.
+    """
+    row = store.find_row(db, user.id, _check_id(deck_id))
+    if row is None or row.deleted or row.planner_deck_id is None:
+        raise HTTPException(status_code=404, detail="No planner deck for this deck")
+    deck = db.scalar(select(Deck).where(Deck.id == row.planner_deck_id, Deck.user_id == user.id))
+    if deck is None:
+        raise HTTPException(status_code=404, detail="No planner deck for this deck")
+    lines, copies, cost = planner_decks.deck_missing(db, user, deck)
+    return DuelDeckMissingOut(
+        missing_cards=lines, missing_copies=copies, cost_usd=cost, planner_deck_id=deck.id
+    )
 
 
 @router.put("", response_model=DuelDecksOut)

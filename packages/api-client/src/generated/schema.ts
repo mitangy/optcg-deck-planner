@@ -2364,6 +2364,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/duel/decks/{deck_id}/missing-cost": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Deck Missing Cost
+         * @description What the signed-in user still has to buy for a duel deck, from its linked planner deck (#1507).
+         *
+         *     404 for another user's deck, a deleted one, or one with no planner twin, so the match-over chip just hides.
+         */
+        get: operations["deck_missing_cost_duel_decks__deck_id__missing_cost_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/duel/dev-token": {
         parameters: {
             query?: never;
@@ -6466,6 +6488,17 @@ export interface components {
         DuelDeckBulkPut: {
             /** Decks */
             decks: components["schemas"]["DuelDeckBulkItem"][];
+        };
+        /** DuelDeckMissingOut */
+        DuelDeckMissingOut: {
+            /** Cost Usd */
+            cost_usd: number;
+            /** Missing Cards */
+            missing_cards: number;
+            /** Missing Copies */
+            missing_copies: number;
+            /** Planner Deck Id */
+            planner_deck_id: number;
         };
         /** DuelDeckOut */
         DuelDeckOut: {
@@ -15513,6 +15546,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DuelDeckOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    deck_missing_cost_duel_decks__deck_id__missing_cost_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deck_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DuelDeckMissingOut"];
                 };
             };
             /** @description Validation Error */

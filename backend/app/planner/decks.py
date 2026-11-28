@@ -167,11 +167,13 @@ def _remaining_costs(
     owned: dict[str, int],
     deck_alt_owned: dict[str, dict[int, int]],
     deck_ids: list[int] | None,
+    missing: dict[int, tuple[int, int]] | None = None,
 ) -> dict[int, float]:
     """Dollars left to finish each deck: the number the deck page shows as "$x left".
 
     Same inputs as ``get_deck_detail`` (shared owned counts, earlier leaders' claims, the deck's own
     alt-art picks), priced per card with the Shopping allocation, DON!! cards left out.
+    ``missing`` (when given) is filled with (card lines, copies) still to get per deck, from the same ``still``.
     """
     all_ids = {c.card_id for d in decks for c in d.cards}
     if not all_ids:
@@ -187,6 +189,7 @@ def _remaining_costs(
         earlier_need, _ = _earlier_leaders_need(pool, deck, catalog, deck_ids, sum_across)
         deck_wants = wants.get(deck.id, {})
         total = 0.0
+        lines = copies = 0
         for card in deck.cards:
             cat = catalog.get(card.card_id)
             if card.needed <= 0 or is_don_card(cat):
@@ -200,6 +203,8 @@ def _remaining_costs(
             still = max(0, card.needed - available)
             if still == 0:
                 continue
+            lines += 1
+            copies += still
             picks = deck_wants.get(card.card_id, {})
             card_alts = [a.model_copy(update={"wanted": int(picks.get(a.product_id, 0))}) for a in alts.get(card.card_id, [])]
             buys = allocate_still_need_buys(
@@ -212,7 +217,24 @@ def _remaining_costs(
             if line is not None:
                 total += line
         out[deck.id] = round(total, 2)
+        if missing is not None:
+            missing[deck.id] = (lines, copies)
     return out
+
+
+def deck_missing(db: Session, user: User, deck: Deck) -> tuple[int, int, float]:
+    """(card lines, copies, dollars) the user still lacks for one deck: the deck page's "left", via the list's cost pool."""
+    everyone = db.scalars(
+        select(Deck).where(Deck.user_id == user.id).options(selectinload(Deck.cards)).order_by(Deck.sort_order, Deck.id)
+    ).all()
+    all_ids = {c.card_id for d in everyone for c in d.cards}
+    catalog = catalog_map(db, all_ids)
+    owned = owned_map(db, user.id)
+    alt_owned = _deck_alt_owned_map(alt_owned_map(db, user.id), _collector_map(db, user.id))
+    missing: dict[int, tuple[int, int]] = {}
+    cost = _remaining_costs(db, user, [deck], everyone, catalog, owned, alt_owned, None, missing)[deck.id]
+    lines, copies = missing[deck.id]
+    return lines, copies, cost
 
 
 def _summaries(
