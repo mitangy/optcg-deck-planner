@@ -600,3 +600,20 @@ test("a spectator's fans follow each player's Sort and card drags (#346)", async
   }
   await Promise.all([host.ctx.close(), guest.ctx.close(), watch.ctx.close()]);
 });
+
+test("opening /join/<room id> seats the friend with no click and deals both hands (#1507)", async ({ browser }, info) => {
+  const host = await newPlayer(browser, info.project.use, 31, "host");
+  const created = host.page.waitForResponse((r) => /\/matchmake\/create\//.test(r.url()));
+  await host.page.goto("/");
+  await host.page.locator(".mode-tiles").getByRole("button", { name: /^Private room/ }).click();
+  await host.page.getByRole("button", { name: "Create room" }).click();
+  const body = (await (await created).json()) as { roomId?: string; room?: { roomId?: string } };
+  const roomId = (body.room?.roomId ?? body.roomId)!;
+  await expect(host.page.locator(".room-invite-id")).toHaveText(roomId);
+
+  const guest = await newPlayer(browser, info.project.use, 32, "guest");
+  await guest.page.goto(`/join/${encodeURIComponent(roomId)}`);
+  await expect(host.page.locator(HAND_CARDS)).toHaveCount(5, { timeout: 30_000 });
+  await expect(guest.page.locator(HAND_CARDS)).toHaveCount(5, { timeout: 30_000 });
+  await Promise.all([host.ctx.close(), guest.ctx.close()]);
+});

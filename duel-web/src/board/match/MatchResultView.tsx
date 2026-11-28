@@ -3,6 +3,7 @@ import type { MatchOverMessage, PlayerView, RematchAction, RematchState, Seat, S
 import type { RematchDeckOption } from "../../decks/rematchDecks";
 import { openReport } from "../../reports/reportDialog";
 import { matchReportTarget } from "../../reports/reportTargets";
+import { MatchOverHub, type MatchHub } from "./MatchOverHub";
 import { MatchLogLinks, MatchOverFactsLine, ReviewGameSlot, useMatchOverFacts, type LoadMatchRecord } from "./MatchOverFacts";
 import type { describeMatchResult } from "./matchResult";
 import { winnerHeadline } from "./playerNames";
@@ -16,6 +17,8 @@ export type BoardRematch = {
   autoAccept?: boolean;
   deckOptions?: readonly RematchDeckOption[];
 };
+
+export type { MatchHub };
 
 export function MatchResultView({
   over,
@@ -32,6 +35,7 @@ export function MatchResultView({
   matchId,
   loadMatchRecord,
   rematch,
+  hub,
   boardSeat,
   canReportPlayer,
   reportTargetFor,
@@ -52,6 +56,8 @@ export function MatchResultView({
   matchId: string | null;
   loadMatchRecord: LoadMatchRecord | undefined;
   rematch: BoardRematch | undefined;
+  /** Invite + missing cost; players only (not spectators, replays or tournament games). */
+  hub?: MatchHub;
   boardSeat: Seat;
   canReportPlayer: boolean;
   reportTargetFor: (source: "match" | "spectate" | "postmatch") => ReturnType<typeof matchReportTarget>;
@@ -110,6 +116,7 @@ export function MatchResultView({
               onAction={rematch.onAction}
             />
           ) : null}
+          {hub && !spectating && !isReplay ? <MatchOverHub hub={hub} /> : null}
           <div className="match-result-secondary">
             {backToTournament ? (
               <button

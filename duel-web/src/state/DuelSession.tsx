@@ -82,7 +82,11 @@ export { SPECTATOR_CAP_MESSAGE };
 export type MatchLaunch = {
   status: string;
   leaderId: string | null;
+  /** Saved deck this launch plays; null when unknown (spectating, moving a match here). */
+  deckId: string | null;
   invite: boolean;
+  /** The waiting room copies the join link (not the bare room id) the moment the room opens. */
+  inviteLink?: boolean;
   friends?: boolean;
 };
 
@@ -321,7 +325,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       client,
       takeOver(roomId, seat, mintToken) {
         actions.startMatch(
-          { status: "Moving the match here…", leaderId: null, invite: false },
+          { status: "Moving the match here…", leaderId: null, deckId: null, invite: false },
           async (gen) => {
             const gameToken = mintToken ? await mintToken() : (await mintAccountGameToken()).token;
             await actions.connect(

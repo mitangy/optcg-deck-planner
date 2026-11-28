@@ -3,6 +3,7 @@ import { SpeedInsights } from "@vercel/speed-insights/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
+import { ANALYTICS_TOKEN_ROUTES } from "./analyticsRoutes";
 import { createAnalyticsBeforeSend, reloadOnStaleChunk, startUpdateChecks } from "@optcg/ui/appShell";
 import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { watchAccountSync } from "./account/accountSync";
@@ -27,7 +28,7 @@ import "@optcg/patch-notes/whatsNew.css";
 import "@optcg/analyst-client/logPose.css";
 import "./logPose.css";
 
-const analyticsBeforeSend = createAnalyticsBeforeSend();
+const analyticsBeforeSend = createAnalyticsBeforeSend(ANALYTICS_TOKEN_ROUTES);
 
 captureFirstTouch();
 watchAccountSync();

@@ -48,7 +48,7 @@ import type { BriefTicketWire } from "../net/protocol";
 import { handIndexOf } from "./prompts/intentFields";
 import { promptShortLine } from "./prompts/promptLine";
 import { BoardHud } from "./hud/BoardHud";
-import { type BoardRematch } from "./match/MatchResultView";
+import { type BoardRematch, type MatchHub } from "./match/MatchResultView";
 import { HandDockLayer } from "./hand/HandDockLayer";
 import { SpectatorFanLayer } from "./hand/SpectatorFanLayer";
 import { UndoRequestBanner } from "./match/UndoRequestBanner";
@@ -105,6 +105,8 @@ type Props = {
   undo?: BoardUndo;
   loadMatchRecord?: LoadMatchRecord;
   rematch?: BoardRematch;
+  /** Match-over extras: invite someone new and what the deck still costs. */
+  hub?: MatchHub;
   opponentAwayUntil?: number | null;
   seatSkins?: readonly [SeatSkin | null, SeatSkin | null];
   leaveLabel?: string;
@@ -153,6 +155,7 @@ export function DuelBoard({
   opponentAwayUntil = null,
   seatSkins,
   rematch,
+  hub,
   loadMatchRecord,
   leaveLabel = "Leave",
   replay,
@@ -1299,6 +1302,7 @@ export function DuelBoard({
         matchOver={matchOver}
         loadMatchRecord={loadMatchRecord}
         rematch={rematch}
+        hub={hub}
         canReportPlayer={canReportPlayer}
         reportTargetFor={reportTargetFor}
         onLeave={onLeave}

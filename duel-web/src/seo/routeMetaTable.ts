@@ -92,6 +92,7 @@ export const ROUTE_META: readonly RouteMetaEntry[] = [
   { pattern: "/decks/new", title: `New deck – ${NAME}`, noindex: true },
   { pattern: "/decks/:deckId/configure", title: `Edit deck – ${NAME}`, noindex: true },
   { pattern: "/watch/:roomId", title: `Spectate – ${NAME}`, noindex: true },
+  { pattern: "/join/:roomId", title: `Join a match – ${NAME}`, noindex: true },
 ];
 
 const FALLBACK: RouteMetaEntry = { pattern: "*", title: NAME, description: HOME_DESCRIPTION, noindex: true };
