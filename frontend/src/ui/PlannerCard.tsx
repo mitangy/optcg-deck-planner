@@ -12,6 +12,7 @@ export function GridCard({
   className = "",
   as: Tag = "article",
   dataCardId,
+  rowId,
   rootProps,
   before,
   meta,
@@ -32,6 +33,8 @@ export function GridCard({
   className?: string;
   as?: "article" | "div";
   dataCardId?: string;
+  /** Marks the card as a list row that holds still while it is edited (#1498). */
+  rowId?: string;
   rootProps?: Root;
   before?: ReactNode;
   meta?: ReactNode;
@@ -51,6 +54,7 @@ export function GridCard({
       {...rootProps}
       className={`grid-card${className ? ` ${className}` : ""}${wideAlts.className}`}
       data-card-id={dataCardId}
+      data-row-id={rowId}
     >
       {before}
       <div className="grid-card-media" onClick={onMediaClick}>
@@ -77,6 +81,7 @@ export function MobileCard({
   rarity,
   className = "",
   dataCardId,
+  rowId,
   rootProps,
   before,
   meta,
@@ -93,6 +98,8 @@ export function MobileCard({
   rarity?: string;
   className?: string;
   dataCardId?: string;
+  /** Marks the card as a list row that holds still while it is edited (#1498). */
+  rowId?: string;
   rootProps?: Root;
   before?: ReactNode;
   meta?: ReactNode;
@@ -109,6 +116,7 @@ export function MobileCard({
       {...rootProps}
       className={`mobile-card${className ? ` ${className}` : ""}`}
       data-card-id={dataCardId}
+      data-row-id={rowId}
     >
       {before}
       <div className="mobile-card-top">

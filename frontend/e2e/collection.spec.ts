@@ -12,13 +12,14 @@ test.afterEach(({ planner }) => {
   expect(planner.errors).toEqual([]);
 });
 
-test("lists owned cards by value with the collection total and passes the audit (#268)", async ({ page, planner }) => {
+test("lists owned cards in set order with the collection total and passes the audit (#268, #1498)", async ({ page, planner }) => {
   const totals = page.getByRole("list", { name: "Collection totals" });
   await expect(totals).toContainText("$5.80");
   await expect(totals).toContainText("6");
   await expect(page.locator(row("EB01-003"))).toHaveCount(0);
   const ids = await page.locator("[data-card-id]:visible").evaluateAll((els) => els.map((e) => e.getAttribute("data-card-id")));
-  expect(ids).toEqual(["EB01-002", "EB01-001", "EB01-006"]);
+  // Set order is stable while Owned is stepped; Value would move a card as soon as its count changed (#1498).
+  expect(ids).toEqual(["EB01-001", "EB01-002", "EB01-006"]);
   await expect(page.locator(row("EB01-002"))).toContainText("$2.50");
 
   const issues = await planner.audit();
@@ -128,6 +129,11 @@ test("clicking a table header sorts the Collection rows, again reverses, a third
     page.locator("table.collection-table tbody tr[data-card-id]").evaluateAll((els) => els.map((e) => e.getAttribute("data-card-id")));
   const market = page.getByRole("button", { name: "Sort by Market" });
   const header = page.getByRole("columnheader", { name: /Market/ });
+
+  // The Collection opens in set order; this test needs the toolbar order to differ from the header sort, so pick Value (#1498).
+  await page.evaluate(() => localStorage.setItem("optcg_owned_sorts", JSON.stringify(["value"])));
+  await page.reload();
+  await expect(header).toBeVisible();
 
   await expect(header).toHaveAttribute("aria-sort", "none");
   expect(await order()).toEqual(["EB01-002", "EB01-001", "EB01-006"]);

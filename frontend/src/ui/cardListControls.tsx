@@ -19,7 +19,8 @@ export type SortKey = "still_need" | "color" | "set" | "deck" | "user" | "price"
 export const ALL_SORT_KEYS: SortKey[] = ["deck", "user", "still_need", "price", "color", "set"];
 export const DEFAULT_SORTS: SortKey[] = ["color", "set"];
 export const OWNED_SORT_KEYS: SortKey[] = ["value", "owned", "price", "color", "set"];
-export const OWNED_DEFAULT_SORTS: SortKey[] = ["value"];
+/** Set order is stable while you step Owned; Value or Owned order moves a card as soon as its count changes (#1498). */
+export const OWNED_DEFAULT_SORTS: SortKey[] = ["set"];
 export const SORT_LABELS: Record<SortKey, string> = {
   deck: "Deck",
   user: "User",

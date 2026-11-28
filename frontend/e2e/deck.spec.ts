@@ -150,11 +150,40 @@ test("owned stepper saves each click and updates still needed (#652)", async ({ 
   await expect(owned).toHaveValue("1");
   await owned.fill("4");
   await owned.blur();
-  await expect(row).toHaveCount(0); // fully owned: drops out of "To buy only"
+  // Fully owned: it stays where it is, green, with Have all and Undo, until the pointer has left (#1498)...
+  await expect(row).toContainText("Have all 4");
+  await expect(row.getByRole("button", { name: "Undo" })).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(row).toHaveCount(0); // ...then it drops out of "To buy only"
   expect(planner.owned.get("EB01-002")).toBe(4);
 
   const issues = await planner.audit();
   expect(issues, formatIssues(issues)).toEqual([]);
+});
+
+test("covering a card holds its row without moving any column of the table (#1498)", async ({ page, isMobile }) => {
+  test.skip(isMobile, "the shifting columns are the desktop table");
+  const kid = page.locator('[data-card-id="EB01-003"]:visible');
+  const izo = page.locator(IZO);
+  const probes = async () => {
+    const boxes = [];
+    for (const l of [kid.locator("input.owned"), kid.locator(".market-price-btn"), izo.locator("input.owned"), izo.locator(".market-price-btn"), izo]) {
+      boxes.push(await l.first().boundingBox());
+    }
+    return boxes;
+  };
+  await expect(izo).toBeVisible();
+  const before = await probes();
+  const owned = izo.locator("input.owned");
+  await owned.fill("4");
+  await owned.blur();
+  await expect(izo).toContainText("Have all 4");
+  const after = await probes();
+  before.forEach((b, i) => {
+    expect(Math.abs(after[i]!.x - b!.x), `probe ${i} x`).toBeLessThanOrEqual(1);
+    expect(Math.abs(after[i]!.width - b!.width), `probe ${i} width`).toBeLessThanOrEqual(1);
+  });
+  expect(Math.abs(after[4]!.height - before[4]!.height)).toBeLessThanOrEqual(1);
 });
 
 test("cannot take owned below zero", async ({ page, planner }) => {
@@ -257,6 +286,9 @@ test("an owned alt art lowers $ left, becomes the main art, and leaves a Base ti
   await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);
   await inc.click();
   await expect(left).toHaveText("$34.30 to finish");
+  // Covered: the row stays (Have all, Undo) while the pointer is on it, then drops out of "To buy only" (#1498).
+  await expect(page.locator(IZO)).toContainText("Have all 4");
+  await page.mouse.move(0, 0);
   await expect(page.locator(IZO)).toHaveCount(0);
 });
 

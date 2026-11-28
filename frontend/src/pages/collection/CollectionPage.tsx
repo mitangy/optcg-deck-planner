@@ -40,7 +40,10 @@ import { jsonArrayCodec, usePersistedState } from "@optcg/ui/storage";
 import { CollectionAddPanel, CollectionOwnedControl } from "./CollectionAddPanel";
 import { CollectionItemsView } from "./CollectionItemsView";
 import { qk } from "../../cache/queryKeys";
+import { SettledScopeProvider, useSettledOrder } from "../../ui/useSettledOrder";
+import { useColumnSort } from "../../ui/columnSort";
 
+const ownedCardId = (i: OwnedCard) => i.card_id;
 const isColor = (c: unknown): c is string => COLOR_ORDER.includes(c as string);
 const collectionColorsCodec = jsonArrayCodec(isColor);
 
@@ -91,6 +94,15 @@ export function CollectionPage() {
     return [...list].sort((a, b) => compareCardOrder(a, b, effectiveSorts));
   }, [allItems, showDons, sparesOnly, colors, type, search, effectiveSorts]);
 
+  const { sort: columnSort } = useColumnSort(COLSORT_COLLECTION_KEY);
+  // Stepping Owned holds that row where it is (a count sort would move it under your finger); changing the view settles at once (#1498).
+  const settled = useSettledOrder({
+    target: items,
+    live: allItems,
+    getId: ownedCardId,
+    resetKey: JSON.stringify([showDons, sparesOnly, colors, type, search, effectiveSorts, columnSort, layout, density, showAltArts]),
+  });
+
   const shown = useMemo(() => collectionTotals(items.filter(holdsCopies)), [items]);
   const narrowed = items.length !== allItems.length;
 
@@ -130,7 +142,9 @@ export function CollectionPage() {
   if (error) return <p className="error">{(error as Error).message}</p>;
 
   return (
+    <SettledScopeProvider scope={settled.scope}>
     <section>
+      {settled.liveRegion}
       <div className="page-head shopping-head collection-head">
         <div className="shopping-head-title">
           <p className="eyebrow">Cards you own</p>
@@ -196,7 +210,7 @@ export function CollectionPage() {
             <p className="muted">No owned cards match the current search and filters.</p>
           ) : (
             <CollectionItemsView
-              items={items}
+              items={settled.items}
               layout={layout}
               density={density}
               onOwnedSaved={onOwnedSaved}
@@ -217,7 +231,12 @@ export function CollectionPage() {
           items={[]}
           showNeed={false}
           initialImage={droppedImage}
-          multi={{ onAdded: () => invalidateOwnedViews(qc) }}
+          multi={{
+            onAdded: () => {
+              settled.scope.holdAll();
+              invalidateOwnedViews(qc);
+            },
+          }}
           renderHitAction={(card) => (
             <div className="scan-hit-owned">
               <span className="muted">In collection</span>
@@ -229,11 +248,13 @@ export function CollectionPage() {
             </div>
           )}
           onClose={() => {
+            settled.scope.holdAll();
             setScanOpen(false);
             setDroppedImage(null);
           }}
         />
       )}
     </section>
+    </SettledScopeProvider>
   );
 }

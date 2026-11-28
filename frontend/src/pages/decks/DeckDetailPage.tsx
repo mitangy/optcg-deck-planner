@@ -45,8 +45,12 @@ import { DeckProgressSummary } from "./DeckProgressSummary";
 import { CardTable } from "./CardTable";
 import { AvailableDonSection } from "./AvailableDonSection";
 import { COLSORT_DECK_KEY, DECK_ONLY_NEED_KEY } from "../../storage/keys";
+import { SettledScopeProvider, useSettledOrder } from "../../ui/useSettledOrder";
+import { useColumnSort } from "../../ui/columnSort";
 import { qk } from "../../cache/queryKeys";
 import { copyText } from "@optcg/ui/clipboard";
+
+const cardIdOf = (c: CardView) => c.card_id;
 
 function filterCards(
   cards: CardView[],
@@ -302,6 +306,19 @@ export function DeckDetailPage() {
       search,
     );
   }, [data, onlyNeed, effectiveSorts, search]);
+
+  const { sort: columnSort } = useColumnSort(COLSORT_DECK_KEY);
+  // Any change to what the list shows settles it at once; stepping Owned only holds that row (#1498).
+  const settleKey = JSON.stringify([deckId, onlyNeed, effectiveSorts, search, columnSort, layout, density, showAltArts, savedDeckIds]);
+  const heldOpts = {
+    live: data?.cards ?? [],
+    getId: cardIdOf,
+    resetKey: settleKey,
+    describeDone: (c: CardView) => `${c.name} covered, ${c.needed} of ${c.needed}.`,
+  };
+  const heldMain = useSettledOrder({ target: main, ...heldOpts });
+  const heldAdditional = useSettledOrder({ target: additional, ...heldOpts });
+  const heldDon = useSettledOrder({ target: donCards, ...heldOpts });
 
   const hasDonInDeck = useMemo(() => {
     if (!data) return false;
@@ -613,8 +630,10 @@ export function DeckDetailPage() {
         </p>
       )}
       <h2 className="deck-list-heading">Deck list</h2>
+      {heldMain.liveRegion}
+      <SettledScopeProvider scope={heldMain.scope}>
       <CardTable
-        cards={main}
+        cards={heldMain.items}
         onOwnedSaved={refresh}
         showAltArts={showAltArts}
         layout={layout}
@@ -629,13 +648,16 @@ export function DeckDetailPage() {
         onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
         collectorBusyKey={collectorBusyKey}
       />
+      </SettledScopeProvider>
       {additional.length > 0 && (
         <>
           <h2 className="additional-heading">
             Additional Cards — not in {data.prior_decks.join(", ")}
           </h2>
+          {heldAdditional.liveRegion}
+          <SettledScopeProvider scope={heldAdditional.scope}>
           <CardTable
-            cards={additional}
+            cards={heldAdditional.items}
             onOwnedSaved={refresh}
             showAltArts={showAltArts}
             layout={layout}
@@ -650,6 +672,7 @@ export function DeckDetailPage() {
             onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
             collectorBusyKey={collectorBusyKey}
           />
+          </SettledScopeProvider>
         </>
       )}
 
@@ -665,8 +688,11 @@ export function DeckDetailPage() {
             : "No DON!! cards in this deck yet. Add some from the list above."}
         </p>
       ) : (
+        <>
+        {heldDon.liveRegion}
+        <SettledScopeProvider scope={heldDon.scope}>
         <CardTable
-          cards={donCards}
+          cards={heldDon.items}
           onOwnedSaved={refresh}
           showAltArts={showAltArts}
           layout={layout}
@@ -681,6 +707,8 @@ export function DeckDetailPage() {
           onCollectorChange={(cardId, productId, qty) => void changeCollector(cardId, productId, qty)}
           collectorBusyKey={collectorBusyKey}
         />
+        </SettledScopeProvider>
+        </>
       )}
       </CardWorkspace>
     </section>

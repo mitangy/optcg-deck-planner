@@ -1244,3 +1244,90 @@
 .btn.primary .head-popover-chevron {
   color: inherit;
 }
+
+/* A row you covered stays where it is, green, with Undo, until you are done with it (#1498).
+   In the tables the done note floats over the cell's free space, so no column ever changes width or height. */
+.data-table .col-still {
+  min-width: 6.6rem;
+}
+
+.data-table td.col-still {
+  position: relative;
+}
+
+.data-table td.col-still .still-need.still-need-done {
+  position: absolute;
+  left: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-raise-1);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  white-space: nowrap;
+}
+
+.data-table td.col-still .still-need-have {
+  font-size: 0.78rem;
+}
+
+.data-table td.col-still .row-undo-btn {
+  min-height: 1.4rem;
+  padding: 0 0.55rem;
+  font-size: 0.72rem;
+}
+
+.still-need.still-need-done {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  white-space: nowrap;
+}
+
+.still-need-have {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--ok-ink);
+}
+
+.still-need-check {
+  font-weight: 800;
+}
+
+.row-undo-btn {
+  flex: none;
+  min-height: 1.75rem;
+  margin-left: 0.4rem;
+  padding: 0 0.7rem;
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--accent-ink);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.still-need-done .row-undo-btn {
+  margin-left: 0;
+}
+
+.row-undo-btn:hover {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.row-undo-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (hover: none) {
+  .row-undo-btn {
+    min-height: 2.75rem;
+    padding: 0 1rem;
+  }
+}

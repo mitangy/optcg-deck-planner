@@ -2,6 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { api } from "../../api";
 import { nextWantTarget, wantAtDeckFloor } from "../shopping/shoppingExtras";
+import { useRowHold, useSettledScope } from "../../ui/useSettledOrder";
 
 export function totalOwned(owned: number, altsOwned?: number): number {
   return owned + Math.max(0, altsOwned ?? 0);
@@ -66,13 +67,55 @@ export function OwnedCell({
   );
 }
 
-export function StillNeededCell({ still, need }: { still: number; need?: number }) {
+/**
+ * The To buy cell. While the row is held after you covered it (Only cards still needed is on), it
+ * keeps its place and says "Have all N" with an Undo button instead of vanishing (#1498).
+ */
+export function StillNeededCell({ still, need, haveAll, rowId }: { still: number; need?: number; haveAll?: number; rowId?: string }) {
+  const hold = useRowHold(rowId);
+  if (hold?.done) {
+    return (
+      <span className="still-need still-need-done">
+        <span className="still-need-have">
+          <span className="still-need-check" aria-hidden="true">
+            ✓
+          </span>
+          {haveAll ?? need ? `Have all ${haveAll ?? need}` : "Have all"}
+        </span>
+        <RowUndoButton hold={hold} />
+      </span>
+    );
+  }
   return (
     <span className="still-need">
       <span className="still-need-num">{still}</span>
       {need != null && <span className="still-need-of">of {need}</span>}
     </span>
   );
+}
+
+/** Undo for a covered row held in place: a real button, so Tab reaches it, and it never selects the row behind it. */
+export function RowUndoButton({ hold }: { hold: { canUndo: boolean; undo: () => void } }) {
+  if (!hold.canUndo) return null;
+  return (
+    <button
+      type="button"
+      className="row-undo-btn"
+      onClick={(e) => {
+        e.stopPropagation();
+        hold.undo();
+      }}
+      onKeyDown={(e) => e.stopPropagation()}
+    >
+      Undo
+    </button>
+  );
+}
+
+/** The same Undo in the grid and phone cards, where the status line is plain text. */
+export function RowUndo({ rowId }: { rowId: string }) {
+  const hold = useRowHold(rowId);
+  return hold?.done ? <RowUndoButton hold={hold} /> : null;
 }
 
 export function OwnedStepper({
@@ -95,6 +138,7 @@ export function OwnedStepper({
   const [err, setErr] = useState<string | null>(null);
   const serverValueRef = useRef(value);
   const pendingRef = useRef<number | null>(null);
+  const settled = useSettledScope();
   const draftNum = Number(draft);
   const displayQty = Number.isFinite(draftNum) ? Math.max(0, Math.floor(draftNum)) : 0;
 
@@ -111,6 +155,7 @@ export function OwnedStepper({
     onError: (e: Error) => {
       setErr(e.message);
       pendingRef.current = null;
+      settled?.clearHold(cardId);
       applyOptimistic(cardId, serverValueRef.current);
       if (!focused) setDraft(String(serverValueRef.current));
     },
@@ -127,6 +172,23 @@ export function OwnedStepper({
     setDraft(String(n));
     if (n === serverValueRef.current && pendingRef.current === null) return;
     pendingRef.current = n;
+    if (settled) {
+      // Hold the row where it is, and remember the count it had so one Undo puts it back.
+      const before = serverValueRef.current;
+      settled.markEdited(cardId, {
+        key: "owned",
+        restore: async () => {
+          applyOptimistic(cardId, before);
+          try {
+            const res = await api.setOwned(cardId, before);
+            applyOptimistic(cardId, res.qty);
+          } catch {
+            /* the refresh below shows the real count */
+          }
+          onSaved();
+        },
+      });
+    }
     applyOptimistic(cardId, n);
     mutation.mutate(n);
   }
@@ -245,10 +307,23 @@ export function WantStepper({
   const [err, setErr] = useState<string | null>(null);
   const prevRef = useRef(extraQty);
   prevRef.current = extraQty;
+  const settled = useSettledScope();
   const save = useMutation({
     mutationFn: (target: number) => api.setShoppingExtra(cardId, target),
     onMutate: (target) => {
       const prev = prevRef.current;
+      settled?.markEdited(cardId, {
+        key: "want",
+        restore: async () => {
+          applyOptimistic(cardId, prev);
+          try {
+            await api.setShoppingExtra(cardId, prev);
+          } catch {
+            /* the refresh below shows the real count */
+          }
+          onSaved();
+        },
+      });
       applyOptimistic(cardId, target);
       return { prev };
     },
@@ -258,6 +333,7 @@ export function WantStepper({
     },
     onError: (e: Error, _t, ctx) => {
       setErr(e.message);
+      settled?.clearHold(cardId);
       applyOptimistic(cardId, ctx?.prev ?? 0);
     },
   });
