@@ -23,6 +23,37 @@ class FeedbackIn(BaseModel):
     room_id: str = Field(default="", max_length=64)
 
 
+class ClientErrorIn(BaseModel):
+    """An uncaught error from a browser. Long fields are cut on the server, not refused, so a huge stack still reports."""
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    app: Literal["duel", "planner"]
+    message: str = Field(min_length=1, max_length=5000)
+    stack: str = Field(default="", max_length=20000)
+    url: str = Field(default="", max_length=2000)
+    release: str = Field(default="", max_length=100)
+
+
+class ClientErrorGroup(BaseModel):
+    fingerprint: str
+    app: Literal["duel", "planner", "api", "game-server"]
+    message: str
+    stack: str
+    url: str
+    release: str
+    count: int
+    users: int
+    first_seen: str
+    last_seen: str
+
+
+class AdminClientErrors(BaseModel):
+    days: int
+    total: int
+    groups: list[ClientErrorGroup]
+
+
 class FeedbackOut(BaseModel):
     id: int
     kind: str

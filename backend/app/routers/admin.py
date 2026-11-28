@@ -10,11 +10,13 @@ from pydantic import AfterValidator, BaseModel, Field, model_validator
 from sqlalchemy import and_, case, func, or_, select, update
 from sqlalchemy.orm import Session, aliased
 
+from app.admin import client_errors as admin_client_errors
 from app.admin import hosting as admin_hosting
 from app.admin import traffic as admin_traffic
 from app.admin.overview import build_overview, bucket_by_day, is_guest, last_days
 from app.admin.schemas import (
     AdminBots,
+    AdminClientErrors,
     AdminDayMatches,
     AdminFeedback,
     AdminMe,
@@ -337,6 +339,13 @@ def feedback_export(
         .limit(limit)
     ).all()
     return {"items": [{k: v for k, v in _feedback_out(f, None).items() if k not in ("user_id", "user_name")} for f in rows]}
+
+
+@router.get("/client-errors", response_model=AdminClientErrors)
+def client_errors(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 7) -> dict:
+    """Uncaught errors from the apps and the API, one row per fingerprint (#1500)."""
+    groups = admin_client_errors.grouped_errors(db, days)
+    return {"days": days, "total": sum(g["count"] for g in groups), "groups": groups}
 
 
 @router.get("/hosting", response_model=HostingOut)

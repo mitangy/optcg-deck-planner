@@ -40,6 +40,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Client Errors
+         * @description Uncaught errors from the apps and the API, one row per fingerprint (#1500).
+         */
+        get: operations["client_errors_admin_client_errors_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/cosmetics": {
         parameters: {
             query?: never;
@@ -2004,6 +2024,26 @@ export interface paths {
         get: operations["catalog_status_catalog_status_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/client-errors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report Client Error
+         * @description Record an uncaught error from the planner or duel app (signed in or not).
+         */
+        post: operations["report_client_error_client_errors_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4627,6 +4667,15 @@ export interface components {
             /** Set Roles */
             set_roles: boolean;
         };
+        /** AdminClientErrors */
+        AdminClientErrors: {
+            /** Days */
+            days: number;
+            /** Groups */
+            groups: components["schemas"]["ClientErrorGroup"][];
+            /** Total */
+            total: number;
+        };
         /** AdminDayMatches */
         AdminDayMatches: {
             /** Day */
@@ -6152,6 +6201,60 @@ export interface components {
             source?: components["schemas"]["SignupSource"] | null;
             /** Ticket */
             ticket: string;
+        };
+        /** ClientErrorGroup */
+        ClientErrorGroup: {
+            /**
+             * App
+             * @enum {string}
+             */
+            app: "duel" | "planner" | "api" | "game-server";
+            /** Count */
+            count: number;
+            /** Fingerprint */
+            fingerprint: string;
+            /** First Seen */
+            first_seen: string;
+            /** Last Seen */
+            last_seen: string;
+            /** Message */
+            message: string;
+            /** Release */
+            release: string;
+            /** Stack */
+            stack: string;
+            /** Url */
+            url: string;
+            /** Users */
+            users: number;
+        };
+        /**
+         * ClientErrorIn
+         * @description An uncaught error from a browser. Long fields are cut on the server, not refused, so a huge stack still reports.
+         */
+        ClientErrorIn: {
+            /**
+             * App
+             * @enum {string}
+             */
+            app: "duel" | "planner";
+            /** Message */
+            message: string;
+            /**
+             * Release
+             * @default
+             */
+            release: string;
+            /**
+             * Stack
+             * @default
+             */
+            stack: string;
+            /**
+             * Url
+             * @default
+             */
+            url: string;
         };
         /**
          * CollectorLine
@@ -10968,6 +11071,37 @@ export interface operations {
             };
         };
     };
+    client_errors_admin_client_errors_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminClientErrors"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_cosmetics_admin_cosmetics_get: {
         parameters: {
             query?: {
@@ -14679,6 +14813,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CatalogStatus"];
+                };
+            };
+        };
+    };
+    report_client_error_client_errors_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ClientErrorIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
