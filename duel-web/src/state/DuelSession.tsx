@@ -40,6 +40,14 @@ import type {
   UndoState,
 } from "../net/protocol";
 import { buildSharedSkin, isSkinPathRejected } from "../skinShare";
+import { fetchServerBootId } from "../net/serverBoot";
+import {
+  gameGoneMeansRestart,
+  GAME_ENDED_WHILE_AWAY,
+  reconnectUntilSettled,
+  UNREACHABLE_BANNER,
+  type RematchPlan,
+} from "./connectionLoss";
 import {
   initSeatArtPrefsFromStorage,
   replaceSeatArtPrefs,
@@ -114,6 +122,9 @@ type DuelSession = {
   clearBattleLog: () => void;
   errorBanner: string | null;
   serverRestart: { seconds: number } | null;
+  /** The room is gone because the server restarted (#1500). */
+  lostGame: boolean;
+  rematchPlan: RematchPlan | null;
   matchOver: MatchOverMessage["result"] | null;
   timer: TimerMessage | null;
   chat: ChatLine[];
@@ -202,14 +213,36 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       const url = serverUrlRef.current ?? client.serverUrl;
       if (s !== 0 && s !== 1) return;
       if (!url) return;
+      const { rematchPlan, bootId } = store.getSnapshot();
       saveMatchResume({
         mode: "duel",
         serverUrl: url,
         roomId,
         reconnectionToken: token,
         seat: s,
+        rematchPlan,
+        bootId,
         savedAt: Date.now(),
       });
+    }
+
+    // The server's process id changes on every restart: it tells a game cut off by a restart from one that ended while away.
+    function noteBootId() {
+      if (store.getSnapshot().bootId) return;
+      const url = serverUrlRef.current ?? client.serverUrl;
+      if (!url) return;
+      void fetchServerBootId(url).then((id) => {
+        if (!id || store.getSnapshot().bootId) return;
+        dispatch({ type: "bootId", id });
+        const tok = client.getReconnectionToken();
+        const room = client.roomId;
+        if (tok && room) persistToken(tok, room);
+      });
+    }
+
+    function planFor(opts: Pick<ConnectOpts, "deck" | "createOptions" | "role">): RematchPlan | null {
+      if ((opts.role ?? "player") !== "player" || !opts.deck) return null;
+      return { deck: opts.deck, bot: opts.createOptions?.bot ?? null, opponentName: null };
     }
 
     function wireHandlers() {
@@ -232,6 +265,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           }
           const tok = client.getReconnectionToken();
           if (tok) persistToken(tok, info.matchId);
+          noteBootId();
         },
         onView: (view) => dispatch({ type: "view", view }),
         onEvents: (events, step) => dispatch({ type: "events", events, step }),
@@ -274,6 +308,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         onDisconnect: () => {
           dropRestartedGame();
           dispatch({ type: "disconnect" });
+          autoReconnect();
         },
         onDrop: () => {
           dropRestartedGame();
@@ -288,6 +323,14 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     // A game cut off by a restart it was warned about has nothing to reconnect to: stop the SDK retrying and forget the token.
     function dropRestartedGame() {
       if (store.getSnapshot().serverRestart) resetMatchEffects();
+    }
+
+    // The SDK gave up on its own retries: keep trying here, so the player sees "Reconnecting…" rather than a dead board.
+    function autoReconnect() {
+      const m = store.getSnapshot();
+      if (m.role !== "player" || !m.canReconnect || !m.matchId || m.matchOver || m.takenOver || m.lostGame) return;
+      if (!client.getReconnectionToken()) return;
+      queueMicrotask(() => void actions.reconnect().catch(() => undefined));
     }
 
     function abandon(): Error {
@@ -315,6 +358,62 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
     function resetMatch() {
       resetMatchEffects();
       dispatch({ type: "reset" });
+    }
+
+    let reconnectLoop: Promise<void> | null = null;
+
+    async function runReconnect(): Promise<void> {
+      dispatch({ type: "reconnectStarted" });
+      wireHandlers();
+      const result = await reconnectUntilSettled({
+        attempt: () => client.reconnect({ serverUrl: serverUrlRef.current ?? undefined }),
+        active: () => store.getSnapshot().reconnecting,
+      });
+      if (result.kind === "cancelled") return;
+      if (result.kind === "joined") {
+        const info = result.value;
+        seatRef.current = info.seat;
+        dispatch({
+          type: "joined",
+          matchId: info.matchId,
+          seat: info.seat,
+          canReconnect: true,
+          reconnecting: false,
+          resuming: false,
+        });
+        return;
+      }
+      if (result.kind === "unreachable") {
+        // The seat may still be held: keep the token and let the player try again.
+        dispatch({ type: "reconnectUnreachable" });
+        throw result.error;
+      }
+      if (result.kind === "game_gone") {
+        const restarted = await restartedSince(store.getSnapshot().bootId, serverUrlRef.current ?? client.serverUrl);
+        clearMatchResume();
+        if (restarted) {
+          resetMatchEffects();
+          dispatch({ type: "gameLost" });
+        } else {
+          dispatch({ type: "reconnectFailed", banner: GAME_ENDED_WHILE_AWAY });
+        }
+        throw result.error;
+      }
+      clearMatchResume();
+      const e = result.error;
+      dispatch({
+        type: "reconnectFailed",
+        banner: isSeatReservationExpiredError(e)
+          ? "You were away too long and your seat was released."
+          : e instanceof Error
+            ? e.message
+            : "Reconnect failed",
+      });
+      throw e;
+    }
+
+    async function restartedSince(bootIdWhenJoined: string | null, url: string | null): Promise<boolean> {
+      return gameGoneMeansRestart(bootIdWhenJoined, url ? await fetchServerBootId(url) : null);
     }
 
     const actions: SessionActions = {
@@ -372,6 +471,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         if (launchGenRef.current !== gen) throw cancelled();
         const role = opts.role ?? "player";
         dispatch({ type: "connectStarted", role, vsBot: Boolean(opts.createOptions?.bot) });
+        dispatch({ type: "rematchPlan", plan: planFor(opts) });
         connectRoleRef.current = role;
         serverUrlRef.current = opts.serverUrl ?? null;
         if (opts.serverUrl) setLastServerUrl(opts.serverUrl);
@@ -388,6 +488,7 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       async queueRanked(opts, gen) {
         if (launchGenRef.current !== gen) throw cancelled();
         dispatch({ type: "queueStarted" });
+        dispatch({ type: "rematchPlan", plan: planFor({ deck: opts.deck }) });
         serverUrlRef.current = opts.serverUrl ?? null;
         if (opts.serverUrl) setLastServerUrl(opts.serverUrl);
         wireHandlers();
@@ -409,34 +510,12 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         await client.cancelQueue();
         dispatch({ type: "queueCancelled" });
       },
-      async reconnect() {
-        dispatch({ type: "reconnectStarted" });
-        wireHandlers();
-        try {
-          const info = await client.reconnect({
-            serverUrl: serverUrlRef.current ?? undefined,
-          });
-          seatRef.current = info.seat;
-          dispatch({
-            type: "joined",
-            matchId: info.matchId,
-            seat: info.seat,
-            canReconnect: true,
-            reconnecting: false,
-            resuming: false,
-          });
-        } catch (e) {
-          clearMatchResume();
-          dispatch({
-            type: "reconnectFailed",
-            banner: isSeatReservationExpiredError(e)
-              ? "You were away too long and your seat was released."
-              : e instanceof Error
-                ? e.message
-                : "Reconnect failed",
-          });
-          throw e;
-        }
+      reconnect() {
+        // The button and the automatic retry can both ask: one loop serves them.
+        reconnectLoop ??= runReconnect().finally(() => {
+          reconnectLoop = null;
+        });
+        return reconnectLoop;
       },
       async tryResumeFromStorage() {
         const blob = loadMatchResume();
@@ -452,15 +531,19 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           return false;
         }
         dispatch({ type: "resumeStarted" });
+        dispatch({ type: "rematchPlan", plan: blob.rematchPlan ?? null });
+        dispatch({ type: "bootId", id: blob.bootId ?? null });
         serverUrlRef.current = blob.serverUrl;
         setLastServerUrl(blob.serverUrl);
         seatRef.current = blob.seat;
         wireHandlers();
-        try {
-          const info = await client.reconnect({
-            serverUrl: blob.serverUrl,
-            reconnectionToken: blob.reconnectionToken,
-          });
+        // A reload during a deploy lands while the server is still booting: wait for it instead of giving up.
+        const result = await reconnectUntilSettled({
+          attempt: () => client.reconnect({ serverUrl: blob.serverUrl, reconnectionToken: blob.reconnectionToken }),
+          active: () => store.getSnapshot().resuming,
+        });
+        if (result.kind === "joined") {
+          const info = result.value;
           seatRef.current = info.seat;
           flushSync(() => {
             dispatch({ type: "joined", matchId: info.matchId, seat: info.seat, canReconnect: true, resuming: false });
@@ -468,14 +551,28 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
           const tok = client.getReconnectionToken();
           if (tok) persistToken(tok, info.matchId);
           return true;
-        } catch (e) {
-          clearMatchResume();
-          const msg = e instanceof Error ? e.message : "Resume failed";
-          // Expired grace tokens are expected after idle / free-tier sleep —
-          // don't leave a scary banner on the lobby redirect path.
-          dispatch({ type: "resumeEnded", banner: isSeatReservationExpiredError(msg) ? undefined : msg });
+        }
+        if (result.kind === "cancelled") return false;
+        if (result.kind === "unreachable") {
+          // Keep the saved seat: the lobby offers to resume it once the server is back.
+          dispatch({ type: "resumeEnded", banner: UNREACHABLE_BANNER });
           return false;
         }
+        clearMatchResume();
+        if (result.kind === "game_gone") {
+          if (await restartedSince(blob.bootId ?? null, blob.serverUrl)) {
+            resetMatchEffects();
+            dispatch({ type: "gameLost" });
+          } else {
+            dispatch({ type: "resumeEnded", banner: GAME_ENDED_WHILE_AWAY });
+          }
+          return false;
+        }
+        const msg = result.error instanceof Error ? result.error.message : "Resume failed";
+        // Expired grace tokens are expected after idle / free-tier sleep —
+        // don't leave a scary banner on the lobby redirect path.
+        dispatch({ type: "resumeEnded", banner: isSeatReservationExpiredError(msg) ? undefined : msg });
+        return false;
       },
       sendIntent(intent) {
         try {
@@ -553,6 +650,8 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
       battleLog: match.battleLog,
       errorBanner: match.errorBanner,
       serverRestart: match.serverRestart,
+      lostGame: match.lostGame,
+      rematchPlan: match.rematchPlan,
       matchOver: match.matchOver,
       timer: match.timer,
       chat: match.chat,

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { BoardErrorBoundary } from "../board/CrashScreen";
 import { DuelBoard } from "../board/DuelBoard";
 import {
   initSeatArtPrefsFromStorage,
@@ -206,56 +207,58 @@ export function HotseatPage() {
 
   return (
     <div className="duel-root">
-      <DuelBoard
-        view={state.view}
-        seat={activeSeat}
-        matchId={matchId}
-        errorBanner={state.errorBanner}
-        matchOver={state.matchOver}
-        battleLog={state.battleLog}
-        firstSeatPickedBy={seat0State?.firstSeatPickedBy}
-        matchBrief={{ brief: seat0State?.brief ?? null, ranked: seat0State?.ranked ?? null, ticketSeat: 0 }}
-        hotseatPass={{ otherSeat: other, onPass: () => session.passDevice(other) }}
-        rematch={{
-          state: state.rematch,
-          autoAccept: true,
-          deckOptions: rematchDecks,
-          onAction: (action: RematchAction, decks) => {
-            const rematchState = state.rematch;
-            const targets =
-              action === "request" || action === "decline"
-                ? session.seats
-                : rematchState?.chooser != null
-                  ? [session.seats[rematchState.chooser]]
-                  : [];
-            for (const b of targets) {
-              try {
-                const s = session.seats.indexOf(b);
-                b?.client.sendRematch(action, action === "request" && s >= 0 ? decks?.[s] : undefined);
-              } catch {
-                /* disconnected */
+      <BoardErrorBoundary>
+        <DuelBoard
+          view={state.view}
+          seat={activeSeat}
+          matchId={matchId}
+          errorBanner={state.errorBanner}
+          matchOver={state.matchOver}
+          battleLog={state.battleLog}
+          firstSeatPickedBy={seat0State?.firstSeatPickedBy}
+          matchBrief={{ brief: seat0State?.brief ?? null, ranked: seat0State?.ranked ?? null, ticketSeat: 0 }}
+          hotseatPass={{ otherSeat: other, onPass: () => session.passDevice(other) }}
+          rematch={{
+            state: state.rematch,
+            autoAccept: true,
+            deckOptions: rematchDecks,
+            onAction: (action: RematchAction, decks) => {
+              const rematchState = state.rematch;
+              const targets =
+                action === "request" || action === "decline"
+                  ? session.seats
+                  : rematchState?.chooser != null
+                    ? [session.seats[rematchState.chooser]]
+                    : [];
+              for (const b of targets) {
+                try {
+                  const s = session.seats.indexOf(b);
+                  b?.client.sendRematch(action, action === "request" && s >= 0 ? decks?.[s] : undefined);
+                } catch {
+                  /* disconnected */
+                }
               }
-            }
-          },
-        }}
-        undo={{
-          state: state.undo,
-          autoAccept: true,
-          onAction: (action, opts) => {
-            try {
-              bag?.client.sendUndo(action, opts);
-            } catch {
-              /* disconnected; the board shows the reconnect state */
-            }
-          },
-        }}
-        leaveLabel="Leave match"
-        onSendIntent={takenOver ? () => undefined : sendIntent}
-        onLeave={() => void leave()}
-        onClearError={() => {
-          bag?.store.dispatch({ type: "setError", message: null });
-        }}
-      />
+            },
+          }}
+          undo={{
+            state: state.undo,
+            autoAccept: true,
+            onAction: (action, opts) => {
+              try {
+                bag?.client.sendUndo(action, opts);
+              } catch {
+                /* disconnected; the board shows the reconnect state */
+              }
+            },
+          }}
+          leaveLabel="Leave match"
+          onSendIntent={takenOver ? () => undefined : sendIntent}
+          onLeave={() => void leave()}
+          onClearError={() => {
+            bag?.store.dispatch({ type: "setError", message: null });
+          }}
+        />
+      </BoardErrorBoundary>
       {takenOver && matchId ? (
         <MovedElsewhereOverlay onPlayHere={() => playHere(matchId)} onLeave={() => void leave()} />
       ) : null}

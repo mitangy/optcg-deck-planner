@@ -24,7 +24,7 @@ import type {
   UndoState,
 } from "../net/protocol";
 
-import { SERVER_RESTART_ENDED } from "./serverRestart";
+import type { RematchPlan } from "./connectionLoss";
 
 export type MatchMode = "online" | "hotseat" | "demo";
 
@@ -34,6 +34,12 @@ export type MatchState = {
   takenOver: boolean;
   /** The server told this game it is about to restart. */
   serverRestart: { seconds: number } | null;
+  /** The game's room is gone because the server restarted: nothing to reconnect to (#1500). */
+  lostGame: boolean;
+  /** Who and with what to start again if the room is lost; null when this seat joined without a deck. */
+  rematchPlan: RematchPlan | null;
+  /** The game server's process id when this game started. */
+  bootId: string | null;
   queueing: boolean;
   canReconnect: boolean;
   resuming: boolean;
@@ -115,6 +121,10 @@ export type MatchAction =
   | { type: "undoApplied"; info: UndoApplied }
   | { type: "takenOver" }
   | { type: "serverRestarting"; seconds: number }
+  | { type: "gameLost" }
+  | { type: "bootId"; id: string | null }
+  | { type: "rematchPlan"; plan: RematchPlan | null }
+  | { type: "reconnectUnreachable" }
   | { type: "disconnect" }
   | { type: "drop" }
   | { type: "reconnect" }
@@ -147,6 +157,9 @@ export function createInitialMatchState(mode: MatchMode = "online", overrides: P
     connected: false,
     takenOver: false,
     serverRestart: null,
+    lostGame: false,
+    rematchPlan: null,
+    bootId: null,
     queueing: false,
     canReconnect: false,
     resuming: false,
@@ -209,6 +222,8 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
         connected: true,
         reconnecting: false,
         serverRestart: null,
+        lostGame: false,
+        rematchPlan: withOpponentName(s.rematchPlan, info),
         canReconnect: info.role === "player",
         queueing: false,
         resuming: false,
@@ -284,6 +299,14 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
       };
     case "serverRestarting":
       return s.matchOver || !s.view ? s : { ...s, serverRestart: { seconds: a.seconds } };
+    case "gameLost":
+      return s.matchOver ? s : gameCutOffByRestart(s);
+    case "bootId":
+      return s.bootId === a.id ? s : { ...s, bootId: a.id };
+    case "rematchPlan":
+      return { ...s, rematchPlan: a.plan };
+    case "reconnectUnreachable":
+      return { ...s, reconnecting: false };
     case "disconnect":
       return s.serverRestart ? gameCutOffByRestart(s) : { ...s, connected: false, reconnecting: false, queueing: false };
     case "drop":
@@ -299,6 +322,7 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
         errorBanner: null,
         takenOver: false,
         serverRestart: null,
+        lostGame: false,
         matchOver: null,
         timer: null,
         chat: [],
@@ -351,7 +375,7 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
       if (!s.resuming && a.banner === undefined) return s;
       return { ...s, resuming: false, ...(a.banner !== undefined ? { errorBanner: a.banner } : null) };
     case "launchStarted":
-      return { ...s, errorBanner: null, takenOver: false, serverRestart: null, view: null, matchId: null, seat: null };
+      return { ...s, errorBanner: null, takenOver: false, serverRestart: null, lostGame: false, rematchPlan: null, bootId: null, view: null, matchId: null, seat: null };
     case "launchFailed":
       return { ...s, queueing: false, errorBanner: a.banner };
     case "reset":
@@ -363,20 +387,24 @@ export function matchReducer(s: MatchState, a: MatchAction): MatchState {
   }
 }
 
-// The game is gone and there is nothing to reconnect to: leave the board so the lobby redirect shows why.
+// The game is gone and there is nothing to reconnect to. The board stays under the "server restarted" screen.
 function gameCutOffByRestart(s: MatchState): MatchState {
   return {
     ...s,
-    view: null,
-    matchId: null,
-    seat: null,
     connected: false,
     reconnecting: false,
     canReconnect: false,
     queueing: false,
     resuming: false,
-    errorBanner: SERVER_RESTART_ENDED,
+    lostGame: true,
+    errorBanner: null,
   };
+}
+
+function withOpponentName(plan: RematchPlan | null, info: WelcomeInfo): RematchPlan | null {
+  if (!plan || info.role !== "player") return plan;
+  const name = info.players?.[info.seat === 0 ? 1 : 0]?.name ?? null;
+  return plan.bot || name === plan.opponentName ? plan : { ...plan, opponentName: name };
 }
 
 function resetMatchState(s: MatchState): MatchState {
@@ -385,6 +413,9 @@ function resetMatchState(s: MatchState): MatchState {
     seatSkins: [null, null],
     takenOver: false,
     serverRestart: null,
+    lostGame: false,
+    rematchPlan: null,
+    bootId: null,
     awayUntil: [null, null],
     rematch: null,
     connected: false,

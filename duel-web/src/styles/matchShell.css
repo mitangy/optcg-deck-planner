@@ -48,6 +48,51 @@ html:has(.duel-root) body {
   opacity: 0.6;
 }
 
+/* Click-through and fixed, so the board under it never moves. */
+.reconnect-pill {
+  position: fixed;
+  top: calc(var(--safe-t) + 0.5rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: var(--z-modal);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+  max-width: calc(100vw - 1.5rem);
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(201, 130, 47, 0.7);
+  border-radius: 999px;
+  background: rgba(60, 38, 12, 0.94);
+  color: #fff3df;
+  font-size: 0.8rem;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+}
+
+.reconnect-pill-dot {
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 243, 223, 0.35);
+  border-top-color: #fff3df;
+  animation: reconnect-pill-spin 0.9s linear infinite;
+}
+
+@keyframes reconnect-pill-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reconnect-pill-dot {
+    animation: none;
+  }
+}
+
 .moved-overlay {
   position: fixed;
   inset: 0;
@@ -103,6 +148,56 @@ html:has(.duel-root) body {
     padding: 0.7rem 0.9rem;
   }
   .moved-card p {
+    margin-bottom: 0.6rem;
+  }
+}
+
+/* Opaque: the board it replaces is gone, and this also renders above the whole app when the app root fails. */
+.crash-screen {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-moved) + 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: max(0.75rem, var(--safe-t)) max(0.75rem, var(--safe-r)) max(0.75rem, var(--safe-b))
+    max(0.75rem, var(--safe-l));
+  background: var(--arena-deep);
+  overflow-y: auto;
+}
+
+.crash-card {
+  width: min(24rem, 100%);
+  min-width: 0;
+  background: var(--arena-panel);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-12);
+  padding: 1.1rem 1.1rem 1rem;
+  text-align: center;
+  color: var(--ink);
+}
+
+.crash-card h2 {
+  margin: 0 0 0.4rem;
+  font-size: 1.1rem;
+  color: var(--chrome-bright);
+}
+
+.crash-card p {
+  margin: 0 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.crash-card .btn {
+  width: 100%;
+}
+
+@media (max-height: 460px) {
+  .crash-card {
+    padding: 0.7rem 0.9rem;
+  }
+  .crash-card p {
     margin-bottom: 0.6rem;
   }
 }

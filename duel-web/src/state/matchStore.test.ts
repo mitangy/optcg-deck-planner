@@ -252,14 +252,14 @@ describe("battle log", () => {
 });
 
 describe("server restart warning (#1352)", () => {
-  it("shows the warning, and the close that follows ends the game for the lobby instead of offering a reconnect (#1352)", () => {
+  it("shows the warning, and the close that follows ends the game as lost to the restart instead of offering a reconnect (#1352, #1500)", () => {
     const warned = run(started(), { type: "serverRestarting", seconds: 10 });
     expect(warned.serverRestart).toEqual({ seconds: 10 });
     expect(warned.view).not.toBeNull();
     for (const close of ["disconnect", "drop"] as const) {
       const s = run(warned, { type: close });
-      expect(s).toMatchObject({ view: null, matchId: null, canReconnect: false, reconnecting: false, connected: false });
-      expect(s.errorBanner).toMatch(/restarted for an update/);
+      expect(s).toMatchObject({ lostGame: true, canReconnect: false, reconnecting: false, connected: false, errorBanner: null });
+      expect(s.view).not.toBeNull();
     }
   });
 
@@ -274,6 +274,51 @@ describe("server restart warning (#1352)", () => {
     expect(over.serverRestart).toBeNull();
     const warned = run(started(), { type: "serverRestarting", seconds: 10 });
     expect(run(warned, { type: "welcome", info: welcomeOf(0) }).serverRestart).toBeNull();
+  });
+});
+
+describe("a game lost to a server restart (#1500)", () => {
+  const plan = { deck: { leaderId: "ST01-001", deck: ["ST01-002"] }, bot: null, opponentName: null };
+
+  it("a network drop shows Reconnecting and keeps the way back, without calling it a restart (#1500)", () => {
+    const s = run(started(), { type: "drop" });
+    expect(s).toMatchObject({ reconnecting: true, canReconnect: true, lostGame: false });
+  });
+
+  it("the room being gone ends the game for good: no reconnecting, no way back, the board stays for context (#1500)", () => {
+    const s = run(started(), { type: "drop" }, { type: "gameLost" });
+    expect(s).toMatchObject({ lostGame: true, reconnecting: false, canReconnect: false, connected: false });
+    expect(s.view).not.toBeNull();
+  });
+
+  it("a finished game is not reported as lost to a restart (#1500)", () => {
+    const s = run(started(), { type: "matchOver", result: { winner: 0, reason: "concede" } as never }, { type: "gameLost" });
+    expect(s.lostGame).toBe(false);
+  });
+
+  it("an unreachable server stops the spinner but keeps the seat so Reconnect can try again (#1500)", () => {
+    const s = run(started(), { type: "drop" }, { type: "reconnectUnreachable" });
+    expect(s).toMatchObject({ reconnecting: false, canReconnect: true, lostGame: false });
+  });
+
+  it("the plan learns the opponent's name from the welcome, and a bot game keeps no name (#1500)", () => {
+    const named = run(createInitialMatchState("online", { seat: 0 }), { type: "rematchPlan", plan }, {
+      type: "welcome",
+      info: welcomeOf(0, { players: [{ name: "Me" }, { name: "Zoro" }] }),
+    });
+    expect(named.rematchPlan?.opponentName).toBe("Zoro");
+    const bot = { ...plan, bot: { level: "normal" as const, deck: plan.deck } };
+    const vsBot = run(createInitialMatchState("online", { seat: 0 }), { type: "rematchPlan", plan: bot }, {
+      type: "welcome",
+      info: welcomeOf(0, { players: [{ name: "Me" }, { name: "Bot" }] }),
+    });
+    expect(vsBot.rematchPlan?.opponentName).toBeNull();
+  });
+
+  it("starting a game clears the lost screen and the old plan (#1500)", () => {
+    const lost = run(started(), { type: "rematchPlan", plan }, { type: "gameLost" });
+    const next = run(lost, { type: "launchStarted" });
+    expect(next).toMatchObject({ lostGame: false, rematchPlan: null });
   });
 });
 

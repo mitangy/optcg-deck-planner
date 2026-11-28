@@ -28,7 +28,7 @@ describe("start a new season (#1405)", () => {
 
 describe("admin tabs per role (#667)", () => {
   it("shows the admin every tab (Seasons included), a moderator Reports, Uploads then Users, and anyone else none (#667, #812)", () => {
-    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "seasons", "bots", "traffic", "hosting", "event", "reports", "uploads", "instagram", "users"]);
+    expect(tabsForRole("admin").map((t) => t.id)).toEqual(["players", "seasons", "bots", "traffic", "hosting", "errors", "event", "reports", "uploads", "instagram", "users"]);
     expect(tabsForRole("moderator").map((t) => t.id)).toEqual(["reports", "uploads", "users"]);
     expect(tabsForRole("user")).toEqual([]);
     expect(tabsForRole(undefined)).toEqual([]);

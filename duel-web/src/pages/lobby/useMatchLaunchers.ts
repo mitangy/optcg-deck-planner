@@ -4,7 +4,7 @@ import { getOrCreateGuestId } from "../../auth/guestId";
 import { getApiBaseUrl, getGameServerUrl } from "../../config";
 import { refreshLinkedDeck } from "../../decks/planner";
 import { deckToWire, setSelectedDeckId, type SavedDeck } from "../../decks/storage";
-import { dismissInvite, inviteFriend, inviteFrom, type Friend, type FriendInvite } from "../../friends/friendsApi";
+import { dismissInvite, friendActions, inviteFriend, inviteFrom, type Friend, type FriendInvite } from "../../friends/friendsApi";
 import { botCreateOptions, pickRandomDeck, resolveBotDeck } from "../../home/botGame";
 import { timerFromPreset } from "../../home/timerPreset";
 import {
@@ -17,6 +17,7 @@ import {
 import { gameServerUrlFor, rememberedGameServerUrl, roomServerUrl } from "../../net/gameServer";
 import type { ActiveMatch } from "../../net/activeMatches";
 import { clearMatchResume } from "../../net/matchResume";
+import { findRematchFriend, type RematchPlan } from "../../state/connectionLoss";
 import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../../state/DuelSession";
 import { claimMatchRoom, tournamentCreateOptions } from "../../tournaments/playLoop";
 import { clearActiveTournamentMatch, setActiveTournamentMatch } from "../../tournaments/activeTournamentMatch";
@@ -169,6 +170,31 @@ export function useMatchLaunchers(deps: {
     });
   }
 
+  // The game server restarted under a match: start it again with the same decks, or invite the same friend (#1500).
+  function restartRematch(plan: RematchPlan) {
+    if (plan.bot) {
+      const bot = plan.bot;
+      runFriendAction(
+        { status: "Starting your game…", leaderId: plan.deck.leaderId, invite: false, friends: friendsEnabled },
+        async (gen) => {
+          const opts = await authOpts();
+          await connect({ ...opts, preferredSeat: 0, deck: plan.deck, createOptions: { ranked: false, bot, timer: {} } }, gen);
+        },
+      );
+      return;
+    }
+    const friend = findRematchFriend(plan, friends.state?.friends);
+    if (friend && friendActions(friend).invite) {
+      inviteToPrivateRoom(friend);
+      return;
+    }
+    setFriendError(
+      friend
+        ? `${friend.username} isn't online right now. Invite them again once they are back.`
+        : "The server restarted and your game ended. Pick a mode to start a new one.",
+    );
+  }
+
   function launchTournamentMatch(tp: TournamentPlay) {
     if (!selectedDeck) {
       setFriendError("Select a deck first.");
@@ -221,7 +247,11 @@ export function useMatchLaunchers(deps: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watch.roomId, authChecked]);
 
-  useLobbyHandoffs(friendsEnabled && selectedDeck !== null, { joinInvite, launchTournamentMatch });
+  useLobbyHandoffs(
+    friendsEnabled && selectedDeck !== null,
+    { joinInvite, launchTournamentMatch, restartRematch },
+    authChecked && (!friendsEnabled || friends.state !== null || friends.loadError !== null),
+  );
 
   async function authOpts() {
     if (authMode === "guest") {

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { BoardErrorBoundary } from "../board/CrashScreen";
 import { DuelBoard } from "../board/DuelBoard";
 import type { BoardWaiting } from "../board/PendingBoard";
+import { GameLostOverlay, ReconnectingPill } from "../board/match/ConnectionStatus";
 import { MovedElsewhereOverlay } from "../board/match/MovedElsewhereOverlay";
 import { BountyAmount } from "../Bounty";
 import { FriendInvites, useFriends } from "../friends/FriendsPanel";
@@ -34,6 +36,8 @@ export function DuelPage() {
     matchId,
     errorBanner,
     serverRestart,
+    lostGame,
+    rematchPlan,
     matchOver,
     rating,
     sendIntent,
@@ -69,12 +73,12 @@ export function DuelPage() {
     // Once only: the navigation is a transition, so this page can re-render
     // (clearError below) before it unmounts and would redirect again without the note.
     if (leftRef.current) return;
-    if (!connected && !view && !canReconnect && !matchId && !resuming && !launching) {
+    if (!connected && !view && !canReconnect && !matchId && !resuming && !launching && !lostGame) {
       leftRef.current = true;
       navigate("/", { replace: true, state: errorBanner ? { matchError: errorBanner } : null });
       if (errorBanner) clearError();
     }
-  }, [connected, view, canReconnect, matchId, resuming, launching, errorBanner, clearError, navigate]);
+  }, [connected, view, canReconnect, matchId, resuming, launching, lostGame, errorBanner, clearError, navigate]);
 
   const friends = useFriends(pollsInvitesInMatch({ launch, role, view, matchId }));
   function joinFriendRoom(invite: FriendInvite) {
@@ -108,12 +112,12 @@ export function DuelPage() {
             };
   return (
     <div className="duel-root">
-      {!connected && canReconnect && view ? (
+      {!connected && canReconnect && view && reconnecting ? <ReconnectingPill /> : null}
+      {!connected && canReconnect && view && !reconnecting ? (
         <div className="reconnect-banner" role="status">
-          <span>{reconnecting ? "Reconnecting to the match…" : "Disconnected from the match."}</span>
+          <span>Connection lost.</span>
           <button
             type="button"
-            disabled={reconnecting}
             onClick={async () => {
               try {
                 await reconnect();
@@ -129,62 +133,82 @@ export function DuelPage() {
       {chrome.bounty && rating != null ? <div className="rating-chip">
           Your Bounty: <BountyAmount amount={rating} />
         </div> : null}
-      <DuelBoard
-        view={view}
-        seat={seat}
-        matchId={matchId}
-        errorBanner={errorBanner}
-        serverRestart={serverRestart}
-        matchOver={matchOver}
-        players={players}
-        timer={timer}
-        spectator={spectating}
-        matchBrief={role === "player" ? { brief, ranked } : undefined}
-        battleLog={battleLog}
-        firstSeatPickedBy={firstSeatPickedBy}
-        firstSeatDice={firstSeatDice}
-        dicePhase={view || !dice ? undefined : { state: dice, onAction: sendDice }}
-        vsHuman
-        canReport={!vsBot}
-        chat={chrome.chat ? { lines: chat, onSend: sendChat } : undefined}
-        onConcede={connected && role === "player" ? () => concede() : undefined}
-        onHandOrder={connected && role === "player" ? sendHandOrder : undefined}
-        undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}
-        onSendIntent={takenOver ? () => undefined : sendIntent}
-        rematch={
-          role === "player"
-            ? {
-                state: rematch,
-                deckOptions,
-                onAction: (action, decks) => {
-                  const deck = seat === 0 || seat === 1 ? decks?.[seat] : undefined;
-                  sendRematch(action, deck);
-                  const picked = deck ? deckOptions.find((o) => o.wire === deck) : undefined;
-                  if (picked) setSelectedDeckId(picked.id);
-                },
-              }
-            : undefined
-        }
-        loadMatchRecord={role === "player" ? loadMatchRecord : undefined}
-        seatSkins={seatSkins}
-        opponentAwayUntil={seat === 0 || seat === 1 ? awayUntil[seat === 0 ? 1 : 0] : null}
-        waiting={waiting}
-        leaveLabel={view ? undefined : role === "player" && rolling ? "Leave (counts as a loss)" : "Cancel"}
-        onLeave={() => {
-          void leave();
-          navigate("/", { replace: true });
-        }}
-        onBackToTournament={
-          tournamentCode
-            ? () => {
-                clearActiveTournamentMatch();
-                void leave();
-                navigate(`/tournaments/${tournamentCode}`, { replace: true });
-              }
-            : undefined
-        }
-        onClearError={clearError}
-      />
+      {lostGame && !view ? null : (
+      <BoardErrorBoundary>
+        <DuelBoard
+          view={view}
+          seat={seat}
+          matchId={matchId}
+          errorBanner={errorBanner}
+          serverRestart={lostGame ? null : serverRestart}
+          matchOver={matchOver}
+          players={players}
+          timer={timer}
+          spectator={spectating}
+          matchBrief={role === "player" ? { brief, ranked } : undefined}
+          battleLog={battleLog}
+          firstSeatPickedBy={firstSeatPickedBy}
+          firstSeatDice={firstSeatDice}
+          dicePhase={view || !dice ? undefined : { state: dice, onAction: sendDice }}
+          vsHuman
+          canReport={!vsBot}
+          chat={chrome.chat ? { lines: chat, onSend: sendChat } : undefined}
+          onConcede={connected && role === "player" ? () => concede() : undefined}
+          onHandOrder={connected && role === "player" ? sendHandOrder : undefined}
+          undo={role === "player" ? { state: undo, onAction: sendUndo } : undefined}
+          onSendIntent={takenOver ? () => undefined : sendIntent}
+          rematch={
+            role === "player"
+              ? {
+                  state: rematch,
+                  deckOptions,
+                  onAction: (action, decks) => {
+                    const deck = seat === 0 || seat === 1 ? decks?.[seat] : undefined;
+                    sendRematch(action, deck);
+                    const picked = deck ? deckOptions.find((o) => o.wire === deck) : undefined;
+                    if (picked) setSelectedDeckId(picked.id);
+                  },
+                }
+              : undefined
+          }
+          loadMatchRecord={role === "player" ? loadMatchRecord : undefined}
+          seatSkins={seatSkins}
+          opponentAwayUntil={seat === 0 || seat === 1 ? awayUntil[seat === 0 ? 1 : 0] : null}
+          waiting={waiting}
+          leaveLabel={view ? undefined : role === "player" && rolling ? "Leave (counts as a loss)" : "Cancel"}
+          onLeave={() => {
+            void leave();
+            navigate("/", { replace: true });
+          }}
+          onBackToTournament={
+            tournamentCode
+              ? () => {
+                  clearActiveTournamentMatch();
+                  void leave();
+                  navigate(`/tournaments/${tournamentCode}`, { replace: true });
+                }
+              : undefined
+          }
+          onClearError={clearError}
+        />
+      </BoardErrorBoundary>
+      )}
+      {lostGame ? (
+        <GameLostOverlay
+          plan={rematchPlan}
+          onRematch={() => {
+            leftRef.current = true;
+            const plan = rematchPlan;
+            void leave();
+            navigate("/", { replace: true, state: { restartRematch: plan } });
+          }}
+          onHome={() => {
+            leftRef.current = true;
+            void leave();
+            navigate("/", { replace: true });
+          }}
+        />
+      ) : null}
       {role === "spectator" && view && friends.state?.invites.length ? createPortal(
         // On <body>: .duel-root is position:fixed (its own stacking layer), so inside it the card motion layer would paint over the invite.
         <div className="spectator-invites">

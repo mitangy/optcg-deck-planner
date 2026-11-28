@@ -1,9 +1,12 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
+import { reportBoundaryError } from "../errorReporting";
 
 type Props = {
   children: ReactNode;
   /** The fallback clears itself when this value changes, e.g. the current pathname. */
   resetKey?: string;
+  /** Shown instead of the planner's page-shaped fallback, e.g. a screen styled for the duel app. */
+  fallback?: ReactNode;
 };
 
 export class ErrorBoundary extends Component<Props, { failed: boolean }> {
@@ -15,6 +18,7 @@ export class ErrorBoundary extends Component<Props, { failed: boolean }> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Uncaught render error", error, info.componentStack);
+    reportBoundaryError(error, info.componentStack);
   }
 
   componentDidUpdate(prev: Props) {
@@ -23,6 +27,7 @@ export class ErrorBoundary extends Component<Props, { failed: boolean }> {
 
   render() {
     if (!this.state.failed) return this.props.children;
+    if (this.props.fallback !== undefined) return this.props.fallback;
     return (
       <main className="app-main">
         <div className="empty-state" role="alert">
