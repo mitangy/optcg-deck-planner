@@ -59,7 +59,7 @@ beforeEach(() => {
     launch: { status: "", leaderId: "ST01-001", deckId: "played", invite: false },
     launching: false,
     connected: true,
-    view: { turnNumber: 3 },
+    view: { turnNumber: 3, you: { leader: { defId: "OP01-001" } } },
     matchId: "room-1",
     seat: 0,
     role: "player",
