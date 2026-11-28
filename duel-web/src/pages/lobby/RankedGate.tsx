@@ -1,5 +1,5 @@
 import { Dialog } from "@optcg/ui/popups";
-import { googleLoginUrl } from "../../net/api";
+import { SignInLink } from "../../analytics/SignInLink";
 
 /** Shown instead of queueing when a guest picks Ranked: Bounty and match history need an account (#1391). */
 export function RankedGate({ onClose, onBot }: { onClose: () => void; onBot: () => void }) {
@@ -14,9 +14,9 @@ export function RankedGate({ onClose, onBot }: { onClose: () => void; onBot: () 
       </div>
       <div className="sheet-body">
         <p className="field-hint ranked-gate-copy">Sign in so your Bounty and match history are saved.</p>
-        <a className="btn btn-primary btn-lg sheet-confirm" href={googleLoginUrl()}>
+        <SignInLink className="btn btn-primary btn-lg sheet-confirm">
           Sign in
-        </a>
+        </SignInLink>
         <button type="button" className="btn btn-secondary btn-lg sheet-confirm" onClick={onBot}>
           Play vs Bot instead
         </button>

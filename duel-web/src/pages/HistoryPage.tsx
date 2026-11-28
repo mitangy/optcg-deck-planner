@@ -1,9 +1,10 @@
 import { PageShell } from "../layout/PageShell";
+import { SignInLink } from "../analytics/SignInLink";
 import { useMemo } from "react";
 import { fetchMatchHistory, type MatchHistoryEntry } from "../history/historyApi";
 import { MatchHistoryList, MatchHistorySkeleton, RecordSummary } from "../history/MatchHistoryList";
 import { useClickCopy } from "../board/input/clickCopy";
-import { ApiError, googleLoginUrl } from "../net/api";
+import { ApiError } from "../net/api";
 import { errorMessage } from "../lib/errors";
 import { useAsyncResource } from "../lib/useAsyncResource";
 import "../history/history.css";
@@ -42,9 +43,9 @@ export function HistoryPage() {
         <section className="panel">
           <p className="panel-copy">Sign in to keep a history of your duels.</p>
           <div className="btn-row">
-            <a className="btn btn-primary" href={googleLoginUrl()}>
+            <SignInLink className="btn btn-primary">
               Sign in with Google
-            </a>
+            </SignInLink>
           </div>
         </section>
       ) : null}

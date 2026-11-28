@@ -1,6 +1,7 @@
 import { Suspense, useEffect, useState } from "react";
 import { WarningNotice } from "../warnings/WarningNotice";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { track } from "../analytics/events";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import { warmDuelServices } from "../net/api";
 import { rememberedGameServerUrl } from "../net/gameServer";
@@ -48,6 +49,10 @@ export function LobbyPage() {
   const { cancelQueue, queueing } = useDuelSession();
   useEffect(() => prefetchBoardWhenIdle(), []);
   const watchRoomId = useParams<{ roomId: string }>().roomId?.trim() || null;
+  useEffect(() => {
+    // A spectate link opens the lobby too, but that visitor came for a match, not the home page.
+    if (!watchRoomId) track("home_view");
+  }, [watchRoomId]);
   const [searchParams] = useSearchParams();
   const watchSeat = searchParams.get("seat") === "2" ? 1 : 0;
   const serverUrl = getGameServerUrl();

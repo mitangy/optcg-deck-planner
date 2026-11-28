@@ -12,11 +12,13 @@ from sqlalchemy.orm import Session, aliased
 
 from app.admin import hosting as admin_hosting
 from app.admin import traffic as admin_traffic
+from app.admin.funnel import build_funnel
 from app.admin.overview import build_overview, bucket_by_day, is_guest, last_days
 from app.admin.schemas import (
     AdminBots,
     AdminDayMatches,
     AdminFeedback,
+    AdminFunnel,
     AdminMe,
     AdminOverview,
     AdminSeasonPast,
@@ -107,6 +109,11 @@ def admin_me(user: Staff) -> dict:
 @router.get("/overview", response_model=AdminOverview)
 def overview(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 30) -> dict:
     return build_overview(db, days)
+
+
+@router.get("/funnel", response_model=AdminFunnel)
+def funnel(_: Admin, db: DB, days: Annotated[RangeDays, Query()] = 30) -> dict:
+    return build_funnel(db, days)
 
 
 @router.get("/matches", response_model=AdminDayMatches)

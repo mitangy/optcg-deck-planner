@@ -5,6 +5,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 DEFAULT_MAX_BODY_BYTES = 1024 * 1024
 ROUTE_MAX_BODY_BYTES: tuple[tuple[str, int], ...] = (
+    ("/events", 32 * 1024),
     ("/duel/cosmetics/", 5 * 1024 * 1024),
     ("/duel/matches", 8 * 1024 * 1024),
     ("/duel/solo-games", 8 * 1024 * 1024),

@@ -1,4 +1,5 @@
 import { PageShell } from "../layout/PageShell";
+import { SignInLink } from "../analytics/SignInLink";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Select } from "@optcg/ui/popups";
@@ -7,7 +8,7 @@ import { BountyAmount } from "../Bounty";
 import { pinnedYou } from "../home/bounties";
 import { ensureAuth } from "../auth/session";
 import { fetchFriends } from "../friends/friendsApi";
-import { fetchLeaderboard, fetchRatingMe, fetchSeasonBoard, fetchSeasons, googleLoginUrl, type LeaderboardEntry, type RatingMe } from "../net/api";
+import { fetchLeaderboard, fetchRatingMe, fetchSeasonBoard, fetchSeasons, type LeaderboardEntry, type RatingMe } from "../net/api";
 import { seasonDate } from "../lib/seasonDate";
 import { WINDOWS, filterEntries, movement, notListedText, pastSeasonFromParam, provisionalDividerAt, seasonOptions, type BoardWindow } from "./leaderboardModel";
 
@@ -308,9 +309,9 @@ function YourBounty({
     return (
       <div className="leaderboard-you-card">
         <p className="leaderboard-you-text">Sign in and play ranked to get a Bounty</p>
-        <a className="btn btn-primary btn-sm" href={googleLoginUrl()}>
+        <SignInLink className="btn btn-primary btn-sm">
           Sign in with Google
-        </a>
+        </SignInLink>
       </div>
     );
   }

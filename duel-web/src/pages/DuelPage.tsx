@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { useGameEvents } from "../analytics/useProductEvents";
 import { DuelBoard } from "../board/DuelBoard";
 import type { BoardWaiting } from "../board/PendingBoard";
 import { MovedElsewhereOverlay } from "../board/match/MovedElsewhereOverlay";
@@ -84,6 +85,13 @@ export function DuelPage() {
   }
 
   const spectating = role === "spectator" || Boolean(view?.spectator);
+  useGameEvents({
+    matchId,
+    leaderId: view?.you.leader.defId,
+    over: matchOver != null || view?.winner != null,
+    playing: role === "player" && !spectating,
+    fallbackMode: vsBot ? "bot" : ranked ? "ranked" : "friend",
+  });
   const chrome = duelPageChrome({ vsBot, spectating, rating });
   const tournamentCode = tournamentReturnFor(getActiveTournamentMatch(), { spectating, isReplay: false, roomId: matchId });
   const rolling = !view && !(launching && launch) && !resuming && Boolean(dice);

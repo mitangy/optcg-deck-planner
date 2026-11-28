@@ -2,6 +2,7 @@ import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 
 import { Link, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { SiteFooter } from "@optcg/site-legal";
 import { LogPoseProvider } from "@optcg/analyst-client";
+import { useProductEvents } from "./analytics/useProductEvents";
 import { getApiBaseUrl } from "./config";
 import { LeaveGameDialog } from "./LeaveGameDialog";
 import { defaultLogPosePage, logPoseChromeFor, openDeckFor, openNewDeckFor, SOURCE_HOOKS, useBoardBrief } from "./logPose";
@@ -23,6 +24,7 @@ export function App() {
   const deviceLight = useMediaQuery(LIGHT_QUERY);
   const { pathname } = useLocation();
   const navigate = useNavigate();
+  useProductEvents(pathname);
   const ownClaude = useMemo(() => ({ onSelect: () => navigate("/settings#log-pose") }), [navigate]);
   const pathRef = useRef(pathname);
   pathRef.current = pathname;

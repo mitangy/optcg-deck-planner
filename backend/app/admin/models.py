@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.base import Base
@@ -32,3 +32,21 @@ class Feedback(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class ProductEvent(Base):
+    """One funnel step a visitor reached (#1499). No IP, email or user agent: ``anon_id`` is a random client id."""
+
+    __tablename__ = "product_events"
+    __table_args__ = (Index("ix_product_events_name_created_at", "name", "created_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    anon_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    app: Mapped[str] = mapped_column(String(16))
+    name: Mapped[str] = mapped_column(String(40))
+    device: Mapped[str | None] = mapped_column(String(8), nullable=True)
+    props: Mapped[dict | None] = mapped_column(JSON, nullable=True)

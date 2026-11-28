@@ -1,0 +1,67 @@
+.adm-funnel {
+  list-style: none;
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.adm-funnel-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label num"
+    "bar bar";
+  align-items: baseline;
+  column-gap: 0.6rem;
+  row-gap: 0.25rem;
+  font-size: 0.85rem;
+}
+
+.adm-funnel-label {
+  grid-area: label;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.adm-funnel-num {
+  grid-area: num;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+.adm-funnel-bar {
+  grid-area: bar;
+  height: 8px;
+  border-radius: var(--radius-4);
+  background: rgb(var(--chrome-rgb) / 0.1);
+  overflow: hidden;
+}
+
+.adm-funnel-bar i {
+  display: block;
+  height: 100%;
+  background: var(--chrome);
+}
+
+.adm-retention {
+  width: 100%;
+  margin-bottom: var(--space-3);
+}
+
+.adm-retention th[scope="row"] {
+  text-align: left;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.adm-retention td,
+.adm-retention th {
+  font-variant-numeric: tabular-nums;
+}
+
+/* The card keeps its height while the numbers load, so nothing below it moves. */
+.adm-funnel-grid.adm-stale {
+  pointer-events: none;
+}
