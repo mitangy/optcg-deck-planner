@@ -258,6 +258,15 @@ const privacy: ReactNode = (
       Our hosting providers keep standard server logs, including IP addresses, for security and
       troubleshooting.
     </p>
+    <p>
+      We also record a few of our own product events: which guide page you landed on, that you
+      opened the home page, started or finished a game and in which mode, saw a sign-in prompt,
+      opened a Log Pose review, changed a setting (the setting’s name, never its value) or came
+      to the planner from the duel app. Each event has a time, the page path without query
+      strings, the app, whether your device is a phone or a desktop, and a random ID your browser
+      makes up for the current tab session. If you are signed in the events are tied to your
+      account. No cookies, IP addresses, emails or user agents are stored with them.
+    </p>
 
     <h2>Who else handles it</h2>
     <ul>
@@ -294,7 +303,8 @@ const privacy: ReactNode = (
     <p>
       Account data stays until you delete it or ask us to delete your account. Deleting a deck,
       share link, group buy or uploaded image removes it. Server logs and analytics are kept for
-      the limited periods our providers set.
+      the limited periods our providers set. Our own product events are deleted after 180 days,
+      or with your account.
     </p>
 
     <h2>Your choices</h2>
@@ -374,6 +384,10 @@ const cookies: ReactNode = (
       <li>OPTCG Duel settings, saved decks, and the selected deck.</li>
       <li>Your playmat and card back images, cached so matches load quickly.</li>
       <li>A guest ID if you play without signing in.</li>
+      <li>
+        A random ID in session storage, which goes away when you close the tab, used to count
+        product events without knowing who you are.
+      </li>
       <li>A cache of card data used by the card scanner.</li>
       <li>
         Short-lived notes such as the match to rejoin after a reload and the page to return to

@@ -128,6 +128,28 @@ class AdminOverview(BaseModel):
     log_pose: OverviewLogPose
 
 
+class FunnelStep(BaseModel):
+    step: str
+    visitors: int
+    events: int
+
+
+class RetentionCohort(BaseModel):
+    week_start: str
+    size: int
+    d1_eligible: int
+    d1_returned: int
+    d7_eligible: int
+    d7_returned: int
+
+
+class AdminFunnel(BaseModel):
+    generated_at: str
+    days: int
+    steps: list[FunnelStep]
+    retention: list[RetentionCohort]
+
+
 class DayMatchSeat(BaseModel):
     user_id: int
     name: str | None

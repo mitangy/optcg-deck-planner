@@ -46,6 +46,8 @@ class User(Base):
         index=True,
         default=None,
     )
+    # First authenticated request of the newest UTC day (#1499): written at most once a day, for return-visit stats.
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

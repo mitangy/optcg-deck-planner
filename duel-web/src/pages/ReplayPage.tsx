@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { SignInLink } from "../analytics/SignInLink";
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
 import type { SeatPlayers } from "../net/protocol";
-import { googleLoginUrl } from "../net/api";
 import { fetchMatchReplay, ReplayLoadError, type ReplayLoadFailure, type ReplayPayload } from "../replay/replayApi";
 import { loadWhileSaving, type ReplayNavState } from "../replay/replayRetry";
 import { ReplayControls } from "../replay/ReplayControls";
@@ -29,9 +29,9 @@ function ReplayNotice({ title, children, matchId, signIn = false }: { title: str
           <p className="panel-copy">{children}</p>
           <div className="btn-row">
             {signIn ? (
-              <a className="btn btn-primary" href={googleLoginUrl()}>
+              <SignInLink className="btn btn-primary">
                 Sign in with Google
-              </a>
+              </SignInLink>
             ) : null}
             {matchId ? (
               <Link className={`btn ${signIn ? "btn-secondary" : "btn-primary"}`} to={`/history/${encodeURIComponent(matchId)}`}>

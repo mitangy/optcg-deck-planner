@@ -310,6 +310,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/funnel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Funnel */
+        get: operations["funnel_admin_funnel_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/hosting": {
         parameters: {
             query?: never;
@@ -2814,6 +2831,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Record Events
+         * @description A batch of funnel events from the browser (``navigator.sendBeacon`` sends it as text/plain).
+         *
+         *     The body is parsed by hand because a beacon cannot set a JSON content type without a CORS preflight.
+         */
+        post: operations["record_events_events_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/feedback": {
         parameters: {
             query?: never;
@@ -4731,6 +4770,17 @@ export interface components {
             days: number;
             /** Items */
             items: components["schemas"]["FeedbackItem"][];
+        };
+        /** AdminFunnel */
+        AdminFunnel: {
+            /** Days */
+            days: number;
+            /** Generated At */
+            generated_at: string;
+            /** Retention */
+            retention: components["schemas"]["RetentionCohort"][];
+            /** Steps */
+            steps: components["schemas"]["FunnelStep"][];
         };
         /** AdminMe */
         AdminMe: {
@@ -7675,6 +7725,15 @@ export interface components {
             /** Outgoing */
             outgoing: components["schemas"]["FriendRequestOut"][];
         };
+        /** FunnelStep */
+        FunnelStep: {
+            /** Events */
+            events: number;
+            /** Step */
+            step: string;
+            /** Visitors */
+            visitors: number;
+        };
         /** GameCounts */
         GameCounts: {
             /** Bot */
@@ -9878,6 +9937,21 @@ export interface components {
             /** Warnings */
             warnings: number;
         };
+        /** RetentionCohort */
+        RetentionCohort: {
+            /** D1 Eligible */
+            d1_eligible: number;
+            /** D1 Returned */
+            d1_returned: number;
+            /** D7 Eligible */
+            d7_eligible: number;
+            /** D7 Returned */
+            d7_returned: number;
+            /** Size */
+            size: number;
+            /** Week Start */
+            week_start: string;
+        };
         /** RoleIn */
         RoleIn: {
             /** Role */
@@ -11488,6 +11562,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedbackExport"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    funnel_admin_funnel_get: {
+        parameters: {
+            query?: {
+                days?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFunnel"];
                 };
             };
             /** @description Validation Error */
@@ -16214,6 +16319,24 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
+            };
+        };
+    };
+    record_events_events_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

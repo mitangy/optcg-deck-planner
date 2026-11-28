@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useGameEvents } from "../analytics/useProductEvents";
 import { DuelBoard } from "../board/DuelBoard";
 import {
   initSeatArtPrefsFromStorage,
@@ -123,6 +124,14 @@ export function HotseatPage() {
     };
   }, []);
 
+  const seatNow = session.seats[activeSeat]?.store.getSnapshot();
+  useGameEvents({
+    matchId,
+    leaderId: seatNow?.view?.you.leader.defId,
+    over: seatNow?.matchOver != null || seatNow?.view?.winner != null,
+    playing: true,
+    fallbackMode: "practice",
+  });
   if (!nav) return null;
 
   const bag = session.seats[activeSeat];

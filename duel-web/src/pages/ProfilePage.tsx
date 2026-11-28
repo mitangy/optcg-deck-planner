@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { SignInLink } from "../analytics/SignInLink";
 import { Link } from "react-router-dom";
 import { UsernameSettings } from "../auth/UsernameSettings";
 import { useAuthUser } from "../auth/session";
@@ -8,7 +9,7 @@ import { fetchMatchHistory } from "../history/historyApi";
 import { MatchHistoryList, RecordSummary } from "../history/MatchHistoryList";
 import { PageShell } from "../layout/PageShell";
 import { useAsyncResource } from "../lib/useAsyncResource";
-import { fetchMySeasons, fetchRatingMe, googleLoginUrl } from "../net/api";
+import { fetchMySeasons, fetchRatingMe } from "../net/api";
 import { ProfileAvatar } from "../profile/ProfileAvatar";
 import { updateSettings, useDuelSettings } from "../settings";
 import "../history/history.css";
@@ -213,9 +214,9 @@ export function ProfilePage() {
             Sign in to pick a username, keep your Bounty and see your match history. Your picture is saved on this device until then.
           </p>
           <div className="btn-row">
-            <a className="btn btn-primary" href={googleLoginUrl()}>
+            <SignInLink className="btn btn-primary">
               Sign in with Google
-            </a>
+            </SignInLink>
           </div>
         </section>
       )}
