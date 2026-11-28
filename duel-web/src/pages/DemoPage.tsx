@@ -129,10 +129,16 @@ export function DemoPage() {
               }
             : undefined
         }
-        waiting={dice ? { status: "Rolling for turn order…", invite: null } : undefined}
+        waiting={
+          dice
+            ? { status: "Rolling for turn order…", invite: null }
+            : params.has("waiting") && params.has("invite")
+              ? { status: "Waiting for opponent…", invite: { roomId: "K7QX2M", autoCopy: true, link: true } }
+              : undefined
+        }
         errorBanner={null}
         onBackToTournament={params.has("tourney") ? () => undefined : undefined}
-        matchOver={params.has("over") ? { winner: 1, reason: "leader_battle_at_zero_life" } : null}
+        matchOver={params.has("over") ? { winner: params.has("win") ? 0 : 1, reason: "leader_battle_at_zero_life" } : null}
         loadMatchRecord={params.has("over") && !params.has("guest") ? loadDemoRecord : undefined}
         rematch={
           params.has("over")
@@ -152,6 +158,11 @@ export function DemoPage() {
                   });
                 },
               }
+            : undefined
+        }
+        hub={
+          params.has("over") && params.has("hub")
+            ? { deckId: "demo-deck", signedIn: !params.has("guest"), onInvite: () => undefined }
             : undefined
         }
         battleLog={log}
