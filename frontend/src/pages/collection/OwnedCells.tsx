@@ -43,7 +43,8 @@ export function OwnedTotalCell({ owned, altsOwned }: { owned: number; altsOwned?
 
 /**
  * The Owned column steps the base art and notes the alt copies. With `editedInTiles` (the art tiles show a Base stepper and
- * a stepper per alt) it shows the total owned, read-only, with the base and alt counts under it (#1380).
+ * a stepper per alt) and at least one alt copy owned, it shows the total owned, read-only, with the base and alt counts
+ * under it (#1380). While no alt copy is owned the total would equal the base count, so it stays the normal stepper.
  */
 export function OwnedCell({
   owned,
@@ -56,7 +57,7 @@ export function OwnedCell({
   stepper: ReactNode;
   editedInTiles?: boolean;
 }) {
-  if (editedInTiles) return <OwnedTotalCell owned={owned} altsOwned={altsOwned} />;
+  if (editedInTiles && (altsOwned ?? 0) > 0) return <OwnedTotalCell owned={owned} altsOwned={altsOwned} />;
   return (
     <>
       {stepper}

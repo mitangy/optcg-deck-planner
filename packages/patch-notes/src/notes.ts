@@ -1,6 +1,7 @@
 import type { PatchNote } from "./types";
 
 export const PATCH_NOTES: PatchNote[] = [
+  { date: "2026-11-27", app: "planner", pr: 1495, title: "Owned is a stepper until you own an alt", text: "On Shopping, Collection and your decks, a card with alt arts now keeps the normal Owned stepper until you own an alt copy of it, so you can raise or lower the count without opening the art tiles. Once you own an alt copy, Owned shows the total with the base and alt counts, and you change them on the art tiles." },
   { date: "2026-11-27", app: "planner", pr: 1496, title: "Add cards to your collection from Price check", text: "Every card in Price check, in search results and in Recent lookups, now has an Add button. Tap it to add the card to your collection, then use the + and - buttons to change how many you own. Alt arts keep their own count." },
   { date: "2026-11-26", app: "both", pr: 1478, title: "Follow us on Instagram @optcgduel", text: "OPTCG Duel is now on Instagram at @optcgduel. About once a day we post the tournament meta, a card from the newest set or a tip for the app. It is an unofficial fan-made sim and is not affiliated with Bandai." },
   { date: "2026-11-26", app: "duel", pr: 1480, title: "Leader pages stay up after a leader leaves the meta", text: "A leader that drops out of the current top decks now keeps its page with its most recent tournament lists and the date it was last seen, instead of an empty page. The Leaders page lists them under Recently in the meta." },
