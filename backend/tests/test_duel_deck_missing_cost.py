@@ -10,7 +10,7 @@ from app.core.db import get_db
 from app.core.models import User
 from app.duel.models import DuelSavedDeck
 from app.main import app
-from app.planner.models import CatalogCard
+from app.planner.models import CatalogCard, Deck
 from tests.conftest import add_catalog, set_owned
 from tests.db_support import make_test_engine
 
@@ -34,7 +34,7 @@ def client(monkeypatch: pytest.MonkeyPatch):
             db.close()
 
     with SessionLocal() as db:
-        add_catalog(db, LEADER, name="Luffy", product_id=1, market=0.0)
+        add_catalog(db, LEADER, name="Luffy", product_id=1, market=3.0)
         db.get(CatalogCard, LEADER).card_type = "Leader"
         add_catalog(db, "OP01-016", name="Nami", product_id=2, market=2.0)
         add_catalog(db, "OP01-017", name="Zoro", product_id=3, market=0.5)
@@ -70,7 +70,7 @@ def _owned(S, uid: int, card_id: str, qty: int) -> None:
         set_owned(db, db.get(User, uid), card_id, qty)
 
 
-# 4 Nami at $2 and 2 Zoro at $0.50, leader priced at 0.
+# 4 Nami at $2, 2 Zoro at $0.50 and the $3 leader the save adds.
 CARDS = ["OP01-016"] * 4 + ["OP01-017"] * 2
 
 
@@ -83,11 +83,11 @@ def test_missing_cost_prices_the_copies_the_player_does_not_own_1507(client):
     c, S = client
     uid = _user(S, "luffy")
     _save(_as(c, uid), "d1", CARDS)
-    assert _missing(c) == (3, 7, 9.0)
+    assert _missing(c) == (3, 7, 12.0)
 
     _owned(S, uid, "OP01-016", 3)
     _owned(S, uid, "OP01-017", 2)
-    assert _missing(c) == (2, 2, 2.0)
+    assert _missing(c) == (2, 2, 5.0)
 
 
 def test_owning_everything_costs_nothing_1507(client):
@@ -105,7 +105,7 @@ def test_another_players_owned_cards_do_not_lower_the_cost_1507(client):
     for card, qty in (("OP01-016", 4), ("OP01-017", 2), (LEADER, 1)):
         _owned(S, zoro, card, qty)
     _save(_as(c, luffy), "d1", CARDS)
-    assert _missing(c)[2] == 9.0
+    assert _missing(c)[2] == 12.0
 
 
 def test_missing_cost_of_someone_elses_or_unknown_deck_is_404_1507(client):
@@ -125,3 +125,15 @@ def test_a_deck_without_a_planner_twin_has_no_missing_cost_1507(client):
         db.commit()
     assert c.get("/duel/decks/d1/missing-cost").status_code == 404
 
+
+
+def test_a_linked_planner_deck_with_no_cards_costs_nothing_not_a_500_1507(client):
+    c, S = client
+    uid = _user(S, "luffy")
+    with S() as db:
+        deck = Deck(user_id=uid, name="Empty")
+        db.add(deck)
+        db.flush()
+        db.add(DuelSavedDeck(user_id=uid, deck_id="d1", data='{"name":"Empty","leaderId":"OP01-001","cards":[]}', planner_deck_id=deck.id))
+        db.commit()
+    assert _missing(_as(c, uid)) == (0, 0, 0.0)

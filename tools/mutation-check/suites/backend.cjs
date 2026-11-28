@@ -47,6 +47,7 @@ module.exports = {
   runner: "pytest",
   mutations: [
     // Duel deck missing cost (#1507)
+    { id: "missing1507-empty-deck-not-filled", file: planner_decks, from: "            missing.update({d.id: (0, 0) for d in decks})\n", to: "            pass\n", kills: ["test_a_linked_planner_deck_with_no_cards_costs_nothing_not_a_500_1507"], args: "tests/test_duel_deck_missing_cost.py" },
     { id: "missing1507-owned-ignored", file: planner_decks, from: "    cost = _remaining_costs(\n        db, user, [deck], everyone, catalog, owned, _deck_alt_owned_map(", to: "    cost = _remaining_costs(\n        db, user, [deck], everyone, catalog, {}, _deck_alt_owned_map(", kills: ["test_missing_cost_prices_the_copies_the_player_does_not_own_1507", "test_owning_everything_costs_nothing_1507"], args: "tests/test_duel_deck_missing_cost.py" },
     { id: "missing1507-copies-counted-as-lines", file: planner_decks, from: "            copies += still\n", to: "            copies += 1\n", kills: ["test_missing_cost_prices_the_copies_the_player_does_not_own_1507"], args: "tests/test_duel_deck_missing_cost.py" },
     { id: "missing1507-lines-not-counted", file: planner_decks, from: "            lines += 1\n", to: "", kills: ["test_missing_cost_prices_the_copies_the_player_does_not_own_1507"], args: "tests/test_duel_deck_missing_cost.py" },

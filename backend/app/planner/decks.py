@@ -177,6 +177,8 @@ def _remaining_costs(
     """
     all_ids = {c.card_id for d in decks for c in d.cards}
     if not all_ids:
+        if missing is not None:
+            missing.update({d.id: (0, 0) for d in decks})
         return {d.id: 0.0 for d in decks}
     alt_owned = alt_owned_map(db, user.id)
     collector = _collector_map(db, user.id)
