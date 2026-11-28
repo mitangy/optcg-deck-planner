@@ -83,6 +83,8 @@ export type MatchLaunch = {
   status: string;
   leaderId: string | null;
   invite: boolean;
+  /** The waiting room copies the join link (not the bare room id) the moment the room opens. */
+  inviteLink?: boolean;
   friends?: boolean;
 };
 

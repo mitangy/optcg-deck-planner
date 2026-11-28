@@ -11,7 +11,7 @@ import { CardActionPopover, DonAttachConfirm, DragGhost, type CardActionButton }
 import type { PendingAttach } from "./don/donSelection";
 import type { dockIntents } from "./prompts/primaryIntent";
 import type { describeMatchResult } from "./match/matchResult";
-import { MatchResultView, type BoardRematch } from "./match/MatchResultView";
+import { MatchResultView, type BoardRematch, type MatchHub } from "./match/MatchResultView";
 import type { LoadMatchRecord } from "./match/MatchOverFacts";
 import { BoardMotion } from "./motion/BoardMotion";
 import { RevealOverlay } from "./motion/RevealOverlay";
@@ -82,6 +82,7 @@ export type BoardOverlayLayersProps = {
   matchOver: MatchOverMessage["result"] | null;
   loadMatchRecord: LoadMatchRecord | undefined;
   rematch: BoardRematch | undefined;
+  hub: MatchHub | undefined;
   canReportPlayer: boolean;
   reportTargetFor: React.ComponentProps<typeof MatchResultView>["reportTargetFor"];
   onLeave: () => void;
@@ -146,6 +147,7 @@ export function BoardOverlayLayers({
   matchOver,
   loadMatchRecord,
   rematch,
+  hub,
   canReportPlayer,
   reportTargetFor,
   onLeave,
@@ -248,6 +250,7 @@ export function BoardOverlayLayers({
     matchId={matchId}
     loadMatchRecord={loadMatchRecord}
     rematch={rematch}
+    hub={hub}
     boardSeat={boardSeat}
     canReportPlayer={canReportPlayer}
     reportTargetFor={reportTargetFor}

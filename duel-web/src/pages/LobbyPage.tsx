@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useState } from "react";
 import { WarningNotice } from "../warnings/WarningNotice";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import { warmDuelServices } from "../net/api";
 import { rememberedGameServerUrl } from "../net/gameServer";
@@ -47,11 +47,15 @@ export function LobbyPage() {
   const navigate = useNavigate();
   const { cancelQueue, queueing } = useDuelSession();
   useEffect(() => prefetchBoardWhenIdle(), []);
-  const watchRoomId = useParams<{ roomId: string }>().roomId?.trim() || null;
+  const routeRoomId = useParams<{ roomId: string }>().roomId?.trim() || null;
+  // /join/:room seats the visitor in that room at once; /watch/:room spectates it.
+  const joining = useLocation().pathname.startsWith("/join/");
+  const watchRoomId = joining ? null : routeRoomId;
+  const joinRoomId = joining ? routeRoomId : null;
   const [searchParams] = useSearchParams();
   const watchSeat = searchParams.get("seat") === "2" ? 1 : 0;
   const serverUrl = getGameServerUrl();
-  const auth = useLobbyAuth(watchRoomId);
+  const auth = useLobbyAuth(watchRoomId ?? joinRoomId);
   const { settings, authUser, authMode, authChecked, matchOwner, accountName, bounty, me } = auth;
   const [lastMode, setLastMode] = useState<LastMode | null>(() => readLastMode());
   const [introClosed, setIntroClosed] = useState(() => introDone());
@@ -94,6 +98,7 @@ export function LobbyPage() {
     friends,
     friendsEnabled,
     watch: { roomId: watchRoomId, seat: watchSeat },
+    joinRoomId,
     onModeStarted: (mode) => {
       writeLastMode(mode);
       setLastMode(readLastMode());
@@ -101,7 +106,7 @@ export function LobbyPage() {
       setIntroClosed(true);
     },
   });
-  const { busy, busyStatus, friendError, watchStarted, confirmSetup } = launch;
+  const { busy, busyStatus, friendError, watchStarted, joinStarted, confirmSetup } = launch;
 
   const primary = primaryAction(lastMode, authMode === "google");
   const [rankedGate, setRankedGate] = useState(false);
@@ -132,10 +137,10 @@ export function LobbyPage() {
     setIntroClosed(true);
   }
 
-  if (watchRoomId && !watchStarted.current && !friendError) {
+  if (((watchRoomId && !watchStarted.current) || (joinRoomId && !joinStarted.current)) && !friendError) {
     return (
       <div className="app-shell home-shell">
-        <p className="muted" role="status" style={{ padding: "2rem 16px" }}>Opening the match…</p>
+        <p className="muted" role="status" style={{ padding: "2rem 16px" }}>{joinRoomId ? "Joining the room…" : "Opening the match…"}</p>
       </div>
     );
   }

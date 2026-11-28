@@ -29,6 +29,8 @@ import type { useLobbyAuth } from "./useLobbyAuth";
 import type { LobbySheet } from "./useLobbySheet";
 
 const SPECTATE_GONE = /not found|locked/i;
+// Back from the match must not land on a join link and sit down again.
+const REPLACE_HISTORY = { replace: true };
 export const SPECTATE_GONE_MESSAGE = "That match has ended or the spectate link is wrong.";
 
 export function useMatchLaunchers(deps: {
@@ -38,9 +40,10 @@ export function useMatchLaunchers(deps: {
   friends: ReturnType<typeof useFriends>;
   friendsEnabled: boolean;
   watch: { roomId: string | null; seat: 0 | 1 };
+  joinRoomId?: string | null;
   onModeStarted: (mode: PlayMode) => void;
 }) {
-  const { auth, decks, sheet, friends, friendsEnabled, watch, onModeStarted } = deps;
+  const { auth, decks, sheet, friends, friendsEnabled, watch, joinRoomId = null, onModeStarted } = deps;
   const { settings, authUser, authMode, authChecked, matchOwner, setBounty } = auth;
   const { selectedDeck } = decks;
   const navigate = useNavigate();
@@ -51,6 +54,7 @@ export function useMatchLaunchers(deps: {
   const [busyStatus, setBusyStatus] = useState<string | null>(null);
   const [friendError, setFriendError] = useState<string | null>(() => readLobbyHandoff(location.state).matchError ?? null);
   const watchStarted = useRef(false);
+  const joinStarted = useRef(false);
 
   function resumeOnThisDevice(m: ActiveMatch) {
     clearMatchResume();
@@ -221,7 +225,40 @@ export function useMatchLaunchers(deps: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watch.roomId, authChecked]);
 
-  useLobbyHandoffs(friendsEnabled && selectedDeck !== null, { joinInvite, launchTournamentMatch });
+  // Join link: sit down in that room with the deck already selected. Waits for sign-in to settle (account vs guest token) and the deck list.
+  useEffect(() => {
+    if (!joinRoomId || !authChecked || !selectedDeck || joinStarted.current) return;
+    joinStarted.current = true;
+    const deck = selectedDeck;
+    runFriendAction(
+      { status: "Joining the room…", leaderId: deck.leaderId, invite: false, friends: friendsEnabled },
+      async (gen) => {
+        const opts = await authOpts();
+        await connect({ ...opts, roomId: joinRoomId, deck: deckToWire(await freshDeck(deck)) }, gen);
+      },
+      REPLACE_HISTORY,
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joinRoomId, authChecked, selectedDeck]);
+
+  // Match-over hub "Invite someone else": a fresh private room with the deck just played; the waiting room copies the join link.
+  function openInviteRoom() {
+    if (!selectedDeck) {
+      setFriendError("Select a deck first.");
+      return;
+    }
+    const deck = selectedDeck;
+    runFriendAction(
+      { status: "Opening your room…", leaderId: deck.leaderId, invite: true, inviteLink: true, friends: friendsEnabled },
+      async (gen) => {
+        const opts = await authOpts();
+        const wire = deckToWire(await freshDeck(deck));
+        await connect({ ...opts, preferredSeat: 0, deck: wire, createOptions: { ranked: false, players: [wire, wire], timer: {} } }, gen);
+      },
+    );
+  }
+
+  useLobbyHandoffs(friendsEnabled && selectedDeck !== null, { joinInvite, launchTournamentMatch, openInviteRoom }, authChecked && selectedDeck !== null);
 
   async function authOpts() {
     if (authMode === "guest") {
@@ -351,6 +388,7 @@ export function useMatchLaunchers(deps: {
     busyStatus,
     friendError,
     watchStarted,
+    joinStarted,
     confirmSetup,
     resumeOnThisDevice,
     joinInvite,

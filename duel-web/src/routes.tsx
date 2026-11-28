@@ -26,6 +26,7 @@ export const APP_ROUTES: readonly AppRoute[] = [
   { path: "/leaders", element: <LeadersIndexPage /> },
   { path: "/leaders/:slug", element: <LeaderPage /> },
   { path: "/watch/:roomId", element: <LobbyPage /> },
+  { path: "/join/:roomId", element: <LobbyPage /> },
   { path: "/decks", element: <CardDataGate><DeckListPage /></CardDataGate> },
   { path: "/decks/meta", element: <MetaDecksPage /> },
   { path: "/decks/new", element: <NewDeckPage /> },

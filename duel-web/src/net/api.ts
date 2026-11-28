@@ -283,6 +283,18 @@ export async function fetchRatingMe(): Promise<RatingMe | null> {
   }
 }
 
+export type DeckMissingCost = Schemas["DuelDeckMissingOut"];
+
+/** What the signed-in player still has to buy for a saved deck; null when it has no planner twin (or is not theirs). */
+export async function fetchDeckMissingCost(deckId: string): Promise<DeckMissingCost | null> {
+  try {
+    return await apiCall<DeckMissingCost>(`/duel/decks/${encodeURIComponent(deckId)}/missing-cost`);
+  } catch (e) {
+    if (isHttpError(e)) return null;
+    throw e;
+  }
+}
+
 export type LiveCounts = Schemas["DuelLiveOut"];
 
 export async function fetchLive(): Promise<LiveCounts | null> {

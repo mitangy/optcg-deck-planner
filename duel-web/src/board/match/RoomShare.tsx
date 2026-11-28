@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { copyText, roomInviteUrl, spectateUrl } from "../input/clipboard";
 
-type Copied = "id" | "link" | "watch" | "auto" | "failed" | null;
+type Copied = "id" | "link" | "watch" | "auto" | "autolink" | "failed" | null;
 
 export function useCopyFlash() {
   const [copied, setCopied] = useState<Copied>(null);
@@ -11,10 +11,11 @@ export function useCopyFlash() {
   }, []);
   async function copy(text: string, kind: Exclude<Copied, null | "failed">) {
     const ok = await copyText(text);
-    if (!ok && kind === "auto") return ok;
+    const auto = kind === "auto" || kind === "autolink";
+    if (!ok && auto) return ok;
     setCopied(ok ? kind : "failed");
     if (timer.current) window.clearTimeout(timer.current);
-    if (kind !== "auto") timer.current = window.setTimeout(() => setCopied(null), 2200);
+    if (!auto) timer.current = window.setTimeout(() => setCopied(null), 2200);
     return ok;
   }
   return { copied, copy };
@@ -47,14 +48,20 @@ export function RoomChip({ roomId }: { roomId: string | null }) {
   );
 }
 
-export function RoomInvite({ roomId, autoCopy }: { roomId: string | null; autoCopy: boolean }) {
+// Only on a phone-like device: desktop browsers that expose share open a menu nobody wants here.
+function canShareNatively(): boolean {
+  return typeof navigator !== "undefined" && typeof navigator.share === "function" && window.matchMedia?.("(pointer: coarse)").matches === true;
+}
+
+export function RoomInvite({ roomId, autoCopy, link = false }: { roomId: string | null; autoCopy: boolean; link?: boolean }) {
   const { copied, copy } = useCopyFlash();
   const didAuto = useRef(false);
 
   useEffect(() => {
     if (!autoCopy || !roomId || didAuto.current) return;
     didAuto.current = true;
-    void copy(roomId, "auto");
+    if (link) void copy(roomInviteUrl(roomId), "autolink");
+    else void copy(roomId, "auto");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoCopy, roomId]);
 
@@ -63,12 +70,14 @@ export function RoomInvite({ roomId, autoCopy }: { roomId: string | null; autoCo
   }
 
   const status =
-    copied === "auto"
+    copied === "autolink"
+      ? "Invite link copied — send it to a friend and they sit down at once."
+      : copied === "auto"
       ? "Room id copied to your clipboard — paste it to your friend."
       : copied === "id"
         ? "Room id copied."
         : copied === "link"
-          ? "Invite link copied — opening it fills in the room id."
+          ? "Invite link copied — opening it seats your friend at once."
           : copied === "watch"
             ? "Spectate link copied — anyone who opens it can watch this match."
           : copied === "failed"
@@ -84,18 +93,31 @@ export function RoomInvite({ roomId, autoCopy }: { roomId: string | null; autoCo
       <div className="room-invite-actions">
         <button
           type="button"
-          className="btn btn-primary"
+          className={`btn ${link ? "btn-secondary" : "btn-primary"}`}
           onClick={() => void copy(roomId, "id")}
         >
           {copied === "id" || copied === "auto" ? "Copied ✓" : "Copy room id"}
         </button>
         <button
           type="button"
-          className="btn btn-secondary"
+          className={`btn ${link ? "btn-primary" : "btn-secondary"}`}
           onClick={() => void copy(roomInviteUrl(roomId), "link")}
         >
-          {copied === "link" ? "Link copied ✓" : "Copy invite link"}
+          {copied === "link" || copied === "autolink" ? "Link copied ✓" : "Copy invite link"}
         </button>
+        {canShareNatively() ? (
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() =>
+              void navigator
+                .share({ title: "OPTCG Duel", text: "Play a game of One Piece TCG with me", url: roomInviteUrl(roomId) })
+                .catch(() => undefined)
+            }
+          >
+            Share…
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn btn-secondary"

@@ -475,3 +475,84 @@
 }
 
 
+
+/* Match-over hub: invite + deck cost. Both rows are fixed height, so the price arriving moves nothing. */
+.match-hub {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.match-hub-invite {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  justify-content: center;
+}
+.match-hub-cost {
+  display: flex;
+  min-height: 2.75rem;
+}
+.match-hub-chip {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem 0.6rem;
+  flex-wrap: wrap;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--radius-10);
+  font-size: 0.85rem;
+  line-height: 1.2;
+  text-align: center;
+  text-decoration: none;
+  color: var(--ink);
+}
+a.match-hub-chip-missing {
+  border-color: var(--chrome);
+  font-weight: 600;
+}
+a.match-hub-chip-missing:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+a.match-hub-chip-missing:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+.match-hub-chip-go {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+.match-hub-chip-owned {
+  color: var(--muted);
+}
+.match-hub-chip-skeleton {
+  border-color: transparent;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05));
+  background-size: 200% 100%;
+  animation: match-hub-shimmer 1.2s linear infinite;
+}
+@keyframes match-hub-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .match-hub-chip-skeleton {
+    animation: none;
+  }
+}
+/* Short landscape phones: side by side, so the hub adds one row of height instead of two. */
+@media (max-height: 499px) and (min-width: 560px) {
+  .match-hub {
+    flex-direction: row;
+  }
+  .match-hub > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}

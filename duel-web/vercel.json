@@ -73,6 +73,10 @@
       "dest": "/_app.html"
     },
     {
+      "src": "/join/[^/]+/?",
+      "dest": "/_app.html"
+    },
+    {
       "src": "/decks/?",
       "dest": "/_app.html"
     },

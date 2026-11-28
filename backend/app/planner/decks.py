@@ -230,9 +230,10 @@ def deck_missing(db: Session, user: User, deck: Deck) -> tuple[int, int, float]:
     all_ids = {c.card_id for d in everyone for c in d.cards}
     catalog = catalog_map(db, all_ids)
     owned = owned_map(db, user.id)
-    alt_owned = _deck_alt_owned_map(alt_owned_map(db, user.id), _collector_map(db, user.id))
     missing: dict[int, tuple[int, int]] = {}
-    cost = _remaining_costs(db, user, [deck], everyone, catalog, owned, alt_owned, None, missing)[deck.id]
+    cost = _remaining_costs(
+        db, user, [deck], everyone, catalog, owned, _deck_alt_owned_map(alt_owned_map(db, user.id), _collector_map(db, user.id)), None, missing
+    )[deck.id]
     lines, copies = missing[deck.id]
     return lines, copies, cost
 

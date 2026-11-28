@@ -8,7 +8,8 @@ import { BountyAmount } from "../Bounty";
 import { FriendInvites, useFriends } from "../friends/FriendsPanel";
 import { pollsInvitesInMatch, type FriendInvite } from "../friends/friendsApi";
 import { rematchDeckOptions } from "../decks/rematchDecks";
-import { setSelectedDeckId } from "../decks/storage";
+import { getSelectedDeckId, setSelectedDeckId } from "../decks/storage";
+import { useAuthUser } from "../auth/session";
 import { fetchMatchDetail } from "../history/historyApi";
 import { useDuelSession } from "../state/DuelSession";
 import { clearActiveTournamentMatch, getActiveTournamentMatch, tournamentReturnFor } from "../tournaments/activeTournamentMatch";
@@ -62,6 +63,7 @@ export function DuelPage() {
     sendRematch,
   } = useDuelSession();
   const deckOptions = useMemo(() => rematchDeckOptions(), []);
+  const authUser = useAuthUser();
 
 
   const leftRef = useRef(false);
@@ -100,7 +102,7 @@ export function DuelPage() {
               youLeaderId: launch?.leaderId,
               invite:
                 launch?.invite !== false && role === "player"
-                  ? { roomId: matchId, autoCopy: seat === 0 }
+                  ? { roomId: matchId, autoCopy: seat === 0, link: launch?.inviteLink }
                   : null,
               friendInvites: friends.state?.invites.length
                 ? { invites: friends.state.invites, onJoin: joinFriendRoom, onDismissed: () => void friends.refresh() }
@@ -161,6 +163,18 @@ export function DuelPage() {
                   sendRematch(action, deck);
                   const picked = deck ? deckOptions.find((o) => o.wire === deck) : undefined;
                   if (picked) setSelectedDeckId(picked.id);
+                },
+              }
+            : undefined
+        }
+        hub={
+          role === "player" && !tournamentCode
+            ? {
+                deckId: getSelectedDeckId(),
+                signedIn: authUser != null,
+                onInvite: () => {
+                  void leave();
+                  navigate("/", { replace: true, state: { openInviteRoom: true } });
                 },
               }
             : undefined

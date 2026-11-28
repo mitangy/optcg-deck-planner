@@ -19,7 +19,7 @@ export type BoardWaiting = {
   status: string;
   youLeaderId?: string | null;
   oppLeaderId?: string | null;
-  invite?: { roomId: string | null; autoCopy: boolean } | null;
+  invite?: { roomId: string | null; autoCopy: boolean; link?: boolean } | null;
   friendInvites?: {
     invites: FriendInvite[];
     onJoin: (invite: FriendInvite) => void;
@@ -132,7 +132,7 @@ export function PendingBoard({ waiting, dice, errorBanner, leaveLabel, onLeave, 
                     />
                   </div>
                 ) : null}
-                {invite ? <RoomInvite roomId={invite.roomId} autoCopy={invite.autoCopy} /> : null}
+                {invite ? <RoomInvite roomId={invite.roomId} autoCopy={invite.autoCopy} link={invite.link} /> : null}
               </div>
             </div>
           ) : null}
