@@ -90,17 +90,20 @@ export function AltStripRow({
   colSpan,
   className,
   id,
+  rowId,
   onClick,
   children,
 }: {
   colSpan: number;
   className?: string;
   id?: string;
+  /** The card this strip belongs to, so it moves and fades with its row (#1498). */
+  rowId?: string;
   onClick?: (e: MouseEvent) => void;
   children: ReactNode;
 }) {
   return (
-    <tr className={`alt-strip-row${className ? ` ${className}` : ""}`}>
+    <tr data-row-id={rowId} className={`alt-strip-row${className ? ` ${className}` : ""}`}>
       <td className="alt-strip-cell" id={id} colSpan={colSpan} onClick={onClick}>
         <AltTrayContext.Provider value={true}>{children}</AltTrayContext.Provider>
       </td>

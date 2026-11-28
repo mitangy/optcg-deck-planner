@@ -1,4 +1,4 @@
-import { type ReactNode, Fragment, useMemo } from "react";
+import { type ReactNode, Fragment } from "react";
 import { CollectorLine, money, ShoppingItem } from "../../api";
 import { BuySplit } from "./BuySplit";
 import { GroupBuyChip, shoppingRowState, shoppingStatusText } from "./GroupBuyChip";
@@ -19,8 +19,9 @@ import { UsedInCell } from "../../ui/UsedInCell";
 import { mainImageUrl, shownMarket, shownProductId } from "../../cards/altArt";
 import { MarketPrice } from "../../cards/MarketPrice";
 import { AltChip, AltStripRow, CardBodies, altTrayId, useExpandedAlts, useFoldGridAlts, useWideListRows } from "../../cards/AltTray";
-import { OwnedCell, StillNeededCell, totalOwned } from "../collection/OwnedCells";
-import { SortableTh, sortByColumn, useColumnSort } from "../../ui/columnSort";
+import { OwnedCell, RowUndo, StillNeededCell, totalOwned } from "../collection/OwnedCells";
+import { SortableTh, useColumnSort } from "../../ui/columnSort";
+import { useColumnOrder, useSettledScope } from "../../ui/useSettledOrder";
 import { needExplanation, usedInChips } from "./shoppingBuy";
 import { OwnedInput, WantInput } from "../OwnedInputs";
 import { busyProductFor } from "../../cache/busyKey";
@@ -107,7 +108,9 @@ export function ShoppingItemsView({
   collector?: CollectorControls;
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_SHOPPING_KEY);
-  const tableItems = useMemo(() => sortByColumn(items, sort, shoppingColumnValue), [items, sort]);
+  const scope = useSettledScope();
+  // Rows you are editing keep their place in the column-sorted table too (#1498).
+  const tableItems = useColumnOrder(items, sort, shoppingColumnValue, (i) => i.card_id, scope);
   const wide = useWideListRows();
   const compact = layout === "list" && density === "compact";
   const { open: openAlts, toggle: toggleAlts } = useExpandedAlts();
@@ -200,6 +203,7 @@ export function ShoppingItemsView({
           return (
             <Fragment key={item.card_id}>
             <article
+              data-row-id={item.card_id}
               className={`grid-card-wrap${checked ? " selected-row" : ""}${tapToSelect ? " selectable" : ""}`}
               onClick={tapToSelect ? () => onToggleCard(item.card_id) : undefined}
               onKeyDown={
@@ -240,6 +244,7 @@ export function ShoppingItemsView({
                 meta={
                   <>
                     {shoppingStatusText(item)}
+                    <RowUndo rowId={item.card_id} />
                     {item.still_need > 0 || canOpenBuyPopover(item, Boolean(collector)) ? (
                       <span className="buy-split-line">{buySplit(item, "To buy ")}</span>
                     ) : null}
@@ -290,6 +295,7 @@ export function ShoppingItemsView({
               return (
                 <article
                   key={key}
+                  data-row-id={item.card_id}
                   className={`grid-card-wrap collector-wrap${lineChecked ? " selected-row" : ""}${tapToSelect ? " selectable" : ""}`}
                   onClick={tapToSelect ? () => onToggleCard(key) : undefined}
                   onKeyDown={
@@ -372,7 +378,7 @@ export function ShoppingItemsView({
               <SortableTh label="Card" colKey="card" firstDir="asc" sort={sort} onSort={onSort} />
               <SortableTh label="Owned" colKey="owned" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Need" colKey="want" firstDir="desc" sort={sort} onSort={onSort} />
-              <SortableTh label="To buy" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+              <SortableTh label="To buy" colKey="still" firstDir="desc" sort={sort} onSort={onSort} className="col-still" />
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="To buy $" colKey="remaining" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Used in" colKey="used" firstDir="asc" sort={sort} onSort={onSort} />
@@ -387,7 +393,7 @@ export function ShoppingItemsView({
               const span = stripped && !compact ? 2 : undefined;
               const rowClass = `${shoppingRowState(item)}${checked ? " selected-row" : ""}${lines.length > 0 ? " has-collector" : ""}`;
               const mainRow = (
-                <tr className={`${rowClass}${wide ? " alt-main-row" : ""}${stripped && !compact ? " has-strip" : ""}`}>
+                <tr data-row-id={item.card_id} className={`${rowClass}${wide ? " alt-main-row" : ""}${stripped && !compact ? " has-strip" : ""}`}>
                   <td className="select-col" rowSpan={span}>
                     <input
                       type="checkbox"
@@ -414,8 +420,8 @@ export function ShoppingItemsView({
                   </td>
                   <td>{ownedCell(item)}</td>
                   <td className="want-col">{wantCell(item)}</td>
-                  <td>
-                    <StillNeededCell still={item.still_need} />
+                  <td className="col-still">
+                    <StillNeededCell still={item.still_need} haveAll={item.need} rowId={item.card_id} />
                   </td>
                   <td>
                     <ShownMarketPrice item={item} />
@@ -435,6 +441,7 @@ export function ShoppingItemsView({
                 <AltStripRow
                   colSpan={compact ? STRIP_COLS + 2 : STRIP_COLS}
                   className={rowClass}
+                  rowId={item.card_id}
                   id={compact ? altTrayId(item.card_id) : undefined}
                   onClick={stopCardSelectBubble}
                 >
@@ -447,6 +454,7 @@ export function ShoppingItemsView({
                   return (
                     <tr
                       key={key}
+                      data-row-id={item.card_id}
                       className={`collector-row ${line.still_need > 0 ? "need" : "done"}${lineChecked ? " selected-row" : ""}${idx < lines.length - 1 ? " collector-row-more" : ""}`}
                     >
                       <td className="select-col">
@@ -471,7 +479,7 @@ export function ShoppingItemsView({
                         <span className="collector-have">{collectorHaveText(line)}</span>
                       </td>
                       <td className="want-col">{lineStepper(item, line)}</td>
-                      <td>
+                      <td className="col-still">
                         <StillNeededCell still={line.still_need} />
                       </td>
                       <td>
@@ -534,6 +542,7 @@ export function ShoppingItemsView({
                   }
                 },
               }}
+              rowId={item.card_id}
               cardId={item.card_id}
               name={item.name}
               imageSrc={mainImageUrl(item)}
@@ -546,6 +555,7 @@ export function ShoppingItemsView({
                   <span className="mobile-card-meta-text">
                     {[item.color, shoppingStatusText(item)].filter(Boolean).join(" · ")}
                   </span>
+                  <RowUndo rowId={item.card_id} />
                   {item.still_need > 0 || canOpenBuyPopover(item, Boolean(collector)) ? (
                     <span className="buy-split-line">{buySplit(item, "To buy ")}</span>
                   ) : null}
@@ -610,6 +620,7 @@ export function ShoppingItemsView({
               return (
                 <article
                   key={key}
+                  data-row-id={item.card_id}
                   className={`mobile-card collector-card selectable ${line.still_need > 0 ? "need" : "done"}${lineChecked ? " selected-row" : ""}`}
                   role="button"
                   tabIndex={0}

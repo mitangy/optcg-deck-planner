@@ -1,4 +1,4 @@
-import { Fragment, useMemo } from "react";
+import { Fragment } from "react";
 import { CardView, money } from "../../api";
 import { remainingCostForCard } from "../shopping/deckCost";
 import { BuySplit, canSplitBuy } from "../shopping/BuySplit";
@@ -11,8 +11,9 @@ import { GridCard, MobileCard } from "../../ui/PlannerCard";
 import { baseTileFor, mainImageUrl, shownProductId } from "../../cards/altArt";
 import { AltArtsRow, MarketPrice } from "../../cards/MarketPrice";
 import { AltChip, AltStripRow, CardBodies, altTrayId, useExpandedAlts, useFoldGridAlts, useWideListRows } from "../../cards/AltTray";
-import { OwnedCell, StillNeededCell, toBuyText, totalOwned } from "../collection/OwnedCells";
-import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../ui/columnSort";
+import { OwnedCell, RowUndo, StillNeededCell, toBuyText, totalOwned } from "../collection/OwnedCells";
+import { SortableTh, costSortValue, useColumnSort } from "../../ui/columnSort";
+import { useColumnOrder, useSettledScope } from "../../ui/useSettledOrder";
 import { busyProductFor } from "../../cache/busyKey";
 import { OwnedInput } from "../OwnedInputs";
 import { COLSORT_DECK_KEY } from "../../storage/keys";
@@ -70,7 +71,7 @@ export function CardTable({
   editing = false,
   onNeededChange,
   neededBusyId = null,
-  onAltOwnedChange,
+  onAltOwnedChange: onAltOwnedChangeProp,
   altOwnedBusyKey = null,
   onDisplayArtChange,
   onAltBuyChange,
@@ -93,6 +94,15 @@ export function CardTable({
   collectorBusyKey?: string | null;
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_DECK_KEY);
+  const scope = useSettledScope();
+  // A row you step Owned on keeps its place (and stays, with Undo, when it is covered) until you are done with it (#1498).
+  const onAltOwnedChange = onAltOwnedChangeProp
+    ? (cardId: string, productId: number, qty: number) => {
+        const before = cards.find((c) => c.card_id === cardId)?.alt_arts?.find((a) => a.product_id === productId)?.owned ?? 0;
+        scope?.markEdited(cardId, { key: `alt:${productId}`, restore: () => onAltOwnedChangeProp(cardId, productId, before) });
+        onAltOwnedChangeProp(cardId, productId, qty);
+      }
+    : undefined;
   const buySplit = (c: CardView) =>
     onAltBuyChange && canSplitBuy(c) ? (
       <BuySplit
@@ -105,7 +115,7 @@ export function CardTable({
         onCollectorPick={onCollectorChange ? (productId, qty) => onCollectorChange(c.card_id, productId, qty) : undefined}
       />
     ) : null;
-  const tableCards = useMemo(() => sortByColumn(cards, sort, deckColumnValue), [cards, sort]);
+  const tableCards = useColumnOrder(cards, sort, deckColumnValue, (c) => c.card_id, scope);
   const wide = useWideListRows();
   const compact = layout === "list" && density === "compact";
   const { open: openAlts, toggle: toggleAlts } = useExpandedAlts();
@@ -166,6 +176,7 @@ export function CardTable({
           <GridCard
             key={`${c.section}-${c.card_id}`}
             dataCardId={c.card_id}
+            rowId={c.card_id}
             className={c.still_need > 0 ? "need" : "done"}
             cardId={c.card_id}
             name={c.name}
@@ -177,6 +188,7 @@ export function CardTable({
             meta={
               <>
                 {[toBuyText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
+                <RowUndo rowId={c.card_id} />
                 {c.collector_want ? <CollectorDeckChip count={c.collector_want} /> : null}
                 {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
               </>
@@ -226,7 +238,7 @@ export function CardTable({
               {editing && onNeededChange ? (
                 <SortableTh label="In deck" colKey="needed" firstDir="desc" sort={sort} onSort={onSort} />
               ) : (
-                <SortableTh label="To buy" colKey="still" firstDir="desc" sort={sort} onSort={onSort} />
+                <SortableTh label="To buy" colKey="still" firstDir="desc" sort={sort} onSort={onSort} className="col-still" />
               )}
               <SortableTh label="Market" colKey="market" firstDir="desc" sort={sort} onSort={onSort} />
               <SortableTh label="Type" colKey="type" firstDir="asc" sort={sort} onSort={onSort} className="col-type" />
@@ -240,7 +252,7 @@ export function CardTable({
               const stripped = compact ? hasAlts(c) && openAlts.has(key) : wide && hasAlts(c);
               const rowClass = c.still_need > 0 ? "need" : "done";
               const rows = [
-              <tr key="main" data-card-id={c.card_id} className={`${rowClass}${wide ? " alt-main-row" : ""}${stripped && !compact ? " has-strip" : ""}`}>
+              <tr key="main" data-card-id={c.card_id} data-row-id={c.card_id} className={`${rowClass}${wide ? " alt-main-row" : ""}${stripped && !compact ? " has-strip" : ""}`}>
                 <td className="card-cell" rowSpan={stripped && !compact ? 2 : undefined}>
                   <div className="card-cell-inner">
                     <StackedThumb copies={stackCopies(c)} src={mainImageUrl(c)} cardId={c.card_id} alt={c.name} productId={shownProductId(c)} />
@@ -261,7 +273,7 @@ export function CardTable({
                   {ownedCell(c)}
                   <OwnedClaimNote card={c} />
                 </td>
-                <td className="need-cell">
+                <td className="need-cell col-still">
                   {editing && onNeededChange ? (
                     <span title={c.still_need > 0 ? `To buy ${c.still_need} of ${c.needed}` : `Have all ${c.needed}`}>
                       <NeededStepper
@@ -273,7 +285,7 @@ export function CardTable({
                     </span>
                   ) : (
                     <>
-                      <StillNeededCell still={c.still_need} need={c.needed} />
+                      <StillNeededCell still={c.still_need} need={c.needed} rowId={c.card_id} />
                       {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
                     </>
                   )}
@@ -288,7 +300,7 @@ export function CardTable({
               ];
               if (stripped) {
                 rows.push(
-                  <AltStripRow key="strip" colSpan={compact ? COMPACT_STRIP_COLS : STRIP_COLS} className={rowClass} id={compact ? altTrayId(key) : undefined}>
+                  <AltStripRow key="strip" rowId={c.card_id} colSpan={compact ? COMPACT_STRIP_COLS : STRIP_COLS} className={rowClass} id={compact ? altTrayId(key) : undefined}>
                     {altRow(c)}
                   </AltStripRow>,
                 );
@@ -310,6 +322,7 @@ export function CardTable({
           <MobileCard
             key={`${c.section}-${c.card_id}`}
             dataCardId={c.card_id}
+            rowId={c.card_id}
             className={c.still_need > 0 ? "need" : "done"}
             cardId={c.card_id}
             name={c.name}
@@ -323,6 +336,7 @@ export function CardTable({
                 <span className="mobile-card-meta-text">
                   {[c.color, toBuyText(c.still_need, c.needed), c.card_type || ""].filter(Boolean).join(" · ")}
                 </span>
+                <RowUndo rowId={c.card_id} />
                 {c.collector_want ? <CollectorDeckChip count={c.collector_want} /> : null}
                 {onAltBuyChange && canSplitBuy(c) ? <span className="buy-split-line">{buySplit(c)}</span> : null}
               </>

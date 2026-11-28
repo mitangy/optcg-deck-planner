@@ -150,7 +150,11 @@ test("owned stepper saves each click and updates still needed (#652)", async ({ 
   await expect(owned).toHaveValue("1");
   await owned.fill("4");
   await owned.blur();
-  await expect(row).toHaveCount(0); // fully owned: drops out of "To buy only"
+  // Fully owned: it stays where it is, green, with Have all and Undo, until the pointer has left (#1498)...
+  await expect(row).toContainText("Have all 4");
+  await expect(row.getByRole("button", { name: "Undo" })).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(row).toHaveCount(0); // ...then it drops out of "To buy only"
   expect(planner.owned.get("EB01-002")).toBe(4);
 
   const issues = await planner.audit();
@@ -257,6 +261,9 @@ test("an owned alt art lowers $ left, becomes the main art, and leaves a Base ti
   await expect(page.locator(IZO).locator("img.thumb").first()).toHaveAttribute("src", /201_400w/);
   await inc.click();
   await expect(left).toHaveText("$34.30 to finish");
+  // Covered: the row stays (Have all, Undo) while the pointer is on it, then drops out of "To buy only" (#1498).
+  await expect(page.locator(IZO)).toContainText("Have all 4");
+  await page.mouse.move(0, 0);
   await expect(page.locator(IZO)).toHaveCount(0);
 });
 

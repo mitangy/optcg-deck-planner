@@ -1,4 +1,4 @@
-import { type ReactNode, Fragment, useMemo } from "react";
+import { type ReactNode, Fragment } from "react";
 import { money, OwnedCard } from "../../api";
 import { type CardLayout, type ListDensity } from "../../ui/CardLayout";
 import { CardColorChips } from "../../ui/CollectionToolbar";
@@ -7,7 +7,8 @@ import { mainImageUrl, shownProductId } from "../../cards/altArt";
 import { MarketPrice } from "../../cards/MarketPrice";
 import { AltChip, AltStripRow, AltTrayContext, CardBodies, altTrayId, useExpandedAlts, useFoldGridAlts, useWideListRows, wideGridAlts } from "../../cards/AltTray";
 import { OwnedCell } from "./OwnedCells";
-import { SortableTh, costSortValue, sortByColumn, useColumnSort } from "../../ui/columnSort";
+import { SortableTh, costSortValue, useColumnSort } from "../../ui/columnSort";
+import { useColumnOrder, useSettledScope } from "../../ui/useSettledOrder";
 import { usedInSortValue } from "../shopping/ShoppingItemsView";
 import { OwnedInput } from "../OwnedInputs";
 import { COLSORT_COLLECTION_KEY } from "../../storage/keys";
@@ -51,7 +52,7 @@ export function CollectionItemsView({
   altRow: (item: OwnedCard) => ReactNode;
 }) {
   const { sort, onSort } = useColumnSort(COLSORT_COLLECTION_KEY);
-  const tableItems = useMemo(() => sortByColumn(items, sort, collectionColumnValue), [items, sort]);
+  const tableItems = useColumnOrder(items, sort, collectionColumnValue, (i) => i.card_id, useSettledScope());
   const wide = useWideListRows();
   const compact = layout === "list" && density === "compact";
   const { open: openAlts, toggle: toggleAlts } = useExpandedAlts();
@@ -89,7 +90,7 @@ export function CollectionItemsView({
               </div>
             ) : null;
           return (
-            <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id}>
+            <article key={item.card_id} className="grid-card-wrap collection-grid-wrap" data-card-id={item.card_id} data-row-id={item.card_id}>
               <div className={`grid-card collection-grid-card${wideAlts.className}`}>
                 <div className="collection-tile-art">
                   <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
@@ -150,7 +151,7 @@ export function CollectionItemsView({
             {tableItems.map((item) => {
               const stripped = compact ? hasAltRow(item) && openAlts.has(item.card_id) : wide && hasAltRow(item);
               const rows = [
-              <tr key="main" data-card-id={item.card_id} className={wide ? `alt-main-row${stripped && !compact ? " has-strip" : ""}` : undefined}>
+              <tr key="main" data-card-id={item.card_id} data-row-id={item.card_id} className={wide ? `alt-main-row${stripped && !compact ? " has-strip" : ""}` : undefined}>
                 <td className="card-cell" rowSpan={stripped && !compact ? 2 : undefined}>
                   <div className="card-cell-inner">
                     <CardThumb src={mainImageUrl(item)} cardId={item.card_id} alt={item.name} productId={shownProductId(item)} />
@@ -177,7 +178,7 @@ export function CollectionItemsView({
                 {altCol ? <td className="alt-arts-cell">{altRow(item)}</td> : null}
               </tr>,
               ];
-              if (stripped) rows.push(<AltStripRow key="strip" colSpan={compact ? COMPACT_STRIP_COLS : STRIP_COLS} id={compact ? altTrayId(item.card_id) : undefined}>{altRow(item)}</AltStripRow>);
+              if (stripped) rows.push(<AltStripRow key="strip" rowId={item.card_id} colSpan={compact ? COMPACT_STRIP_COLS : STRIP_COLS} id={compact ? altTrayId(item.card_id) : undefined}>{altRow(item)}</AltStripRow>);
               return wide || compact ? (
                 <tbody key={item.card_id} className="card-rows">
                   {rows}
@@ -192,7 +193,7 @@ export function CollectionItemsView({
 
       <div className={`mobile-card-list${compact ? " density-compact" : ""}`}>
         {items.map((item) => (
-          <article key={item.card_id} className="mobile-card" data-card-id={item.card_id}>
+          <article key={item.card_id} className="mobile-card" data-card-id={item.card_id} data-row-id={item.card_id}>
             <div className="mobile-card-top">
               <MobileCardMedia
                 src={mainImageUrl(item)}

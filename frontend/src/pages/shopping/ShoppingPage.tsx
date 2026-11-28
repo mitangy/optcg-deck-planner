@@ -7,6 +7,8 @@ import { buyCards, pickSelection } from "./shoppingBuy";
 import { ShoppingBuyButton, ShoppingBuyDock } from "./ShoppingBuyControls";
 import { shoppingMenuPrice } from "./deckCost";
 import { UndoToast } from "../collection/CollectorLine";
+import { SettledScopeProvider, useSettledOrder } from "../../ui/useSettledOrder";
+import { useColumnSort } from "../../ui/columnSort";
 import { shownWhileOnlyNeed } from "./GroupBuyChip";
 import { useMe } from "../../auth/useMe";
 import { useCardLayout, useListDensity } from "../../ui/CardLayout";
@@ -63,6 +65,7 @@ import { jsonArrayCodec, jsonSetCodec, usePersistedState } from "@optcg/ui/stora
 import { qk } from "../../cache/queryKeys";
 import { copyText } from "@optcg/ui/clipboard";
 
+const shoppingItemId = (i: ShoppingItem) => i.card_id;
 const isString = (x: unknown): x is string => typeof x === "string";
 const selectedCardsCodec = jsonSetCodec(isString);
 const isColor = (c: unknown): c is string => COLOR_ORDER.includes(c as string);
@@ -228,7 +231,11 @@ export function ShoppingPage() {
           onSaved={() => invalidateOwnedViews(qc)}
         />
       }
-      onOwnedChange={(productId, qty) => void changeShoppingAltOwned(item.card_id, productId, qty)}
+      onOwnedChange={(productId, qty) => {
+        const before = (item.alt_arts ?? []).find((a) => a.product_id === productId)?.owned ?? 0;
+        settled.scope.markEdited(item.card_id, { key: `alt:${productId}`, restore: () => changeShoppingAltOwned(item.card_id, productId, before) });
+        void changeShoppingAltOwned(item.card_id, productId, qty);
+      }}
       showBuyPicks={item.still_need > 0}
       shownProductId={shownProductId(item)}
       onShow={(productId) => void changeShoppingDisplayArt(item.card_id, productId)}
@@ -268,6 +275,21 @@ export function ShoppingPage() {
     () => (showDons ? [...mainItems, ...donItems] : mainItems),
     [mainItems, donItems, showDons],
   );
+
+  const { sort: columnSort } = useColumnSort(COLSORT_SHOPPING_KEY);
+  // Anything that changes what the list shows settles it at once; editing a row only holds that row (#1498).
+  const settleKey = JSON.stringify([
+    onlyNeed, effectiveSorts, search, colors, type, showDons, includeExtras, includeCollector, shoppingKey, columnSort, layout, density, showAltArts,
+  ]);
+  const settled = useSettledOrder({
+    target: items,
+    live: data?.items ?? [],
+    getId: shoppingItemId,
+    resetKey: settleKey,
+    describeDone: (i) => `${i.name} covered, ${i.need} of ${i.need}.`,
+  });
+  const shownMain = useMemo(() => settled.items.filter((i) => !isDonCard(i)), [settled.items]);
+  const shownDons = useMemo(() => (showDons ? settled.items.filter((i) => isDonCard(i)) : []), [settled.items, showDons]);
 
   const selection = useMemo(() => pickSelection(data?.items ?? [], selectedCardIds), [data, selectedCardIds]);
   const selectedItems = selection.items;
@@ -377,10 +399,11 @@ export function ShoppingPage() {
         .filter((_, i) => results[i].status === "fulfilled")
         .reduce((sum, t) => sum + t.copies, 0);
       const ok = targets.length - failed.length;
-      return { ok, failed, copies };
+      return { ok, failed, copies, done: targets.filter((_, i) => results[i].status === "fulfilled") };
     },
-    onSuccess: ({ ok, failed, copies }) => {
+    onSuccess: ({ ok, failed, copies, done }) => {
       invalidateOwnedViews(qc);
+      if (ok > 0) setBoughtUndo({ count: ok, targets: done });
       if (failed.length) {
         setExportMsg(
           `Marked ${ok} card${ok === 1 ? "" : "s"} bought in person (${copies} copies). Failed: ${failed.join(", ")}`,
@@ -404,7 +427,33 @@ export function ShoppingPage() {
         nextOwned: item.owned + item.still_need,
         copies: item.still_need,
       }));
+    // The rows keep their place for a moment (green, with Undo) instead of vanishing from the list all at once.
+    settled.scope.markBulk(
+      targets.map((t) => ({
+        id: t.cardId,
+        op: { key: "owned", restore: () => restoreOwned(t.cardId, t.prevOwned) },
+      })),
+    );
     buyInPerson.mutate(targets);
+  }
+
+  const [boughtUndo, setBoughtUndo] = useState<{ count: number; targets: { cardId: string; prevOwned: number }[] } | null>(null);
+  const dismissBoughtUndo = useCallback(() => setBoughtUndo(null), []);
+  async function restoreOwned(cardId: string, prevOwned: number) {
+    applyOwnedOptimistic(qc, cardId, prevOwned);
+    try {
+      await api.setOwned(cardId, prevOwned);
+    } catch {
+      /* the refresh shows the real count */
+    }
+    invalidateOwnedViews(qc);
+  }
+  function undoBought() {
+    const undo = boughtUndo;
+    setBoughtUndo(null);
+    if (!undo) return;
+    settled.scope.markBulk(undo.targets.map((t) => ({ id: t.cardId })));
+    for (const t of undo.targets) void restoreOwned(t.cardId, t.prevOwned);
   }
 
   const allVisibleSelected =
@@ -496,7 +545,9 @@ export function ShoppingPage() {
   const emptyList = allDeckIds.length === 0 && (data?.items.length ?? 0) === 0;
 
   return (
+    <SettledScopeProvider scope={settled.scope}>
     <section className={hasSelection || exportMsg ? "has-buy-dock" : undefined}>
+      {settled.liveRegion}
       <div className={`page-head shopping-head${emptyList ? " shopping-head-empty" : ""}`}>
         <div className="shopping-head-title">
           <p className="eyebrow">{allDeckIds.length === 0 ? "Cards you are buying" : "Across your decks"}</p>
@@ -582,6 +633,13 @@ export function ShoppingPage() {
         onDismissMessage={() => setExportMsg(null)}
       />
       {altOwnedErr && <p className="error">{altOwnedErr}</p>}
+      {boughtUndo ? (
+        <UndoToast
+          message={`Marked ${boughtUndo.count} card${boughtUndo.count === 1 ? "" : "s"} bought`}
+          onAction={undoBought}
+          onDismiss={dismissBoughtUndo}
+        />
+      ) : null}
       {collectorUndo ? (
         <UndoToast
           message={`Removed extra ${collectorUndo.label}`}
@@ -689,7 +747,7 @@ export function ShoppingPage() {
       )}
 
       <ShoppingItemsView
-        items={mainItems}
+        items={shownMain}
         layout={layout}
         density={density}
         isNarrow={isNarrow}
@@ -711,13 +769,13 @@ export function ShoppingPage() {
       {showDons && hasDonsInData && (
         <div className="shopping-don-section">
           <h2 className="don-heading">
-            DON!!{donItems.length ? ` · ${donItems.length}` : ""}
+            DON!!{shownDons.length ? ` · ${shownDons.length}` : ""}
           </h2>
-          {donItems.length === 0 ? (
+          {shownDons.length === 0 ? (
             <p className="muted">No DON!! cards match the current filters.</p>
           ) : (
             <ShoppingItemsView
-              items={donItems}
+              items={shownDons}
               layout={layout}
               density={density}
               isNarrow={isNarrow}
@@ -750,14 +808,23 @@ export function ShoppingPage() {
         <CardScanner
           items={data?.items ?? []}
           initialImage={droppedImage}
-          multi={{ target: "shopping", onAdded: () => invalidateOwnedViews(qc) }}
+          multi={{
+            target: "shopping",
+            onAdded: () => {
+              settled.scope.holdAll();
+              invalidateOwnedViews(qc);
+            },
+          }}
           renderHitAction={(card) => <ShoppingScanHitAction cardId={card.card_id} />}
           onClose={() => {
+            // Whatever the scan changed shows up under the dialog: hold it a moment so the list settles in view.
+            settled.scope.holdAll();
             setScanOpen(false);
             setDroppedImage(null);
           }}
         />
       )}
     </section>
+    </SettledScopeProvider>
   );
 }
