@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bannerCta, closedNote, eventPhase, eventStyleLabel, formatCountdown, formatWindow, prizeLine, progressLabel, staffNote, statusLine, usesDraw } from "./eventLogic";
+import { bannerCta, closedNote, eventPhase, eventStyleLabel, formatCountdown, formatWindow, nextGameNightLine, prizeLine, progressLabel, staffNote, statusLine, usesDraw } from "./eventLogic";
 
 const START = "2026-11-22T17:00:00Z";
 const END = "2026-11-22T21:00:00Z";
@@ -93,5 +93,22 @@ describe("event style and prizing on the banner (#1019)", () => {
     const ended = at("2026-11-22T22:00:00Z");
     expect(statusLine({ ...ev, prize_method: "placement" }, ended)).toBe("Ended");
     expect(statusLine({ ...ev, prize_method: "draw" }, ended)).toBe("Ended · winners drawn soon");
+  });
+});
+
+describe("game night line in the queue wait (#1506)", () => {
+  const night = { title: "Game night", starts_at: "2026-12-12T02:00:00Z", ends_at: "2026-12-12T04:00:00Z", status: "upcoming" as const };
+
+  it("shows the start in the viewer's own time zone, not UTC (#1506)", () => {
+    const now = at("2026-12-10T00:00:00Z");
+    expect(nextGameNightLine(night, now, "en-US", "America/Los_Angeles")).toBe("Next game night: Fri, Dec 11, 6:00 PM PST");
+    expect(nextGameNightLine(night, now, "en-US", "Europe/Paris")).toBe("Next game night: Sat, Dec 12, 3:00 AM GMT+1");
+  });
+
+  it("says the night is on while it runs, and nothing once it is over or when none is planned (#1506)", () => {
+    expect(nextGameNightLine(night, at("2026-12-12T03:00:00Z"), "en-US", "UTC")).toBe("Game night is on now");
+    expect(nextGameNightLine(night, at("2026-12-12T05:00:00Z"), "en-US", "UTC")).toBeNull();
+    expect(nextGameNightLine({ ...night, status: "drawn" }, at("2026-12-10T00:00:00Z"), "en-US", "UTC")).toBeNull();
+    expect(nextGameNightLine(null, at("2026-12-10T00:00:00Z"))).toBeNull();
   });
 });

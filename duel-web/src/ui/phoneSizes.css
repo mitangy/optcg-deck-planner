@@ -29,12 +29,6 @@
     font-size: max(12px, 0.7rem);
   }
 
-  .mode-tile-tag {
-    font-size: 12px;
-    letter-spacing: 0;
-    text-transform: none;
-  }
-
   .bounties-see-all {
     min-height: 44px;
     margin-block: -4px;

@@ -162,6 +162,12 @@ export function PlaySheet({
           </div>
         ) : null}
 
+        {mode === "casual" ? (
+          <p className="field-hint">
+            A casual game against another player: not ranked, so your Bounty stays put. Each player gets 15 minutes on a chess clock.
+          </p>
+        ) : null}
+
         {mode === "queue" ? (
           <p className="field-hint">
             Ranked games give each player 15 minutes on a chess clock. Your Bounty updates after the match.

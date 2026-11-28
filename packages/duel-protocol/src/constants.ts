@@ -7,6 +7,10 @@ export function isProtocolVersion(v: unknown): v is ProtocolVersion {
 
 export const TAKEN_OVER_CLOSE_CODE = 4451;
 
+/** Matchmaker room names. Each is its own pool, so a casual player is never paired into a ranked game or the other way round. */
+export const QUEUE_ROOM = { ranked: "ranked_queue", casual: "casual_queue" } as const;
+export type QueueMode = keyof typeof QUEUE_ROOM;
+
 /** Size caps (characters of the data URL) so skins cannot bloat room memory. */
 export const SKIN_MAX_PLAYMAT_CHARS = 450_000;
 export const SKIN_MAX_CARD_BACK_CHARS = 90_000;

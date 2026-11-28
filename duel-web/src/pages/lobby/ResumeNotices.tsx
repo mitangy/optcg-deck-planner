@@ -74,7 +74,7 @@ export function ResumeNotices({
         <section className="notice" aria-live="polite">
           <div className="notice-body">
             <strong>Searching for an opponent…</strong>
-            <span>Ranked queue · 15 minutes per player</span>
+            <span>Cancel to pick something else.</span>
           </div>
           <div className="notice-actions">
             <button

@@ -26,6 +26,7 @@ import type {
   MatchOverMessage,
   PlayerDeckWire,
   PlayerView,
+  QueueMode,
   Seat,
   SeatPlayers,
   TimerMessage,
@@ -84,6 +85,8 @@ export type MatchLaunch = {
   leaderId: string | null;
   invite: boolean;
   friends?: boolean;
+  /** Set for a matchmaking search, so the waiting board can show the time, the bot offer and Cancel. */
+  queue?: { casual: boolean; startedAt: number; playBot?: () => void };
 };
 
 type DuelSession = {
@@ -128,9 +131,10 @@ type DuelSession = {
   rating: number | null;
   lastServerUrl: string | null;
   connect: (opts: ConnectOpts, launchGen: number) => Promise<void>;
-  queueRanked: (
+  queueMatch: (
     opts: Pick<ConnectOpts, "serverUrl" | "devUserId" | "gameToken" | "secret" | "deck">,
     launchGen: number,
+    mode?: QueueMode,
   ) => Promise<void>;
   cancelQueue: () => Promise<void>;
   reconnect: () => Promise<void>;
@@ -160,7 +164,7 @@ type SessionActions = Pick<
   | "sendUndo"
   | "setRating"
   | "connect"
-  | "queueRanked"
+  | "queueMatch"
   | "cancelQueue"
   | "reconnect"
   | "tryResumeFromStorage"
@@ -385,14 +389,14 @@ export function DuelSessionProvider({ children }: { children: React.ReactNode })
         const tok = client.getReconnectionToken();
         if (tok) persistToken(tok, info.matchId);
       },
-      async queueRanked(opts, gen) {
+      async queueMatch(opts, gen, mode = "ranked") {
         if (launchGenRef.current !== gen) throw cancelled();
         dispatch({ type: "queueStarted" });
         serverUrlRef.current = opts.serverUrl ?? null;
         if (opts.serverUrl) setLastServerUrl(opts.serverUrl);
         wireHandlers();
         try {
-          const info = await client.queueRanked(opts);
+          const info = await client.queueMatch(opts, mode);
           if (launchGenRef.current !== gen) throw abandon();
           seatRef.current = info.seat;
           flushSync(() => {

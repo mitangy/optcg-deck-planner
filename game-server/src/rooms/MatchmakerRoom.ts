@@ -9,7 +9,7 @@ import { hashToNegativeId } from "../devIdentity.js";
 import { verifyGameToken } from "../gameToken.js";
 import { checkMatchmakeToken } from "../matchmakeGuard.js";
 import { assertKnownDeck, rankedDeckProblem } from "../rankedDeck.js";
-import { PROTOCOL_VERSION, RANKED_SEAT_SECONDS, parseJoinOptions } from "../protocol.js";
+import { PROTOCOL_VERSION, RANKED_SEAT_SECONDS, parseJoinOptions, type QueueMode } from "../protocol.js";
 import { writeLog, type LogLevel } from "../log.js";
 
 type Queued = {
@@ -27,6 +27,8 @@ export class MatchmakerRoom extends Room {
   maxClients = 5000;
   maxMessagesPerSecond = 10;
   private queue: Queued[] = [];
+  /** Ranked unless a subclass says otherwise: the ranked pool must behave exactly as it always has. */
+  protected readonly queueMode: QueueMode = "ranked";
 
   static async onAuth(_token: string, options: unknown): Promise<unknown> {
     return checkMatchmakeToken(options);
@@ -40,7 +42,7 @@ export class MatchmakerRoom extends Room {
       this.removeFromQueue(client.sessionId);
       client.send("queue_cancelled", { protocolVersion: PROTOCOL_VERSION });
     });
-    this.log("info", "matchmaker_created", {});
+    this.log("info", "matchmaker_created", { mode: this.queueMode });
   }
 
   onAuth(_client: Client, options: unknown) {
@@ -92,11 +94,12 @@ export class MatchmakerRoom extends Room {
     displayId: string;
   } {
     const join = parseJoinOptions(options);
-    // Check the deck before queueing: a deck the ranked room would turn away
-    // gets paired, never joins, and strands its opponent.
+    // Check the deck before queueing: a deck the room would turn away gets
+    // paired, never joins, and strands its opponent. A casual room takes any
+    // deck it can run, like a private room; only ranked adds the construction rules.
     if (join.deck) {
       assertKnownDeck(join.deck);
-      const problem = rankedDeckProblem(join.deck);
+      const problem = this.queueMode === "ranked" ? rankedDeckProblem(join.deck) : null;
       if (problem) throw new Error(problem);
     }
     const requiredSecret = getDevJoinSecret();
@@ -135,26 +138,29 @@ export class MatchmakerRoom extends Room {
         }
         const b = this.queue.splice(partnerIdx, 1)[0]!;
         try {
+          const ranked = this.queueMode === "ranked";
           const room = await matchMaker.createRoom("duel", {
             protocolVersion: PROTOCOL_VERSION,
             autoSkipMulligan: false,
-            ranked: true,
-            rankedAttestation: getRankedMatchCreateSecret(),
+            ranked,
+            // Only this attestation makes a room count for ratings; a casual room carries none.
+            ...(ranked ? { rankedAttestation: getRankedMatchCreateSecret() } : {}),
             seatUserIds: [a.userId, b.userId],
             // Ranked always enforces a 15 minute chess clock per player (also forced in parseCreateOptions).
+            // Casual strangers get the same clock so nobody can stall a game forever.
             timer: { seatSeconds: RANKED_SEAT_SECONDS },
           });
           a.client.send("matched", {
             protocolVersion: PROTOCOL_VERSION,
             roomId: room.roomId,
             seat: 0,
-            ranked: true,
+            ranked,
           });
           b.client.send("matched", {
             protocolVersion: PROTOCOL_VERSION,
             roomId: room.roomId,
             seat: 1,
-            ranked: true,
+            ranked,
           });
           this.log("info", "matched", {
             roomId: room.roomId,
@@ -178,4 +184,9 @@ export class MatchmakerRoom extends Room {
   private log(level: LogLevel, event: string, data: Record<string, unknown>) {
     writeLog(level, event, data);
   }
+}
+
+/** The casual pool: the same pairing, but its rooms are unranked, so no rating moves. */
+export class CasualMatchmakerRoom extends MatchmakerRoom {
+  protected override readonly queueMode: QueueMode = "casual";
 }

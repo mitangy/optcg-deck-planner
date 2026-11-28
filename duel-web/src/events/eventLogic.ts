@@ -99,3 +99,26 @@ export function prizeLine(event: Pick<DuelEvent, "prize" | "prize_method">): str
 export function usesDraw(event: Pick<DuelEvent, "prize_method">): boolean {
   return event.prize_method === "draw";
 }
+
+/** The waiting-room line for an event that is not over: its start in the viewer's own time zone. Null once it has ended. */
+export function nextGameNightLine(
+  event: Pick<DuelEvent, "title" | "starts_at" | "ends_at" | "status"> | null,
+  now: number,
+  locale?: string,
+  timeZone?: string,
+): string | null {
+  if (!event) return null;
+  const phase = eventPhase(event, now);
+  if (phase === "live") return `${event.title} is on now`;
+  if (phase !== "upcoming") return null;
+  const when = new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+    timeZone,
+  }).format(new Date(event.starts_at));
+  return `Next game night: ${when}`;
+}

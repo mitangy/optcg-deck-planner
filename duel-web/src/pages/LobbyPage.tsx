@@ -10,7 +10,7 @@ import { FriendInvites, FriendsPanel, useFriends } from "../friends/FriendsPanel
 import { dismissIosHint, readInstallEnv, shouldShowIosInstallHint } from "../installPrompt";
 import { UpdateNotice, VersionStatus } from "../VersionStatus";
 import { EventBanner } from "../events/EventBanner";
-import { IntroStrip } from "../home/IntroStrip";
+import { StepsLine } from "../home/StepsLine";
 import { LivePanel, useLiveCounts } from "../home/LivePanel";
 import { ForYou } from "../home/ForYou";
 import { fetchMatchHistory } from "../history/historyApi";
@@ -18,19 +18,15 @@ import { useAsyncResource } from "../lib/useAsyncResource";
 import { LogPoseTile } from "../home/LogPoseTile";
 import { OnlyOnDuel } from "../home/OnlyOnDuel";
 import { BrandMark } from "../BrandMark";
-import { useMediaQuery } from "../lib/useMediaQuery";
 import { RankedGate } from "./lobby/RankedGate";
 import { TopBounties } from "../home/TopBounties";
 import { VoyageCard } from "../home/VoyageCard";
-import { introDone, introVisible, markIntroDone } from "../home/intro";
-import { readLastMode, writeLastMode, type LastMode } from "../home/lastMode";
-import { primaryAction } from "../home/primaryAction";
 import { TournamentsCard } from "../tournaments/TournamentsCard";
 import { prefetchBoardWhenIdle, WhatsNewHost } from "../lazyRoutes";
 import { DeckSwitcher } from "./lobby/DeckSwitcher";
 import { LobbyTopbar } from "./lobby/LobbyTopbar";
 import type { PlayMode } from "./lobby/modes";
-import { PlayActions } from "./lobby/PlayActions";
+import { PlayActions, type HomeMode } from "./lobby/PlayActions";
 import { PlaySheet } from "./lobby/PlaySheet";
 import { ResumeNotices } from "./lobby/ResumeNotices";
 import { useLobbyAuth } from "./lobby/useLobbyAuth";
@@ -53,8 +49,6 @@ export function LobbyPage() {
   const serverUrl = getGameServerUrl();
   const auth = useLobbyAuth(watchRoomId);
   const { settings, authUser, authMode, authChecked, matchOwner, accountName, bounty, me } = auth;
-  const [lastMode, setLastMode] = useState<LastMode | null>(() => readLastMode());
-  const [introClosed, setIntroClosed] = useState(() => introDone());
   const [pendingResume, setPendingResume] = useState<ReturnType<typeof loadMatchResume>>(null);
   const [showIosHint, setShowIosHint] = useState(() => shouldShowIosInstallHint(readInstallEnv()));
 
@@ -94,42 +88,24 @@ export function LobbyPage() {
     friends,
     friendsEnabled,
     watch: { roomId: watchRoomId, seat: watchSeat },
-    onModeStarted: (mode) => {
-      writeLastMode(mode);
-      setLastMode(readLastMode());
-      markIntroDone();
-      setIntroClosed(true);
-    },
   });
   const { busy, busyStatus, friendError, watchStarted, confirmSetup } = launch;
 
-  const primary = primaryAction(lastMode, authMode === "google");
   const [rankedGate, setRankedGate] = useState(false);
-  // Same breakpoint as the two-column home layout in uploads.css.
-  const twoColumns = useMediaQuery("(min-width: 1000px) and (min-height: 500px)");
   const guestHome = authChecked && !authUser;
-  const showIntro = authChecked && introVisible(authMode, introClosed);
 
-  function playFrom(mode: LastMode | "spectate", act: "start" | "sheet" = mode === "queue" ? "start" : "sheet") {
+  function playFrom(mode: HomeMode) {
     // Ranked keeps a Bounty and match history, which need an account (#1391).
     if (mode === "queue" && authMode === "guest") {
       setRankedGate(true);
       return;
     }
-    if (act === "start") {
-      if (!selectedDeck || (authMode === "dev" && !settings.devUserKey.trim())) {
-        sheet.openSheet(mode);
-        return;
-      }
+    // Play now is one tap with the deck already picked; with none (or no dev key) the sheet asks first.
+    if (mode === "casual" && selectedDeck && !(authMode === "dev" && !settings.devUserKey.trim())) {
       void confirmSetup(mode);
       return;
     }
     sheet.openSheet(mode);
-  }
-
-  function dismissIntro() {
-    markIntroDone();
-    setIntroClosed(true);
   }
 
   if (watchRoomId && !watchStarted.current && !friendError) {
@@ -189,7 +165,8 @@ export function LobbyPage() {
             <DeckSwitcher decks={decks} selectedDeck={selectedDeck} onChoose={deckState.chooseDeck} />
           ) : null}
 
-          <PlayActions primary={primary} disabled={busy || queueing} onPrimary={() => playFrom(primary.mode, primary.act)} onPlay={playFrom} />
+          <PlayActions disabled={busy || queueing} onPlay={playFrom} />
+          {authChecked ? <StepsLine guest={guestHome} /> : null}
 
           <LivePanel
             counts={liveCounts}
@@ -221,12 +198,9 @@ export function LobbyPage() {
             </div>
           ) : null}
 
-          {showIntro && !twoColumns ? <IntroStrip onDismiss={dismissIntro} /> : null}
         </div>
 
         <div className="home-side">
-          {/* Beside the play column on desktop so the right column is not just a list of cards (#1391). */}
-          {showIntro && twoColumns ? <IntroStrip onDismiss={dismissIntro} /> : null}
           <EventBanner />
           {busy && busyStatus && !sheet.sheetOpen ? <p className="friends-note">{busyStatus}</p> : null}
           <LogPoseTile deck={selectedDeck} />
@@ -260,9 +234,9 @@ export function LobbyPage() {
       {rankedGate ? (
         <RankedGate
           onClose={() => setRankedGate(false)}
-          onBot={() => {
+          onPlayNow={() => {
             setRankedGate(false);
-            playFrom("bot");
+            playFrom("casual");
           }}
         />
       ) : null}

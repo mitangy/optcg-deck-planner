@@ -42,8 +42,10 @@ import {
   type UndoApplied,
   type UndoState,
   CLIENT_MESSAGE,
+  QUEUE_ROOM,
   SERVER_MESSAGE,
   TAKEN_OVER_CLOSE_CODE,
+  type QueueMode,
   type ServerMessageType,
 } from "./protocol";
 import { Client, type Room } from "@colyseus/sdk";
@@ -194,7 +196,8 @@ export class DuelClient {
     );
   }
 
-  async queueRanked(params: ConnectParams): Promise<{ matchId: string; seat: Seat }> {
+  /** Joins the ranked or casual pool and, once paired, takes the seat in the room the matchmaker made. */
+  async queueMatch(params: ConnectParams, mode: QueueMode = "ranked"): Promise<{ matchId: string; seat: Seat }> {
     this.takenOverFlag = false;
     await this.disconnect();
     const url = params.serverUrl ?? getGameServerUrl();
@@ -202,7 +205,7 @@ export class DuelClient {
     this.matchServerUrl = url;
     const join = this.buildJoin(params);
 
-    const queueRoom = await this.client.joinOrCreate("ranked_queue", join);
+    const queueRoom = await this.client.joinOrCreate(QUEUE_ROOM[mode], join);
     this.queueRoom = queueRoom;
 
     const matched = await new Promise<{ roomId: string; seat: Seat; ranked: boolean }>(
@@ -236,7 +239,7 @@ export class DuelClient {
         });
         queueRoom.onLeave(() => {
           clearTimeout(timer);
-          reject(new Error("Lost the ranked queue. Queue again."));
+          reject(new Error("Lost the queue. Queue again."));
         });
       },
     );

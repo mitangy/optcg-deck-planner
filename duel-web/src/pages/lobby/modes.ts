@@ -1,14 +1,15 @@
-export type PlayMode = "hotseat" | "bot" | "create" | "join" | "queue" | "spectate";
+export type PlayMode = "casual" | "hotseat" | "bot" | "create" | "join" | "queue" | "spectate";
 
-export const MODE_CARDS: Array<{ mode: Exclude<PlayMode, "join">; title: string; short: string }> = [
-  { mode: "queue", title: "Ranked", short: "15 min each" },
-  { mode: "bot", title: "Play vs Bot", short: "Vs computer" },
-  { mode: "hotseat", title: "Practice", short: "Both sides" },
-  { mode: "create", title: "Private room", short: "Play a friend" },
+/** Under "More" on the home page. Play vs Bot lives only here: the old big button and tile were the same thing twice. */
+export const MORE_MODES: Array<{ mode: "queue" | "bot" | "hotseat" | "spectate"; title: string; short: string }> = [
+  { mode: "queue", title: "Ranked", short: "Bounty on the line · 15 min each" },
+  { mode: "bot", title: "Play vs Bot", short: "Easy, Normal or Hard" },
+  { mode: "hotseat", title: "Practice", short: "Both sides on this device" },
   { mode: "spectate", title: "Spectate", short: "Watch a room" },
 ];
 
 export const MODE_COPY: Record<PlayMode, { title: string; confirm: string }> = {
+  casual: { title: "Play now", confirm: "Find a game" },
   hotseat: { title: "Practice", confirm: "Start practice" },
   bot: { title: "Play vs Bot", confirm: "Start game" },
   create: { title: "Private room", confirm: "Create room" },
