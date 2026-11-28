@@ -1,3 +1,4 @@
+import "../boardStyles";
 import { PageShell } from "../layout/PageShell";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";

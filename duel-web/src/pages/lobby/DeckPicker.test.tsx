@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
-import { BOT_META_DECKS } from "@optcg/rules/botMetaDecks";
+import { botMetaDecks } from "../../home/botMetaDecks";
 import type { SavedDeck } from "../../decks/storage";
 import { BOT_DECK_RANDOM_META, metaDeckValue } from "../../home/botGame";
 import { DeckPicker } from "./DeckSwitcher";
@@ -80,7 +80,7 @@ describe("Bot's deck picker (#1180)", () => {
     const rows = await openPicker(botPicker([mine("d1", "Alpha"), mine("d2", "Beta")]));
     const text = rows.map((r) => r.textContent ?? "");
     expect(text[0]).toContain("Random meta deck");
-    BOT_META_DECKS.forEach((m, i) => expect(text[1 + i]).toContain(m.name));
+    botMetaDecks().forEach((m, i) => expect(text[1 + i]).toContain(m.name));
     expect(text[11]).toContain("Your decks");
     expect(rows[11]!.hasAttribute("data-disabled")).toBe(true);
     expect(text[12]).toContain("ST01-001");
@@ -97,7 +97,7 @@ describe("Bot's deck picker (#1180)", () => {
   });
 
   it("the closed picker shows the meta deck picked by its Leader name (#1180)", async () => {
-    const pick = BOT_META_DECKS[1]!;
+    const pick = botMetaDecks()[1]!;
     await openPicker(botPicker([mine("d1", "Alpha")], metaDeckValue(pick.leaderId)));
     expect(document.getElementById("bot-deck")!.textContent).toContain(pick.name);
     expect(document.querySelector("img.deck-picker-art, .deck-picker-art-empty")).not.toBeNull();

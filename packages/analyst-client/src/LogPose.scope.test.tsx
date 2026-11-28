@@ -71,8 +71,10 @@ function AskProbe() {
 
 let root: Root | null = null;
 let host: HTMLElement | null = null;
-beforeAll(() => {
+beforeAll(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  // The panel loads on demand (#1501); load it once so opening it in a test is as quick as it was when it was bundled in.
+  await import("./Panel");
 });
 beforeEach(() => localStorage.clear());
 afterEach(() => {

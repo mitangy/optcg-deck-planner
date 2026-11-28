@@ -8,7 +8,7 @@ import { resolveCardImageUrl } from "../../decks/artPrefs";
 import { groupByLeader } from "../../decks/groupByLeader";
 import { isIncompleteDeck } from "../../decks/deckStatus";
 import type { SavedDeck } from "../../decks/storage";
-import { BOT_META_DECKS } from "@optcg/rules/botMetaDecks";
+import { botMetaDecks } from "../../home/botMetaDecks";
 import { BOT_DECK_RANDOM, BOT_DECK_RANDOM_META, metaDeckValue, metaSavedDeck } from "../../home/botGame";
 import { leaderGlow } from "../../home/leaderGlow";
 
@@ -74,7 +74,7 @@ export function DeckPicker({
   const isRandom = random !== undefined && value === BOT_DECK_RANDOM;
   const mirrored = value === "" && mirror !== undefined;
   const metaPick = botMeta
-    ? BOT_META_DECKS.find((m) => metaDeckValue(m.leaderId) === value)
+    ? botMetaDecks().find((m) => metaDeckValue(m.leaderId) === value)
     : undefined;
   const randomMeta = botMeta === true && value === BOT_DECK_RANDOM_META;
   const deck =
@@ -105,7 +105,7 @@ export function DeckPicker({
             botMeta
               ? [
                   { value: BOT_DECK_RANDOM_META, label: "Random meta deck" },
-                  ...BOT_META_DECKS.map((m) => ({
+                  ...botMetaDecks().map((m) => ({
                     value: metaDeckValue(m.leaderId),
                     label: m.name,
                   })),

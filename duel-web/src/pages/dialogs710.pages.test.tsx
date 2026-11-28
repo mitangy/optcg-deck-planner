@@ -71,6 +71,7 @@ async function click(el: Element) {
 
 describe("Play-mode sheet on the shared Dialog", () => {
   it("opens as a modal named for its mode with focus inside, and Escape closes it and returns focus to Play (#710)", async () => {
+    await import("./lobby/PlaySheet");
     await mountAt("/", <DuelSessionProvider><LobbyPage /></DuelSessionProvider>, "/");
     const play = buttonByText(/^Play vs BotCasual, vs computer/);
     play.focus();

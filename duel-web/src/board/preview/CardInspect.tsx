@@ -1,3 +1,4 @@
+import "../../boardStyles";
 import { canUseEachArt, EACH_ART_ID, resolveCardImageUrl, setDeckArtChoice } from "../../decks/artPrefs";
 import {
   getArtPrefsTick,

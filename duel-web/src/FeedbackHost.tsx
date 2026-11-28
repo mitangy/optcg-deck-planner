@@ -1,9 +1,15 @@
-import { FeedbackDialog } from "@optcg/site-legal";
+import { lazy, Suspense } from "react";
 import { closeFeedback, useOpenFeedbackTitle } from "./feedbackDialog";
 import { submitFeedback } from "./feedback";
+
+const FeedbackDialog = lazy(() => import("@optcg/site-legal/FeedbackDialog").then((m) => ({ default: m.FeedbackDialog })));
 
 export function FeedbackHost() {
   const title = useOpenFeedbackTitle();
   if (title === null) return null;
-  return <FeedbackDialog title={title} submit={(payload) => submitFeedback(payload)} onClose={closeFeedback} />;
+  return (
+    <Suspense fallback={null}>
+      <FeedbackDialog title={title} submit={(payload) => submitFeedback(payload)} onClose={closeFeedback} />
+    </Suspense>
+  );
 }

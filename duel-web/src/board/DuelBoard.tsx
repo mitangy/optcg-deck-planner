@@ -1,3 +1,4 @@
+import "../boardStyles";
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type { ChatLine, DiceAction, DiceResult, DiceStateMessage, Intent, MatchOverMessage, PlayerView, Seat, SeatPlayers, SeatSkin, TimerMessage } from "../net/protocol";
 import { BattleLogPanel } from "./panels/BattleLogPanel";

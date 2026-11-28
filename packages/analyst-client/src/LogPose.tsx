@@ -1,15 +1,14 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AUTO_PREFIX, type DeckContext } from "./client";
 import { canAsk, gameMessageContext, type LogPoseAsk } from "./ask";
 import { logPoseChrome } from "./chrome";
 import type { DeckEditor } from "./proposals";
 import { clampDockW, fitDock, readDock, readDockW, writeDock, writeDockW, type Dock, type DockSides } from "./panelDock";
 import { compassRect, type Rect } from "./panelMotion";
-import { SourceHooksContext, type SourceHooks } from "./Sources";
+import { SourceHooksContext, type SourceHooks } from "./sourceHooks";
 import { createSessionManager, type ChatSession, type SessionManager } from "./session";
 import { GENERAL_SCOPE, type LogPoseScope } from "./scopes";
 import { LogPoseCompass } from "./Compass";
-import { LogPosePanel } from "./Panel";
 import { useOwnedSlot, useRegisterSlot } from "./ownedSlot";
 import { useChat, NOT_SENT } from "./useChat";
 import { useCredit } from "./useCredit";
@@ -117,6 +116,9 @@ export function useLogPoseDockHost(columns: boolean, left: HTMLElement | null, r
   );
   useRegisterSlot(setDockHost, value);
 }
+
+// The panel (chat, markdown, citations) is most of this package's weight and only matters once someone opens Log Pose.
+const LogPosePanel = lazy(() => import("./Panel").then((m) => ({ default: m.LogPosePanel })));
 
 export function LogPoseProvider({
   apiBase,
@@ -306,6 +308,7 @@ export function LogPoseProvider({
           />
         ) : null}
         {chrome.panel && session ? (
+          <Suspense fallback={null}>
           <LogPosePanel
             page={page ?? defaultPage}
             active={active}
@@ -325,6 +328,7 @@ export function LogPoseProvider({
             request={request}
             onRequestHandled={handled}
           />
+          </Suspense>
         ) : null}
       </SourceHooksContext.Provider>
     </LogPoseContext.Provider>

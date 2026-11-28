@@ -1,3 +1,4 @@
+import "../boardStyles";
 import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DeckConfigHeader } from "../layout/DeckConfigHeader";

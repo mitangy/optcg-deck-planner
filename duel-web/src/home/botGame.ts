@@ -1,7 +1,7 @@
 import { deckToWire, type SavedDeck } from "../decks/storage";
 import type { DuelCreateOptions } from "../net/protocol";
 import { isIncompleteDeck } from "../decks/deckStatus";
-import { BOT_META_DECKS, type BotMetaDeck } from "@optcg/rules/botMetaDecks";
+import { botMetaDecks, type BotMetaDeck } from "./botMetaDecks";
 
 export type BotLevel = "easy" | "normal" | "hard";
 
@@ -35,11 +35,11 @@ export function pickRandomDeck(decks: SavedDeck[], rand: () => number = Math.ran
 }
 
 export function resolveBotDeck(decks: SavedDeck[], pickedId: string, rand: () => number = Math.random): SavedDeck {
-  const meta = BOT_META_DECKS.find((m) => metaDeckValue(m.leaderId) === pickedId);
+  const meta = botMetaDecks().find((m) => metaDeckValue(m.leaderId) === pickedId);
   if (meta) return metaSavedDeck(meta);
   const own = decks.find((d) => d.id === pickedId);
   if (own) return own;
-  return metaSavedDeck(BOT_META_DECKS[Math.min(BOT_META_DECKS.length - 1, Math.floor(rand() * BOT_META_DECKS.length))]!);
+  return metaSavedDeck(botMetaDecks()[Math.min(botMetaDecks().length - 1, Math.floor(rand() * botMetaDecks().length))]!);
 }
 
 export function botCreateOptions(level: BotLevel, botDeck: SavedDeck): DuelCreateOptions {

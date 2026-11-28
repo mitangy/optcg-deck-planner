@@ -52,7 +52,7 @@ module.exports = {
     ...[
       ["css-tokens-finder-skips-numbers", "tools/ci/css-tokens.cjs", "/(^|[\\s{;])z-index:\\s*-?\\d/.test(text)", "/(^|[\\s{;])z-index:\\s*-?\\d{9}/.test(text)", "a raw z-index number is flagged, a token, auto or a comment is not"],
       ["css-tokens-comments-flagged", "tools/ci/css-tokens.cjs", 'return css.replace(/\\/\\*[\\s\\S]*?\\*\\//g, (c) => c.replace(/[^\\n]/g, " "));', "return css;", "a raw z-index number is flagged, a token, auto or a comment is not"],
-      ["css-tokens-board-raw-literal", "duel-web/src/interactions.css", "  position: fixed;\n  z-index: var(--z-attack-warning);\n  max-width: min(18rem", "  position: fixed;\n  z-index: 410;\n  max-width: min(18rem", "no app or package stylesheet writes a raw z-index number outside tokens.css"],
+      ["css-tokens-board-raw-literal", "duel-web/src/interactionsBoard.css", "  position: fixed;\n  z-index: var(--z-attack-warning);\n  max-width: min(18rem", "  position: fixed;\n  z-index: 410;\n  max-width: min(18rem", "no app or package stylesheet writes a raw z-index number outside tokens.css"],
       ["css-tokens-token-renamed", "packages/ui/src/tokens.css", "  --z-dock: 17;", "  --z-dok: 17;", "every --z-* token a stylesheet reads is defined in tokens.css"],
     ].map(([id, file, from, to, kill]) => ({ id, file, from, to, kills: [kill], args: '"tools/ci/css-tokens.test.cjs"' })),
     ...[
@@ -120,5 +120,13 @@ module.exports = {
       ["idle1352-stops-at-one-match", "if (live === 0) return { idle: true, polls };", "if (live !== null && live <= 1) return { idle: true, polls };", "it keeps polling every interval while games run, then reports idle (#1352)"],
       ["idle1352-deploys-after-timeout", "if (now() + intervalMs > deadline) return { idle: false, polls };", "if (now() + intervalMs > deadline) return { idle: true, polls };", "games that never finish run out the wait without reporting idle (#1352)"],
     ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/wait-for-idle.cjs", from, to, kills: [kill], args: '"tools/ci/wait-for-idle.test.cjs"' })),
+    // First-load bundle budget (#1501)
+    ...[
+      ["budget1501-js-compare-flipped", "if (result[kind] > budgets[kind]) {", "if (result[kind] < budgets[kind]) {", "an entry script over the js budget fails (#1501)"],
+      ["budget1501-js-never-fails", "if (result[kind] > budgets[kind]) {", "if (false) {", "an entry script over the js budget fails (#1501)"],
+      ["budget1501-css-not-checked", 'for (const kind of ["js", "css"]) {', 'for (const kind of ["js"]) {', "a stylesheet over the css budget fails (#1501)"],
+      ["budget1501-ignores-modulepreload", 'else if (attr("rel") === "modulepreload") js.add(url);', 'else if (attr("rel") === "modulepreload") continue;', "modulepreload chunks count toward the js budget, lazy chunks do not (#1501)"],
+      ["budget1501-empty-page-passes", "if (assets.js.length === 0) result.failures.push(", "if (false) result.failures.push(", "a page with no module script fails instead of passing with zero bytes (#1501)"],
+    ].map(([id, from, to, kill]) => ({ id, file: "tools/ci/bundle-budget.cjs", from, to, kills: [kill], args: '"tools/ci/bundle-budget.test.cjs"' })),
   ],
 };

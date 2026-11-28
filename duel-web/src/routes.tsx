@@ -1,20 +1,8 @@
 import type { ReactElement } from "react";
 import { Navigate } from "react-router-dom";
 import { CardDataGate } from "./cards/CardDataGate";
-import { AdminPage, AdminUserPage, DeckConfigurePage, DemoPage, DuelPage, HistoryPage, HotseatPage, MatchLogPage, NewDeckPage, ProfilePage, ReplayPage, SettingsPage, TournamentPage, TournamentsPage, WhatsNewPage } from "./lazyRoutes";
-import { AuthCompletePage } from "./pages/AuthCompletePage";
-import { DeckListPage } from "./pages/DeckListPage";
-import { EventRulesPage } from "./pages/EventRulesPage";
-import { LeaderboardPage } from "./pages/LeaderboardPage";
-import { LeaderPage } from "./pages/LeaderPage";
-import { LeadersIndexPage } from "./pages/LeadersIndexPage";
-import { LegalPage } from "./pages/LegalPage";
+import { AdminPage, AdminUserPage, AuthCompletePage, DeckConfigurePage, DeckListPage, DemoPage, DuelPage, EventRulesPage, HistoryPage, HotseatPage, LeaderboardPage, LeaderPage, LeadersIndexPage, LegalPage, MatchLogPage, MetaDecksPage, NewDeckPage, OptcgSimOnlinePage, PlayOnlinePage, PlayOnPhonePage, ProfilePage, ReplayPage, SettingsPage, TournamentPage, TournamentsPage, UsernameSetupPage, WhatsNewPage } from "./lazyRoutes";
 import { LobbyPage } from "./pages/LobbyPage";
-import { MetaDecksPage } from "./pages/MetaDecksPage";
-import { OptcgSimOnlinePage } from "./pages/OptcgSimOnlinePage";
-import { PlayOnlinePage } from "./pages/PlayOnlinePage";
-import { PlayOnPhonePage } from "./pages/PlayOnPhonePage";
-import { UsernameSetupPage } from "./pages/UsernameSetupPage";
 
 export type AppRoute = { path: string; element: ReactElement };
 

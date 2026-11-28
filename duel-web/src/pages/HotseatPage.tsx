@@ -1,3 +1,4 @@
+import "../boardStyles";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";

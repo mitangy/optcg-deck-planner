@@ -121,11 +121,13 @@ describe("DuelClient background reconnect", () => {
     expect(onDrop).toHaveBeenCalledTimes(1);
   });
 
-  it("reclaims the seat once when two callers ask to reconnect together", () => {
+  it("reclaims the seat once when two callers ask to reconnect together", async () => {
     const client = new DuelClient();
     const first = client.reconnect({ serverUrl: "http://gs", reconnectionToken: "r:tok" });
     const second = client.reconnect({ serverUrl: "http://gs", reconnectionToken: "r:tok" });
     expect(second).toBe(first);
+    // The SDK loads on demand (#1501), so the reclaim reaches it a few ticks later.
+    await vi.waitFor(() => expect(sdkReconnect).toHaveBeenCalled());
     expect(sdkReconnect).toHaveBeenCalledTimes(1);
   });
 });
