@@ -12,7 +12,7 @@ from app.core.errors import register as register_domain_errors
 from app.core.db import init_db, startup_lock
 from app.group_buy import router as group_buy_router
 from app.social import friend_views_router, friends_router, trades_router
-from app.routers import admin, alerts, analyst, analyst_access, analyst_bots, analyst_chat, analyst_feedback, api, auth, duel, duel_decks, duel_prefs, duel_tournaments, events, feedback, meta, reports, scan_samples
+from app.routers import admin, alerts, analyst, analyst_access, analyst_bots, analyst_chat, analyst_feedback, api, auth, duel, duel_decks, duel_prefs, duel_tournaments, events, feedback, meta, product_events, reports, scan_samples
 from app.instagram import router as instagram_router
 
 settings = get_settings()
@@ -124,6 +124,7 @@ app.include_router(feedback.router)
 app.include_router(admin.router)
 app.include_router(events.router)
 app.include_router(events.admin_router)
+app.include_router(product_events.router)
 app.include_router(analyst.router)
 app.include_router(analyst_chat.router)
 app.include_router(analyst_feedback.router)

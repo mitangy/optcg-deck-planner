@@ -8,12 +8,14 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, Request
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from sqlalchemy import delete, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.admin.models import ProductEvent
 from app.core.config import Settings, get_settings
 from app.core.db import get_db
 from app.core.models import LoginTicket, User, is_placeholder_user
-from app.core.time import as_utc
+from app.core.time import as_utc, utcnow
 from app.roles import Role, is_banned
 
 SESSION_COOKIE = "optcg_session"
@@ -168,12 +170,26 @@ def read_login_ticket(ticket: str, settings: Settings | None = None) -> int | No
     return int(uid) if uid is not None else None
 
 
+def touch_last_seen(db: Session, user: User) -> None:
+    """Stamp today's UTC date on the user, writing only when the day changed (#1499)."""
+    today = utcnow().date()
+    if user.last_seen_at is not None and user.last_seen_at >= today:
+        return
+    try:
+        user.last_seen_at = today
+        db.commit()
+    except SQLAlchemyError:
+        # Return-visit stats must never fail a real request.
+        db.rollback()
+
+
 def resolve_google_user(
     db: Session,
     *,
     email: str,
     sub: str,
     name: str,
+    app: str = "planner",
 ) -> User:
     user = db.scalar(select(User).where(User.google_sub == sub))
     if user is None:
@@ -185,6 +201,9 @@ def resolve_google_user(
         if email.strip().lower() in get_settings().admin_email_set:
             user.role = Role.ADMIN
         db.add(user)
+        db.flush()
+        # Server side so it counts every account, even when the browser blocks or never flushes events.
+        db.add(ProductEvent(user_id=user.id, app=app, name="signup"))
     else:
         if user.google_sub and user.google_sub != sub:
             raise HTTPException(
@@ -218,6 +237,7 @@ def get_current_user(
         raise HTTPException(status_code=403, detail="Account banned")
     if int(user.session_version or 0) != session_version:
         raise HTTPException(status_code=401, detail="Invalid session")
+    touch_last_seen(db, user)
     return user
 
 
@@ -238,6 +258,7 @@ def get_optional_user(
         return None
     if int(user.session_version or 0) != session_version:
         return None
+    touch_last_seen(db, user)
     return user
 
 

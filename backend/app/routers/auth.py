@@ -251,7 +251,7 @@ async def google_callback(
     if not email_allowed(email, settings):
         raise HTTPException(status_code=403, detail="Email not on allowlist")
 
-    user = resolve_google_user(db, email=email, sub=sub, name=name)
+    user = resolve_google_user(db, email=email, sub=sub, name=name, app="duel" if return_to else "planner")
 
     dest_origin = return_to or settings.frontend_origin.rstrip("/")
     dest_path = "/auth/complete" if return_to else "/login"

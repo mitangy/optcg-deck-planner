@@ -16,6 +16,8 @@ export type LeaderCount = Schemas["LeaderCount"];
 
 export type AdminOverview = Schemas["AdminOverview"];
 
+export type AdminFunnel = Schemas["AdminFunnel"];
+
 export type DayMatchSeat = Schemas["DayMatchSeat"];
 export type DayMatch = Schemas["DayMatch"];
 export type AdminDayMatches = Schemas["AdminDayMatches"];
@@ -112,6 +114,7 @@ export const call = apiCall;
 
 export const fetchAdminMe = () => call<AdminMe>("/admin/me");
 export const fetchAdminOverview = (days = 30) => call<AdminOverview>(`/admin/overview?days=${days}`);
+export const fetchAdminFunnel = (days = 30) => call<AdminFunnel>(`/admin/funnel?days=${days}`);
 export const fetchAdminBots = (days = 14) => call<AdminBots>(`/admin/bots?days=${days}`);
 export const fetchAdminMatches = (day: string) => call<AdminDayMatches>(`/admin/matches?day=${encodeURIComponent(day)}`);
 export function fetchAdminFeedback(rating: FeedbackRating | null, limit: number, offset: number): Promise<AdminFeedback> {

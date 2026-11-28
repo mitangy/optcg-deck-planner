@@ -1,10 +1,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text, false, func, true
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Index, Integer, String, Text, false, func, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.base import Base
@@ -46,6 +46,8 @@ class User(Base):
         index=True,
         default=None,
     )
+    # Day (UTC) of the newest authenticated request, stamped at most once a day (#1499) for return-visit stats.
+    last_seen_at: Mapped[date | None] = mapped_column(Date, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

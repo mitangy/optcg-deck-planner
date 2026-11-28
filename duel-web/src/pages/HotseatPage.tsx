@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useGameDoneEvent } from "../analytics/useProductEvents";
 import { DuelBoard } from "../board/DuelBoard";
 import {
   initSeatArtPrefsFromStorage,
@@ -123,6 +124,8 @@ export function HotseatPage() {
     };
   }, []);
 
+  const seatNow = session.seats[activeSeat]?.store.getSnapshot();
+  useGameDoneEvent(seatNow?.matchOver != null || seatNow?.view?.winner != null, "practice");
   if (!nav) return null;
 
   const bag = session.seats[activeSeat];

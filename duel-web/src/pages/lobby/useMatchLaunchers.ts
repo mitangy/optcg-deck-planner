@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { trackGameStart } from "../../analytics/events";
 import { getOrCreateGuestId } from "../../auth/guestId";
 import { getApiBaseUrl, getGameServerUrl } from "../../config";
 import { refreshLinkedDeck } from "../../decks/planner";
@@ -28,6 +29,7 @@ import type { LobbyDecks } from "./useLobbyDecks";
 import type { useLobbyAuth } from "./useLobbyAuth";
 import type { LobbySheet } from "./useLobbySheet";
 
+const GAME_MODE = { queue: "ranked", bot: "bot", hotseat: "practice", create: "friend", join: "friend" } as const;
 const SPECTATE_GONE = /not found|locked/i;
 export const SPECTATE_GONE_MESSAGE = "That match has ended or the spectate link is wrong.";
 
@@ -81,6 +83,7 @@ export function useMatchLaunchers(deps: {
     launch: MatchLaunch,
     fn: (launchGen: number) => Promise<void>,
     navOpts?: { replace?: boolean },
+    mode = "friend",
   ) {
     if (authMode === "dev" && !settings.devUserKey.trim()) {
       setFriendError("Set a dev user key in Settings first.");
@@ -89,6 +92,7 @@ export function useMatchLaunchers(deps: {
     setFriendError(null);
     clearMatchResume();
     clearActiveTournamentMatch();
+    if (launch.leaderId) trackGameStart(mode, launch.leaderId);
     startMatch(launch, fn);
     navigate("/duel", navOpts);
   }
@@ -197,7 +201,7 @@ export function useMatchLaunchers(deps: {
         setActiveTournamentMatch({ code: tp.code, matchId: tp.matchId, roomId: client.roomId });
         await playTournamentMatch(tp.code, tp.matchId, { room_id: client.roomId, server_url: client.serverUrl }).catch(() => undefined);
       }
-    });
+    }, undefined, "tournament");
   }
 
   function spectateFriend(friend: Friend) {
@@ -264,6 +268,7 @@ export function useMatchLaunchers(deps: {
       return;
     }
     onModeStarted(mode);
+    if (mode !== "spectate") trackGameStart(GAME_MODE[mode], selectedDeck?.leaderId);
     setBusy(true);
     setBusyStatus(mode === "hotseat" ? "Starting…" : "Connecting…");
     setError(null);

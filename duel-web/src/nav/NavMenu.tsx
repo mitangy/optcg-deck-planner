@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { Dialog } from "@optcg/ui/popups";
 import { DISCORD_INVITE_URL } from "@optcg/site-legal";
-import { getPlannerUrl } from "../config";
+import { getPlannerLinkFromDuel } from "../config";
 import { activeNavHref, isShownInline, navItemsFor } from "./navItems";
 import { useAccountRole } from "../auth/session";
 import { useStickyHeadHeight } from "./useStickyHeadHeight";
@@ -61,7 +61,7 @@ export function NavMenu({ className, hideInline = false }: { className?: string;
               </li>
             ))}
             <li className="nav-sep">
-              <a className="nav-link" href={getPlannerUrl()} target="_blank" rel="noopener" onClick={close}>
+              <a className="nav-link" href={getPlannerLinkFromDuel()} target="_blank" rel="noopener" onClick={close}>
                 Deck planner <span aria-hidden>↗</span>
               </a>
             </li>

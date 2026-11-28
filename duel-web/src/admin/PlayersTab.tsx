@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { lookupCard } from "../cards/atlas";
 import { useAsyncResource } from "../lib/useAsyncResource";
-import { type AdminDayMatches, type AdminOverview, type DayMatch, fetchAdminMatches } from "./adminApi";
+import { type AdminDayMatches, type AdminFunnel, type AdminOverview, type DayMatch, fetchAdminFunnel, fetchAdminMatches } from "./adminApi";
+import { FunnelCards } from "./FunnelCards";
 import { BarChart, RangePicker, Tile } from "./charts";
 import { ariaSort, dayLabel, formatCount as n, type LeaderRow, type LeaderSortKey, nextSort, percent, type RangeDays, type SortState, sortLeaders, spendText, timeOf } from "./adminLogic";
 
@@ -137,12 +138,14 @@ export function PlayersTab({
   onDaysChange,
   stale = false,
   loadMatches = fetchAdminMatches,
+  loadFunnel = fetchAdminFunnel,
 }: {
   data: AdminOverview;
   days: RangeDays;
   onDaysChange: (days: RangeDays) => void;
   stale?: boolean;
   loadMatches?: (day: string) => Promise<AdminDayMatches>;
+  loadFunnel?: (days: number) => Promise<AdminFunnel>;
 }) {
   const { accounts: a, active, matches: m, planner, log_pose: lp } = data;
   const [pickedDay, setPickedDay] = useState<string | null>(null);
@@ -197,6 +200,8 @@ export function PlayersTab({
       </div>
 
       {openDay ? <DayMatchesPanel day={openDay} onClose={() => setPickedDay(null)} load={loadMatches} /> : null}
+
+      <FunnelCards days={days} stale={stale} load={loadFunnel} />
 
       <section className="adm-tiles" aria-label="Matches">
         <Tile label="Matches, all time" value={n(m.total)} />
