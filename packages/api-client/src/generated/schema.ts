@@ -1773,6 +1773,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/handoff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create Handoff
+         * @description Mint a short-lived ticket so a link from one of our apps to the other keeps the person signed in (#1502).
+         *
+         *     Guests have no account session, so they get a 401 here and the client opens the other app signed out.
+         */
+        post: operations["create_handoff_auth_handoff_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/logout": {
         parameters: {
             query?: never;
@@ -6149,6 +6171,8 @@ export interface components {
         };
         /** ClaimBody */
         ClaimBody: {
+            /** Handoff Audience */
+            handoff_audience?: ("planner" | "duel") | null;
             source?: components["schemas"]["SignupSource"] | null;
             /** Ticket */
             ticket: string;
@@ -8721,6 +8745,23 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /** HandoffBody */
+        HandoffBody: {
+            /**
+             * Audience
+             * @enum {string}
+             */
+            audience: "planner" | "duel";
+        };
+        /** HandoffOut */
+        HandoffOut: {
+            /** Expires In */
+            expires_in: number;
+            /** Ticket */
+            ticket: string;
+            /** User Id */
+            user_id: number;
         };
         /**
          * HostingOut
@@ -14318,6 +14359,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_handoff_auth_handoff_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HandoffBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HandoffOut"];
                 };
             };
             /** @description Validation Error */
