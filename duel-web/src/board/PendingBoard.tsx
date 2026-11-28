@@ -6,6 +6,7 @@ import type { FriendInvite } from "../friends/friendsApi";
 import { useCardBackUrl } from "../cardBack";
 import { usePlaymatUrl } from "../playmat";
 import { useDuelSettings } from "../settings";
+import { QueueWait, type QueueWaitInfo } from "./match/QueueWait";
 import { RoomInvite } from "./match/RoomShare";
 import { SideField } from "./zones/SideField";
 import {
@@ -20,6 +21,8 @@ export type BoardWaiting = {
   youLeaderId?: string | null;
   oppLeaderId?: string | null;
   invite?: { roomId: string | null; autoCopy: boolean } | null;
+  /** A matchmaking search: the time so far, the bot offer and its own Cancel. */
+  queue?: QueueWaitInfo | null;
   friendInvites?: {
     invites: FriendInvite[];
     onJoin: (invite: FriendInvite) => void;
@@ -78,9 +81,12 @@ export function PendingBoard({ waiting, dice, errorBanner, leaveLabel, onLeave, 
           <span className="hud-phase">{waiting.status}</span>
         </div>
         <div className="hud-actions">
-          <button type="button" className="leave-btn" onClick={onLeave}>
-            {leaveLabel}
-          </button>
+          {/* A search has its own Cancel on the mat, so two buttons never do the same thing. */}
+          {waiting.queue ? null : (
+            <button type="button" className="leave-btn" onClick={onLeave}>
+              {leaveLabel}
+            </button>
+          )}
         </div>
       </header>
       {errorBanner ? (
@@ -118,7 +124,14 @@ export function PendingBoard({ waiting, dice, errorBanner, leaveLabel, onLeave, 
             />
           </div>
           {dice ? <div className="pending-dice">{dice}</div> : null}
-          {!dice && (invite || waiting.friendInvites) ? (
+          {!dice && waiting.queue ? (
+            <div className="pending-invite">
+              <div className="pending-invite-stack">
+                <QueueWait info={waiting.queue} onCancel={onLeave} />
+              </div>
+            </div>
+          ) : null}
+          {!dice && !waiting.queue && (invite || waiting.friendInvites) ? (
             <div className="pending-invite">
               <div className="pending-invite-stack">
                 {waiting.friendInvites ? (

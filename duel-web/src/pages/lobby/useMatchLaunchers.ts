@@ -38,14 +38,13 @@ export function useMatchLaunchers(deps: {
   friends: ReturnType<typeof useFriends>;
   friendsEnabled: boolean;
   watch: { roomId: string | null; seat: 0 | 1 };
-  onModeStarted: (mode: PlayMode) => void;
 }) {
-  const { auth, decks, sheet, friends, friendsEnabled, watch, onModeStarted } = deps;
+  const { auth, decks, sheet, friends, friendsEnabled, watch } = deps;
   const { settings, authUser, authMode, authChecked, matchOwner, setBounty } = auth;
   const { selectedDeck } = decks;
   const navigate = useNavigate();
   const location = useLocation();
-  const { client, connect, queueRanked, setRating, startMatch, takeOver } = useDuelSession();
+  const { client, connect, queueMatch, setRating, startMatch, takeOver } = useDuelSession();
   const serverUrl = getGameServerUrl();
   const [busy, setBusy] = useState(false);
   const [busyStatus, setBusyStatus] = useState<string | null>(null);
@@ -111,6 +110,23 @@ export function useMatchLaunchers(deps: {
     const fresh = await refreshLinkedDeck(d, 4000);
     if (fresh !== d) decks.refreshDecks();
     return fresh;
+  }
+
+  /** Leaves the casual queue for a normal Hard bot game with the deck the player searched with. */
+  function playHardBotInstead(deck: SavedDeck) {
+    const botDeck = resolveBotDeck(decks.decks, decks.botDeckId);
+    // The new launch supersedes the search; connecting leaves the queue room. `replace`: the board is already open.
+    runFriendAction(
+      { status: "Starting your game…", leaderId: deck.leaderId, invite: false, friends: friendsEnabled },
+      async (gen) => {
+        const opts = await authOpts();
+        await connect(
+          { ...opts, preferredSeat: 0, deck: deckToWire(await freshDeck(deck)), createOptions: botCreateOptions("hard", botDeck) },
+          gen,
+        );
+      },
+      { replace: true },
+    );
   }
 
   function inviteToPrivateRoom(friend: Friend) {
@@ -263,7 +279,6 @@ export function useMatchLaunchers(deps: {
       setError("Select a deck first.");
       return;
     }
-    onModeStarted(mode);
     setBusy(true);
     setBusyStatus(mode === "hotseat" ? "Starting…" : "Connecting…");
     setError(null);
@@ -290,6 +305,7 @@ export function useMatchLaunchers(deps: {
         return;
       }
       const create = mode === "create";
+      const searching = mode === "queue" || mode === "casual";
       const vsBot = mode === "bot";
       const picked = vsBot && yourRandom ? (pickRandomDeck(savedDecks) ?? selectedDeck!) : selectedDeck!;
       const room = roomId.trim();
@@ -297,7 +313,7 @@ export function useMatchLaunchers(deps: {
       startMatch(
         {
           status:
-            mode === "queue"
+            searching
               ? "Searching for an opponent…"
               : mode === "spectate"
                 ? "Connecting to the match…"
@@ -309,6 +325,13 @@ export function useMatchLaunchers(deps: {
           leaderId: mode === "spectate" ? null : picked.leaderId,
           invite: create,
           friends: friendsEnabled,
+          queue: searching
+            ? {
+                casual: mode === "casual",
+                startedAt: Date.now(),
+                playBot: mode === "casual" ? () => playHardBotInstead(picked) : undefined,
+              }
+            : undefined,
         },
         async (gen) => {
           if (mode === "spectate") {
@@ -317,8 +340,8 @@ export function useMatchLaunchers(deps: {
           }
           const opts = await authOpts();
           const wire = deckToWire(await freshDeck(picked));
-          if (mode === "queue") {
-            await queueRanked({ ...opts, deck: wire }, gen);
+          if (searching) {
+            await queueMatch({ ...opts, deck: wire }, gen, mode === "casual" ? "casual" : "ranked");
             return;
           }
           await connect({

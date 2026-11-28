@@ -13,12 +13,13 @@ import { verifyGameToken } from "./gameToken.js";
 import { useSharedRoomCounts } from "./matchmakeGuard.js";
 import {
   PROTOCOL_VERSION,
+  QUEUE_ROOM,
   SKIN_MAX_CARD_BACK_CHARS,
   SKIN_MAX_PLAYMAT_CHARS,
 } from "./protocol.js";
 import { hashToNegativeId } from "./devIdentity.js";
 import { DuelRoom } from "./rooms/DuelRoom.js";
-import { MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
+import { CasualMatchmakerRoom, MatchmakerRoom } from "./rooms/MatchmakerRoom.js";
 
 // Colyseus' default 4 KB closes the socket (1009) on a real skin message (playmat + card back).
 export const WS_MAX_PAYLOAD_BYTES = 1024 * 1024;
@@ -58,7 +59,8 @@ const server = defineServer({
 
   rooms: {
     duel: defineRoom(DuelRoom),
-    ranked_queue: defineRoom(MatchmakerRoom),
+    [QUEUE_ROOM.ranked]: defineRoom(MatchmakerRoom),
+    [QUEUE_ROOM.casual]: defineRoom(CasualMatchmakerRoom),
   },
 
   express: (app) => {
@@ -66,7 +68,7 @@ const server = defineServer({
       res.json({
         ok: true,
         service: "optcg-game-server",
-        rooms: ["duel", "ranked_queue"],
+        rooms: ["duel", QUEUE_ROOM.ranked, QUEUE_ROOM.casual],
         // Catch client/server skew (v2 client vs stale v1 GS surfaces as
         // misleading "seat reservation expired" on create).
         protocolVersion: PROTOCOL_VERSION,

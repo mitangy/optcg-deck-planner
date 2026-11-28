@@ -341,7 +341,7 @@
   }
 
   .home-primary > .install-hint,
-  .home-primary > .intro {
+  .home-primary > .steps-line {
     order: 3;
   }
 
@@ -366,21 +366,6 @@
 
   .home-actions .btn-play {
     min-height: 64px;
-  }
-
-  .home-primary > .intro {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .home-primary > .intro .intro-steps {
-    flex: 1 1 auto;
-    min-width: 0;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .home-primary > .intro .intro-dismiss {
-    align-self: center;
   }
 }
 

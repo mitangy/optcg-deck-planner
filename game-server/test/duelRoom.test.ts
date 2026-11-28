@@ -5,6 +5,7 @@ import appConfig from "../src/app.config.js";
 import { presence, type PresenceEntry } from "../src/presence.js";
 import {
   PROTOCOL_VERSION,
+  QUEUE_ROOM,
   SEATED_SPECTATOR_MESSAGE,
   SKIN_MAX_CARD_BACK_CHARS,
   SKIN_MAX_PLAYMAT_CHARS,
@@ -1020,6 +1021,72 @@ describe("DuelRoom", () => {
     assert.notEqual(matched[0].seat, matched[1].seat);
     await c1.leave(true);
     await c2.leave(true);
+  });
+
+  it("the casual and ranked queues never pair with each other (#1506)", async () => {
+    const matchedBy = (c: ClientRoom, into: { roomId?: string; ranked?: boolean }) => {
+      c.onMessage("queued", () => {});
+      c.onMessage("matched", (m: { roomId: string; ranked: boolean }) => Object.assign(into, m));
+    };
+    const rankedSeen: { roomId?: string; ranked?: boolean } = {};
+    const casualSeen: { roomId?: string; ranked?: boolean } = {};
+    const ranked = await colyseus.sdk.joinOrCreate(QUEUE_ROOM.ranked, joinOpts("split-ranked"));
+    matchedBy(ranked, rankedSeen);
+    const casual = await colyseus.sdk.joinOrCreate(QUEUE_ROOM.casual, joinOpts("split-casual"));
+    matchedBy(casual, casualSeen);
+    await new Promise((r) => setTimeout(r, 700));
+    assert.equal(rankedSeen.roomId, undefined, "a ranked player waits for another ranked player");
+    assert.equal(casualSeen.roomId, undefined, "a casual player waits for another casual player");
+
+    const casual2 = await colyseus.sdk.joinOrCreate(QUEUE_ROOM.casual, joinOpts("split-casual-2"));
+    const second: { roomId?: string; ranked?: boolean } = {};
+    matchedBy(casual2, second);
+    await waitUntil(() => casualSeen.roomId !== undefined && second.roomId !== undefined, 20000);
+    assert.equal(casualSeen.roomId, second.roomId);
+    assert.equal(rankedSeen.roomId, undefined);
+    for (const c of [ranked, casual, casual2]) await c.leave(true);
+  });
+
+  it("a casual match is an unranked room, so no rating moves (#1506)", async () => {
+    const seen: { roomId?: string; ranked?: boolean }[] = [{}, {}];
+    const a = await colyseus.sdk.joinOrCreate(QUEUE_ROOM.casual, joinOpts("casual-a"));
+    a.onMessage("queued", () => {});
+    a.onMessage("matched", (m: { roomId: string; ranked: boolean }) => Object.assign(seen[0]!, m));
+    const b = await colyseus.sdk.joinOrCreate(QUEUE_ROOM.casual, joinOpts("casual-b"));
+    b.onMessage("queued", () => {});
+    b.onMessage("matched", (m: { roomId: string; ranked: boolean }) => Object.assign(seen[1]!, m));
+    await waitUntil(() => seen.every((s) => s.roomId !== undefined), 20000);
+    assert.deepEqual(seen.map((s) => s.ranked), [false, false]);
+    // The writeback reports this flag and the backend only rates ranked games.
+    const duel = colyseus.getRoomById<DuelRoom>(seen[0]!.roomId!);
+    assert.equal(duel?.game.ranked, false);
+    // A casual room is still a paired one: only the two queued accounts may sit.
+    assert.equal(duel?.config.seatUserIds?.length, 2);
+    for (const c of [a, b]) await c.leave(true);
+  });
+
+  it("a ranked match from the ranked queue is still a ranked room (#1506)", async () => {
+    const seen: { roomId?: string; ranked?: boolean }[] = [{}, {}];
+    const a = await colyseus.sdk.joinOrCreate(QUEUE_ROOM.ranked, joinOpts("rk-a"));
+    a.onMessage("queued", () => {});
+    a.onMessage("matched", (m: { roomId: string; ranked: boolean }) => Object.assign(seen[0]!, m));
+    const b = await colyseus.sdk.joinOrCreate(QUEUE_ROOM.ranked, joinOpts("rk-b"));
+    b.onMessage("queued", () => {});
+    b.onMessage("matched", (m: { roomId: string; ranked: boolean }) => Object.assign(seen[1]!, m));
+    await waitUntil(() => seen.every((s) => s.roomId !== undefined), 20000);
+    assert.deepEqual(seen.map((s) => s.ranked), [true, true]);
+    assert.equal(colyseus.getRoomById<DuelRoom>(seen[0]!.roomId!)?.game.ranked, true);
+    for (const c of [a, b]) await c.leave(true);
+  });
+
+  it("the casual queue takes a short deck that ranked turns away (#1506)", async () => {
+    const short = { leaderId: legalDeck.leaderId, deck: legalDeck.deck.slice(0, 20) };
+    await assert.rejects(
+      () => colyseus.sdk.joinOrCreate(QUEUE_ROOM.ranked, { ...joinOpts("short-ranked"), deck: short }),
+      /exactly 50 cards/,
+    );
+    const ok = await colyseus.sdk.joinOrCreate(QUEUE_ROOM.casual, { ...joinOpts("short-casual"), deck: short });
+    await ok.leave(true);
   });
 
   it("ranked_queue keeps everyone in one queue past 64 players, so no one waits in a queue nobody else is in (#389)", async () => {

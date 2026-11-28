@@ -138,16 +138,8 @@
   gap: var(--space-2);
 }
 
-.mode-tiles-5 {
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-}
-
-.mode-tiles-5 .mode-tile {
-  grid-column: span 2;
-}
-
-.mode-tiles-5 .mode-tile:nth-child(n + 4) {
-  grid-column: span 3;
+.mode-tiles-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .mode-tile {
@@ -174,20 +166,9 @@
   background-color: var(--arena-panel);
 }
 
-.mode-tile[aria-current="true"] {
+/* The open More menu keeps its trigger outlined, so it is clear which button owns the floating list. */
+.mode-more[data-open] {
   border-color: var(--chrome);
-}
-
-.mode-tile-tag {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 0.66rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--chrome);
 }
 
 .mode-tile:focus-visible {
@@ -229,6 +210,78 @@
   .mode-tile-blurb {
     display: none;
   }
+}
+
+/* Anchored and portalled by the menu, so opening it never moves the page. */
+.more-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: min(300px, calc(100vw - 16px));
+  max-height: var(--anchor-max-height, calc(100dvh - 16px));
+  overflow-y: auto;
+  padding: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-12);
+  background: var(--arena-panel);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+.more-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.1rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.45rem 0.75rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-8);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.more-item[data-focus],
+.more-item:hover {
+  border-color: var(--line-strong);
+  background: var(--arena-raised);
+}
+
+.more-item:focus-visible {
+  outline: none;
+  box-shadow: var(--focus);
+}
+
+.more-item-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--chrome-bright);
+}
+
+.more-item-blurb {
+  font-size: max(12px, 0.72rem);
+  color: var(--muted);
+}
+
+.steps-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.15rem 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: max(12px, 0.78rem);
+  color: var(--muted);
+}
+
+.steps-line li + li::before {
+  content: "·";
+  margin-right: 0.5rem;
+  color: var(--chrome);
 }
 
 .deck-switcher {

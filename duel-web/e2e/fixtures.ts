@@ -160,7 +160,7 @@ export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
           for (const [k, v] of Object.entries(extra as Record<string, string>)) localStorage.setItem(k, v);
         }, [decks, storage] as const);
         await page.goto("/");
-        await page.locator(".mode-tiles").getByRole("button", { name: /^Practice/ }).click();
+        await pickMore(page, /^Practice/);
         await page.getByLabel("Opponent deck").click();
         await page.getByRole("option", { name: /^E2E Opponent/ }).click();
         await page.getByRole("button", { name: "Start practice" }).click();
@@ -174,6 +174,12 @@ export const test = base.extend<{ duel: Duel; legacyLayout: boolean }>({
     await use(duel);
   },
 });
+
+/** Ranked, Play vs Bot, Practice and Spectate live in the More menu on the home page. */
+export async function pickMore(page: Page, name: RegExp): Promise<void> {
+  await page.getByRole("button", { name: /^More ways to play/ }).click();
+  await page.getByRole("menuitem", { name }).click();
+}
 
 export { expect, formatIssues, issueKey };
 export type { Page };

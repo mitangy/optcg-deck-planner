@@ -157,19 +157,35 @@ describe("DuelClient undo plumbing (#497)", () => {
   });
 });
 
-describe("DuelClient ranked queue", () => {
+describe("DuelClient queue", () => {
   it("stops searching when the queue room closes before a match (#302)", async () => {
     vi.useFakeTimers();
     const queueRoom = fakeRoom({ answersPing: true });
     sdkJoinOrCreate.mockResolvedValueOnce(queueRoom);
     const client = new DuelClient();
-    const queued = client.queueRanked({ serverUrl: "ws://test", devUserId: "a" });
+    const queued = client.queueMatch({ serverUrl: "ws://test", devUserId: "a" });
     queued.catch(() => {});
     await vi.advanceTimersByTimeAsync(0);
     expect(sdkJoinOrCreate).toHaveBeenCalledWith("ranked_queue", expect.anything());
     queueRoom.emit("leave", 1006);
     await vi.advanceTimersByTimeAsync(120_000);
-    await expect(queued).rejects.toThrow(/Lost the ranked queue/);
+    await expect(queued).rejects.toThrow(/Lost the queue/);
+  });
+
+  it("joins the casual pool, not the ranked one, when asked for a casual game (#1506)", async () => {
+    vi.useFakeTimers();
+    const queueRoom = fakeRoom({ answersPing: true });
+    sdkJoinOrCreate.mockClear();
+    sdkJoinOrCreate.mockResolvedValueOnce(queueRoom);
+    const client = new DuelClient();
+    const queued = client.queueMatch({ serverUrl: "ws://test", devUserId: "a" }, "casual");
+    queued.catch(() => {});
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sdkJoinOrCreate).toHaveBeenCalledWith("casual_queue", expect.anything());
+    expect(sdkJoinOrCreate).not.toHaveBeenCalledWith("ranked_queue", expect.anything());
+    queueRoom.emit("leave", 1006);
+    await vi.advanceTimersByTimeAsync(120_000);
+    await expect(queued).rejects.toThrow();
   });
 });
 

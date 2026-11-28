@@ -90,7 +90,11 @@ export function DuelPage() {
   const waiting: BoardWaiting | undefined = view
     ? undefined
     : launching && launch
-      ? { status: queueing ? "Searching for an opponent…" : launch.status, youLeaderId: launch.leaderId }
+      ? {
+          status: queueing ? "Searching for an opponent…" : launch.status,
+          youLeaderId: launch.leaderId,
+          queue: launch.queue ?? null,
+        }
       : resuming
         ? { status: "Reconnecting to match…" }
         : dice

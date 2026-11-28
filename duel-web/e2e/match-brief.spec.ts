@@ -1,4 +1,4 @@
-import { test, expect, mintGameToken, FAKE_API, type Page, keepBothHands } from "./fixtures";
+import { test, expect, mintGameToken, FAKE_API, type Page, keepBothHands, pickMore } from "./fixtures";
 
 const ANALYST = "http://127.0.0.1:8766";
 const PAGE_ORIGIN = process.env.E2E_PAGE_ORIGIN ?? "http://127.0.0.1:5174";
@@ -304,7 +304,7 @@ test("a spectator of a practice room gets no Brief button or card, even with Log
   );
   await spec.route(`${FAKE_API}/health`, (route) => route.fulfill({ json: { ok: true } }));
   await spec.goto("/");
-  await spec.locator(".mode-tiles").getByRole("button", { name: /^Spectate/ }).click();
+  await pickMore(spec, /^Spectate/);
   await spec.getByLabel("Room id").fill(roomId!);
   await spec.getByRole("button", { name: "Watch", exact: true }).click();
   await expect(spec.locator(".board-root")).toBeVisible({ timeout: 30_000 });

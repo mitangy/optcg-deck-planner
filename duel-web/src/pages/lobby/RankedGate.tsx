@@ -2,7 +2,7 @@ import { Dialog } from "@optcg/ui/popups";
 import { googleLoginUrl } from "../../net/api";
 
 /** Shown instead of queueing when a guest picks Ranked: Bounty and match history need an account (#1391). */
-export function RankedGate({ onClose, onBot }: { onClose: () => void; onBot: () => void }) {
+export function RankedGate({ onClose, onPlayNow }: { onClose: () => void; onPlayNow: () => void }) {
   return (
     <Dialog open onClose={onClose} className="sheet-backdrop" panelClassName="sheet" label="Ranked needs an account">
       <div className="sheet-head">
@@ -17,8 +17,8 @@ export function RankedGate({ onClose, onBot }: { onClose: () => void; onBot: () 
         <a className="btn btn-primary btn-lg sheet-confirm" href={googleLoginUrl()}>
           Sign in
         </a>
-        <button type="button" className="btn btn-secondary btn-lg sheet-confirm" onClick={onBot}>
-          Play vs Bot instead
+        <button type="button" className="btn btn-secondary btn-lg sheet-confirm" onClick={onPlayNow}>
+          Play now instead
         </button>
       </div>
     </Dialog>

@@ -1,5 +1,5 @@
 import { test as base, expect, type Page } from "@playwright/test";
-import { FAKE_API, RED_VANILLA } from "./fixtures";
+import { FAKE_API, RED_VANILLA, pickMore } from "./fixtures";
 
 const test = base;
 
@@ -22,7 +22,7 @@ const game = {
   finished: true,
 };
 
-async function openLobby(page: Page, opts: { signedIn?: boolean; path?: string; lastMode?: string } = {}): Promise<void> {
+async function openLobby(page: Page, opts: { signedIn?: boolean; path?: string } = {}): Promise<void> {
   await page.route(`${FAKE_API}/**`, (route) => {
     const path = new URL(route.request().url()).pathname;
     if (path === "/health") return route.fulfill({ json: { ok: true } });
@@ -39,34 +39,23 @@ async function openLobby(page: Page, opts: { signedIn?: boolean; path?: string; 
     }
     return route.fulfill({ status: 404, json: { detail: "not in e2e fake API" } });
   });
-  await page.addInitScript(({ decks: d, lastMode }) => {
+  await page.addInitScript(({ decks: d }) => {
     if (sessionStorage.getItem("e2e-seeded")) return;
     sessionStorage.setItem("e2e-seeded", "1");
     localStorage.clear();
     localStorage.setItem("optcg.duel.savedDecks.v1", JSON.stringify(d));
     localStorage.setItem("optcg.duel.selectedDeckId.v1", "e2e-you");
-    if (lastMode) localStorage.setItem("optcg-duel:lastPlayMode", lastMode);
-  }, { decks: [{ id: "e2e-you", name: "E2E You", ...RED_VANILLA, updatedAt: 1 }], lastMode: opts.lastMode });
+  }, { decks: [{ id: "e2e-you", name: "E2E You", ...RED_VANILLA, updatedAt: 1 }] });
   await page.goto(opts.path ?? "/");
 }
 
-test("Play repeats the mode you chose, says so, and never opens a mode list (#1343)", async ({ page }) => {
+test("Play now is the one big button, with Play a friend and More beside it, and no mode list (#1506)", async ({ page }) => {
   await openLobby(page);
-  const play = page.locator(".btn-play");
-  await expect(play).toContainText("Play vs Bot");
-  await expect(page.locator(".mode-tiles button")).toHaveText([/^Ranked/, /^Play vs Bot/, /^Practice/, /^Private room/, /^Spectate/]);
-  await page.locator(".mode-tiles").getByRole("button", { name: /^Practice/ }).click();
+  await expect(page.locator(".btn-play")).toContainText("Play now");
+  await expect(page.locator(".mode-tiles button")).toHaveText([/^Play a friend/, /^More ways to play/]);
+  await pickMore(page, /^Practice/);
   await expect(page.getByRole("dialog").getByRole("heading", { name: "Practice" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Back to modes" })).toHaveCount(0);
-});
-
-test("Play goes straight to the setup of the mode played last, and says so (#1343)", async ({ page }) => {
-  await openLobby(page, { lastMode: "hotseat" });
-  const play = page.locator(".btn-play");
-  await expect(play).toContainText("Practice");
-  await expect(play).toContainText("Last played");
-  await play.click();
-  await expect(page.getByRole("dialog").getByRole("heading", { name: "Practice" })).toBeVisible();
 });
 
 test("signed out sees the Only on OPTCG Duel tiles, signed in sees For you instead (#1343)", async ({ page }) => {
@@ -76,12 +65,13 @@ test("signed out sees the Only on OPTCG Duel tiles, signed in sees For you inste
 });
 
 test.describe("signed in", () => {
-  test("For you offers the review of the last game and no sales pitch, and Play says Ranked (#1343)", async ({ page }) => {
+  test("For you offers the review of the last game and no sales pitch, and Play now has no sign-in step (#1343)", async ({ page }) => {
     await openLobby(page, { signedIn: true });
     await expect(page.getByRole("heading", { name: "For you" })).toBeVisible();
     await expect(page.getByRole("link", { name: /Review your last game/ })).toHaveAttribute("href", "/history/m1");
     await expect(page.getByRole("heading", { name: "Only on OPTCG Duel" })).toHaveCount(0);
-    await expect(page.locator(".btn-play")).toContainText("Play Ranked");
+    await expect(page.locator(".btn-play")).toContainText("Play now");
+    await expect(page.getByRole("list", { name: "How it works" })).toHaveText("Pick a deckPlay");
   });
 
   test("empty Tournaments says so, and Your voyage shrinks to its content (#1343)", async ({ page }) => {
