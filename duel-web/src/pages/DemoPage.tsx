@@ -162,7 +162,7 @@ export function DemoPage() {
         }
         hub={
           params.has("over") && params.has("hub")
-            ? { deckId: "demo-deck", signedIn: !params.has("guest"), onInvite: () => undefined }
+            ? { deckId: "demo-deck", signedIn: !params.has("guest"), hasPlannerDeck: true, onInvite: () => undefined }
             : undefined
         }
         battleLog={log}

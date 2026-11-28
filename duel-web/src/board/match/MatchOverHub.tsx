@@ -6,6 +6,8 @@ export type MatchHub = {
   /** Saved deck the player just used; null when unknown. */
   deckId: string | null;
   signedIn: boolean;
+  /** The deck has a planner twin, so there is something to price. */
+  hasPlannerDeck: boolean;
   onInvite: () => void;
 };
 
@@ -49,7 +51,7 @@ export function MatchOverHub({
   loadMissing?: (deckId: string) => Promise<DeckMissingCost | null>;
 }) {
   // Guests have no owned counts, so there is nothing to subtract and no price worth showing.
-  const showCost = hub.signedIn && hub.deckId != null;
+  const showCost = hub.signedIn && hub.hasPlannerDeck && hub.deckId != null;
   return (
     <div className="match-hub">
       <button type="button" className="btn btn-secondary match-hub-invite" onClick={hub.onInvite}>

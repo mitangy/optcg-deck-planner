@@ -3,6 +3,8 @@ import { WarningNotice } from "../warnings/WarningNotice";
 import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { getApiBaseUrl, getGameServerUrl } from "../config";
 import { warmDuelServices } from "../net/api";
+import { takeJoinFallback } from "../net/joinLinks";
+import { CopyJoinLink } from "./lobby/CopyJoinLink";
 import { rememberedGameServerUrl } from "../net/gameServer";
 import { clearMatchResume, loadMatchResume } from "../net/matchResume";
 import { useDuelSession } from "../state/DuelSession";
@@ -91,6 +93,17 @@ export function LobbyPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // An auto-join that failed (or was skipped for a running match) leaves the room id here to prefill the join sheet.
+  const location = useLocation();
+  useEffect(() => {
+    const room = takeJoinFallback();
+    if (!room) return;
+    sheet.setRoomId(room);
+    sheet.setMode("join");
+    sheet.setSheetOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.key]);
+
   const launch = useMatchLaunchers({
     auth,
     decks: deckState,
@@ -106,7 +119,7 @@ export function LobbyPage() {
       setIntroClosed(true);
     },
   });
-  const { busy, busyStatus, friendError, watchStarted, joinStarted, confirmSetup } = launch;
+  const { busy, busyStatus, friendError, watchStarted, joinStarted, ownRoomLink, confirmSetup } = launch;
 
   const primary = primaryAction(lastMode, authMode === "google");
   const [rankedGate, setRankedGate] = useState(false);
@@ -135,6 +148,22 @@ export function LobbyPage() {
   function dismissIntro() {
     markIntroDone();
     setIntroClosed(true);
+  }
+
+  if (joinRoomId && ownRoomLink) {
+    return (
+      <div className="app-shell home-shell">
+        <div className="join-own-room" role="status">
+          <p>This is your room. Send the link to a friend so they can sit down.</p>
+          <div className="join-own-room-actions">
+            <CopyJoinLink url={ownRoomLink} />
+            <button type="button" className="btn btn-ghost" onClick={() => navigate("/", { replace: true })}>
+              Home
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (((watchRoomId && !watchStarted.current) || (joinRoomId && !joinStarted.current)) && !friendError) {

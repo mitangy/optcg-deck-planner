@@ -5,7 +5,7 @@ import type { TimerPreset } from "../../home/timerPreset";
 
 export type TournamentPlay = { code: string; matchId: number; opponent: string; timer: TimerPreset };
 
-export type LobbyHandoff = { matchError?: string; joinInvite?: FriendInvite; tournamentPlay?: TournamentPlay; openInviteRoom?: boolean };
+export type LobbyHandoff = { matchError?: string; joinInvite?: FriendInvite; tournamentPlay?: TournamentPlay; openInviteRoom?: { deckId: string | null } };
 
 export function readLobbyHandoff(state: unknown): LobbyHandoff {
   return state && typeof state === "object" ? (state as LobbyHandoff) : {};
@@ -13,7 +13,7 @@ export function readLobbyHandoff(state: unknown): LobbyHandoff {
 
 export function useLobbyHandoffs(
   ready: boolean,
-  actions: { joinInvite: (invite: FriendInvite) => void; launchTournamentMatch: (tp: TournamentPlay) => void; openInviteRoom: () => void },
+  actions: { joinInvite: (invite: FriendInvite) => void; launchTournamentMatch: (tp: TournamentPlay) => void; openInviteRoom: (playedDeckId: string | null) => void },
   /** For handoffs that guests can use too (the others need friends, so a signed-in account). */
   anyoneReady = ready,
 ): void {
@@ -40,12 +40,13 @@ export function useLobbyHandoffs(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready]);
 
-  const handoffRoom = useRef(readLobbyHandoff(location.state).openInviteRoom === true);
+  const handoffRoom = useRef(readLobbyHandoff(location.state).openInviteRoom ?? null);
   useEffect(() => {
-    if (!handoffRoom.current || !anyoneReady) return;
-    handoffRoom.current = false;
+    const room = handoffRoom.current;
+    if (!room || !anyoneReady) return;
+    handoffRoom.current = null;
     navigate("/", { replace: true, state: null });
-    actions.openInviteRoom();
+    actions.openInviteRoom(room.deckId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [anyoneReady]);
 }

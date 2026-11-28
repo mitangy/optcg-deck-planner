@@ -38,7 +38,7 @@ async function show(hub: MatchHub, load: (id: string) => Promise<DeckMissingCost
   return host;
 }
 
-const signedIn = (over: Partial<MatchHub> = {}): MatchHub => ({ deckId: "d1", signedIn: true, onInvite: () => {}, ...over });
+const signedIn = (over: Partial<MatchHub> = {}): MatchHub => ({ deckId: "d1", signedIn: true, hasPlannerDeck: true, onInvite: () => {}, ...over });
 
 describe("match over hub cost chip (#1507)", () => {
   it("hides the chip for a guest and never asks for a price (#1507)", async () => {
@@ -47,6 +47,13 @@ describe("match over hub cost chip (#1507)", () => {
     expect(load).not.toHaveBeenCalled();
     expect(el.querySelector(".match-hub-cost")).toBeNull();
     expect(el.textContent).not.toContain("missing");
+  });
+
+  it("leaves no gap and asks for nothing when the deck has no planner twin (#1507)", async () => {
+    const load = vi.fn(async () => cost());
+    const el = await show(signedIn({ hasPlannerDeck: false }), load);
+    expect(load).not.toHaveBeenCalled();
+    expect(el.querySelector(".match-hub-cost")).toBeNull();
   });
 
   it("says You own every card when nothing is missing, without a planner link (#1507)", async () => {

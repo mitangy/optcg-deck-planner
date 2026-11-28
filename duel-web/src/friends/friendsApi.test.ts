@@ -54,7 +54,7 @@ describe("inviting a friend who already invited you (#313)", () => {
 });
 
 describe("invites while you wait in your own room (#313)", () => {
-  const ownRoom: MatchLaunch = { status: "Opening your room…", leaderId: "ST01-001", invite: true, friends: true };
+  const ownRoom: MatchLaunch = { status: "Opening your room…", leaderId: "ST01-001", deckId: "d1", invite: true, friends: true };
   const waiting = { launch: ownRoom, role: "player" as const, view: null, matchId: "room-you" };
 
   it("polls for invites while you sit alone in your own private room", () => {
@@ -72,7 +72,7 @@ describe("invites while you wait in your own room (#313)", () => {
 });
 
 describe("invites while you spectate (#1199)", () => {
-  const watching: MatchLaunch = { status: "Connecting to the match…", leaderId: null, invite: false, friends: true };
+  const watching: MatchLaunch = { status: "Connecting to the match…", leaderId: null, deckId: null, invite: false, friends: true };
   const spectating = { launch: watching, role: "spectator" as const, view: {}, matchId: "room-zoro" };
 
   it("polls invites while spectating, even after the match starts (#1199)", () => {

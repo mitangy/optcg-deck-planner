@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { DuelBoard } from "../board/DuelBoard";
@@ -8,7 +8,8 @@ import { BountyAmount } from "../Bounty";
 import { FriendInvites, useFriends } from "../friends/FriendsPanel";
 import { pollsInvitesInMatch, type FriendInvite } from "../friends/friendsApi";
 import { rematchDeckOptions } from "../decks/rematchDecks";
-import { getSelectedDeckId, setSelectedDeckId } from "../decks/storage";
+import { getSavedDeck, setSelectedDeckId } from "../decks/storage";
+import { rememberOwnRoom } from "../net/joinLinks";
 import { useAuthUser } from "../auth/session";
 import { fetchMatchDetail } from "../history/historyApi";
 import { useDuelSession } from "../state/DuelSession";
@@ -64,6 +65,10 @@ export function DuelPage() {
   } = useDuelSession();
   const deckOptions = useMemo(() => rematchDeckOptions(), []);
   const authUser = useAuthUser();
+  // The deck this match is played with: the launch's, until a rematch pick changes it.
+  const [rematchDeckId, setRematchDeckId] = useState<string | null>(null);
+  const playedDeckId = rematchDeckId ?? launch?.deckId ?? null;
+  const playedDeck = playedDeckId ? getSavedDeck(playedDeckId) : undefined;
 
 
   const leftRef = useRef(false);
@@ -77,6 +82,10 @@ export function DuelPage() {
       if (errorBanner) clearError();
     }
   }, [connected, view, canReconnect, matchId, resuming, launching, errorBanner, clearError, navigate]);
+
+  useEffect(() => {
+    if (matchId && role === "player" && seat === 0 && launch?.invite) rememberOwnRoom(matchId);
+  }, [matchId, role, seat, launch?.invite]);
 
   const friends = useFriends(pollsInvitesInMatch({ launch, role, view, matchId }));
   function joinFriendRoom(invite: FriendInvite) {
@@ -162,7 +171,10 @@ export function DuelPage() {
                   const deck = seat === 0 || seat === 1 ? decks?.[seat] : undefined;
                   sendRematch(action, deck);
                   const picked = deck ? deckOptions.find((o) => o.wire === deck) : undefined;
-                  if (picked) setSelectedDeckId(picked.id);
+                  if (picked) {
+                    setSelectedDeckId(picked.id);
+                    setRematchDeckId(picked.id);
+                  }
                 },
               }
             : undefined
@@ -170,11 +182,14 @@ export function DuelPage() {
         hub={
           role === "player" && !tournamentCode
             ? {
-                deckId: getSelectedDeckId(),
+                deckId: playedDeckId,
                 signedIn: authUser != null,
+                hasPlannerDeck: playedDeck?.plannerDeckId != null,
                 onInvite: () => {
+                  // Before leave(): the effect above would otherwise send us home without the handoff.
+                  leftRef.current = true;
                   void leave();
-                  navigate("/", { replace: true, state: { openInviteRoom: true } });
+                  navigate("/", { replace: true, state: { openInviteRoom: { deckId: playedDeckId } } });
                 },
               }
             : undefined

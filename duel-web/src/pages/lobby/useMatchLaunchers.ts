@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getOrCreateGuestId } from "../../auth/guestId";
+import { roomInviteUrl } from "../../board/input/clipboard";
 import { getApiBaseUrl, getGameServerUrl } from "../../config";
 import { refreshLinkedDeck } from "../../decks/planner";
 import { deckToWire, setSelectedDeckId, type SavedDeck } from "../../decks/storage";
@@ -16,7 +17,8 @@ import {
 } from "../../net/api";
 import { gameServerUrlFor, rememberedGameServerUrl, roomServerUrl } from "../../net/gameServer";
 import type { ActiveMatch } from "../../net/activeMatches";
-import { clearMatchResume } from "../../net/matchResume";
+import { isOwnRoom, JOIN_FAILED_MESSAGE, JOIN_TIMEOUT_MS, pickInviteDeck, stashJoinFallback, withTimeout } from "../../net/joinLinks";
+import { clearMatchResume, loadMatchResume } from "../../net/matchResume";
 import { LaunchCancelledError, useDuelSession, type MatchLaunch } from "../../state/DuelSession";
 import { claimMatchRoom, tournamentCreateOptions } from "../../tournaments/playLoop";
 import { clearActiveTournamentMatch, setActiveTournamentMatch } from "../../tournaments/activeTournamentMatch";
@@ -55,6 +57,7 @@ export function useMatchLaunchers(deps: {
   const [friendError, setFriendError] = useState<string | null>(() => readLobbyHandoff(location.state).matchError ?? null);
   const watchStarted = useRef(false);
   const joinStarted = useRef(false);
+  const [ownRoomLink, setOwnRoomLink] = useState<string | null>(null);
 
   function resumeOnThisDevice(m: ActiveMatch) {
     clearMatchResume();
@@ -132,6 +135,7 @@ export function useMatchLaunchers(deps: {
     const launch = {
       status: `Inviting ${friend.username}…`,
       leaderId: selectedDeck.leaderId,
+      deckId: selectedDeck.id,
       invite: true,
       friends: friendsEnabled,
     };
@@ -154,7 +158,7 @@ export function useMatchLaunchers(deps: {
       setFriendError("Select a deck first.");
       return;
     }
-    const launch = { status: `Joining ${invite.from_username}…`, leaderId: selectedDeck.leaderId, invite: false };
+    const launch = { status: `Joining ${invite.from_username}…`, leaderId: selectedDeck.leaderId, deckId: selectedDeck.id, invite: false };
     runFriendAction(launch, async (gen) => {
       const opts = await authOpts();
       try {
@@ -178,7 +182,7 @@ export function useMatchLaunchers(deps: {
       setFriendError("Select a deck first.");
       return;
     }
-    const launch = { status: `Playing ${tp.opponent}…`, leaderId: selectedDeck.leaderId, invite: false };
+    const launch = { status: `Playing ${tp.opponent}…`, leaderId: selectedDeck.leaderId, deckId: selectedDeck.id, invite: false };
     runFriendAction(launch, async (gen) => {
       const claim = await claimMatchRoom(
         () => playTournamentMatch(tp.code, tp.matchId),
@@ -207,7 +211,7 @@ export function useMatchLaunchers(deps: {
   function spectateFriend(friend: Friend) {
     if (!friend.room_id) return;
     const roomId = friend.room_id;
-    runFriendAction({ status: `Connecting to ${friend.username}'s match…`, leaderId: null, invite: false, friends: friendsEnabled }, (gen) =>
+    runFriendAction({ status: `Connecting to ${friend.username}'s match…`, leaderId: null, deckId: null, invite: false, friends: friendsEnabled }, (gen) =>
       connectSpectator(roomId, gen, undefined, friend.server_url),
     );
   }
@@ -218,7 +222,7 @@ export function useMatchLaunchers(deps: {
     if (!watch.roomId || !authChecked || watchStarted.current) return;
     watchStarted.current = true;
     runFriendAction(
-      { status: "Connecting to the match…", leaderId: null, invite: false, friends: friendsEnabled },
+      { status: "Connecting to the match…", leaderId: null, deckId: null, invite: false, friends: friendsEnabled },
       (gen) => connectSpectator(watch.roomId!, gen, watch.seat),
       { replace: true },
     );
@@ -229,12 +233,30 @@ export function useMatchLaunchers(deps: {
   useEffect(() => {
     if (!joinRoomId || !authChecked || !selectedDeck || joinStarted.current) return;
     joinStarted.current = true;
+    if (isOwnRoom(joinRoomId)) {
+      setOwnRoomLink(roomInviteUrl(joinRoomId));
+      return;
+    }
+    if (loadMatchResume()) {
+      // A match is still running here: joining would drop it. Let the player choose from the join sheet.
+      stashJoinFallback(joinRoomId);
+      navigate("/", REPLACE_HISTORY);
+      return;
+    }
     const deck = selectedDeck;
     runFriendAction(
-      { status: "Joining the room…", leaderId: deck.leaderId, invite: false, friends: friendsEnabled },
+      { status: "Joining the room…", leaderId: deck.leaderId, deckId: deck.id, invite: false, friends: friendsEnabled },
       async (gen) => {
-        const opts = await authOpts();
-        await connect({ ...opts, roomId: joinRoomId, deck: deckToWire(await freshDeck(deck)) }, gen);
+        try {
+          const opts = await authOpts();
+          await withTimeout(connect({ ...opts, roomId: joinRoomId, deck: deckToWire(await freshDeck(deck)) }, gen), JOIN_TIMEOUT_MS, () =>
+            void client.disconnect(true),
+          );
+        } catch (e) {
+          if (e instanceof LaunchCancelledError) throw e;
+          stashJoinFallback(joinRoomId);
+          throw new Error(JOIN_FAILED_MESSAGE);
+        }
       },
       REPLACE_HISTORY,
     );
@@ -242,14 +264,14 @@ export function useMatchLaunchers(deps: {
   }, [joinRoomId, authChecked, selectedDeck]);
 
   // Match-over hub "Invite someone else": a fresh private room with the deck just played; the waiting room copies the join link.
-  function openInviteRoom() {
-    if (!selectedDeck) {
+  function openInviteRoom(playedDeckId: string | null) {
+    const deck = pickInviteDeck(decks.decks, playedDeckId, selectedDeck);
+    if (!deck) {
       setFriendError("Select a deck first.");
       return;
     }
-    const deck = selectedDeck;
     runFriendAction(
-      { status: "Opening your room…", leaderId: deck.leaderId, invite: true, inviteLink: true, friends: friendsEnabled },
+      { status: "Opening your room…", leaderId: deck.leaderId, deckId: deck.id, invite: true, inviteLink: true, friends: friendsEnabled },
       async (gen) => {
         const opts = await authOpts();
         const wire = deckToWire(await freshDeck(deck));
@@ -344,6 +366,7 @@ export function useMatchLaunchers(deps: {
                     ? "Opening your room…"
                     : "Joining room…",
           leaderId: mode === "spectate" ? null : picked.leaderId,
+          deckId: mode === "spectate" ? null : picked.id,
           invite: create,
           friends: friendsEnabled,
         },
@@ -389,6 +412,7 @@ export function useMatchLaunchers(deps: {
     friendError,
     watchStarted,
     joinStarted,
+    ownRoomLink,
     confirmSetup,
     resumeOnThisDevice,
     joinInvite,
