@@ -4,11 +4,13 @@ import "./admin.css";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@optcg/ui/tabs";
 import {
   type AdminBots,
+  type AdminClientErrors,
   type AdminHosting,
   type AdminOverview,
   type AdminSeasons,
   type AdminTraffic,
   fetchAdminBots,
+  fetchAdminClientErrors,
   fetchAdminHosting,
   fetchAdminOverview,
   fetchAdminSeasons,
@@ -17,6 +19,7 @@ import {
 import { type AdminTab, type RangeDays, tabsForRole } from "./adminLogic";
 import { Gate, useAdminWho } from "./AdminGate";
 import { BotsTab } from "./BotsTab";
+import { ErrorsTab } from "./ErrorsTab";
 import { EventTab } from "./EventTab";
 import { InstagramTab } from "./InstagramTab";
 import { HostingTab } from "./HostingTab";
@@ -72,6 +75,8 @@ export default function AdminPage() {
   const [trafficDays, setTrafficDays] = useState<RangeDays>(30);
   const traffic = useTabData<AdminTraffic>(current === "traffic", (force) => fetchAdminTraffic(trafficDays, force), trafficDays);
   const hosting = useTabData<AdminHosting>(current === "hosting", fetchAdminHosting);
+  const [errorsDays, setErrorsDays] = useState<RangeDays>(7);
+  const errors = useTabData<AdminClientErrors>(current === "errors", () => fetchAdminClientErrors(errorsDays), errorsDays);
   const seasons = useTabData<AdminSeasons>(current === "seasons", fetchAdminSeasons);
 
   if (who.status === "loading") {
@@ -93,7 +98,7 @@ export default function AdminPage() {
     );
   }
 
-  const tabData = current === "players" ? overview : current === "bots" ? bots : current === "traffic" ? traffic : current === "hosting" ? hosting : current === "seasons" ? seasons : null;
+  const tabData = current === "players" ? overview : current === "bots" ? bots : current === "traffic" ? traffic : current === "hosting" ? hosting : current === "errors" ? errors : current === "seasons" ? seasons : null;
   const refreshing = tabData?.refreshing ?? false;
 
   function body() {
@@ -122,6 +127,10 @@ export default function AdminPage() {
     if (current === "traffic") {
       const d = s.data as AdminTraffic;
       return <TrafficTab data={d} days={trafficDays} onDaysChange={setTrafficDays} stale={refreshing || d.days !== trafficDays} />;
+    }
+    if (current === "errors") {
+      const d = s.data as AdminClientErrors;
+      return <ErrorsTab data={d} days={errorsDays} onDaysChange={setErrorsDays} stale={refreshing || d.days !== errorsDays} />;
     }
     if (current === "seasons") return <SeasonsTab data={s.data as AdminSeasons} onChanged={() => seasons.run(true)} />;
     return <HostingTab data={s.data as AdminHosting} />;

@@ -25,7 +25,10 @@ const room = {
   reconnection: { enabled: true, isReconnecting: false },
   onMessage: () => {},
   onDrop: () => {},
-  onLeave: () => {},
+  leaveCb: null as null | ((code: number) => void),
+  onLeave(cb: (code: number) => void) {
+    room.leaveCb = cb;
+  },
   onError: () => {},
   leave: async () => 1000,
   reconnectCb: null as null | (() => void),
@@ -104,4 +107,86 @@ describe("leaving a match", () => {
     await session!.leave();
     expect(store!.getSnapshot().errorBanner).toBeNull();
   });
+});
+
+describe("a game the server no longer has (#1500)", () => {
+  function mountWithStore() {
+    let session: ReturnType<typeof useDuelSession> | null = null;
+    let store: import("./matchStore").MatchStore | null = null;
+    function Grab() {
+      session = useDuelSession();
+      store = useContext(MatchStoreContext);
+      return null;
+    }
+    renderToStaticMarkup(
+      <DuelSessionProvider>
+        <Grab />
+      </DuelSessionProvider>,
+    );
+    return { session: session!, store: store! };
+  }
+
+  async function joined(bootId: string) {
+    const t = mountWithStore();
+    await t.session.connect({ serverUrl: "https://pool-a.example", gameToken: "t", preferredSeat: 0 }, 0);
+    t.store.dispatch({ type: "bootId", id: bootId });
+    return t;
+  }
+
+  const health = (processId: string) =>
+    vi.stubGlobal("fetch", async () => ({ ok: true, json: async () => ({ processId }) }));
+
+  it("a room that is gone after a restart ends the game as lost instead of leaving a Reconnect button (#1500)", async () => {
+    health("after");
+    const { session, store } = await joined("before");
+    sdkReconnect.mockImplementationOnce(() => Promise.reject(new Error('room "room-1" has been disposed.')));
+    await expect(session.reconnect()).rejects.toThrow(/disposed/);
+    expect(store.getSnapshot()).toMatchObject({ lostGame: true, canReconnect: false, reconnecting: false });
+  });
+
+  it("a room that is gone while the server kept running is not reported as a restart (#1500)", async () => {
+    health("same");
+    const { session, store } = await joined("same");
+    sdkReconnect.mockImplementationOnce(() => Promise.reject(new Error('room "room-1" has been disposed.')));
+    await expect(session.reconnect()).rejects.toThrow();
+    expect(store.getSnapshot().lostGame).toBe(false);
+    expect(store.getSnapshot().errorBanner).toMatch(/no longer running/);
+  });
+
+  it("a connection the SDK gave up on is retried here without a tap, shown as Reconnecting (#1500)", async () => {
+    health("before");
+    const { store } = await joined("before");
+    sdkReconnect.mockImplementation(() => new Promise<never>(() => {}));
+    sdkReconnect.mockClear();
+    room.leaveCb!(1006);
+    await vi.waitFor(() => expect(sdkReconnect).toHaveBeenCalled());
+    expect(store.getSnapshot()).toMatchObject({ reconnecting: true, canReconnect: true, lostGame: false });
+  });
+
+  it("remembers the decks and the bot for a rematch, and keeps them across a reload (#1500)", async () => {
+    sessionStorage.removeItem("optcg.duel.matchResume.v1");
+    health("after");
+    const deck = { leaderId: "ST01-001", deck: ["ST01-002"] };
+    const bot = { level: "hard" as const, deck: { leaderId: "ST01-001", deck: ["ST01-003"] } };
+    const before = mountWithStore();
+    await before.session.connect({ serverUrl: "https://pool-a.example", gameToken: "t", preferredSeat: 0, deck, createOptions: { bot } }, 0);
+    const plan = { deck, bot, opponentName: null };
+    expect(before.store.getSnapshot().rematchPlan).toEqual(plan);
+
+    const reloaded = mountWithStore();
+    sdkReconnect.mockImplementationOnce(() => Promise.reject(new Error('room "room-1" has been disposed.')));
+    expect(await reloaded.session.tryResumeFromStorage()).toBe(false);
+    expect(reloaded.store.getSnapshot()).toMatchObject({ lostGame: true, rematchPlan: plan });
+  });
+
+  it("a dropped network keeps showing Reconnecting and never claims a restart (#1500)", async () => {
+    health("after");
+    const { session, store } = await joined("before");
+    sdkReconnect.mockImplementation(() => Promise.reject(new TypeError("Failed to fetch")));
+    void session.reconnect().catch(() => undefined);
+    await vi.waitFor(() => expect(sdkReconnect.mock.calls.length).toBeGreaterThan(1), { timeout: 5000 });
+    expect(store.getSnapshot()).toMatchObject({ reconnecting: true, lostGame: false, canReconnect: true });
+    await session.leave();
+    sdkReconnect.mockImplementation(() => new Promise<never>(() => {}));
+  }, 10_000);
 });

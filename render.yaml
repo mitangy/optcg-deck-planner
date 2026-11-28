@@ -107,7 +107,6 @@ services:
         - packages/card-core/**
         - packages/duel-protocol/**
         - package.json
-        - package-lock.json
         - render.yaml
     envVars:
       - fromGroup: optcg-duel-shared

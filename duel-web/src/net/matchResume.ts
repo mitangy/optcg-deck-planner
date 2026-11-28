@@ -1,9 +1,15 @@
+import type { RematchPlan } from "../state/connectionLoss";
+
 export type DuelResumeBlob = {
   mode: "duel";
   serverUrl: string;
   roomId: string;
   reconnectionToken: string;
   seat: 0 | 1;
+  /** What a rematch needs if the room is gone when this tab comes back (#1500). */
+  rematchPlan?: RematchPlan | null;
+  /** The game server's process id when this game started, to tell a restart from a game that ended while away (#1500). */
+  bootId?: string | null;
   savedAt: number;
 };
 

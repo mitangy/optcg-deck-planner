@@ -246,6 +246,10 @@ export type AdminSeasonPreviewRow = Schemas["AdminSeasonPreviewRow"];
 export type AdminSeasonPast = Schemas["AdminSeasonPast"];
 export type SeasonResetMode = Schemas["AdminSeasonStartIn"]["mode"];
 
+export type AdminClientErrors = Schemas["AdminClientErrors"];
+export type ClientErrorGroup = Schemas["ClientErrorGroup"];
+export const fetchAdminClientErrors = (days = 7) => call<AdminClientErrors>(`/admin/client-errors?days=${days}`);
+
 export const fetchAdminSeasons = () => call<AdminSeasons>("/admin/seasons");
 export const startAdminSeason = (mode: SeasonResetMode, name: string, confirm: string) =>
   call<Schemas["AdminSeasonStarted"]>("/admin/seasons", {

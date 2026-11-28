@@ -1,7 +1,7 @@
 import { formatMoney } from "@optcg/card-core";
 import type { IgPost, IgReelsCheck, AdminEvent, AdminEventSummary, EventFields, EventFormat, EventPrizeMethod, SignupSource, UploadRow, AdminUser, EventFlag, EventParticipant, ReportRow, EvalGroups, EvalRun, EvalSuite, FeedbackItem, Role, GameCounts, GameMode, AdminUserDetail, AdminUserMatch } from "./adminApi";
 
-export type AdminTab = "players" | "seasons" | "bots" | "traffic" | "hosting" | "event" | "reports" | "uploads" | "instagram" | "users";
+export type AdminTab = "players" | "seasons" | "bots" | "traffic" | "hosting" | "errors" | "event" | "reports" | "uploads" | "instagram" | "users";
 
 export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "players", label: "Players" },
@@ -9,6 +9,7 @@ export const ADMIN_TABS: readonly { id: AdminTab; label: string }[] = [
   { id: "bots", label: "Bots & Log Pose" },
   { id: "traffic", label: "Traffic" },
   { id: "hosting", label: "Hosting" },
+  { id: "errors", label: "Errors" },
   { id: "event", label: "Events" },
   { id: "reports", label: "Reports" },
   { id: "uploads", label: "Uploads" },

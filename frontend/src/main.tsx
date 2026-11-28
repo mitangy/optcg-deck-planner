@@ -4,9 +4,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import { reloadOnStaleChunk, startUpdateChecks } from "@optcg/ui/appShell";
+import { BUILD_SHA, reloadOnStaleChunk, startUpdateChecks } from "@optcg/ui/appShell";
+import { installErrorReporting } from "@optcg/ui/errorReporting";
 import { captureFirstTouch } from "@optcg/ui/firstTouch";
 import { analyticsBeforeSend } from "./app/analytics";
+import { API_URL } from "./apiClient";
 import App from "./app/App";
 import { readMetaSeed, releasePrerenderedRoot } from "./app/prerendered";
 import "@optcg/ui/tokens.css";
@@ -23,6 +25,7 @@ captureFirstTouch();
 startUpdateChecks();
 // A tab opened before a deploy asks for lazy-route chunks that no longer exist: reload instead of a blank page (#1074).
 reloadOnStaleChunk();
+installErrorReporting({ app: "planner", url: `${API_URL}/client-errors`, release: BUILD_SHA });
 
 const queryClient = new QueryClient({
   defaultOptions: {

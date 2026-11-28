@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { PROTOCOL_VERSION, type DiceResult, type DiceStateMessage, type PlayerView, type RematchState, type Seat } from "../net/protocol";
 import { createMatchStore } from "../state/matchStore";
 import { useMatchStore } from "../state/useMatch";
+import { BoardErrorBoundary } from "../board/CrashScreen";
 import { DuelBoard } from "../board/DuelBoard";
+import { GameLostOverlay, ReconnectingPill } from "../board/match/ConnectionStatus";
 import {
   DEMO_BATTLE_LOG,
   DEMO_CHAT,
@@ -29,6 +31,11 @@ function demoRematch(params: URLSearchParams): RematchState {
     declinedBy: null,
     chooser: mode === "choose" ? 0 : null,
   };
+}
+
+// ?crash: the board throws on render, to look at the Reload and rejoin screen.
+function ForcedCrash(): never {
+  throw new Error("Forced crash for the demo");
 }
 
 export function DemoPage() {
@@ -101,6 +108,19 @@ export function DemoPage() {
         >
           {nextMotion ? `Next: ${nextMotion.label}` : "Replay"}
         </button>
+      ) : null}
+      {params.has("crash") ? (
+        <BoardErrorBoundary>
+          <ForcedCrash />
+        </BoardErrorBoundary>
+      ) : null}
+      {params.has("reconnecting") ? <ReconnectingPill /> : null}
+      {params.has("lost") ? (
+        <GameLostOverlay
+          plan={params.get("lost") === "bot" ? { deck: { leaderId: "ST01-001", deck: [] }, bot: { level: "normal", deck: { leaderId: "ST01-001", deck: [] } }, opponentName: null } : null}
+          onRematch={() => undefined}
+          onHome={() => undefined}
+        />
       ) : null}
       <DuelBoard
         key={motionRun}
